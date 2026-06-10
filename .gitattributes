@@ -1,0 +1,13 @@
+# Normalisation des fins de ligne — repo édité sous Windows, buildé/déployé sous Linux.
+* text=auto eol=lf
+
+# Binaires (pas de normalisation)
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.ico  binary

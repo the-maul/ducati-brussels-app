@@ -1,14 +1,102 @@
 /* =====================================================================
    tokens.css — SOURCE DE VÉRITÉ UNIQUE des couleurs, typographies et
-   espacements de l'ERP Ducati Bruxelles.
+   espacements de l'ERP Ducati Bruxelles (CLAUDE.md règle 9 + charte §2-4).
    ---------------------------------------------------------------------
-   STUB — à remplir en EPIC 0 (design system), APRÈS validation du CLAUDE.md.
-   Aucun composant ne doit définir de hex ni de font-family en dur :
-   tout vient d'ici (CLAUDE.md, règle 9 + charte-graphique.md §2-4).
-
-   Contenu attendu en Epic 0 :
-     - @font-face des 8 fontes Ducati Style (/fonts/*.ttf) + JetBrains Mono
-     - variables couleurs   (charte §2 : marque, neutres, sémantique, métier)
-     - variables typo        (charte §3 : familles + échelle)
-     - variables espacement  (charte §4 : échelle 4px, radius, ombres)
+   - Valeurs couleur en oklch (convention Lovable/Tailwind v4) ; le hex
+     d'origine de la charte est rappelé en commentaire pour traçabilité.
+   - AUCUN composant ne redéfinit de hex ni de font-family : tout vient d'ici.
+   - Importé par src/styles.css ; les mappages Tailwind (@theme) y sont faits.
    ===================================================================== */
+
+/* ---------- Fontes Ducati Style (8 fichiers .ttf dans /public/fonts) ---------- */
+@font-face { font-family: 'Ducati Style Ext'; src: url('/fonts/DucatiStyleExt_Rg.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style Ext'; src: url('/fonts/DucatiStyleExt_Bd.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style';     src: url('/fonts/DucatiStyle_Rg.ttf')    format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style';     src: url('/fonts/DucatiStyle_Bd.ttf')    format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style';     src: url('/fonts/DucatiStyle_XBd.ttf')   format('truetype'); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style Cond'; src: url('/fonts/DucatiStyleCond_Rg.ttf')  format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style Cond'; src: url('/fonts/DucatiStyleCond_Bd.ttf')  format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Ducati Style Cond'; src: url('/fonts/DucatiStyleCond_XBd.ttf') format('truetype'); font-weight: 800; font-style: normal; font-display: swap; }
+
+:root {
+  /* =================================================================
+     COULEURS — charte §2 (oklch ; hex d'origine en commentaire)
+     ================================================================= */
+
+  /* ---- Marque (§2.1) ---- */
+  --ducati-red:        oklch(0.553 0.221 25.3);   /* #C8102E — actions primaires, identité, actif */
+  --ducati-red-dark:   oklch(0.475 0.190 24.6);   /* #A50D26 — hover/pressed du rouge */
+  --ducati-red-tint:   oklch(0.957 0.014 17.4);   /* #FBEAED — fond léger : ligne sélectionnée, badge rouge */
+  --ducati-black:      oklch(0.219 0 0);          /* #1A1A1A — texte principal, sidebar */
+  --ducati-anthracite: oklch(0.331 0 0);          /* #343434 — surfaces sombres secondaires */
+
+  /* ---- Neutres (§2.2) ---- */
+  --gray-0:   oklch(1 0 0);        /* #FFFFFF — surfaces de travail */
+  --gray-50:  oklch(0.974 0 0);    /* #F6F6F6 — fond de page, cellule alternée */
+  --gray-100: oklch(0.940 0 0);    /* #ECECEC — séparateurs légers, hover de ligne */
+  --gray-200: oklch(0.886 0 0);    /* #D9D9D9 — bordures inputs/tableaux */
+  --gray-400: oklch(0.677 0 0);    /* #9A9A9A — placeholders, désactivé */
+  --gray-600: oklch(0.452 0 0);    /* #5C5C5C — texte secondaire, labels */
+  --gray-800: oklch(0.286 0 0);    /* #2B2B2B — texte fort secondaire */
+
+  /* ---- Sémantique statuts ERP (§2.3) — distincte du rouge marque ---- */
+  --success:     oklch(0.520 0.123 152);   /* #1E7B3C — validé, payé, en stock, clôturé */
+  --success-bg:  oklch(0.957 0.022 152);   /* #E7F4EB */
+  --warning:     oklch(0.560 0.130 58);    /* #B45309 — attente, stock bas, à relancer */
+  --warning-bg:  oklch(0.963 0.024 75);    /* #FDF1E2 */
+  --danger:      oklch(0.444 0.158 28.5);  /* #99201C — erreur, impayé, rupture, bloqué */
+  --danger-bg:   oklch(0.951 0.014 20);    /* #F9E9E8 */
+  --info:        oklch(0.486 0.114 252);   /* #1D5FA8 — info, en cours, commande fournisseur */
+  --info-bg:     oklch(0.950 0.020 250);   /* #E8F0F9 */
+  --neutral-tag: oklch(0.452 0 0);         /* #5C5C5C — archivé, brouillon */
+  --neutral-bg:  oklch(0.950 0 0);         /* #EFEFEF */
+
+  /* ---- Couleurs métier planning/stock (§2.4) — désaturées ---- */
+  --job-entretien:   oklch(0.585 0.072 245);  /* #4C7FA3 — entretien périodique */
+  --job-reparation:  oklch(0.553 0.080 37);   /* #A35B4C — réparation mécanique */
+  --job-garantie:    oklch(0.531 0.090 295);  /* #6B5CA3 — garantie / rappel */
+  --job-pneus:       oklch(0.625 0.082 162);  /* #4CA379 — pneus / consommables */
+  --job-prepa:       oklch(0.675 0.100 78);   /* #C2913A — préparation VN/VO */
+  --job-carrosserie: oklch(0.560 0 0);        /* #7A7A7A — carrosserie / esthétique */
+
+  /* =================================================================
+     TYPOGRAPHIE — charte §3
+     ================================================================= */
+  /* Familles : nommées --ff-* (les clés Tailwind --font-* sont mappées dans styles.css/@theme). */
+  --ff-display: 'Ducati Style Ext', 'Arial Black', sans-serif;        /* titres modules, login, headers impression */
+  --ff-ui:      'Ducati Style', 'Helvetica Neue', Arial, sans-serif;  /* UI courante */
+  --ff-data:    'Ducati Style Cond', 'Arial Narrow', sans-serif;      /* tableaux, KPI, badges, planning */
+  --ff-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace; /* VIN, réfs, n° docs */
+
+  /* Échelle typographique (taille / interligne / graisse / casse) — charte §3.2 */
+  --text-display: 28px;  --leading-display: 34px;   /* Ext Bd UPPERCASE — titre de module */
+  --text-h1:      22px;  --leading-h1:      28px;   /* UI Bd — titre de page */
+  --text-h2:      17px;  --leading-h2:      24px;   /* UI Bd — sections de formulaire */
+  --text-body:    14px;  --leading-body:    20px;   /* UI Rg — texte courant */
+  --text-label:   12px;  --leading-label:   16px;   /* UI Bd UPPERCASE 0.04em — labels, en-têtes colonnes */
+  --text-data:    13px;  --leading-data:    18px;   /* Cond Rg — cellules de tableaux */
+  --text-kpi:     32px;  --leading-kpi:     36px;   /* Cond XBd — chiffres dashboard */
+  --text-mono:    13px;  --leading-mono:    18px;   /* Mono — VIN, réfs */
+  --text-caption: 11px;  --leading-caption: 14px;   /* UI Rg — méta-infos, horodatage */
+  --tracking-label: 0.04em;
+
+  /* =================================================================
+     ESPACEMENT, RAYONS, OMBRES — charte §4
+     ================================================================= */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-6: 24px; --space-8: 32px; --space-12: 48px;
+
+  --radius-card:   6px;   /* cards, inputs, boutons */
+  --radius-badge:  4px;   /* badges */
+  --radius-print:  0;     /* documents imprimables */
+
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+  /* Layout (charte §4.1) */
+  --topbar-h:           56px;
+  --sidebar-w:          240px;
+  --sidebar-w-collapsed: 64px;
+  --sidebar-active-bar:  3px;   /* barre rouge sur l'item actif */
+  --print-rule:          2px;   /* filet rouge sous l'en-tête des documents */
+}

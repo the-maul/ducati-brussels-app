@@ -1,5 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "./styles/tokens.css";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -59,42 +61,81 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ---- Ducati : statuts sémantiques (charte §2.3) → bg-success, text-danger, … ---- */
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-neutral-tag: var(--neutral-tag);
+  --color-neutral-bg: var(--neutral-bg);
+
+  /* ---- Ducati : couleurs métier planning/stock (charte §2.4) ---- */
+  --color-job-entretien: var(--job-entretien);
+  --color-job-reparation: var(--job-reparation);
+  --color-job-garantie: var(--job-garantie);
+  --color-job-pneus: var(--job-pneus);
+  --color-job-prepa: var(--job-prepa);
+  --color-job-carrosserie: var(--job-carrosserie);
+
+  /* ---- Ducati : familles typographiques (charte §3) → font-sans/display/data/mono ---- */
+  --font-sans: var(--ff-ui);
+  --font-display: var(--ff-display);
+  --font-data: var(--ff-data);
+  --font-mono: var(--ff-mono);
 }
 
+/* Mappage shadcn → palette Ducati (valeurs réelles dans styles/tokens.css). */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --radius: 0.375rem; /* 6px — charte §4.1 (plafond 8px) */
+
+  /* Surfaces & texte (charte §2.2) */
+  --background: var(--gray-50);          /* fond de la zone de travail */
+  --foreground: var(--ducati-black);     /* texte principal */
+  --card: var(--gray-0);                 /* surfaces blanches : cards, tableaux */
+  --card-foreground: var(--ducati-black);
+  --popover: var(--gray-0);
+  --popover-foreground: var(--ducati-black);
+
+  /* Primaire = rouge Ducati — actions primaires / identité UNIQUEMENT (charte §1) */
+  --primary: var(--ducati-red);
+  --primary-foreground: var(--gray-0);
+
+  --secondary: var(--gray-0);            /* boutons secondaires : fond blanc + bordure */
+  --secondary-foreground: var(--ducati-black);
+  --muted: var(--gray-100);
+  --muted-foreground: var(--gray-600);
+  --accent: var(--gray-100);             /* hover ghost / lignes */
+  --accent-foreground: var(--ducati-black);
+
+  /* Destructive = danger sémantique, distinct du rouge marque (charte §2.3) */
+  --destructive: var(--danger);
+  --destructive-foreground: var(--gray-0);
+
+  --border: var(--gray-200);
+  --input: var(--gray-200);
+  --ring: var(--ducati-red);             /* focus ring teinté rouge (charte §5.2) */
+
+  /* Graphiques — série principale rouge, secondaires gris/info (charte §5.5) */
+  --chart-1: var(--ducati-red);
+  --chart-2: var(--info);
+  --chart-3: var(--gray-600);
+  --chart-4: var(--gray-400);
+  --chart-5: var(--warning);
+
+  /* Sidebar = noir Ducati, item actif rouge (charte §4.1) */
+  --sidebar: var(--ducati-black);
+  --sidebar-foreground: var(--gray-0);
+  --sidebar-primary: var(--ducati-red);
+  --sidebar-primary-foreground: var(--gray-0);
+  --sidebar-accent: var(--ducati-anthracite);   /* #343434 — hover/actif */
+  --sidebar-accent-foreground: var(--gray-0);
+  --sidebar-border: var(--ducati-anthracite);
+  --sidebar-ring: var(--ducati-red);
 }
 
 .dark {
@@ -140,5 +181,20 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);              /* Ducati Style */
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Charte §3 : chiffres tabulaires partout (montants alignés) */
+  table, .tnum, [data-tnum] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Codes (VIN, réfs, n° docs) en mono, charte §3.1 */
+  code, kbd, samp, .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 }
