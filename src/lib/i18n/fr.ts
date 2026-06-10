@@ -90,6 +90,20 @@ export const fr = {
     part_ordered: 'En commande',
   },
 
+  // Authentification (M0)
+  auth: {
+    loginTitle: 'Connexion',
+    email: 'E-mail',
+    password: 'Mot de passe',
+    signIn: 'Se connecter',
+    signingIn: 'Connexion…',
+    signOut: 'Se déconnecter',
+    invalidCredentials: 'E-mail ou mot de passe incorrect.',
+    genericError: 'Connexion impossible. Réessayez.',
+    noAccess: 'Votre compte n’est rattaché à aucune société. Contactez un administrateur.',
+    redirecting: 'Redirection…',
+  },
+
   // Rôles (M0)
   role: {
     admin: 'Administrateur',

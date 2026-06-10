@@ -5,8 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { useState } from 'react';
-import { PanelLeft, Bell, Building2, ChevronDown, CircleUser } from 'lucide-react';
+import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,33 +15,59 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { GlobalSearch } from '@/components/global-search';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
-const COMPANIES = [
-  { id: 'italbike', labelKey: 'company.italbike' },
-  { id: 'nlinvest', labelKey: 'company.nlinvest' },
-] as const;
-
 function CompanySwitcher() {
-  const [active, setActive] = useState<(typeof COMPANIES)[number]['id']>('italbike');
-  const current = COMPANIES.find((c) => c.id === active)!;
+  const { companies, activeCompany, setActiveCompany } = useAuth();
+  if (companies.length === 0) return null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-accent">
         <Building2 className="size-4 shrink-0 text-muted-foreground" />
-        <span className="hidden max-w-40 truncate sm:inline">{t(current.labelKey)}</span>
+        <span className="hidden max-w-40 truncate sm:inline">{activeCompany?.name ?? '—'}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t('company.switch')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {COMPANIES.map((c) => (
-          <DropdownMenuItem key={c.id} onSelect={() => setActive(c.id)}>
+        {companies.map((c) => (
+          <DropdownMenuItem key={c.id} onSelect={() => setActiveCompany(c.id)}>
             <Building2 className="size-4" />
-            {t(c.labelKey)}
+            {c.name}
           </DropdownMenuItem>
         ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function UserMenu() {
+  const { profile, user, signOut, rolesForActiveCompany } = useAuth();
+  const name = profile?.full_name || profile?.email || user?.email || '—';
+  const topRole = rolesForActiveCompany[0];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
+        aria-label={name}
+      >
+        <CircleUser className="size-6" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-52">
+        <DropdownMenuLabel className="flex flex-col">
+          <span className="truncate">{name}</span>
+          {topRole && (
+            <span className="text-[11px] font-normal text-muted-foreground">{t(`role.${topRole}`)}</span>
+          )}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void signOut()}>
+          <LogOut className="size-4" />
+          {t('auth.signOut')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -74,19 +99,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <Bell className="size-5" />
       </button>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
-          aria-label="Utilisateur"
-        >
-          <CircleUser className="size-6" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{t('app.name')}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>{t('nav.settings')}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <UserMenu />
     </header>
   );
 }
