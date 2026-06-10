@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -12,7 +12,7 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  public: {
+  graphql_public: {
     Tables: {
       [_ in never]: never
     }
@@ -20,10 +20,268 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  public: {
+    Tables: {
+      companies: {
+        Row: {
+          address: string | null
+          city: string | null
+          code: string
+          country: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          legal_name: string | null
+          name: string
+          updated_at: string
+          vat_number: string | null
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          code: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          legal_name?: string | null
+          name: string
+          updated_at?: string
+          vat_number?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          code?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          legal_name?: string | null
+          name?: string
+          updated_at?: string
+          vat_number?: string | null
+          zip?: string | null
+        }
+        Relationships: []
+      }
+      document_sequences: {
+        Row: {
+          company_id: string
+          current_year: number | null
+          doc_type: string
+          id: string
+          label: string
+          next_value: number
+          padding: number
+          prefix: string
+          reset_yearly: boolean
+          separator: string
+          suffix: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          current_year?: number | null
+          doc_type: string
+          id?: string
+          label: string
+          next_value?: number
+          padding?: number
+          prefix: string
+          reset_yearly?: boolean
+          separator?: string
+          suffix?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          current_year?: number | null
+          doc_type?: string
+          id?: string
+          label?: string
+          next_value?: number
+          padding?: number
+          prefix?: string
+          reset_yearly?: boolean
+          separator?: string
+          suffix?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_sequences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          company_id: string | null
+          entity_id: string | null
+          entity_type: string
+          id: number
+          new_data: Json | null
+          occurred_at: string
+          old_data: Json | null
+          origin: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          company_id?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          origin?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          company_id?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          origin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          default_company_id: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          is_active: boolean
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_company_id?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_company_id?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_company_id_fkey"
+            columns: ["default_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          company_id: string
+          created_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      has_role: {
+        Args: {
+          _company: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _company: string }; Returns: boolean }
+      is_member: { Args: { _company: string }; Returns: boolean }
+      next_document_number: {
+        Args: { _company: string; _doc_type: string }
+        Returns: string
+      }
+    }
+    Enums: {
+      app_role:
+        | "admin"
+        | "vendeur"
+        | "magasinier"
+        | "mecanicien"
+        | "chef_atelier"
+        | "comptable"
+        | "marketing"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -149,7 +407,20 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  public: {
+  graphql_public: {
     Enums: {},
+  },
+  public: {
+    Enums: {
+      app_role: [
+        "admin",
+        "vendeur",
+        "magasinier",
+        "mecanicien",
+        "chef_atelier",
+        "comptable",
+        "marketing",
+      ],
+    },
   },
 } as const

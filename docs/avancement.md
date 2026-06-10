@@ -43,16 +43,19 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | Navigation complète des 10 modules (placeholders) | ✅ | sidebar |
 | Contraste AA vérifié | ⬜ | à valider |
 
-### Socle M0 (Supabase)
+### Socle M0 (Supabase) — migration `20260610090000_m0_socle.sql` **appliquée en live**
 | Réf | Élément | Statut |
 |---|---|---|
-| COM005 | Multi-société (`companies`, `company_id` partout) | 🟦 |
-| — | Auth + rôles (enum app_role) + RLS + helpers | 🟦 |
-| B7 | Audit universel `events` (append-only) | 🟦 |
-| B7 | `stock_moves` / `price_changes` append-only (stock = somme) | ⬜ |
-| — | Séquences documentaires configurables (FAC-, OR-, …) | ⬜ |
+| COM005 | Multi-société (`companies` ITALBIKE+NL INVEST, `company_id`) | ✅ |
+| — | Rôles (enum app_role) + RLS + helpers `has_role/is_member/is_admin` | ✅ |
+| — | `profiles` + création auto à l'inscription (`handle_new_user`) | ✅ |
+| B7 | Audit universel `events` (append-only, update/delete révoqués) | ✅ |
+| — | Séquences documentaires configurables + `next_document_number()` | ✅ |
+| — | Types TS régénérés depuis le schéma live (`types.ts`) | ✅ |
+| — | Auth : écran de connexion par rôle + bascule société (UI) | ⬜ |
+| B7 | `stock_moves` / `price_changes` append-only (stock = somme) | ⬜ (M5) |
 | — | Recherche globale branchée sur la base (VIN/client/réf/doc) | ⬜ |
-| — | Seed : 2 sociétés, 20 clients, 300 articles, 12 véhicules, 5 OR | ⬜ |
+| — | Seed : 2 sociétés ✅, 20 clients, 300 articles, 12 véhicules, 5 OR | ⬜ |
 
 ---
 
