@@ -90,6 +90,8 @@ function UsersAdmin() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['org-users'],
     queryFn: () => listOrgUsers(),
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -119,7 +121,10 @@ function UsersAdmin() {
 
       {isLoading && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       {error && (
-        <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('users.errorLoad')}</p>
+        <div className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">
+          <p>{t('users.errorLoad')}</p>
+          <p className="mt-1 font-mono text-[11px] opacity-80">{(error as Error).message}</p>
+        </div>
       )}
 
       {data && (

@@ -10,11 +10,13 @@
  * Quand le NL sera ajouté : créer src/lib/i18n/nl.ts (mêmes clés),
  * exposer un état de locale et faire pointer `dict` dessus.
  */
-import { fr } from './fr';
+import { fr, type Dictionary } from './fr';
 
 export type Locale = 'fr' | 'nl';
 
-const dictionaries: Record<Locale, typeof fr> = { fr, nl: fr };
+// NL aliasé sur FR en attendant la traduction (charte §8). Évite l'erreur de
+// typage à l'indexation par Locale et garde la structure prête pour le NL.
+const dictionaries: Record<Locale, Dictionary> = { fr, nl: fr };
 
 // Locale active. NL viendra plus tard (Bruxelles, charte §8).
 let currentLocale: Locale = 'fr';

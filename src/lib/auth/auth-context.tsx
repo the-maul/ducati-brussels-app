@@ -76,23 +76,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      if (data.session?.user) await loadProfileData(data.session.user.id);
-      if (mounted) setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        if (data.session?.user) {
+          try {
+            await loadProfileData(data.session.user.id);
+          } catch (e) {
+            console.error('[auth] chargement profil', e);
+          }
+        }
+      })
+      .catch((e) => console.error('[auth] getSession', e))
+      .finally(() => {
+        // loading se résout TOUJOURS, même en cas d'erreur (sinon spinner infini).
+        if (mounted) setLoading(false);
+      });
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, sess) => {
       setSession(sess);
       if (sess?.user) {
-        await loadProfileData(sess.user.id);
+        try {
+          await loadProfileData(sess.user.id);
+        } catch (e) {
+          console.error('[auth] chargement profil', e);
+        }
       } else {
         setProfile(null);
         setRoles([]);
         setCompanies([]);
         setActiveCompanyId(null);
       }
+      if (mounted) setLoading(false);
     });
 
     return () => {
