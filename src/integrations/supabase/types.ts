@@ -39,6 +39,277 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_barcodes: {
+        Row: {
+          article_id: string
+          barcode: string
+          created_at: string
+          id: string
+          is_primary: boolean
+        }
+        Insert: {
+          article_id: string
+          barcode: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Update: {
+          article_id?: string
+          barcode?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_barcodes_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_categories: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "article_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_kit_items: {
+        Row: {
+          component_id: string
+          created_at: string
+          id: string
+          kit_id: string
+          quantity: number
+        }
+        Insert: {
+          component_id: string
+          created_at?: string
+          id?: string
+          kit_id: string
+          quantity?: number
+        }
+        Update: {
+          component_id?: string
+          created_at?: string
+          id?: string
+          kit_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_kit_items_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_kit_items_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_suppliers: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          purchase_price: number | null
+          supplier_id: string
+          supplier_ref: string | null
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          purchase_price?: number | null
+          supplier_id: string
+          supplier_ref?: string | null
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          purchase_price?: number | null
+          supplier_id?: string
+          supplier_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_suppliers_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      articles: {
+        Row: {
+          bin_location: string | null
+          brand: string | null
+          category_id: string | null
+          category_path: string | null
+          coefficient: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          designation: string
+          equivalence_group: string | null
+          id: string
+          is_active: boolean
+          is_library: boolean
+          main_supplier_id: string | null
+          mgmt_type: Database["public"]["Enums"]["article_mgmt_type"]
+          pack_qty: number
+          pamp: number
+          publishable: boolean
+          purchase_price: number
+          reference: string
+          sale_price_ttc: number
+          stock_max: number
+          stock_min: number
+          superseded_by_id: string | null
+          supplier_ref: string | null
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          bin_location?: string | null
+          brand?: string | null
+          category_id?: string | null
+          category_path?: string | null
+          coefficient?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          designation: string
+          equivalence_group?: string | null
+          id?: string
+          is_active?: boolean
+          is_library?: boolean
+          main_supplier_id?: string | null
+          mgmt_type?: Database["public"]["Enums"]["article_mgmt_type"]
+          pack_qty?: number
+          pamp?: number
+          publishable?: boolean
+          purchase_price?: number
+          reference: string
+          sale_price_ttc?: number
+          stock_max?: number
+          stock_min?: number
+          superseded_by_id?: string | null
+          supplier_ref?: string | null
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          bin_location?: string | null
+          brand?: string | null
+          category_id?: string | null
+          category_path?: string | null
+          coefficient?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          designation?: string
+          equivalence_group?: string | null
+          id?: string
+          is_active?: boolean
+          is_library?: boolean
+          main_supplier_id?: string | null
+          mgmt_type?: Database["public"]["Enums"]["article_mgmt_type"]
+          pack_qty?: number
+          pamp?: number
+          publishable?: boolean
+          purchase_price?: number
+          reference?: string
+          sale_price_ttc?: number
+          stock_max?: number
+          stock_min?: number
+          superseded_by_id?: string | null
+          supplier_ref?: string | null
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "article_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_main_supplier_id_fkey"
+            columns: ["main_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_superseded_by_id_fkey"
+            columns: ["superseded_by_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -419,6 +690,7 @@ export type Database = {
         | "chef_atelier"
         | "comptable"
         | "marketing"
+      article_mgmt_type: "A" | "M" | "F" | "N" | "V" | "O" | "P" | "D" | "R"
       contact_type:
         | "particulier"
         | "professionnel"
@@ -565,6 +837,7 @@ export const Constants = {
         "comptable",
         "marketing",
       ],
+      article_mgmt_type: ["A", "M", "F", "N", "V", "O", "P", "D", "R"],
       contact_type: [
         "particulier",
         "professionnel",

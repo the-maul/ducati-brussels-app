@@ -13,7 +13,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | Epic | Périmètre | Statut |
 |---|---|---|
 | **E0 — Socle + design system** (M0) | schéma socle, auth/RLS, multi-société, events, séquences, recherche globale, **design system** | ✅ (validé en local) |
-| E1 — Contacts + Articles (M1, M2) | M1 fiche client (moto/B2B/drapeaux/segments) ✅ build+routing · M2 à venir | 🟦 en cours |
+| E1 — Contacts + Articles (M1, M2) | M1 fiche client ✅ · M2 articles (types A–R, prix/PAMP/coef, casiers, fournisseurs, kits) ✅ CRUD · reste : moteur d'import tarifs + équivalences UI | 🟦 en cours |
 | E2 — Véhicules (M3) | — | ⬜ |
 | E3 — Achats & réceptions (M4) | — | ⬜ |
 | E4 — Stock & inventaire (M5) | — | ⬜ |
