@@ -35,8 +35,10 @@ type FormState = {
   email: string;
   phone: string;
   mobile: string;
+  gsm: string;
   address: string;
   address_complement: string;
+  address_complement2: string;
   po_box: string;
   zip: string;
   city: string;
@@ -84,8 +86,10 @@ function fromContact(c: Contact | null): FormState {
     email: c?.email ?? '',
     phone: c?.phone ?? '',
     mobile: c?.mobile ?? '',
+    gsm: c?.gsm ?? '',
     address: c?.address ?? '',
     address_complement: c?.address_complement ?? '',
+    address_complement2: c?.address_complement2 ?? '',
     po_box: c?.po_box ?? '',
     zip: c?.zip ?? '',
     city: c?.city ?? '',
@@ -137,8 +141,10 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     email: nn(f.email),
     phone: nn(f.phone),
     mobile: nn(f.mobile),
+    gsm: nn(f.gsm),
     address: nn(f.address),
     address_complement: nn(f.address_complement),
+    address_complement2: nn(f.address_complement2),
     po_box: nn(f.po_box),
     zip: nn(f.zip),
     city: nn(f.city),
@@ -230,6 +236,8 @@ export function ContactForm({
             <SelectContent>
               <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
               <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
+              <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
+              <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -259,6 +267,9 @@ export function ContactForm({
         <Field label={t('contacts.mobile')}>
           <Input value={f.mobile} onChange={(e) => set('mobile', e.target.value)} />
         </Field>
+        <Field label={t('contacts.gsm')}>
+          <Input value={f.gsm} onChange={(e) => set('gsm', e.target.value)} />
+        </Field>
       </Section>
 
       {/* Adresse */}
@@ -268,6 +279,9 @@ export function ContactForm({
         </Field>
         <Field label={t('contacts.addressComplement')}>
           <Input value={f.address_complement} onChange={(e) => set('address_complement', e.target.value)} />
+        </Field>
+        <Field label={t('contacts.addressComplement2')}>
+          <Input value={f.address_complement2} onChange={(e) => set('address_complement2', e.target.value)} />
         </Field>
         <Field label={t('contacts.zip')}>
           <Input value={f.zip} onChange={(e) => set('zip', e.target.value)} />

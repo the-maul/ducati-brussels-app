@@ -261,6 +261,10 @@ export type Database = {
           origin_reference_id: string | null
           pack_qty: number
           pamp: number
+          ppc_ht: number | null
+          ppc_ttc: number | null
+          price_purchase_locked: boolean
+          price_sale_locked: boolean
           publishable: boolean
           purchase_account: string | null
           purchase_price: number
@@ -312,6 +316,10 @@ export type Database = {
           origin_reference_id?: string | null
           pack_qty?: number
           pamp?: number
+          ppc_ht?: number | null
+          ppc_ttc?: number | null
+          price_purchase_locked?: boolean
+          price_sale_locked?: boolean
           publishable?: boolean
           purchase_account?: string | null
           purchase_price?: number
@@ -363,6 +371,10 @@ export type Database = {
           origin_reference_id?: string | null
           pack_qty?: number
           pamp?: number
+          ppc_ht?: number | null
+          ppc_ttc?: number | null
+          price_purchase_locked?: boolean
+          price_sale_locked?: boolean
           publishable?: boolean
           purchase_account?: string | null
           purchase_price?: number
@@ -485,6 +497,7 @@ export type Database = {
           accounting_account: string | null
           address: string | null
           address_complement: string | null
+          address_complement2: string | null
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
@@ -502,6 +515,7 @@ export type Database = {
           email: string | null
           factoring_code: string | null
           first_name: string | null
+          gsm: string | null
           iban: string | null
           id: string
           interests: string[]
@@ -544,6 +558,7 @@ export type Database = {
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null
+          address_complement2?: string | null
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
@@ -561,6 +576,7 @@ export type Database = {
           email?: string | null
           factoring_code?: string | null
           first_name?: string | null
+          gsm?: string | null
           iban?: string | null
           id?: string
           interests?: string[]
@@ -603,6 +619,7 @@ export type Database = {
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null
+          address_complement2?: string | null
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
@@ -620,6 +637,7 @@ export type Database = {
           email?: string | null
           factoring_code?: string | null
           first_name?: string | null
+          gsm?: string | null
           iban?: string | null
           id?: string
           interests?: string[]
@@ -877,7 +895,7 @@ export type Database = {
         | "D"
         | "R"
         | "T"
-      contact_status: "prospect" | "client"
+      contact_status: "prospect" | "client" | "client_piece" | "client_atelier"
       contact_type:
         | "particulier"
         | "professionnel"
@@ -1027,7 +1045,7 @@ export const Constants = {
         "marketing",
       ],
       article_mgmt_type: ["A", "M", "F", "N", "V", "O", "P", "D", "R", "T"],
-      contact_status: ["prospect", "client"],
+      contact_status: ["prospect", "client", "client_piece", "client_atelier"],
       contact_type: [
         "particulier",
         "professionnel",

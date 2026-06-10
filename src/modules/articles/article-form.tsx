@@ -37,10 +37,14 @@ type FormState = {
   pamp: string;
   sale_price_ht: string;
   sale_price_ttc: string;
+  ppc_ht: string;
+  ppc_ttc: string;
   coefficient: string;
   vat_rate: string;
   eco_tax_ttc: string;
   deee: boolean;
+  price_purchase_locked: boolean;
+  price_sale_locked: boolean;
   sales_account: string;
   purchase_account: string;
   kit_billing_mode: KitBillingMode | '';
@@ -73,10 +77,14 @@ function fromArticle(a: Article | null): FormState {
     pamp: a ? s(a.pamp) : '0',
     sale_price_ht: s(a?.sale_price_ht),
     sale_price_ttc: a ? s(a.sale_price_ttc) : '0',
+    ppc_ht: s(a?.ppc_ht),
+    ppc_ttc: s(a?.ppc_ttc),
     coefficient: s(a?.coefficient),
     vat_rate: a ? s(a.vat_rate) : '21',
     eco_tax_ttc: a ? s(a.eco_tax_ttc) : '0',
     deee: a?.deee ?? false,
+    price_purchase_locked: a?.price_purchase_locked ?? false,
+    price_sale_locked: a?.price_sale_locked ?? false,
     sales_account: a?.sales_account ?? '',
     purchase_account: a?.purchase_account ?? '',
     kit_billing_mode: a?.kit_billing_mode ?? '',
@@ -114,10 +122,14 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     pamp: num(f.pamp),
     sale_price_ht: nnum(f.sale_price_ht),
     sale_price_ttc: num(f.sale_price_ttc),
+    ppc_ht: nnum(f.ppc_ht),
+    ppc_ttc: nnum(f.ppc_ttc),
     coefficient: nnum(f.coefficient),
     vat_rate: num(f.vat_rate, 21),
     eco_tax_ttc: num(f.eco_tax_ttc),
     deee: f.deee,
+    price_purchase_locked: f.price_purchase_locked,
+    price_sale_locked: f.price_sale_locked,
     sales_account: nn(f.sales_account),
     purchase_account: nn(f.purchase_account),
     kit_billing_mode: f.kit_billing_mode === '' ? null : f.kit_billing_mode,
@@ -231,14 +243,22 @@ export function ArticleForm({
         <Field label={t('articles.salePriceHt')}>
           <NumInput value={f.sale_price_ht} onChange={(v) => set('sale_price_ht', v)} step="0.01" />
         </Field>
+        <Field label={t('articles.ppcHt')}>
+          <NumInput value={f.ppc_ht} onChange={(v) => set('ppc_ht', v)} step="0.01" />
+        </Field>
+        <Field label={t('articles.ppcTtc')}>
+          <NumInput value={f.ppc_ttc} onChange={(v) => set('ppc_ttc', v)} step="0.01" />
+        </Field>
         <Field label={t('articles.vatRate')}>
           <NumInput value={f.vat_rate} onChange={(v) => set('vat_rate', v)} step="0.1" />
         </Field>
         <Field label={t('articles.ecoTaxTtc')}>
           <NumInput value={f.eco_tax_ttc} onChange={(v) => set('eco_tax_ttc', v)} step="0.01" />
         </Field>
-        <div className="col-span-full">
+        <div className="col-span-full flex flex-wrap gap-4">
           <Check label={t('articles.deee')} checked={f.deee} onChange={(v) => set('deee', v)} />
+          <Check label={t('articles.priceLockPurchase')} checked={f.price_purchase_locked} onChange={(v) => set('price_purchase_locked', v)} />
+          <Check label={t('articles.priceLockSale')} checked={f.price_sale_locked} onChange={(v) => set('price_sale_locked', v)} />
         </div>
       </Section>
 

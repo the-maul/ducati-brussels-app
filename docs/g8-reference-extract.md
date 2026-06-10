@@ -66,6 +66,58 @@ nb de cylindres, autonomie, n° batterie, **TPMS AV/AR**.
 Infos suppl. : **date de mise en circulation**, **date prochain CT**, kilométrage, nombre d'heures,
 **n° de clé ×2**, **code antidémarrage**, année modèle, **n° livre de police**, garantie + **fin garantie**.
 
+## Compléments issus des captures `infos app/` (37 écrans G8)
+
+### M1 — encore à compléter
+- **Statut à 4 valeurs** : `Client pièce` / `Client atelier` / `Client` / `Prospect` (pas seulement prospect/client).
+- **3 téléphones** : Téléphone / Portable / **GSM** (on n'a que phone+mobile).
+- **Adresse éclatée** : N° rue, Rue, **Complément**, **Complément 2**, Boîte postale (2 lignes de complément).
+- **Civilité = entité paramétrable** portant le flag **Professionnel** (SPRL/SA/ASBL… ⇒ B2B). Table M0.
+- **Adresse de livraison séparée** (sous-objet — à faire avec M6/M9).
+- **Catégorie INTERNET** (origine e-shop) en plus de GENERAL.
+- Date de création (auto). Véhicules rattachés affichés sur la fiche (lien M3).
+
+### M2 — encore à compléter
+- **P.P.C. HT / P.P.C. TTC** (prix public conseillé constructeur, distinct du PV pratiqué).
+- **Prix achat bloqué / Prix vente bloqué** (verrouillage tarif).
+- Confirmé déjà couvert : conditionnement, remplacement (`superseded_by`), rayon/sous-rayon/cat,
+  flag e-shop (`publishable`), dates dernier achat/vente, fournisseur+réf.
+- Marque **typée** (Produit fini / Pneumatique / pièce) — table Marques M0.
+- Pseudo-articles préfixés `*` (services : `*1CG` carte grise, `*REPMOTO` reprise) + suffixe `OCC`.
+
+### M0 — tables de paramètres G8 à prévoir (écran « Tables »)
+Taux TVA (01=21%, 04=intracom, 05=export…), Modes de règlement (dont **REPRISE MOTO**, visible-caisse O/N),
+Conditions de règlement, **Types de cession** (CESSION VO/VN, besoin atelier, vol/casse, garantie
+fourn./magasin, geste commercial — comptabilisée O/N → cessions internes B10), Catégorie client,
+**Civilités** (flag pro), **Marques** (typées), Opérations atelier (checklist), Tailles, Couleurs,
+**Tâches atelier hors facturation** (productivité B11), **Catégorie produit fini** (gammes Ducati :
+Panigale/Monster/Multistrada/Scrambler/DesertX…), Code exposition, Pays, Organisme de financement,
+**Cabinets d'assurance**, **Experts assurance**, Nature produit fini, Entête remises en banque,
+Mouvement fond de caisse.
+
+### M3 / M8 — fiche véhicule & OR (captures Parc + OR)
+Parc : états **VENDU NEUF / RÉPARÉ / VENDU D'OCCASION** + filtres En stock/En commande/Repris ;
+**N° livre de police**, **marquage** antivol, code expo, **QR MyMeca / www.MyMeca.info**, châssis,
+n° clé, 1ère M.C. OR : onglets **Produit fini / Assurance / Garantie** ; champs alignés **carte grise
+belge** (repères A/B/D.1/E/P.1/P.2/P.3/V.9), case **Bridé** (A2), **GPS/PIN Tracker**, **TPMS AV/AR**,
+kilométrage **N.C./Réel/N.G.**, fin garantie, année modèle. **Planning** hebდo par compagnon avec
+**taux de charge %** (B11).
+
+### M4 — fournisseurs (capture Gestion fournisseurs)
+Code, raison sociale, ville/pays, tel/tel2/fax, email, **compte comptable**, contact, **franco de port**,
+**minimum de commande (montant + quantité)**, **N° client achat** (notre n° chez le fournisseur).
+Canal **DUCATI WEST EUROPE** = source DCS (aucun écran d'export DCS capturé → à confirmer client).
+
+### M6 — types de documents de vente (menu Ventes)
+**Express** (vente rapide), **Facture**, **Réservation/Commande**, **Livraison BL**, **Proforma/Devis**,
+**Réparation OR**, **Acompte direct** ; chaque type a son « Rappel » (reprise). Encaissements : multi-échéances,
+multi-modes, **TPE**, **ouverture tiroir**, rendu monnaie, paiement partiel. Édition de **chèque** fournisseur.
+
+### M12/M13 — journaux (capture Journaux ventes/encaissements)
+Journaux paramétrables : liste factures (+règlements), encaissements par mode/famille/opérateur, récap
+journée/mois, journal de caisse, **ventilation TVA** simplifiée/par famille, ventilation mensuelle,
+détail ventes par référence, historique recette caisse. Option éditer marges. Récap par facture (HT/TTC/TVA).
+
 ## M5 — STOCK (manuel Stock) — pour Epic 4
 
 Triple stock (réel/arrêté/disponible) + copies datées (15 et fin de mois). **Arrêté d'inventaire** :
