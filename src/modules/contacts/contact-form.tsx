@@ -14,7 +14,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
-import type { Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory } from './api';
+import type {
+  Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
+} from './api';
 
 const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'route', labelKey: 'contacts.interestRoute' },
@@ -24,6 +26,8 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
 
 type FormState = {
   type: ContactType;
+  status: ContactStatus;
+  code: string;
   civility: string;
   first_name: string;
   last_name: string;
@@ -32,9 +36,12 @@ type FormState = {
   phone: string;
   mobile: string;
   address: string;
+  address_complement: string;
+  po_box: string;
   zip: string;
   city: string;
   country: string;
+  address_mismatch: boolean;
   birth_date: string;
   national_id: string;
   national_register: string;
@@ -43,14 +50,24 @@ type FormState = {
   license_place: string;
   license_category: LicenseCategory | '';
   vat_number: string;
+  sale_vat_type: SaleVatType;
   payment_terms: string;
   iban: string;
+  bic: string;
+  domiciliation: string;
+  factoring_code: string;
+  accounting_account: string;
   credit_limit: string;
   segment: CustomerSegment;
+  price_list: string;
+  category: string;
   is_vip: boolean;
   is_detaxe: boolean;
   is_watch: boolean;
   is_account: boolean;
+  is_blocked: boolean;
+  mode_ht: boolean;
+  marketing_opt_out: boolean;
   interests: string[];
   notes: string;
 };
@@ -58,6 +75,8 @@ type FormState = {
 function fromContact(c: Contact | null): FormState {
   return {
     type: c?.type ?? 'particulier',
+    status: c?.status ?? 'prospect',
+    code: c?.code ?? '',
     civility: c?.civility ?? '',
     first_name: c?.first_name ?? '',
     last_name: c?.last_name ?? '',
@@ -66,9 +85,12 @@ function fromContact(c: Contact | null): FormState {
     phone: c?.phone ?? '',
     mobile: c?.mobile ?? '',
     address: c?.address ?? '',
+    address_complement: c?.address_complement ?? '',
+    po_box: c?.po_box ?? '',
     zip: c?.zip ?? '',
     city: c?.city ?? '',
     country: c?.country ?? 'BE',
+    address_mismatch: c?.address_mismatch ?? false,
     birth_date: c?.birth_date ?? '',
     national_id: c?.national_id ?? '',
     national_register: c?.national_register ?? '',
@@ -77,14 +99,24 @@ function fromContact(c: Contact | null): FormState {
     license_place: c?.license_place ?? '',
     license_category: c?.license_category ?? '',
     vat_number: c?.vat_number ?? '',
+    sale_vat_type: c?.sale_vat_type ?? 'national',
     payment_terms: c?.payment_terms ?? '',
     iban: c?.iban ?? '',
+    bic: c?.bic ?? '',
+    domiciliation: c?.domiciliation ?? '',
+    factoring_code: c?.factoring_code ?? '',
+    accounting_account: c?.accounting_account ?? '',
     credit_limit: c?.credit_limit != null ? String(c.credit_limit) : '',
     segment: c?.segment ?? 'standard',
+    price_list: c?.price_list ?? '',
+    category: c?.category ?? '',
     is_vip: c?.is_vip ?? false,
     is_detaxe: c?.is_detaxe ?? false,
     is_watch: c?.is_watch ?? false,
     is_account: c?.is_account ?? false,
+    is_blocked: c?.is_blocked ?? false,
+    mode_ht: c?.mode_ht ?? false,
+    marketing_opt_out: c?.marketing_opt_out ?? false,
     interests: c?.interests ?? [],
     notes: c?.notes ?? '',
   };
@@ -96,6 +128,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
   return {
     company_id: companyId,
     type: f.type,
+    status: f.status,
+    code: nn(f.code),
     civility: nn(f.civility),
     first_name: nn(f.first_name),
     last_name: nn(f.last_name),
@@ -104,9 +138,12 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     phone: nn(f.phone),
     mobile: nn(f.mobile),
     address: nn(f.address),
+    address_complement: nn(f.address_complement),
+    po_box: nn(f.po_box),
     zip: nn(f.zip),
     city: nn(f.city),
     country: nn(f.country) ?? 'BE',
+    address_mismatch: f.address_mismatch,
     birth_date: nn(f.birth_date),
     national_id: nn(f.national_id),
     national_register: nn(f.national_register),
@@ -115,14 +152,24 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     license_place: nn(f.license_place),
     license_category: f.license_category === '' ? null : f.license_category,
     vat_number: nn(f.vat_number),
+    sale_vat_type: f.sale_vat_type,
     payment_terms: nn(f.payment_terms),
     iban: nn(f.iban),
+    bic: nn(f.bic),
+    domiciliation: nn(f.domiciliation),
+    factoring_code: nn(f.factoring_code),
+    accounting_account: nn(f.accounting_account),
     credit_limit: f.credit_limit.trim() === '' ? 0 : Number(f.credit_limit),
     segment: f.segment,
+    price_list: nn(f.price_list),
+    category: nn(f.category),
     is_vip: f.is_vip,
     is_detaxe: f.is_detaxe,
     is_watch: f.is_watch,
     is_account: f.is_account,
+    is_blocked: f.is_blocked,
+    mode_ht: f.mode_ht,
+    marketing_opt_out: f.marketing_opt_out,
     interests: f.interests,
     notes: nn(f.notes),
   };
@@ -177,6 +224,18 @@ export function ContactForm({
             </SelectContent>
           </Select>
         </Field>
+        <Field label={t('contacts.status')}>
+          <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
+              <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t('contacts.code')}>
+          <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
+        </Field>
         {isPro && (
           <Field label={t('contacts.companyName')}>
             <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
@@ -207,6 +266,9 @@ export function ContactForm({
         <Field label={t('contacts.address')} wide>
           <Input value={f.address} onChange={(e) => set('address', e.target.value)} />
         </Field>
+        <Field label={t('contacts.addressComplement')}>
+          <Input value={f.address_complement} onChange={(e) => set('address_complement', e.target.value)} />
+        </Field>
         <Field label={t('contacts.zip')}>
           <Input value={f.zip} onChange={(e) => set('zip', e.target.value)} />
         </Field>
@@ -216,6 +278,12 @@ export function ContactForm({
         <Field label={t('contacts.country')}>
           <Input value={f.country} onChange={(e) => set('country', e.target.value)} />
         </Field>
+        <Field label={t('contacts.poBox')}>
+          <Input value={f.po_box} onChange={(e) => set('po_box', e.target.value)} />
+        </Field>
+        <div className="col-span-full">
+          <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
+        </div>
       </Section>
 
       {/* Permis & moto */}
@@ -264,8 +332,33 @@ export function ContactForm({
         <Field label={t('contacts.iban')}>
           <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
         </Field>
+        <Field label={t('contacts.bic')}>
+          <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
+        </Field>
+        <Field label={t('contacts.saleVatType')}>
+          <Select value={f.sale_vat_type} onValueChange={(v) => set('sale_vat_type', v as SaleVatType)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="national">{t('contacts.saleVat_national')}</SelectItem>
+              <SelectItem value="intracom">{t('contacts.saleVat_intracom')}</SelectItem>
+              <SelectItem value="export">{t('contacts.saleVat_export')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label={t('contacts.creditLimit')}>
           <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
+        </Field>
+      </Section>
+
+      <Section title={t('contacts.secAccounting')}>
+        <Field label={t('contacts.accountingAccount')}>
+          <Input value={f.accounting_account} onChange={(e) => set('accounting_account', e.target.value)} className="font-mono" />
+        </Field>
+        <Field label={t('contacts.domiciliation')}>
+          <Input value={f.domiciliation} onChange={(e) => set('domiciliation', e.target.value)} />
+        </Field>
+        <Field label={t('contacts.factoringCode')}>
+          <Input value={f.factoring_code} onChange={(e) => set('factoring_code', e.target.value)} />
         </Field>
       </Section>
 
@@ -280,11 +373,20 @@ export function ContactForm({
             </SelectContent>
           </Select>
         </Field>
+        <Field label={t('contacts.priceList')}>
+          <Input value={f.price_list} onChange={(e) => set('price_list', e.target.value)} />
+        </Field>
+        <Field label={t('contacts.category')}>
+          <Input value={f.category} onChange={(e) => set('category', e.target.value)} />
+        </Field>
         <div className="col-span-full grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Check label={t('contacts.flagVip')} checked={f.is_vip} onChange={(v) => set('is_vip', v)} />
           <Check label={t('contacts.flagDetaxe')} checked={f.is_detaxe} onChange={(v) => set('is_detaxe', v)} />
           <Check label={t('contacts.flagWatch')} checked={f.is_watch} onChange={(v) => set('is_watch', v)} />
           <Check label={t('contacts.flagAccount')} checked={f.is_account} onChange={(v) => set('is_account', v)} />
+          <Check label={t('contacts.blocked')} checked={f.is_blocked} onChange={(v) => set('is_blocked', v)} />
+          <Check label={t('contacts.modeHt')} checked={f.mode_ht} onChange={(v) => set('mode_ht', v)} />
+          <Check label={t('contacts.marketingOptOut')} checked={f.marketing_opt_out} onChange={(v) => set('marketing_opt_out', v)} />
         </div>
         <Field label={t('contacts.interests')} wide>
           <div className="flex flex-wrap gap-4 pt-1">

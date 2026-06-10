@@ -71,27 +71,65 @@ export type Database = {
           },
         ]
       }
+      article_bins: {
+        Row: {
+          article_id: string
+          bin_location: string
+          created_at: string
+          id: string
+          is_primary: boolean
+        }
+        Insert: {
+          article_id: string
+          bin_location: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Update: {
+          article_id?: string
+          bin_location?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_bins_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_categories: {
         Row: {
+          code: number | null
           company_id: string
           created_at: string
           id: string
           name: string
           parent_id: string | null
+          sales_account: string | null
         }
         Insert: {
+          code?: number | null
           company_id: string
           created_at?: string
           id?: string
           name: string
           parent_id?: string | null
+          sales_account?: string | null
         }
         Update: {
+          code?: number | null
           company_id?: string
           created_at?: string
           id?: string
           name?: string
           parent_id?: string | null
+          sales_account?: string | null
         }
         Relationships: [
           {
@@ -198,28 +236,50 @@ export type Database = {
           category_id: string | null
           category_path: string | null
           coefficient: number | null
+          color: string | null
           company_id: string
           created_at: string
           created_by: string | null
+          deee: boolean
+          descriptif: string | null
           designation: string
+          eco_tax_ttc: number
           equivalence_group: string | null
           id: string
           is_active: boolean
           is_library: boolean
+          kit_billing_mode:
+            | Database["public"]["Enums"]["kit_billing_mode"]
+            | null
+          last_purchased_at: string | null
+          last_sold_at: string | null
+          last_tariff_at: string | null
           main_supplier_id: string | null
+          measure_unit: string | null
           mgmt_type: Database["public"]["Enums"]["article_mgmt_type"]
+          note: string | null
+          origin_reference_id: string | null
           pack_qty: number
           pamp: number
           publishable: boolean
+          purchase_account: string | null
           purchase_price: number
           reference: string
+          reprise_category_id: string | null
+          reprise_prefix: string | null
+          reprise_supplier_id: string | null
+          sale_price_ht: number | null
           sale_price_ttc: number
+          sales_account: string | null
+          show_descriptif_on_documents: boolean
+          size: string | null
           stock_max: number
           stock_min: number
           superseded_by_id: string | null
           supplier_ref: string | null
           updated_at: string
           vat_rate: number
+          weight_volume_length: number | null
         }
         Insert: {
           bin_location?: string | null
@@ -227,28 +287,50 @@ export type Database = {
           category_id?: string | null
           category_path?: string | null
           coefficient?: number | null
+          color?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
+          deee?: boolean
+          descriptif?: string | null
           designation: string
+          eco_tax_ttc?: number
           equivalence_group?: string | null
           id?: string
           is_active?: boolean
           is_library?: boolean
+          kit_billing_mode?:
+            | Database["public"]["Enums"]["kit_billing_mode"]
+            | null
+          last_purchased_at?: string | null
+          last_sold_at?: string | null
+          last_tariff_at?: string | null
           main_supplier_id?: string | null
+          measure_unit?: string | null
           mgmt_type?: Database["public"]["Enums"]["article_mgmt_type"]
+          note?: string | null
+          origin_reference_id?: string | null
           pack_qty?: number
           pamp?: number
           publishable?: boolean
+          purchase_account?: string | null
           purchase_price?: number
           reference: string
+          reprise_category_id?: string | null
+          reprise_prefix?: string | null
+          reprise_supplier_id?: string | null
+          sale_price_ht?: number | null
           sale_price_ttc?: number
+          sales_account?: string | null
+          show_descriptif_on_documents?: boolean
+          size?: string | null
           stock_max?: number
           stock_min?: number
           superseded_by_id?: string | null
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
+          weight_volume_length?: number | null
         }
         Update: {
           bin_location?: string | null
@@ -256,28 +338,50 @@ export type Database = {
           category_id?: string | null
           category_path?: string | null
           coefficient?: number | null
+          color?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
+          deee?: boolean
+          descriptif?: string | null
           designation?: string
+          eco_tax_ttc?: number
           equivalence_group?: string | null
           id?: string
           is_active?: boolean
           is_library?: boolean
+          kit_billing_mode?:
+            | Database["public"]["Enums"]["kit_billing_mode"]
+            | null
+          last_purchased_at?: string | null
+          last_sold_at?: string | null
+          last_tariff_at?: string | null
           main_supplier_id?: string | null
+          measure_unit?: string | null
           mgmt_type?: Database["public"]["Enums"]["article_mgmt_type"]
+          note?: string | null
+          origin_reference_id?: string | null
           pack_qty?: number
           pamp?: number
           publishable?: boolean
+          purchase_account?: string | null
           purchase_price?: number
           reference?: string
+          reprise_category_id?: string | null
+          reprise_prefix?: string | null
+          reprise_supplier_id?: string | null
+          sale_price_ht?: number | null
           sale_price_ttc?: number
+          sales_account?: string | null
+          show_descriptif_on_documents?: boolean
+          size?: string | null
           stock_max?: number
           stock_min?: number
           superseded_by_id?: string | null
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
+          weight_volume_length?: number | null
         }
         Relationships: [
           {
@@ -297,6 +401,27 @@ export type Database = {
           {
             foreignKeyName: "articles_main_supplier_id_fkey"
             columns: ["main_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_origin_reference_id_fkey"
+            columns: ["origin_reference_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_reprise_category_id_fkey"
+            columns: ["reprise_category_id"]
+            isOneToOne: false
+            referencedRelation: "article_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_reprise_supplier_id_fkey"
+            columns: ["reprise_supplier_id"]
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
@@ -357,23 +482,32 @@ export type Database = {
       }
       contacts: {
         Row: {
+          accounting_account: string | null
           address: string | null
+          address_complement: string | null
+          address_mismatch: boolean
+          bic: string | null
           birth_date: string | null
+          category: string | null
           city: string | null
           civility: string | null
+          code: string | null
           company_id: string
           company_name: string | null
           country: string
           created_at: string
           created_by: string | null
           credit_limit: number
+          domiciliation: string | null
           email: string | null
+          factoring_code: string | null
           first_name: string | null
           iban: string | null
           id: string
           interests: string[]
           is_account: boolean
           is_active: boolean
+          is_blocked: boolean
           is_detaxe: boolean
           is_vip: boolean
           is_watch: boolean
@@ -384,13 +518,21 @@ export type Database = {
           license_date: string | null
           license_number: string | null
           license_place: string | null
+          marketing_opt_out: boolean
           mobile: string | null
+          mode_ht: boolean
           national_id: string | null
           national_register: string | null
           notes: string | null
           payment_terms: string | null
           phone: string | null
+          po_box: string | null
+          price_list: string | null
+          receipt_copies: number
+          sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
           segment: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos: boolean
+          status: Database["public"]["Enums"]["contact_status"]
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
           vat_number: string | null
@@ -399,23 +541,32 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          accounting_account?: string | null
           address?: string | null
+          address_complement?: string | null
+          address_mismatch?: boolean
+          bic?: string | null
           birth_date?: string | null
+          category?: string | null
           city?: string | null
           civility?: string | null
+          code?: string | null
           company_id: string
           company_name?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
           credit_limit?: number
+          domiciliation?: string | null
           email?: string | null
+          factoring_code?: string | null
           first_name?: string | null
           iban?: string | null
           id?: string
           interests?: string[]
           is_account?: boolean
           is_active?: boolean
+          is_blocked?: boolean
           is_detaxe?: boolean
           is_vip?: boolean
           is_watch?: boolean
@@ -426,13 +577,21 @@ export type Database = {
           license_date?: string | null
           license_number?: string | null
           license_place?: string | null
+          marketing_opt_out?: boolean
           mobile?: string | null
+          mode_ht?: boolean
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          po_box?: string | null
+          price_list?: string | null
+          receipt_copies?: number
+          sale_vat_type?: Database["public"]["Enums"]["sale_vat_type"]
           segment?: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos?: boolean
+          status?: Database["public"]["Enums"]["contact_status"]
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
@@ -441,23 +600,32 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          accounting_account?: string | null
           address?: string | null
+          address_complement?: string | null
+          address_mismatch?: boolean
+          bic?: string | null
           birth_date?: string | null
+          category?: string | null
           city?: string | null
           civility?: string | null
+          code?: string | null
           company_id?: string
           company_name?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
           credit_limit?: number
+          domiciliation?: string | null
           email?: string | null
+          factoring_code?: string | null
           first_name?: string | null
           iban?: string | null
           id?: string
           interests?: string[]
           is_account?: boolean
           is_active?: boolean
+          is_blocked?: boolean
           is_detaxe?: boolean
           is_vip?: boolean
           is_watch?: boolean
@@ -468,13 +636,21 @@ export type Database = {
           license_date?: string | null
           license_number?: string | null
           license_place?: string | null
+          marketing_opt_out?: boolean
           mobile?: string | null
+          mode_ht?: boolean
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          po_box?: string | null
+          price_list?: string | null
+          receipt_copies?: number
+          sale_vat_type?: Database["public"]["Enums"]["sale_vat_type"]
           segment?: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos?: boolean
+          status?: Database["public"]["Enums"]["contact_status"]
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
@@ -690,14 +866,27 @@ export type Database = {
         | "chef_atelier"
         | "comptable"
         | "marketing"
-      article_mgmt_type: "A" | "M" | "F" | "N" | "V" | "O" | "P" | "D" | "R"
+      article_mgmt_type:
+        | "A"
+        | "M"
+        | "F"
+        | "N"
+        | "V"
+        | "O"
+        | "P"
+        | "D"
+        | "R"
+        | "T"
+      contact_status: "prospect" | "client"
       contact_type:
         | "particulier"
         | "professionnel"
         | "banque_leasing"
         | "fournisseur"
       customer_segment: "standard" | "vip"
+      kit_billing_mode: "forfait" | "nomenclature"
       license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
+      sale_vat_type: "national" | "intracom" | "export"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -837,7 +1026,8 @@ export const Constants = {
         "comptable",
         "marketing",
       ],
-      article_mgmt_type: ["A", "M", "F", "N", "V", "O", "P", "D", "R"],
+      article_mgmt_type: ["A", "M", "F", "N", "V", "O", "P", "D", "R", "T"],
+      contact_status: ["prospect", "client"],
       contact_type: [
         "particulier",
         "professionnel",
@@ -845,7 +1035,9 @@ export const Constants = {
         "fournisseur",
       ],
       customer_segment: ["standard", "vip"],
+      kit_billing_mode: ["forfait", "nomenclature"],
       license_category: ["AM", "A1", "A2", "A", "B", "autre"],
+      sale_vat_type: ["national", "intracom", "export"],
     },
   },
 } as const

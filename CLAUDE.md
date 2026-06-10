@@ -108,6 +108,7 @@ Termes hérités de G8 à employer tels quels dans l'UI, les données et les dis
 | **P** | **Occasion professionnel** → TVA 21 % |
 | **D** | **Dépôt-vente** |
 | **R** | **Référence de reprise** (REP) |
+| **T** | **Main d'œuvre** (taux horaire, quantité décimale ; hérité de G8 — voir ADR-002) |
 
 > **Jointure cœur du custom** : les véhicules de type **V/O/P/D** sont **à la fois des articles**
 > (valorisation, stock) **ET des fiches véhicule** (VIN, historique propriétaires). C'est ce que ni Odoo
@@ -119,7 +120,7 @@ Termes hérités de G8 à employer tels quels dans l'UI, les données et les dis
 
 Toute PR qui en viole un est **refusée**. Chaque invariant a ses tests (règle 7).
 
-- **B1 — Types de gestion d'article.** A / M / F / N / V / O / P / D / R (voir §2). Porté par chaque article.
+- **B1 — Types de gestion d'article.** A / M / F / N / V / O / P / D / R / **T** (voir §2 ; T = main d'œuvre, ADR-002). Porté par chaque article.
 - **B2 — TVA sur marge.** Occasions rachetées à des particuliers (type O) : TVA calculée à la revente
   **uniquement sur la marge**, pas sur le prix total. Mentions légales + **registre VO**. Type P = TVA 21 %.
 - **B3 — Flux de reprise.** Reprise client (réf. type **R**, `REP-`) → **création automatique** de l'article

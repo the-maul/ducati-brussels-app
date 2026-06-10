@@ -8,6 +8,7 @@ export type Article = Database['public']['Tables']['articles']['Row'];
 export type ArticleInsert = Database['public']['Tables']['articles']['Insert'];
 export type ArticleUpdate = Database['public']['Tables']['articles']['Update'];
 export type ArticleMgmtType = Database['public']['Enums']['article_mgmt_type'];
+export type KitBillingMode = Database['public']['Enums']['kit_billing_mode'];
 
 /** Libellés des types de gestion (B1). */
 export const MGMT_TYPES: { value: ArticleMgmtType; label: string }[] = [
@@ -20,6 +21,7 @@ export const MGMT_TYPES: { value: ArticleMgmtType; label: string }[] = [
   { value: 'P', label: 'P — Occasion pro' },
   { value: 'D', label: 'D — Dépôt-vente' },
   { value: 'R', label: 'R — Référence de reprise' },
+  { value: 'T', label: "T — Main d'œuvre" },
 ];
 
 function sanitize(term: string): string {

@@ -10,6 +10,8 @@ export type ContactUpdate = Database['public']['Tables']['contacts']['Update'];
 export type ContactType = Database['public']['Enums']['contact_type'];
 export type CustomerSegment = Database['public']['Enums']['customer_segment'];
 export type LicenseCategory = Database['public']['Enums']['license_category'];
+export type ContactStatus = Database['public']['Enums']['contact_status'];
+export type SaleVatType = Database['public']['Enums']['sale_vat_type'];
 
 /** Nom d'affichage d'un contact (raison sociale ou nom complet). */
 export function contactDisplayName(c: Pick<Contact, 'company_name' | 'first_name' | 'last_name'>): string {
