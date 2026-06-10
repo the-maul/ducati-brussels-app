@@ -1,7 +1,11 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
-@import "./styles/tokens.css";
 @source "../src";
+
+/* Les tokens Ducati (couleurs, fontes, échelles) sont chargés comme feuille
+   séparée via <link> dans src/routes/__root.tsx (src/styles/tokens.css) — un
+   @import relatif ici resterait brut après l'expansion de Tailwind et casserait
+   Lightning CSS ("@import must precede all rules"). */
 
 @custom-variant dark (&:is(.dark *));
 
