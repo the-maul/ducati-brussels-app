@@ -12,7 +12,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 
 | Epic | Périmètre | Statut |
 |---|---|---|
-| **E0 — Socle + design system** (M0) | schéma socle, auth/RLS, multi-société, events, séquences, recherche globale, **design system** | 🟦 en cours |
+| **E0 — Socle + design system** (M0) | schéma socle, auth/RLS, multi-société, events, séquences, recherche globale, **design system** | ✅ (validé en local) |
 | E1 — Contacts + Articles (M1, M2) | — | ⬜ |
 | E2 — Véhicules (M3) | — | ⬜ |
 | E3 — Achats & réceptions (M4) | — | ⬜ |
@@ -52,9 +52,9 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | B7 | Audit universel `events` (append-only, update/delete révoqués) | ✅ |
 | — | Séquences documentaires configurables + `next_document_number()` | ✅ |
 | — | Types TS régénérés depuis le schéma live (`types.ts`) | ✅ |
-| — | Auth : login + session + guard + contexte société/rôles | 🟦 (à tester) |
+| — | Auth : login + session + guard + contexte société/rôles | ✅ (validé local) |
 | — | Bootstrap admin (simon@themaul.be → admin auto sur les 2 sociétés) | ✅ |
-| — | Écran admin « Utilisateurs » (créer comptes + attribuer rôles) | 🟦 (à tester) |
+| — | Écran admin « Utilisateurs » (créer comptes + attribuer rôles) | ✅ (validé local) |
 | B7 | `stock_moves` / `price_changes` append-only (stock = somme) | ⬜ (M5) |
 | — | Recherche globale branchée sur la base (VIN/client/réf/doc) | ⬜ |
 | — | Seed : 2 sociétés ✅, 20 clients, 300 articles, 12 véhicules, 5 OR | ⬜ |

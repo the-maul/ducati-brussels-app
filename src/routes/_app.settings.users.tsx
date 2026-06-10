@@ -85,7 +85,7 @@ function NotAdmin() {
 }
 
 function UsersAdmin() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, companies: myCompanies, roles: myRoles } = useAuth();
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ['org-users'],
@@ -99,11 +99,10 @@ function UsersAdmin() {
 
   if (!isAdmin()) return <NotAdmin />;
 
-  const companies: Company[] = (data?.companies ?? []).filter((c) =>
-    (data?.adminCompanies ?? []).includes(c.id),
-  );
-  const companyName = (id: string) =>
-    data?.companies.find((c) => c.id === id)?.name ?? id;
+  // Sociétés administrées : dérivées de la session (fiable, indépendant de l'appel serveur).
+  const adminCompanyIds = new Set(myRoles.filter((r) => r.role === 'admin').map((r) => r.company_id));
+  const companies: Company[] = myCompanies.filter((c) => adminCompanyIds.has(c.id));
+  const companyName = (id: string) => myCompanies.find((c) => c.id === id)?.name ?? id;
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['org-users'] });
 
