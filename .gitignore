@@ -34,6 +34,8 @@ dist-ssr
 # Sources de référence G8/GAP (28 Mo de binaires) — synthétisées dans les 3 .md de /docs.
 # Conservées localement, hors repo. Retirer cette ligne pour les versionner.
 docs/reference-g8/
+# Captures d'écran G8 de référence (dossier fourni par le client) — hors repo.
+infos app/
 
 # Supabase CLI — état local du lien projet (contient l'URL du pooler, etc.)
 supabase/.temp/
