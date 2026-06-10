@@ -30,17 +30,24 @@ function LoginPage() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
-    if (err) {
-      setError(
-        err.message.toLowerCase().includes('invalid')
-          ? t('auth.invalidCredentials')
-          : t('auth.genericError'),
-      );
-      return;
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        // On affiche le message réel (en plus du libellé convivial) pour pouvoir diagnostiquer.
+        setError(
+          err.message.toLowerCase().includes('invalid')
+            ? t('auth.invalidCredentials')
+            : err.message,
+        );
+        return;
+      }
+      navigate({ to: '/dashboard' });
+    } catch (e2) {
+      // Erreur réseau / client mal configuré : on ne laisse JAMAIS le spinner tourner.
+      setError(e2 instanceof Error ? e2.message : t('auth.genericError'));
+    } finally {
+      setSubmitting(false);
     }
-    navigate({ to: '/dashboard' });
   };
 
   return (
