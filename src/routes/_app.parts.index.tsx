@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus } from 'lucide-react';
+import { Search, Loader2, Plus, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -43,9 +43,14 @@ function ArticlesList() {
         title={t('articles.title')}
         description={t('articles.subtitle')}
         actions={
-          <Button onClick={() => navigate({ to: '/parts/new' })}>
-            <Plus /> {t('articles.new')}
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
+              <Upload /> {t('articles.import')}
+            </Button>
+            <Button onClick={() => navigate({ to: '/parts/new' })}>
+              <Plus /> {t('articles.new')}
+            </Button>
+          </>
         }
       />
 

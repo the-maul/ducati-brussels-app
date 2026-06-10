@@ -64,3 +64,11 @@ export async function updateArticle(id: string, input: ArticleUpdate): Promise<A
   if (error) throw error;
   return data;
 }
+
+/** Ajoute un code-barres à un article (ignore les doublons). */
+export async function addBarcode(articleId: string, barcode: string): Promise<void> {
+  const { error } = await supabase
+    .from('article_barcodes')
+    .upsert({ article_id: articleId, barcode }, { onConflict: 'article_id,barcode', ignoreDuplicates: true });
+  if (error) throw error;
+}
