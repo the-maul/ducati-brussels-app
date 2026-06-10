@@ -31,6 +31,8 @@ ou des règles ci-dessous justifie le refus d'une PR.
     les tokens de la charte dans `src/styles/tokens.css` (importé par `styles.css`), seul lieu des
     couleurs/typos (règle 9).
 - **Sources de vérité** (lire avant de coder un module) :
+  - 👉 [`docs/etat-projet.md`](docs/etat-projet.md) — **À LIRE EN PREMIER** : où on en est, workflow,
+    outillage/secrets, pièges, état par module, prochaines étapes (document de reprise).
   - [`docs/dossier-projet.md`](docs/dossier-projet.md) — architecture, 14 modules, plan des epics.
   - [`docs/cahier-fonctionnel-v2.md`](docs/cahier-fonctionnel-v2.md) — 140 exigences (Annexe A) + invariants (Annexe B).
   - [`docs/charte-graphique.md`](docs/charte-graphique.md) — **source de vérité visuelle unique**.
