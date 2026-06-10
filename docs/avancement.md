@@ -54,7 +54,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | — | Types TS régénérés depuis le schéma live (`types.ts`) | ✅ |
 | — | Auth : login + session + guard + contexte société/rôles | 🟦 (à tester) |
 | — | Bootstrap admin (simon@themaul.be → admin auto sur les 2 sociétés) | ✅ |
-| — | Écran admin « Utilisateurs » (créer comptes + attribuer rôles) | ⬜ |
+| — | Écran admin « Utilisateurs » (créer comptes + attribuer rôles) | 🟦 (à tester) |
 | B7 | `stock_moves` / `price_changes` append-only (stock = somme) | ⬜ (M5) |
 | — | Recherche globale branchée sur la base (VIN/client/réf/doc) | ⬜ |
 | — | Seed : 2 sociétés ✅, 20 clients, 300 articles, 12 véhicules, 5 OR | ⬜ |

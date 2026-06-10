@@ -104,6 +104,51 @@ export const fr = {
     redirecting: 'Redirection…',
   },
 
+  // Paramètres (M0)
+  settings: {
+    title: 'Paramètres',
+    users: 'Utilisateurs',
+    usersDesc: 'Comptes du personnel et attribution des rôles par société.',
+    numbering: 'Numérotation des documents',
+    numberingDesc: 'Préfixes et formats des séquences (factures, OR, devis…).',
+    adminOnly: 'Réservé aux administrateurs.',
+    notAdmin: "Vous n'avez pas les droits d'administration nécessaires.",
+  },
+
+  // Gestion des utilisateurs (M0)
+  users: {
+    title: 'Utilisateurs',
+    subtitle: 'Créer des comptes et gérer les rôles par société.',
+    newUser: 'Nouvel utilisateur',
+    createTitle: 'Créer un utilisateur',
+    name: 'Nom complet',
+    email: 'E-mail',
+    password: 'Mot de passe provisoire',
+    passwordHint: '8 caractères minimum — l’utilisateur pourra le changer.',
+    rolesByCompany: 'Rôles par société',
+    create: 'Créer le compte',
+    creating: 'Création…',
+    created: 'Compte créé',
+    save: 'Enregistrer',
+    saving: 'Enregistrement…',
+    editRoles: 'Modifier les rôles',
+    editRolesTitle: 'Rôles de {name}',
+    activate: 'Activer',
+    deactivate: 'Désactiver',
+    active: 'Actif',
+    inactive: 'Inactif',
+    colName: 'Nom',
+    colEmail: 'E-mail',
+    colRoles: 'Rôles',
+    colStatus: 'Statut',
+    colActions: 'Actions',
+    none: 'Aucun rôle',
+    empty: 'Aucun utilisateur',
+    errorCreate: 'Création impossible.',
+    errorLoad: 'Chargement impossible.',
+    atLeastOneRole: 'Sélectionnez au moins un rôle.',
+  },
+
   // Rôles (M0)
   role: {
     admin: 'Administrateur',
