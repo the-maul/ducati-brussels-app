@@ -76,44 +76,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        if (!mounted) return;
-        setSession(data.session);
-        if (data.session?.user) {
-          try {
-            await loadProfileData(data.session.user.id);
-          } catch (e) {
-            console.error('[auth] chargement profil', e);
-          }
-        }
-      })
-      .catch((e) => console.error('[auth] getSession', e))
-      .finally(() => {
-        // loading se résout TOUJOURS, même en cas d'erreur (sinon spinner infini).
-        if (mounted) setLoading(false);
-      });
+    // Filet de sécurité anti-spinner (au cas où Supabase ne répond pas).
+    const safety = setTimeout(() => { if (mounted) setLoading(false); }, 8000);
+    const finishLoading = () => { if (mounted) { clearTimeout(safety); setLoading(false); } };
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, sess) => {
+    // onAuthStateChange émet INITIAL_SESSION au montage → pas besoin de getSession().
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      if (!mounted) return;
       setSession(sess);
       if (sess?.user) {
-        try {
-          await loadProfileData(sess.user.id);
-        } catch (e) {
-          console.error('[auth] chargement profil', e);
-        }
+        const uid = sess.user.id;
+        // IMPORTANT : ne JAMAIS appeler de méthode Supabase (DB/auth) directement ici —
+        // le callback tient le verrou d'auth, tout appel se bloquerait (deadlock supabase-js).
+        // On diffère hors du callback avec setTimeout(0).
+        setTimeout(() => {
+          if (!mounted) return;
+          loadProfileData(uid)
+            .catch((e) => console.error('[auth] chargement profil', e))
+            .finally(finishLoading);
+        }, 0);
       } else {
         setProfile(null);
         setRoles([]);
         setCompanies([]);
         setActiveCompanyId(null);
+        finishLoading();
       }
-      if (mounted) setLoading(false);
     });
 
     return () => {
       mounted = false;
+      clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
   }, [loadProfileData]);
