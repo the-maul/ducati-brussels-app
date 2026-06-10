@@ -1,0 +1,210 @@
+/**
+ * M3 — Formulaire fiche véhicule (création + édition). Parité G8.
+ * Sections : identification (carte grise), caractéristiques, infos compl., commercial.
+ */
+import { useState, type ReactNode } from 'react';
+import { Loader2, Save } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { t } from '@/lib/i18n';
+import { VEHICLE_STATUSES, type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif } from './api';
+
+type F = Record<string, string | boolean>;
+
+const TEXT_FIELDS = [
+  'vin','reference','brand','model','plate','engine_number','type_mine','type_variant_version','genre',
+  'immat_ww','marking','origin','production_code','insurance','formula_number','energy','antipollution',
+  'color','color_code','segment_type','category','autonomy','battery_number','gps_tracker_id','pin_tracker',
+  'tpms_av','tpms_ar','antitheft_code','key_number','key_number2','police_book_number','warranty_type','exposition_code',
+] as const;
+const NUM_FIELDS = ['displacement','power_kw','power_cv','fiscal_power','cylinders','mileage','hours_count','model_year','purchase_price','cost_price','display_price'] as const;
+const DATE_FIELDS = ['marking_date','first_registration_date','next_inspection_date','warranty_end'] as const;
+
+function fromVehicle(v: Vehicle | null): F {
+  const f: F = {};
+  for (const k of TEXT_FIELDS) f[k] = (v?.[k] as string | null) ?? '';
+  for (const k of NUM_FIELDS) { const n = v?.[k] as number | null | undefined; f[k] = n != null ? String(n) : ''; }
+  for (const k of DATE_FIELDS) f[k] = (v?.[k] as string | null) ?? '';
+  f.is_restricted = v?.is_restricted ?? false;
+  f.status = v?.status ?? 'stock_vn';
+  f.mileage_qualif = v?.mileage_qualif ?? 'reel';
+  f.notes = v?.notes ?? '';
+  return f;
+}
+
+const nn = (s: unknown) => (typeof s === 'string' && s.trim() !== '' ? s.trim() : null);
+const nnum = (s: unknown) => (typeof s === 'string' && s.trim() !== '' ? Number(s) : null);
+
+function buildPayload(f: F, companyId: string): VehicleInsert {
+  const out: Record<string, unknown> = { company_id: companyId };
+  for (const k of TEXT_FIELDS) out[k] = nn(f[k]);
+  for (const k of NUM_FIELDS) out[k] = nnum(f[k]);
+  for (const k of DATE_FIELDS) out[k] = nn(f[k]);
+  out.is_restricted = f.is_restricted === true;
+  out.status = f.status as VehicleStatus;
+  out.mileage_qualif = f.mileage_qualif as MileageQualif;
+  out.notes = nn(f.notes);
+  return out as VehicleInsert;
+}
+
+export function VehicleForm({
+  initial, companyId, submitting, error, onSubmit, onCancel,
+}: {
+  initial: Vehicle | null;
+  companyId: string;
+  submitting: boolean;
+  error?: string | null;
+  onSubmit: (p: VehicleInsert) => void;
+  onCancel: () => void;
+}) {
+  const [f, setF] = useState<F>(() => fromVehicle(initial));
+  const [localError, setLocalError] = useState<string | null>(null);
+  const set = (k: string, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    if (!f.vin && !f.plate && !f.model) { setLocalError('Renseignez au moins le VIN, la plaque ou le modèle.'); return; }
+    onSubmit(buildPayload(f, companyId));
+  };
+
+  const T = (k: string, label: string, mono = false) => (
+    <Field label={label}><Input value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={mono ? 'font-mono' : ''} /></Field>
+  );
+  const N = (k: string, label: string, step = '1') => (
+    <Field label={label}><Input type="number" step={step} value={f[k] as string} onChange={(e) => set(k, e.target.value)} className="text-right tabular-nums" /></Field>
+  );
+  const D = (k: string, label: string) => (
+    <Field label={label}><Input type="date" value={f[k] as string} onChange={(e) => set(k, e.target.value)} /></Field>
+  );
+
+  return (
+    <form onSubmit={submit} className="space-y-6">
+      <Section title={t('vehicles.secId')}>
+        {T('vin', t('vehicles.vin'), true)}
+        {T('plate', t('vehicles.plate'), true)}
+        {T('brand', t('vehicles.brand'))}
+        {T('model', t('vehicles.model'))}
+        {T('engine_number', t('vehicles.engineNumber'), true)}
+        {T('reference', t('vehicles.reference'), true)}
+        {T('type_mine', t('vehicles.typeMine'))}
+        {T('type_variant_version', t('vehicles.typeVariant'))}
+        {T('genre', t('vehicles.genre'))}
+        {T('immat_ww', t('vehicles.immatWw'))}
+        {T('marking', t('vehicles.marking'))}
+        {T('origin', t('vehicles.origin'))}
+        {D('marking_date', t('vehicles.markingDate'))}
+        {T('production_code', t('vehicles.productionCode'))}
+        {T('insurance', t('vehicles.insurance'))}
+        {T('formula_number', t('vehicles.formulaNumber'))}
+      </Section>
+
+      <Section title={t('vehicles.secCarac')}>
+        {N('displacement', t('vehicles.displacement'), '0.1')}
+        {N('power_kw', t('vehicles.powerKw'), '0.01')}
+        {N('power_cv', t('vehicles.powerCv'), '0.01')}
+        {N('fiscal_power', t('vehicles.fiscalPower'), '0.01')}
+        {T('energy', t('vehicles.energy'))}
+        {T('antipollution', t('vehicles.antipollution'))}
+        {T('color', t('vehicles.color'))}
+        {T('color_code', t('vehicles.colorCode'))}
+        {T('segment_type', t('vehicles.segmentType'))}
+        {T('category', t('vehicles.category'))}
+        {N('cylinders', t('vehicles.cylinders'))}
+        {T('autonomy', t('vehicles.autonomy'))}
+        {T('battery_number', t('vehicles.batteryNumber'))}
+        {T('gps_tracker_id', t('vehicles.gpsTracker'))}
+        {T('pin_tracker', t('vehicles.pinTracker'))}
+        {T('tpms_av', t('vehicles.tpmsAv'))}
+        {T('tpms_ar', t('vehicles.tpmsAr'))}
+        <div className="col-span-full">
+          <Check label={t('vehicles.restricted')} checked={f.is_restricted === true} onChange={(v) => set('is_restricted', v)} />
+        </div>
+      </Section>
+
+      <Section title={t('vehicles.secInfo')}>
+        {D('first_registration_date', t('vehicles.firstRegistration'))}
+        {D('next_inspection_date', t('vehicles.nextInspection'))}
+        {N('mileage', t('vehicles.mileage'))}
+        <Field label={t('vehicles.mileageQualif')}>
+          <Select value={f.mileage_qualif as string} onValueChange={(v) => set('mileage_qualif', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="reel">{t('vehicles.mileage_reel')}</SelectItem>
+              <SelectItem value="nc">{t('vehicles.mileage_nc')}</SelectItem>
+              <SelectItem value="ng">{t('vehicles.mileage_ng')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {N('hours_count', t('vehicles.hoursCount'), '0.1')}
+        {N('model_year', t('vehicles.modelYear'))}
+        {T('key_number', t('vehicles.keyNumber'))}
+        {T('key_number2', t('vehicles.keyNumber2'))}
+        {T('antitheft_code', t('vehicles.antitheftCode'))}
+        {T('police_book_number', t('vehicles.policeBook'))}
+        {T('warranty_type', t('vehicles.warrantyType'))}
+        {D('warranty_end', t('vehicles.warrantyEnd'))}
+        {T('exposition_code', t('vehicles.expositionCode'))}
+      </Section>
+
+      <Section title={t('vehicles.secCommercial')}>
+        <Field label={t('vehicles.status')}>
+          <Select value={f.status as string} onValueChange={(v) => set('status', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {VEHICLE_STATUSES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{t(`vehicles.status_${s.value}`)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        {N('purchase_price', t('vehicles.purchasePrice'), '0.01')}
+        {N('cost_price', t('vehicles.costPrice'), '0.01')}
+        {N('display_price', t('vehicles.displayPrice'), '0.01')}
+        <Field label={t('vehicles.notes')} wide>
+          <Textarea value={f.notes as string} onChange={(e) => set('notes', e.target.value)} rows={2} />
+        </Field>
+      </Section>
+
+      {(localError || error) && (
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? <Loader2 className="animate-spin" /> : <Save />}
+          {submitting ? t('vehicles.saving') : initial ? t('vehicles.save') : t('vehicles.create')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      <h2 className="mb-3 font-ui text-[15px] font-bold text-foreground">{title}</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    </div>
+  );
+}
+function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className={`space-y-1.5 ${wide ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+      <Label className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      {label}
+    </label>
+  );
+}

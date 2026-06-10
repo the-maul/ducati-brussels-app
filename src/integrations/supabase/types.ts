@@ -856,6 +856,252 @@ export type Database = {
           },
         ]
       }
+      vehicle_owners: {
+        Row: {
+          contact_id: string
+          created_at: string
+          from_date: string
+          id: string
+          is_current: boolean
+          to_date: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          from_date?: string
+          id?: string
+          is_current?: boolean
+          to_date?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          from_date?: string
+          id?: string
+          is_current?: boolean
+          to_date?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_owners_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_owners_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          antipollution: string | null
+          antitheft_code: string | null
+          article_id: string | null
+          autonomy: string | null
+          battery_number: string | null
+          brand: string | null
+          category: string | null
+          color: string | null
+          color_code: string | null
+          company_id: string
+          cost_price: number | null
+          created_at: string
+          created_by: string | null
+          cylinders: number | null
+          displacement: number | null
+          display_price: number | null
+          energy: string | null
+          engine_number: string | null
+          exposition_code: string | null
+          first_registration_date: string | null
+          fiscal_power: number | null
+          formula_number: string | null
+          genre: string | null
+          gps_tracker_id: string | null
+          hours_count: number | null
+          id: string
+          immat_ww: string | null
+          insurance: string | null
+          is_active: boolean
+          is_restricted: boolean
+          key_number: string | null
+          key_number2: string | null
+          marking: string | null
+          marking_date: string | null
+          mileage: number | null
+          mileage_qualif: Database["public"]["Enums"]["mileage_qualif"] | null
+          model: string | null
+          model_year: number | null
+          next_inspection_date: string | null
+          notes: string | null
+          origin: string | null
+          pin_tracker: string | null
+          plate: string | null
+          police_book_number: string | null
+          power_cv: number | null
+          power_kw: number | null
+          production_code: string | null
+          purchase_price: number | null
+          reference: string | null
+          segment_type: string | null
+          status: Database["public"]["Enums"]["vehicle_status"]
+          tpms_ar: string | null
+          tpms_av: string | null
+          type_mine: string | null
+          type_variant_version: string | null
+          updated_at: string
+          vin: string | null
+          warranty_end: string | null
+          warranty_type: string | null
+        }
+        Insert: {
+          antipollution?: string | null
+          antitheft_code?: string | null
+          article_id?: string | null
+          autonomy?: string | null
+          battery_number?: string | null
+          brand?: string | null
+          category?: string | null
+          color?: string | null
+          color_code?: string | null
+          company_id: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          cylinders?: number | null
+          displacement?: number | null
+          display_price?: number | null
+          energy?: string | null
+          engine_number?: string | null
+          exposition_code?: string | null
+          first_registration_date?: string | null
+          fiscal_power?: number | null
+          formula_number?: string | null
+          genre?: string | null
+          gps_tracker_id?: string | null
+          hours_count?: number | null
+          id?: string
+          immat_ww?: string | null
+          insurance?: string | null
+          is_active?: boolean
+          is_restricted?: boolean
+          key_number?: string | null
+          key_number2?: string | null
+          marking?: string | null
+          marking_date?: string | null
+          mileage?: number | null
+          mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
+          model?: string | null
+          model_year?: number | null
+          next_inspection_date?: string | null
+          notes?: string | null
+          origin?: string | null
+          pin_tracker?: string | null
+          plate?: string | null
+          police_book_number?: string | null
+          power_cv?: number | null
+          power_kw?: number | null
+          production_code?: string | null
+          purchase_price?: number | null
+          reference?: string | null
+          segment_type?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tpms_ar?: string | null
+          tpms_av?: string | null
+          type_mine?: string | null
+          type_variant_version?: string | null
+          updated_at?: string
+          vin?: string | null
+          warranty_end?: string | null
+          warranty_type?: string | null
+        }
+        Update: {
+          antipollution?: string | null
+          antitheft_code?: string | null
+          article_id?: string | null
+          autonomy?: string | null
+          battery_number?: string | null
+          brand?: string | null
+          category?: string | null
+          color?: string | null
+          color_code?: string | null
+          company_id?: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          cylinders?: number | null
+          displacement?: number | null
+          display_price?: number | null
+          energy?: string | null
+          engine_number?: string | null
+          exposition_code?: string | null
+          first_registration_date?: string | null
+          fiscal_power?: number | null
+          formula_number?: string | null
+          genre?: string | null
+          gps_tracker_id?: string | null
+          hours_count?: number | null
+          id?: string
+          immat_ww?: string | null
+          insurance?: string | null
+          is_active?: boolean
+          is_restricted?: boolean
+          key_number?: string | null
+          key_number2?: string | null
+          marking?: string | null
+          marking_date?: string | null
+          mileage?: number | null
+          mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
+          model?: string | null
+          model_year?: number | null
+          next_inspection_date?: string | null
+          notes?: string | null
+          origin?: string | null
+          pin_tracker?: string | null
+          plate?: string | null
+          police_book_number?: string | null
+          power_cv?: number | null
+          power_kw?: number | null
+          production_code?: string | null
+          purchase_price?: number | null
+          reference?: string | null
+          segment_type?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tpms_ar?: string | null
+          tpms_av?: string | null
+          type_mine?: string | null
+          type_variant_version?: string | null
+          updated_at?: string
+          vin?: string | null
+          warranty_end?: string | null
+          warranty_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -904,7 +1150,20 @@ export type Database = {
       customer_segment: "standard" | "vip"
       kit_billing_mode: "forfait" | "nomenclature"
       license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
+      mileage_qualif: "nc" | "reel" | "ng"
       sale_vat_type: "national" | "intracom" | "export"
+      vehicle_status:
+        | "en_commande"
+        | "stock_vn"
+        | "stock_vo"
+        | "depot_vente"
+        | "reserve"
+        | "vendu"
+        | "livre"
+        | "courtoisie"
+        | "demo"
+        | "depot_agent"
+        | "repris"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1055,7 +1314,21 @@ export const Constants = {
       customer_segment: ["standard", "vip"],
       kit_billing_mode: ["forfait", "nomenclature"],
       license_category: ["AM", "A1", "A2", "A", "B", "autre"],
+      mileage_qualif: ["nc", "reel", "ng"],
       sale_vat_type: ["national", "intracom", "export"],
+      vehicle_status: [
+        "en_commande",
+        "stock_vn",
+        "stock_vo",
+        "depot_vente",
+        "reserve",
+        "vendu",
+        "livre",
+        "courtoisie",
+        "demo",
+        "depot_agent",
+        "repris",
+      ],
     },
   },
 } as const
