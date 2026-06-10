@@ -1,0 +1,14 @@
+/* =====================================================================
+   tokens.css — SOURCE DE VÉRITÉ UNIQUE des couleurs, typographies et
+   espacements de l'ERP Ducati Bruxelles.
+   ---------------------------------------------------------------------
+   STUB — à remplir en EPIC 0 (design system), APRÈS validation du CLAUDE.md.
+   Aucun composant ne doit définir de hex ni de font-family en dur :
+   tout vient d'ici (CLAUDE.md, règle 9 + charte-graphique.md §2-4).
+
+   Contenu attendu en Epic 0 :
+     - @font-face des 8 fontes Ducati Style (/fonts/*.ttf) + JetBrains Mono
+     - variables couleurs   (charte §2 : marque, neutres, sémantique, métier)
+     - variables typo        (charte §3 : familles + échelle)
+     - variables espacement  (charte §4 : échelle 4px, radius, ombres)
+   ===================================================================== */
