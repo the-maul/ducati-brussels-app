@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Users } from 'lucide-react';
-import { ModulePlaceholder } from '@/components/module-placeholder';
-import { t } from '@/lib/i18n';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/_app/clients')({ component: () => <ModulePlaceholder title={t('nav.clients')} icon={Users} /> });
+/** Layout du module Clients (M1) : les sous-pages (liste, fiche) rendent ici. */
+export const Route = createFileRoute('/_app/clients')({
+  component: () => <Outlet />,
+});

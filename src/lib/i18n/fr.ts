@@ -104,6 +104,83 @@ export const fr = {
     redirecting: 'Redirection…',
   },
 
+  // Contacts (M1)
+  contacts: {
+    title: 'Clients',
+    subtitle: 'Fiches clients, prospects et fournisseurs.',
+    new: 'Nouveau client',
+    edit: 'Modifier la fiche',
+    create: 'Créer la fiche',
+    save: 'Enregistrer',
+    saving: 'Enregistrement…',
+    empty: 'Aucun client',
+    search: 'Rechercher un client (nom, e-mail, TVA…)',
+    // sections
+    secIdentity: 'Identité',
+    secAddress: 'Adresse',
+    secMoto: 'Permis & infos moto',
+    secB2B: 'Professionnel (B2B)',
+    secCategory: 'Catégorisation',
+    // type
+    type: 'Type',
+    type_particulier: 'Particulier',
+    type_professionnel: 'Professionnel',
+    type_banque_leasing: 'Banque / leasing',
+    type_fournisseur: 'Fournisseur',
+    // champs identité
+    civility: 'Civilité',
+    firstName: 'Prénom',
+    lastName: 'Nom',
+    companyName: 'Raison sociale',
+    email: 'E-mail',
+    phone: 'Téléphone',
+    mobile: 'Mobile',
+    // adresse
+    address: 'Adresse',
+    zip: 'Code postal',
+    city: 'Ville',
+    country: 'Pays',
+    // moto
+    birthDate: 'Date de naissance',
+    nationalId: "N° carte d'identité",
+    nationalRegister: 'Registre national',
+    licenseNumber: 'N° permis moto',
+    licenseDate: 'Date du permis',
+    licensePlace: 'Lieu du permis',
+    licenseCategory: 'Catégorie',
+    // B2B
+    vatNumber: 'N° TVA',
+    viesCheck: 'Vérifier (VIES)',
+    viesValid: 'TVA valide',
+    viesInvalid: 'TVA invalide',
+    paymentTerms: 'Conditions de paiement',
+    iban: 'IBAN',
+    creditLimit: 'Limite de crédit',
+    // catégorisation
+    segment: 'Segment tarifaire',
+    segment_standard: 'Standard',
+    segment_vip: 'VIP',
+    flagVip: 'VIP',
+    flagDetaxe: 'Détaxé (export)',
+    flagWatch: 'À surveiller',
+    flagAccount: 'En compte',
+    interests: "Centres d'intérêt",
+    interestRoute: 'Route',
+    interestSport: 'Sport',
+    interestOffroad: 'Off-road',
+    notes: 'Notes',
+    // colonnes liste
+    colName: 'Nom',
+    colType: 'Type',
+    colCity: 'Ville',
+    colContact: 'Contact',
+    colFlags: 'Drapeaux',
+    // erreurs
+    errLoad: 'Chargement impossible.',
+    errSave: 'Enregistrement impossible.',
+    requiredName: 'Le nom (ou la raison sociale) est requis.',
+  },
+
   // Paramètres (M0)
   settings: {
     title: 'Paramètres',

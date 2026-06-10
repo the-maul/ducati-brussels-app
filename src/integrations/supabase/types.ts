@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -58,6 +83,143 @@ export type Database = {
           zip?: string | null
         }
         Relationships: []
+      }
+      contacts: {
+        Row: {
+          address: string | null
+          birth_date: string | null
+          city: string | null
+          civility: string | null
+          company_id: string
+          company_name: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          email: string | null
+          first_name: string | null
+          iban: string | null
+          id: string
+          interests: string[]
+          is_account: boolean
+          is_active: boolean
+          is_detaxe: boolean
+          is_vip: boolean
+          is_watch: boolean
+          last_name: string | null
+          license_category:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date: string | null
+          license_number: string | null
+          license_place: string | null
+          mobile: string | null
+          national_id: string | null
+          national_register: string | null
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          segment: Database["public"]["Enums"]["customer_segment"]
+          type: Database["public"]["Enums"]["contact_type"]
+          updated_at: string
+          vat_number: string | null
+          vies_checked_at: string | null
+          vies_valid: boolean | null
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          birth_date?: string | null
+          city?: string | null
+          civility?: string | null
+          company_id: string
+          company_name?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number
+          email?: string | null
+          first_name?: string | null
+          iban?: string | null
+          id?: string
+          interests?: string[]
+          is_account?: boolean
+          is_active?: boolean
+          is_detaxe?: boolean
+          is_vip?: boolean
+          is_watch?: boolean
+          last_name?: string | null
+          license_category?:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date?: string | null
+          license_number?: string | null
+          license_place?: string | null
+          mobile?: string | null
+          national_id?: string | null
+          national_register?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          segment?: Database["public"]["Enums"]["customer_segment"]
+          type?: Database["public"]["Enums"]["contact_type"]
+          updated_at?: string
+          vat_number?: string | null
+          vies_checked_at?: string | null
+          vies_valid?: boolean | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          birth_date?: string | null
+          city?: string | null
+          civility?: string | null
+          company_id?: string
+          company_name?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number
+          email?: string | null
+          first_name?: string | null
+          iban?: string | null
+          id?: string
+          interests?: string[]
+          is_account?: boolean
+          is_active?: boolean
+          is_detaxe?: boolean
+          is_vip?: boolean
+          is_watch?: boolean
+          last_name?: string | null
+          license_category?:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date?: string | null
+          license_number?: string | null
+          license_place?: string | null
+          mobile?: string | null
+          national_id?: string | null
+          national_register?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          segment?: Database["public"]["Enums"]["customer_segment"]
+          type?: Database["public"]["Enums"]["contact_type"]
+          updated_at?: string
+          vat_number?: string | null
+          vies_checked_at?: string | null
+          vies_valid?: boolean | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_sequences: {
         Row: {
@@ -257,6 +419,13 @@ export type Database = {
         | "chef_atelier"
         | "comptable"
         | "marketing"
+      contact_type:
+        | "particulier"
+        | "professionnel"
+        | "banque_leasing"
+        | "fournisseur"
+      customer_segment: "standard" | "vip"
+      license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -382,6 +551,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
@@ -393,6 +565,14 @@ export const Constants = {
         "comptable",
         "marketing",
       ],
+      contact_type: [
+        "particulier",
+        "professionnel",
+        "banque_leasing",
+        "fournisseur",
+      ],
+      customer_segment: ["standard", "vip"],
+      license_category: ["AM", "A1", "A2", "A", "B", "autre"],
     },
   },
 } as const
