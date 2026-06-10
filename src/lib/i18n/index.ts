@@ -14,7 +14,7 @@ import { fr } from './fr';
 
 export type Locale = 'fr' | 'nl';
 
-const dictionaries = { fr /* , nl */ } as const;
+const dictionaries: Record<Locale, typeof fr> = { fr, nl: fr };
 
 // Locale active. NL viendra plus tard (Bruxelles, charte §8).
 let currentLocale: Locale = 'fr';
