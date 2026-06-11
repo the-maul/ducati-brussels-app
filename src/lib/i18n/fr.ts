@@ -17,6 +17,7 @@ export const fr = {
     vehicles: 'Véhicules',
     workshop: 'Atelier & SAV',
     parts: 'Pièces & Accessoires',
+    stock: 'Stock & inventaire',
     purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
     clients: 'Contacts',
@@ -461,6 +462,29 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+  },
+
+  // Stock & inventaire (M5)
+  stock: {
+    title: 'Stock & inventaire',
+    subtitle: 'Triple stock (réel / réservé / disponible), valeur PAMP et mouvements.',
+    search: 'Rechercher (référence, désignation, casier…)',
+    empty: 'Aucun article en stock.',
+    totalValue: 'Valeur du stock',
+    colRef: 'Réf.', colDesignation: 'Désignation', colBin: 'Casier', colReal: 'Réel', colReserved: 'Réservé',
+    colAvailable: 'Disponible', colPamp: 'PAMP', colValue: 'Valeur', colMin: 'Mini',
+    onlyStocked: 'Stock ≠ 0', belowMin: 'Sous le mini',
+    history: 'Mouvements', historyOf: 'Mouvements — {ref}', noHistory: 'Aucun mouvement.',
+    colDate: 'Date', colType: 'Type', colQty: 'Qté', colOrigin: 'Origine', colRefDoc: 'Réf. doc', colOperator: 'Opérateur',
+    // inventaire
+    inventory: 'Inventaire', inventoryTitle: 'Inventaire', inventorySubtitle: 'Arrêté daté, comptage, écarts et réintégration — append-only.',
+    newSession: 'Nouvel inventaire', noSession: 'Aucun inventaire en cours.',
+    optOpen: 'Magasin ouvert (génère un arrêté)', optErase: 'Avec remise à zéro (mode cumul)', optEcarts: 'Avec édition des écarts',
+    mode: 'Mode de réajustement', mode_annule_remplace: 'Annule et remplace', mode_cumul: 'Cumul',
+    start: 'Démarrer l\'inventaire', step: 'Étape', counted: 'Compté', current: 'Actuel', gap: 'Écart',
+    snapshot: 'Arrêté', generateSnapshot: 'Générer l\'arrêté', reset: 'Remise à zéro du réel', keepVehicles: 'Conserver véhicules (V/O/P)',
+    applyCount: 'Valider le comptage', reintegrate: 'Réintégrer l\'arrêté', ecarts: 'Écarts (réel vs arrêté)',
+    finish: 'Clôturer l\'inventaire', sessionStatus: 'Statut', exportXls: 'Export Excel',
   },
 
   // Achats & réceptions (M4)

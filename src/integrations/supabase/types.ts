@@ -1279,6 +1279,59 @@ export type Database = {
           },
         ]
       }
+      inventory_sessions: {
+        Row: {
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          edition_ecarts: boolean
+          effacement: boolean
+          id: string
+          label: string | null
+          magasin_ouvert: boolean
+          mode: string
+          snapshot_id: string | null
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          edition_ecarts?: boolean
+          effacement?: boolean
+          id?: string
+          label?: string | null
+          magasin_ouvert?: boolean
+          mode?: string
+          snapshot_id?: string | null
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          edition_ecarts?: boolean
+          effacement?: boolean
+          id?: string
+          label?: string | null
+          magasin_ouvert?: boolean
+          mode?: string
+          snapshot_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1656,6 +1709,80 @@ export type Database = {
           },
         ]
       }
+      stock_snapshot_lines: {
+        Row: {
+          article_id: string
+          id: string
+          pamp: number
+          qty: number
+          snapshot_id: string
+        }
+        Insert: {
+          article_id: string
+          id?: string
+          pamp?: number
+          qty?: number
+          snapshot_id: string
+        }
+        Update: {
+          article_id?: string
+          id?: string
+          pamp?: number
+          qty?: number
+          snapshot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_snapshot_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_snapshot_lines_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_snapshots: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          label: string | null
+          reintegrated: boolean
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          reintegrated?: boolean
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          reintegrated?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string
@@ -1944,6 +2071,48 @@ export type Database = {
           reserved_qty: number
         }[]
       }
+      article_stock_history: {
+        Args: { _article: string }
+        Returns: {
+          article_id: string
+          bin_location: string | null
+          company_id: string
+          id: number
+          is_reservation: boolean
+          move_type: Database["public"]["Enums"]["stock_move_type"]
+          note: string | null
+          occurred_at: string
+          operator_id: string | null
+          origin: string
+          qty_delta: number
+          ref: string | null
+          unit_cost: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "stock_moves"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      article_stock_list: {
+        Args: { _company: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          category_path: string
+          designation: string
+          mgmt_type: string
+          pamp: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          stock_min: number
+          stock_value: number
+          supplier_id: string
+        }[]
+      }
       cash_z_report: {
         Args: { _company: string; _from: string; _to: string }
         Returns: Json
@@ -1956,12 +2125,28 @@ export type Database = {
           current_due: number
         }[]
       }
+      generate_stock_snapshot: {
+        Args: { _company: string; _kind?: string; _label: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _company: string
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      inventory_gaps: {
+        Args: { _company: string; _snapshot: string }
+        Returns: {
+          article_id: string
+          designation: string
+          gap_qty: number
+          gap_value: number
+          real_qty: number
+          reference: string
+          snapshot_qty: number
+        }[]
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
       is_member: { Args: { _company: string }; Returns: boolean }
@@ -1972,6 +2157,15 @@ export type Database = {
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined
+      }
+      record_inventory_count: {
+        Args: {
+          _article: string
+          _bin?: string
+          _counted: number
+          _mode: string
+        }
+        Returns: number
       }
       record_stock_move: {
         Args: {
@@ -1987,6 +2181,7 @@ export type Database = {
         }
         Returns: number
       }
+      reintegrate_snapshot: { Args: { _snapshot: string }; Returns: number }
       reorder_proposals: {
         Args: { _company: string }
         Returns: {
@@ -2001,6 +2196,10 @@ export type Database = {
           suggested_qty: number
           supplier_id: string
         }[]
+      }
+      reset_real_stock: {
+        Args: { _company: string; _keep_vehicles?: boolean }
+        Returns: number
       }
       transfer_stock_on_replace: {
         Args: { _from: string; _to: string }
