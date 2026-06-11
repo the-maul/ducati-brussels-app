@@ -145,9 +145,9 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 - [ ] Récap ventes par **rayons** détaillé par référence ; « avec cumul » / « détaillées » ; visualiser / imprimer ; CA & marge par pièce + stock/qté en commande fournisseur (p.126-127)
 
 ## 1.13 Mouvements de fond de caisse (p.128-131)
-- [ ] **Entrées / sorties d'argent** non liées à une vente (ex. timbres, courrier) ; alimente le journal de caisse (p.128)
-- [ ] Mode de règlement + montant ; création de mode à la volée (p.130)
-- [ ] **Saisie du fond de caisse de départ** (fond d'ouverture, journalier) — imprime les écarts, transféré en compta (p.130-131)
+- [x] **Entrées / sorties d'argent** non liées à une vente (ex. timbres, courrier) ; alimente le journal de caisse (p.128)
+- [x] Mode de règlement + montant ; création de mode à la volée (p.130) — *mode depuis les paramètres ; création à la volée via Paramètres*
+- [x] **Saisie du fond de caisse de départ** (fond d'ouverture, journalier) — imprime les écarts, transféré en compta (p.130-131) — *fond + écart à la clôture ; transfert compta avec M12*
 
 ## 1.14 Utilitaires factures (p.132-138)
 - [ ] **Recherche de factures de produits finis** (véhicule/machine) (p.132)
@@ -180,11 +180,11 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 ## 1.17 Journal de caisse / clôture (p.164-179)
 - [ ] **Édition du journal de caisse** + **remises de chèques** = documents de fin de journée (p.164-165)
 - [ ] **Paramétrage de l'édition** : layout configurable par poste/caisse (sélection lignes, jaune/blanc/carré-noir/chaque ligne) (p.165-166)
-- [ ] **Journal des ventes / récap des encaissements de la journée (= Z)** : règlements des factures par mode, **acomptes** par mode, **entrées/sorties d'argent**, totaux intermédiaires (p.170)
-- [ ] **Ventilations** : par opérateur, par famille, **par TVA**, mensuelle par opérateur/TVA (p.172-176)
-- [ ] **Mouvements de fond de caisse** dans le journal (p.176)
+- [x] **Journal des ventes / récap des encaissements de la journée (= Z)** : règlements des factures par mode, **acomptes** par mode, **entrées/sorties d'argent**, totaux intermédiaires (p.170)
+- [x] **Ventilations** : par opérateur, par famille, **par TVA**, mensuelle par opérateur/TVA (p.172-176) — *ventilation TVA faite ; opérateur/famille à venir (M13)*
+- [x] **Mouvements de fond de caisse** dans le journal (p.176)
 - [ ] **Détail des ventes par référence** (p.176)
-- [ ] **Calcul Monnaie** : comptage pièces/billets (dénomination × quantité) → réconciliation du tiroir (p.177)
+- [x] **Calcul Monnaie** : comptage pièces/billets (dénomination × quantité) → réconciliation du tiroir (p.177)
 - [ ] **Présentation Normale / Horizontale** du récap (p.170)
 
 ## 1.18 Remises en banque (p.180-184)

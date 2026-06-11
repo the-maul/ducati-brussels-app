@@ -453,6 +453,40 @@ export const fr = {
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
   },
 
+  // Caisse / Clôture Z (M6 — POS)
+  cash: {
+    title: 'Caisse',
+    subtitle: 'Fond de caisse, mouvements d\'argent et clôture Z.',
+    noSession: 'Aucune session de caisse ouverte.',
+    openSession: 'Ouvrir une session de caisse',
+    openingFloat: 'Fond de caisse d\'ouverture',
+    note: 'Note',
+    open: 'Ouvrir la caisse',
+    sessionOpen: 'Session de caisse ouverte',
+    openedAt: 'Ouverte le',
+    // mouvements de fond de caisse
+    movements: 'Mouvements de fond de caisse',
+    movementIn: 'Entrée d\'argent', movementOut: 'Sortie d\'argent',
+    amount: 'Montant', reason: 'Motif', method: 'Mode',
+    add: 'Ajouter', noMovements: 'Aucun mouvement.',
+    in: 'Entrée', out: 'Sortie',
+    // journal Z
+    z: 'Journal Z (récap des encaissements)',
+    byMethod: 'Encaissements par mode', sales: 'Ventes', deposits: 'Acomptes', refunds: 'Avoirs', total: 'Total',
+    vat: 'Ventilation TVA', vatRate: 'Taux', baseHt: 'Base HT', vatAmount: 'TVA',
+    cashIn: 'Entrées d\'argent', cashOut: 'Sorties d\'argent',
+    // clôture
+    close: 'Clôturer la caisse', counting: 'Calcul monnaie — comptage du tiroir',
+    denomination: 'Coupure', qty: 'Qté',
+    countedCash: 'Espèces comptées', theoretical: 'Espèces théoriques', variance: 'Écart',
+    closeConfirm: 'Clôturer la session',
+    // sessions passées
+    pastSessions: 'Sessions passées',
+    colOpened: 'Ouverte', colClosed: 'Clôturée', colFloat: 'Fond', colCounted: 'Compté', colStatus: 'Statut',
+    statusOpen: 'Ouverte', statusClosed: 'Clôturée',
+    errSave: 'Erreur',
+  },
+
   // Paramètres (M0)
   settings: {
     title: 'Paramètres',

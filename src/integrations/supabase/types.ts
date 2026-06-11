@@ -447,6 +447,110 @@ export type Database = {
           },
         ]
       }
+      cash_movements: {
+        Row: {
+          amount: number
+          company_id: string
+          id: string
+          kind: string
+          method: string
+          occurred_at: string
+          operator_id: string | null
+          reason: string | null
+          session_id: string | null
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          id?: string
+          kind: string
+          method?: string
+          occurred_at?: string
+          operator_id?: string | null
+          reason?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          id?: string
+          kind?: string
+          method?: string
+          occurred_at?: string
+          operator_id?: string | null
+          reason?: string | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_sessions: {
+        Row: {
+          closed_at: string | null
+          company_id: string
+          counted_cash: number | null
+          created_at: string
+          denominations: Json
+          id: string
+          note: string | null
+          opened_at: string
+          opened_by: string | null
+          opening_float: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          company_id: string
+          counted_cash?: number | null
+          created_at?: string
+          denominations?: Json
+          id?: string
+          note?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_float?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          company_id?: string
+          counted_cash?: number | null
+          created_at?: string
+          denominations?: Json
+          id?: string
+          note?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_float?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_price_rules: {
         Row: {
           company_id: string
@@ -1598,6 +1702,10 @@ export type Database = {
           real_qty: number
           reserved_qty: number
         }[]
+      }
+      cash_z_report: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: Json
       }
       contact_encours: {
         Args: { _contact: string }
