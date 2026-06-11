@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { getDocumentFull, convertDocument, CONVERSIONS } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { t } from '@/lib/i18n';
 
@@ -23,6 +23,10 @@ function DocumentView() {
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
   const convert = useMutation({
     mutationFn: (target: string) => convertDocument(documentId, target),
+    onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
+  });
+  const credit = useMutation({
+    mutationFn: () => generateCreditNote(documentId),
     onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
   });
 
@@ -49,14 +53,19 @@ function DocumentView() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
-        {canConvert && convertTargets.length > 0 && (
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>
+        {canConvert && (convertTargets.length > 0 || doc.doc_type === 'FAC') && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
               <Button key={tt} size="sm" variant="outline" onClick={() => convert.mutate(tt)} disabled={convert.isPending}>
                 {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
               </Button>
             ))}
+            {doc.doc_type === 'FAC' && (
+              <Button size="sm" variant="outline" onClick={() => credit.mutate()} disabled={credit.isPending}>
+                {credit.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {t('sales.creditNote')}
+              </Button>
+            )}
           </div>
         )}
       </div>

@@ -233,6 +233,57 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
   return newId;
 }
 
+/**
+ * Génère un avoir (type AVO) depuis une facture (G8 Facturation p.88, p.113, p.135) :
+ * lignes en négatif, **réintégration du stock** (entrée réel), **remboursement** des règlements
+ * perçus (règlements négatifs sur l'avoir), filiation, et passage de la facture en 'annulee'.
+ * Mouvements append-only (B7). Retourne l'id de l'avoir.
+ */
+export async function generateCreditNote(invoiceId: string): Promise<string> {
+  const { doc, lines } = await getDocumentFull(invoiceId);
+  if (doc.doc_type !== 'FAC') throw new Error('Avoir : document source non facturable');
+  if (doc.status === 'annulee' || doc.status === 'converti') throw new Error('Facture déjà annulée');
+
+  // Lignes en négatif (qté inversée → totaux négatifs via computeTotals).
+  const lineInputs: LineInput[] = lines.map((l) => ({
+    article_id: l.article_id, designation: l.designation, quantity: -Math.abs(Number(l.quantity)),
+    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
+  }));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const avoId = await createDocument({
+    companyId: doc.company_id, docType: 'AVO', contactId: doc.contact_id, vehicleId: doc.vehicle_id,
+    issueDate: today, dueDate: null, status: 'validee', notes: doc.notes,
+    lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: invoiceId,
+  });
+
+  // Réintégration du stock : entrée réel +qté pour chaque ligne article (B4).
+  for (const l of lines) {
+    if (!l.article_id || Number(l.quantity) <= 0) continue;
+    const { error } = await supabase.rpc('record_stock_move', {
+      _article: l.article_id, _type: 'entree', _qty: Math.abs(Number(l.quantity)), _unit_cost: null,
+      _is_reservation: false, _bin: null, _origin: 'sale', _ref: doc.number, _note: 'Avoir / réintégration',
+    });
+    if (error) throw error;
+  }
+
+  // Remboursement : règlements négatifs reprenant les règlements perçus de la facture.
+  const paid = await listPayments(invoiceId);
+  const refunds = paid.filter((p) => p.status === 'recu' && Number(p.amount) !== 0);
+  if (refunds.length > 0) {
+    await addPayments(avoId, refunds.map((p) => ({
+      method: p.method, amount: -Math.abs(Number(p.amount)), status: 'recu',
+      note: `Remboursement ${doc.number ?? ''}`.trim(),
+    })));
+  }
+
+  // La facture est annulée par l'avoir.
+  const { error: ue } = await supabase.from('documents').update({ status: 'annulee' }).eq('id', invoiceId);
+  if (ue) throw ue;
+
+  return avoId;
+}
+
 export type DocumentFull = { doc: DocumentRow; lines: DocumentLine[] };
 export async function getDocumentFull(id: string): Promise<DocumentFull> {
   const [{ data: doc, error: de }, { data: lines, error: le }] = await Promise.all([

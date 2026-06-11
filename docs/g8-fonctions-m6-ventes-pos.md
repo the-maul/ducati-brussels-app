@@ -120,7 +120,7 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 - [ ] **Rappel par n° saisi** avec préfixe lettre type : **F**=Facture, **R**=Réservation, **L**=Livraison, **P**=Proforma, **O**=Ordre de réparation (p.85-86)
 - [ ] **Rappel par méthode classique** (choix type → liste) (p.86)
 - [ ] **Modification d'une facture** : double-clic ligne → corriger → revalider (réenregistre) (p.88)
-- [ ] **Génération d'un avoir** : annuler une facture en générant un avoir (p.88, p.113)
+- [x] **Génération d'un avoir** : annuler une facture en générant un avoir (p.88, p.113)
 - [ ] **Modification des règlements** d'une facture (immédiats vs à échéance) (p.88-91)
   - [x] Règlement **non transféré en compta** → modifiable directement
   - [ ] Règlement **transféré en compta** (flag « Transfert comptable ») → génère une écriture d'annulation (p.90) — *avec M12*
@@ -152,7 +152,7 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 ## 1.14 Utilitaires factures (p.132-138)
 - [ ] **Recherche de factures de produits finis** (véhicule/machine) (p.132)
 - [ ] **Duplicata de facture** (réédition même n°) — recherche par n°/nom/code client (p.133-134)
-- [ ] **Génération automatique d'avoir** : annule la facture, **remet le stock**, génère règlements **négatifs** (p.135)
+- [x] **Génération automatique d'avoir** : annule la facture, **remet le stock**, génère règlements **négatifs** (p.135)
 - [ ] **Liste des factures par client** (p.133)
 - [ ] **Génération des factures par B.L. clients** : regroupe les B.L. d'un client en une facture (décade, quinzaine, fin de mois) (p.135)
 
