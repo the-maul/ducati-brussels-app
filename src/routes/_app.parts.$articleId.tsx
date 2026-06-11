@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
-import { BarcodesTab, KitTab, ReplacementTab } from '@/modules/articles/article-tabs';
+import { BarcodesTab, KitTab, ReplacementTab, StockTab } from '@/modules/articles/article-tabs';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
@@ -55,6 +55,7 @@ function EditArticle() {
       <Tabs defaultValue="fiche">
         <TabsList>
           <TabsTrigger value="fiche">Fiche</TabsTrigger>
+          <TabsTrigger value="stock">Stock</TabsTrigger>
           <TabsTrigger value="barcodes">Codes-barres</TabsTrigger>
           <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
           <TabsTrigger value="replacement">Remplacement</TabsTrigger>
@@ -69,6 +70,7 @@ function EditArticle() {
             onCancel={() => navigate({ to: '/parts' })}
           />
         </TabsContent>
+        <TabsContent value="stock" className="mt-4"><StockTab articleId={articleId} /></TabsContent>
         <TabsContent value="barcodes" className="mt-4"><BarcodesTab articleId={articleId} /></TabsContent>
         <TabsContent value="kit" className="mt-4"><KitTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="replacement" className="mt-4">

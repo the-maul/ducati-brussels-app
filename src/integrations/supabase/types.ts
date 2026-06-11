@@ -993,6 +993,69 @@ export type Database = {
           },
         ]
       }
+      stock_moves: {
+        Row: {
+          article_id: string
+          bin_location: string | null
+          company_id: string
+          id: number
+          is_reservation: boolean
+          move_type: Database["public"]["Enums"]["stock_move_type"]
+          note: string | null
+          occurred_at: string
+          operator_id: string | null
+          origin: string
+          qty_delta: number
+          ref: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          article_id: string
+          bin_location?: string | null
+          company_id: string
+          id?: never
+          is_reservation?: boolean
+          move_type: Database["public"]["Enums"]["stock_move_type"]
+          note?: string | null
+          occurred_at?: string
+          operator_id?: string | null
+          origin?: string
+          qty_delta: number
+          ref?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          article_id?: string
+          bin_location?: string | null
+          company_id?: string
+          id?: never
+          is_reservation?: boolean
+          move_type?: Database["public"]["Enums"]["stock_move_type"]
+          note?: string | null
+          occurred_at?: string
+          operator_id?: string | null
+          origin?: string
+          qty_delta?: number
+          ref?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_moves_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string
@@ -1273,6 +1336,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      article_stock: {
+        Args: { _article: string }
+        Returns: {
+          available_qty: number
+          real_qty: number
+          reserved_qty: number
+        }[]
+      }
       has_role: {
         Args: {
           _company: string
@@ -1285,6 +1356,24 @@ export type Database = {
       next_document_number: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      record_stock_move: {
+        Args: {
+          _article: string
+          _bin?: string
+          _is_reservation?: boolean
+          _note?: string
+          _origin?: string
+          _qty: number
+          _ref?: string
+          _type: Database["public"]["Enums"]["stock_move_type"]
+          _unit_cost?: number
+        }
+        Returns: number
+      }
+      transfer_stock_on_replace: {
+        Args: { _from: string; _to: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -1318,6 +1407,15 @@ export type Database = {
       license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
       mileage_qualif: "nc" | "reel" | "ng"
       sale_vat_type: "national" | "intracom" | "export"
+      stock_move_type:
+        | "entree"
+        | "sortie"
+        | "reservation"
+        | "liberation"
+        | "inventaire"
+        | "transfert"
+        | "cession"
+        | "correction"
       vehicle_status:
         | "en_commande"
         | "stock_vn"
@@ -1482,6 +1580,16 @@ export const Constants = {
       license_category: ["AM", "A1", "A2", "A", "B", "autre"],
       mileage_qualif: ["nc", "reel", "ng"],
       sale_vat_type: ["national", "intracom", "export"],
+      stock_move_type: [
+        "entree",
+        "sortie",
+        "reservation",
+        "liberation",
+        "inventaire",
+        "transfert",
+        "cession",
+        "correction",
+      ],
       vehicle_status: [
         "en_commande",
         "stock_vn",
