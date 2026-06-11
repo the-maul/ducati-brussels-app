@@ -507,8 +507,9 @@ export const fr = {
 
   // Documents & GED (M9)
   ged: {
-    title: 'Documents', upload: 'Ajouter un fichier', hint: 'Photos, COC, pièce d\'identité, justificatifs…',
-    empty: 'Aucun document joint.', colFile: 'Fichier', colSize: 'Taille', colDate: 'Date', errUpload: 'Upload impossible.',
+    title: 'Documents & photos', upload: 'Ajouter (photo / fichier)', hint: 'Photos (caméra sur mobile), COC, pièce d\'identité, justificatifs…',
+    label: 'Libellé (ex. avant atelier)',
+    empty: 'Aucun document joint.', colFile: 'Fichier', colLabel: 'Libellé', colSize: 'Taille', colDate: 'Date', errUpload: 'Upload impossible.',
   },
 
   // Atelier (M8)

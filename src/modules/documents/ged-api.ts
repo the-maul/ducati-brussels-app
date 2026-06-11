@@ -16,16 +16,21 @@ export async function listAttachments(entityType: string, entityId: string): Pro
   return data ?? [];
 }
 
-export async function uploadAttachment(companyId: string, entityType: string, entityId: string, file: File, stamp: number): Promise<void> {
+export async function uploadAttachment(companyId: string, entityType: string, entityId: string, file: File, stamp: number, note?: string): Promise<void> {
   const path = `${companyId}/${entityType}/${entityId}/${stamp}_${slug(file.name)}`;
   const { error: ue } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type || undefined });
   if (ue) throw ue;
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from('attachments').insert({
     company_id: companyId, entity_type: entityType, entity_id: entityId, file_name: file.name,
-    storage_path: path, content_type: file.type || null, size_bytes: file.size, uploaded_by: user?.id ?? null,
+    storage_path: path, content_type: file.type || null, size_bytes: file.size, note: note || null, uploaded_by: user?.id ?? null,
   });
   if (error) throw error;
+}
+
+/** URL signée publique-temporaire pour un aperçu inline (vignette). */
+export async function signedThumb(path: string): Promise<string | null> {
+  return signedUrl(path);
 }
 
 export async function deleteAttachment(att: Attachment): Promise<void> {
