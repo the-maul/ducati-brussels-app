@@ -827,6 +827,53 @@ export type Database = {
           },
         ]
       }
+      reference_values: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          extra: Json
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          table_key: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          extra?: Json
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          table_key: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          extra?: Json
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          table_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_values_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Users, Hash } from 'lucide-react';
+import { Users, Hash, Table2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { t } from '@/lib/i18n';
 
@@ -22,11 +22,23 @@ function SettingsIndex() {
           <span className="text-sm text-muted-foreground">{t('settings.usersDesc')}</span>
         </Link>
 
-        <div className="flex flex-col gap-2 rounded-md border border-dashed border-border bg-card p-5 opacity-70">
-          <Hash className="size-6 text-muted-foreground" />
+        <Link
+          to="/settings/tables"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <Table2 className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">Tables de données</span>
+          <span className="text-sm text-muted-foreground">Référentiels paramétrables : TVA, règlements, marques, cessions, civilités…</span>
+        </Link>
+
+        <Link
+          to="/settings/numbering"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <Hash className="size-6 text-primary" />
           <span className="font-ui text-[15px] font-bold">{t('settings.numbering')}</span>
           <span className="text-sm text-muted-foreground">{t('settings.numberingDesc')}</span>
-        </div>
+        </Link>
       </div>
     </>
   );
