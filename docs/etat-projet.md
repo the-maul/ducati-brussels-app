@@ -12,12 +12,19 @@
 > [g8-fonctions-m8-atelier.md](g8-fonctions-m8-atelier.md),
 > [g8-fonctions-m0-m12-m13-compta-stats-params.md](g8-fonctions-m0-m12-m13-compta-stats-params.md).
 
-> 🟢 **AVANCEMENT (2026-06-10, passe 2)** : E0/E1 — **tous les P1 faits** + large part des P2 (voir
+> 🟢 **AVANCEMENT (2026-06-11, passe 3)** : E0/E1 — **tous les P1 faits** + large part des P2 (voir
 > [backlog-e0-e1.md](backlog-e0-e1.md)). **Fondations anticipées** : **M5 stock** (`stock_moves` append-only,
-> triple stock, PAMP testé, transfert au remplacement) et **M6 Ventes** (module `/sales` : liste + éditeur
-> FAC/DEV/TIK/BL, numérotation, décrément stock à la validation, encaissement ; `contact_encours()` →
-> encours client). Reste : compléter le POS (encaissement multi-modes, clôture Z, avoirs, conversions
-> devis→facture, détaxe) et les modules M4/M8/M9/M10/M12 pour les onglets dépendants.
+> triple stock, PAMP testé, transfert au remplacement).
+> **M6 Ventes/POS — partie A bouclée** (`/sales` + `/pos`, parité G8 du POS, cf.
+> [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md)) :
+> éditeur FAC/DEV/RES/BL/TIK/AVO · **pied de facture** (remise globale %/€, mode HT/TTC, **détaxe export**,
+> port taxé/non, net TTC forcé) · **encaissement** multi-modes / à échéance / rendu de monnaie (modes depuis
+> `reference_values`) · **réservation + acomptes** (stock *disponible*, B4) · **conversions** DEV/RES/BL→FAC/BL
+> (acompte auto-déduit, filiation) · **avoirs** (réintégration stock + remboursement) · **clôture Z** (`/pos` :
+> fond de caisse, mouvements de fond, journal Z par mode + ventilation TVA, calcul monnaie) · **impression PDF**.
+> 23 tests verts (PAMP + 8 sur le pied/TVA). Reste POS (tail) : duplicata, regroupement BL→facture, relances/LCR
+> (M12), n° série/REP au POS (M3/M7), cessions/garanties (M7/M8). **Prochaine étape : partie B = M4 Achats/
+> réceptions** (commandes fournisseur, réceptions = vraies entrées stock + PAMP, châssis→véhicule, export DCS).
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -34,6 +41,7 @@
 | **E0 — Socle + design** | M0 | ✅ **validé** (login, multi-société, RLS, audit, séquences, design system, gestion utilisateurs) |
 | **E1 — Contacts + Articles** | M1, M2 | ✅ **clôturé** (fiches **parité G8** + **moteur d'import tarifs** + 10 tests) |
 | **E2 — Véhicules** | M3 | 🟦 **cœur fait** (fiche VIN parité G8, parc, historique propriétaires, jointure article) ; reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois |
+| **E5 — Ventes & POS** | M6 | 🟦 **partie A (POS) faite** (pied, encaissement multi-modes, réservation/acomptes, conversions, avoirs, clôture Z, impression) ; reste tail dépendant M3/M7/M8/M12 |
 | E3 → E12 | M4–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
