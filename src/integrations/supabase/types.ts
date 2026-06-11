@@ -758,6 +758,11 @@ export type Database = {
           segment: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos: boolean
           status: Database["public"]["Enums"]["contact_status"]
+          supplier_customer_no: string | null
+          supplier_franco_min: number | null
+          supplier_is_internal: boolean
+          supplier_order_min: number | null
+          supplier_rfa_rate: number | null
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
           vat_number: string | null
@@ -819,6 +824,11 @@ export type Database = {
           segment?: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos?: boolean
           status?: Database["public"]["Enums"]["contact_status"]
+          supplier_customer_no?: string | null
+          supplier_franco_min?: number | null
+          supplier_is_internal?: boolean
+          supplier_order_min?: number | null
+          supplier_rfa_rate?: number | null
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
@@ -880,6 +890,11 @@ export type Database = {
           segment?: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos?: boolean
           status?: Database["public"]["Enums"]["contact_status"]
+          supplier_customer_no?: string | null
+          supplier_franco_min?: number | null
+          supplier_is_internal?: boolean
+          supplier_order_min?: number | null
+          supplier_rfa_rate?: number | null
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
@@ -1301,6 +1316,232 @@ export type Database = {
             columns: ["default_company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_lines: {
+        Row: {
+          article_id: string | null
+          bin_location: string | null
+          created_at: string
+          designation: string
+          discount_pct: number
+          id: string
+          labels: number
+          line_ht: number
+          order_id: string
+          quantity: number
+          sale_price_ttc: number | null
+          sort_order: number
+          supplier_ref: string | null
+          unit_price_ht: number
+          vat_rate: number
+        }
+        Insert: {
+          article_id?: string | null
+          bin_location?: string | null
+          created_at?: string
+          designation: string
+          discount_pct?: number
+          id?: string
+          labels?: number
+          line_ht?: number
+          order_id: string
+          quantity?: number
+          sale_price_ttc?: number | null
+          sort_order?: number
+          supplier_ref?: string | null
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Update: {
+          article_id?: string | null
+          bin_location?: string | null
+          created_at?: string
+          designation?: string
+          discount_pct?: number
+          id?: string
+          labels?: number
+          line_ht?: number
+          order_id?: string
+          quantity?: number
+          sale_price_ttc?: number | null
+          sort_order?: number
+          supplier_ref?: string | null
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          bl_date: string | null
+          company_id: string
+          created_at: string
+          doc_type: string
+          expected_date: string | null
+          global_discount_pct: number
+          id: string
+          intranet_no: string | null
+          invoice_date: string | null
+          notes: string | null
+          number: string | null
+          order_date: string | null
+          receipt_date: string | null
+          shipping_ht: number
+          shipping_taxed: boolean
+          shipping_vat_rate: number
+          source_order_id: string | null
+          status: string
+          supplier_bl_no: string | null
+          supplier_id: string | null
+          supplier_invoice_no: string | null
+          total_ht: number
+          total_ttc: number
+          total_vat: number
+          updated_at: string
+          vat_regime: string
+        }
+        Insert: {
+          bl_date?: string | null
+          company_id: string
+          created_at?: string
+          doc_type?: string
+          expected_date?: string | null
+          global_discount_pct?: number
+          id?: string
+          intranet_no?: string | null
+          invoice_date?: string | null
+          notes?: string | null
+          number?: string | null
+          order_date?: string | null
+          receipt_date?: string | null
+          shipping_ht?: number
+          shipping_taxed?: boolean
+          shipping_vat_rate?: number
+          source_order_id?: string | null
+          status?: string
+          supplier_bl_no?: string | null
+          supplier_id?: string | null
+          supplier_invoice_no?: string | null
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vat_regime?: string
+        }
+        Update: {
+          bl_date?: string | null
+          company_id?: string
+          created_at?: string
+          doc_type?: string
+          expected_date?: string | null
+          global_discount_pct?: number
+          id?: string
+          intranet_no?: string | null
+          invoice_date?: string | null
+          notes?: string | null
+          number?: string | null
+          order_date?: string | null
+          receipt_date?: string | null
+          shipping_ht?: number
+          shipping_taxed?: boolean
+          shipping_vat_rate?: number
+          source_order_id?: string | null
+          status?: string
+          supplier_bl_no?: string | null
+          supplier_id?: string | null
+          supplier_invoice_no?: string | null
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vat_regime?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_source_order_id_fkey"
+            columns: ["source_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_schedules: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          note: string | null
+          order_id: string
+          seq_no: number
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          seq_no?: number
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          seq_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_schedules_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
         ]

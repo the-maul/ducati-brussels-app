@@ -72,6 +72,12 @@ type FormState = {
   marketing_opt_out: boolean;
   interests: string[];
   notes: string;
+  // Fournisseur (M4)
+  supplier_customer_no: string;
+  supplier_is_internal: boolean;
+  supplier_rfa_rate: string;
+  supplier_franco_min: string;
+  supplier_order_min: string;
 };
 
 function fromContact(c: Contact | null): FormState {
@@ -123,6 +129,11 @@ function fromContact(c: Contact | null): FormState {
     marketing_opt_out: c?.marketing_opt_out ?? false,
     interests: c?.interests ?? [],
     notes: c?.notes ?? '',
+    supplier_customer_no: c?.supplier_customer_no ?? '',
+    supplier_is_internal: c?.supplier_is_internal ?? false,
+    supplier_rfa_rate: c?.supplier_rfa_rate != null ? String(c.supplier_rfa_rate) : '',
+    supplier_franco_min: c?.supplier_franco_min != null ? String(c.supplier_franco_min) : '',
+    supplier_order_min: c?.supplier_order_min != null ? String(c.supplier_order_min) : '',
   };
 }
 
@@ -178,6 +189,11 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     marketing_opt_out: f.marketing_opt_out,
     interests: f.interests,
     notes: nn(f.notes),
+    supplier_customer_no: nn(f.supplier_customer_no),
+    supplier_is_internal: f.supplier_is_internal,
+    supplier_rfa_rate: f.supplier_rfa_rate.trim() === '' ? null : Number(f.supplier_rfa_rate),
+    supplier_franco_min: f.supplier_franco_min.trim() === '' ? null : Number(f.supplier_franco_min),
+    supplier_order_min: f.supplier_order_min.trim() === '' ? null : Number(f.supplier_order_min),
   };
 }
 
@@ -375,6 +391,25 @@ export function ContactForm({
           <Input value={f.factoring_code} onChange={(e) => set('factoring_code', e.target.value)} />
         </Field>
       </Section>
+
+      {/* Fournisseur (M4) — visible pour les fiches fournisseur */}
+      {f.type === 'fournisseur' && (
+        <Section title={t('contacts.secSupplier')}>
+          <Field label={t('contacts.supplierCustomerNo')}>
+            <Input value={f.supplier_customer_no} onChange={(e) => set('supplier_customer_no', e.target.value)} />
+          </Field>
+          <Field label={t('contacts.supplierRfa')}>
+            <Input type="number" step="0.01" min="0" value={f.supplier_rfa_rate} onChange={(e) => set('supplier_rfa_rate', e.target.value)} className="text-right tabular-nums" />
+          </Field>
+          <Field label={t('contacts.supplierFranco')}>
+            <Input type="number" step="0.01" min="0" value={f.supplier_franco_min} onChange={(e) => set('supplier_franco_min', e.target.value)} className="text-right tabular-nums" />
+          </Field>
+          <Field label={t('contacts.supplierOrderMin')}>
+            <Input type="number" step="0.01" min="0" value={f.supplier_order_min} onChange={(e) => set('supplier_order_min', e.target.value)} className="text-right tabular-nums" />
+          </Field>
+          <Check label={t('contacts.supplierInternal')} checked={f.supplier_is_internal} onChange={(v) => set('supplier_is_internal', v)} />
+        </Section>
+      )}
 
       {/* Catégorisation */}
       <Section title={t('contacts.secCategory')}>

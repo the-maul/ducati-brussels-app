@@ -403,6 +403,13 @@ export const fr = {
     saleVat_national: 'National',
     saleVat_intracom: 'Intracommunautaire',
     saleVat_export: 'Exportation',
+    // Fournisseur (M4)
+    secSupplier: 'Fournisseur',
+    supplierCustomerNo: 'N° de client chez le fournisseur',
+    supplierInternal: 'Fournisseur interne (magasin)',
+    supplierRfa: 'RFA — remise fin d\'année (%)',
+    supplierFranco: 'Franco de port (€)',
+    supplierOrderMin: 'Minimum de commande (€)',
   },
 
   // Ventes & Facturation (M6 — POS)

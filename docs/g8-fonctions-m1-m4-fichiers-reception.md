@@ -130,10 +130,10 @@
 - [ ] **Échéances** : échéances dues, total échéances TTC, ajouter une échéance (n°/date/montant) ; boutons Livraison / Facture.
 
 ### Fournisseurs (`Fichiers › Fournisseurs`)
-- [ ] Fiche : code auto, **n° de client chez le fournisseur** (imprimé sur commandes), nom (obligatoire), coordonnées (adresse multi-zones imprimée sur BC, tél/fax/email) `[M115-116]`.
-- [ ] **Code fournisseur interne** = magasin lui-même (rattache MO, reprise occasion…) `[M116]`.
+- [x] Fiche : code auto, **n° de client chez le fournisseur** (imprimé sur commandes), nom (obligatoire), coordonnées (adresse multi-zones imprimée sur BC, tél/fax/email) `[M115-116]` — *champs sur la fiche contact fournisseur*
+- [x] **Code fournisseur interne** = magasin lui-même (rattache MO, reprise occasion…) `[M116]`.
 - [ ] Modifier/consulter/supprimer (**suppression bloquée si articles rattachés** → réaffecter ou supprimer articles) ; liste imprimable `[M117-119]`.
-- [ ] **Remise fin d'année (RFA)** : saisie remise accordée → injectée dans les stats + ajoutée à la marge fournisseur `[M121]`.
+- [x] **Remise fin d'année (RFA)** : saisie remise accordée → injectée dans les stats + ajoutée à la marge fournisseur `[M121]` — *champ RFA ; injection stats/marge avec M13*
 
 ## 1.5 — Modification en cascade (`Fichiers › Articles › Modification en cascade`) `[C1-C4]`
 
