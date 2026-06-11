@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Timer } from 'lucide-react';
+import { Loader2, Plus, Timer, CalendarDays } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ function WorkshopList() {
         description={t('workshop.subtitle')}
         actions={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning' })}><CalendarDays /> {t('workshop.planning')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
             <Button onClick={() => navigate({ to: '/workshop/new' })}><Plus /> {t('workshop.newOr')}</Button>
           </div>

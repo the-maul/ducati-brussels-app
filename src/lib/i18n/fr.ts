@@ -497,6 +497,13 @@ export const fr = {
     pickOr: 'Travailler sur un OR', working: 'Travail en cours', stopWork: 'Arrêter', startWork: 'Démarrer',
     today: 'Aujourd\'hui', entryKind_presence: 'Présence', entryKind_travail: 'Travail', minutes: 'min', ongoing: 'en cours',
     workedTime: 'Temps passé', noOpenOr: 'Aucun OR ouvert.',
+    // planning / RDV
+    planning: 'Planning', planningTitle: 'Planning atelier', planningSubtitle: 'Rendez-vous, charge et véhicules de prêt.',
+    newRdv: 'Nouveau RDV', rdvDate: 'Date & heure', rdvDuration: 'Durée (min)', rdvWorkshop: 'Atelier',
+    rdvLoaner: 'Véhicule de prêt', rdvNotify: 'SMS de rappel (veille)',
+    apptStatus_prevu: 'Prévu', apptStatus_arrive: 'Véhicule arrivé', apptStatus_en_cours: 'En cours', apptStatus_termine: 'Terminé', apptStatus_annule: 'Annulé',
+    createOrFromRdv: 'Créer l\'OR', viewOr: 'Voir l\'OR', prevWeek: 'Semaine précédente', nextWeek: 'Semaine suivante', thisWeek: 'Cette semaine',
+    noRdv: 'Aucun rendez-vous.', changeStatus: 'Statut',
   },
 
   // Reprises / Occasion / ORO (M7)

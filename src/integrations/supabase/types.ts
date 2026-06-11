@@ -2330,6 +2330,92 @@ export type Database = {
           },
         ]
       }
+      workshop_appointments: {
+        Row: {
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          loaner_vehicle: string | null
+          mechanic_name: string | null
+          notify_sms: boolean
+          or_id: string | null
+          planned_minutes: number
+          reception_notes: string | null
+          starts_at: string
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+          work_description: string | null
+          workshop: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          loaner_vehicle?: string | null
+          mechanic_name?: string | null
+          notify_sms?: boolean
+          or_id?: string | null
+          planned_minutes?: number
+          reception_notes?: string | null
+          starts_at: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          work_description?: string | null
+          workshop?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          loaner_vehicle?: string | null
+          mechanic_name?: string | null
+          notify_sms?: boolean
+          or_id?: string | null
+          planned_minutes?: number
+          reception_notes?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          work_description?: string | null
+          workshop?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_appointments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_appointments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_appointments_or_id_fkey"
+            columns: ["or_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_appointments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshop_time_entries: {
         Row: {
           company_id: string
