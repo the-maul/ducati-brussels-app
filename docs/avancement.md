@@ -12,8 +12,8 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 
 | Epic | Périmètre | Statut |
 |---|---|---|
-| **E0 — Socle + design system** (M0) | schéma socle, auth/RLS, multi-société, events, séquences, recherche globale, **design system** | ✅ (validé en local) |
-| E1 — Contacts + Articles (M1, M2) | M1 fiche client **parité G8** ✅ · M2 articles **parité G8** ✅ · **moteur d'import tarifs** (CSV, mapping, 12 règles, diff, anomalies, apply) ✅ **+ 10 tests** | ✅ |
+| **E0 — Socle + design system** (M0) | socle/auth/RLS/multi-société/events/design ✅ · **fonctionnalités G8 en cours** (séquences UI, recherche DB, tables de params) → [backlog-e0-e1.md](backlog-e0-e1.md) | 🟦 fonctionnalités |
+| E1 — Contacts + Articles (M1, M2) | fiches **parité champs** + import tarifs ✅ · **fonctionnalités G8 en cours** (M1 : onglets/encours calculé/tarifs paliers ; M2 : prix interactif/cascade/remplacement réf/équivalences) → [backlog-e0-e1.md](backlog-e0-e1.md) | 🟦 fonctionnalités |
 | E2 — Véhicules (M3) | Fiche VIN **parité G8** (carte grise A/B/D.1/E, bridé A2, TPMS, trackers, garantie, n° police), parc + filtre statut, historique propriétaires, jointure article↔véhicule, CRUD ✅ · reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois | 🟦 cœur fait |
 | E3 — Achats & réceptions (M4) | — | ⬜ |
 | E4 — Stock & inventaire (M5) | — | ⬜ |
