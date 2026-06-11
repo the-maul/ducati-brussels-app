@@ -102,16 +102,16 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
             <tr>
-              <Th>{t('purchases.colArticle')}</Th>
-              <Th className="w-24">{t('purchases.colSupplierRef')}</Th>
-              <Th className="w-16 text-right">{t('purchases.colQty')}</Th>
-              <Th className="w-24 text-right">{t('purchases.colPuHt')}</Th>
-              <Th className="w-16 text-right">{t('purchases.colDiscount')}</Th>
-              <Th className="w-14 text-right">{t('purchases.colVat')}</Th>
-              <Th className="w-20">{t('purchases.colBin')}</Th>
-              <Th className="w-14 text-right">{t('purchases.colLabels')}</Th>
-              <Th className="w-24 text-right">{t('purchases.colLineHt')}</Th>
-              <Th className="w-10" />
+              <Th className="min-w-[200px]">{t('purchases.colArticle')}</Th>
+              <Th className="w-28">{t('purchases.colSupplierRef')}</Th>
+              <Th className="w-20 text-right">{t('purchases.colQty')}</Th>
+              <Th className="w-28 text-right">{t('purchases.colPuHt')}</Th>
+              <Th className="w-20 text-right">{t('purchases.colDiscount')}</Th>
+              <Th className="w-24 text-right">{t('purchases.colVat')}</Th>
+              <Th className="w-24">{t('purchases.colBin')}</Th>
+              <Th className="w-20 text-right">{t('purchases.colLabels')}</Th>
+              <Th className="w-28 text-right">{t('purchases.colLineHt')}</Th>
+              <Th className="w-16" />
             </tr>
           </thead>
           <tbody>

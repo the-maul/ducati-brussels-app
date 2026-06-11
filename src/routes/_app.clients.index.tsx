@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
@@ -20,6 +21,7 @@ function ClientsList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -27,8 +29,8 @@ function ClientsList() {
   }, [search]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['contacts', activeCompanyId, debounced],
-    queryFn: () => listContacts(activeCompanyId!, debounced),
+    queryKey: ['contacts', activeCompanyId, debounced, typeFilter],
+    queryFn: () => listContacts(activeCompanyId!, debounced, typeFilter === 'all' ? undefined : typeFilter),
     enabled: !!activeCompanyId,
   });
 
@@ -54,6 +56,16 @@ function ClientsList() {
             className="pl-9"
           />
         </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('contacts.filterAll')}</SelectItem>
+            <SelectItem value="particulier">{t('contacts.type_particulier')}</SelectItem>
+            <SelectItem value="professionnel">{t('contacts.type_professionnel')}</SelectItem>
+            <SelectItem value="fournisseur">{t('contacts.type_fournisseur')}</SelectItem>
+            <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
+          </SelectContent>
+        </Select>
         {data && <span className="text-sm text-muted-foreground">{data.length}</span>}
       </div>
 

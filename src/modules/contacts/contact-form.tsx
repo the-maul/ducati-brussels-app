@@ -270,7 +270,7 @@ export function ContactForm({
             </Select>
           </Field>
         )}
-        <Field label={t('contacts.code')}>
+        <Field label={isClient ? t('contacts.code') : t('contacts.codeGeneric')}>
           <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
         </Field>
         {isPro && (

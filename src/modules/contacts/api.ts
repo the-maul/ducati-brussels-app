@@ -24,13 +24,15 @@ function sanitize(term: string): string {
   return term.replace(/[,()%*]/g, ' ').trim();
 }
 
-export async function listContacts(companyId: string, search?: string): Promise<Contact[]> {
+export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
   let q = supabase
     .from('contacts')
     .select('*')
     .eq('company_id', companyId)
     .order('last_name', { ascending: true, nullsFirst: false })
     .limit(500);
+
+  if (type) q = q.eq('type', type);
 
   const s = search ? sanitize(search) : '';
   if (s) {

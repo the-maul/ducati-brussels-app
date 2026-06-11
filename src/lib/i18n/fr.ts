@@ -303,8 +303,9 @@ export const fr = {
 
   // Contacts (M1)
   contacts: {
-    title: 'Clients',
-    subtitle: 'Fiches clients, prospects et fournisseurs.',
+    title: 'Contacts',
+    subtitle: 'Tous les contacts : clients, prospects et fournisseurs.',
+    filterAll: 'Tous les types',
     new: 'Nouveau client',
     edit: 'Modifier la fiche',
     create: 'Créer la fiche',
@@ -378,6 +379,7 @@ export const fr = {
     requiredName: 'Le nom (ou la raison sociale) est requis.',
     // Champs G8 additionnels
     code: 'Code client',
+    codeGeneric: 'Code',
     status: 'Statut',
     status_prospect: 'Prospect',
     status_client: 'Client',
