@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
@@ -53,7 +54,11 @@ function EditClient() {
 
   return (
     <>
-      <PageHeader title={contactDisplayName(contact)} description={t('contacts.edit')} />
+      <PageHeader
+        title={contactDisplayName(contact)}
+        description={t('contacts.edit')}
+        actions={<Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>}
+      />
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">
         <TabsList>

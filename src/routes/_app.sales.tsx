@@ -1,6 +1,3 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { FileText } from 'lucide-react';
-import { ModulePlaceholder } from '@/components/module-placeholder';
-import { t } from '@/lib/i18n';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/_app/sales')({ component: () => <ModulePlaceholder title={t('nav.sales')} icon={FileText} /> });
+export const Route = createFileRoute('/_app/sales')({ component: () => <Outlet /> });
