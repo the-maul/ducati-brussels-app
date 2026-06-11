@@ -1332,6 +1332,108 @@ export type Database = {
           },
         ]
       }
+      oro: {
+        Row: {
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          number: string | null
+          status: string
+          total_cost: number
+          vehicle_id: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          number?: string | null
+          status?: string
+          total_cost?: number
+          vehicle_id?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          number?: string | null
+          status?: string
+          total_cost?: number
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oro_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oro_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oro_lines: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          designation: string
+          id: string
+          kind: string
+          line_cost: number
+          oro_id: string
+          quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          designation: string
+          id?: string
+          kind?: string
+          line_cost?: number
+          oro_id: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          designation?: string
+          id?: string
+          kind?: string
+          line_cost?: number
+          oro_id?: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oro_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oro_lines_oro_id_fkey"
+            columns: ["oro_id"]
+            isOneToOne: false
+            referencedRelation: "oro"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -2158,6 +2260,7 @@ export type Database = {
         Args: { _document: string }
         Returns: undefined
       }
+      recompute_oro_and_vehicle: { Args: { _oro: string }; Returns: undefined }
       record_inventory_count: {
         Args: {
           _article: string

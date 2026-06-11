@@ -6,6 +6,7 @@
 import {
   LayoutDashboard,
   Bike,
+  Recycle,
   Wrench,
   Package,
   Boxes,
@@ -35,6 +36,7 @@ export type NavItem = {
 export const mainNav: NavItem[] = [
   { labelKey: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },
   { labelKey: 'nav.vehicles', to: '/vehicles', icon: Bike },
+  { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },

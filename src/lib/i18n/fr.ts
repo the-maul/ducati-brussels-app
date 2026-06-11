@@ -18,6 +18,7 @@ export const fr = {
     workshop: 'Atelier & SAV',
     parts: 'Pièces & Accessoires',
     stock: 'Stock & inventaire',
+    tradein: 'Reprises & ORO',
     purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
     clients: 'Contacts',
@@ -462,6 +463,26 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+  },
+
+  // Reprises / Occasion / ORO (M7)
+  tradein: {
+    title: 'Reprises & ORO', subtitle: 'Reprises d\'occasion (flux B3) et ordres de remise en état.',
+    newReprise: 'Nouvelle reprise', back: 'Reprises', empty: 'Aucun ORO.', notFound: 'Introuvable.',
+    // reprise form
+    repriseTitle: 'Reprise d\'occasion', sellerType: 'Type de reprise',
+    seller_particulier: 'Particulier (TVA marge → O)', seller_pro: 'Professionnel (TVA 21% → P)',
+    designation: 'Désignation', vin: 'N° de châssis (VIN)', brand: 'Marque', model: 'Modèle',
+    engineNumber: 'N° moteur', color: 'Couleur', mileage: 'Kilométrage', firstReg: 'Mise en circulation',
+    reprisePrice: 'Prix de reprise (HT)', resalePrice: 'Prix de revente (TTC)', vatRate: 'TVA %',
+    create: 'Créer la reprise', createInfo: 'Crée l\'article occasion + la fiche véhicule + ouvre un ORO.',
+    // ORO
+    colNumber: 'N° ORO', colVehicle: 'Véhicule', colStatus: 'Statut', colCost: 'Coût remise en état',
+    status_ouvert: 'Ouvert', status_cloture: 'Clôturé',
+    oroTitle: 'Ordre de remise en état', vehicleCost: 'Coût de revient', reprise: 'Reprise', oroCost: 'Remise en état', margin: 'Marge potentielle',
+    addLine: 'Ajouter', lineKind: 'Type', kind_piece: 'Pièce', kind_mo: 'Main d\'œuvre', kind_frais: 'Frais',
+    lineDesignation: 'Désignation', lineQty: 'Qté', lineCost: 'Coût unit.', lineTotal: 'Total',
+    closeOro: 'Clôturer l\'ORO', articlePlaceholder: 'Pièce (réf, désignation)…', errSave: 'Erreur',
   },
 
   // Stock & inventaire (M5)
