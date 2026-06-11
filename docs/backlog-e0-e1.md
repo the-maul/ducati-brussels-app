@@ -4,9 +4,34 @@
 > Légende : `✅` fait · `⬜` à faire. Priorités : **P1** = indispensable parité / bloquant ; **P2** = important ; **P3** = confort / plus tard.
 > Sources : `docs/g8-fonctions-m1-m4-fichiers-reception.md`, `docs/g8-fonctions-m6-ventes-pos.md`, `docs/g8-fonctions-m0-m12-m13-compta-stats-params.md`, `docs/g8-reference-extract.md`.
 
-## 🟢 AVANCEMENT (mise à jour 2026-06-10)
+## 🟢 AVANCEMENT (mise à jour 2026-06-10 — passe 2)
 
-**Intégré dans cette passe :**
+**✅ TOUS LES P1 SONT FAITS.** + fondations M5/M6 anticipées pour fermer les dépendances + large part des P2.
+
+**M0** : recherche globale DB · écran séquences (aperçu live) · **19 tables de paramètres** (dont la
+**table d'arrondis** intégrée au moteur de prix) · références utilitaires POS seedées.
+**M1** : onglets **Parc · Documents · Échéances · Livraisons · Contacts (sous-contacts) · Tarifs** +
+**bandeau encours** (autorisé/actuel/disponible) calculé.
+**M2** : prix interactif + **arrondis** · familles · cascade · onglets **Stock · Codes-barres · Kit ·
+Remplacement (avec transfert PAMP) · Statistiques**.
+**M5 (anticipé)** : registre `stock_moves` append-only, triple stock, **PAMP** (5 tests), transfert au remplacement.
+**M6 (anticipé)** : `documents`/lignes/règlements + `contact_encours()` + seed → encours, échéances, stats.
+
+**⛔ Reste : items appartenant à des MODULES non encore construits** (hooks en place, se rempliront avec) :
+- M1 : onglets **Relances** (M12), **RDV atelier** (M8), **Histo e-mail/SMS** + **Groupes** + **mailings** (M10),
+  **GED/pièce d'identité** (M9), saisie produit fini historique + « nouveau doc depuis fiche » (M6 POS/M8).
+- M2 : **file d'étiquettes différée** (M5/B12), **n° de série en stock** UI complète (M5).
+- M0 : **export DCS** (M4), **paramètres étiquetage** (M5), **imprimantes/lecteurs** (config matériel).
+
+**Reste self-contained (P2/P3, faisable sans nouveau module)** : M0 paramètres caisse/éditions + droits fins
+(RBAC) + CGV ; M2 librairie import/export, formats d'import réutilisables, import Excel natif, référence
+d'origine multifournisseur, aligner PV↔PPC.
+
+---
+
+## 🟢 AVANCEMENT (passe 1)
+
+**Intégré dans la passe 1 :**
 - **M0** : recherche globale branchée DB ✅ · écran **config des séquences** (aperçu live) ✅ · **18 tables
   de paramètres** (TVA, modes/conditions règlement, civilités-pro, marques typées, types cession, catégorie
   client, couleurs, tailles, pays, catégories produit fini, codes expo, financement, assurances, opérations/
