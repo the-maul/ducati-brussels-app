@@ -2802,6 +2802,14 @@ export type Database = {
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
       is_member: { Args: { _company: string }; Returns: boolean }
+      monthly_revenue: {
+        Args: { _company: string }
+        Returns: {
+          invoices: number
+          month: string
+          revenue_ttc: number
+        }[]
+      }
       next_document_number: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -2868,6 +2876,16 @@ export type Database = {
           total_vat: number
         }[]
       }
+      top_articles: {
+        Args: { _company: string; _from: string; _limit?: number; _to: string }
+        Returns: {
+          article_id: string
+          designation: string
+          qty: number
+          reference: string
+          revenue_ht: number
+        }[]
+      }
       transfer_stock_on_replace: {
         Args: { _from: string; _to: string }
         Returns: undefined
@@ -2878,6 +2896,14 @@ export type Database = {
           base_ht: number
           vat: number
           vat_rate: number
+        }[]
+      }
+      workshop_productivity: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          mechanic: string
+          presence_min: number
+          work_min: number
         }[]
       }
     }

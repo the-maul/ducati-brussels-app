@@ -1,0 +1,37 @@
+/**
+ * M11 — E-shop : catalogue produits (stock unifié avec le magasin). Lit les articles
+ * publiables, leur stock disponible et leur 1re photo (GED). Publication = flag
+ * `publishable` sur l'article.
+ */
+import { supabase } from '@/integrations/supabase/client';
+import { listStock } from '@/modules/stock/stock-api';
+
+export type ShopItem = {
+  article_id: string; reference: string; designation: string; mgmt_type: string;
+  price_ttc: number; publishable: boolean; available: number; image_path: string | null;
+};
+
+export async function listShop(companyId: string): Promise<ShopItem[]> {
+  const [{ data: arts, error }, stock, { data: imgs }] = await Promise.all([
+    supabase.from('articles').select('id, reference, designation, sale_price_ttc, publishable, mgmt_type').eq('company_id', companyId).order('reference').limit(500),
+    listStock(companyId),
+    supabase.from('attachments').select('entity_id, storage_path, content_type, created_at')
+      .eq('company_id', companyId).eq('entity_type', 'article').order('created_at', { ascending: true }),
+  ]);
+  if (error) throw error;
+  const availByArt = new Map(stock.map((s) => [s.article_id, s.available_qty]));
+  const imgByArt = new Map<string, string>();
+  for (const im of imgs ?? []) {
+    if (im.content_type?.startsWith('image/') && !imgByArt.has(im.entity_id)) imgByArt.set(im.entity_id, im.storage_path);
+  }
+  return (arts ?? []).map((a) => ({
+    article_id: a.id, reference: a.reference, designation: a.designation, mgmt_type: a.mgmt_type as string,
+    price_ttc: Number(a.sale_price_ttc ?? 0), publishable: !!a.publishable,
+    available: Number(availByArt.get(a.id) ?? 0), image_path: imgByArt.get(a.id) ?? null,
+  }));
+}
+
+export async function setPublishable(articleId: string, value: boolean): Promise<void> {
+  const { error } = await supabase.from('articles').update({ publishable: value }).eq('id', articleId);
+  if (error) throw error;
+}

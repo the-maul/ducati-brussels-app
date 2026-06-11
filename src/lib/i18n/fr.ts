@@ -484,6 +484,24 @@ export const fr = {
     ok: 'OK', preview: 'Aperçu', empty: 'Collez un CSV puis cliquez sur Analyser.',
   },
 
+  // Rapports (M13)
+  reports: {
+    title: 'Rapports', subtitle: 'Chiffre d\'affaires, meilleures ventes et productivité atelier.',
+    from: 'Du', to: 'Au', refresh: 'Actualiser',
+    monthlyRevenue: 'CA des 12 derniers mois', month: 'Mois', revenue: 'CA TTC', invoices: 'Factures',
+    topArticles: 'Top articles vendus', colRef: 'Réf.', colDesignation: 'Désignation', colQty: 'Qté', colRevenue: 'CA HT',
+    productivity: 'Productivité atelier', mechanic: 'Mécanicien', presence: 'Présence (h)', work: 'Travail (h)', rate: 'Taux',
+    empty: 'Aucune donnée sur la période.',
+  },
+
+  // E-shop (M11)
+  eshop: {
+    title: 'E-shop', subtitle: 'Catalogue en ligne — stock unifié avec le magasin, photos et publication.',
+    search: 'Rechercher (référence, désignation…)', publishedOnly: 'Vitrine (publiés)', empty: 'Aucun produit.',
+    published: 'Publié', publish: 'Publier', unpublish: 'Retirer de la vitrine', inStock: 'En stock', outStock: 'Rupture',
+    noPhoto: 'Pas de photo', addPhotoHint: 'Ajoutez des photos depuis la fiche article.', count: '{n} produit(s)',
+  },
+
   // Comptabilité & exports (M12)
   accounting: {
     title: 'Comptabilité', subtitle: 'Journal des ventes, registre TVA, exports UBL/Peppol (Falco) et Winbooks.',
