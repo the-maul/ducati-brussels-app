@@ -447,6 +447,75 @@ export type Database = {
           },
         ]
       }
+      client_price_rules: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          date_from: string | null
+          date_to: string | null
+          id: string
+          is_promo: boolean
+          mode: string
+          qty2: number | null
+          qty3: number | null
+          target_type: string
+          target_value: string | null
+          value1: number | null
+          value2: number | null
+          value3: number | null
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          is_promo?: boolean
+          mode?: string
+          qty2?: number | null
+          qty3?: number | null
+          target_type?: string
+          target_value?: string | null
+          value1?: number | null
+          value2?: number | null
+          value3?: number | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          is_promo?: boolean
+          mode?: string
+          qty2?: number | null
+          qty3?: number | null
+          target_type?: string
+          target_value?: string | null
+          value1?: number | null
+          value2?: number | null
+          value3?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_price_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_price_rules_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -682,6 +751,56 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_addresses: {
+        Row: {
+          address: string | null
+          address_complement: string | null
+          city: string | null
+          contact_id: string
+          country: string
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string | null
+          recipient: string | null
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_complement?: string | null
+          city?: string | null
+          contact_id: string
+          country?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          recipient?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_complement?: string | null
+          city?: string | null
+          contact_id?: string
+          country?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          recipient?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_addresses_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
