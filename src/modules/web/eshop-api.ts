@@ -49,6 +49,21 @@ export async function saveShopSettings(companyId: string, patch: ShopPatch): Pro
   if (error) throw error;
 }
 
+import type { SiteContent } from './site-types';
+/** Enregistre le brouillon du site (blocs + thème). */
+export async function saveSite(companyId: string, content: SiteContent): Promise<void> {
+  const { error } = await supabase.from('shop_settings').upsert({ company_id: companyId, content: content as unknown as Record<string, unknown> });
+  if (error) throw error;
+}
+/** Publie le site : copie le brouillon en version en ligne + active la boutique. */
+export async function publishSite(companyId: string, content: SiteContent): Promise<void> {
+  const { error } = await supabase.from('shop_settings').upsert({
+    company_id: companyId, content: content as unknown as Record<string, unknown>,
+    published_content: content as unknown as Record<string, unknown>, published: true,
+  });
+  if (error) throw error;
+}
+
 // ---- Commandes web ----
 export type WebOrder = Database['public']['Tables']['web_orders']['Row'];
 export type CartLine = { article_id: string; designation: string; quantity: number; unit_price_ttc: number };

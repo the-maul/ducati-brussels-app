@@ -502,7 +502,12 @@ export const fr = {
     published: 'Publié', publish: 'Publier', unpublish: 'Retirer de la vitrine', inStock: 'En stock', outStock: 'Rupture',
     noPhoto: 'Pas de photo', addPhotoHint: 'Ajoutez des photos depuis la fiche article.', count: '{n} produit(s)',
     // onglets
-    tabCatalog: 'Catalogue', tabSettings: 'Réglages boutique', tabOrders: 'Commandes web',
+    tabSite: 'Site', tabProducts: 'Produits', tabCatalog: 'Catalogue', tabSettings: 'Réglages boutique', tabOrders: 'Commandes web',
+    // constructeur de site
+    domainSection: 'Domaine & publication', dnsHelp: 'Chez OVH, créez un enregistrement CNAME pointant le domaine vers l\'application :',
+    theme: 'Thème', primary: 'Principale', bg: 'Fond', textColor: 'Texte', blocks: 'Blocs du site', addBlock: 'Ajouter un bloc',
+    preview: 'Aperçu en direct (= ce que verront les visiteurs)', saveDraft: 'Enregistrer le brouillon', publishSite: 'Publier le site',
+    draftSaved: 'Brouillon enregistré.', published2: 'Site publié et en ligne ✅',
     // panier / commande
     addToCart: 'Ajouter', cart: 'Panier', cartEmpty: 'Panier vide.', placeOrder: 'Créer la commande',
     customer: 'Client', custName: 'Nom', custEmail: 'E-mail', custPhone: 'Téléphone', custAddress: 'Adresse de livraison',

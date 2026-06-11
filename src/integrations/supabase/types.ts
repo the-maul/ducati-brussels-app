@@ -2158,6 +2158,7 @@ export type Database = {
         Row: {
           address: string | null
           company_id: string
+          content: Json
           custom_domain: string | null
           description: string | null
           email: string | null
@@ -2165,6 +2166,7 @@ export type Database = {
           name: string | null
           phone: string | null
           published: boolean
+          published_content: Json | null
           slug: string | null
           theme_color: string | null
           updated_at: string
@@ -2172,6 +2174,7 @@ export type Database = {
         Insert: {
           address?: string | null
           company_id: string
+          content?: Json
           custom_domain?: string | null
           description?: string | null
           email?: string | null
@@ -2179,6 +2182,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           published?: boolean
+          published_content?: Json | null
           slug?: string | null
           theme_color?: string | null
           updated_at?: string
@@ -2186,6 +2190,7 @@ export type Database = {
         Update: {
           address?: string | null
           company_id?: string
+          content?: Json
           custom_domain?: string | null
           description?: string | null
           email?: string | null
@@ -2193,6 +2198,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           published?: boolean
+          published_content?: Json | null
           slug?: string | null
           theme_color?: string | null
           updated_at?: string
@@ -3084,6 +3090,15 @@ export type Database = {
           hero_text: string
           name: string
           phone: string
+          theme_color: string
+        }[]
+      }
+      shop_public_site: {
+        Args: { _slug: string }
+        Returns: {
+          company_id: string
+          content: Json
+          name: string
           theme_color: string
         }[]
       }
