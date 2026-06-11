@@ -12,6 +12,13 @@
 > [g8-fonctions-m8-atelier.md](g8-fonctions-m8-atelier.md),
 > [g8-fonctions-m0-m12-m13-compta-stats-params.md](g8-fonctions-m0-m12-m13-compta-stats-params.md).
 
+> 🟢 **AVANCEMENT (2026-06-10, passe 2)** : E0/E1 — **tous les P1 faits** + large part des P2 (voir
+> [backlog-e0-e1.md](backlog-e0-e1.md)). **Fondations anticipées** : **M5 stock** (`stock_moves` append-only,
+> triple stock, PAMP testé, transfert au remplacement) et **M6 Ventes** (module `/sales` : liste + éditeur
+> FAC/DEV/TIK/BL, numérotation, décrément stock à la validation, encaissement ; `contact_encours()` →
+> encours client). Reste : compléter le POS (encaissement multi-modes, clôture Z, avoirs, conversions
+> devis→facture, détaxe) et les modules M4/M8/M9/M10/M12 pour les onglets dépendants.
+
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
 > surtout posé les **données et les fiches** ; il faut maintenant **construire les FONCTIONNALITÉS et user
