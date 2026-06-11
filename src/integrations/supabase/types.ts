@@ -1019,6 +1019,7 @@ export type Database = {
           shipping_ht: number
           shipping_taxed: boolean
           shipping_vat_rate: number
+          source_document_id: string | null
           status: string
           tax_exempt: boolean
           total_ht: number
@@ -1045,6 +1046,7 @@ export type Database = {
           shipping_ht?: number
           shipping_taxed?: boolean
           shipping_vat_rate?: number
+          source_document_id?: string | null
           status?: string
           tax_exempt?: boolean
           total_ht?: number
@@ -1071,6 +1073,7 @@ export type Database = {
           shipping_ht?: number
           shipping_taxed?: boolean
           shipping_vat_rate?: number
+          source_document_id?: string | null
           status?: string
           tax_exempt?: boolean
           total_ht?: number
@@ -1092,6 +1095,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
           {

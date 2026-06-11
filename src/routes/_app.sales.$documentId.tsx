@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { ArrowLeft, Loader2, ArrowRightLeft } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { getDocumentFull } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, CONVERSIONS } from '@/modules/sales/write-api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { t } from '@/lib/i18n';
 
@@ -15,12 +15,16 @@ export const Route = createFileRoute('/_app/sales/$documentId')({
 });
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
-const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
+const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' || s === 'converti' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
 
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
+  const convert = useMutation({
+    mutationFn: (target: string) => convertDocument(documentId, target),
+    onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
+  });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p></>;
@@ -32,6 +36,8 @@ function DocumentView() {
     ? linesHt * Number(doc.global_discount_pct) / 100
     : Number(doc.global_discount_amount);
   const shippingHt = Number(doc.shipping_ht);
+  const convertTargets = CONVERSIONS[doc.doc_type] ?? [];
+  const canConvert = !['brouillon', 'annulee', 'converti'].includes(doc.status);
 
   return (
     <>
@@ -40,9 +46,19 @@ function DocumentView() {
         description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
         actions={<Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>}
       />
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
+        {canConvert && convertTargets.length > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>
+            {convertTargets.map((tt) => (
+              <Button key={tt} size="sm" variant="outline" onClick={() => convert.mutate(tt)} disabled={convert.isPending}>
+                {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-md border border-border">

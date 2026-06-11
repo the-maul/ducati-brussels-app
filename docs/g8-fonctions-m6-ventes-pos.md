@@ -98,7 +98,7 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 - [x] Saisie identique à la facture (réfs, quantités) ; débite stock **disponible** uniquement (p.74)
 - [x] **Saisie d'acompte** : optionnel ou montant ; mode de règlement de l'acompte ; **plusieurs acomptes** possibles (p.75-76)
 - [x] Échéances sur l'acompte (p.75)
-- [ ] Transformation réservation → Facture / Livraison / Réparation (pas Proforma) (p.76, p.96)
+- [x] Transformation réservation → Facture / Livraison / Réparation (pas Proforma) (p.76, p.96) — *Facture/BL faits ; OR avec M8*
 
 ## 1.6 Réparation / O.R. (p.76-80)
 - [ ] Opérateur réceptionnaire + opérateur exécutant (p.77)
@@ -122,12 +122,12 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 - [ ] **Modification d'une facture** : double-clic ligne → corriger → revalider (réenregistre) (p.88)
 - [ ] **Génération d'un avoir** : annuler une facture en générant un avoir (p.88, p.113)
 - [ ] **Modification des règlements** d'une facture (immédiats vs à échéance) (p.88-91)
-  - [ ] Règlement **non transféré en compta** → modifiable directement
-  - [ ] Règlement **transféré en compta** (flag « Transfert comptable ») → génère une écriture d'annulation (p.90)
-  - [ ] Boutons : **Supprimer le règlement** / **Ajout d'un règlement** (p.90)
-- [ ] **Réservation** : modification, **suppression** (rembourse l'acompte versé), **ajout d'acompte**, transformation → Facture/Livraison/Réparation (acompte auto-déduit du total) (p.94-100)
-- [ ] **B.L.** : modification/facturation, suppression, **transformation**, **duplication** (même client ou autre ; n° de série non repris) (p.101-103)
-- [ ] **Pro forma** : modification, suppression, **transformation** → Facture/Réservation/B.L./Réparation (acompte possible à la conversion en réparation) (p.104-109)
+  - [x] Règlement **non transféré en compta** → modifiable directement
+  - [ ] Règlement **transféré en compta** (flag « Transfert comptable ») → génère une écriture d'annulation (p.90) — *avec M12*
+  - [x] Boutons : **Supprimer le règlement** / **Ajout d'un règlement** (p.90)
+- [x] **Réservation** : modification, **suppression** (rembourse l'acompte versé), **ajout d'acompte**, transformation → Facture/Livraison/Réparation (acompte auto-déduit du total) (p.94-100) — *transfo Facture/BL faite ; OR avec M8*
+- [x] **B.L.** : modification/facturation, suppression, **transformation**, **duplication** (même client ou autre ; n° de série non repris) (p.101-103) — *transfo en facture faite ; duplication à venir*
+- [x] **Pro forma** : modification, suppression, **transformation** → Facture/Réservation/B.L./Réparation (acompte possible à la conversion en réparation) (p.104-109) — *transfo Facture/Réservation/BL faite ; OR avec M8*
 
 ## 1.10 Consultation des ventes du jour (p.110-114)
 - [ ] Bilan succinct des factures de la journée — **12 colonnes** : n° facture, nom client (vide = Express), opérateur, date, dû, remise, montant HT, montant TTC, **acompte**, **marge dégagée**, **% marge**, mode de règlement (p.110-111)

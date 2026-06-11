@@ -96,7 +96,7 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
 export async function createDocument(p: {
   companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
-  lines: LineInput[]; pied?: PiedInput;
+  lines: LineInput[]; pied?: PiedInput; sourceDocumentId?: string | null;
 }): Promise<string> {
   const pied = p.pied ?? {};
   const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, pied);
@@ -105,7 +105,7 @@ export async function createDocument(p: {
   const { data: doc, error } = await supabase.from('documents').insert({
     company_id: p.companyId, doc_type: p.docType, number, contact_id: p.contactId ?? null,
     vehicle_id: p.vehicleId ?? null, status: p.status, issue_date: p.issueDate, due_date: p.dueDate ?? null,
-    notes: p.notes ?? null, total_ht, total_vat, total_ttc,
+    notes: p.notes ?? null, total_ht, total_vat, total_ttc, source_document_id: p.sourceDocumentId ?? null,
     price_mode: pied.priceMode ?? 'ttc', tax_exempt: !!pied.taxExempt,
     global_discount_pct: pied.globalDiscountPct ?? 0, global_discount_amount: pied.globalDiscountAmount ?? 0,
     shipping_ht: pied.shippingHt ?? 0, shipping_taxed: pied.shippingTaxed !== false,
@@ -173,6 +173,64 @@ export async function searchSaleArticles(companyId: string, term: string): Promi
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []).map((a) => ({ id: a.id, reference: a.reference, designation: a.designation, sale_price_ht: Number(a.sale_price_ht), vat_rate: Number(a.vat_rate) }));
+}
+
+/** Conversions autorisées (G8 p.96, p.101-109). DEV→tout ; RES→FAC/BL ; BL→FAC. */
+export const CONVERSIONS: Record<string, readonly string[]> = {
+  DEV: ['FAC', 'RES', 'BL'],
+  RES: ['FAC', 'BL'],
+  BL: ['FAC'],
+};
+
+/** Reconstruit les paramètres de pied à partir d'une ligne `documents`. */
+function docRowToPied(d: DocumentRow): PiedInput {
+  return {
+    priceMode: (d.price_mode as 'ht' | 'ttc') ?? 'ttc', taxExempt: !!d.tax_exempt,
+    globalDiscountPct: Number(d.global_discount_pct), globalDiscountAmount: Number(d.global_discount_amount),
+    shippingHt: Number(d.shipping_ht), shippingTaxed: d.shipping_taxed !== false,
+    shippingVatRate: Number(d.shipping_vat_rate), forcedTtc: d.forced_ttc != null ? Number(d.forced_ttc) : null,
+  };
+}
+
+/**
+ * Convertit un document source (DEV/RES/BL) en un document cible (FAC/RES/BL) :
+ * clone les lignes + le pied, libère la réservation source (RES/BL), reporte les acomptes
+ * perçus sur la cible (déduction auto, G8 p.96), et passe la source en statut 'converti'.
+ * Retourne l'id du document créé.
+ */
+export async function convertDocument(sourceId: string, targetType: string): Promise<string> {
+  const { doc, lines } = await getDocumentFull(sourceId);
+  const allowed = CONVERSIONS[doc.doc_type] ?? [];
+  if (!allowed.includes(targetType)) throw new Error(`Conversion ${doc.doc_type}→${targetType} non autorisée`);
+
+  const lineInputs: LineInput[] = lines.map((l) => ({
+    article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
+    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
+  }));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const newId = await createDocument({
+    companyId: doc.company_id, docType: targetType, contactId: doc.contact_id, vehicleId: doc.vehicle_id,
+    issueDate: today, dueDate: doc.due_date, status: 'validee', notes: doc.notes,
+    lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: sourceId,
+  });
+
+  // Report des acomptes perçus de la source (réservation) sur la cible → déduction auto.
+  const srcPayments = await listPayments(sourceId);
+  const acomptes = srcPayments.filter((p) => p.status === 'recu' && Number(p.amount) !== 0);
+  if (acomptes.length > 0) {
+    await addPayments(newId, acomptes.map((p) => ({
+      method: p.method, amount: Number(p.amount), status: 'recu',
+      note: `Acompte reporté ${doc.doc_type} ${doc.number ?? ''}`.trim(),
+    })));
+  }
+
+  // Libère la réservation de la source (RES/BL) puis marque la source convertie.
+  await liberateReservation(sourceId);
+  const { error } = await supabase.from('documents').update({ status: 'converti' }).eq('id', sourceId);
+  if (error) throw error;
+
+  return newId;
 }
 
 export type DocumentFull = { doc: DocumentRow; lines: DocumentLine[] };

@@ -416,7 +416,8 @@ export const fr = {
     // colonnes liste
     colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC', colPaid: 'Réglé',
     // statuts document
-    status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée',
+    status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée', status_converti: 'Converti',
+    convertTo: 'Convertir en', convert: 'Convertir',
     // en-tête éditeur
     type: 'Type', client: 'Client', clientPlaceholder: 'Client…',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
