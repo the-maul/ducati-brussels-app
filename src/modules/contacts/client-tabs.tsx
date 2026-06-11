@@ -15,9 +15,80 @@ import {
   listOwnedVehicles, listDeliveryAddresses, upsertDeliveryAddress, deleteDeliveryAddress,
   listClientPriceRules, upsertClientPriceRule, deleteClientPriceRule,
 } from './subobjects-api';
+import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
 import { t } from '@/lib/i18n';
 
 const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)?.tone ?? 'neutral';
+const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+
+/* ---------------- Encours (bandeau crédit) ---------------- */
+export function EncoursBar({ contactId }: { contactId: string }) {
+  const { data } = useQuery({ queryKey: ['encours', contactId], queryFn: () => getContactEncours(contactId) });
+  if (!data) return null;
+  const over = data.available < 0;
+  return (
+    <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours autorisé</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.authorized)}</div></div>
+      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours actuel</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.current)}</div></div>
+      <div className={`rounded-md border p-3 ${over ? 'border-danger/40 bg-danger-bg' : 'border-success/30 bg-success-bg'}`}><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Disponible</div><div className={`mt-1 font-data text-xl tabular-nums ${over ? 'text-danger' : 'text-success'}`}>{eur(data.available)}</div></div>
+    </div>
+  );
+}
+
+/* ---------------- Documents ---------------- */
+export function DocumentsTab({ contactId }: { contactId: string }) {
+  const { data, isLoading } = useQuery({ queryKey: ['client-docs', contactId], queryFn: () => listContactDocuments(contactId) });
+  if (isLoading) return <Spinner />;
+  if (!data || data.length === 0) return <Empty>Aucun document.</Empty>;
+  return (
+    <div className="overflow-hidden rounded-md border border-border">
+      <table className="w-full border-collapse font-data text-[13px]">
+        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th></tr></thead>
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.id} className="border-b border-border last:border-0">
+              <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
+              <td className="px-3 py-2">{d.doc_type}</td>
+              <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
+              <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>
+              <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.paid_amount))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ---------------- Échéances ---------------- */
+export function DueItemsTab({ contactId }: { contactId: string }) {
+  const { data, isLoading } = useQuery({ queryKey: ['client-due', contactId], queryFn: () => listContactDueItems(contactId) });
+  if (isLoading) return <Spinner />;
+  if (!data || data.length === 0) return <Empty>Aucune échéance en attente.</Empty>;
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div className="overflow-hidden rounded-md border border-border">
+      <table className="w-full border-collapse font-data text-[13px]">
+        <thead className="bg-muted"><tr><Th>N°</Th><Th>Échéance</Th><Th className="text-right">Reste dû</Th><Th>État</Th></tr></thead>
+        <tbody>
+          {data.map((d) => {
+            const due = Number(d.total_ttc) - Number(d.paid_amount);
+            const late = d.due_date && d.due_date < today;
+            return (
+              <tr key={d.id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
+                <td className="px-3 py-2 font-mono text-[12px]">{d.due_date ?? '—'}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{eur(due)}</td>
+                <td className="px-3 py-2">{late ? <StatusBadge tone="danger" label="En retard" /> : <StatusBadge tone="warning" label="À échoir" />}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /* ---------------- Parc ---------------- */
 export function ParcTab({ contactId }: { contactId: string }) {

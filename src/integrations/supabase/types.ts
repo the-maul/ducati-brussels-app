@@ -805,6 +805,98 @@ export type Database = {
           },
         ]
       }
+      document_lines: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          designation: string
+          discount_pct: number
+          document_id: string
+          id: string
+          line_ht: number
+          line_ttc: number
+          quantity: number
+          sort_order: number
+          unit_price_ht: number
+          vat_rate: number
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          designation: string
+          discount_pct?: number
+          document_id: string
+          id?: string
+          line_ht?: number
+          line_ttc?: number
+          quantity?: number
+          sort_order?: number
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          designation?: string
+          discount_pct?: number
+          document_id?: string
+          id?: string
+          line_ht?: number
+          line_ttc?: number
+          quantity?: number
+          sort_order?: number
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_lines_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_payments: {
+        Row: {
+          amount: number
+          document_id: string
+          id: string
+          method: string
+          paid_at: string
+        }
+        Insert: {
+          amount: number
+          document_id: string
+          id?: string
+          method?: string
+          paid_at?: string
+        }
+        Update: {
+          amount?: number
+          document_id?: string
+          id?: string
+          method?: string
+          paid_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_payments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_sequences: {
         Row: {
           company_id: string
@@ -854,6 +946,85 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          doc_type: string
+          due_date: string | null
+          id: string
+          issue_date: string
+          notes: string | null
+          number: string | null
+          paid_amount: number
+          status: string
+          total_ht: number
+          total_ttc: number
+          total_vat: number
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          doc_type?: string
+          due_date?: string | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          number?: string | null
+          paid_amount?: number
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          doc_type?: string
+          due_date?: string | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          number?: string | null
+          paid_amount?: number
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -1342,6 +1513,14 @@ export type Database = {
           available_qty: number
           real_qty: number
           reserved_qty: number
+        }[]
+      }
+      contact_encours: {
+        Args: { _contact: string }
+        Returns: {
+          authorized: number
+          available: number
+          current_due: number
         }[]
       }
       has_role: {
