@@ -4,6 +4,31 @@
 > Légende : `✅` fait · `⬜` à faire. Priorités : **P1** = indispensable parité / bloquant ; **P2** = important ; **P3** = confort / plus tard.
 > Sources : `docs/g8-fonctions-m1-m4-fichiers-reception.md`, `docs/g8-fonctions-m6-ventes-pos.md`, `docs/g8-fonctions-m0-m12-m13-compta-stats-params.md`, `docs/g8-reference-extract.md`.
 
+## 🟢 AVANCEMENT (mise à jour 2026-06-10)
+
+**Intégré dans cette passe :**
+- **M0** : recherche globale branchée DB ✅ · écran **config des séquences** (aperçu live) ✅ · **18 tables
+  de paramètres** (TVA, modes/conditions règlement, civilités-pro, marques typées, types cession, catégorie
+  client, couleurs, tailles, pays, catégories produit fini, codes expo, financement, assurances, opérations/
+  tâches atelier) via `reference_values` + éditeur générique, seedées ✅.
+- **M1** : onglet **Parc** (VIN liés) ✅ · **adresses de livraison** ✅ · **tarifs client à paliers** ✅
+  (fiche client à onglets).
+- **M2** : **prix interactif** (PA/coef/PVHT/PVTTC + marges) ✅ · **familles** (arborescence) ✅ ·
+  **modification en cascade** + verrous ✅ · **codes-barres** ✅ · **kit/nomenclature** ✅ ·
+  **remplacement de référence** ✅ (fiche article à onglets).
+
+**⛔ BLOQUÉS par dépendance** (ne peuvent PAS être finis dans E0/E1 seuls — se complètent avec le module) :
+- M1 : **encours actuel/solde** (M6 documents) · onglets **Documents/Échéances/Relances/RDV/Histo/GED**
+  (M6/M8/M9/M10/M12) · saisie produit fini historique, nouveau doc depuis fiche (M6/M8).
+- M2 : **statistiques article** (ventes M6) · **transfert stock/PAMP** au remplacement (M5) ·
+  **file d'étiquettes différée** (M5) · n° de série en stock (UI complète avec M5).
+
+**Reste self-contained (faisable, surtout P2/P3)** : M0 paramètres caisse/éditions, RBAC fin, imprimantes,
+export DCS (M4), CGV ; M1 sous-contacts ; M2 table d'arrondis, librairie import/export, formats d'import
+réutilisables, import Excel natif, références utilitaires, référence d'origine, aligner PV↔PPC.
+
+---
+
 ---
 
 ## M0 — Socle & paramètres
