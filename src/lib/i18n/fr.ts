@@ -405,6 +405,46 @@ export const fr = {
     saleVat_export: 'Exportation',
   },
 
+  // Ventes & Facturation (M6 — POS)
+  sales: {
+    title: 'Ventes & Facturation',
+    subtitle: 'Factures, devis, tickets et bons de livraison.',
+    newDoc: 'Nouveau document',
+    backToList: 'Ventes',
+    empty: 'Aucun document.',
+    notFound: 'Introuvable.',
+    // colonnes liste
+    colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC', colPaid: 'Réglé',
+    // statuts document
+    status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée',
+    // en-tête éditeur
+    type: 'Type', client: 'Client', clientPlaceholder: 'Client…',
+    date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
+    type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
+    // lignes
+    colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colPuTtc: 'PU TTC',
+    colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
+    lineArticleOrText: 'Article ou texte libre…',
+    addLine: 'Ajouter une ligne',
+    needLine: 'Ajoutez au moins une ligne.',
+    errSave: 'Erreur',
+    draft: 'Brouillon', validate: 'Valider',
+    // pied de facture
+    pied: 'Pied de facture',
+    priceMode: 'Mode de saisie', mode_ht: 'Hors taxes (HT)', mode_ttc: 'Toutes taxes (TTC)',
+    taxExempt: 'Détaxe (export 0 %)',
+    taxExemptHint: 'Disponible en mode HT — inhibe la TVA (export hors UE / intracom).',
+    taxExemptMention: 'Exonération de TVA — livraison intracommunautaire / exportation (art. 39 & 39 bis CTVA).',
+    globalDiscount: 'Remise globale', discountPct: 'Remise %', discountAmount: 'Remise €',
+    shipping: 'Frais de port', shippingHt: 'Port HT', shippingTaxed: 'Port taxé', shippingUntaxed: 'Port non taxé',
+    forcedTtc: 'Net TTC forcé', forcedTtcHint: 'Arrondi de facture — la TVA est recalculée.',
+    // totaux
+    totalHt: 'HT', totalVat: 'TVA', totalTtc: 'TTC', totalDiscount: 'Remise', totalShipping: 'Port',
+    paid: 'Réglé', due: 'Reste dû',
+    // règlement
+    payMethod: 'Mode', payAmount: 'Montant', pay: 'Encaisser',
+  },
+
   // Paramètres (M0)
   settings: {
     title: 'Paramètres',

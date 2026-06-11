@@ -19,17 +19,65 @@ export type LineInput = {
 
 export const SALE_DOC_TYPES = ['FAC', 'TIK', 'BL'] as const; // documents qui sortent du stock
 
-function lineTotals(l: LineInput) {
-  const ht = l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100);
-  const ttc = ht * (1 + (l.vat_rate || 0) / 100);
-  return { ht: Math.round(ht * 100) / 100, ttc: Math.round(ttc * 100) / 100 };
+/** Paramètres du pied de facture (remise globale, mode HT/TTC, détaxe, port, net forcé). */
+export type PiedInput = {
+  priceMode?: 'ht' | 'ttc';
+  taxExempt?: boolean;                 // détaxe : inhibe la TVA (export 0 %)
+  globalDiscountPct?: number;          // remise globale en %
+  globalDiscountAmount?: number;       // OU remise globale en montant HT
+  shippingHt?: number;                 // frais de port HT
+  shippingTaxed?: boolean;             // port taxé (défaut) ou non
+  shippingVatRate?: number;            // taux TVA du port
+  forcedTtc?: number | null;           // net TTC forcé (arrondi facture)
+};
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+function lineHtRaw(l: LineInput) {
+  return l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100);
+}
+function lineTotals(l: LineInput, taxExempt = false) {
+  const ht = lineHtRaw(l);
+  const ttc = ht * (1 + (taxExempt ? 0 : l.vat_rate || 0) / 100);
+  return { ht: r2(ht), ttc: r2(ttc) };
 }
 
-export function computeTotals(lines: LineInput[]) {
-  let ht = 0, ttc = 0;
-  for (const l of lines) { const t = lineTotals(l); ht += t.ht; ttc += t.ttc; }
-  ht = Math.round(ht * 100) / 100; ttc = Math.round(ttc * 100) / 100;
-  return { total_ht: ht, total_vat: Math.round((ttc - ht) * 100) / 100, total_ttc: ttc };
+/**
+ * Totaux d'un document, pied compris. La remise globale s'applique sur le HT des
+ * lignes (pas sur le port, G8 p.66) et réduit la TVA au prorata ; la détaxe force la
+ * TVA à 0 ; le net TTC forcé écrase le TTC et recalcule la TVA (arrondi de facture).
+ */
+export function computeTotals(lines: LineInput[], pied: PiedInput = {}) {
+  let linesHt = 0, linesVat = 0;
+  for (const l of lines) {
+    const ht = lineHtRaw(l);
+    linesHt += ht;
+    linesVat += pied.taxExempt ? 0 : (ht * (l.vat_rate || 0)) / 100;
+  }
+  // remise globale (sur le HT des lignes uniquement)
+  let discount = 0;
+  if (pied.globalDiscountPct && pied.globalDiscountPct > 0) discount = (linesHt * pied.globalDiscountPct) / 100;
+  else if (pied.globalDiscountAmount && pied.globalDiscountAmount > 0) discount = Math.min(pied.globalDiscountAmount, linesHt);
+  const netLinesHt = linesHt - discount;
+  const netLinesVat = linesHt > 0 ? linesVat * (netLinesHt / linesHt) : 0;
+  // frais de port
+  const shipHt = pied.shippingHt || 0;
+  const shipVat = !pied.taxExempt && pied.shippingTaxed !== false && shipHt > 0
+    ? (shipHt * (pied.shippingVatRate ?? 21)) / 100 : 0;
+
+  let total_ht = r2(netLinesHt + shipHt);
+  let total_vat = r2(netLinesVat + shipVat);
+  let total_ttc = r2(total_ht + total_vat);
+  // net TTC forcé → la TVA absorbe l'écart
+  if (pied.forcedTtc != null && pied.forcedTtc > 0) {
+    total_ttc = r2(pied.forcedTtc);
+    total_vat = r2(total_ttc - total_ht);
+  }
+  return {
+    total_ht, total_vat, total_ttc,
+    lines_ht: r2(linesHt), global_discount: r2(discount),
+    shipping_vat: r2(shipVat),
+  };
 }
 
 async function nextNumber(companyId: string, docType: string): Promise<string | null> {
@@ -40,22 +88,28 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
 
 export async function createDocument(p: {
   companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
-  issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null; lines: LineInput[];
+  issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
+  lines: LineInput[]; pied?: PiedInput;
 }): Promise<string> {
-  const totals = computeTotals(p.lines);
+  const pied = p.pied ?? {};
+  const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, pied);
   const number = p.status === 'validee' ? await nextNumber(p.companyId, p.docType) : null;
 
   const { data: doc, error } = await supabase.from('documents').insert({
     company_id: p.companyId, doc_type: p.docType, number, contact_id: p.contactId ?? null,
     vehicle_id: p.vehicleId ?? null, status: p.status, issue_date: p.issueDate, due_date: p.dueDate ?? null,
-    notes: p.notes ?? null, ...totals,
+    notes: p.notes ?? null, total_ht, total_vat, total_ttc,
+    price_mode: pied.priceMode ?? 'ttc', tax_exempt: !!pied.taxExempt,
+    global_discount_pct: pied.globalDiscountPct ?? 0, global_discount_amount: pied.globalDiscountAmount ?? 0,
+    shipping_ht: pied.shippingHt ?? 0, shipping_taxed: pied.shippingTaxed !== false,
+    shipping_vat_rate: pied.shippingVatRate ?? 21, forced_ttc: pied.forcedTtc ?? null,
   }).select('id').single();
   if (error) throw error;
   const docId = doc.id as string;
 
   if (p.lines.length) {
     const rows = p.lines.map((l, i) => {
-      const t = lineTotals(l);
+      const t = lineTotals(l, pied.taxExempt);
       return {
         document_id: docId, article_id: l.article_id ?? null, designation: l.designation,
         quantity: l.quantity, unit_price_ht: l.unit_price_ht, vat_rate: l.vat_rate,

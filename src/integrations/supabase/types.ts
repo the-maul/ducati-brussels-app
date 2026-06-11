@@ -995,12 +995,20 @@ export type Database = {
           created_at: string
           doc_type: string
           due_date: string | null
+          forced_ttc: number | null
+          global_discount_amount: number
+          global_discount_pct: number
           id: string
           issue_date: string
           notes: string | null
           number: string | null
           paid_amount: number
+          price_mode: string
+          shipping_ht: number
+          shipping_taxed: boolean
+          shipping_vat_rate: number
           status: string
+          tax_exempt: boolean
           total_ht: number
           total_ttc: number
           total_vat: number
@@ -1013,12 +1021,20 @@ export type Database = {
           created_at?: string
           doc_type?: string
           due_date?: string | null
+          forced_ttc?: number | null
+          global_discount_amount?: number
+          global_discount_pct?: number
           id?: string
           issue_date?: string
           notes?: string | null
           number?: string | null
           paid_amount?: number
+          price_mode?: string
+          shipping_ht?: number
+          shipping_taxed?: boolean
+          shipping_vat_rate?: number
           status?: string
+          tax_exempt?: boolean
           total_ht?: number
           total_ttc?: number
           total_vat?: number
@@ -1031,12 +1047,20 @@ export type Database = {
           created_at?: string
           doc_type?: string
           due_date?: string | null
+          forced_ttc?: number | null
+          global_discount_amount?: number
+          global_discount_pct?: number
           id?: string
           issue_date?: string
           notes?: string | null
           number?: string | null
           paid_amount?: number
+          price_mode?: string
+          shipping_ht?: number
+          shipping_taxed?: boolean
+          shipping_vat_rate?: number
           status?: string
+          tax_exempt?: boolean
           total_ht?: number
           total_ttc?: number
           total_vat?: number
