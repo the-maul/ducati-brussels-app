@@ -17,7 +17,14 @@ export type LineInput = {
   discount_pct: number;
 };
 
-export const SALE_DOC_TYPES = ['FAC', 'TIK', 'BL'] as const; // documents qui sortent du stock
+// Stock par type de document (triple stock B4, G8 p.74/p.81) :
+//  - FAC/TIK débitent le stock RÉEL ;
+//  - RES (réservation/commande) et BL débitent le DISPONIBLE (réservé), le réel ne bouge
+//    qu'à la facturation ;
+//  - DEV (devis) : aucun mouvement de stock.
+export const REAL_OUT_DOC_TYPES = ['FAC', 'TIK'] as const;
+export const RESERVE_DOC_TYPES = ['RES', 'BL'] as const;
+export const SALE_DOC_TYPES = [...REAL_OUT_DOC_TYPES, ...RESERVE_DOC_TYPES] as const; // tout document qui touche le stock
 
 /** Paramètres du pied de facture (remise globale, mode HT/TTC, détaxe, port, net forcé). */
 export type PiedInput = {
@@ -120,18 +127,42 @@ export async function createDocument(p: {
     if (le) throw le;
   }
 
-  // Décrément de stock à la validation d'un document de vente (B7)
-  if (p.status === 'validee' && (SALE_DOC_TYPES as readonly string[]).includes(p.docType)) {
-    for (const l of p.lines) {
-      if (!l.article_id || l.quantity <= 0) continue;
-      const { error: se } = await supabase.rpc('record_stock_move', {
-        _article: l.article_id, _type: 'sortie', _qty: -Math.abs(l.quantity), _unit_cost: null,
-        _is_reservation: false, _bin: null, _origin: 'sale', _ref: number, _note: null,
-      });
-      if (se) throw se;
+  // Mouvement de stock à la validation (B4 triple stock, B7 traçabilité append-only).
+  if (p.status === 'validee') {
+    const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(p.docType);
+    const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(p.docType);
+    if (realOut || reserve) {
+      for (const l of p.lines) {
+        if (!l.article_id || l.quantity <= 0) continue;
+        const qty = Math.abs(l.quantity);
+        const args = realOut
+          ? { _type: 'sortie', _qty: -qty, _is_reservation: false }      // débite le réel
+          : { _type: 'reservation', _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
+        const { error: se } = await supabase.rpc('record_stock_move', {
+          _article: l.article_id, _unit_cost: null, _bin: null, _origin: 'sale', _ref: number, _note: null, ...args,
+        });
+        if (se) throw se;
+      }
     }
   }
   return docId;
+}
+
+/**
+ * Libère les réservations d'un document RES/BL (transformation en facture ou suppression) :
+ * réplique chaque ligne en mouvement de libération (réservé −qty), append-only (B7).
+ */
+export async function liberateReservation(docId: string): Promise<void> {
+  const { doc, lines } = await getDocumentFull(docId);
+  if (!(RESERVE_DOC_TYPES as readonly string[]).includes(doc.doc_type)) return;
+  for (const l of lines) {
+    if (!l.article_id || Number(l.quantity) <= 0) continue;
+    const { error } = await supabase.rpc('record_stock_move', {
+      _article: l.article_id, _type: 'liberation', _qty: -Math.abs(Number(l.quantity)), _unit_cost: null,
+      _is_reservation: true, _bin: null, _origin: 'sale', _ref: doc.number, _note: 'Libération réservation',
+    });
+    if (error) throw error;
+  }
 }
 
 export type SaleArticle = { id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number };

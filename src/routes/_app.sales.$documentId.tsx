@@ -74,7 +74,7 @@ function DocumentView() {
 
       {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
         <div className="mt-4">
-          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} />
+          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={doc.doc_type === 'RES'} />
         </div>
       )}
     </>

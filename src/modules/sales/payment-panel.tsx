@@ -23,7 +23,7 @@ const CASH = 'ESP'; // mode espèces → rendu de monnaie
 type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string };
 let dc = 0;
 
-export function PaymentPanel({ documentId, companyId, due }: { documentId: string; companyId: string; due: number }) {
+export function PaymentPanel({ documentId, companyId, due, acompte = false }: { documentId: string; companyId: string; due: number; acompte?: boolean }) {
   const qc = useQueryClient();
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
   const { data: payments } = useQuery({ queryKey: ['payments', documentId], queryFn: () => listPayments(documentId) });
@@ -77,9 +77,10 @@ export function PaymentPanel({ documentId, companyId, due }: { documentId: strin
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.payments')}</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{acompte ? t('sales.deposits') : t('sales.payments')}</p>
         {due > 0.005 && <span className="font-data text-sm tabular-nums text-danger">{t('sales.due')} : <b>{eur(due)}</b></span>}
       </div>
+      {acompte && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.depositInfo')}</p>}
 
       {/* Règlements déjà saisis */}
       {payments && payments.length > 0 && (
@@ -146,10 +147,10 @@ export function PaymentPanel({ documentId, companyId, due }: { documentId: strin
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={addLine}><Plus /> {t('sales.addPayment')}</Button>
+        <Button variant="outline" size="sm" onClick={addLine}><Plus /> {acompte ? t('sales.addDeposit') : t('sales.addPayment')}</Button>
         {drafts.length > 0 && (
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="animate-spin" /> : <Check />} {t('sales.recordPayments')}{draftTotal > 0 ? ` · ${eur(draftTotal)}` : ''}
+            {save.isPending ? <Loader2 className="animate-spin" /> : <Check />} {acompte ? t('sales.recordDeposits') : t('sales.recordPayments')}{draftTotal > 0 ? ` · ${eur(draftTotal)}` : ''}
           </Button>
         )}
       </div>

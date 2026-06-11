@@ -15,7 +15,7 @@ import { listContacts, contactDisplayName, type Contact } from '@/modules/contac
 import { createDocument, computeTotals, searchSaleArticles, type LineInput, type SaleArticle, type PiedInput } from './write-api';
 import { t } from '@/lib/i18n';
 
-const DOC_TYPES = ['FAC', 'DEV', 'TIK', 'BL'] as const;
+const DOC_TYPES = ['FAC', 'DEV', 'RES', 'BL', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;

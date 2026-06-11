@@ -421,6 +421,7 @@ export const fr = {
     type: 'Type', client: 'Client', clientPlaceholder: 'Client…',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
     type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
+    type_RES: 'Réservation', type_AVO: 'Avoir',
     // lignes
     colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colPuTtc: 'PU TTC',
     colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
@@ -444,6 +445,8 @@ export const fr = {
     // règlement
     payMethod: 'Mode', payAmount: 'Montant', pay: 'Encaisser',
     payments: 'Règlements', addPayment: 'Ajouter un règlement', recordPayments: 'Encaisser',
+    deposits: 'Acomptes', addDeposit: 'Ajouter un acompte', recordDeposits: 'Verser l\'acompte',
+    depositInfo: 'Acompte sur réservation — déduit automatiquement à la facturation.',
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
