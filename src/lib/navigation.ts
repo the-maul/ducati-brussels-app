@@ -17,6 +17,7 @@ import {
   CreditCard,
   Store,
   BarChart3,
+  Calculator,
   Settings,
   Palette,
   type LucideIcon,
@@ -48,6 +49,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.pos', to: '/pos', icon: CreditCard },
   { labelKey: 'nav.eshop', to: '/eshop', icon: Store },
   { labelKey: 'nav.reports', to: '/reports', icon: BarChart3 },
+  { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator, roles: ['admin', 'comptable'] },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, roles: ['admin'] },
   { labelKey: 'nav.demo', to: '/demo', icon: Palette, dev: true },
 ];

@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { printDocument } from '@/modules/sales/print-document';
+import { exportInvoiceUbl } from '@/modules/accounting/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -54,6 +55,7 @@ function DocumentView() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
+            {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             <Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>
           </div>
         }

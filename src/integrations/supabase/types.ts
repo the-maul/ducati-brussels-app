@@ -39,6 +39,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_exports: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          period_from: string | null
+          period_to: string | null
+          reference: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          period_from?: string | null
+          period_to?: string | null
+          reference?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          period_from?: string | null
+          period_to?: string | null
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_exports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_barcodes: {
         Row: {
           article_id: string
@@ -741,11 +782,16 @@ export type Database = {
           code: string
           country: string | null
           created_at: string
+          customer_account_default: string
+          iban: string | null
           id: string
           is_active: boolean
           legal_name: string | null
           name: string
+          peppol_id: string | null
+          sales_account_default: string
           updated_at: string
+          vat_account_default: string
           vat_number: string | null
           zip: string | null
         }
@@ -755,11 +801,16 @@ export type Database = {
           code: string
           country?: string | null
           created_at?: string
+          customer_account_default?: string
+          iban?: string | null
           id?: string
           is_active?: boolean
           legal_name?: string | null
           name: string
+          peppol_id?: string | null
+          sales_account_default?: string
           updated_at?: string
+          vat_account_default?: string
           vat_number?: string | null
           zip?: string | null
         }
@@ -769,11 +820,16 @@ export type Database = {
           code?: string
           country?: string | null
           created_at?: string
+          customer_account_default?: string
+          iban?: string | null
           id?: string
           is_active?: boolean
           legal_name?: string | null
           name?: string
+          peppol_id?: string | null
+          sales_account_default?: string
           updated_at?: string
+          vat_account_default?: string
           vat_number?: string | null
           zip?: string | null
         }
@@ -2799,9 +2855,30 @@ export type Database = {
         Args: { _company: string; _keep_vehicles?: boolean }
         Returns: number
       }
+      sales_journal: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          contact_id: string
+          document_id: string
+          issue_date: string
+          number: string
+          paid_amount: number
+          total_ht: number
+          total_ttc: number
+          total_vat: number
+        }[]
+      }
       transfer_stock_on_replace: {
         Args: { _from: string; _to: string }
         Returns: undefined
+      }
+      vat_register: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          base_ht: number
+          vat: number
+          vat_rate: number
+        }[]
       }
     }
     Enums: {

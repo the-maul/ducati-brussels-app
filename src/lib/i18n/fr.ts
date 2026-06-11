@@ -26,6 +26,7 @@ export const fr = {
     pos: 'Caisse',
     eshop: 'E-shop',
     reports: 'Rapports',
+    accounting: 'Comptabilité',
     settings: 'Paramètres',
     demo: 'Charte (démo)',
   },
@@ -471,6 +472,15 @@ export const fr = {
     revenueToday: 'CA du jour', revenueMonth: 'CA du mois', invoicesMonth: 'Factures du mois',
     orOpen: 'OR ouverts', stockValue: 'Valeur du stock', vehiclesInStock: 'Véhicules en stock',
     receivables: 'Encours clients',
+  },
+
+  // Comptabilité & exports (M12)
+  accounting: {
+    title: 'Comptabilité', subtitle: 'Journal des ventes, registre TVA, exports UBL/Peppol (Falco) et Winbooks.',
+    journal: 'Journal des ventes', vatRegister: 'Registre TVA', from: 'Du', to: 'Au', refresh: 'Actualiser',
+    exportWinbooks: 'Export Winbooks', exportUbl: 'Export UBL (Peppol)', empty: 'Aucune écriture sur la période.',
+    colNumber: 'N°', colDate: 'Date', colHt: 'Total HT', colVat: 'TVA', colTtc: 'Total TTC', colPaid: 'Réglé',
+    vatRate: 'Taux', baseHt: 'Base HT', vatAmount: 'TVA', total: 'Total', ublHint: 'Génère le fichier UBL à transmettre via Falco sur Peppol.',
   },
 
   // CRM (M10)
