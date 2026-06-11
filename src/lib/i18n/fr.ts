@@ -474,6 +474,16 @@ export const fr = {
     receivables: 'Encours clients',
   },
 
+  // Migration G8 (M14)
+  migration: {
+    title: 'Migration & imports', subtitle: 'Importer des contacts/articles depuis un CSV (dry-run + application).',
+    contactsTitle: 'Import de contacts', contactsSubtitle: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : Nom, Prénom, Société, Email, Tél, GSM, Adresse, CP, Ville, Pays, TVA, Type.',
+    paste: 'Contenu CSV', analyze: 'Analyser (dry-run)', apply: 'Importer les contacts', applying: 'Import…',
+    toCreate: 'à créer', errors: 'erreurs', done: '{n} contact(s) importé(s).',
+    colName: 'Nom / Société', colEmail: 'E-mail', colCity: 'Ville', colType: 'Type', colStatus: 'État',
+    ok: 'OK', preview: 'Aperçu', empty: 'Collez un CSV puis cliquez sur Analyser.',
+  },
+
   // Comptabilité & exports (M12)
   accounting: {
     title: 'Comptabilité', subtitle: 'Journal des ventes, registre TVA, exports UBL/Peppol (Falco) et Winbooks.',

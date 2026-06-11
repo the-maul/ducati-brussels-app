@@ -24,7 +24,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | E9 — CRM & matching (M10) | Module `/crm` : **pipeline de leads** (6 étapes nouveau→gagné/perdu, kanban, création, déplacement d'étape) · **journal des communications** (e-mail/SMS/appels/notes, entrant/sortant) câblé en onglet de la fiche contact (comble l'histo M1) ✅ · reste : campagnes/mailings, matching auto véhicule↔lead, notifications SMS/mail (Resend/Edge) | 🟦 cœur fait |
 | E10 — Web & marketing (M11) | — | ⬜ |
 | E11 — Compta & reporting (M12, M13) | **M13** : tableau de bord branché sur la vraie DB (CA jour/mois, factures, **encours clients**, OR ouverts, **valeur de stock** PAMP, véhicules en stock) ✅ · reste M13 : ventilations, productivité atelier, rotation · **M12** : écran `/accounting` — **journal des ventes** + **registre TVA** (ventilation par taux) sur période · **export UBL (Peppol BIS 3.0)** d'une facture/avoir (bouton sur la fiche, → transmission via **Falco**) · **export Winbooks** (journal des ventes CSV, gabarit alignable) · champs vendeur (TVA/adresse/IBAN/Peppol) + comptes par défaut sur la société · journal des exports tracé ✅ · reste : connecteur Falco live (clé API), validation Peppol fine, format Winbooks exact, écritures détaillées par compte | 🟦 cœur fait |
-| E12 — Migration & go-live (M14) | — | ⬜ |
+| E12 — Migration & go-live (M14) | **Import de contacts CSV** (`Paramètres → Migration`) : mapping souple des en-têtes FR/EN, **dry-run** (aperçu créations/erreurs, validation nom requis), application par lots ✅ · reste : import articles/véhicules (même patron), rapports d'écarts, mapping G8 spécifique | 🟦 amorcé (contacts) |
 
 ---
 
