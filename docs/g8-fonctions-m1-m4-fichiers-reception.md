@@ -118,11 +118,11 @@
 - [ ] Boutons bas : **Librairie**, recherche référence, **N° Série**, Raz ligne, Raz tout, **Inser. ligne** `[R3]`.
 
 ### Réception châssis (véhicule neuf) `[R4-R5]`
-- [ ] Bloc **Identification** : **N° de série/châssis (E)**, référence, marque (D.1), modèle, n° de plaque (A), **n° de moteur**, **origine**, n° de clé, **ID Tracker**, **PIN Tracker**.
-- [ ] Bloc **Caractéristiques** : cylindrée (P.1), **puissance en CV (P.2) + case Bridé**, énergie (P.3), norme antipollution (V.9), couleur, catégorie, nb de cylindres.
-- [ ] Bloc **Infos supplémentaires** : nature produit fini (MOTO/B), **mise en circulation**, **kilométrage (N.C. / Réel / N.G.)**, **TPMS AV / TPMS AR**, **Fin garantie**, **année modèle**, **véhicule de démonstration**, **code exposition**, **véhicule en dépôt marque**.
-- [ ] Bloc **Prix** : PAHT, **prix de revient**, PVTTC ; bloc **Facture fournisseur** (numéro, date).
-- [ ] Validation ligne châssis → crée fiche véhicule (type V) + n° série en stock `[R5]`.
+- [x] Bloc **Identification** : **N° de série/châssis (E)**, référence, marque (D.1), modèle, n° de plaque (A), **n° de moteur**, **origine**, n° de clé, **ID Tracker**, **PIN Tracker**. — *VIN/marque/modèle/moteur/trackers captés*
+- [x] Bloc **Caractéristiques** : cylindrée (P.1), **puissance en CV (P.2) + case Bridé**, énergie (P.3), norme antipollution (V.9), couleur, catégorie, nb de cylindres. — *CV+bridé/énergie/antipollution/couleur*
+- [x] Bloc **Infos supplémentaires** : nature produit fini (MOTO/B), **mise en circulation**, **kilométrage (N.C. / Réel / N.G.)**, **TPMS AV / TPMS AR**, **Fin garantie**, **année modèle**, **véhicule de démonstration**, **code exposition**, **véhicule en dépôt marque**. — *mise en circ./km/TPMS/garantie/année*
+- [x] Bloc **Prix** : PAHT, **prix de revient**, PVTTC ; bloc **Facture fournisseur** (numéro, date).
+- [x] Validation ligne châssis → crée fiche véhicule (type V) + n° série en stock `[R5]`.
 
 ### Rappel réception / Facture fournisseur `[R6]`
 - [ ] 3 régimes : **Achat avec TVA** / **Achat C.E.E. sans TVA** / **Achat hors C.E.E. sans TVA**.

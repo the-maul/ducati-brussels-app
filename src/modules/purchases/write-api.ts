@@ -6,6 +6,27 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseSchedule } from './api';
 
+/** Données châssis d'une ligne véhicule → crée une fiche véhicule (type V) à la réception (B9, G8 R4-R5). */
+export type ChassisInput = {
+  vin: string;
+  brand?: string | null;
+  model?: string | null;
+  engine_number?: string | null;
+  power_cv?: number | null;
+  is_restricted?: boolean;          // bridé A2
+  energy?: string | null;
+  antipollution?: string | null;    // norme [V.9]
+  color?: string | null;
+  first_registration_date?: string | null;
+  mileage?: number | null;
+  model_year?: number | null;
+  gps_tracker_id?: string | null;
+  pin_tracker?: string | null;
+  tpms_av?: string | null;
+  tpms_ar?: string | null;
+  warranty_end?: string | null;
+};
+
 export type PurchaseLineInput = {
   article_id?: string | null;
   designation: string;
@@ -17,6 +38,7 @@ export type PurchaseLineInput = {
   sale_price_ttc?: number | null;
   bin_location?: string | null;
   labels?: number;
+  chassis?: ChassisInput | null;     // réception châssis → fiche véhicule
 };
 
 export type ScheduleInput = { seq_no: number; due_date: string | null; amount: number; note?: string | null };
@@ -114,6 +136,23 @@ export async function createPurchaseOrder(p: {
         _is_reservation: false, _bin: l.bin_location ?? null, _origin: 'reception', _ref: number, _note: null,
       });
       if (me) throw me;
+
+      // Réception châssis → création de la fiche véhicule (type V) liée à l'article (B9, G8 R5).
+      if (l.chassis?.vin?.trim()) {
+        const ch = l.chassis;
+        const { error: ve } = await supabase.from('vehicles').insert({
+          company_id: p.companyId, article_id: l.article_id, vin: ch.vin.trim(),
+          brand: ch.brand ?? null, model: ch.model ?? l.designation, engine_number: ch.engine_number ?? null,
+          power_cv: ch.power_cv ?? null, is_restricted: !!ch.is_restricted, energy: ch.energy ?? null,
+          antipollution: ch.antipollution ?? null, color: ch.color ?? null,
+          first_registration_date: ch.first_registration_date ?? null, mileage: ch.mileage ?? null,
+          model_year: ch.model_year ?? null, gps_tracker_id: ch.gps_tracker_id ?? null, pin_tracker: ch.pin_tracker ?? null,
+          tpms_av: ch.tpms_av ?? null, tpms_ar: ch.tpms_ar ?? null, warranty_end: ch.warranty_end ?? null,
+          purchase_price: unitNet, cost_price: unitNet, display_price: l.sale_price_ttc ?? null,
+          status: 'stock_vn',
+        });
+        if (ve) throw ve;
+      }
     }
   }
   return orderId;

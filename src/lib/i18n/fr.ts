@@ -475,7 +475,8 @@ export const fr = {
     // en-tête
     supplier: 'Fournisseur', supplierPlaceholder: 'Fournisseur…', docType: 'Type',
     vatRegime: 'Régime TVA', regime_with_vat: 'Achat avec TVA', regime_cee: 'Achat C.E.E. sans TVA', regime_outside_cee: 'Achat hors C.E.E. sans TVA',
-    invoiceNo: 'N° facture frs', blNo: 'N° BL frs', intranetNo: 'N° intranet', chassis: 'Châssis',
+    invoiceNo: 'N° facture frs', blNo: 'N° BL frs', intranetNo: 'N° intranet',
+    chassis: 'Châssis', chassisTitle: 'Réception châssis → fiche véhicule',
     invoiceDate: 'Date facture', blDate: 'Date BL', receiptDate: 'Date réception', orderDate: 'Date commande', expectedDate: 'Livraison prévue',
     // lignes
     colArticle: 'Article / Désignation', colSupplierRef: 'Réf. frs', colQty: 'Qté', colPuHt: 'PA HT',

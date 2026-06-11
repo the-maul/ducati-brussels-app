@@ -7,12 +7,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Bike } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { listSuppliers, supplierName, searchPurchaseArticles, type Supplier, type PurchaseArticle } from './api';
-import { createPurchaseOrder, computePurchaseTotals, type PurchaseLineInput, type VatRegime } from './write-api';
+import { createPurchaseOrder, computePurchaseTotals, type PurchaseLineInput, type VatRegime, type ChassisInput } from './write-api';
 import { t } from '@/lib/i18n';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -35,6 +36,7 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
   const [shippingHt, setShippingHt] = useState('');
   const [discountPct, setDiscountPct] = useState('');
   const [lines, setLines] = useState<EditLine[]>([blankLine()]);
+  const [chassisFor, setChassisFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,7 +136,14 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
                   <td className="px-2 py-1"><Input value={l.bin_location ?? ''} onChange={(e) => setLine(l._key, { bin_location: e.target.value })} className="h-8" maxLength={12} /></td>
                   <td className="px-2 py-1"><Input type="number" step="1" value={String(l.labels ?? 0)} onChange={(e) => setLine(l._key, { labels: Math.max(0, Math.round(num(e.target.value))) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
-                  <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
+                  <td className="px-2 py-1 text-center whitespace-nowrap">
+                    {docType === 'REC' && (
+                      <Button size="sm" variant="ghost" title={t('purchases.chassis')} onClick={() => setChassisFor(l._key)}>
+                        <Bike className={`size-4 ${l.chassis?.vin ? 'text-success' : 'text-muted-foreground'}`} />
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button>
+                  </td>
                 </tr>
               );
             })}
@@ -162,7 +171,56 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
         <Button variant="outline" onClick={() => save('brouillon')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('purchases.draft')}</Button>
         <Button onClick={() => save('validee')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('purchases.validate')}</Button>
       </div>
+
+      {chassisFor && (
+        <ChassisDialog
+          value={lines.find((l) => l._key === chassisFor)?.chassis ?? null}
+          onClose={() => setChassisFor(null)}
+          onSave={(ch) => { setLine(chassisFor, { chassis: ch }); setChassisFor(null); }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ---------------- Saisie châssis (réception véhicule neuf) ---------------- */
+const blankChassis = (): ChassisInput => ({ vin: '', brand: '', model: '', engine_number: '', power_cv: null, is_restricted: false, energy: '', antipollution: '', color: '', first_registration_date: '', mileage: null, model_year: null, gps_tracker_id: '', pin_tracker: '', tpms_av: '', tpms_ar: '', warranty_end: '' });
+
+function ChassisDialog({ value, onClose, onSave }: { value: ChassisInput | null; onClose: () => void; onSave: (c: ChassisInput) => void }) {
+  const [c, setC] = useState<ChassisInput>(() => value ?? blankChassis());
+  const set = <K extends keyof ChassisInput>(k: K, v: ChassisInput[K]) => setC((p) => ({ ...p, [k]: v }));
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>{t('purchases.chassisTitle')}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label={t('vehicles.vin')}><Input value={c.vin} onChange={(e) => set('vin', e.target.value)} className="font-mono" maxLength={17} /></Field>
+          <Field label={t('vehicles.brand')}><Input value={c.brand ?? ''} onChange={(e) => set('brand', e.target.value)} /></Field>
+          <Field label={t('vehicles.model')}><Input value={c.model ?? ''} onChange={(e) => set('model', e.target.value)} /></Field>
+          <Field label={t('vehicles.engineNumber')}><Input value={c.engine_number ?? ''} onChange={(e) => set('engine_number', e.target.value)} /></Field>
+          <Field label={t('vehicles.powerCv')}><Input type="number" step="0.1" value={c.power_cv ?? ''} onChange={(e) => set('power_cv', e.target.value ? num(e.target.value) : null)} className="text-right tabular-nums" /></Field>
+          <Field label={t('vehicles.energy')}><Input value={c.energy ?? ''} onChange={(e) => set('energy', e.target.value)} /></Field>
+          <Field label={t('vehicles.antipollution')}><Input value={c.antipollution ?? ''} onChange={(e) => set('antipollution', e.target.value)} /></Field>
+          <Field label={t('vehicles.color')}><Input value={c.color ?? ''} onChange={(e) => set('color', e.target.value)} /></Field>
+          <Field label={t('vehicles.firstRegistration')}><Input type="date" value={c.first_registration_date ?? ''} onChange={(e) => set('first_registration_date', e.target.value)} /></Field>
+          <Field label={t('vehicles.mileage')}><Input type="number" value={c.mileage ?? ''} onChange={(e) => set('mileage', e.target.value ? Math.round(num(e.target.value)) : null)} className="text-right tabular-nums" /></Field>
+          <Field label={t('vehicles.modelYear')}><Input type="number" value={c.model_year ?? ''} onChange={(e) => set('model_year', e.target.value ? Math.round(num(e.target.value)) : null)} className="text-right tabular-nums" /></Field>
+          <Field label={t('vehicles.warrantyEnd')}><Input type="date" value={c.warranty_end ?? ''} onChange={(e) => set('warranty_end', e.target.value)} /></Field>
+          <Field label={t('vehicles.gpsTracker')}><Input value={c.gps_tracker_id ?? ''} onChange={(e) => set('gps_tracker_id', e.target.value)} /></Field>
+          <Field label={t('vehicles.pinTracker')}><Input value={c.pin_tracker ?? ''} onChange={(e) => set('pin_tracker', e.target.value)} /></Field>
+          <Field label={t('vehicles.tpmsAv')}><Input value={c.tpms_av ?? ''} onChange={(e) => set('tpms_av', e.target.value)} /></Field>
+          <Field label={t('vehicles.tpmsAr')}><Input value={c.tpms_ar ?? ''} onChange={(e) => set('tpms_ar', e.target.value)} /></Field>
+          <label className="col-span-2 flex h-9 items-center gap-2 self-end text-sm sm:col-span-1">
+            <input type="checkbox" checked={!!c.is_restricted} onChange={(e) => set('is_restricted', e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
+            {t('vehicles.restricted')}
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button onClick={() => onSave(c)} disabled={!c.vin.trim()}>{t('action.save')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
