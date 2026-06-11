@@ -2154,6 +2154,56 @@ export type Database = {
           },
         ]
       }
+      shop_settings: {
+        Row: {
+          address: string | null
+          company_id: string
+          description: string | null
+          email: string | null
+          hero_text: string | null
+          name: string | null
+          phone: string | null
+          published: boolean
+          slug: string | null
+          theme_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          description?: string | null
+          email?: string | null
+          hero_text?: string | null
+          name?: string | null
+          phone?: string | null
+          published?: boolean
+          slug?: string | null
+          theme_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          description?: string | null
+          email?: string | null
+          hero_text?: string | null
+          name?: string | null
+          phone?: string | null
+          published?: boolean
+          slug?: string | null
+          theme_color?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_moves: {
         Row: {
           article_id: string
@@ -2562,6 +2612,114 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_order_lines: {
+        Row: {
+          article_id: string | null
+          designation: string
+          id: string
+          line_ttc: number
+          order_id: string
+          quantity: number
+          unit_price_ttc: number
+        }
+        Insert: {
+          article_id?: string | null
+          designation: string
+          id?: string
+          line_ttc?: number
+          order_id: string
+          quantity?: number
+          unit_price_ttc?: number
+        }
+        Update: {
+          article_id?: string | null
+          designation?: string
+          id?: string
+          line_ttc?: number
+          order_id?: string
+          quantity?: number
+          unit_price_ttc?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "web_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_orders: {
+        Row: {
+          address: string | null
+          company_id: string
+          created_at: string
+          customer_name: string | null
+          document_id: string | null
+          email: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          phone: string | null
+          status: string
+          total_ttc: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          created_at?: string
+          customer_name?: string | null
+          document_id?: string | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          phone?: string | null
+          status?: string
+          total_ttc?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          created_at?: string
+          customer_name?: string | null
+          document_id?: string | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          phone?: string | null
+          status?: string
+          total_ttc?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_orders_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]

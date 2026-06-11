@@ -501,6 +501,20 @@ export const fr = {
     search: 'Rechercher (référence, désignation…)', publishedOnly: 'Vitrine (publiés)', empty: 'Aucun produit.',
     published: 'Publié', publish: 'Publier', unpublish: 'Retirer de la vitrine', inStock: 'En stock', outStock: 'Rupture',
     noPhoto: 'Pas de photo', addPhotoHint: 'Ajoutez des photos depuis la fiche article.', count: '{n} produit(s)',
+    // onglets
+    tabCatalog: 'Catalogue', tabSettings: 'Réglages boutique', tabOrders: 'Commandes web',
+    // panier / commande
+    addToCart: 'Ajouter', cart: 'Panier', cartEmpty: 'Panier vide.', placeOrder: 'Créer la commande',
+    customer: 'Client', custName: 'Nom', custEmail: 'E-mail', custPhone: 'Téléphone', custAddress: 'Adresse de livraison',
+    orderCreated: 'Commande créée (en attente de paiement).', cartTotal: 'Total',
+    // réglages
+    shopName: 'Nom de la boutique', slug: 'Adresse (slug)', publicUrl: 'URL publique', urlHint: 'L\'URL publique de la vitrine (un domaine pourra y être rattaché au déploiement).',
+    description: 'Description', hero: 'Texte d\'accueil (hero)', themeColor: 'Couleur du thème',
+    contactPhone: 'Téléphone', contactEmail: 'E-mail', contactAddress: 'Adresse', publishedShop: 'Boutique en ligne',
+    save: 'Enregistrer', saved: 'Réglages enregistrés', stripeHint: 'Le paiement en ligne (Stripe) et l\'exposition publique seront activés avec tes clés API.',
+    // commandes
+    colNumber: 'N°', colCustomer: 'Client', colStatus: 'Statut', colTotal: 'Total', noOrders: 'Aucune commande web.',
+    os_panier: 'Panier', os_en_attente_paiement: 'Attente paiement', os_payee: 'Payée', os_preparee: 'Préparée', os_expediee: 'Expédiée', os_annulee: 'Annulée',
   },
 
   // Comptabilité & exports (M12)
