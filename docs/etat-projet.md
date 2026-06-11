@@ -31,9 +31,14 @@
 > **M7 Reprise/Occasion FAIT** (`/tradein`) : **reprise (B3)** crée article occasion (O/P) + fiche véhicule
 > + entrée stock + **ORO** (pièces/MO/frais → coût de revient, marge par VIN) ; **cessions internes** typées.
 > Reste M7 : dépôt-vente + commission, reprise depuis le POS (réf REP).
-> **Prochaine étape : M8 Atelier** (le plus gros : OR cycle B8, planning/RDV, chronos/productivité B11,
-> garanties B10 avec acceptation/refus partiel), puis M9 (docs/GED/signatures), M10 (CRM), M12 (compta/UBL),
-> M13 (reporting), M14 (migration).
+> **M8 Atelier FAIT** (`/workshop`) : **OR cycle B8** (en-tête VIN/client/km/travaux/observations, lignes
+> pièces/MO/texte, statuts, transformation en facture via M6), **garantie B10** (accept/refus total/refus
+> partiel ligne par ligne, pièce garantie prix 0, facturation bloquée si en attente), **chronos B11**
+> (`/workshop/chrono` présence + temps travail par OR), **planning/RDV** (`/workshop/planning` vue semaine,
+> création d'OR depuis le RDV), OR accident (expert). Reste M8 : association temps facturé, devis réparation PDF.
+> **Prochaine étape : M9** (documents/GED/signatures/PDF templatés), puis M10 (CRM : leads, campagnes, histo
+> e-mail/SMS, relances), M12 (compta/UBL/Peppol/TVA), M13 (reporting/dashboards/productivité), M14 (migration G8).
+> Tail transverse : dépôt-vente (M7), notifications SMS/mail (M10), import de contacts (à brancher).
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -54,7 +59,8 @@
 | **E3 — Achats & réceptions** | M4 | 🟦 **cœur fait** (fournisseurs, réception→stock+PAMP, châssis→véhicule, échéancier, proposition cmd, export DCS) |
 | **E4 — Stock & inventaire** | M5 | 🟦 **cœur fait** (vues stock+valeur, inventaire 3-toggles, arrêté, comptage 3 modes, remise à zéro, écarts, réintégration) |
 | **E6 — Reprise/Occasion/Dépôt** | M7 | 🟦 **cœur fait** (reprise B3 → occasion+véhicule+ORO, marge par VIN, cessions internes) ; reste dépôt-vente |
-| E7 → E12 | M8–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
+| **E7 — Atelier** | M8 | 🟦 **cœur fait** (OR B8, garantie B10 refus partiel, chronos B11, planning/RDV, OR accident) |
+| E8 → E12 | M9–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
 
