@@ -251,6 +251,7 @@ export const fr = {
     colBrand: 'Marque',
     colStock: 'Casier',
     colPrice: 'PV TTC',
+    printLabel: 'Imprimer l\'étiquette',
     errLoad: 'Chargement impossible.',
     errSave: 'Enregistrement impossible.',
     requiredRef: 'Référence et désignation sont requises.',

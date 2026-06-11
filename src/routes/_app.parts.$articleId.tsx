@@ -7,6 +7,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import { Button } from '@/components/ui/button';
+import { Tags } from 'lucide-react';
+import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
@@ -52,7 +55,11 @@ function EditArticle() {
 
   return (
     <>
-      <PageHeader title={article.designation} description={article.reference} />
+      <PageHeader
+        title={article.designation}
+        description={article.reference}
+        actions={<Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: article.sale_price_ttc, withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>}
+      />
       <Tabs defaultValue="fiche">
         <TabsList>
           <TabsTrigger value="fiche">Fiche</TabsTrigger>
