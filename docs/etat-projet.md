@@ -22,9 +22,14 @@
 > `reference_values`) · **réservation + acomptes** (stock *disponible*, B4) · **conversions** DEV/RES/BL→FAC/BL
 > (acompte auto-déduit, filiation) · **avoirs** (réintégration stock + remboursement) · **clôture Z** (`/pos` :
 > fond de caisse, mouvements de fond, journal Z par mode + ventilation TVA, calcul monnaie) · **impression PDF**.
-> 23 tests verts (PAMP + 8 sur le pied/TVA). Reste POS (tail) : duplicata, regroupement BL→facture, relances/LCR
-> (M12), n° série/REP au POS (M3/M7), cessions/garanties (M7/M8). **Prochaine étape : partie B = M4 Achats/
-> réceptions** (commandes fournisseur, réceptions = vraies entrées stock + PAMP, châssis→véhicule, export DCS).
+> 23 tests verts (PAMP + 8 sur le pied/TVA).
+> **M4 Achats FAIT** (`/purchases`) : fournisseurs (RFA/code interne), réception→**entrées stock + PAMP**,
+> **châssis→fiche véhicule** (B9), échéancier, régimes TVA, **proposition de commande**, **export DCS** CSV.
+> **M5 Stock & inventaire FAIT** (`/stock`) : vues triple stock + valeur PAMP + historique ; **inventaire**
+> (8 méthodes G8 → 3 toggles ouvert/fermé × effacement × écarts), arrêté daté, comptage 3 modes, remise à zéro,
+> écarts, réintégration — **tout append-only** (B4/B6/B7). Hub **Contacts** (`/clients`) avec filtre par type.
+> **Prochaine étape : M7 Reprise/Occasion/Dépôt** (flux B3 : REP→article occasion+véhicule+ORO, dépôt-vente,
+> commission, cessions internes), puis **M8 Atelier** (OR, planning, chronos, garanties), M9, M10, M12, M13, M14.
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -42,7 +47,9 @@
 | **E1 — Contacts + Articles** | M1, M2 | ✅ **clôturé** (fiches **parité G8** + **moteur d'import tarifs** + 10 tests) |
 | **E2 — Véhicules** | M3 | 🟦 **cœur fait** (fiche VIN parité G8, parc, historique propriétaires, jointure article) ; reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois |
 | **E5 — Ventes & POS** | M6 | 🟦 **partie A (POS) faite** (pied, encaissement multi-modes, réservation/acomptes, conversions, avoirs, clôture Z, impression) ; reste tail dépendant M3/M7/M8/M12 |
-| E3 → E12 | M4–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
+| **E3 — Achats & réceptions** | M4 | 🟦 **cœur fait** (fournisseurs, réception→stock+PAMP, châssis→véhicule, échéancier, proposition cmd, export DCS) |
+| **E4 — Stock & inventaire** | M5 | 🟦 **cœur fait** (vues stock+valeur, inventaire 3-toggles, arrêté, comptage 3 modes, remise à zéro, écarts, réintégration) |
+| E6 → E12 | M7–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
 
