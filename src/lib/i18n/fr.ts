@@ -468,6 +468,7 @@ export const fr = {
     newReception: 'Nouvelle réception', newCommand: 'Nouvelle commande', newOrder: 'Nouveau document',
     backToList: 'Achats', empty: 'Aucun document.', notFound: 'Introuvable.',
     tabReceptions: 'Réceptions', tabCommands: 'Commandes', tabSuppliers: 'Fournisseurs',
+    suppliersTitle: 'Fournisseurs', suppliersSubtitle: 'Fiches fournisseurs : coordonnées, RFA, conditions.', newSupplier: 'Nouveau fournisseur',
     // colonnes
     colNumber: 'N°', colType: 'Type', colSupplier: 'Fournisseur', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC',
     type_CMD: 'Commande', type_REC: 'Réception',

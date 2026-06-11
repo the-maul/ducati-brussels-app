@@ -204,6 +204,7 @@ export function ContactForm({
   error,
   onSubmit,
   onCancel,
+  lockType,
 }: {
   initial: Contact | null;
   companyId: string;
@@ -211,12 +212,20 @@ export function ContactForm({
   error?: string | null;
   onSubmit: (payload: ContactInsert) => void;
   onCancel: () => void;
+  /** Force et verrouille le type (ex. 'fournisseur' depuis le module Achats). */
+  lockType?: ContactType;
 }) {
-  const [f, setF] = useState<FormState>(() => fromContact(initial));
+  const [f, setF] = useState<FormState>(() => {
+    const s = fromContact(initial);
+    return lockType ? { ...s, type: lockType } : s;
+  });
   const [localError, setLocalError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const isPro = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
+  // Un fournisseur / une banque n'est pas un « client » : on masque les sections client
+  // (statut prospect/client, permis moto, catégorisation/flags client, centres d'intérêt).
+  const isClient = f.type === 'particulier' || f.type === 'professionnel';
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,28 +244,32 @@ export function ContactForm({
     <form onSubmit={submit} className="space-y-6">
       {/* Identité */}
       <Section title={t('contacts.secIdentity')}>
-        <Field label={t('contacts.type')}>
-          <Select value={f.type} onValueChange={(v) => set('type', v as ContactType)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="particulier">{t('contacts.type_particulier')}</SelectItem>
-              <SelectItem value="professionnel">{t('contacts.type_professionnel')}</SelectItem>
-              <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
-              <SelectItem value="fournisseur">{t('contacts.type_fournisseur')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('contacts.status')}>
-          <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
-              <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
-              <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
-              <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        {!lockType && (
+          <Field label={t('contacts.type')}>
+            <Select value={f.type} onValueChange={(v) => set('type', v as ContactType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="particulier">{t('contacts.type_particulier')}</SelectItem>
+                <SelectItem value="professionnel">{t('contacts.type_professionnel')}</SelectItem>
+                <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
+                <SelectItem value="fournisseur">{t('contacts.type_fournisseur')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+        {isClient && (
+          <Field label={t('contacts.status')}>
+            <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
+                <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
+                <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
+                <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         <Field label={t('contacts.code')}>
           <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
         </Field>
@@ -316,7 +329,8 @@ export function ContactForm({
         </div>
       </Section>
 
-      {/* Permis & moto */}
+      {/* Permis & moto — clients uniquement */}
+      {isClient && (
       <Section title={t('contacts.secMoto')}>
         <Field label={t('contacts.birthDate')}>
           <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
@@ -350,6 +364,7 @@ export function ContactForm({
           </Select>
         </Field>
       </Section>
+      )}
 
       {/* B2B */}
       <Section title={t('contacts.secB2B')}>
@@ -411,8 +426,9 @@ export function ContactForm({
         </Section>
       )}
 
-      {/* Catégorisation */}
-      <Section title={t('contacts.secCategory')}>
+      {/* Catégorisation (clients) / Notes */}
+      <Section title={isClient ? t('contacts.secCategory') : t('contacts.notes')}>
+        {isClient && (<>
         <Field label={t('contacts.segment')}>
           <Select value={f.segment} onValueChange={(v) => set('segment', v as CustomerSegment)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -449,6 +465,7 @@ export function ContactForm({
             ))}
           </div>
         </Field>
+        </>)}
         <Field label={t('contacts.notes')} wide>
           <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
         </Field>
