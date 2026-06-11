@@ -43,6 +43,21 @@ export async function getPurchaseFull(id: string): Promise<PurchaseFull> {
   return { order: order as PurchaseOrder, lines: lines ?? [], schedules: schedules ?? [] };
 }
 
+export type ReorderProposal = {
+  article_id: string; reference: string; designation: string; supplier_id: string | null;
+  real_qty: number; available_qty: number; stock_min: number; stock_max: number; pack_qty: number; suggested_qty: number;
+};
+/** Propositions de réapprovisionnement (articles sous le stock mini). */
+export async function getReorderProposals(companyId: string): Promise<ReorderProposal[]> {
+  const { data, error } = await supabase.rpc('reorder_proposals', { _company: companyId });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    article_id: r.article_id, reference: r.reference, designation: r.designation, supplier_id: r.supplier_id,
+    real_qty: Number(r.real_qty), available_qty: Number(r.available_qty), stock_min: Number(r.stock_min),
+    stock_max: Number(r.stock_max), pack_qty: Number(r.pack_qty), suggested_qty: Number(r.suggested_qty),
+  }));
+}
+
 /** Articles cherchables pour la saisie de réception (réf fournisseur, PAMP, casier). */
 export type PurchaseArticle = { id: string; reference: string; designation: string; supplier_ref: string | null; purchase_price: number; vat_rate: number; sale_price_ttc: number; bin_location: string | null };
 export async function searchPurchaseArticles(companyId: string, term: string): Promise<PurchaseArticle[]> {

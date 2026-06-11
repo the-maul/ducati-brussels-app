@@ -19,7 +19,7 @@ export const fr = {
     parts: 'Pièces & Accessoires',
     purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
-    clients: 'Clients (CRM)',
+    clients: 'Contacts',
     pos: 'Caisse',
     eshop: 'E-shop',
     reports: 'Rapports',
@@ -494,6 +494,10 @@ export const fr = {
     draft: 'Brouillon', validate: 'Valider', errSave: 'Erreur', print: 'Imprimer',
     receivedInfo: 'Réception validée → entrées de stock et PAMP recalculé.',
     exportDcs: 'Export DCS', dcsStandard: 'DCS Standard', dcsUrgent: 'DCS Urgente',
+    // réapprovisionnement
+    reorderTitle: 'Proposition de commande', reorderSubtitle: 'Articles sous le stock mini — quantités à commander, par fournisseur.',
+    reorderAvail: 'Dispo', reorderMin: 'Mini', reorderQty: 'À commander', reorderEmpty: 'Aucun article sous le stock mini.',
+    createOrders: 'Créer les commandes', ordersCreated: '{n} commande(s) créée(s).',
   },
 
   // Caisse / Clôture Z (M6 — POS)

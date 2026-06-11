@@ -158,4 +158,28 @@ export async function createPurchaseOrder(p: {
   return orderId;
 }
 
+/** Crée une commande fournisseur (CMD) par fournisseur à partir de lignes de réappro. */
+export async function createOrdersFromProposals(
+  companyId: string,
+  items: { article_id: string; supplier_id: string | null; designation: string; quantity: number }[],
+): Promise<number> {
+  const bySupplier = new Map<string, typeof items>();
+  for (const it of items) {
+    if (it.quantity <= 0) continue;
+    const key = it.supplier_id ?? '__none__';
+    if (!bySupplier.has(key)) bySupplier.set(key, []);
+    bySupplier.get(key)!.push(it);
+  }
+  let created = 0;
+  for (const [supplier, group] of bySupplier) {
+    await createPurchaseOrder({
+      companyId, docType: 'CMD', supplierId: supplier === '__none__' ? null : supplier, status: 'validee',
+      orderDate: new Date().toISOString().slice(0, 10),
+      lines: group.map((g) => ({ article_id: g.article_id, designation: g.designation, quantity: g.quantity, unit_price_ht: 0, discount_pct: 0, vat_rate: 21 })),
+    });
+    created++;
+  }
+  return created;
+}
+
 export type { PurchaseSchedule };

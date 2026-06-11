@@ -1987,6 +1987,21 @@ export type Database = {
         }
         Returns: number
       }
+      reorder_proposals: {
+        Args: { _company: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          designation: string
+          pack_qty: number
+          real_qty: number
+          reference: string
+          stock_max: number
+          stock_min: number
+          suggested_qty: number
+          supplier_id: string
+        }[]
+      }
       transfer_stock_on_replace: {
         Args: { _from: string; _to: string }
         Returns: undefined
