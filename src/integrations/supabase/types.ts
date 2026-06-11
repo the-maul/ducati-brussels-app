@@ -2330,6 +2330,63 @@ export type Database = {
           },
         ]
       }
+      workshop_time_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          kind: string
+          mechanic_id: string | null
+          mechanic_name: string | null
+          minutes: number | null
+          note: string | null
+          or_id: string | null
+          started_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          kind?: string
+          mechanic_id?: string | null
+          mechanic_name?: string | null
+          minutes?: number | null
+          note?: string | null
+          or_id?: string | null
+          started_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          kind?: string
+          mechanic_id?: string | null
+          mechanic_name?: string | null
+          minutes?: number | null
+          note?: string | null
+          or_id?: string | null
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_time_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_time_entries_or_id_fkey"
+            columns: ["or_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2426,6 +2483,7 @@ export type Database = {
         Args: { _company: string; _doc_type: string }
         Returns: string
       }
+      or_worked_minutes: { Args: { _or: string }; Returns: number }
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined

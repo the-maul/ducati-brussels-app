@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getRepairOrderFull } from '@/modules/workshop/api';
+import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
 import { updateRepairOrder, transformToInvoice, type OrPayload } from '@/modules/workshop/write-api';
 import { OrEditor } from '@/modules/workshop/or-editor';
 import { t } from '@/lib/i18n';
@@ -25,6 +26,7 @@ function OrView() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
+  const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
 
   const save = useMutation({
     mutationFn: (p: OrPayload) => updateRepairOrder(orId, {
@@ -63,6 +65,7 @@ function OrView() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge tone={tone(or.status)} label={t(`workshop.status_${or.status}`)} />
         {or.warranty_status !== 'aucune' && <StatusBadge tone={pending ? 'warning' : 'info'} label={t(`workshop.warranty_${or.warranty_status}`)} />}
+        {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>
       {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
       <OrEditor companyId={activeCompanyId!} initial={data} busy={save.isPending} error={error} onSubmit={(p) => { setError(null); save.mutate(p); }} />

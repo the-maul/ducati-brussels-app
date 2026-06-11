@@ -491,6 +491,12 @@ export const fr = {
     totalHt: 'HT', totalVat: 'TVA', totalTtc: 'TTC',
     save: 'Enregistrer', errSave: 'Erreur', toInvoice: 'Transformer en facture', viewInvoice: 'Voir la facture',
     print: 'Imprimer',
+    // chronos (B11)
+    chrono: 'Pointeuse', chronoTitle: 'Chronos atelier', chronoSubtitle: 'Présence et temps de travail par OR (productivité B11).',
+    mechanicName: 'Mécanicien', presenceIn: 'Pointer l\'arrivée', presenceOut: 'Pointer le départ', presentSince: 'Présent depuis',
+    pickOr: 'Travailler sur un OR', working: 'Travail en cours', stopWork: 'Arrêter', startWork: 'Démarrer',
+    today: 'Aujourd\'hui', entryKind_presence: 'Présence', entryKind_travail: 'Travail', minutes: 'min', ongoing: 'en cours',
+    workedTime: 'Temps passé', noOpenOr: 'Aucun OR ouvert.',
   },
 
   // Reprises / Occasion / ORO (M7)
