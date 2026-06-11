@@ -125,9 +125,9 @@
 - [x] Validation ligne châssis → crée fiche véhicule (type V) + n° série en stock `[R5]`.
 
 ### Rappel réception / Facture fournisseur `[R6]`
-- [ ] 3 régimes : **Achat avec TVA** / **Achat C.E.E. sans TVA** / **Achat hors C.E.E. sans TVA**.
-- [ ] Totaux : Brut HT (calcul sur 3 décimales), Port HT, Remise HT %, Net HT ; N° + date facture.
-- [ ] **Échéances** : échéances dues, total échéances TTC, ajouter une échéance (n°/date/montant) ; boutons Livraison / Facture.
+- [x] 3 régimes : **Achat avec TVA** / **Achat C.E.E. sans TVA** / **Achat hors C.E.E. sans TVA**.
+- [x] Totaux : Brut HT (calcul sur 3 décimales), Port HT, Remise HT %, Net HT ; N° + date facture.
+- [x] **Échéances** : échéances dues, total échéances TTC, ajouter une échéance (n°/date/montant) ; boutons Livraison / Facture. — *échéancier de saisie ; suivi des dus avec M12*
 
 ### Fournisseurs (`Fichiers › Fournisseurs`)
 - [x] Fiche : code auto, **n° de client chez le fournisseur** (imprimé sur commandes), nom (obligatoire), coordonnées (adresse multi-zones imprimée sur BC, tél/fax/email) `[M115-116]` — *champs sur la fiche contact fournisseur*

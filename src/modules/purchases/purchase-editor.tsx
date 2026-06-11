@@ -37,8 +37,10 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
   const [discountPct, setDiscountPct] = useState('');
   const [lines, setLines] = useState<EditLine[]>([blankLine()]);
   const [chassisFor, setChassisFor] = useState<string | null>(null);
+  const [schedules, setSchedules] = useState<{ _key: string; due_date: string; amount: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setSched = (key: string, patch: Partial<{ due_date: string; amount: string }>) => setSchedules((ss) => ss.map((s) => (s._key === key ? { ...s, ...patch } : s)));
 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
@@ -57,6 +59,7 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
         supplierInvoiceNo: invoiceNo || null, supplierBlNo: blNo || null, intranetNo: intranetNo || null,
         invoiceDate: invoiceDate || null, receiptDate: receiptDate || null,
         shippingHt: num(shippingHt), shippingTaxed: true, globalDiscountPct: num(discountPct), lines: payload,
+        schedules: schedules.filter((s) => num(s.amount) > 0 || s.due_date).map((s, i) => ({ seq_no: i + 1, due_date: s.due_date || null, amount: num(s.amount) })),
       });
       navigate({ to: '/purchases/$orderId', params: { orderId: id } });
     } catch (e) { setError(e instanceof Error ? e.message : t('purchases.errSave')); setBusy(false); }
@@ -162,6 +165,21 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC' }: { companyI
             <span className="text-base">{t('purchases.totalTtc')} <b>{eur(totals.total_ttc)}</b></span>
           </div>
         </div>
+      </div>
+
+      {/* Échéancier de paiement fournisseur */}
+      <div className="space-y-2 rounded-md border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('purchases.schedules')}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setSchedules((ss) => [...ss, { _key: `s${counter++}`, due_date: '', amount: '' }])}><Plus /> {t('purchases.addSchedule')}</Button>
+        </div>
+        {schedules.map((s) => (
+          <div key={s._key} className="flex items-end gap-2">
+            <Field label={t('purchases.schedDue')}><Input type="date" value={s.due_date} onChange={(e) => setSched(s._key, { due_date: e.target.value })} className="w-44" /></Field>
+            <Field label={t('purchases.schedAmount')}><Input type="number" step="0.01" value={s.amount} onChange={(e) => setSched(s._key, { amount: e.target.value })} className="w-32 text-right tabular-nums" placeholder="0,00" /></Field>
+            <Button size="sm" variant="ghost" onClick={() => setSchedules((ss) => ss.filter((x) => x._key !== s._key))}><Trash2 className="size-4 text-danger" /></Button>
+          </div>
+        ))}
       </div>
 
       {docType === 'REC' && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('purchases.receivedInfo')}</p>}
