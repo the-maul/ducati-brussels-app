@@ -465,6 +465,34 @@ export const fr = {
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
   },
 
+  // Atelier (M8)
+  workshop: {
+    title: 'Atelier & SAV', subtitle: 'Ordres de réparation, garanties, planning.',
+    newOr: 'Nouvel OR', back: 'Atelier', empty: 'Aucun ordre de réparation.', notFound: 'Introuvable.',
+    colNumber: 'N° OR', colClient: 'Client', colVehicle: 'Véhicule', colStatus: 'Statut', colWarranty: 'Garantie', colTtc: 'TTC',
+    // statuts
+    status_a_faire: 'À faire', status_en_cours: 'En cours', status_pret: 'Prêt', status_facture: 'Facturé', status_annule: 'Annulé',
+    filterAll: 'Tous les statuts',
+    // en-tête
+    client: 'Client', clientPlaceholder: 'Client…', vehicle: 'Véhicule', vehiclePlaceholder: 'VIN, plaque, modèle…',
+    mileage: 'Kilométrage', operator: 'Opérateur', repairType: 'Type de réparation', status: 'Statut',
+    workDescription: 'Travaux demandés', receptionNotes: 'Observations à la réception',
+    // garantie / accident
+    warranty: 'Prise en charge garantie', warranty_aucune: 'Aucune', warranty_en_attente: 'En attente',
+    warranty_accepte: 'Acceptée', warranty_refus_total: 'Refus total', warranty_refus_partiel: 'Refus partiel',
+    expertName: 'Expert (accident)', expertDate: 'Date passage expert',
+    warrantyLine: 'Garantie', warrantyHint: 'Pièce prise en charge (prix 0).',
+    warrantyBlocked: 'Garantie en attente : tranchez la prise en charge avant de facturer.',
+    accept: 'Accepter la garantie', refuse: 'Refuser la garantie', refusePartial: 'Refus partiel',
+    // lignes
+    colKind: 'Type', kind_piece: 'Pièce', kind_mo: 'Main d\'œuvre', kind_texte: 'Texte',
+    colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
+    articlePlaceholder: 'Article ou texte…', addLine: 'Ajouter une ligne', needSomething: 'Renseignez au moins les travaux ou une ligne.',
+    totalHt: 'HT', totalVat: 'TVA', totalTtc: 'TTC',
+    save: 'Enregistrer', errSave: 'Erreur', toInvoice: 'Transformer en facture', viewInvoice: 'Voir la facture',
+    print: 'Imprimer',
+  },
+
   // Reprises / Occasion / ORO (M7)
   tradein: {
     title: 'Reprises & ORO', subtitle: 'Reprises d\'occasion (flux B3) et ordres de remise en état.',

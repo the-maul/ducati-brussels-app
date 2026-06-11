@@ -1748,6 +1748,176 @@ export type Database = {
           },
         ]
       }
+      repair_order_lines: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          designation: string
+          discount_pct: number
+          id: string
+          is_warranty: boolean
+          kind: string
+          line_ht: number
+          line_ttc: number
+          or_id: string
+          quantity: number
+          sort_order: number
+          unit_price_ht: number
+          vat_rate: number
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          designation: string
+          discount_pct?: number
+          id?: string
+          is_warranty?: boolean
+          kind?: string
+          line_ht?: number
+          line_ttc?: number
+          or_id: string
+          quantity?: number
+          sort_order?: number
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          designation?: string
+          discount_pct?: number
+          id?: string
+          is_warranty?: boolean
+          kind?: string
+          line_ht?: number
+          line_ttc?: number
+          or_id?: string
+          quantity?: number
+          sort_order?: number
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_order_lines_or_id_fkey"
+            columns: ["or_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repair_orders: {
+        Row: {
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          expert_date: string | null
+          expert_name: string | null
+          id: string
+          invoice_document_id: string | null
+          mileage: number | null
+          notes: string | null
+          number: string | null
+          operator: string | null
+          price_mode: string
+          reception_notes: string | null
+          repair_type: string | null
+          status: string
+          total_ht: number
+          total_ttc: number
+          total_vat: number
+          updated_at: string
+          vehicle_id: string | null
+          warranty_status: string
+          work_description: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          expert_date?: string | null
+          expert_name?: string | null
+          id?: string
+          invoice_document_id?: string | null
+          mileage?: number | null
+          notes?: string | null
+          number?: string | null
+          operator?: string | null
+          price_mode?: string
+          reception_notes?: string | null
+          repair_type?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vehicle_id?: string | null
+          warranty_status?: string
+          work_description?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          expert_date?: string | null
+          expert_name?: string | null
+          id?: string
+          invoice_document_id?: string | null
+          mileage?: number | null
+          notes?: string | null
+          number?: string | null
+          operator?: string | null
+          price_mode?: string
+          reception_notes?: string | null
+          repair_type?: string | null
+          status?: string
+          total_ht?: number
+          total_ttc?: number
+          total_vat?: number
+          updated_at?: string
+          vehicle_id?: string | null
+          warranty_status?: string
+          work_description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_orders_invoice_document_id_fkey"
+            columns: ["invoice_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_moves: {
         Row: {
           article_id: string

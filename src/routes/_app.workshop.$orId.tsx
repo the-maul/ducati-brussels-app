@@ -1,0 +1,71 @@
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Loader2, FileText, Receipt } from 'lucide-react';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth/auth-context';
+import { getRepairOrderFull } from '@/modules/workshop/api';
+import { updateRepairOrder, transformToInvoice, type OrPayload } from '@/modules/workshop/write-api';
+import { OrEditor } from '@/modules/workshop/or-editor';
+import { t } from '@/lib/i18n';
+
+export const Route = createFileRoute('/_app/workshop/$orId')({
+  head: () => ({ meta: [{ title: 'OR — Ducati Bruxelles' }] }),
+  component: OrView,
+});
+
+const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neutral' : s === 'pret' ? 'info' : 'warning');
+
+function OrView() {
+  const { orId } = Route.useParams();
+  const { activeCompanyId } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
+
+  const save = useMutation({
+    mutationFn: (p: OrPayload) => updateRepairOrder(orId, {
+      companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator,
+      repairType: p.repairType, workDescription: p.workDescription, receptionNotes: p.receptionNotes, status: p.status,
+      warrantyStatus: p.warrantyStatus, expertName: p.expertName, expertDate: p.expertDate || null, lines: p.lines,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); },
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
+  const toInvoice = useMutation({
+    mutationFn: () => transformToInvoice(orId),
+    onSuccess: (docId) => navigate({ to: '/sales/$documentId', params: { documentId: docId } }),
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
+
+  if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+  if (!data) return <><PageHeader title="OR" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p></>;
+
+  const { or } = data;
+  const invoiced = or.status === 'facture';
+  const pending = or.warranty_status === 'en_attente';
+
+  return (
+    <>
+      <PageHeader
+        title={`OR ${or.number ?? ''}`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
+            {!invoiced && <Button onClick={() => toInvoice.mutate()} disabled={toInvoice.isPending || pending}><FileText /> {t('workshop.toInvoice')}</Button>}
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
+          </div>
+        }
+      />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <StatusBadge tone={tone(or.status)} label={t(`workshop.status_${or.status}`)} />
+        {or.warranty_status !== 'aucune' && <StatusBadge tone={pending ? 'warning' : 'info'} label={t(`workshop.warranty_${or.warranty_status}`)} />}
+      </div>
+      {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
+      <OrEditor companyId={activeCompanyId!} initial={data} busy={save.isPending} error={error} onSubmit={(p) => { setError(null); save.mutate(p); }} />
+    </>
+  );
+}
