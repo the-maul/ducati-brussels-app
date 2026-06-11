@@ -108,12 +108,12 @@
 ## 1.4 — M4 Achats & réceptions
 
 ### Module Achats (réception/cmd) — menu `[R1]`
-- [ ] Nouveau document : **Réception**, **Commande**, **Proposition commande**, **Vos demandes en attente**, **Rétrocession** ; Rappel : Réception / Commande / Proposition cde / Demandes magasin reçues.
+- [x] Nouveau document : **Réception**, **Commande**, **Proposition commande**, **Vos demandes en attente**, **Rétrocession** ; Rappel : Réception / Commande / Proposition cde / Demandes magasin reçues. — *Réception + Commande faits ; proposition de commande (B3), rétrocession/demandes magasin à venir*
 
 ### Écran Réception `[R3]`
-- [ ] En-tête : fournisseur, opérateur, **N° facture, N° BL, date facture, date BL, date réception**, remise par ligne (on/off), N° intranet, montant port HT, **port taxé**, taux TVA sur port.
-- [ ] Lignes : réf. article / réf. fournisseur / libellé / quantité / **étiquettes** / prix unitaire / remise / total ligne / **PVTTC unit.** / flags S R / **code casier** ; totaux Qté reçue / Total prix public / Total HT.
-- [ ] Saisie réf article → propositions multi-variantes (couleur, version) avec prix `[R3]`.
+- [x] En-tête : fournisseur, opérateur, **N° facture, N° BL, date facture, date BL, date réception**, remise par ligne (on/off), N° intranet, montant port HT, **port taxé**, taux TVA sur port.
+- [x] Lignes : réf. article / réf. fournisseur / libellé / quantité / **étiquettes** / prix unitaire / remise / total ligne / **PVTTC unit.** / flags S R / **code casier** ; totaux Qté reçue / Total prix public / Total HT. — *flags S/R à affiner*
+- [x] Saisie réf article → propositions multi-variantes (couleur, version) avec prix `[R3]` — *recherche réf/désignation/réf frs*
 - [ ] Actions latérales : Commentaires, Fiche article, **Importation code-barre**, **Import microfiches**, **Recherche articles par famille**, **Fiche fournisseur**, **En cours commande**, **Rappel cde**, Sélection ligne / Sélection totale, **Changement Frs**, **Rapprochement cmd** `[R3]`.
 - [ ] Boutons bas : **Librairie**, recherche référence, **N° Série**, Raz ligne, Raz tout, **Inser. ligne** `[R3]`.
 

@@ -17,6 +17,7 @@ export const fr = {
     vehicles: 'Véhicules',
     workshop: 'Atelier & SAV',
     parts: 'Pièces & Accessoires',
+    purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
     clients: 'Clients (CRM)',
     pos: 'Caisse',
@@ -458,6 +459,37 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+  },
+
+  // Achats & réceptions (M4)
+  purchases: {
+    title: 'Achats & réceptions',
+    subtitle: 'Commandes fournisseur, réceptions et entrées de stock.',
+    newReception: 'Nouvelle réception', newCommand: 'Nouvelle commande', newOrder: 'Nouveau document',
+    backToList: 'Achats', empty: 'Aucun document.', notFound: 'Introuvable.',
+    tabReceptions: 'Réceptions', tabCommands: 'Commandes', tabSuppliers: 'Fournisseurs',
+    // colonnes
+    colNumber: 'N°', colType: 'Type', colSupplier: 'Fournisseur', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC',
+    type_CMD: 'Commande', type_REC: 'Réception',
+    status_brouillon: 'Brouillon', status_validee: 'Validée', status_recue: 'Reçue', status_annulee: 'Annulée',
+    // en-tête
+    supplier: 'Fournisseur', supplierPlaceholder: 'Fournisseur…', docType: 'Type',
+    vatRegime: 'Régime TVA', regime_with_vat: 'Achat avec TVA', regime_cee: 'Achat C.E.E. sans TVA', regime_outside_cee: 'Achat hors C.E.E. sans TVA',
+    invoiceNo: 'N° facture frs', blNo: 'N° BL frs', intranetNo: 'N° intranet', chassis: 'Châssis',
+    invoiceDate: 'Date facture', blDate: 'Date BL', receiptDate: 'Date réception', orderDate: 'Date commande', expectedDate: 'Livraison prévue',
+    // lignes
+    colArticle: 'Article / Désignation', colSupplierRef: 'Réf. frs', colQty: 'Qté', colPuHt: 'PA HT',
+    colDiscount: 'Rem.%', colVat: 'TVA', colPvTtc: 'PV TTC', colBin: 'Casier', colLabels: 'Étiq.', colLineHt: 'Total HT',
+    lineArticleOrText: 'Article (réf, désignation, réf frs)…', addLine: 'Ajouter une ligne', needLine: 'Ajoutez au moins une ligne.',
+    // pied
+    globalDiscount: 'Remise %', shippingHt: 'Port HT', shippingTaxed: 'Port taxé',
+    totalHt: 'HT', totalVat: 'TVA', totalTtc: 'TTC', totalDiscount: 'Remise',
+    // échéances
+    schedules: 'Échéances de paiement', schedDue: 'Échéance', schedAmount: 'Montant', addSchedule: 'Ajouter une échéance',
+    // actions
+    draft: 'Brouillon', validate: 'Valider', errSave: 'Erreur', print: 'Imprimer',
+    receivedInfo: 'Réception validée → entrées de stock et PAMP recalculé.',
+    exportDcs: 'Export DCS', dcsStandard: 'DCS Standard', dcsUrgent: 'DCS Urgente',
   },
 
   // Caisse / Clôture Z (M6 — POS)
