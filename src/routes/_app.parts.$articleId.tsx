@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
+import { BarcodesTab, KitTab, ReplacementTab } from '@/modules/articles/article-tabs';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
@@ -50,14 +52,29 @@ function EditArticle() {
   return (
     <>
       <PageHeader title={article.designation} description={article.reference} />
-      <ArticleForm
-        initial={article}
-        companyId={activeCompanyId}
-        submitting={m.isPending}
-        error={error}
-        onSubmit={(p) => { setError(null); m.mutate(p); }}
-        onCancel={() => navigate({ to: '/parts' })}
-      />
+      <Tabs defaultValue="fiche">
+        <TabsList>
+          <TabsTrigger value="fiche">Fiche</TabsTrigger>
+          <TabsTrigger value="barcodes">Codes-barres</TabsTrigger>
+          <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
+          <TabsTrigger value="replacement">Remplacement</TabsTrigger>
+        </TabsList>
+        <TabsContent value="fiche" className="mt-4">
+          <ArticleForm
+            initial={article}
+            companyId={activeCompanyId}
+            submitting={m.isPending}
+            error={error}
+            onSubmit={(p) => { setError(null); m.mutate(p); }}
+            onCancel={() => navigate({ to: '/parts' })}
+          />
+        </TabsContent>
+        <TabsContent value="barcodes" className="mt-4"><BarcodesTab articleId={articleId} /></TabsContent>
+        <TabsContent value="kit" className="mt-4"><KitTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="replacement" className="mt-4">
+          <ReplacementTab articleId={articleId} companyId={activeCompanyId} supersededById={article.superseded_by_id} />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
