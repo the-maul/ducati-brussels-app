@@ -1,69 +1,82 @@
 /**
- * GlobalSearch — recherche globale de la topbar (charte §5.9).
- * Champ unique + raccourci Ctrl/⌘+K. Reconnaissance auto :
- *   - 17 caractères alphanumériques  → VIN
- *   - format BE0xxxxxxxxx            → n° TVA
- * Les résultats (véhicules/clients/pièces/documents) seront branchés sur la base
- * au fil des modules ; ici la coquille est fonctionnelle (clavier + détection).
+ * GlobalSearch — recherche globale de la topbar (charte §5.9, M0).
+ * Champ unique + raccourci Ctrl/⌘+K. Reconnaissance auto VIN (17 car.) / n° TVA.
+ * Branchée sur la base : interroge clients, véhicules et articles (RLS par société),
+ * résultats groupés et cliquables. Recherche croisée véhicule↔client↔documents (B9).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Search, LayoutDashboard, Palette, Bike, Building2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Search, LayoutDashboard, Palette, Bike, Users, Package, Loader2 } from 'lucide-react';
 import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
+  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command';
+import { useAuth } from '@/lib/auth/auth-context';
+import { listContacts, contactDisplayName } from '@/modules/contacts/api';
+import { listVehicles, vehicleLabel } from '@/modules/vehicles/api';
+import { listArticles } from '@/modules/articles/api';
 import { t } from '@/lib/i18n';
 
 const VIN_RE = /^[A-Za-z0-9]{17}$/;
 const VAT_BE_RE = /^BE\s?0?\d{8,10}$/i;
 
-type Detection = { kind: 'vin' | 'vat'; value: string } | null;
-
-function detect(raw: string): Detection {
+function detect(raw: string): { kind: 'vin' | 'vat'; value: string } | null {
   const v = raw.trim().replace(/\s+/g, '');
   if (VIN_RE.test(v)) return { kind: 'vin', value: v.toUpperCase() };
   if (VAT_BE_RE.test(v)) return { kind: 'vat', value: v.toUpperCase() };
   return null;
 }
 
+async function runSearch(companyId: string, q: string) {
+  const [contacts, vehicles, articles] = await Promise.all([
+    listContacts(companyId, q).then((r) => r.slice(0, 6)).catch(() => []),
+    listVehicles(companyId, q).then((r) => r.slice(0, 6)).catch(() => []),
+    listArticles(companyId, q).then((r) => r.slice(0, 6)).catch(() => []),
+  ]);
+  return { contacts, vehicles, articles };
+}
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [debounced, setDebounced] = useState('');
   const navigate = useNavigate();
+  const { activeCompanyId } = useAuth();
 
-  // Raccourci Ctrl/⌘+K
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen((o) => !o); }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(query.trim()), 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
   const isMac = useMemo(
     () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform),
     [],
   );
 
-  const detection = detect(query);
+  const enabled = open && !!activeCompanyId && debounced.length >= 2;
+  const { data, isFetching } = useQuery({
+    queryKey: ['global-search', activeCompanyId, debounced],
+    queryFn: () => runSearch(activeCompanyId!, debounced),
+    enabled,
+  });
 
-  const go = (to: string) => {
+  const detection = detect(query);
+  const go = (to: string, params?: Record<string, string>) => {
     setOpen(false);
-    navigate({ to });
+    setQuery('');
+    navigate({ to, params } as never);
   };
 
   return (
     <>
-      {/* Déclencheur (charte §5.9 : 320px, placeholder, raccourci) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -77,43 +90,62 @@ export function GlobalSearch() {
         </kbd>
       </button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput
-          placeholder={t('search.placeholder')}
-          value={query}
-          onValueChange={setQuery}
-        />
+      <CommandDialog open={open} onOpenChange={setOpen} commandProps={{ shouldFilter: false }}>
+        <CommandInput placeholder={t('search.placeholder')} value={query} onValueChange={setQuery} />
         <CommandList>
-          <CommandEmpty>{t('search.empty')}</CommandEmpty>
+          {isFetching && (
+            <div className="flex items-center justify-center py-4"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
+          )}
+          {!isFetching && enabled && <CommandEmpty>{t('search.empty')}</CommandEmpty>}
 
           {detection && (
-            <>
-              <CommandGroup
-                heading={
-                  detection.kind === 'vin' ? t('search.detectedVin') : t('search.detectedVat')
-                }
-              >
-                <CommandItem
-                  value={`detected-${detection.value}`}
-                  onSelect={() => go(detection.kind === 'vin' ? '/vehicles' : '/clients')}
-                >
-                  {detection.kind === 'vin' ? <Bike /> : <Building2 />}
-                  <span className="font-mono">{detection.value}</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-            </>
+            <CommandGroup heading={detection.kind === 'vin' ? t('search.detectedVin') : t('search.detectedVat')}>
+              <CommandItem value={`det-${detection.value}`} onSelect={() => go('/vehicles')}>
+                <Bike /><span className="font-mono">{detection.value}</span>
+              </CommandItem>
+            </CommandGroup>
           )}
 
+          {data && data.vehicles.length > 0 && (
+            <CommandGroup heading={t('search.groupVehicles')}>
+              {data.vehicles.map((v) => (
+                <CommandItem key={v.id} value={`veh-${v.id}`} onSelect={() => go('/vehicles/$vehicleId', { vehicleId: v.id })}>
+                  <Bike />
+                  <span>{vehicleLabel(v)}</span>
+                  {v.vin && <span className="ml-auto font-mono text-[11px] text-muted-foreground">{v.vin}</span>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {data && data.contacts.length > 0 && (
+            <CommandGroup heading={t('search.groupClients')}>
+              {data.contacts.map((c) => (
+                <CommandItem key={c.id} value={`con-${c.id}`} onSelect={() => go('/clients/$contactId', { contactId: c.id })}>
+                  <Users />
+                  <span>{contactDisplayName(c)}</span>
+                  {c.city && <span className="ml-auto text-[11px] text-muted-foreground">{c.city}</span>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {data && data.articles.length > 0 && (
+            <CommandGroup heading={t('search.groupParts')}>
+              {data.articles.map((a) => (
+                <CommandItem key={a.id} value={`art-${a.id}`} onSelect={() => go('/parts/$articleId', { articleId: a.id })}>
+                  <Package />
+                  <span className="font-mono text-[12px]">{a.reference}</span>
+                  <span className="truncate">{a.designation}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          <CommandSeparator />
           <CommandGroup heading={t('app.shortName')}>
-            <CommandItem value="dashboard" onSelect={() => go('/dashboard')}>
-              <LayoutDashboard />
-              {t('nav.dashboard')}
-            </CommandItem>
-            <CommandItem value="demo charte" onSelect={() => go('/demo')}>
-              <Palette />
-              {t('nav.demo')}
-            </CommandItem>
+            <CommandItem value="nav-dashboard" onSelect={() => go('/dashboard')}><LayoutDashboard />{t('nav.dashboard')}</CommandItem>
+            <CommandItem value="nav-demo" onSelect={() => go('/demo')}><Palette />{t('nav.demo')}</CommandItem>
           </CommandGroup>
         </CommandList>
       </CommandDialog>
