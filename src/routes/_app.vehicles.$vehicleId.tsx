@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { VehicleForm } from '@/modules/vehicles/vehicle-form';
 import { getVehicle, updateVehicle, listOwners, vehicleLabel, type VehicleInsert } from '@/modules/vehicles/api';
+import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -69,6 +70,11 @@ function EditVehicle() {
         onSubmit={(p) => { setError(null); m.mutate(p); }}
         onCancel={() => navigate({ to: '/vehicles' })}
       />
+
+      <div className="mt-6 rounded-md border border-border bg-card p-4">
+        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('ged.title')}</h2>
+        <AttachmentsPanel companyId={activeCompanyId} entityType="vehicle" entityId={vehicleId} />
+      </div>
     </>
   );
 }

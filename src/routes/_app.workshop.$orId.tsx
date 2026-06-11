@@ -10,6 +10,7 @@ import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
 import { updateRepairOrder, transformToInvoice, type OrPayload } from '@/modules/workshop/write-api';
 import { OrEditor } from '@/modules/workshop/or-editor';
+import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -69,6 +70,10 @@ function OrView() {
       </div>
       {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
       <OrEditor companyId={activeCompanyId!} initial={data} busy={save.isPending} error={error} onSubmit={(p) => { setError(null); save.mutate(p); }} />
+      <div className="mt-6">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
+        <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
+      </div>
     </>
   );
 }

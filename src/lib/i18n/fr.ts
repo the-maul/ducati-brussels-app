@@ -465,6 +465,12 @@ export const fr = {
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
   },
 
+  // Documents & GED (M9)
+  ged: {
+    title: 'Documents', upload: 'Ajouter un fichier', hint: 'Photos, COC, pièce d\'identité, justificatifs…',
+    empty: 'Aucun document joint.', colFile: 'Fichier', colSize: 'Taille', colDate: 'Date', errUpload: 'Upload impossible.',
+  },
+
   // Atelier (M8)
   workshop: {
     title: 'Atelier & SAV', subtitle: 'Ordres de réparation, garanties, planning.',
