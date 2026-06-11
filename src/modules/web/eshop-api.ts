@@ -43,7 +43,7 @@ export async function getShopSettings(companyId: string): Promise<ShopSettings |
   if (error) throw error;
   return data ?? null;
 }
-export type ShopPatch = Partial<Pick<ShopSettings, 'name' | 'slug' | 'description' | 'hero_text' | 'theme_color' | 'phone' | 'email' | 'address' | 'published'>>;
+export type ShopPatch = Partial<Pick<ShopSettings, 'name' | 'slug' | 'custom_domain' | 'description' | 'hero_text' | 'theme_color' | 'phone' | 'email' | 'address' | 'published'>>;
 export async function saveShopSettings(companyId: string, patch: ShopPatch): Promise<void> {
   const { error } = await supabase.from('shop_settings').upsert({ company_id: companyId, ...patch });
   if (error) throw error;

@@ -142,15 +142,21 @@ function ShopSettingsForm({ companyId }: { companyId: string }) {
   const { data } = useQuery({ queryKey: ['shop-settings', companyId], queryFn: () => getShopSettings(companyId) });
   const [f, setF] = useState<ShopPatch>({});
   const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => { if (data) setF({ name: data.name, slug: data.slug, description: data.description, hero_text: data.hero_text, theme_color: data.theme_color, phone: data.phone, email: data.email, address: data.address, published: data.published }); }, [data]);
+  useEffect(() => { if (data) setF({ name: data.name, slug: data.slug, custom_domain: data.custom_domain, description: data.description, hero_text: data.hero_text, theme_color: data.theme_color, phone: data.phone, email: data.email, address: data.address, published: data.published }); }, [data]);
   const set = (k: keyof ShopPatch, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
   const save = useMutation({ mutationFn: () => saveShopSettings(companyId, f), onSuccess: () => { setMsg(t('eshop.saved')); qc.invalidateQueries({ queryKey: ['shop-settings', companyId] }); } });
 
   return (
     <div className="max-w-2xl space-y-3 rounded-md border border-border bg-card p-4">
       <Field label={t('eshop.shopName')}><Input value={f.name ?? ''} onChange={(e) => set('name', e.target.value)} /></Field>
-      <Field label={t('eshop.slug')}><Input value={f.slug ?? ''} onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} className="font-mono" /></Field>
-      <p className="text-[12px] text-muted-foreground">{t('eshop.publicUrl')} : <span className="font-mono">/shop/{f.slug ?? ''}</span> — {t('eshop.urlHint')}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={t('eshop.slug')}><Input value={f.slug ?? ''} onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} className="font-mono" /></Field>
+        <Field label={t('eshop.customDomain')}><Input value={f.custom_domain ?? ''} onChange={(e) => set('custom_domain', e.target.value.toLowerCase().trim())} className="font-mono" placeholder="boutique.ducati-bxl.be" /></Field>
+      </div>
+      <p className="flex items-center gap-2 text-[12px] text-muted-foreground">
+        {t('eshop.publicUrl')} : <a href={`/shop/${f.slug ?? ''}`} target="_blank" rel="noreferrer" className="font-mono text-info underline">/shop/{f.slug ?? ''}</a>
+        <span>— {t('eshop.urlHint')}</span>
+      </p>
       <Field label={t('eshop.hero')}><Input value={f.hero_text ?? ''} onChange={(e) => set('hero_text', e.target.value)} /></Field>
       <Field label={t('eshop.description')}><Textarea value={f.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></Field>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

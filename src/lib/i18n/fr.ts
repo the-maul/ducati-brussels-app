@@ -508,7 +508,7 @@ export const fr = {
     customer: 'Client', custName: 'Nom', custEmail: 'E-mail', custPhone: 'Téléphone', custAddress: 'Adresse de livraison',
     orderCreated: 'Commande créée (en attente de paiement).', cartTotal: 'Total',
     // réglages
-    shopName: 'Nom de la boutique', slug: 'Adresse (slug)', publicUrl: 'URL publique', urlHint: 'L\'URL publique de la vitrine (un domaine pourra y être rattaché au déploiement).',
+    shopName: 'Nom de la boutique', slug: 'Adresse (slug)', customDomain: 'Domaine personnalisé (OVH)', publicUrl: 'URL publique', urlHint: 'Vitrine publique sans connexion. Rattache un domaine OVH à cette page (voir docs/integrations).',
     description: 'Description', hero: 'Texte d\'accueil (hero)', themeColor: 'Couleur du thème',
     contactPhone: 'Téléphone', contactEmail: 'E-mail', contactAddress: 'Adresse', publishedShop: 'Boutique en ligne',
     save: 'Enregistrer', saved: 'Réglages enregistrés', stripeHint: 'Le paiement en ligne (Stripe) et l\'exposition publique seront activés avec tes clés API.',

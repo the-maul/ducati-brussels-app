@@ -2158,6 +2158,7 @@ export type Database = {
         Row: {
           address: string | null
           company_id: string
+          custom_domain: string | null
           description: string | null
           email: string | null
           hero_text: string | null
@@ -2171,6 +2172,7 @@ export type Database = {
         Insert: {
           address?: string | null
           company_id: string
+          custom_domain?: string | null
           description?: string | null
           email?: string | null
           hero_text?: string | null
@@ -2184,6 +2186,7 @@ export type Database = {
         Update: {
           address?: string | null
           company_id?: string
+          custom_domain?: string | null
           description?: string | null
           email?: string | null
           hero_text?: string | null
@@ -2985,6 +2988,20 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      place_web_order: {
+        Args: {
+          _address: string
+          _email: string
+          _lines: Json
+          _name: string
+          _phone: string
+          _slug: string
+        }
+        Returns: {
+          number: string
+          order_id: string
+        }[]
+      }
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined
@@ -3044,6 +3061,30 @@ export type Database = {
           total_ht: number
           total_ttc: number
           total_vat: number
+        }[]
+      }
+      shop_public_catalog: {
+        Args: { _slug: string }
+        Returns: {
+          article_id: string
+          available: number
+          designation: string
+          image_path: string
+          price_ttc: number
+          reference: string
+        }[]
+      }
+      shop_public_info: {
+        Args: { _slug: string }
+        Returns: {
+          address: string
+          company_id: string
+          description: string
+          email: string
+          hero_text: string
+          name: string
+          phone: string
+          theme_color: string
         }[]
       }
       top_articles: {
