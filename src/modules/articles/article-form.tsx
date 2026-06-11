@@ -139,6 +139,39 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
   };
 }
 
+/**
+ * Moteur de prix interactif (parité G8) : éditer l'un de PA/coef/PVHT/PVTTC/TVA
+ * recalcule les autres. PA reste la base ; le coefficient est conservé quand PA change.
+ * (La table d'arrondis paramétrable viendra ensuite — backlog M2.)
+ */
+const toNum = (s: unknown) => { const n = Number(String(s ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const r4 = (n: number) => Math.round(n * 10000) / 10000;
+
+function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string): Partial<FormState> {
+  const vat = edited === 'vat' ? toNum(value) : toNum(f.vat_rate);
+  const vf = 1 + vat / 100;
+  const pa = edited === 'pa' ? toNum(value) : toNum(f.purchase_price);
+  let coef = edited === 'coef' ? toNum(value) : toNum(f.coefficient);
+  let pvht = edited === 'pvht' ? toNum(value) : toNum(f.sale_price_ht);
+  let pvttc = edited === 'pvttc' ? toNum(value) : toNum(f.sale_price_ttc);
+
+  if (edited === 'coef') { pvht = pa * coef; pvttc = pvht * vf; }
+  else if (edited === 'pvht') { coef = pa > 0 ? pvht / pa : coef; pvttc = pvht * vf; }
+  else if (edited === 'pvttc') { pvht = pvttc / vf; coef = pa > 0 ? pvht / pa : coef; }
+  else if (edited === 'pa') { pvht = pa * coef; pvttc = pvht * vf; }       // garde le coefficient
+  else if (edited === 'vat') { pvttc = pvht * vf; }
+
+  const s = (n: number) => (n ? String(n) : '');
+  return {
+    purchase_price: edited === 'pa' ? value : f.purchase_price,
+    coefficient: edited === 'coef' ? value : s(r4(coef)),
+    sale_price_ht: edited === 'pvht' ? value : s(r2(pvht)),
+    sale_price_ttc: edited === 'pvttc' ? value : s(r2(pvttc)),
+    vat_rate: edited === 'vat' ? value : f.vat_rate,
+  };
+}
+
 export function ArticleForm({
   initial, companyId, submitting, error, onSubmit, onCancel,
 }: {
@@ -152,6 +185,13 @@ export function ArticleForm({
   const [f, setF] = useState<FormState>(() => fromArticle(initial));
   const [localError, setLocalError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
+  // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA.
+  const setP = (edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', v: string) =>
+    setF((p) => ({ ...p, ...recomputePricing(p, edited, v) }));
+  // Marges calculées (lecture seule) sur PA et sur PAMP.
+  const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
+  const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;
+  const margePamp = pamp > 0 ? r2(((pvht - pamp) / pamp) * 100) : null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,19 +269,25 @@ export function ArticleForm({
 
       <Section title={t('articles.secPricing')}>
         <Field label={t('articles.purchasePrice')}>
-          <NumInput value={f.purchase_price} onChange={(v) => set('purchase_price', v)} step="0.001" />
+          <NumInput value={f.purchase_price} onChange={(v) => setP('pa', v)} step="0.001" />
         </Field>
         <Field label={t('articles.pamp')}>
           <NumInput value={f.pamp} onChange={(v) => set('pamp', v)} step="0.001" />
         </Field>
-        <Field label={t('articles.salePriceTtc')}>
-          <NumInput value={f.sale_price_ttc} onChange={(v) => set('sale_price_ttc', v)} step="0.01" />
-        </Field>
         <Field label={t('articles.coefficient')}>
-          <NumInput value={f.coefficient} onChange={(v) => set('coefficient', v)} step="0.0001" />
+          <NumInput value={f.coefficient} onChange={(v) => setP('coef', v)} step="0.0001" />
         </Field>
         <Field label={t('articles.salePriceHt')}>
-          <NumInput value={f.sale_price_ht} onChange={(v) => set('sale_price_ht', v)} step="0.01" />
+          <NumInput value={f.sale_price_ht} onChange={(v) => setP('pvht', v)} step="0.01" />
+        </Field>
+        <Field label={t('articles.salePriceTtc')}>
+          <NumInput value={f.sale_price_ttc} onChange={(v) => setP('pvttc', v)} step="0.01" />
+        </Field>
+        <Field label={t('articles.margins')}>
+          <div className="flex h-9 items-center gap-3 text-sm tabular-nums">
+            <span title="Marge sur PA">PA <b className={margePa != null && margePa < 0 ? 'text-danger' : 'text-success'}>{margePa != null ? `${margePa} %` : '—'}</b></span>
+            <span className="text-muted-foreground" title="Marge sur PAMP">PAMP <b>{margePamp != null ? `${margePamp} %` : '—'}</b></span>
+          </div>
         </Field>
         <Field label={t('articles.ppcHt')}>
           <NumInput value={f.ppc_ht} onChange={(v) => set('ppc_ht', v)} step="0.01" />
@@ -250,7 +296,7 @@ export function ArticleForm({
           <NumInput value={f.ppc_ttc} onChange={(v) => set('ppc_ttc', v)} step="0.01" />
         </Field>
         <Field label={t('articles.vatRate')}>
-          <NumInput value={f.vat_rate} onChange={(v) => set('vat_rate', v)} step="0.1" />
+          <NumInput value={f.vat_rate} onChange={(v) => setP('vat', v)} step="0.1" />
         </Field>
         <Field label={t('articles.ecoTaxTtc')}>
           <NumInput value={f.eco_tax_ttc} onChange={(v) => set('eco_tax_ttc', v)} step="0.01" />

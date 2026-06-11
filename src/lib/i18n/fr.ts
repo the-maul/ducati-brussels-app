@@ -236,6 +236,7 @@ export const fr = {
     pamp: 'PAMP',
     salePriceTtc: 'PV TTC',
     coefficient: 'Coefficient',
+    margins: 'Marges',
     vatRate: 'TVA %',
     publishable: 'Publiable e-shop',
     isLibrary: 'Librairie (non stocké)',
