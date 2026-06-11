@@ -506,6 +506,9 @@ export const fr = {
     snapshot: 'Arrêté', generateSnapshot: 'Générer l\'arrêté', reset: 'Remise à zéro du réel', keepVehicles: 'Conserver véhicules (V/O/P)',
     applyCount: 'Valider le comptage', reintegrate: 'Réintégrer l\'arrêté', ecarts: 'Écarts (réel vs arrêté)',
     finish: 'Clôturer l\'inventaire', sessionStatus: 'Statut', exportXls: 'Export Excel',
+    // cessions internes
+    cessions: 'Cessions internes', cessionsTitle: 'Cessions internes', cessionsSubtitle: 'Sorties de stock valorisées non facturables, typées (cadeau, démo, fournitures, garantie).',
+    cessionArticle: 'Article', cessionArticlePlaceholder: 'Réf, désignation…', cessionQty: 'Quantité', cessionType: 'Type de cession', cessionNote: 'Note', cessionAdd: 'Enregistrer', cessionErr: 'Erreur',
   },
 
   // Achats & réceptions (M4)

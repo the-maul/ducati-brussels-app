@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ClipboardList, History } from 'lucide-react';
+import { Loader2, ClipboardList, History, Gift } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,12 @@ function StockList() {
       <PageHeader
         title={t('stock.title')}
         description={t('stock.subtitle')}
-        actions={<Button onClick={() => navigate({ to: '/stock/inventory' })}><ClipboardList /> {t('stock.inventory')}</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/cessions' })}><Gift /> {t('stock.cessions')}</Button>
+            <Button onClick={() => navigate({ to: '/stock/inventory' })}><ClipboardList /> {t('stock.inventory')}</Button>
+          </div>
+        }
       />
 
       <div className="mb-3 flex flex-wrap items-center gap-3">

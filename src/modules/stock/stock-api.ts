@@ -29,3 +29,21 @@ export async function listStockHistory(articleId: string): Promise<StockMove[]> 
   if (error) throw error;
   return (data ?? []) as StockMove[];
 }
+
+/** Cessions internes (sorties valorisées non facturables) : mouvements type 'cession'. */
+export async function listCessions(companyId: string): Promise<StockMove[]> {
+  const { data, error } = await supabase
+    .from('stock_moves').select('*').eq('company_id', companyId).eq('move_type', 'cession')
+    .order('occurred_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Enregistre une cession interne typée (cadeau, démo, fournitures atelier, garantie…). */
+export async function recordCession(articleId: string, qty: number, cessionType: string, note: string): Promise<void> {
+  const { error } = await supabase.rpc('record_stock_move', {
+    _article: articleId, _type: 'cession', _qty: -Math.abs(qty), _unit_cost: null,
+    _is_reservation: false, _bin: null, _origin: 'cession', _ref: cessionType, _note: note || cessionType,
+  });
+  if (error) throw error;
+}
