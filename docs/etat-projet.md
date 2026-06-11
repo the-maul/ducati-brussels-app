@@ -4,7 +4,19 @@
 > sans rien perdre : où on en est, comment travailler, les pièges, ce qui reste.
 > Dernière mise à jour : **2026-06-10**. Branche `main`, dernier commit poussé : voir `git log`.
 > Voir aussi : [CLAUDE.md](../CLAUDE.md) (règles), [avancement.md](avancement.md) (checklist 140 refs),
-> [g8-reference-extract.md](g8-reference-extract.md) (champs G8 par module), [decisions/](decisions/) (ADR).
+> [g8-reference-extract.md](g8-reference-extract.md) (champs G8 par module), [decisions/](decisions/) (ADR),
+> et les **docs de FONCTIONNALITÉS/parcours G8** (à consulter avant de coder un module) :
+> [g8-fonctions-m1-m4-fichiers-reception.md](g8-fonctions-m1-m4-fichiers-reception.md),
+> [g8-fonctions-m5-stock-inventaire.md](g8-fonctions-m5-stock-inventaire.md),
+> [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md),
+> [g8-fonctions-m8-atelier.md](g8-fonctions-m8-atelier.md),
+> [g8-fonctions-m0-m12-m13-compta-stats-params.md](g8-fonctions-m0-m12-m13-compta-stats-params.md).
+
+> ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
+> mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
+> surtout posé les **données et les fiches** ; il faut maintenant **construire les FONCTIONNALITÉS et user
+> journeys** (les `g8-fonctions-*.md` ci-dessus les décrivent en détail). Avant de coder/compléter un
+> module, lire son doc de fonctions et viser la **parité fonctionnelle**, pas seulement le schéma.
 
 ---
 
@@ -143,16 +155,25 @@ Si le serveur déconne après beaucoup de HMR : vider le cache puis relancer —
 `app_role`), helpers RLS `has_role/is_member/is_admin`, `events` (audit append-only), `document_sequences`
 + `next_document_number()`. UI : login `/login`, garde `_app`, bascule société, Paramètres → Utilisateurs.
 
-### M1 — Contacts ✅ (migrations 110000, 130000, 150000, 160000)
-Table `contacts` complète (parité G8). UI `/clients` (liste/recherche/fiche). Reste pour plus tard :
-adresses de livraison (sous-objet), sous-contacts, table civilités paramétrable, lien véhicules sur la fiche.
+> ⚠️ **Pour M1/M2/M3, le SCHÉMA et les fiches sont faits, mais PAS toutes les FONCTIONNALITÉS G8.**
+> Voir les `g8-fonctions-*.md` pour la liste exhaustive des features/parcours à construire (parité fonctionnelle).
 
-### M2 — Articles ✅ (migrations 120000, 135000, 140000, 160000)
+### M1 — Contacts ✅ schéma/fiche, 🟦 fonctionnalités (migrations 110000, 130000, 150000, 160000)
+Table `contacts` complète (parité G8). UI `/clients` (liste/recherche/fiche). **Fonctions G8 à construire** :
+onglets fiche client (**Parc** véhicules, **Relances**, **Histo Email/SMS**, **Échéances**, Documents/GED),
+**encours actuel calculé** (vs autorisé), tarifs client à paliers, adresses de livraison, sous-contacts,
+table civilités paramétrable. (cf. g8-fonctions-m1-m4)
+
+### M2 — Articles ✅ schéma/fiche + import, 🟦 fonctionnalités (migrations 120000, 135000, 140000, 160000)
 Tables `articles` (+ `article_barcodes`, `article_suppliers`, `article_kit_items`, `article_bins`,
-`article_categories`). Type de gestion A–R **+ T** (ADR-002). UI `/parts`. **Import tarifs** :
+`article_categories`). Type A–R **+ T** (ADR-002). UI `/parts`. **Import tarifs** :
 `src/modules/articles/import/` (rules.ts = 12 règles testées, parse.ts = CSV, apply.ts) + route
-`/parts/import`. Tests : `tests/import-rules.test.ts` (10 verts). Reste : équivalences/kits en UI,
-import Excel natif (xlsx), modif PA/PV en cascade.
+`/parts/import` + `tests/import-rules.test.ts` (10 verts). **Fonctions G8 à construire** :
+**moteurs de prix interactifs** (PA↔coef↔PVHT↔PVTTC↔marge + table d'arrondis tranche sup),
+**remplacement de référence** (transfert stock + recalcul PAMP, historique anciennes réf),
+**équivalences** (groupe + référence d'origine multifournisseur), **librairie** (export/import + réimport
+auto), **modification en cascade** (sélection à jokers + actions de masse + verrous), statistiques article,
+édition d'étiquettes, kits en UI, import Excel natif (xlsx). (cf. g8-fonctions-m1-m4 et m6-ventes)
 
 ### M3 — Véhicules 🟦 (migration 170000)
 Tables `vehicles` (fiche VIN exhaustive G8) + `vehicle_owners` (historique). UI `/vehicles` (parc +
