@@ -28,8 +28,12 @@
 > **M5 Stock & inventaire FAIT** (`/stock`) : vues triple stock + valeur PAMP + historique ; **inventaire**
 > (8 méthodes G8 → 3 toggles ouvert/fermé × effacement × écarts), arrêté daté, comptage 3 modes, remise à zéro,
 > écarts, réintégration — **tout append-only** (B4/B6/B7). Hub **Contacts** (`/clients`) avec filtre par type.
-> **Prochaine étape : M7 Reprise/Occasion/Dépôt** (flux B3 : REP→article occasion+véhicule+ORO, dépôt-vente,
-> commission, cessions internes), puis **M8 Atelier** (OR, planning, chronos, garanties), M9, M10, M12, M13, M14.
+> **M7 Reprise/Occasion FAIT** (`/tradein`) : **reprise (B3)** crée article occasion (O/P) + fiche véhicule
+> + entrée stock + **ORO** (pièces/MO/frais → coût de revient, marge par VIN) ; **cessions internes** typées.
+> Reste M7 : dépôt-vente + commission, reprise depuis le POS (réf REP).
+> **Prochaine étape : M8 Atelier** (le plus gros : OR cycle B8, planning/RDV, chronos/productivité B11,
+> garanties B10 avec acceptation/refus partiel), puis M9 (docs/GED/signatures), M10 (CRM), M12 (compta/UBL),
+> M13 (reporting), M14 (migration).
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -49,7 +53,8 @@
 | **E5 — Ventes & POS** | M6 | 🟦 **partie A (POS) faite** (pied, encaissement multi-modes, réservation/acomptes, conversions, avoirs, clôture Z, impression) ; reste tail dépendant M3/M7/M8/M12 |
 | **E3 — Achats & réceptions** | M4 | 🟦 **cœur fait** (fournisseurs, réception→stock+PAMP, châssis→véhicule, échéancier, proposition cmd, export DCS) |
 | **E4 — Stock & inventaire** | M5 | 🟦 **cœur fait** (vues stock+valeur, inventaire 3-toggles, arrêté, comptage 3 modes, remise à zéro, écarts, réintégration) |
-| E6 → E12 | M7–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
+| **E6 — Reprise/Occasion/Dépôt** | M7 | 🟦 **cœur fait** (reprise B3 → occasion+véhicule+ORO, marge par VIN, cessions internes) ; reste dépôt-vente |
+| E7 → E12 | M8–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
 
