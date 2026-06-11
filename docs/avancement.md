@@ -17,7 +17,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | E2 — Véhicules (M3) | Fiche VIN **parité G8** (carte grise A/B/D.1/E, bridé A2, TPMS, trackers, garantie, n° police), parc + filtre statut, historique propriétaires, jointure article↔véhicule, CRUD ✅ · reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois | 🟦 cœur fait |
 | E3 — Achats & réceptions (M4) | — | ⬜ |
 | E4 — Stock & inventaire (M5) | — | ⬜ |
-| E5 — Ventes & POS (M6) | Éditeur `/sales` (FAC/DEV/TIK/BL), numérotation, décrément stock à la validation, encours client ✅ · **POS en cours** : pied de facture (remise globale %/€, mode HT/TTC, **détaxe export PDV005**, port taxé/non, net TTC forcé) ✅ · reste : encaissement multi-modes/rendu monnaie/échéances, acomptes/réservation, conversions, avoirs, clôture Z, impression PDF → [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md) | 🟦 en cours |
+| E5 — Ventes & POS (M6) | Éditeur `/sales` (FAC/DEV/RES/BL/TIK + AVO), numérotation, encours client ✅ · **POS parité G8 (partie A) faite** : pied de facture (remise globale %/€, mode HT/TTC, **détaxe export PDV005**, port, net TTC forcé) · encaissement multi-modes/rendu monnaie/à échéance · réservation+acomptes (stock disponible B4) · conversions DEV/RES/BL→FAC/BL · avoirs (réintégration stock + remboursement) · **clôture Z** (`/pos` : fond de caisse, mouvements, journal Z, ventilation TVA, calcul monnaie) · impression PDF ✅ · reste : duplicata, regroupement BL, relances/LCR (M12), n° série/REP au POS (M3/M7), cessions/garanties (M7/M8) → [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md) | 🟦 cœur fait |
 | E6 — Reprise/Occasion/Dépôt (M7) | — | ⬜ |
 | E7 — Atelier (M8) | — | ⬜ |
 | E8 — Documents & portails (M9) | — | ⬜ |

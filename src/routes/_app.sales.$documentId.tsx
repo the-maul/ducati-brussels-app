@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2 } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
+import { printDocument } from '@/modules/sales/print-document';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
@@ -20,6 +22,7 @@ const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' |
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
+  const { companies } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
   const convert = useMutation({
     mutationFn: (target: string) => convertDocument(documentId, target),
@@ -48,7 +51,12 @@ function DocumentView() {
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
         description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>
+          </div>
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />

@@ -61,7 +61,7 @@ Une fenêtre à 2 parties : (gauche) **créer** un nouveau document client ; (dr
 - [x] **Choix du mode de règlement** (flèches) ; revenir au tableau via ÉCHAP (p.39)
 - [x] **Règlements multiples** : plusieurs modes pour une même facture (montant par mode) (p.39, p.68)
 - [x] **Rendu de monnaie** : montant donné par le client → **monnaie à rendre** calculée (espèces) (p.40, p.71)
-- [ ] **Choix du type d'édition** : Grand Format (A4) / Petit Format / **Ticket de caisse** / **Valider sans éditer** (p.40-41)
+- [x] **Choix du type d'édition** : Grand Format (A4) / Petit Format / **Ticket de caisse** / **Valider sans éditer** (p.40-41) — *impression PDF navigateur ; formats ticket/petit à affiner*
 
 ## 1.3 Facture avec client identifié — en plus de l'Express (p.41-73)
 - [ ] **Sélection du client** dans la liste (par code ou nom) ; **Création nouveau client** à la volée (bouton Nouveau) (p.42-43)
