@@ -907,23 +907,35 @@ export type Database = {
         Row: {
           amount: number
           document_id: string
+          due_date: string | null
+          given_amount: number | null
           id: string
           method: string
+          note: string | null
           paid_at: string
+          status: string
         }
         Insert: {
           amount: number
           document_id: string
+          due_date?: string | null
+          given_amount?: number | null
           id?: string
           method?: string
+          note?: string | null
           paid_at?: string
+          status?: string
         }
         Update: {
           amount?: number
           document_id?: string
+          due_date?: string | null
+          given_amount?: number | null
           id?: string
           method?: string
+          note?: string | null
           paid_at?: string
+          status?: string
         }
         Relationships: [
           {
@@ -1597,6 +1609,10 @@ export type Database = {
       next_document_number: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      recompute_document_paid: {
+        Args: { _document: string }
+        Returns: undefined
       }
       record_stock_move: {
         Args: {

@@ -443,6 +443,10 @@ export const fr = {
     paid: 'Réglé', due: 'Reste dû',
     // règlement
     payMethod: 'Mode', payAmount: 'Montant', pay: 'Encaisser',
+    payments: 'Règlements', addPayment: 'Ajouter un règlement', recordPayments: 'Encaisser',
+    payNeedAmount: 'Saisissez un montant.',
+    received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
+    cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
   },
 
   // Paramètres (M0)

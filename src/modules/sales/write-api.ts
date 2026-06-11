@@ -162,16 +162,71 @@ export async function listDocuments(companyId: string, docType?: string): Promis
   return data ?? [];
 }
 
-/** Enregistre un règlement et met à jour le montant réglé / le statut. */
+export type PaymentRow = Database['public']['Tables']['document_payments']['Row'];
+/** Une ligne de règlement à enregistrer (un mode). */
+export type NewPayment = {
+  method: string; amount: number;
+  status?: 'recu' | 'attendu';   // 'attendu' = chèque/LCR différé (le client reste débiteur)
+  dueDate?: string | null;       // échéance d'un règlement différé
+  givenAmount?: number | null;   // espèces remises (pour le rendu de monnaie)
+  note?: string | null;
+};
+
+/** Modes de règlement paramétrés (reference_values), visibles en caisse en premier. */
+export type PaymentMethod = { code: string; label: string; visiblePos: boolean };
+export async function listPaymentMethods(companyId: string): Promise<PaymentMethod[]> {
+  const { data, error } = await supabase
+    .from('reference_values').select('code, label, is_active, sort_order, extra')
+    .eq('company_id', companyId).eq('table_key', 'payment_method').eq('is_active', true)
+    .order('sort_order');
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    code: r.code, label: r.label,
+    visiblePos: (r.extra as { visible_pos?: boolean } | null)?.visible_pos !== false,
+  }));
+}
+
+export async function listPayments(documentId: string): Promise<PaymentRow[]> {
+  const { data, error } = await supabase
+    .from('document_payments').select('*').eq('document_id', documentId).order('paid_at');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Enregistre un ou plusieurs règlements puis recalcule le montant réglé / le statut (DB). */
+export async function addPayments(documentId: string, lines: NewPayment[]): Promise<void> {
+  const rows = lines
+    .filter((l) => Math.abs(l.amount) > 0.0001)
+    .map((l) => ({
+      document_id: documentId, method: l.method, amount: l.amount,
+      status: l.status ?? 'recu', due_date: l.dueDate ?? null,
+      given_amount: l.givenAmount ?? null, note: l.note ?? null,
+    }));
+  if (rows.length === 0) return;
+  const { error } = await supabase.from('document_payments').insert(rows);
+  if (error) throw error;
+  await recomputePaid(documentId);
+}
+
+export async function deletePayment(paymentId: string, documentId: string): Promise<void> {
+  const { error } = await supabase.from('document_payments').delete().eq('id', paymentId);
+  if (error) throw error;
+  await recomputePaid(documentId);
+}
+
+/** Passe un règlement « attendu » (différé) en « perçu » → réduit le dû. */
+export async function markPaymentReceived(paymentId: string, documentId: string): Promise<void> {
+  const { error } = await supabase.from('document_payments').update({ status: 'recu' }).eq('id', paymentId);
+  if (error) throw error;
+  await recomputePaid(documentId);
+}
+
+async function recomputePaid(documentId: string): Promise<void> {
+  const { error } = await supabase.rpc('recompute_document_paid', { _document: documentId });
+  if (error) throw error;
+}
+
+/** Compat : enregistrement d'un règlement perçu unique. */
 export async function recordPayment(documentId: string, method: string, amount: number): Promise<void> {
-  const { error: pe } = await supabase.from('document_payments').insert({ document_id: documentId, method, amount });
-  if (pe) throw pe;
-  const { data: doc } = await supabase.from('documents').select('total_ttc, paid_amount').eq('id', documentId).single();
-  if (doc) {
-    const paid = Number(doc.paid_amount) + amount;
-    const status = paid + 0.005 >= Number(doc.total_ttc) ? 'payee' : undefined;
-    const patch: Record<string, unknown> = { paid_amount: paid };
-    if (status) patch.status = status;
-    await supabase.from('documents').update(patch).eq('id', documentId);
-  }
+  await addPayments(documentId, [{ method, amount }]);
 }

@@ -1,13 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getDocumentFull, recordPayment } from '@/modules/sales/write-api';
+import { getDocumentFull } from '@/modules/sales/write-api';
+import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
@@ -17,20 +16,11 @@ export const Route = createFileRoute('/_app/sales/$documentId')({
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
-const METHODS = ['ESP', 'MAE', 'VIR', 'VIC', 'VID', 'CHQC'];
 
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
-  const [method, setMethod] = useState('ESP');
-  const [amount, setAmount] = useState('');
-
-  const pay = useMutation({
-    mutationFn: () => recordPayment(documentId, method, Number(amount.replace(',', '.'))),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['doc-full', documentId] }); setAmount(''); },
-  });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p></>;
@@ -82,15 +72,9 @@ function DocumentView() {
         {due > 0.005 && <span className="text-danger">{t('sales.due')} : <b>{eur(due)}</b></span>}
       </div>
 
-      {due > 0.005 && doc.status !== 'annulee' && (
-        <div className="mt-4 flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
-          <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.payMethod')}</label>
-            <Select value={method} onValueChange={setMethod}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-              <SelectContent>{METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
-          </div>
-          <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.payAmount')}</label>
-            <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(due.toFixed(2))} className="w-32 text-right tabular-nums" /></div>
-          <Button onClick={() => pay.mutate()} disabled={pay.isPending || !amount.trim()}>{pay.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('sales.pay')}</Button>
+      {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
+        <div className="mt-4">
+          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} />
         </div>
       )}
     </>
