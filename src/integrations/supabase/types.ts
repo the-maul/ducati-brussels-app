@@ -2590,6 +2590,7 @@ export type Database = {
           current_due: number
         }[]
       }
+      dashboard_kpis: { Args: { _company: string }; Returns: Json }
       generate_stock_snapshot: {
         Args: { _company: string; _kind?: string; _label: string }
         Returns: string

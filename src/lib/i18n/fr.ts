@@ -465,6 +465,13 @@ export const fr = {
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
   },
 
+  // Tableau de bord (M13)
+  dashboard: {
+    revenueToday: 'CA du jour', revenueMonth: 'CA du mois', invoicesMonth: 'Factures du mois',
+    orOpen: 'OR ouverts', stockValue: 'Valeur du stock', vehiclesInStock: 'Véhicules en stock',
+    receivables: 'Encours clients',
+  },
+
   // Documents & GED (M9)
   ged: {
     title: 'Documents', upload: 'Ajouter un fichier', hint: 'Photos, COC, pièce d\'identité, justificatifs…',

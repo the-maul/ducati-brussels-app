@@ -23,7 +23,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | E8 — Documents & portails (M9) | **GED** : pièces jointes génériques (Supabase Storage, bucket privé `ged`, RLS par société) rattachées à toute entité — panneau réutilisable câblé sur **véhicule** (photos/COC), **contact** (pièce d'identité) et **OR** (photos réception) · PDF templatés déjà au POS (M6) ✅ · reste : signature électronique, portails client, modèles de documents configurables | 🟦 en cours |
 | E9 — CRM & matching (M10) | — | ⬜ |
 | E10 — Web & marketing (M11) | — | ⬜ |
-| E11 — Compta & reporting (M12, M13) | — | ⬜ |
+| E11 — Compta & reporting (M12, M13) | **M13** : tableau de bord branché sur la vraie DB (CA jour/mois, factures, **encours clients**, OR ouverts, **valeur de stock** PAMP, véhicules en stock) ✅ · reste M13 : ventilations, productivité atelier, rotation · **M12 compta/UBL** non commencé | 🟦 M13 amorcé |
 | E12 — Migration & go-live (M14) | — | ⬜ |
 
 ---
