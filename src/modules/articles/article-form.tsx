@@ -3,6 +3,7 @@
  * Sections : identification (type B1), fournisseur/logistique, prix/TVA, options.
  */
 import { useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2, Save } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,21 @@ import {
 } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
+import { listRef } from '@/modules/settings/reference-api';
+
+/** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
+export type RoundingRule = { sort_order: number; up_to: number; step: number; mode: 'up' | 'nearest' };
+
+/** Applique la table d'arrondis à un PVTTC : tranche par PVTTC, arrondi au pas (tranche sup. ou plus proche). */
+function applyRounding(value: number, rules: RoundingRule[]): number {
+  if (!rules.length || !Number.isFinite(value)) return value;
+  const sorted = [...rules].sort((a, b) => a.sort_order - b.sort_order);
+  const rule = sorted.find((r) => r.up_to === 0 || value <= r.up_to);
+  if (!rule || !(rule.step > 0)) return value;
+  const q = value / rule.step;
+  const n = rule.mode === 'nearest' ? Math.round(q) : Math.ceil(q - 1e-9);
+  return Math.round(n * rule.step * 100) / 100;
+}
 
 type FormState = {
   reference: string;
@@ -148,7 +164,7 @@ const toNum = (s: unknown) => { const n = Number(String(s ?? '').replace(',', '.
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
-function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string): Partial<FormState> {
+function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string, rounding: RoundingRule[] = []): Partial<FormState> {
   const vat = edited === 'vat' ? toNum(value) : toNum(f.vat_rate);
   const vf = 1 + vat / 100;
   const pa = edited === 'pa' ? toNum(value) : toNum(f.purchase_price);
@@ -161,6 +177,13 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
   else if (edited === 'pvttc') { pvht = pvttc / vf; coef = pa > 0 ? pvht / pa : coef; }
   else if (edited === 'pa') { pvht = pa * coef; pvttc = pvht * vf; }       // garde le coefficient
   else if (edited === 'vat') { pvttc = pvht * vf; }
+
+  // Table d'arrondis : arrondit le PVTTC calculé (pas en saisie manuelle directe du PVTTC).
+  if (edited !== 'pvttc' && rounding.length) {
+    pvttc = applyRounding(pvttc, rounding);
+    pvht = vf ? pvttc / vf : pvht;
+    coef = pa > 0 ? pvht / pa : coef;
+  }
 
   const s = (n: number) => (n ? String(n) : '');
   return {
@@ -185,9 +208,19 @@ export function ArticleForm({
   const [f, setF] = useState<FormState>(() => fromArticle(initial));
   const [localError, setLocalError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
-  // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA.
+  // Table d'arrondis (appliquée au PV calculé).
+  const { data: roundingRows } = useQuery({
+    queryKey: ['ref', companyId, 'rounding'],
+    queryFn: () => listRef(companyId, 'rounding'),
+    enabled: !!companyId,
+  });
+  const rounding: RoundingRule[] = (roundingRows ?? []).map((r) => {
+    const e = (r.extra ?? {}) as Record<string, unknown>;
+    return { sort_order: r.sort_order, up_to: Number(e.up_to) || 0, step: Number(e.step) || 0, mode: e.mode === 'nearest' ? 'nearest' : 'up' };
+  });
+  // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA + arrondi.
   const setP = (edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', v: string) =>
-    setF((p) => ({ ...p, ...recomputePricing(p, edited, v) }));
+    setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding) }));
   // Marges calculées (lecture seule) sur PA et sur PAMP.
   const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
   const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;

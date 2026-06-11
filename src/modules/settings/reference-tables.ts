@@ -46,6 +46,14 @@ export const REFERENCE_TABLES: RefTableDef[] = [
     extraColumns: [{ key: 'kind', label: 'Type', type: 'select', options: [
       { value: 'produit_fini', label: 'Produit fini' }, { value: 'pneu', label: 'Pneumatique' }, { value: 'piece', label: 'Pièce' },
     ] }] },
+  { key: 'rounding', label: "Table d'arrondis (PV)", group: 'article',
+    extraColumns: [
+      { key: 'up_to', label: 'PVTTC ≤ (0 = ∞)', type: 'number' },
+      { key: 'step', label: "Pas d'arrondi", type: 'number' },
+      { key: 'mode', label: 'Mode', type: 'select', options: [
+        { value: 'up', label: 'Tranche supérieure' }, { value: 'nearest', label: 'Au plus proche' },
+      ] },
+    ] },
   { key: 'color', label: 'Couleurs', group: 'article', extraColumns: [] },
   { key: 'size', label: 'Tailles', group: 'article', extraColumns: [] },
   { key: 'cession_type', label: 'Types de cession interne', group: 'vente',
