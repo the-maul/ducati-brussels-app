@@ -36,15 +36,18 @@
 > partiel ligne par ligne, pièce garantie prix 0, facturation bloquée si en attente), **chronos B11**
 > (`/workshop/chrono` présence + temps travail par OR), **planning/RDV** (`/workshop/planning` vue semaine,
 > création d'OR depuis le RDV), OR accident (expert). Reste M8 : association temps facturé, devis réparation PDF.
-> **M9 GED FAIT** : pièces jointes (Supabase Storage bucket privé `ged` + RLS société), panneau réutilisable
-> sur véhicule/contact/OR. **M13 dashboard FAIT** : KPIs réels (CA jour/mois, encours, OR ouverts, valeur stock
-> PAMP, véhicules en stock) via `dashboard_kpis`.
-> **Prochaine étape : M10** (CRM : leads/pipeline, campagnes, histo e-mail/SMS, relances, notifications atelier),
-> **M12** (compta/UBL/Peppol/TVA : journaux, export factures UBL, registres TVA marge — **⚠️ intégrations
-> client : factures sortantes en UBL/Peppol via FALCO (le client est connecté au réseau Peppol) + export
-> comptable au format d'import WINBOOKS pour son comptable ; prévoir ces 2 connecteurs/exports dans M12**), **M14** (migration G8 :
-> imports dry-run, rapports d'écarts). Tail transverse : dépôt-vente (M7), signatures/portails (M9), association
-> temps facturé + devis réparation PDF (M8), import de contacts (à brancher quand le client fournit ses listes).
+> 🎉 **JALON (2026-06-11, passe 4) : les 14 modules ont un CŒUR FONCTIONNEL.** M9 GED · M10 CRM
+> (leads + communications) · M12 compta (journal ventes, registre TVA, **export UBL Peppol→Falco**, **export
+> Winbooks**) · M13 dashboard (KPIs réels) · M14 migration (**import contacts CSV** dry-run).
+> **Reste = finitions / tails (pas de module vierge)** :
+> - **M12** : connecteur **Falco live** (clé API à fournir), validation Peppol fine, **format Winbooks exact**
+>   (gabarit du comptable), écritures détaillées par compte.
+> - **M14** : import articles/véhicules (même patron que contacts), rapports d'écarts, mapping G8 spécifique.
+> - **M7** dépôt-vente + commission ; **M8** association temps facturé + devis réparation PDF ; **M9**
+>   signatures/portails ; **M10** campagnes/mailings + notifications SMS/mail (Resend/Edge) ; **M2** moteur
+>   de prix interactif/arrondis/cascade (P1 backlog) ; **M3** création auto véhicule depuis article V/O/P/D.
+> - Recette : passer en revue chaque module avec le client, brancher les **vraies listes de contacts** (import M14),
+>   les clés API (Stripe/Resend/Falco/Microsoft Graph), et durcir les invariants par des tests supplémentaires.
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -67,8 +70,10 @@
 | **E6 — Reprise/Occasion/Dépôt** | M7 | 🟦 **cœur fait** (reprise B3 → occasion+véhicule+ORO, marge par VIN, cessions internes) ; reste dépôt-vente |
 | **E7 — Atelier** | M8 | 🟦 **cœur fait** (OR B8, garantie B10 refus partiel, chronos B11, planning/RDV, OR accident) |
 | **E8 — Documents/GED** | M9 | 🟦 **GED faite** (pièces jointes Storage sur véhicule/contact/OR) ; reste signatures/portails |
+| **E9 — CRM** | M10 | 🟦 **cœur fait** (pipeline leads + journal communications) ; reste campagnes/notifications |
 | **E10 — Reporting** | M13 | 🟦 **dashboard fait** (KPIs réels) ; reste ventilations/productivité/rotation |
-| E9 · E11 · E12 | M10 · M12 · M14 | ⬜ à faire (CRM · compta/UBL · migration) |
+| **E11 — Compta/UBL** | M12 | 🟦 **cœur fait** (journal ventes, registre TVA, export UBL Peppol→Falco, export Winbooks) ; reste Falco live + format Winbooks exact |
+| **E12 — Migration** | M14 | 🟦 **amorcé** (import contacts CSV dry-run) ; reste articles/véhicules + rapports d'écarts |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
 
