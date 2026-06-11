@@ -22,6 +22,7 @@ export const fr = {
     purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
     clients: 'Contacts',
+    crm: 'CRM',
     pos: 'Caisse',
     eshop: 'E-shop',
     reports: 'Rapports',
@@ -470,6 +471,18 @@ export const fr = {
     revenueToday: 'CA du jour', revenueMonth: 'CA du mois', invoicesMonth: 'Factures du mois',
     orOpen: 'OR ouverts', stockValue: 'Valeur du stock', vehiclesInStock: 'Véhicules en stock',
     receivables: 'Encours clients',
+  },
+
+  // CRM (M10)
+  crm: {
+    title: 'CRM', subtitle: 'Pipeline commercial (leads) et suivi des communications.',
+    newLead: 'Nouveau lead', empty: 'Aucun lead.',
+    stage_nouveau: 'Nouveau', stage_contacte: 'Contacté', stage_qualifie: 'Qualifié', stage_proposition: 'Proposition', stage_gagne: 'Gagné', stage_perdu: 'Perdu',
+    leadName: 'Nom', email: 'E-mail', phone: 'Téléphone', vehicleInterest: 'Véhicule recherché', source: 'Source', estimatedValue: 'Valeur estimée',
+    create: 'Créer le lead',
+    // communications
+    history: 'Communications', channel: 'Canal', channel_call: 'Appel', channel_email: 'E-mail', channel_sms: 'SMS', channel_note: 'Note',
+    direction: 'Sens', dir_in: 'Entrant', dir_out: 'Sortant', subject: 'Objet', body: 'Détail', logComm: 'Journaliser', noComm: 'Aucune communication enregistrée.',
   },
 
   // Documents & GED (M9)

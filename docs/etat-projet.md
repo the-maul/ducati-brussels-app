@@ -40,7 +40,9 @@
 > sur véhicule/contact/OR. **M13 dashboard FAIT** : KPIs réels (CA jour/mois, encours, OR ouverts, valeur stock
 > PAMP, véhicules en stock) via `dashboard_kpis`.
 > **Prochaine étape : M10** (CRM : leads/pipeline, campagnes, histo e-mail/SMS, relances, notifications atelier),
-> **M12** (compta/UBL/Peppol/TVA : journaux, export factures UBL, registres TVA marge), **M14** (migration G8 :
+> **M12** (compta/UBL/Peppol/TVA : journaux, export factures UBL, registres TVA marge — **⚠️ intégrations
+> client : factures sortantes en UBL/Peppol via FALCO (le client est connecté au réseau Peppol) + export
+> comptable au format d'import WINBOOKS pour son comptable ; prévoir ces 2 connecteurs/exports dans M12**), **M14** (migration G8 :
 > imports dry-run, rapports d'écarts). Tail transverse : dépôt-vente (M7), signatures/portails (M9), association
 > temps facturé + devis réparation PDF (M8), import de contacts (à brancher quand le client fournit ses listes).
 

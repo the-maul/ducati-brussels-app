@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
   getContact, updateContact, contactDisplayName, type ContactInsert,
 } from '@/modules/contacts/api';
@@ -71,6 +72,7 @@ function EditClient() {
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="tarifs">Tarifs</TabsTrigger>
           <TabsTrigger value="documents-ged">{t('ged.title')}</TabsTrigger>
+          <TabsTrigger value="comms">{t('crm.history')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
           <ContactForm
@@ -89,6 +91,7 @@ function EditClient() {
         <TabsContent value="contacts" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="documents-ged" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} /></TabsContent>
+        <TabsContent value="comms" className="mt-4"><CommunicationsPanel companyId={activeCompanyId} contactId={contactId} /></TabsContent>
       </Tabs>
     </>
   );
