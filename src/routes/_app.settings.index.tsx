@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Users, Hash, Table2, Database } from 'lucide-react';
+import { Users, Hash, Table2, Database, Building2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { t } from '@/lib/i18n';
 
@@ -13,6 +13,15 @@ function SettingsIndex() {
     <>
       <PageHeader title={t('settings.title')} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Link
+          to="/settings/companies"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <Building2 className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">{t('settings.companies')}</span>
+          <span className="text-sm text-muted-foreground">{t('settings.companiesDesc')}</span>
+        </Link>
+
         <Link
           to="/settings/users"
           className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"

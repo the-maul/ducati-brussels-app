@@ -2776,6 +2776,18 @@ export type Database = {
           current_due: number
         }[]
       }
+      create_company: {
+        Args: {
+          _address?: string
+          _city?: string
+          _code: string
+          _legal_name?: string
+          _name: string
+          _vat?: string
+          _zip?: string
+        }
+        Returns: string
+      }
       dashboard_kpis: { Args: { _company: string }; Returns: Json }
       generate_stock_snapshot: {
         Args: { _company: string; _kind?: string; _label: string }

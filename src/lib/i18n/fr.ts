@@ -695,8 +695,15 @@ export const fr = {
     usersDesc: 'Comptes du personnel et attribution des rôles par société.',
     numbering: 'Numérotation des documents',
     numberingDesc: 'Préfixes et formats des séquences (factures, OR, devis…).',
+    companies: 'Sociétés', companiesDesc: 'Entités juridiques (TVA, adresse, IBAN, Peppol, comptes) — multi-société.',
     adminOnly: 'Réservé aux administrateurs.',
     notAdmin: "Vous n'avez pas les droits d'administration nécessaires.",
+    // Sociétés
+    coTitle: 'Sociétés', coNew: 'Nouvelle société', coCreate: 'Créer la société', coSave: 'Enregistrer',
+    coCode: 'Code', coName: 'Nom', coLegalName: 'Raison sociale', coVat: 'N° TVA', coAddress: 'Adresse',
+    coZip: 'Code postal', coCity: 'Ville', coCountry: 'Pays', coIban: 'IBAN', coPeppol: 'Identifiant Peppol',
+    coSalesAccount: 'Compte de vente', coCustomerAccount: 'Compte client', coVatAccount: 'Compte TVA',
+    coActive: 'Active', coSaved: 'Société enregistrée', coSecLegal: 'Identité & TVA', coSecAccounting: 'Comptabilité (UBL / Winbooks)',
   },
 
   // Gestion des utilisateurs (M0)
