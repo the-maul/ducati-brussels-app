@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
-import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab } from '@/modules/contacts/client-tabs';
+import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import {
   getContact, updateContact, contactDisplayName, type ContactInsert,
 } from '@/modules/contacts/api';
@@ -62,6 +62,7 @@ function EditClient() {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="echeances">Échéances</TabsTrigger>
           <TabsTrigger value="livraisons">Livraisons</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="tarifs">Tarifs</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
@@ -78,6 +79,7 @@ function EditClient() {
         <TabsContent value="documents" className="mt-4"><DocumentsTab contactId={contactId} /></TabsContent>
         <TabsContent value="echeances" className="mt-4"><DueItemsTab contactId={contactId} /></TabsContent>
         <TabsContent value="livraisons" className="mt-4"><DeliveryTab contactId={contactId} /></TabsContent>
+        <TabsContent value="contacts" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
       </Tabs>
     </>

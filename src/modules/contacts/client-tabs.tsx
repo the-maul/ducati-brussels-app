@@ -14,6 +14,7 @@ import { vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/ve
 import {
   listOwnedVehicles, listDeliveryAddresses, upsertDeliveryAddress, deleteDeliveryAddress,
   listClientPriceRules, upsertClientPriceRule, deleteClientPriceRule,
+  listSubcontacts, upsertSubcontact, deleteSubcontact,
 } from './subobjects-api';
 import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
 import { t } from '@/lib/i18n';
@@ -211,6 +212,44 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
         <Input type="number" step="0.01" placeholder="Valeur" value={form.value1} onChange={(e) => setForm((f) => ({ ...f, value1: e.target.value }))} className="text-right tabular-nums" />
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.is_promo} onCheckedChange={(v) => setForm((f) => ({ ...f, is_promo: v === true }))} /> Promo</label>
         <Button onClick={() => add.mutate()} disabled={add.isPending || !form.value1.trim()}><Plus /> Ajouter</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Sous-contacts (interlocuteurs B2B) ---------------- */
+export function SubcontactsTab({ contactId }: { contactId: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ['subcontacts', contactId], queryFn: () => listSubcontacts(contactId) });
+  const [form, setForm] = useState({ name: '', role: '', phone: '', email: '' });
+  const inv = () => qc.invalidateQueries({ queryKey: ['subcontacts', contactId] });
+  const add = useMutation({ mutationFn: () => upsertSubcontact({ contact_id: contactId, ...form }), onSuccess: () => { inv(); setForm({ name: '', role: '', phone: '', email: '' }); } });
+  const del = useMutation({ mutationFn: (id: string) => deleteSubcontact(id), onSuccess: inv });
+  if (isLoading) return <Spinner />;
+  return (
+    <div className="space-y-3">
+      {data && data.length > 0 && (
+        <div className="overflow-hidden rounded-md border border-border">
+          <table className="w-full border-collapse font-data text-[13px]">
+            <thead className="bg-muted"><tr><Th>Nom</Th><Th>Fonction</Th><Th>Téléphone</Th><Th>Email</Th><Th /></tr></thead>
+            <tbody>
+              {data.map((s) => (
+                <tr key={s.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2 font-medium">{s.name}</td><td className="px-3 py-2">{s.role ?? '—'}</td>
+                  <td className="px-3 py-2">{s.phone ?? '—'}</td><td className="px-3 py-2">{s.email ?? '—'}</td>
+                  <td className="px-3 py-2 text-right"><Button size="sm" variant="ghost" onClick={() => del.mutate(s.id)}><Trash2 className="size-4 text-danger" /></Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-5">
+        <Input placeholder="Nom" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <Input placeholder="Fonction" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
+        <Input placeholder="Téléphone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <Input placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> Ajouter</Button>
       </div>
     </div>
   );
