@@ -36,9 +36,13 @@
 > partiel ligne par ligne, pièce garantie prix 0, facturation bloquée si en attente), **chronos B11**
 > (`/workshop/chrono` présence + temps travail par OR), **planning/RDV** (`/workshop/planning` vue semaine,
 > création d'OR depuis le RDV), OR accident (expert). Reste M8 : association temps facturé, devis réparation PDF.
-> **Prochaine étape : M9** (documents/GED/signatures/PDF templatés), puis M10 (CRM : leads, campagnes, histo
-> e-mail/SMS, relances), M12 (compta/UBL/Peppol/TVA), M13 (reporting/dashboards/productivité), M14 (migration G8).
-> Tail transverse : dépôt-vente (M7), notifications SMS/mail (M10), import de contacts (à brancher).
+> **M9 GED FAIT** : pièces jointes (Supabase Storage bucket privé `ged` + RLS société), panneau réutilisable
+> sur véhicule/contact/OR. **M13 dashboard FAIT** : KPIs réels (CA jour/mois, encours, OR ouverts, valeur stock
+> PAMP, véhicules en stock) via `dashboard_kpis`.
+> **Prochaine étape : M10** (CRM : leads/pipeline, campagnes, histo e-mail/SMS, relances, notifications atelier),
+> **M12** (compta/UBL/Peppol/TVA : journaux, export factures UBL, registres TVA marge), **M14** (migration G8 :
+> imports dry-run, rapports d'écarts). Tail transverse : dépôt-vente (M7), signatures/portails (M9), association
+> temps facturé + devis réparation PDF (M8), import de contacts (à brancher quand le client fournit ses listes).
 
 > ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
 > mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
@@ -60,7 +64,9 @@
 | **E4 — Stock & inventaire** | M5 | 🟦 **cœur fait** (vues stock+valeur, inventaire 3-toggles, arrêté, comptage 3 modes, remise à zéro, écarts, réintégration) |
 | **E6 — Reprise/Occasion/Dépôt** | M7 | 🟦 **cœur fait** (reprise B3 → occasion+véhicule+ORO, marge par VIN, cessions internes) ; reste dépôt-vente |
 | **E7 — Atelier** | M8 | 🟦 **cœur fait** (OR B8, garantie B10 refus partiel, chronos B11, planning/RDV, OR accident) |
-| E8 → E12 | M9–M14 | ⬜ à faire (référence G8 déjà extraite, voir g8-reference-extract.md) |
+| **E8 — Documents/GED** | M9 | 🟦 **GED faite** (pièces jointes Storage sur véhicule/contact/OR) ; reste signatures/portails |
+| **E10 — Reporting** | M13 | 🟦 **dashboard fait** (KPIs réels) ; reste ventilations/productivité/rotation |
+| E9 · E11 · E12 | M10 · M12 · M14 | ⬜ à faire (CRM · compta/UBL · migration) |
 
 **App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
 
