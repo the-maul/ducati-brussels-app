@@ -106,7 +106,7 @@ réutilisables, import Excel natif, références utilitaires, référence d'orig
 - [⬜] **CGV PDF/Word sur documents** — associer un document CGV imprimé au verso (chemin du document). Priorité P3.
 - [⬜] **Paramètres étiquetage** — imprimante + format d'étiquette par défaut, personnalisation (B12) — pour M5. Priorité P3.
 - [⬜] **Imprimantes & lecteurs code-barres** — imprimante par type de document, type de lecteur / port. Priorité P3.
-- [⬜] **Export DCS Ducati (intranet fournisseur)** — pas d'API : export Excel imposé STANDARD/URGENTE (ACH001) — pour M4. Priorité P3.
+- [✅] **Export DCS Ducati (intranet fournisseur)** — pas d'API : export Excel imposé STANDARD/URGENTE (ACH001) — *export CSV STANDARD/URGENTE depuis une commande ; gabarit exact à aligner sur le fichier Ducati*. Priorité P3.
 
 ---
 

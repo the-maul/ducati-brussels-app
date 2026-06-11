@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, FileDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getPurchaseFull, listSuppliers, supplierName } from '@/modules/purchases/api';
+import { downloadDcs } from '@/modules/purchases/dcs-export';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -35,7 +36,17 @@ function PurchaseView() {
       <PageHeader
         title={`${t(`purchases.type_${order.doc_type}`)} ${order.number ?? ''}`}
         description={`${order.receipt_date ?? order.order_date ?? ''}${sup ? ` · ${supplierName(sup)}` : ''}`}
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/purchases' })}><ArrowLeft /> {t('purchases.backToList')}</Button>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {order.doc_type === 'CMD' && (
+              <>
+                <Button variant="outline" onClick={() => downloadDcs(order, lines, 'STANDARD')}><FileDown /> {t('purchases.dcsStandard')}</Button>
+                <Button variant="outline" onClick={() => downloadDcs(order, lines, 'URGENTE')}><FileDown /> {t('purchases.dcsUrgent')}</Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => navigate({ to: '/purchases' })}><ArrowLeft /> {t('purchases.backToList')}</Button>
+          </div>
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(order.status)} label={t(`purchases.status_${order.status}`)} />
