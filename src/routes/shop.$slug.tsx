@@ -21,6 +21,8 @@ type CartLine = { article_id: string; designation: string; quantity: number; uni
 function Storefront() {
   const { slug } = Route.useParams();
   const [site, setSite] = useState<SiteContent | null>(null);
+  const [siteName, setSiteName] = useState('');
+  const [pageSlug, setPageSlug] = useState('');
   const [found, setFound] = useState<boolean | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -37,9 +39,10 @@ function Storefront() {
         supabase.rpc('shop_public_catalog', { _slug: slug }),
       ]);
       if (!on) return;
-      const row = (Array.isArray(s) ? s[0] : s) as { content: unknown } | undefined;
+      const row = (Array.isArray(s) ? s[0] : s) as { content: unknown; name: string | null } | undefined;
       if (!row) { setFound(false); return; }
-      setSite(parseSite(row.content));
+      const parsed = parseSite(row.content);
+      setSite(parsed); setSiteName(row.name ?? ''); setPageSlug(parsed.pages[0].slug);
       setProducts(((c ?? []) as ShopProduct[]).map((p) => ({ ...p, price_ttc: Number(p.price_ttc), available: Number(p.available) })));
       setFound(true);
     })();
@@ -71,7 +74,7 @@ function Storefront() {
 
   return (
     <div style={{ position: 'relative' }}>
-      <SiteRenderer content={site} products={products} onAdd={add} />
+      <SiteRenderer content={site} products={products} onAdd={add} siteName={siteName} pageSlug={pageSlug} onNavigate={setPageSlug} />
       {/* Panier flottant */}
       {cart.length > 0 && (
         <aside style={{ position: 'fixed', right: 16, bottom: 16, width: 320, background: '#fff', border: '1px solid #ddd', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.15)', padding: 16, fontFamily: 'Arial', zIndex: 50 }}>

@@ -31,6 +31,15 @@ export async function listShop(companyId: string): Promise<ShopItem[]> {
   }));
 }
 
+/** Upload une image de site (bucket public `shop-assets`) et renvoie son URL publique. */
+export async function uploadShopAsset(companyId: string, file: File): Promise<string> {
+  const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-60);
+  const path = `${companyId}/${Date.now()}_${safe}`;
+  const { error } = await supabase.storage.from('shop-assets').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from('shop-assets').getPublicUrl(path).data.publicUrl;
+}
+
 export async function setPublishable(articleId: string, value: boolean): Promise<void> {
   const { error } = await supabase.from('articles').update({ publishable: value }).eq('id', articleId);
   if (error) throw error;
