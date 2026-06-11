@@ -654,6 +654,16 @@ export const fr = {
     createOrders: 'Créer les commandes', ordersCreated: '{n} commande(s) créée(s).',
   },
 
+  // Caisse — vente comptoir (M6 POS)
+  pos: {
+    saleTab: 'Vente comptoir', sessionTab: 'Caisse & clôture Z',
+    scan: 'Scanner ou rechercher un article (code-barres / réf / désignation)…',
+    article: 'Article', qty: 'Qté', price: 'PU TTC', total: 'Total',
+    totalHt: 'Total HT', totalVat: 'TVA', totalTtc: 'Total TTC', checkout: 'Encaisser',
+    cartEmpty: 'Panier vide — scannez ou cherchez un article.', errSale: 'Vente impossible.',
+    toCollect: 'À encaisser', printTicket: 'Imprimer le ticket', newSale: 'Nouvelle vente',
+  },
+
   // Caisse / Clôture Z (M6 — POS)
   cash: {
     title: 'Caisse',
