@@ -204,7 +204,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 | **TVA** | 21 / 12 / 6 / 0 % ; intracom ; export ; **détaxe** | 🟡 codes présents ; **12 % à confirmer** |
 | **TVA marge VO** | art. 58 §4 CTVA : **registre de comparaison** obligatoire, TVA sur (PV−PA), **attestation TRAXIO** | ✅ **FAIT (2026-06-12)** registre + résumé + attestation PDF |
 | **e-Facturation** | **Peppol BIS / UBL obligatoire B2B (loi 06/02/2024, en vigueur 2026)** | 🟡 UBL généré, **non transmis** |
-| **Effets / paiement** | lettre de change + **domiciliation SEPA pain.008** | ⛔ absent |
+| **Effets / paiement** | lettre de change + **domiciliation SEPA pain.008** | ✅ **FAIT (2026-06-12)** mandats + pain.008 + impayés |
 | **Registre VO / livre de police** | registre des véhicules d'occasion + traçabilité VIN | 🟡 VIN/propriétaires ✅ ; **registre formel ⛔** |
 | **Conservation** | **7 ans** (livres + pièces, art. III.86 CDE) ; clôture archivante | ⛔ pas de clôture |
 | **Multi-société** | company_id + séquences par société + **facturation inter-sociétés** | ✅ socle ; inter-sociétés à valider |
@@ -258,7 +258,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 6. ✅ **FAIT (2026-06-12)** TVA sur marge (B2) + registre VO + attestation PDF. Testé par POST.
 7. **E-mails/SMS réels** (Resend/Twilio) : confirmations, relances, notifs RDV, CRM.
 8. ✅ **FAIT (2026-06-12)** Seed data (20 clients / 300 articles tous types / 12 véhicules / 5 OR) par société — règle 8.
-9. **Effets LCR / domiciliation SEPA** + échéancier + impayés.
+9. ✅ **FAIT (2026-06-12)** Domiciliation SEPA (pain.008) + mandats + échéancier + impayés (remise en dû). Testé par POST.
 10. **Clôture d'exercice** archivante + éditions pré-clôture.
 11. ✅ **FAIT (2026-06-12)** Copies stock auto 15/fin de mois + alerte stock dormant 4 mois (**pg_cron**). Testé par POST, jobs actifs.
 
