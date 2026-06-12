@@ -206,7 +206,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 | **e-Facturation** | **Peppol BIS / UBL obligatoire B2B (loi 06/02/2024, en vigueur 2026)** | 🟡 UBL généré, **non transmis** |
 | **Effets / paiement** | lettre de change + **domiciliation SEPA pain.008** | ✅ **FAIT (2026-06-12)** mandats + pain.008 + impayés |
 | **Registre VO / livre de police** | registre des véhicules d'occasion + traçabilité VIN | 🟡 VIN/propriétaires ✅ ; **registre formel ⛔** |
-| **Conservation** | **7 ans** (livres + pièces, art. III.86 CDE) ; clôture archivante | ⛔ pas de clôture |
+| **Conservation** | **7 ans** (livres + pièces, art. III.86 CDE) ; clôture archivante | ✅ **clôture archivante** (2026-06-12) ; rétention 7 ans = politique d'hébergement |
 | **Multi-société** | company_id + séquences par société + **facturation inter-sociétés** | ✅ socle ; inter-sociétés à valider |
 | **Déclaration TVA / listing / intracom** | alimentés par nos exports (ventilation + n° TVA client) | 🟡 ventilation TVA ✅ ; listing/intracom ⛔ |
 | **RGPD** | opposition marketing, **portabilité**, registre | 🟡 opt-out ✅ ; portabilité ⛔ |
@@ -259,7 +259,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 7. **E-mails/SMS réels** (Resend/Twilio) : confirmations, relances, notifs RDV, CRM.
 8. ✅ **FAIT (2026-06-12)** Seed data (20 clients / 300 articles tous types / 12 véhicules / 5 OR) par société — règle 8.
 9. ✅ **FAIT (2026-06-12)** Domiciliation SEPA (pain.008) + mandats + échéancier + impayés (remise en dû). Testé par POST.
-10. **Clôture d'exercice** archivante + éditions pré-clôture.
+10. ✅ **FAIT (2026-06-12)** Clôture d'exercice archivante (fige la période + arrêté archivé) + éditions pré-clôture (débiteurs, acomptes, effets). Testé par POST.
 11. ✅ **FAIT (2026-06-12)** Copies stock auto 15/fin de mois + alerte stock dormant 4 mois (**pg_cron**). Testé par POST, jobs actifs.
 
 **P2 — parité fine G8 :**
