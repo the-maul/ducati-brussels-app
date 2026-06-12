@@ -2016,6 +2016,65 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          channel: string
+          company_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          error: string | null
+          id: number
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          subject: string | null
+          template: string | null
+          to_address: string | null
+        }
+        Insert: {
+          body?: string | null
+          channel?: string
+          company_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error?: string | null
+          id?: never
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template?: string | null
+          to_address?: string | null
+        }
+        Update: {
+          body?: string | null
+          channel?: string
+          company_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error?: string | null
+          id?: never
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template?: string | null
+          to_address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oro: {
         Row: {
           closed_at: string | null
@@ -3456,7 +3515,9 @@ export type Database = {
         Args: { _code: string; _company: string }
         Returns: string
       }
+      _cron_appointment_reminders: { Args: never; Returns: number }
       _cron_dormant_alert: { Args: never; Returns: undefined }
+      _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_stock_copies: { Args: never; Returns: number }
       _next_document_number_unchecked: {
@@ -3584,6 +3645,19 @@ export type Database = {
           _barcode?: boolean
           _price?: boolean
           _qty?: number
+        }
+        Returns: number
+      }
+      enqueue_notification: {
+        Args: {
+          _body: string
+          _channel: string
+          _company: string
+          _entity_id?: string
+          _entity_type?: string
+          _subject: string
+          _template?: string
+          _to: string
         }
         Returns: number
       }
