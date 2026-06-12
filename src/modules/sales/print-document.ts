@@ -143,7 +143,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
 <body>
   <div class="top">
     <div class="co">
-      <div class="brand">${esc(companyName)}</div>
+      ${co.logo_url ? `<img src="${esc(co.logo_url)}" alt="${esc(companyName)}" style="max-height:96px;max-width:300px;display:block">` : `<div class="brand">${esc(companyName)}</div>`}
       <div class="sub">${[esc(co.address), esc([co.zip, co.city].filter(Boolean).join(' ')),
         co.phone ? esc(co.phone) : '', co.email ? esc(co.email) : '',
         co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `TVA : ${esc(co.vat_number)}` : '',

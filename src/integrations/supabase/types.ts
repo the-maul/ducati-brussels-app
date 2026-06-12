@@ -967,6 +967,7 @@ export type Database = {
           invoice_footer: string | null
           is_active: boolean
           legal_name: string | null
+          logo_url: string | null
           name: string
           peppol_id: string | null
           sales_account_default: string
@@ -991,6 +992,7 @@ export type Database = {
           invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
+          logo_url?: string | null
           name: string
           peppol_id?: string | null
           sales_account_default?: string
@@ -1015,6 +1017,7 @@ export type Database = {
           invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
+          logo_url?: string | null
           name?: string
           peppol_id?: string | null
           sales_account_default?: string
@@ -1540,6 +1543,7 @@ export type Database = {
           line_ht: number
           line_ttc: number
           quantity: number
+          reference: string | null
           sort_order: number
           unit_price_ht: number
           vat_rate: number
@@ -1554,6 +1558,7 @@ export type Database = {
           line_ht?: number
           line_ttc?: number
           quantity?: number
+          reference?: string | null
           sort_order?: number
           unit_price_ht?: number
           vat_rate?: number
@@ -1568,6 +1573,7 @@ export type Database = {
           line_ht?: number
           line_ttc?: number
           quantity?: number
+          reference?: string | null
           sort_order?: number
           unit_price_ht?: number
           vat_rate?: number
