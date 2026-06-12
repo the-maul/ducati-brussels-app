@@ -18,7 +18,7 @@ garantie B10 refus partiel, chronos B11, planning), **reprise/ORO** (marge par V
 **dashboard/rapports** branchés sur la vraie DB.
 
 **Ce qu'il NE faut PAS démontrer comme « fait »** (cassé en bout de chaîne ou format non final) :
-1. **Paiement Stripe de bout en bout** — pas de webhook → la commande reste éternellement « en attente de paiement ».
+1. ~~**Paiement Stripe de bout en bout** — pas de webhook~~ → ✅ **RÉSOLU (P0.1, 2026-06-12)** : `stripe-webhook` + `finalize_web_order` (commande→payée + facture + sortie stock), déployé et testé. Reste à poser le vrai `whsec` live.
 2. **Exports compta/Ducati** — UBL/Winbooks/DCS **téléchargent un fichier au mauvais format** (pas le gabarit cible) ; **rien n'est transmis** à Falco/Peppol.
 3. **E-mails / SMS** — **aucun envoi réel** nulle part (le « journal des communications » CRM n'envoie rien).
 4. **TVA sur marge (occasions)** — absente (exigence légale belge).
@@ -98,7 +98,8 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M11 — E-shop / Site
 - ✅ Catalogue stock unifié · **site builder multi-pages + 14 blocs + upload images** · **storefront public `/shop/{slug}` (anon sécurisé)** · commande web + réservation stock · réglages + domaine.
 - 🟠 **Stripe Checkout** : session créée **si clé fournie**, sinon 501 silencieux.
-- ⛔ **`stripe-webhook`** (commande→payée + facture) → **le paiement ne boucle jamais** · e-mails de commande · automatisation DNS OVH.
+- ✅ **`stripe-webhook`** (P0.1, 2026-06-12) : Edge Function signature HMAC + RPC `finalize_web_order` idempotente → commande **payée** + **facture FAC** (ventilation TVA) + **sortie stock réel** (append-only) + règlement. Storefront confirme au retour (`?paid=1`). **Déployé + testé par POST** (clé test posée). *Reste : poser le vrai `whsec` depuis l'endpoint Stripe live.*
+- ⛔ e-mails de commande · automatisation DNS OVH.
 
 ### M12 — Compta / UBL / Winbooks
 - ✅ Journal des ventes + registre TVA (RPC) · champs vendeur société (TVA/IBAN/Peppol).
@@ -214,7 +215,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 
 ## 5. Bugs & parcours cassés (P0 — à corriger avant toute démo « marchande »)
 
-1. **Stripe sans webhook** → commande e-shop payée reste « en attente de paiement » pour toujours ; retour `?paid=1` ignoré. **Le paiement en ligne ne se termine jamais.**
+1. ~~**Stripe sans webhook**~~ → ✅ **CORRIGÉ (P0.1, 2026-06-12)** : webhook signé + `finalize_web_order` + confirmation au retour `?paid=1`.
 2. **Export DCS** au mauvais format → rejeté par Ducati.
 3. **Export Winbooks** : `CustomerAccount` = UUID, 7 colonnes génériques → **non importable** par le comptable.
 4. **UBL** téléchargé mais **non transmis** (Falco/Peppol = fiction à ce stade).
@@ -245,7 +246,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 ## 7. Plan de remise au propre (priorisé)
 
 **P0 — boucler les parcours & formats (avant facturation réelle) :**
-1. `stripe-webhook` (signature + commande→payée + génération facture + sortie stock réel).
+1. ✅ **FAIT (2026-06-12)** `stripe-webhook` (signature + commande→payée + génération facture + sortie stock réel) — déployé + testé par POST ; reste le `whsec` live.
 2. **Moteur d'écritures comptables** + **mapping PCMN** + **export Winbooks au vrai format** (compte tiers réel).
 3. **Format DCS Ducati exact**.
 4. **Transmission UBL→Falco/Peppol** (connecteur + validation schéma BIS 3.0).
