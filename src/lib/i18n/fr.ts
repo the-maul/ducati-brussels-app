@@ -540,6 +540,7 @@ export const fr = {
     noEntries: 'Aucune écriture générée sur la période. Cliquez sur « Générer les écritures ».',
     colJournal: 'Journal', colAccount: 'Compte', colAux: 'Tiers', colDebit: 'Débit', colCredit: 'Crédit', colLabel: 'Libellé',
     openInvoice: 'Ouvrir la facture',
+    cutover: 'Compta à partir du', cutoverHint: 'Date de bascule comptable : seules les factures à partir de cette date génèrent la TVA à déclarer, les écritures et l\'export Winbooks. L\'historique repris de G8 (avant cette date) reste consultable partout mais n\'est pas re-déclaré (déjà fait dans G8).',
     balanced: 'Équilibrée', unbalanced: 'Déséquilibrée', entryHint: 'Génère de vraies écritures équilibrées (comptes PCMN, TVA, tiers réels). L\'export Winbooks part de ces écritures.',
     // Registre TVA sur marge (VO) — B2
     voRegister: 'Registre TVA sur marge (occasions)', voHint: 'Occasions type O (rachat à un particulier) : TVA sur la marge (PV − PA), art. 58 §4 CTVA. Registre de comparaison obligatoire.',

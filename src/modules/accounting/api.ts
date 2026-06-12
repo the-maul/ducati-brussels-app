@@ -80,6 +80,17 @@ export async function listEntries(companyId: string, from: string, to: string): 
   }));
 }
 
+// ---- Date de bascule comptable (M12) ----
+export async function getAccountingCutover(companyId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('companies').select('accounting_start_date').eq('id', companyId).maybeSingle();
+  if (error) throw error;
+  return (data?.accounting_start_date as string) ?? null;
+}
+export async function setAccountingCutover(companyId: string, date: string): Promise<void> {
+  const { error } = await supabase.rpc('set_accounting_cutover', { _company: companyId, _date: date });
+  if (error) throw error;
+}
+
 // ---- Clôture d'exercice + éditions pré-clôture (M12) ----
 export type DebtorRow = { contact_id: string; contact_name: string; invoices: number; total_due: number };
 export type DepositRow = { document_id: string; number: string | null; contact_name: string | null; deposit: number; issue_date: string };

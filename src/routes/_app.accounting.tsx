@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, exportVoRegister, printVoMarginAttestation, type VoMarginRow } from '@/modules/accounting/api';
+import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, exportVoRegister, printVoMarginAttestation, getAccountingCutover, setAccountingCutover, type VoMarginRow } from '@/modules/accounting/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
@@ -33,6 +33,8 @@ function AccountingPage() {
   const attest = useMutation({ mutationFn: (r: VoMarginRow) => printVoMarginAttestation(activeCompanyId!, r) });
   const wb = useMutation({ mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
   const gen = useMutation({ mutationFn: () => generateEntries(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
+  const cutover = useQuery({ queryKey: ['acct-cutover', activeCompanyId], queryFn: () => getAccountingCutover(activeCompanyId!), enabled: !!activeCompanyId });
+  const setCut = useMutation({ mutationFn: (d: string) => setAccountingCutover(activeCompanyId!, d), onSuccess: () => { cutover.refetch(); vat.refetch(); entries.refetch(); } });
 
   const totalHt = (journal.data ?? []).reduce((s, r) => s + r.total_ht, 0);
   const totalTtc = (journal.data ?? []).reduce((s, r) => s + r.total_ttc, 0);
@@ -53,7 +55,12 @@ function AccountingPage() {
         <div className="space-y-1"><Lbl>{t('accounting.from')}</Lbl><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="space-y-1"><Lbl>{t('accounting.to')}</Lbl><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <Button variant="outline" onClick={() => { journal.refetch(); vat.refetch(); }}><RefreshCw className="size-4" /> {t('accounting.refresh')}</Button>
+        <div className="ml-auto space-y-1">
+          <Lbl>{t('accounting.cutover')}</Lbl>
+          <Input type="date" value={cutover.data ?? ''} onChange={(e) => setCut.mutate(e.target.value)} className="w-40" title={t('accounting.cutoverHint')} />
+        </div>
       </div>
+      <p className="mb-4 rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('accounting.cutoverHint')}</p>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">

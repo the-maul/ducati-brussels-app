@@ -953,6 +953,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          accounting_start_date: string
           address: string | null
           bic: string | null
           cgv_text: string | null
@@ -976,6 +977,7 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          accounting_start_date?: string
           address?: string | null
           bic?: string | null
           cgv_text?: string | null
@@ -999,6 +1001,7 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          accounting_start_date?: string
           address?: string | null
           bic?: string | null
           cgv_text?: string | null
@@ -3775,11 +3778,13 @@ export type Database = {
         Args: { _code: string; _company: string }
         Returns: string
       }
+      _accounting_cutover: { Args: { _company: string }; Returns: string }
       _cron_appointment_reminders: { Args: never; Returns: number }
       _cron_dormant_alert: { Args: never; Returns: undefined }
       _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_stock_copies: { Args: never; Returns: number }
+      _doc_margin: { Args: { _doc: string }; Returns: number }
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -4166,6 +4171,10 @@ export type Database = {
           seq_type: string
           signature_date: string
         }[]
+      }
+      set_accounting_cutover: {
+        Args: { _company: string; _date: string }
+        Returns: undefined
       }
       settle_consignment: {
         Args: {
