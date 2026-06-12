@@ -65,6 +65,32 @@ export async function updateArticle(id: string, input: ArticleUpdate): Promise<A
   return data;
 }
 
+/**
+ * Modifie les prix d'un article en TRAÇANT l'origine (price_changes append-only, B7).
+ * À utiliser pour toute modification de prix (cascade, fiche, import) au lieu d'un
+ * UPDATE direct. N'écrit que les champs fournis.
+ */
+export async function recordPriceChange(
+  articleId: string,
+  p: { purchase?: number; saleHt?: number; saleTtc?: number; coef?: number; origin?: string },
+): Promise<void> {
+  const { error } = await supabase.rpc('record_price_change', {
+    _article: articleId, _purchase: p.purchase ?? null, _sale_ht: p.saleHt ?? null,
+    _sale_ttc: p.saleTtc ?? null, _coef: p.coef ?? null, _origin: p.origin ?? 'screen',
+  });
+  if (error) throw error;
+}
+
+export type PriceChange = Database['public']['Tables']['price_changes']['Row'];
+/** Historique des changements de prix d'un article (le plus récent d'abord). */
+export async function listPriceChanges(articleId: string): Promise<PriceChange[]> {
+  const { data, error } = await supabase
+    .from('price_changes').select('*').eq('article_id', articleId)
+    .order('occurred_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Ajoute un code-barres à un article (ignore les doublons). */
 export async function addBarcode(articleId: string, barcode: string): Promise<void> {
   const { error } = await supabase

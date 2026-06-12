@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, updateArticle, MGMT_TYPES, type Article } from '@/modules/articles/api';
+import { listArticles, updateArticle, recordPriceChange, MGMT_TYPES, type Article } from '@/modules/articles/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/cascade')({
@@ -41,6 +41,8 @@ function computePatch(a: Article, action: Action, value: string): Record<string,
 }
 
 const NEEDS_VALUE: Action[] = ['pv_pct', 'pa_pct', 'coef', 'vat', 'brand', 'mgmt_type', 'bin'];
+// Actions touchant un prix → passent par record_price_change (tracé append-only B7).
+const PRICE_ACTIONS: Action[] = ['pv_pct', 'pa_pct', 'coef'];
 
 function CascadePage() {
   const { activeCompanyId } = useAuth();
@@ -74,7 +76,20 @@ function CascadePage() {
       for (const a of articles) {
         if (!sel.has(a.id)) continue;
         const patch = computePatch(a, action, value);
-        if (patch && Object.keys(patch).length) { await updateArticle(a.id, patch); count++; }
+        if (!patch || !Object.keys(patch).length) continue;
+        if (PRICE_ACTIONS.includes(action)) {
+          // Modification de prix → tracée (price_changes), origine 'cascade'.
+          await recordPriceChange(a.id, {
+            purchase: patch.purchase_price as number | undefined,
+            saleHt: patch.sale_price_ht as number | undefined,
+            saleTtc: patch.sale_price_ttc as number | undefined,
+            coef: patch.coefficient as number | undefined,
+            origin: 'cascade',
+          });
+        } else {
+          await updateArticle(a.id, patch);
+        }
+        count++;
       }
       return count;
     },
@@ -90,7 +105,7 @@ function CascadePage() {
         actions={<Button variant="outline" onClick={() => navigate({ to: '/parts' })}><ArrowLeft /> {t('articles.title')}</Button>}
       />
       <p className="mb-4 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
-        Les modifications sont tracées (audit). Le journal de prix append-only complet arrivera avec le stock (M5).
+        Les modifications de prix sont tracées dans le journal <strong>price_changes</strong> (append-only, B7) : qui, quand, ancien/nouveau, origine « cascade ».
       </p>
 
       {/* Filtre + chargement */}

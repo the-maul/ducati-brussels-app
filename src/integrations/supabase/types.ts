@@ -1849,6 +1849,72 @@ export type Database = {
           },
         ]
       }
+      price_changes: {
+        Row: {
+          article_id: string
+          company_id: string
+          id: number
+          new_coef: number | null
+          new_purchase: number | null
+          new_sale_ht: number | null
+          new_sale_ttc: number | null
+          occurred_at: string
+          old_coef: number | null
+          old_purchase: number | null
+          old_sale_ht: number | null
+          old_sale_ttc: number | null
+          operator_id: string | null
+          origin: string
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          id?: never
+          new_coef?: number | null
+          new_purchase?: number | null
+          new_sale_ht?: number | null
+          new_sale_ttc?: number | null
+          occurred_at?: string
+          old_coef?: number | null
+          old_purchase?: number | null
+          old_sale_ht?: number | null
+          old_sale_ttc?: number | null
+          operator_id?: string | null
+          origin?: string
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          id?: never
+          new_coef?: number | null
+          new_purchase?: number | null
+          new_sale_ht?: number | null
+          new_sale_ttc?: number | null
+          occurred_at?: string
+          old_coef?: number | null
+          old_purchase?: number | null
+          old_sale_ht?: number | null
+          old_sale_ttc?: number | null
+          operator_id?: string | null
+          origin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_changes_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -3228,6 +3294,17 @@ export type Database = {
           _mode: string
         }
         Returns: number
+      }
+      record_price_change: {
+        Args: {
+          _article: string
+          _coef?: number
+          _origin?: string
+          _purchase?: number
+          _sale_ht?: number
+          _sale_ttc?: number
+        }
+        Returns: undefined
       }
       record_stock_move: {
         Args: {
