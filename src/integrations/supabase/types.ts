@@ -2623,6 +2623,45 @@ export type Database = {
           },
         ]
       }
+      repair_order_operations: {
+        Row: {
+          created_at: string
+          done: boolean
+          id: string
+          operation_id: string
+          or_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          operation_id: string
+          or_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          operation_id?: string
+          or_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_order_operations_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_order_operations_or_id_fkey"
+            columns: ["or_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repair_orders: {
         Row: {
           company_id: string
@@ -3449,6 +3488,79 @@ export type Database = {
           },
         ]
       }
+      workshop_operations: {
+        Row: {
+          code: string
+          company_id: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          company_id: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_operations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_tasks: {
+        Row: {
+          company_id: string
+          id: string
+          mechanic: string | null
+          minutes: number
+          notes: string | null
+          occurred_at: string
+          task_type: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          mechanic?: string | null
+          minutes?: number
+          notes?: string | null
+          occurred_at?: string
+          task_type: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          mechanic?: string | null
+          minutes?: number
+          notes?: string | null
+          occurred_at?: string
+          task_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshop_time_entries: {
         Row: {
           company_id: string
@@ -4005,6 +4117,19 @@ export type Database = {
         Returns: {
           number: string
           status: string
+        }[]
+      }
+      workshop_load: {
+        Args: {
+          _capacity?: number
+          _company: string
+          _from: string
+          _to: string
+        }
+        Returns: {
+          appointments: number
+          day: string
+          load_pct: number
         }[]
       }
       workshop_productivity: {
