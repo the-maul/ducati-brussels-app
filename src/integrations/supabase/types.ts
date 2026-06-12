@@ -1187,6 +1187,7 @@ export type Database = {
           gsm: string | null
           iban: string | null
           id: string
+          imported_from: string | null
           interests: string[]
           is_account: boolean
           is_active: boolean
@@ -1266,6 +1267,7 @@ export type Database = {
           gsm?: string | null
           iban?: string | null
           id?: string
+          imported_from?: string | null
           interests?: string[]
           is_account?: boolean
           is_active?: boolean
@@ -1345,6 +1347,7 @@ export type Database = {
           gsm?: string | null
           iban?: string | null
           id?: string
+          imported_from?: string | null
           interests?: string[]
           is_account?: boolean
           is_active?: boolean
@@ -3250,6 +3253,7 @@ export type Database = {
           hours_count: number | null
           id: string
           immat_ww: string | null
+          imported_from: string | null
           insurance: string | null
           is_active: boolean
           is_restricted: boolean
@@ -3316,6 +3320,7 @@ export type Database = {
           hours_count?: number | null
           id?: string
           immat_ww?: string | null
+          imported_from?: string | null
           insurance?: string | null
           is_active?: boolean
           is_restricted?: boolean
@@ -3382,6 +3387,7 @@ export type Database = {
           hours_count?: number | null
           id?: string
           immat_ww?: string | null
+          imported_from?: string | null
           insurance?: string | null
           is_active?: boolean
           is_restricted?: boolean
