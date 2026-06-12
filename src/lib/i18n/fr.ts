@@ -493,6 +493,11 @@ export const fr = {
     topArticles: 'Top articles vendus', colRef: 'Réf.', colDesignation: 'Désignation', colQty: 'Qté', colRevenue: 'CA HT',
     productivity: 'Productivité atelier', mechanic: 'Mécanicien', presence: 'Présence (h)', work: 'Travail (h)', rate: 'Taux',
     empty: 'Aucune donnée sur la période.',
+    // Statistiques avancées
+    indInvoices: 'Factures', indCa: 'CA HT', indBasket: 'Panier moyen', indMargin: 'Marge', indMarginPct: 'Marge %',
+    salesBy: 'Ventes par', dimBrand: 'Marque', dimCategory: 'Rayon', dimArticle: 'Article', dimClient: 'Client', dimMonth: 'Mois',
+    label: 'Libellé', colMargin: 'Marge', compareN1: 'Comparaison N / N-1', period: 'Exercice',
+    transfoRate: 'Taux de transformation', docType: 'Type', created: 'Créés', converted: 'Transformés',
   },
 
   // E-shop (M11)

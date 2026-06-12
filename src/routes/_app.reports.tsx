@@ -5,8 +5,9 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getMonthlyRevenue, getTopArticles, getWorkshopProductivity } from '@/modules/reports/api';
+import { getMonthlyRevenue, getTopArticles, getWorkshopProductivity, getSalesBy, getPeriodCompare, getIndicators, getTransformation } from '@/modules/reports/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/reports')({
@@ -23,6 +24,12 @@ function ReportsPage() {
   const { activeCompanyId } = useAuth();
   const [from, setFrom] = useState(firstOfYear());
   const [to, setTo] = useState(today());
+  const [dim, setDim] = useState('brand');
+
+  const salesBy = useQuery({ queryKey: ['rep-by', activeCompanyId, from, to, dim], queryFn: () => getSalesBy(activeCompanyId!, from, to, dim), enabled: !!activeCompanyId });
+  const compare = useQuery({ queryKey: ['rep-cmp', activeCompanyId, from, to], queryFn: () => getPeriodCompare(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const ind = useQuery({ queryKey: ['rep-ind', activeCompanyId, from, to], queryFn: () => getIndicators(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const transfo = useQuery({ queryKey: ['rep-tr', activeCompanyId, from, to], queryFn: () => getTransformation(activeCompanyId!, from, to), enabled: !!activeCompanyId });
 
   const monthly = useQuery({ queryKey: ['rep-monthly', activeCompanyId], queryFn: () => getMonthlyRevenue(activeCompanyId!), enabled: !!activeCompanyId });
   const top = useQuery({ queryKey: ['rep-top', activeCompanyId, from, to], queryFn: () => getTopArticles(activeCompanyId!, from, to), enabled: !!activeCompanyId });
@@ -37,6 +44,91 @@ function ReportsPage() {
         <div className="space-y-1"><Lbl>{t('reports.from')}</Lbl><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="space-y-1"><Lbl>{t('reports.to')}</Lbl><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <Button variant="outline" onClick={() => { top.refetch(); prod.refetch(); }}><RefreshCw className="size-4" /> {t('reports.refresh')}</Button>
+      </div>
+
+      {/* Indicateurs + comparaison N-1 */}
+      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {[
+          { k: t('reports.indInvoices'), v: ind.data?.invoices ?? 0 },
+          { k: t('reports.indCa'), v: eur(ind.data?.ca_ht ?? 0) },
+          { k: t('reports.indBasket'), v: eur(ind.data?.avg_basket ?? 0) },
+          { k: t('reports.indMargin'), v: eur(ind.data?.margin ?? 0) },
+          { k: t('reports.indMarginPct'), v: `${ind.data?.margin_pct ?? 0} %` },
+        ].map((c) => (
+          <div key={c.k} className="rounded-md border border-border bg-card p-3">
+            <p className="text-[11px] uppercase tracking-[0.04em] text-muted-foreground">{c.k}</p>
+            <p className="mt-1 font-data text-[18px] font-bold tabular-nums">{c.v}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Classement par dimension + comparaison N/N-1 + transformation */}
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('reports.salesBy')}</p>
+            <Select value={dim} onValueChange={setDim}>
+              <SelectTrigger className="h-7 w-40 text-[12px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="brand">{t('reports.dimBrand')}</SelectItem>
+                <SelectItem value="category">{t('reports.dimCategory')}</SelectItem>
+                <SelectItem value="article">{t('reports.dimArticle')}</SelectItem>
+                <SelectItem value="client">{t('reports.dimClient')}</SelectItem>
+                <SelectItem value="month">{t('reports.dimMonth')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[12px]">
+              <thead className="bg-muted"><tr><Th>{t('reports.label')}</Th><Th className="text-right">{t('reports.colQty')}</Th><Th className="text-right">{t('reports.colRevenue')}</Th><Th className="text-right">{t('reports.colMargin')}</Th></tr></thead>
+              <tbody>
+                {salesBy.data?.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">{t('reports.empty')}</td></tr>}
+                {salesBy.data?.slice(0, 15).map((r, i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    <td className="px-3 py-1.5">{r.label}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{r.qty}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.ca_ht)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.margin)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('reports.compareN1')}</p>
+          <div className="mb-4 overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[13px]">
+              <thead className="bg-muted"><tr><Th>{t('reports.period')}</Th><Th className="text-right">{t('reports.colRevenue')}</Th><Th className="text-right">{t('reports.colMargin')}</Th></tr></thead>
+              <tbody>
+                {compare.data?.map((r) => (
+                  <tr key={r.period} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 font-bold">{r.period}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(r.ca_ht)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(r.margin)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('reports.transfoRate')}</p>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[13px]">
+              <thead className="bg-muted"><tr><Th>{t('reports.docType')}</Th><Th className="text-right">{t('reports.created')}</Th><Th className="text-right">{t('reports.converted')}</Th><Th className="text-right">{t('reports.rate')}</Th></tr></thead>
+              <tbody>
+                {transfo.data?.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">{t('reports.empty')}</td></tr>}
+                {transfo.data?.map((r) => (
+                  <tr key={r.doc_type} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 font-mono">{r.doc_type}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{r.created}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{r.converted}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{r.rate} %</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
 
       {/* CA mensuel */}
