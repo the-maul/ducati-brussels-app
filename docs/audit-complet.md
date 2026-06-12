@@ -70,7 +70,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M5 — Stock & inventaire
 - ✅ `stock_moves` append-only · triple stock · **PAMP recalculé (B5, testé)** · arrêté daté, écarts, réintégration · cessions internes.
-- 🟡 **B6 : 2 modes de réajustement sur 3** (annule-remplace + cumul ; le « casier à la volée » n'est pas un vrai 3e mode).
+- ✅ **B6 : 3 modes de réajustement** (annule-remplace + cumul + **casier à la volée**, 2026-06-12).
 - ✅ **Copies datées auto 15/fin de mois (B4)** via pg_cron (2026-06-12). ⛔ reste : inventaire tournant · étiquetage différé (B12) · dépréciation PAMP.
 
 ### M6 — Ventes / POS / Caisse
@@ -128,14 +128,14 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 | B3 flux de reprise | ✅ | reprise → occasion + véhicule + ORO |
 | **B4 triple stock + copies datées** | ✅ | triple stock ✅ ; **copies 15/fin de mois auto** via pg_cron (2026-06-12) |
 | B5 PAMP | ✅ | moyenne pondérée, testée |
-| **B6 3 modes de réajustement** | 🟡 | **2/3** (casier à la volée manquant) |
+| **B6 3 modes de réajustement** | ✅ | **3/3** (annule-remplace · cumul · **casier à la volée**, 2026-06-12) |
 | **B7 append-only stock** | ✅ | `record_stock_move`, `revoke update/delete` |
 | **B7 append-only prix** | ✅ | **CORRIGÉ (P0.5, 2026-06-12)** : `price_changes` + trigger traçant toute modif de prix (cascade incluse) |
 | B8 cycle OR | ✅ | réception → facture |
 | B9 n° de série | ✅ | jointure article↔véhicule |
 | B10 garantie (refus partiel) | ✅ | ligne par ligne |
 | B11 productivité (3 étages) | 🟡 | présence + travail ✅ ; **temps facturé non rapproché** |
-| B12 étiquetage | 🟡 | étiquette code-barres ✅ ; **file différée cumulable ⛔** |
+| B12 étiquetage | ✅ | étiquette code-barres ✅ ; **file différée cumulable** (`label_queue`, 2026-06-12) |
 
 **Tests (règle 7)** : 39 tests, **tous sur fonctions pures** (PAMP, totaux, import, UBL, barcode). **Non couverts
 alors qu'exigés** : réservations, arrêté/réintégration inventaire, encours crédit, imputation ORO, TVA marge,
@@ -264,8 +264,8 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 
 **P2 — parité fine G8 :**
 12. ✅ **FAIT (2026-06-12)** Moteur de tarifs clients (remise %/coefficient/paliers quantitatifs, résolu par spécificité) + simulateur. Testé par POST. 🟡 reste : import catalogue fournisseur multi-format avec mappings réutilisables (l'import tarifs CSV M2 existe déjà).
-13. **Statistiques avancées** (4 niveaux, comparaison N-1, taux de transformation, cessions PV+PAMP).
-14. 3e mode d'inventaire (casier), inventaire tournant, étiquetage différé.
+13. ✅ **FAIT (2026-06-12)** Statistiques avancées : classement par dimension (marque/rayon/article/client/mois) + marge, comparaison N-1, panier moyen, taux de transformation. Testé par POST. 🟡 reste : 4 niveaux cumulés simultanés + cessions valorisées PV+PAMP.
+14. ✅ **FAIT (2026-06-12)** 3e mode inventaire (casier), inventaire tournant (candidats), étiquetage différé cumulable (B12). Backend + API testés ; câblage UI fin à finaliser.
 15. Dépôt-vente + commission, reprise au POS, n° série au POS.
 16. Signature électronique + portails + modèles de documents + CGV verso.
 17. Tâches atelier hors-facturation, checklist opérations, planning taux de charge.
