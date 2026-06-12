@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
+import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -112,6 +113,11 @@ function DocumentView() {
           <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={doc.doc_type === 'RES'} />
         </div>
       )}
+
+      <div className="mt-6">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
+        <AttachmentsPanel companyId={doc.company_id} entityType="document" entityId={documentId} />
+      </div>
     </>
   );
 }
