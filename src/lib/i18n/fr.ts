@@ -495,7 +495,7 @@ export const fr = {
     empty: 'Aucune donnée sur la période.',
     // Statistiques avancées
     indInvoices: 'Factures', indCa: 'CA HT', indBasket: 'Panier moyen', indMargin: 'Marge', indMarginPct: 'Marge %',
-    salesBy: 'Ventes par', dimBrand: 'Marque', dimCategory: 'Rayon', dimArticle: 'Article', dimClient: 'Client', dimMonth: 'Mois',
+    salesBy: 'Ventes par', dimBrand: 'Marque', dimCategory: 'Rayon', dimArticle: 'Article', dimClient: 'Client', dimOperator: 'Opérateur', dimMonth: 'Mois',
     label: 'Libellé', colMargin: 'Marge', compareN1: 'Comparaison N / N-1', period: 'Exercice',
     transfoRate: 'Taux de transformation', docType: 'Type', created: 'Créés', converted: 'Transformés',
   },

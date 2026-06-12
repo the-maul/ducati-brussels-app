@@ -74,6 +74,7 @@ function ReportsPage() {
                 <SelectItem value="category">{t('reports.dimCategory')}</SelectItem>
                 <SelectItem value="article">{t('reports.dimArticle')}</SelectItem>
                 <SelectItem value="client">{t('reports.dimClient')}</SelectItem>
+                <SelectItem value="operator">{t('reports.dimOperator')}</SelectItem>
                 <SelectItem value="month">{t('reports.dimMonth')}</SelectItem>
               </SelectContent>
             </Select>
