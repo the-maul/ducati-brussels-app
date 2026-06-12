@@ -88,7 +88,8 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M9 — Documents / GED
 - ✅ Pièces jointes (Storage privé `ged`, RLS, URL signées, libellés, photos) sur véhicule/contact/OR/article.
-- ⛔ **Signature électronique** · **portails client** · **modèles de documents configurables** · **CGV imprimées au verso**.
+- ✅ **Facture PDF au format client G8** (2026-06-12) : en-tête société + bloc client + code-barres, bandeau, bloc détail véhicule, encadré totaux, acomptes datés, mention TVA marge, **CGV au verso**. + capacité signatures (`document_signatures`).
+- ⛔ reste : UI capture **signature électronique** (canvas) · **portails client** · **modèles de documents configurables**.
 
 ### M10 — CRM
 - ✅ Pipeline leads (kanban 6 étapes).
@@ -115,7 +116,8 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M14 — Migration
 - ✅ Import contacts CSV (dry-run + lots, testé).
-- ⛔ Import articles/véhicules · rapports d'écarts · mapping G8.
+- ✅ **Import G8 réel (2026-06-12)** : `tools/migration/import_g8.py` — **101 fournisseurs, 3299 véhicules, 17 808 factures** importés sur ITALBIKE STORE (parse xlsx robuste, dates série, dry-run, idempotent legacy). Champs de reprise ajoutés au schéma (`docs/migration-g8-formats.md`).
+- 🟡 reste : **ré-export clients** (export fourni vide), import lignes de détail factures (en-tête seul), rattachement des 717 PDF en GED, résolution `contact_id` des factures (après import clients).
 
 ---
 
