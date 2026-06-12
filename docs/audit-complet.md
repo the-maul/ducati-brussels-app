@@ -117,7 +117,10 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M14 — Migration
 - ✅ Import contacts CSV (dry-run + lots, testé).
 - ✅ **Import G8 réel (2026-06-12)** : `tools/migration/import_g8.py` — **101 fournisseurs, 3299 véhicules, 17 808 factures** importés sur ITALBIKE STORE (parse xlsx robuste, dates série, dry-run, idempotent legacy). Champs de reprise ajoutés au schéma (`docs/migration-g8-formats.md`).
-- 🟡 reste : **ré-export clients** (export fourni vide), import lignes de détail factures (en-tête seul), rattachement des 717 PDF en GED, résolution `contact_id` des factures (après import clients).
+- ✅ **Détail des lignes depuis les PDF** (2026-06-12) : parser pdfplumber → **716 factures détaillées, 3895 lignes** (réf/désignation/qté/PU/montant/TVA) ; colonne `document_lines.reference`.
+- ✅ **PDF d'origine attachés en GED** (717 factures) → ouvrables depuis la fiche facture.
+- ✅ **Facture générée conforme** : logo Ducati Bruxelles + Scrambler (extrait du PDF, `companies.logo_url`) imprimé en en-tête.
+- 🟡 reste : **ré-export clients** (export fourni vide) → résolution `contact_id` des factures.
 
 ---
 
