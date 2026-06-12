@@ -127,7 +127,7 @@ function BlockView({ block, theme, products, onAdd }: { block: Block; theme: The
     case 'features':
       return (
         <section className="ds-sec">{block.heading && <h2 className="ds-h2 c">{block.heading}</h2>}
-          <div className="ds-feats">{block.items.map((it, i) => <div className="ds-feat" key={i}><div className="ic">{it.icon}</div><h3>{it.title}</h3><p>{it.text}</p></div>)}</div>
+          <div className="ds-feats">{block.items.map((it, i) => <div className="ds-feat" key={i}><div className="ic">{/^https?:\/\//.test(it.icon) ? <img src={it.icon} alt="" style={{ width: 38, height: 38, objectFit: 'contain' }} /> : it.icon}</div><h3>{it.title}</h3><p>{it.text}</p></div>)}</div>
         </section>
       );
     case 'cta':

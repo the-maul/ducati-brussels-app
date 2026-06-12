@@ -156,7 +156,7 @@ function BlockFields({ block, companyId, onChange }: { block: Block; companyId: 
         <ImageInput companyId={companyId} url="" onChange={(u) => onChange({ images: [...block.images, u] })} label="Ajouter une image" />
       </div>);
     case 'features':
-      return (<ListEditor items={block.items} onChange={(items) => onChange({ items })} make={() => ({ icon: '⭐', title: 'Titre', text: 'Texte' })} render={(it, set) => (<div className="space-y-1"><Input value={it.icon} onChange={(e) => set({ ...it, icon: e.target.value })} placeholder="Icône (emoji)" className="h-8" /><Input value={it.title} onChange={(e) => set({ ...it, title: e.target.value })} placeholder="Titre" className="h-8" /><Input value={it.text} onChange={(e) => set({ ...it, text: e.target.value })} placeholder="Texte" className="h-8" /></div>)} heading={block.heading} onHeading={(h) => onChange({ heading: h })} />);
+      return (<ListEditor items={block.items} onChange={(items) => onChange({ items })} make={() => ({ icon: '⭐', title: 'Titre', text: 'Texte' })} render={(it, set) => (<div className="space-y-1"><IconPicker companyId={companyId} value={it.icon} onChange={(icon) => set({ ...it, icon })} /><Input value={it.title} onChange={(e) => set({ ...it, title: e.target.value })} placeholder="Titre" className="h-8" /><Input value={it.text} onChange={(e) => set({ ...it, text: e.target.value })} placeholder="Texte" className="h-8" /></div>)} heading={block.heading} onHeading={(h) => onChange({ heading: h })} />);
     case 'cta':
       return (<div className="space-y-2"><Input value={block.text} onChange={(e) => onChange({ text: e.target.value })} placeholder="Accroche" /><div className="flex gap-2"><Input value={block.buttonLabel} onChange={(e) => onChange({ buttonLabel: e.target.value })} placeholder="Libellé bouton" /><Input value={block.url} onChange={(e) => onChange({ url: e.target.value })} placeholder="Lien (#contact ou URL)" /></div><div className="flex gap-2"><Input type="color" value={block.bg} onChange={(e) => onChange({ bg: e.target.value })} className="h-9 w-14" /><Input type="color" value={block.color} onChange={(e) => onChange({ color: e.target.value })} className="h-9 w-14" /></div></div>);
     case 'video':
@@ -187,6 +187,35 @@ function ListEditor<T>({ items, onChange, make, render, heading, onHeading }: { 
         </div>
       ))}
       <Button size="sm" variant="outline" onClick={() => onChange([...items, make()])}><Plus /> Ajouter</Button>
+    </div>
+  );
+}
+
+const EMOJIS = ['🏍️', '🛵', '🏁', '🔧', '🛠️', '⚙️', '🛞', '🪖', '🧰', '🔩', '⭐', '✅', '🚚', '🛡️', '🏆', '🔥', '💳', '🎁', '♻️', '📍', '📞', '✉️', '⏱️', '💬', '👍', '❤️', '🇧🇪', '⚡'];
+function IconPicker({ companyId, value, onChange }: { companyId: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const isImg = /^https?:\/\//.test(value);
+  const up = async (file: File) => { setBusy(true); try { onChange(await uploadShopAsset(companyId, file)); setOpen(false); } finally { setBusy(false); if (ref.current) ref.current.value = ''; } };
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background px-2 text-sm">
+        <span className="grid size-6 place-items-center text-lg">{isImg ? <img src={value} alt="" className="size-5 object-contain" /> : (value || '＋')}</span>
+        <span className="text-[12px] text-muted-foreground">{t('eshop.chooseIcon')}</span>
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-64 rounded-md border border-border bg-popover p-2 shadow-[var(--shadow-modal)]">
+          <div className="grid grid-cols-7 gap-1">
+            {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { onChange(e); setOpen(false); }} className="grid size-8 place-items-center rounded text-lg hover:bg-accent">{e}</button>)}
+          </div>
+          <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) up(e.target.files[0]); }} />
+          <div className="mt-2 flex items-center gap-2 border-t border-border pt-2">
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => ref.current?.click()} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Upload />} {t('eshop.iconUpload')}</Button>
+            {value && <Button size="sm" variant="ghost" onClick={() => { onChange(''); setOpen(false); }}><X className="size-4 text-danger" /></Button>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
