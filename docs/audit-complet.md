@@ -35,7 +35,7 @@ garantie B10 refus partiel, chronos B11, planning), **reprise/ORO** (marge par V
 - ~~**Invariant B7 violé sur les prix**~~ → ✅ **CORRIGÉ (P0.5, 2026-06-12)** : table `price_changes`
   append-only + trigger traçant **toute** modification de prix (cascade incluse) ; RPC `record_price_change`
   pour l'origine. Plus aucun UPDATE de prix silencieux.
-- **Aucune donnée seed** (règle 8 non respectée) → démo peu crédible sans préparation.
+- ~~**Aucune donnée seed**~~ → ✅ **FAIT (2026-06-12)** : seed complet par société (300 articles tous types, 20 clients, 12 véhicules, 5 OR).
 
 ---
 
@@ -46,7 +46,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M0 — Socle / Paramètres
 - ✅ Multi-société + RLS + rôles + audit `events` (B7) · séquences configurables · tables de référence · gestion utilisateurs · **gestion des sociétés** (TVA/IBAN/Peppol).
 - 🟠 Recherche globale (Ctrl+K présent, branchement DB à confirmer en UI).
-- ⛔ **Seed data** (2 sociétés OK, mais 0 client / 0 véhicule / 0 OR / 1 article seedés) → **viole la règle 8**.
+- ✅ **Seed data** (2026-06-12) : par société 300 articles (tous types A–R/T), 20 clients, 12 véhicules, 5 OR + stock + comptes auxiliaires. Règle 8 respectée.
 
 ### M1 — Contacts
 - ✅ Fiche parité G8, CRUD, recherche, filtre par type, hub Contacts.
@@ -79,7 +79,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M7 — Reprise / Occasion / Dépôt / ORO
 - ✅ Flux B3 (article O/P + véhicule + entrée stock + ORO) · ORO imputé au coût de revient · marge par VIN · cessions internes typées.
-- ⛔ **TVA sur marge (B2) + registre VO** (type O créé, **aucun calcul de marge à la revente, aucun registre**) · **dépôt-vente (type D) + commission** · reprise depuis POS · **attestation TVA marge PDF**.
+- ✅ **TVA sur marge (B2) + registre VO + attestation PDF** (2026-06-12) : calcul (PV−PA, 21/121), registre chronologique, résumé déclaration, attestation TRAXIO. ⛔ reste : **dépôt-vente (type D) + commission** · reprise depuis POS.
 
 ### M8 — Atelier
 - ✅ OR cycle B8 · garantie B10 (refus partiel, blocage facturation) · chronos B11 (pointage + temps/OR) · planning/RDV + création OR depuis RDV.
@@ -124,7 +124,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 | Invariant | État | Note |
 |---|---|---|
 | B1 types de gestion A–R/T | ✅ | porté par l'article |
-| **B2 TVA marge VO + registre** | ⛔ | **absent** — calcul marge + registre + attestation à construire |
+| **B2 TVA marge VO + registre** | ✅ | **FAIT (2026-06-12)** : `vo_margin_register`/`vo_margin_summary` (PV−PA, 21/121) + panneau registre + attestation PDF TRAXIO. Reste : ventiler la TVA marge dans le moteur d'écritures (compte 451090). |
 | B3 flux de reprise | ✅ | reprise → occasion + véhicule + ORO |
 | **B4 triple stock + copies datées** | 🟡 | triple stock ✅ ; **copies 15/fin de mois auto ⛔** |
 | B5 PAMP | ✅ | moyenne pondérée, testée |
@@ -202,7 +202,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 |---|---|---|
 | **Plan comptable** | **PCMN** (AR 12/09/1983) : 400 clients, 440 fournisseurs, 451/411 TVA, 70 ventes, 60 achats | ✅ **mapping PCMN seedé + paramétrable** (P0.2) |
 | **TVA** | 21 / 12 / 6 / 0 % ; intracom ; export ; **détaxe** | 🟡 codes présents ; **12 % à confirmer** |
-| **TVA marge VO** | art. 58 §4 CTVA : **registre de comparaison** obligatoire, TVA sur (PV−PA), **attestation TRAXIO** | ⛔ absent |
+| **TVA marge VO** | art. 58 §4 CTVA : **registre de comparaison** obligatoire, TVA sur (PV−PA), **attestation TRAXIO** | ✅ **FAIT (2026-06-12)** registre + résumé + attestation PDF |
 | **e-Facturation** | **Peppol BIS / UBL obligatoire B2B (loi 06/02/2024, en vigueur 2026)** | 🟡 UBL généré, **non transmis** |
 | **Effets / paiement** | lettre de change + **domiciliation SEPA pain.008** | ⛔ absent |
 | **Registre VO / livre de police** | registre des véhicules d'occasion + traçabilité VIN | 🟡 VIN/propriétaires ✅ ; **registre formel ⛔** |
@@ -255,9 +255,9 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 5. ✅ **FAIT (2026-06-12)** `price_changes` append-only + trigger sur toute modif de prix (cascade routée via `record_price_change`). Testé par POST.
 
 **P1 — exigences légales & complétude métier :**
-6. **TVA sur marge (B2) + registre VO + attestation PDF**.
+6. ✅ **FAIT (2026-06-12)** TVA sur marge (B2) + registre VO + attestation PDF. Testé par POST.
 7. **E-mails/SMS réels** (Resend/Twilio) : confirmations, relances, notifs RDV, CRM.
-8. **Seed data** (20 clients / 300 articles / 12 véhicules / 5 OR) — règle 8.
+8. ✅ **FAIT (2026-06-12)** Seed data (20 clients / 300 articles tous types / 12 véhicules / 5 OR) par société — règle 8.
 9. **Effets LCR / domiciliation SEPA** + échéancier + impayés.
 10. **Clôture d'exercice** archivante + éditions pré-clôture.
 11. Copies stock auto 15/fin de mois + alerte 4 mois (**pg_cron**).
