@@ -51,7 +51,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M1 — Contacts
 - ✅ Fiche parité G8, CRUD, recherche, filtre par type, hub Contacts.
 - 🟡 Onglets (parc, communications, sous-contacts, livraisons) · encours autorisé/actuel calculé.
-- ⛔ **Tarifs client à paliers** (table esquissée, moteur absent).
+- ✅ **Tarifs client** (remise %/coefficient/paliers) — moteur `resolve_customer_price` + écran (2026-06-12).
 
 ### M2 — Articles & tarifs
 - ✅ Référentiel A–R/T, barcodes (Code128 réel), kits, casiers · **moteur de prix interactif** · **table d'arrondis** · import tarifs CSV (testé) · remplacement de réf (transfert stock + PAMP).
@@ -263,7 +263,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 11. ✅ **FAIT (2026-06-12)** Copies stock auto 15/fin de mois + alerte stock dormant 4 mois (**pg_cron**). Testé par POST, jobs actifs.
 
 **P2 — parité fine G8 :**
-12. **Moteur de tarifs clients** (coefficient + remise quantitative) + import catalogue multi-format.
+12. ✅ **FAIT (2026-06-12)** Moteur de tarifs clients (remise %/coefficient/paliers quantitatifs, résolu par spécificité) + simulateur. Testé par POST. 🟡 reste : import catalogue fournisseur multi-format avec mappings réutilisables (l'import tarifs CSV M2 existe déjà).
 13. **Statistiques avancées** (4 niveaux, comparaison N-1, taux de transformation, cessions PV+PAMP).
 14. 3e mode d'inventaire (casier), inventaire tournant, étiquetage différé.
 15. Dépôt-vente + commission, reprise au POS, n° série au POS.
