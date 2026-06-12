@@ -19,17 +19,16 @@ garantie B10 refus partiel, chronos B11, planning), **reprise/ORO** (marge par V
 
 **Ce qu'il NE faut PAS démontrer comme « fait »** (cassé en bout de chaîne ou format non final) :
 1. ~~**Paiement Stripe de bout en bout** — pas de webhook~~ → ✅ **RÉSOLU (P0.1, 2026-06-12)** : `stripe-webhook` + `finalize_web_order` (commande→payée + facture + sortie stock), déployé et testé. Reste à poser le vrai `whsec` live.
-2. **Exports compta/Ducati** — UBL/Winbooks/DCS **téléchargent un fichier au mauvais format** (pas le gabarit cible) ; **rien n'est transmis** à Falco/Peppol.
+2. **Exports compta/Ducati** — ✅ **Winbooks RÉSOLU (P0.2)** : vrai moteur d'écritures + export Actage (compte tiers réel). Reste : UBL **non transmis** à Falco/Peppol (P0.4), DCS au mauvais format (P0.3).
 3. **E-mails / SMS** — **aucun envoi réel** nulle part (le « journal des communications » CRM n'envoie rien).
 4. **TVA sur marge (occasions)** — absente (exigence légale belge).
 5. **Notifications / signatures électroniques** — non implémentées.
 
 **3 vérités dérangeantes à intégrer :**
 - **Même G8 ne « tient pas les livres »** : c'est un **exporteur** vers un logiciel comptable tiers. MAIS il
-  **génère de vraies écritures équilibrées** (ventilation par compte vente/achat selon rayon×TVA, comptes
-  auxiliaires clients/fournisseurs, TVA collectée/déductible/intracom/marge VO, règlements sur trésorerie).
-  **Notre Winbooks = un CSV plat avec des UUID en compte client → inutilisable.** On a sous-construit le
-  **moteur de génération d'écritures**, pas l'export.
+  **génère de vraies écritures équilibrées**. ✅ **CONSTRUIT (P0.2, 2026-06-12)** : moteur d'écritures
+  (ventilation compte vente×TVA, comptes auxiliaires clients, TVA collectée, règlements sur trésorerie),
+  append-only + équilibré + testé, et **export Winbooks Actage avec compte tiers réel** (fini l'UUID).
 - **Des pans entiers de G8 ne sont pas construits** : **effets de commerce (LCR/traites)**, **clôture
   d'exercice archivante**, **moteur de statistiques** (4 niveaux × 8 onglets), **moteur de tarifs clients**
   (coefficient + remise quantitative à paliers), **annulation de règlements transférés** (contre-passation).
@@ -103,9 +102,11 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M12 — Compta / UBL / Winbooks
 - ✅ Journal des ventes + registre TVA (RPC) · champs vendeur société (TVA/IBAN/Peppol).
+- ✅ **Plan comptable PCMN + mapping paramétrable** (P0.2, 2026-06-12) : `chart_of_accounts`, `account_mappings` (dimension×clé→compte+journal), comptes auxiliaires clients/fournisseurs (`generate_auxiliary_accounts`).
+- ✅ **Moteur de génération d'écritures équilibrées** (P0.2) : `generate_sales_entries` (client TTC / ventes HT par compte×taux / TVA collectée) + `generate_payment_entries` (trésorerie/client), append-only + idempotent. **Testé par POST : pièces équilibrées.**
+- ✅ **Export Winbooks au format réel Actage** (P0.2) : depuis les écritures, **compte tiers réel** (fini l'UUID), montants signés équilibrés. *Reste : caler les colonnes sur le gabarit exact du comptable.*
 - 🟡 **UBL Peppol BIS 3.0** généré et testé, **mais juste téléchargé** (non transmis).
-- 🟠 **Export Winbooks** = CSV 7 colonnes génériques, **`CustomerAccount` = UUID** → non importable.
-- ⛔ **Transmission Falco/Peppol** (aucun connecteur) · **moteur de génération d'écritures** (ventilation comptes/TVA/auxiliaires) · plan comptable (PCMN) · annulation de règlements transférés.
+- ⛔ **Transmission Falco/Peppol** (aucun connecteur) · TVA marge VO (compte dédié seedé 451090, calcul B2 à brancher) · annulation de règlements transférés.
 
 ### M13 — Reporting
 - ✅ Dashboard KPIs réels · CA 12 mois · top articles · productivité atelier.
@@ -198,7 +199,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 
 | Domaine | Exigence Belgique | État |
 |---|---|---|
-| **Plan comptable** | **PCMN** (AR 12/09/1983) : 400 clients, 440 fournisseurs, 451/411 TVA, 70 ventes, 60 achats | ⛔ mapping PCMN absent |
+| **Plan comptable** | **PCMN** (AR 12/09/1983) : 400 clients, 440 fournisseurs, 451/411 TVA, 70 ventes, 60 achats | ✅ **mapping PCMN seedé + paramétrable** (P0.2) |
 | **TVA** | 21 / 12 / 6 / 0 % ; intracom ; export ; **détaxe** | 🟡 codes présents ; **12 % à confirmer** |
 | **TVA marge VO** | art. 58 §4 CTVA : **registre de comparaison** obligatoire, TVA sur (PV−PA), **attestation TRAXIO** | ⛔ absent |
 | **e-Facturation** | **Peppol BIS / UBL obligatoire B2B (loi 06/02/2024, en vigueur 2026)** | 🟡 UBL généré, **non transmis** |
@@ -217,7 +218,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 
 1. ~~**Stripe sans webhook**~~ → ✅ **CORRIGÉ (P0.1, 2026-06-12)** : webhook signé + `finalize_web_order` + confirmation au retour `?paid=1`.
 2. **Export DCS** au mauvais format → rejeté par Ducati.
-3. **Export Winbooks** : `CustomerAccount` = UUID, 7 colonnes génériques → **non importable** par le comptable.
+3. ~~**Export Winbooks** : `CustomerAccount` = UUID~~ → ✅ **CORRIGÉ (P0.2)** : moteur d'écritures + export Actage avec compte tiers réel (PCMN).
 4. **UBL** téléchargé mais **non transmis** (Falco/Peppol = fiction à ce stade).
 5. **`price_changes`** absent → **B7 violé** sur les prix (cascade = UPDATE direct).
 6. **Boutons à demi-morts** : « Notifications » topbar (décoratif), « Export UBL/Winbooks/DCS » (formats non finaux), CRM « ajouter communication » (n'envoie rien).
@@ -247,7 +248,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 
 **P0 — boucler les parcours & formats (avant facturation réelle) :**
 1. ✅ **FAIT (2026-06-12)** `stripe-webhook` (signature + commande→payée + génération facture + sortie stock réel) — déployé + testé par POST ; reste le `whsec` live.
-2. **Moteur d'écritures comptables** + **mapping PCMN** + **export Winbooks au vrai format** (compte tiers réel).
+2. ✅ **FAIT (2026-06-12)** Moteur d'écritures comptables + mapping PCMN + export Winbooks au vrai format Actage (compte tiers réel) — testé par POST, pièces équilibrées. Reste : caler le gabarit exact du comptable.
 3. **Format DCS Ducati exact**.
 4. **Transmission UBL→Falco/Peppol** (connecteur + validation schéma BIS 3.0).
 5. **`price_changes` append-only** → corriger la modif en cascade et tous les UPDATE de prix.
