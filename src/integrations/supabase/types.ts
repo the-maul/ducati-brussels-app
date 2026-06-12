@@ -1170,13 +1170,19 @@ export type Database = {
           code: string | null
           company_id: string
           company_name: string | null
+          contact_name: string | null
           country: string
           created_at: string
           created_by: string | null
           credit_limit: number
+          delivery_address: string | null
           domiciliation: string | null
+          dou: string | null
           email: string | null
+          email_pro: string | null
+          external_ref: string | null
           factoring_code: string | null
+          fax: string | null
           first_name: string | null
           gsm: string | null
           iban: string | null
@@ -1189,6 +1195,7 @@ export type Database = {
           is_vip: boolean
           is_watch: boolean
           last_name: string | null
+          legacy_code: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1197,12 +1204,15 @@ export type Database = {
           license_place: string | null
           marketing_opt_out: boolean
           mobile: string | null
+          mobile_pro: string | null
           mode_ht: boolean
           national_id: string | null
           national_register: string | null
           notes: string | null
+          opening_balance: number
           payment_terms: string | null
           phone: string | null
+          phone_pro: string | null
           po_box: string | null
           price_list: string | null
           receipt_copies: number
@@ -1210,10 +1220,12 @@ export type Database = {
           segment: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos: boolean
           status: Database["public"]["Enums"]["contact_status"]
+          street_number: string | null
           supplier_customer_no: string | null
           supplier_franco_min: number | null
           supplier_is_internal: boolean
           supplier_order_min: number | null
+          supplier_order_min_qty: number | null
           supplier_rfa_rate: number | null
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
@@ -1237,13 +1249,19 @@ export type Database = {
           code?: string | null
           company_id: string
           company_name?: string | null
+          contact_name?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
           credit_limit?: number
+          delivery_address?: string | null
           domiciliation?: string | null
+          dou?: string | null
           email?: string | null
+          email_pro?: string | null
+          external_ref?: string | null
           factoring_code?: string | null
+          fax?: string | null
           first_name?: string | null
           gsm?: string | null
           iban?: string | null
@@ -1256,6 +1274,7 @@ export type Database = {
           is_vip?: boolean
           is_watch?: boolean
           last_name?: string | null
+          legacy_code?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1264,12 +1283,15 @@ export type Database = {
           license_place?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
+          mobile_pro?: string | null
           mode_ht?: boolean
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
+          opening_balance?: number
           payment_terms?: string | null
           phone?: string | null
+          phone_pro?: string | null
           po_box?: string | null
           price_list?: string | null
           receipt_copies?: number
@@ -1277,10 +1299,12 @@ export type Database = {
           segment?: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos?: boolean
           status?: Database["public"]["Enums"]["contact_status"]
+          street_number?: string | null
           supplier_customer_no?: string | null
           supplier_franco_min?: number | null
           supplier_is_internal?: boolean
           supplier_order_min?: number | null
+          supplier_order_min_qty?: number | null
           supplier_rfa_rate?: number | null
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
@@ -1304,13 +1328,19 @@ export type Database = {
           code?: string | null
           company_id?: string
           company_name?: string | null
+          contact_name?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
           credit_limit?: number
+          delivery_address?: string | null
           domiciliation?: string | null
+          dou?: string | null
           email?: string | null
+          email_pro?: string | null
+          external_ref?: string | null
           factoring_code?: string | null
+          fax?: string | null
           first_name?: string | null
           gsm?: string | null
           iban?: string | null
@@ -1323,6 +1353,7 @@ export type Database = {
           is_vip?: boolean
           is_watch?: boolean
           last_name?: string | null
+          legacy_code?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1331,12 +1362,15 @@ export type Database = {
           license_place?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
+          mobile_pro?: string | null
           mode_ht?: boolean
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
+          opening_balance?: number
           payment_terms?: string | null
           phone?: string | null
+          phone_pro?: string | null
           po_box?: string | null
           price_list?: string | null
           receipt_copies?: number
@@ -1344,10 +1378,12 @@ export type Database = {
           segment?: Database["public"]["Enums"]["customer_segment"]
           show_discounts_pos?: boolean
           status?: Database["public"]["Enums"]["contact_status"]
+          street_number?: string | null
           supplier_customer_no?: string | null
           supplier_franco_min?: number | null
           supplier_is_internal?: boolean
           supplier_order_min?: number | null
+          supplier_order_min_qty?: number | null
           supplier_rfa_rate?: number | null
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
@@ -1701,20 +1737,30 @@ export type Database = {
       }
       documents: {
         Row: {
+          code_client_legacy: string | null
           company_id: string
+          compta_transferred: boolean
+          condition_reglement: string | null
           contact_id: string | null
           created_at: string
+          date_transfert: string | null
           doc_type: string
           due_date: string | null
           forced_ttc: number | null
           global_discount_amount: number
           global_discount_pct: number
           id: string
+          imported_from: string | null
           issue_date: string
+          legacy_number: string | null
+          marge: number | null
+          marge_pct: number | null
           notes: string | null
           number: string | null
+          operator: string | null
           paid_amount: number
           price_mode: string
+          remise_ttc: number | null
           shipping_ht: number
           shipping_taxed: boolean
           shipping_vat_rate: number
@@ -1728,20 +1774,30 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          code_client_legacy?: string | null
           company_id: string
+          compta_transferred?: boolean
+          condition_reglement?: string | null
           contact_id?: string | null
           created_at?: string
+          date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
           id?: string
+          imported_from?: string | null
           issue_date?: string
+          legacy_number?: string | null
+          marge?: number | null
+          marge_pct?: number | null
           notes?: string | null
           number?: string | null
+          operator?: string | null
           paid_amount?: number
           price_mode?: string
+          remise_ttc?: number | null
           shipping_ht?: number
           shipping_taxed?: boolean
           shipping_vat_rate?: number
@@ -1755,20 +1811,30 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          code_client_legacy?: string | null
           company_id?: string
+          compta_transferred?: boolean
+          condition_reglement?: string | null
           contact_id?: string | null
           created_at?: string
+          date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
           id?: string
+          imported_from?: string | null
           issue_date?: string
+          legacy_number?: string | null
+          marge?: number | null
+          marge_pct?: number | null
           notes?: string | null
           number?: string | null
+          operator?: string | null
           paid_amount?: number
           price_mode?: string
+          remise_ttc?: number | null
           shipping_ht?: number
           shipping_taxed?: boolean
           shipping_vat_rate?: number
@@ -3174,6 +3240,7 @@ export type Database = {
           display_price: number | null
           energy: string | null
           engine_number: string | null
+          entry_date: string | null
           exposition_code: string | null
           first_registration_date: string | null
           fiscal_power: number | null
@@ -3188,12 +3255,14 @@ export type Database = {
           is_restricted: boolean
           key_number: string | null
           key_number2: string | null
+          legacy_state: string | null
           marking: string | null
           marking_date: string | null
           mileage: number | null
           mileage_qualif: Database["public"]["Enums"]["mileage_qualif"] | null
           model: string | null
           model_year: number | null
+          mymeca_qr: string | null
           next_inspection_date: string | null
           notes: string | null
           origin: string | null
@@ -3203,9 +3272,11 @@ export type Database = {
           power_cv: number | null
           power_kw: number | null
           production_code: string | null
+          purchase_invoice_number: string | null
           purchase_price: number | null
           reference: string | null
           segment_type: string | null
+          sold_date: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar: string | null
           tpms_av: string | null
@@ -3235,6 +3306,7 @@ export type Database = {
           display_price?: number | null
           energy?: string | null
           engine_number?: string | null
+          entry_date?: string | null
           exposition_code?: string | null
           first_registration_date?: string | null
           fiscal_power?: number | null
@@ -3249,12 +3321,14 @@ export type Database = {
           is_restricted?: boolean
           key_number?: string | null
           key_number2?: string | null
+          legacy_state?: string | null
           marking?: string | null
           marking_date?: string | null
           mileage?: number | null
           mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
           model?: string | null
           model_year?: number | null
+          mymeca_qr?: string | null
           next_inspection_date?: string | null
           notes?: string | null
           origin?: string | null
@@ -3264,9 +3338,11 @@ export type Database = {
           power_cv?: number | null
           power_kw?: number | null
           production_code?: string | null
+          purchase_invoice_number?: string | null
           purchase_price?: number | null
           reference?: string | null
           segment_type?: string | null
+          sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar?: string | null
           tpms_av?: string | null
@@ -3296,6 +3372,7 @@ export type Database = {
           display_price?: number | null
           energy?: string | null
           engine_number?: string | null
+          entry_date?: string | null
           exposition_code?: string | null
           first_registration_date?: string | null
           fiscal_power?: number | null
@@ -3310,12 +3387,14 @@ export type Database = {
           is_restricted?: boolean
           key_number?: string | null
           key_number2?: string | null
+          legacy_state?: string | null
           marking?: string | null
           marking_date?: string | null
           mileage?: number | null
           mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
           model?: string | null
           model_year?: number | null
+          mymeca_qr?: string | null
           next_inspection_date?: string | null
           notes?: string | null
           origin?: string | null
@@ -3325,9 +3404,11 @@ export type Database = {
           power_cv?: number | null
           power_kw?: number | null
           production_code?: string | null
+          purchase_invoice_number?: string | null
           purchase_price?: number | null
           reference?: string | null
           segment_type?: string | null
+          sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar?: string | null
           tpms_av?: string | null
