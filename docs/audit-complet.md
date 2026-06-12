@@ -20,7 +20,7 @@ garantie B10 refus partiel, chronos B11, planning), **reprise/ORO** (marge par V
 **Ce qu'il NE faut PAS démontrer comme « fait »** (cassé en bout de chaîne ou format non final) :
 1. ~~**Paiement Stripe de bout en bout** — pas de webhook~~ → ✅ **RÉSOLU (P0.1, 2026-06-12)** : `stripe-webhook` + `finalize_web_order` (commande→payée + facture + sortie stock), déployé et testé. Reste à poser le vrai `whsec` live.
 2. **Exports compta/Ducati** — ✅ **Winbooks RÉSOLU (P0.2)** : vrai moteur d'écritures + export Actage (compte tiers réel). Reste : UBL **non transmis** à Falco/Peppol (P0.4), DCS au mauvais format (P0.3).
-3. **E-mails / SMS** — **aucun envoi réel** nulle part (le « journal des communications » CRM n'envoie rien).
+3. ~~**E-mails / SMS** — aucun envoi réel~~ → ✅ **INFRA FAITE (2026-06-12)** : file `notifications` + enfilage auto (commande, relances factures, rappels RDV) + Edge `dispatch-notifications` (Resend/SMS, dégradé sans clé). **Envois réels = poser les clés Resend/SMS.**
 4. **TVA sur marge (occasions)** — absente (exigence légale belge).
 5. **Notifications / signatures électroniques** — non implémentées.
 
@@ -256,7 +256,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 
 **P1 — exigences légales & complétude métier :**
 6. ✅ **FAIT (2026-06-12)** TVA sur marge (B2) + registre VO + attestation PDF. Testé par POST.
-7. **E-mails/SMS réels** (Resend/Twilio) : confirmations, relances, notifs RDV, CRM.
+7. ✅ **INFRA FAITE (2026-06-12)** E-mails/SMS : file + crons (confirmations, relances, RDV) + dispatch Edge (Resend/SMS). Testé par POST (dégradé skipped). Reste : poser les clés Resend/SMS pour l'envoi réel.
 8. ✅ **FAIT (2026-06-12)** Seed data (20 clients / 300 articles tous types / 12 véhicules / 5 OR) par société — règle 8.
 9. ✅ **FAIT (2026-06-12)** Domiciliation SEPA (pain.008) + mandats + échéancier + impayés (remise en dû). Testé par POST.
 10. ✅ **FAIT (2026-06-12)** Clôture d'exercice archivante (fige la période + arrêté archivé) + éditions pré-clôture (débiteurs, acomptes, effets). Testé par POST.
