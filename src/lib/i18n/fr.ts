@@ -539,6 +539,7 @@ export const fr = {
     entries: 'Écritures comptables', generate: 'Générer les écritures', generated: 'pièce(s) générée(s)',
     noEntries: 'Aucune écriture générée sur la période. Cliquez sur « Générer les écritures ».',
     colJournal: 'Journal', colAccount: 'Compte', colAux: 'Tiers', colDebit: 'Débit', colCredit: 'Crédit', colLabel: 'Libellé',
+    openInvoice: 'Ouvrir la facture',
     balanced: 'Équilibrée', unbalanced: 'Déséquilibrée', entryHint: 'Génère de vraies écritures équilibrées (comptes PCMN, TVA, tiers réels). L\'export Winbooks part de ces écritures.',
     // Registre TVA sur marge (VO) — B2
     voRegister: 'Registre TVA sur marge (occasions)', voHint: 'Occasions type O (rachat à un particulier) : TVA sur la marge (PV − PA), art. 58 §4 CTVA. Registre de comparaison obligatoire.',

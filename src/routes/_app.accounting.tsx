@@ -65,8 +65,8 @@ function AccountingPage() {
                 {journal.isLoading && <tr><td colSpan={5} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
                 {journal.data && journal.data.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('accounting.empty')}</td></tr>}
                 {journal.data?.map((r) => (
-                  <tr key={r.document_id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 font-mono text-[12px]">{r.number ?? '—'}</td>
+                  <tr key={r.document_id} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: r.document_id } })} title={t('accounting.openInvoice')}>
+                    <td className="px-3 py-2 font-mono text-[12px] text-info underline">{r.number ?? '—'}</td>
                     <td className="px-3 py-2 font-mono text-[12px]">{r.issue_date}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.total_ht)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.total_vat)}</td>
