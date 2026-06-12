@@ -560,6 +560,15 @@ export const fr = {
     colAmount: 'Montant', colDue: 'Dû', colMethod: 'Mode', colDueDate: 'Échéance', exportCsv: 'Exporter',
   },
 
+  // Dépôt-vente (M7)
+  consign: {
+    title: 'Dépôt-vente', subtitle: 'Véhicules confiés (type D) : reversement au déposant + commission à la vente. Hors valorisation de stock.',
+    depositor: 'Déposant', number: 'N°', agreed: 'Prix convenu TTC', commission: 'Commission %', add: 'Nouveau dépôt-vente',
+    salePrice: 'Prix de vente TTC', settle: 'Régler la vente', status: 'Statut', empty: 'Aucun dépôt-vente.',
+    st_en_depot: 'En dépôt', st_vendu: 'Vendu', st_restitue: 'Restitué', commAmount: 'Commission', reversal: 'Reversement',
+    settled: 'Vendu : commission {c}, reversement {r}.',
+  },
+
   // Tarifs clients (M1/M2)
   pricing: {
     title: 'Tarifs clients', subtitle: 'Remise %, coefficient ou paliers quantitatifs, par client / famille / article.',

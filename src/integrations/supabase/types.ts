@@ -1017,6 +1017,99 @@ export type Database = {
         }
         Relationships: []
       }
+      consignments: {
+        Row: {
+          agreed_price: number
+          article_id: string | null
+          commission_amount: number | null
+          commission_pct: number
+          company_id: string
+          created_at: string
+          depositor_id: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          sale_document_id: string | null
+          sold_at: string | null
+          sold_commission: number | null
+          sold_reversal: number | null
+          status: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          agreed_price?: number
+          article_id?: string | null
+          commission_amount?: number | null
+          commission_pct?: number
+          company_id: string
+          created_at?: string
+          depositor_id?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          sale_document_id?: string | null
+          sold_at?: string | null
+          sold_commission?: number | null
+          sold_reversal?: number | null
+          status?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          agreed_price?: number
+          article_id?: string | null
+          commission_amount?: number | null
+          commission_pct?: number
+          company_id?: string
+          created_at?: string
+          depositor_id?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          sale_document_id?: string | null
+          sold_at?: string | null
+          sold_commission?: number | null
+          sold_reversal?: number | null
+          status?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignments_depositor_id_fkey"
+            columns: ["depositor_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignments_sale_document_id_fkey"
+            columns: ["sale_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_subcontacts: {
         Row: {
           contact_id: string
@@ -3740,6 +3833,17 @@ export type Database = {
           signature_date: string
         }[]
       }
+      settle_consignment: {
+        Args: {
+          _consignment: string
+          _sale_document?: string
+          _sale_price_ttc: number
+        }
+        Returns: {
+          commission: number
+          reversal: number
+        }[]
+      }
       shop_public_catalog: {
         Args: { _slug: string }
         Returns: {
@@ -3773,6 +3877,7 @@ export type Database = {
           theme_color: string
         }[]
       }
+      stock_value_owned: { Args: { _company: string }; Returns: number }
       top_articles: {
         Args: { _company: string; _from: string; _limit?: number; _to: string }
         Returns: {
