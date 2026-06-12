@@ -40,9 +40,12 @@ function ClientsList() {
         title={t('contacts.title')}
         description={t('contacts.subtitle')}
         actions={
-          <Button onClick={() => navigate({ to: '/clients/new' })}>
-            <UserPlus /> {t('contacts.new')}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/client-pricing' })}>{t('pricing.title')}</Button>
+            <Button onClick={() => navigate({ to: '/clients/new' })}>
+              <UserPlus /> {t('contacts.new')}
+            </Button>
+          </div>
         }
       />
 

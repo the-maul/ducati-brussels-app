@@ -555,6 +555,16 @@ export const fr = {
     colAmount: 'Montant', colDue: 'Dû', colMethod: 'Mode', colDueDate: 'Échéance', exportCsv: 'Exporter',
   },
 
+  // Tarifs clients (M1/M2)
+  pricing: {
+    title: 'Tarifs clients', subtitle: 'Remise %, coefficient ou paliers quantitatifs, par client / famille / article.',
+    client: 'Client', rules: 'Règles de tarif', simulator: 'Simulateur de prix', article: 'Article', qty: 'Quantité',
+    kind: 'Type', kind_discount_pct: 'Remise %', kind_coefficient: 'Coefficient', kind_quantity_tiers: 'Paliers quantitatifs',
+    value: 'Valeur', label: 'Libellé', addRule: 'Ajouter la règle', noRules: 'Aucune règle pour ce client.',
+    tiers: 'Paliers (qté:remise%)', tierHint: 'ex. 1:0, 5:10, 10:15', resolvedHt: 'PV HT résolu', resolvedTtc: 'PV TTC résolu',
+    applied: 'Règle appliquée', simulate: 'Simuler', allArticles: 'Tous les articles', pickClient: 'Choisir un client',
+  },
+
   // CRM (M10)
   crm: {
     title: 'CRM', subtitle: 'Pipeline commercial (leads) et suivi des communications.',

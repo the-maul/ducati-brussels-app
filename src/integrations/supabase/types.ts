@@ -1267,6 +1267,77 @@ export type Database = {
           },
         ]
       }
+      customer_price_rules: {
+        Row: {
+          article_id: string | null
+          category_id: string | null
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          label: string | null
+          tiers: Json | null
+          value: number
+        }
+        Insert: {
+          article_id?: string | null
+          category_id?: string | null
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string | null
+          tiers?: Json | null
+          value?: number
+        }
+        Update: {
+          article_id?: string | null
+          category_id?: string | null
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string | null
+          tiers?: Json | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_price_rules_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_price_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "article_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_price_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_price_rules_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_addresses: {
         Row: {
           address: string | null
@@ -3513,6 +3584,20 @@ export type Database = {
       resolve_account: {
         Args: { _company: string; _dimension: string; _key: string }
         Returns: string
+      }
+      resolve_customer_price: {
+        Args: {
+          _article: string
+          _company: string
+          _contact: string
+          _qty?: number
+        }
+        Returns: {
+          discount_pct: number
+          rule_kind: string
+          unit_price_ht: number
+          unit_price_ttc: number
+        }[]
       }
       resolve_journal: {
         Args: { _company: string; _dimension: string; _key: string }
