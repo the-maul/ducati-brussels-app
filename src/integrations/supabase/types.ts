@@ -2881,6 +2881,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _next_document_number_unchecked: {
+        Args: { _company: string; _doc_type: string }
+        Returns: string
+      }
       article_stock: {
         Args: { _article: string }
         Returns: {
@@ -2956,6 +2960,10 @@ export type Database = {
         Returns: string
       }
       dashboard_kpis: { Args: { _company: string }; Returns: Json }
+      finalize_web_order: {
+        Args: { _method?: string; _order: string }
+        Returns: string
+      }
       generate_stock_snapshot: {
         Args: { _company: string; _kind?: string; _label: string }
         Returns: string
