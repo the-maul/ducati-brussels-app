@@ -530,6 +530,11 @@ export const fr = {
     exportWinbooks: 'Export Winbooks', exportUbl: 'Export UBL (Peppol)', empty: 'Aucune écriture sur la période.',
     colNumber: 'N°', colDate: 'Date', colHt: 'Total HT', colVat: 'TVA', colTtc: 'Total TTC', colPaid: 'Réglé',
     vatRate: 'Taux', baseHt: 'Base HT', vatAmount: 'TVA', total: 'Total', ublHint: 'Génère le fichier UBL à transmettre via Falco sur Peppol.',
+    // Moteur d'écritures comptables
+    entries: 'Écritures comptables', generate: 'Générer les écritures', generated: 'pièce(s) générée(s)',
+    noEntries: 'Aucune écriture générée sur la période. Cliquez sur « Générer les écritures ».',
+    colJournal: 'Journal', colAccount: 'Compte', colAux: 'Tiers', colDebit: 'Débit', colCredit: 'Crédit', colLabel: 'Libellé',
+    balanced: 'Équilibrée', unbalanced: 'Déséquilibrée', entryHint: 'Génère de vraies écritures équilibrées (comptes PCMN, TVA, tiers réels). L\'export Winbooks part de ces écritures.',
   },
 
   // CRM (M10)

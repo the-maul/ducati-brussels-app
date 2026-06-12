@@ -53,16 +53,64 @@ export async function exportInvoiceUbl(documentId: string): Promise<void> {
   await logExport(doc.company_id, 'ubl', inv.number);
 }
 
+// ---- Moteur d'écritures comptables (M12) ----
+export type EntryLine = { line_no: number; account_code: string; account_label: string | null; auxiliary_code: string | null; debit: number; credit: number; vat_rate: number | null; label: string | null };
+export type AccountingEntry = { id: string; journal_code: string; entry_date: string; doc_type: string | null; doc_number: string | null; source: string; label: string | null; lines: EntryLine[] };
+
+/** Génère les écritures (ventes + règlements) de la période (idempotent). Retourne le nb de pièces créées. */
+export async function generateEntries(companyId: string, from: string, to: string): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_accounting_entries', { _company: companyId, _from: from, _to: to });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+/** Liste les pièces comptables de la période avec leurs lignes (prévisualisation avant export). */
+export async function listEntries(companyId: string, from: string, to: string): Promise<AccountingEntry[]> {
+  const { data, error } = await supabase
+    .from('accounting_entries')
+    .select('id, journal_code, entry_date, doc_type, doc_number, source, label, accounting_entry_lines(line_no, account_code, account_label, auxiliary_code, debit, credit, vat_rate, label)')
+    .eq('company_id', companyId).gte('entry_date', from).lte('entry_date', to)
+    .order('entry_date').order('journal_code');
+  if (error) throw error;
+  return (data ?? []).map((e) => ({
+    id: e.id, journal_code: e.journal_code, entry_date: e.entry_date, doc_type: e.doc_type, doc_number: e.doc_number, source: e.source, label: e.label,
+    lines: ((e.accounting_entry_lines ?? []) as EntryLine[])
+      .map((l) => ({ ...l, debit: Number(l.debit), credit: Number(l.credit) }))
+      .sort((a, b) => a.line_no - b.line_no),
+  }));
+}
+
+// Type de pièce Winbooks par journal (2 = vente, 3 = financier, 1 = achat, 0 = OD).
+const WB_DOCTYPE: Record<string, string> = { VEN: '2', FIN: '3', ACH: '1' };
+const r2s = (n: number) => n.toFixed(2);
+
 /**
- * Export Winbooks (journal des ventes) : une ligne par facture, format CSV ';'.
- * Colonnes alignables sur le gabarit d'import du comptable (Winbooks « Actage »).
+ * Export Winbooks (format ASCII « Actage ») depuis les ÉCRITURES générées : une ligne
+ * par ligne d'écriture, avec le **compte général réel** (PCMN) et le **compte tiers réel**
+ * (auxiliaire), montant signé (débit +, crédit −). Plus d'UUID en compte client.
+ * Génère d'abord les écritures manquantes de la période. Colonnes alignables sur le
+ * gabarit exact du comptable (on calera après réception du fichier exemple).
  */
 export async function exportWinbooks(companyId: string, from: string, to: string): Promise<void> {
-  const rows = await getSalesJournal(companyId, from, to);
-  const header = ['DocType', 'Date', 'DocNumber', 'CustomerAccount', 'TotalHT', 'TotalVAT', 'TotalTTC'];
-  const csv = '﻿' + [header.join(';'), ...rows.map((r) => [
-    'VEN', r.issue_date, r.number ?? '', r.contact_id ?? '', r.total_ht.toFixed(2), r.total_vat.toFixed(2), r.total_ttc.toFixed(2),
-  ].join(';'))].join('\r\n');
-  download(`WINBOOKS_VENTES_${from}_${to}.csv`, csv, 'text/csv;charset=utf-8;');
+  await generateEntries(companyId, from, to);
+  const entries = await listEntries(companyId, from, to);
+  const header = ['DocType', 'DbkCode', 'DocNumber', 'DocOrder', 'AccountGL', 'AccountRP', 'BookYear', 'Period', 'Date', 'Comment', 'Amount', 'VatCode'];
+  const rows: string[] = [header.join(';')];
+  for (const e of entries) {
+    const d = new Date(e.entry_date);
+    const yyyy = e.entry_date.slice(0, 4);
+    const period = e.entry_date.slice(5, 7);
+    const dmy = `${e.entry_date.slice(8, 10)}/${period}/${yyyy}`;
+    for (const l of e.lines) {
+      const amount = r2s(l.debit - l.credit); // débit positif, crédit négatif (convention ACT)
+      rows.push([
+        WB_DOCTYPE[e.journal_code] ?? '0', e.journal_code, e.doc_number ?? '', String(l.line_no + 1),
+        l.account_code, l.auxiliary_code ?? '', yyyy, period, dmy,
+        (l.label ?? e.label ?? '').replace(/;/g, ','), amount, l.vat_rate != null ? String(l.vat_rate) : '',
+      ].join(';'));
+    }
+  }
+  const csv = '﻿' + rows.join('\r\n');
+  download(`WINBOOKS_ACT_${from}_${to}.csv`, csv, 'text/csv;charset=utf-8;');
   await logExport(companyId, 'winbooks', `${from}..${to}`, from, to);
 }

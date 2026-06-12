@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getSalesJournal, getVatRegister, exportWinbooks } from '@/modules/accounting/api';
+import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries } from '@/modules/accounting/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
@@ -25,7 +25,9 @@ function AccountingPage() {
 
   const journal = useQuery({ queryKey: ['sales-journal', activeCompanyId, from, to], queryFn: () => getSalesJournal(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const vat = useQuery({ queryKey: ['vat-register', activeCompanyId, from, to], queryFn: () => getVatRegister(activeCompanyId!, from, to), enabled: !!activeCompanyId });
-  const wb = useMutation({ mutationFn: () => exportWinbooks(activeCompanyId!, from, to) });
+  const entries = useQuery({ queryKey: ['acct-entries', activeCompanyId, from, to], queryFn: () => listEntries(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const wb = useMutation({ mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
+  const gen = useMutation({ mutationFn: () => generateEntries(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
 
   const totalHt = (journal.data ?? []).reduce((s, r) => s + r.total_ht, 0);
   const totalTtc = (journal.data ?? []).reduce((s, r) => s + r.total_ttc, 0);
@@ -35,7 +37,10 @@ function AccountingPage() {
       <PageHeader
         title={t('accounting.title')}
         description={t('accounting.subtitle')}
-        actions={<Button onClick={() => wb.mutate()} disabled={wb.isPending || !journal.data?.length}>{wb.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('accounting.exportWinbooks')}</Button>}
+        actions={<div className="flex gap-2">
+          <Button variant="outline" onClick={() => gen.mutate()} disabled={gen.isPending || !journal.data?.length}>{gen.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('accounting.generate')}</Button>
+          <Button onClick={() => wb.mutate()} disabled={wb.isPending || !journal.data?.length}>{wb.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('accounting.exportWinbooks')}</Button>
+        </div>}
       />
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="space-y-1"><Lbl>{t('accounting.from')}</Lbl><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
@@ -85,6 +90,44 @@ function AccountingPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Écritures comptables générées (prévisualisation avant export) */}
+      <div className="mt-6">
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('accounting.entries')}</p>
+        <p className="mb-2 text-[12px] text-muted-foreground">{t('accounting.entryHint')}</p>
+        {gen.isSuccess && <p className="mb-2 text-[12px] text-success">{gen.data} {t('accounting.generated')}</p>}
+        {entries.data && entries.data.length === 0 && <p className="rounded-md border border-border px-3 py-4 text-[13px] text-muted-foreground">{t('accounting.noEntries')}</p>}
+        <div className="space-y-3">
+          {entries.data?.map((e) => {
+            const d = e.lines.reduce((s, l) => s + l.debit, 0);
+            const c = e.lines.reduce((s, l) => s + l.credit, 0);
+            const ok = Math.abs(d - c) < 0.005;
+            return (
+              <div key={e.id} className="overflow-hidden rounded-md border border-border">
+                <div className="flex items-center justify-between bg-muted px-3 py-1.5 text-[12px]">
+                  <span className="font-mono font-bold">{e.journal_code} · {e.doc_number ?? '—'}</span>
+                  <span className="text-muted-foreground">{e.entry_date}</span>
+                  <span className={ok ? 'text-success' : 'text-danger'}>{ok ? t('accounting.balanced') : t('accounting.unbalanced')}</span>
+                </div>
+                <table className="w-full border-collapse font-data text-[12px]">
+                  <thead><tr className="border-b border-border"><Th>{t('accounting.colAccount')}</Th><Th>{t('accounting.colAux')}</Th><Th>{t('accounting.colLabel')}</Th><Th className="text-right">{t('accounting.colDebit')}</Th><Th className="text-right">{t('accounting.colCredit')}</Th></tr></thead>
+                  <tbody>
+                    {e.lines.map((l, i) => (
+                      <tr key={i} className="border-b border-border last:border-0">
+                        <td className="px-3 py-1.5 font-mono">{l.account_code} <span className="text-muted-foreground">{l.account_label}</span></td>
+                        <td className="px-3 py-1.5 font-mono">{l.auxiliary_code ?? ''}</td>
+                        <td className="px-3 py-1.5">{l.label ?? ''}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{l.debit ? eur(l.debit) : ''}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{l.credit ? eur(l.credit) : ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
