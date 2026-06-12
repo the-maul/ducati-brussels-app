@@ -266,7 +266,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 12. ✅ **FAIT (2026-06-12)** Moteur de tarifs clients (remise %/coefficient/paliers quantitatifs, résolu par spécificité) + simulateur. Testé par POST. 🟡 reste : import catalogue fournisseur multi-format avec mappings réutilisables (l'import tarifs CSV M2 existe déjà).
 13. ✅ **FAIT (2026-06-12)** Statistiques avancées : classement par dimension (marque/rayon/article/client/mois) + marge, comparaison N-1, panier moyen, taux de transformation. Testé par POST. 🟡 reste : 4 niveaux cumulés simultanés + cessions valorisées PV+PAMP.
 14. ✅ **FAIT (2026-06-12)** 3e mode inventaire (casier), inventaire tournant (candidats), étiquetage différé cumulable (B12). Backend + API testés ; câblage UI fin à finaliser.
-15. Dépôt-vente + commission, reprise au POS, n° série au POS.
+15. ✅ **Dépôt-vente + commission** FAIT (2026-06-12, testé POST). 🟡 reste : reprise au POS (REP), n° série au POS.
 16. Signature électronique + portails + modèles de documents + CGV verso.
 17. Tâches atelier hors-facturation, checklist opérations, planning taux de charge.
 18. Tests d'intégration (réservations, réintégration, ORO, encours, **RLS**).
