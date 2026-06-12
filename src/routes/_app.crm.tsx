@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listLeads, createLead, setLeadStage, LEAD_STAGES, type Lead } from '@/modules/crm/api';
+import { LeadDetail } from '@/modules/crm/lead-detail';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/crm')({
@@ -23,6 +24,7 @@ function CrmPage() {
   const { activeCompanyId } = useAuth();
   const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
+  const [selected, setSelected] = useState<Lead | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId], queryFn: () => listLeads(activeCompanyId!), enabled: !!activeCompanyId });
   const move = useMutation({ mutationFn: ({ id, stage }: { id: string; stage: string }) => setLeadStage(id, stage), onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] }) });
 
@@ -38,14 +40,16 @@ function CrmPage() {
             <p className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t(`crm.stage_${s}`)}<span className="rounded bg-muted px-1.5 tabular-nums">{byStage(s).length}</span></p>
             <div className="space-y-2">
               {byStage(s).map((l) => (
-                <div key={l.id} className="rounded-md border border-border p-2 text-[12px]">
+                <div key={l.id} className="cursor-pointer rounded-md border border-border p-2 text-[12px] transition hover:border-[var(--ducati-red)] hover:shadow-sm" onClick={() => setSelected(l)} title={t('crm.openCard')}>
                   <p className="font-medium">{l.name}</p>
                   {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
                   {l.estimated_value != null && <p className="tabular-nums text-muted-foreground">{eur(Number(l.estimated_value))}</p>}
-                  <Select value={l.stage} onValueChange={(v) => move.mutate({ id: l.id, stage: v })}>
-                    <SelectTrigger className="mt-1 h-7 text-[12px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{LEAD_STAGES.map((x) => <SelectItem key={x} value={x}>{t(`crm.stage_${x}`)}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select value={l.stage} onValueChange={(v) => move.mutate({ id: l.id, stage: v })}>
+                      <SelectTrigger className="mt-1 h-7 text-[12px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>{LEAD_STAGES.map((x) => <SelectItem key={x} value={x}>{t(`crm.stage_${x}`)}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
                 </div>
               ))}
             </div>
@@ -53,6 +57,7 @@ function CrmPage() {
         ))}
       </div>
       {showNew && <NewLeadDialog companyId={activeCompanyId!} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] }); }} />}
+      {selected && <LeadDetail lead={selected} companyId={activeCompanyId!} onClose={() => setSelected(null)} onChanged={() => qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] })} />}
     </>
   );
 }

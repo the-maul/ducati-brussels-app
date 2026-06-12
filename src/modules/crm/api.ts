@@ -29,6 +29,33 @@ export async function setLeadStage(id: string, stage: string): Promise<void> {
   if (error) throw error;
 }
 
+export type LeadPatch = Partial<Pick<Lead, 'name' | 'email' | 'phone' | 'vehicle_interest' | 'source' | 'estimated_value' | 'stage' | 'notes' | 'contact_id' | 'assigned_to'>>;
+export async function updateLead(id: string, patch: LeadPatch): Promise<void> {
+  const { error } = await supabase.from('leads').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteLead(id: string): Promise<void> {
+  const { error } = await supabase.from('leads').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** Activités/notes d'un lead (timeline). */
+export async function listLeadActivities(leadId: string): Promise<Communication[]> {
+  const { data, error } = await supabase.from('communications').select('*').eq('lead_id', leadId).order('occurred_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addLeadActivity(p: { companyId: string; leadId: string; contactId?: string | null; channel: string; direction?: string; subject?: string; body?: string }): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('communications').insert({
+    company_id: p.companyId, lead_id: p.leadId, contact_id: p.contactId ?? null,
+    channel: p.channel, direction: p.direction ?? 'out', subject: p.subject || null, body: p.body || null, created_by: user?.id ?? null,
+  });
+  if (error) throw error;
+}
+
 export async function listCommunications(contactId: string): Promise<Communication[]> {
   const { data, error } = await supabase.from('communications').select('*').eq('contact_id', contactId).order('occurred_at', { ascending: false });
   if (error) throw error;

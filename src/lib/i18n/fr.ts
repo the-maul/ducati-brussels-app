@@ -590,6 +590,10 @@ export const fr = {
     // communications
     history: 'Communications', channel: 'Canal', channel_call: 'Appel', channel_email: 'E-mail', channel_sms: 'SMS', channel_note: 'Note',
     direction: 'Sens', dir_in: 'Entrant', dir_out: 'Sortant', subject: 'Objet', body: 'Détail', logComm: 'Journaliser', noComm: 'Aucune communication enregistrée.',
+    // Carte lead détaillée
+    details: 'Détails', edit: 'Éditer', save: 'Enregistrer', saved: 'Enregistré', del: 'Supprimer', confirmDel: 'Supprimer ce lead ?',
+    activity: 'Activité', addNote: 'Ajouter', notePlaceholder: 'Note, appel, e-mail…', documents: 'Documents', noActivity: 'Aucune activité.',
+    stage: 'Étape', value: 'Valeur estimée', openCard: 'Ouvrir la fiche', deleted: 'Lead supprimé.', notes: 'Notes',
   },
 
   // Documents & GED (M9)
