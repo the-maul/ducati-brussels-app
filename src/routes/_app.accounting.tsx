@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries } from '@/modules/accounting/api';
+import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, exportVoRegister, printVoMarginAttestation, type VoMarginRow } from '@/modules/accounting/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
@@ -26,6 +26,10 @@ function AccountingPage() {
   const journal = useQuery({ queryKey: ['sales-journal', activeCompanyId, from, to], queryFn: () => getSalesJournal(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const vat = useQuery({ queryKey: ['vat-register', activeCompanyId, from, to], queryFn: () => getVatRegister(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const entries = useQuery({ queryKey: ['acct-entries', activeCompanyId, from, to], queryFn: () => listEntries(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const vo = useQuery({ queryKey: ['vo-register', activeCompanyId, from, to], queryFn: () => getVoMarginRegister(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const voSum = useQuery({ queryKey: ['vo-summary', activeCompanyId, from, to], queryFn: () => getVoMarginSummary(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  const voCsv = useMutation({ mutationFn: () => exportVoRegister(activeCompanyId!, from, to) });
+  const attest = useMutation({ mutationFn: (r: VoMarginRow) => printVoMarginAttestation(activeCompanyId!, r) });
   const wb = useMutation({ mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
   const gen = useMutation({ mutationFn: () => generateEntries(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
 
@@ -129,6 +133,45 @@ function AccountingPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Registre TVA sur marge (occasions type O) — B2 */}
+      <div className="mt-6">
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('accounting.voRegister')}</p>
+          <Button variant="outline" size="sm" onClick={() => voCsv.mutate()} disabled={voCsv.isPending || !vo.data?.length}><FileDown className="size-4" /> {t('accounting.voExport')}</Button>
+        </div>
+        <p className="mb-2 text-[12px] text-muted-foreground">{t('accounting.voHint')}</p>
+        {voSum.data && voSum.data.count_vo > 0 && (
+          <div className="mb-2 flex flex-wrap gap-4 rounded-md bg-muted px-3 py-2 text-[12px]">
+            <span><strong>{voSum.data.count_vo}</strong> {t('accounting.voCount')}</span>
+            <span>{t('accounting.voMargin')} : <strong className="tabular-nums">{eur(voSum.data.total_margin)}</strong></span>
+            <span>{t('accounting.voBase')} : <strong className="tabular-nums">{eur(voSum.data.total_base)}</strong></span>
+            <span>{t('accounting.voVat')} : <strong className="tabular-nums">{eur(voSum.data.total_vat_margin)}</strong></span>
+          </div>
+        )}
+        {vo.data && vo.data.length === 0 && <p className="rounded-md border border-border px-3 py-4 text-[13px] text-muted-foreground">{t('accounting.voEmpty')}</p>}
+        {vo.data && vo.data.length > 0 && (
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[13px]">
+              <thead className="bg-muted"><tr><Th>{t('accounting.colDate')}</Th><Th>{t('accounting.colNumber')}</Th><Th>{t('accounting.voVin')}</Th><Th className="text-right">{t('accounting.voPa')}</Th><Th className="text-right">{t('accounting.voPv')}</Th><Th className="text-right">{t('accounting.voMargin')}</Th><Th className="text-right">{t('accounting.voVat')}</Th><Th /></tr></thead>
+              <tbody>
+                {vo.data.map((r, i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 font-mono text-[12px]">{r.sale_date}</td>
+                    <td className="px-3 py-2 font-mono text-[12px]">{r.doc_number ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[12px]">{r.vin ?? '—'}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(r.purchase_price)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(r.sale_ttc)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(r.margin)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-bold">{eur(r.vat_margin)}</td>
+                    <td className="px-3 py-2 text-right"><Button variant="ghost" size="sm" onClick={() => attest.mutate(r)}>{t('accounting.voAttest')}</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </>
   );

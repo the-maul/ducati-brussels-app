@@ -80,6 +80,73 @@ export async function listEntries(companyId: string, from: string, to: string): 
   }));
 }
 
+// ---- TVA sur marge (VO) — B2 ----
+export type VoMarginRow = { sale_date: string; doc_number: string | null; document_id: string; vehicle_id: string | null; vin: string | null; designation: string; purchase_price: number; sale_ttc: number; margin: number; vat_margin: number; base_ht: number };
+export type VoMarginSummary = { count_vo: number; total_sale: number; total_margin: number; total_vat_margin: number; total_base: number };
+
+export async function getVoMarginRegister(companyId: string, from: string, to: string): Promise<VoMarginRow[]> {
+  const { data, error } = await supabase.rpc('vo_margin_register', { _company: companyId, _from: from, _to: to });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, purchase_price: Number(r.purchase_price), sale_ttc: Number(r.sale_ttc), margin: Number(r.margin), vat_margin: Number(r.vat_margin), base_ht: Number(r.base_ht) }));
+}
+
+export async function getVoMarginSummary(companyId: string, from: string, to: string): Promise<VoMarginSummary> {
+  const { data, error } = await supabase.rpc('vo_margin_summary', { _company: companyId, _from: from, _to: to });
+  if (error) throw error;
+  const r = (Array.isArray(data) ? data[0] : data) as VoMarginSummary | undefined;
+  return r ? { count_vo: Number(r.count_vo), total_sale: Number(r.total_sale), total_margin: Number(r.total_margin), total_vat_margin: Number(r.total_vat_margin), total_base: Number(r.total_base) } : { count_vo: 0, total_sale: 0, total_margin: 0, total_vat_margin: 0, total_base: 0 };
+}
+
+/** Export CSV du registre VO (registre de comparaison art. 58 §4 CTVA). */
+export async function exportVoRegister(companyId: string, from: string, to: string): Promise<void> {
+  const rows = await getVoMarginRegister(companyId, from, to);
+  const header = ['Date', 'Document', 'VIN', 'Designation', 'PrixAchat', 'PrixVenteTTC', 'Marge', 'BaseImposable', 'TVAMarge'];
+  const csv = '﻿' + [header.join(';'), ...rows.map((r) => [
+    r.sale_date, r.doc_number ?? '', r.vin ?? '', (r.designation ?? '').replace(/;/g, ','),
+    r.purchase_price.toFixed(2), r.sale_ttc.toFixed(2), r.margin.toFixed(2), r.base_ht.toFixed(2), r.vat_margin.toFixed(2),
+  ].join(';'))].join('\r\n');
+  download(`REGISTRE_VO_${from}_${to}.csv`, csv, 'text/csv;charset=utf-8;');
+  await logExport(companyId, 'vo_register', `${from}..${to}`, from, to);
+}
+
+const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+
+/**
+ * Attestation TVA sur marge (VO) imprimable (TRAXIO) pré-remplie depuis la fiche
+ * véhicule + la société. Ouvre une fenêtre d'impression (PDF), sans dépendance externe.
+ */
+export async function printVoMarginAttestation(companyId: string, row: VoMarginRow): Promise<void> {
+  const { data: company } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
+  const veh = row.vehicle_id ? (await supabase.from('vehicles').select('*').eq('id', row.vehicle_id).maybeSingle()).data : null;
+  const c = (company ?? {}) as Record<string, unknown>;
+  const v = (veh ?? {}) as Record<string, unknown>;
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Attestation TVA marge ${esc(row.doc_number)}</title>
+  <style>body{font-family:Arial,sans-serif;color:#111;margin:32px;font-size:13px}h1{font-size:18px}table{border-collapse:collapse;width:100%;margin-top:12px}td,th{border:1px solid #ccc;padding:6px 8px;text-align:left}.r{text-align:right}.muted{color:#666}.mention{margin-top:18px;padding:10px;border:1px solid #999;font-size:12px}</style></head>
+  <body>
+  <h1>Attestation — Régime particulier de la marge bénéficiaire</h1>
+  <p class="muted">Article 58 §4 du Code de la TVA — véhicule d'occasion (TRAXIO)</p>
+  <p><strong>${esc(c.legal_name || c.name)}</strong><br>${esc(c.address)}<br>${esc(c.zip)} ${esc(c.city)}<br>${c.vat_number ? 'TVA : ' + esc(c.vat_number) : ''}</p>
+  <table>
+    <tr><th>Document de vente</th><td>${esc(row.doc_number ?? '')} du ${esc(row.sale_date)}</td></tr>
+    <tr><th>Véhicule</th><td>${esc(v.brand || '')} ${esc(v.model || '')}</td></tr>
+    <tr><th>N° de châssis (VIN)</th><td>${esc(row.vin ?? v.vin ?? '')}</td></tr>
+    <tr><th>1re immatriculation</th><td>${esc(v.first_registration_date ?? '')}</td></tr>
+    <tr><th>Prix d'achat</th><td class="r">${eur(row.purchase_price)}</td></tr>
+    <tr><th>Prix de vente TTC</th><td class="r">${eur(row.sale_ttc)}</td></tr>
+    <tr><th>Marge bénéficiaire</th><td class="r">${eur(row.margin)}</td></tr>
+    <tr><th>Base imposable (marge HT)</th><td class="r">${eur(row.base_ht)}</td></tr>
+    <tr><th>TVA sur marge (21 %)</th><td class="r">${eur(row.vat_margin)}</td></tr>
+  </table>
+  <div class="mention">Livraison soumise au régime particulier d'imposition de la marge bénéficiaire — TVA non déductible (art. 58 §4 CTVA). « Régime de la marge — Biens d'occasion ».</div>
+  <p class="muted" style="margin-top:24px">Fait à ${esc(c.city || 'Bruxelles')}, le ${new Date().toISOString().slice(0, 10)}.</p>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
 // Type de pièce Winbooks par journal (2 = vente, 3 = financier, 1 = achat, 0 = OD).
 const WB_DOCTYPE: Record<string, string> = { VEN: '2', FIN: '3', ACH: '1' };
 const r2s = (n: number) => n.toFixed(2);

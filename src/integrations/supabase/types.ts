@@ -3416,6 +3416,32 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      vo_margin_register: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          base_ht: number
+          designation: string
+          doc_number: string
+          document_id: string
+          margin: number
+          purchase_price: number
+          sale_date: string
+          sale_ttc: number
+          vat_margin: number
+          vehicle_id: string
+          vin: string
+        }[]
+      }
+      vo_margin_summary: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          count_vo: number
+          total_base: number
+          total_margin: number
+          total_sale: number
+          total_vat_margin: number
+        }[]
+      }
       web_order_public_status: {
         Args: { _order: string }
         Returns: {
