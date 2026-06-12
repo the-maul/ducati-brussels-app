@@ -32,8 +32,9 @@ garantie B10 refus partiel, chronos B11, planning), **reprise/ORO** (marge par V
 - **Des pans entiers de G8 ne sont pas construits** : **effets de commerce (LCR/traites)**, **clôture
   d'exercice archivante**, **moteur de statistiques** (4 niveaux × 8 onglets), **moteur de tarifs clients**
   (coefficient + remise quantitative à paliers), **annulation de règlements transférés** (contre-passation).
-- **Invariant B7 violé sur les prix** : pas de table `price_changes` ; les prix sont modifiés par des
-  **UPDATE directs** (notamment la modification en cascade) — contraire à la règle 3 de CLAUDE.md.
+- ~~**Invariant B7 violé sur les prix**~~ → ✅ **CORRIGÉ (P0.5, 2026-06-12)** : table `price_changes`
+  append-only + trigger traçant **toute** modification de prix (cascade incluse) ; RPC `record_price_change`
+  pour l'origine. Plus aucun UPDATE de prix silencieux.
 - **Aucune donnée seed** (règle 8 non respectée) → démo peu crédible sans préparation.
 
 ---
@@ -54,8 +55,8 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 
 ### M2 — Articles & tarifs
 - ✅ Référentiel A–R/T, barcodes (Code128 réel), kits, casiers · **moteur de prix interactif** · **table d'arrondis** · import tarifs CSV (testé) · remplacement de réf (transfert stock + PAMP).
-- 🟡 **Modification en cascade** présente **mais ⚠️ viole B7** (UPDATE directs sur prix).
-- ⛔ **`price_changes` append-only** (n'existe que dans les docs) · équivalences · librairie · stats article détaillées.
+- ✅ **Modification en cascade** : actions prix tracées via `record_price_change` (P0.5).
+- ✅ **`price_changes` append-only** (P0.5) : table + trigger traçant toute modif de prix. ⛔ reste : équivalences · librairie · stats article détaillées.
 
 ### M3 — Véhicules
 - ✅ Fiche VIN parité G8, parc, filtres, historique propriétaires, création auto depuis reprise.
@@ -129,7 +130,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 | B5 PAMP | ✅ | moyenne pondérée, testée |
 | **B6 3 modes de réajustement** | 🟡 | **2/3** (casier à la volée manquant) |
 | **B7 append-only stock** | ✅ | `record_stock_move`, `revoke update/delete` |
-| **B7 append-only prix** | ⛔ | **VIOLÉ** — pas de `price_changes`, UPDATE directs |
+| **B7 append-only prix** | ✅ | **CORRIGÉ (P0.5, 2026-06-12)** : `price_changes` + trigger traçant toute modif de prix (cascade incluse) |
 | B8 cycle OR | ✅ | réception → facture |
 | B9 n° de série | ✅ | jointure article↔véhicule |
 | B10 garantie (refus partiel) | ✅ | ligne par ligne |
@@ -220,7 +221,7 @@ grise / Demande COC »** (rayon administratif) · **RGPD portabilité + histo em
 2. **Export DCS** au mauvais format → rejeté par Ducati.
 3. ~~**Export Winbooks** : `CustomerAccount` = UUID~~ → ✅ **CORRIGÉ (P0.2)** : moteur d'écritures + export Actage avec compte tiers réel (PCMN).
 4. **UBL** téléchargé mais **non transmis** (Falco/Peppol = fiction à ce stade).
-5. **`price_changes`** absent → **B7 violé** sur les prix (cascade = UPDATE direct).
+5. ~~**`price_changes`** absent → **B7 violé**~~ → ✅ **CORRIGÉ (P0.5)** : table + trigger traçant toute modif de prix.
 6. **Boutons à demi-morts** : « Notifications » topbar (décoratif), « Export UBL/Winbooks/DCS » (formats non finaux), CRM « ajouter communication » (n'envoie rien).
 
 ---
@@ -251,7 +252,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 2. ✅ **FAIT (2026-06-12)** Moteur d'écritures comptables + mapping PCMN + export Winbooks au vrai format Actage (compte tiers réel) — testé par POST, pièces équilibrées. Reste : caler le gabarit exact du comptable.
 3. **Format DCS Ducati exact**.
 4. **Transmission UBL→Falco/Peppol** (connecteur + validation schéma BIS 3.0).
-5. **`price_changes` append-only** → corriger la modif en cascade et tous les UPDATE de prix.
+5. ✅ **FAIT (2026-06-12)** `price_changes` append-only + trigger sur toute modif de prix (cascade routée via `record_price_change`). Testé par POST.
 
 **P1 — exigences légales & complétude métier :**
 6. **TVA sur marge (B2) + registre VO + attestation PDF**.
