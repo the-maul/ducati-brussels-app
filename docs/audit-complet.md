@@ -61,7 +61,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M3 — Véhicules
 - ✅ Fiche VIN parité G8, parc, filtres, historique propriétaires, création auto depuis reprise.
 - 🟡 Création auto depuis réception châssis (présente, à re-tester).
-- ⛔ **Alerte stock > 4 mois (pg_cron)** — aucun cron dans le projet.
+- ✅ **Alerte stock dormant > 4 mois (pg_cron)** (2026-06-12) : `dormant_stock` + job mensuel.
 
 ### M4 — Achats & réceptions
 - ✅ Fournisseurs (RFA/franco/mini), réception → entrées stock + PAMP, proposition de commande, échéancier, régimes TVA.
@@ -71,7 +71,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 ### M5 — Stock & inventaire
 - ✅ `stock_moves` append-only · triple stock · **PAMP recalculé (B5, testé)** · arrêté daté, écarts, réintégration · cessions internes.
 - 🟡 **B6 : 2 modes de réajustement sur 3** (annule-remplace + cumul ; le « casier à la volée » n'est pas un vrai 3e mode).
-- ⛔ **Copies datées auto 15/fin de mois (B4)** (snapshot manuel uniquement) · inventaire tournant · étiquetage différé (B12) · dépréciation PAMP.
+- ✅ **Copies datées auto 15/fin de mois (B4)** via pg_cron (2026-06-12). ⛔ reste : inventaire tournant · étiquetage différé (B12) · dépréciation PAMP.
 
 ### M6 — Ventes / POS / Caisse
 - ✅ Éditeur tous types + numérotation · pied de facture (testé) · stock à la validation (réel/réservé) · conversions · avoirs · encaissement multi-modes/différé/rendu monnaie · **clôture Z** · **caisse comptoir** (scan→panier→ticket) · impression (HTML→print).
@@ -126,7 +126,7 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 | B1 types de gestion A–R/T | ✅ | porté par l'article |
 | **B2 TVA marge VO + registre** | ✅ | **FAIT (2026-06-12)** : `vo_margin_register`/`vo_margin_summary` (PV−PA, 21/121) + panneau registre + attestation PDF TRAXIO. Reste : ventiler la TVA marge dans le moteur d'écritures (compte 451090). |
 | B3 flux de reprise | ✅ | reprise → occasion + véhicule + ORO |
-| **B4 triple stock + copies datées** | 🟡 | triple stock ✅ ; **copies 15/fin de mois auto ⛔** |
+| **B4 triple stock + copies datées** | ✅ | triple stock ✅ ; **copies 15/fin de mois auto** via pg_cron (2026-06-12) |
 | B5 PAMP | ✅ | moyenne pondérée, testée |
 | **B6 3 modes de réajustement** | 🟡 | **2/3** (casier à la volée manquant) |
 | **B7 append-only stock** | ✅ | `record_stock_move`, `revoke update/delete` |
@@ -260,7 +260,7 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 8. ✅ **FAIT (2026-06-12)** Seed data (20 clients / 300 articles tous types / 12 véhicules / 5 OR) par société — règle 8.
 9. **Effets LCR / domiciliation SEPA** + échéancier + impayés.
 10. **Clôture d'exercice** archivante + éditions pré-clôture.
-11. Copies stock auto 15/fin de mois + alerte 4 mois (**pg_cron**).
+11. ✅ **FAIT (2026-06-12)** Copies stock auto 15/fin de mois + alerte stock dormant 4 mois (**pg_cron**). Testé par POST, jobs actifs.
 
 **P2 — parité fine G8 :**
 12. **Moteur de tarifs clients** (coefficient + remise quantitative) + import catalogue multi-format.
