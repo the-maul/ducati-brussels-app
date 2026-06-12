@@ -62,6 +62,13 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
 
   const exemptMention = doc.tax_exempt ? `<p class="mention">${esc(t('sales.taxExemptMention'))}</p>` : '';
 
+  // CGV (au verso) + pied de facture configurables par société.
+  const { data: companyRow } = await supabase.from('companies').select('cgv_text, invoice_footer').eq('id', doc.company_id).maybeSingle();
+  const footerText = companyRow?.invoice_footer ? `<p class="footer-note">${esc(companyRow.invoice_footer)}</p>` : '';
+  const cgvPage = companyRow?.cgv_text
+    ? `<div style="page-break-before:always"><h3>Conditions générales de vente</h3><div style="font-size:10px;white-space:pre-wrap;color:#333">${esc(companyRow.cgv_text)}</div></div>`
+    : '';
+
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   * { box-sizing: border-box; }
@@ -95,6 +102,8 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     <tfoot>${totals}</tfoot>
   </table>
   ${exemptMention}
+  ${footerText}
+  ${cgvPage}
   <script>window.onload = function(){ window.print(); };</script>
 </body></html>`;
 

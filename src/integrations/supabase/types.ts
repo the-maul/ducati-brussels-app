@@ -955,6 +955,7 @@ export type Database = {
         Row: {
           address: string | null
           bic: string | null
+          cgv_text: string | null
           city: string | null
           code: string
           country: string | null
@@ -962,6 +963,7 @@ export type Database = {
           customer_account_default: string
           iban: string | null
           id: string
+          invoice_footer: string | null
           is_active: boolean
           legal_name: string | null
           name: string
@@ -976,6 +978,7 @@ export type Database = {
         Insert: {
           address?: string | null
           bic?: string | null
+          cgv_text?: string | null
           city?: string | null
           code: string
           country?: string | null
@@ -983,6 +986,7 @@ export type Database = {
           customer_account_default?: string
           iban?: string | null
           id?: string
+          invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
           name: string
@@ -997,6 +1001,7 @@ export type Database = {
         Update: {
           address?: string | null
           bic?: string | null
+          cgv_text?: string | null
           city?: string | null
           code?: string
           country?: string | null
@@ -1004,6 +1009,7 @@ export type Database = {
           customer_account_default?: string
           iban?: string | null
           id?: string
+          invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
           name?: string
@@ -1634,6 +1640,61 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_signatures: {
+        Row: {
+          company_id: string
+          document_id: string | null
+          id: string
+          repair_order_id: string | null
+          signature_data: string | null
+          signed_at: string
+          signed_ip: string | null
+          signer_name: string | null
+        }
+        Insert: {
+          company_id: string
+          document_id?: string | null
+          id?: string
+          repair_order_id?: string | null
+          signature_data?: string | null
+          signed_at?: string
+          signed_ip?: string | null
+          signer_name?: string | null
+        }
+        Update: {
+          company_id?: string
+          document_id?: string | null
+          id?: string
+          repair_order_id?: string | null
+          signature_data?: string | null
+          signed_at?: string
+          signed_ip?: string | null
+          signer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_signatures_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_signatures_repair_order_id_fkey"
+            columns: ["repair_order_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
             referencedColumns: ["id"]
           },
         ]
