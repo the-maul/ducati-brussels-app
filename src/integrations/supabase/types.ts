@@ -3132,6 +3132,13 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      web_order_public_status: {
+        Args: { _order: string }
+        Returns: {
+          number: string
+          status: string
+        }[]
+      }
       workshop_productivity: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {

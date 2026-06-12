@@ -30,6 +30,8 @@ function Storefront() {
   const [placing, setPlacing] = useState(false);
   const [orderMsg, setOrderMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Confirmation du paiement au retour de Stripe (?paid=1&order=… / ?canceled=1)
+  const [payState, setPayState] = useState<{ kind: 'confirming' | 'paid' | 'pending' | 'canceled'; number?: string } | null>(null);
 
   useEffect(() => {
     let on = true;
@@ -48,6 +50,28 @@ function Storefront() {
     })();
     return () => { on = false; };
   }, [slug]);
+
+  // Retour de paiement Stripe : on confirme le statut RÉEL de la commande (le webhook
+  // la passe « payée » côté serveur). On poll quelques secondes le temps qu'il s'exécute.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('canceled') === '1') { setPayState({ kind: 'canceled' }); return; }
+    const orderId = params.get('order');
+    if (params.get('paid') !== '1' || !orderId) return;
+    let on = true, tries = 0;
+    setPayState({ kind: 'confirming' });
+    const poll = async () => {
+      const { data } = await supabase.rpc('web_order_public_status', { _order: orderId });
+      const r = (Array.isArray(data) ? data[0] : data) as { number: string | null; status: string } | undefined;
+      if (!on) return;
+      if (r?.status === 'payee') { setPayState({ kind: 'paid', number: r.number ?? undefined }); return; }
+      if (++tries >= 6) { setPayState({ kind: 'pending', number: r?.number ?? undefined }); return; }
+      setTimeout(poll, 1500);
+    };
+    poll();
+    return () => { on = false; };
+  }, []);
 
   const total = useMemo(() => cart.reduce((acc, l) => acc + l.quantity * l.unit_price_ttc, 0), [cart]);
   const add = (p: ShopProduct) => setCart((c) => {
@@ -72,9 +96,26 @@ function Storefront() {
   if (found === false) return <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', color: '#666', fontFamily: 'Arial' }}>Boutique introuvable ou non publiée.</div>;
   if (!site) return <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', fontFamily: 'Arial' }}>Chargement…</div>;
 
+  const dismissPay = () => {
+    setPayState(null);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname);
+  };
+
   return (
     <div style={{ position: 'relative' }}>
       <SiteRenderer content={site} products={products} onAdd={add} siteName={siteName} pageSlug={pageSlug} onNavigate={setPageSlug} />
+      {/* Bannière de retour de paiement Stripe */}
+      {payState && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 100, fontFamily: 'Arial' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 380, maxWidth: '90vw', textAlign: 'center', boxShadow: '0 12px 40px rgba(0,0,0,.25)' }}>
+            {payState.kind === 'confirming' && (<><h2 style={{ margin: '0 0 8px' }}>Confirmation du paiement…</h2><p style={{ color: '#666', fontSize: 14 }}>Merci de patienter quelques instants.</p></>)}
+            {payState.kind === 'paid' && (<><div style={{ fontSize: 40 }}>✓</div><h2 style={{ margin: '8px 0' }}>Paiement confirmé</h2><p style={{ color: '#444', fontSize: 14 }}>Votre commande{payState.number ? ` ${payState.number}` : ''} est payée. Un e-mail de confirmation vous sera envoyé.</p></>)}
+            {payState.kind === 'pending' && (<><h2 style={{ margin: '8px 0' }}>Paiement en cours de confirmation</h2><p style={{ color: '#444', fontSize: 14 }}>Votre paiement a été reçu. La commande{payState.number ? ` ${payState.number}` : ''} sera confirmée sous peu.</p></>)}
+            {payState.kind === 'canceled' && (<><h2 style={{ margin: '8px 0' }}>Paiement annulé</h2><p style={{ color: '#444', fontSize: 14 }}>Votre commande n'a pas été réglée. Vous pouvez réessayer.</p></>)}
+            <button onClick={dismissPay} style={{ marginTop: 16, background: site.theme.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '9px 22px', cursor: 'pointer', fontSize: 14 }}>Fermer</button>
+          </div>
+        </div>
+      )}
       {/* Panier flottant */}
       {cart.length > 0 && (
         <aside style={{ position: 'fixed', right: 16, bottom: 16, width: 320, background: '#fff', border: '1px solid #ddd', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.15)', padding: 16, fontFamily: 'Arial', zIndex: 50 }}>
