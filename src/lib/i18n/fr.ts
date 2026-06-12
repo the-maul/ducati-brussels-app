@@ -546,6 +546,13 @@ export const fr = {
     sepaCollect: 'Remise SEPA (prélèvements)', sepaDueTo: 'Échéances jusqu\'au', sepaCollDate: 'Date de prélèvement',
     sepaGenerate: 'Générer pain.008', sepaNoCollect: 'Aucune facture à prélever (mandat + échéance).', sepaUnpaid: 'Impayé', sepaDue: 'Montant dû',
     sepaGenerated: 'fichier généré + encaissements enregistrés', sepaUnpaidOk: 'Facture remise en dû.',
+    // Clôture d'exercice
+    closure: 'Clôture d\'exercice', closureSub: 'Éditions pré-clôture (débiteurs, acomptes, effets) puis clôture archivante de la période.',
+    closureDebtors: 'Clients débiteurs', closureDeposits: 'Acomptes en cours', closureEffects: 'Effets / chèques à échéance',
+    closureAsOf: 'Arrêté au', closureDo: 'Clôturer la période', closureFrom: 'Période du', closureTo: 'au',
+    closureWarn: 'La clôture fige la période : plus aucun document ne pourra y être créé. Un arrêté de stock est archivé.',
+    closureDone: 'Période clôturée.', closureHistory: 'Clôtures réalisées', closureNb: 'facture(s)', closureNone: 'Aucune.',
+    colAmount: 'Montant', colDue: 'Dû', colMethod: 'Mode', colDueDate: 'Échéance', exportCsv: 'Exporter',
   },
 
   // CRM (M10)

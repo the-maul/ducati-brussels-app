@@ -44,6 +44,7 @@ function AccountingPage() {
         description={t('accounting.subtitle')}
         actions={<div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate({ to: '/accounting-sepa' })}>{t('accounting.sepa')}</Button>
+          <Button variant="outline" onClick={() => navigate({ to: '/accounting-closure' })}>{t('accounting.closure')}</Button>
           <Button variant="outline" onClick={() => gen.mutate()} disabled={gen.isPending || !journal.data?.length}>{gen.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('accounting.generate')}</Button>
           <Button onClick={() => wb.mutate()} disabled={wb.isPending || !journal.data?.length}>{wb.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('accounting.exportWinbooks')}</Button>
         </div>}

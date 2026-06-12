@@ -80,6 +80,38 @@ export async function listEntries(companyId: string, from: string, to: string): 
   }));
 }
 
+// ---- Clôture d'exercice + éditions pré-clôture (M12) ----
+export type DebtorRow = { contact_id: string; contact_name: string; invoices: number; total_due: number };
+export type DepositRow = { document_id: string; number: string | null; contact_name: string | null; deposit: number; issue_date: string };
+export type EffectRow = { payment_id: string; document_number: string | null; method: string; amount: number; due_date: string | null };
+
+export async function getDebtorsList(companyId: string, asOf: string): Promise<DebtorRow[]> {
+  const { data, error } = await supabase.rpc('debtors_list', { _company: companyId, _as_of: asOf });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, invoices: Number(r.invoices), total_due: Number(r.total_due) }));
+}
+export async function getPendingDeposits(companyId: string): Promise<DepositRow[]> {
+  const { data, error } = await supabase.rpc('pending_deposits', { _company: companyId });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, deposit: Number(r.deposit) }));
+}
+export async function getPendingEffects(companyId: string, to: string): Promise<EffectRow[]> {
+  const { data, error } = await supabase.rpc('pending_effects', { _company: companyId, _to: to });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, amount: Number(r.amount) }));
+}
+export async function closeFiscalYear(companyId: string, from: string, to: string, label?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('close_fiscal_year', { _company: companyId, _from: from, _to: to, _label: label ?? null });
+  if (error) throw error;
+  return data as string;
+}
+export type ClosureRow = Database['public']['Tables']['fiscal_closures']['Row'];
+export async function listClosures(companyId: string): Promise<ClosureRow[]> {
+  const { data, error } = await supabase.from('fiscal_closures').select('*').eq('company_id', companyId).order('period_to', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 // ---- TVA sur marge (VO) — B2 ----
 export type VoMarginRow = { sale_date: string; doc_number: string | null; document_id: string; vehicle_id: string | null; vin: string | null; designation: string; purchase_price: number; sale_ttc: number; margin: number; vat_margin: number; base_ht: number };
 export type VoMarginSummary = { count_vo: number; total_sale: number; total_margin: number; total_vat_margin: number; total_base: number };

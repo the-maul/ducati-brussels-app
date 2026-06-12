@@ -1634,6 +1634,54 @@ export type Database = {
           },
         ]
       }
+      fiscal_closures: {
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          company_id: string
+          id: string
+          label: string | null
+          period_from: string
+          period_to: string
+          snapshot_id: string | null
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          company_id: string
+          id?: string
+          label?: string | null
+          period_from: string
+          period_to: string
+          snapshot_id?: string | null
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          company_id?: string
+          id?: string
+          label?: string | null
+          period_from?: string
+          period_to?: string
+          snapshot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_closures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_closures_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_sessions: {
         Row: {
           closed_at: string | null
@@ -3258,6 +3306,10 @@ export type Database = {
         Args: { _company: string; _from: string; _to: string }
         Returns: Json
       }
+      close_fiscal_year: {
+        Args: { _company: string; _from: string; _label?: string; _to: string }
+        Returns: string
+      }
       contact_encours: {
         Args: { _contact: string }
         Returns: {
@@ -3279,6 +3331,15 @@ export type Database = {
         Returns: string
       }
       dashboard_kpis: { Args: { _company: string }; Returns: Json }
+      debtors_list: {
+        Args: { _as_of: string; _company: string }
+        Returns: {
+          contact_id: string
+          contact_name: string
+          invoices: number
+          total_due: number
+        }[]
+      }
       dormant_stock: {
         Args: { _company: string; _months?: number }
         Returns: {
@@ -3348,6 +3409,26 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      pending_deposits: {
+        Args: { _company: string }
+        Returns: {
+          contact_name: string
+          deposit: number
+          document_id: string
+          issue_date: string
+          number: string
+        }[]
+      }
+      pending_effects: {
+        Args: { _company: string; _to: string }
+        Returns: {
+          amount: number
+          document_number: string
+          due_date: string
+          method: string
+          payment_id: string
+        }[]
+      }
       place_web_order: {
         Args: {
           _address: string
