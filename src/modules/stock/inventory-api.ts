@@ -7,7 +7,37 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 export type InventorySession = Database['public']['Tables']['inventory_sessions']['Row'];
-export type ReadjustMode = 'annule_remplace' | 'cumul';
+export type ReadjustMode = 'annule_remplace' | 'cumul' | 'casier';
+
+/** Réajustement par CASIER à la volée (B6, 3e mode) : ajuste le stock d'un emplacement. */
+export async function recordBinCount(articleId: string, counted: number, bin: string): Promise<void> {
+  const { error } = await supabase.rpc('record_inventory_count', { _article: articleId, _counted: counted, _mode: 'casier', _bin: bin });
+  if (error) throw error;
+}
+
+/** Inventaire tournant : articles à recompter (priorité au plus ancien mouvement). */
+export type CycleCandidate = { article_id: string; reference: string; designation: string; bin_location: string | null; real_qty: number; last_move: string | null };
+export async function getCycleCandidates(companyId: string, category?: string, limit = 50): Promise<CycleCandidate[]> {
+  const { data, error } = await supabase.rpc('cycle_count_candidates', { _company: companyId, _category: category ?? null, _limit: limit });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, real_qty: Number(r.real_qty) }));
+}
+
+/** Étiquetage différé cumulable (B12) : ajoute une étiquette à la file du poste. */
+export async function enqueueLabel(articleId: string, qty?: number, withBarcode = true, withPrice = true): Promise<void> {
+  const { error } = await supabase.rpc('enqueue_label', { _article: articleId, _qty: qty ?? null, _barcode: withBarcode, _price: withPrice });
+  if (error) throw error;
+}
+export type LabelQueueRow = Database['public']['Tables']['label_queue']['Row'];
+export async function getLabelQueue(companyId: string): Promise<LabelQueueRow[]> {
+  const { data, error } = await supabase.from('label_queue').select('*').eq('company_id', companyId).eq('printed', false).order('created_at');
+  if (error) throw error;
+  return data ?? [];
+}
+export async function markLabelsPrinted(companyId: string): Promise<void> {
+  const { error } = await supabase.from('label_queue').update({ printed: true }).eq('company_id', companyId).eq('printed', false);
+  if (error) throw error;
+}
 
 export async function getOpenSession(companyId: string): Promise<InventorySession | null> {
   const { data, error } = await supabase

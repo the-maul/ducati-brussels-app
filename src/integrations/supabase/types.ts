@@ -1806,6 +1806,57 @@ export type Database = {
           },
         ]
       }
+      label_queue: {
+        Row: {
+          article_id: string
+          company_id: string
+          created_at: string
+          id: number
+          operator_id: string | null
+          printed: boolean
+          qty: number
+          with_barcode: boolean
+          with_price: boolean
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          created_at?: string
+          id?: never
+          operator_id?: string | null
+          printed?: boolean
+          qty?: number
+          with_barcode?: boolean
+          with_price?: boolean
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          created_at?: string
+          id?: never
+          operator_id?: string | null
+          printed?: boolean
+          qty?: number
+          with_barcode?: boolean
+          with_price?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_queue_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -3373,6 +3424,7 @@ export type Database = {
           supplier_id: string
         }[]
       }
+      bin_stock: { Args: { _article: string; _bin: string }; Returns: number }
       cash_z_report: {
         Args: { _company: string; _from: string; _to: string }
         Returns: Json
@@ -3401,6 +3453,17 @@ export type Database = {
         }
         Returns: string
       }
+      cycle_count_candidates: {
+        Args: { _category?: string; _company: string; _limit?: number }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          last_move: string
+          real_qty: number
+          reference: string
+        }[]
+      }
       dashboard_kpis: { Args: { _company: string }; Returns: Json }
       debtors_list: {
         Args: { _as_of: string; _company: string }
@@ -3421,6 +3484,15 @@ export type Database = {
           reference: string
           value_pamp: number
         }[]
+      }
+      enqueue_label: {
+        Args: {
+          _article: string
+          _barcode?: boolean
+          _price?: boolean
+          _qty?: number
+        }
+        Returns: number
       }
       finalize_web_order: {
         Args: { _method?: string; _order: string }
@@ -3575,6 +3647,42 @@ export type Database = {
           stock_min: number
           suggested_qty: number
           supplier_id: string
+        }[]
+      }
+      report_indicators: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          avg_basket: number
+          ca_ht: number
+          invoices: number
+          margin: number
+          margin_pct: number
+        }[]
+      }
+      report_period_compare: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          ca_ht: number
+          margin: number
+          period: string
+        }[]
+      }
+      report_sales_by: {
+        Args: { _company: string; _dim: string; _from: string; _to: string }
+        Returns: {
+          ca_ht: number
+          label: string
+          margin: number
+          qty: number
+        }[]
+      }
+      report_transformation: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: {
+          converted: number
+          created: number
+          doc_type: string
+          rate: number
         }[]
       }
       reset_real_stock: {
