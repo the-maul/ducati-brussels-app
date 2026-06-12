@@ -39,6 +39,144 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_mappings: {
+        Row: {
+          account_code: string
+          company_id: string
+          dimension: string
+          id: string
+          journal_code: string | null
+          match_key: string
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          company_id: string
+          dimension: string
+          id?: string
+          journal_code?: string | null
+          match_key?: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          company_id?: string
+          dimension?: string
+          id?: string
+          journal_code?: string | null
+          match_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          doc_number: string | null
+          doc_type: string | null
+          entry_date: string
+          id: string
+          journal_code: string
+          label: string | null
+          source: string
+          source_id: string
+          transferred_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type?: string | null
+          entry_date: string
+          id?: string
+          journal_code: string
+          label?: string | null
+          source: string
+          source_id: string
+          transferred_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type?: string | null
+          entry_date?: string
+          id?: string
+          journal_code?: string
+          label?: string | null
+          source?: string
+          source_id?: string
+          transferred_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_entry_lines: {
+        Row: {
+          account_code: string
+          account_label: string | null
+          analytic_code: string | null
+          auxiliary_code: string | null
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+          label: string | null
+          line_no: number
+          vat_rate: number | null
+        }
+        Insert: {
+          account_code: string
+          account_label?: string | null
+          analytic_code?: string | null
+          auxiliary_code?: string | null
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+          label?: string | null
+          line_no?: number
+          vat_rate?: number | null
+        }
+        Update: {
+          account_code?: string
+          account_label?: string | null
+          analytic_code?: string | null
+          auxiliary_code?: string | null
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+          label?: string | null
+          line_no?: number
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entry_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_exports: {
         Row: {
           company_id: string
@@ -642,6 +780,44 @@ export type Database = {
           },
         ]
       }
+      chart_of_accounts: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          label: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_price_rules: {
         Row: {
           company_id: string
@@ -875,6 +1051,7 @@ export type Database = {
       }
       contacts: {
         Row: {
+          account_code: string | null
           accounting_account: string | null
           address: string | null
           address_complement: string | null
@@ -941,6 +1118,7 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          account_code?: string | null
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null
@@ -1007,6 +1185,7 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          account_code?: string | null
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null
@@ -2881,6 +3060,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _account_label: {
+        Args: { _code: string; _company: string }
+        Returns: string
+      }
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -2963,6 +3146,22 @@ export type Database = {
       finalize_web_order: {
         Args: { _method?: string; _order: string }
         Returns: string
+      }
+      generate_accounting_entries: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: number
+      }
+      generate_auxiliary_accounts: {
+        Args: { _company: string }
+        Returns: number
+      }
+      generate_payment_entries: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: number
+      }
+      generate_sales_entries: {
+        Args: { _company: string; _from: string; _to: string }
+        Returns: number
       }
       generate_stock_snapshot: {
         Args: { _company: string; _kind?: string; _label: string }
@@ -3063,6 +3262,14 @@ export type Database = {
       reset_real_stock: {
         Args: { _company: string; _keep_vehicles?: boolean }
         Returns: number
+      }
+      resolve_account: {
+        Args: { _company: string; _dimension: string; _key: string }
+        Returns: string
+      }
+      resolve_journal: {
+        Args: { _company: string; _dimension: string; _key: string }
+        Returns: string
       }
       sales_journal: {
         Args: { _company: string; _from: string; _to: string }
