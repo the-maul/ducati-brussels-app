@@ -137,9 +137,11 @@ Légende : ✅ RÉEL · 🟡 PARTIEL · 🟠 SIMULÉ/STUB · ⛔ MANQUANT.
 | B11 productivité (3 étages) | 🟡 | présence + travail ✅ ; **temps facturé non rapproché** |
 | B12 étiquetage | ✅ | étiquette code-barres ✅ ; **file différée cumulable** (`label_queue`, 2026-06-12) |
 
-**Tests (règle 7)** : 39 tests, **tous sur fonctions pures** (PAMP, totaux, import, UBL, barcode). **Non couverts
-alors qu'exigés** : réservations, arrêté/réintégration inventaire, encours crédit, imputation ORO, TVA marge,
-**RLS**. Aucun test d'intégration DB.
+**Tests (règle 7)** : **44 tests** pure-fonctions verts (PAMP, totaux, import, UBL, barcode, **pain.008 SEPA**).
+Les règles critiques DB (réservations, arrêté/réintégration inventaire, encours, imputation ORO, **TVA marge**,
+finalize_web_order, **écritures équilibrées**, tarifs clients, SEPA, dépôt-vente, mode casier) ont été
+**vérifiées par POST réel** sur la vraie DB pendant le dev (2026-06-12, tracé dans les commits).
+🟡 Reste : harnais d'intégration DB **automatisé** (mutations contrôlées) + tests RLS automatisés.
 
 ---
 
@@ -267,9 +269,9 @@ Détail dans [`integrations-cles-api.md`](integrations-cles-api.md). Synthèse p
 13. ✅ **FAIT (2026-06-12)** Statistiques avancées : classement par dimension (marque/rayon/article/client/mois) + marge, comparaison N-1, panier moyen, taux de transformation. Testé par POST. 🟡 reste : 4 niveaux cumulés simultanés + cessions valorisées PV+PAMP.
 14. ✅ **FAIT (2026-06-12)** 3e mode inventaire (casier), inventaire tournant (candidats), étiquetage différé cumulable (B12). Backend + API testés ; câblage UI fin à finaliser.
 15. ✅ **Dépôt-vente + commission** FAIT (2026-06-12, testé POST). 🟡 reste : reprise au POS (REP), n° série au POS.
-16. Signature électronique + portails + modèles de documents + CGV verso.
-17. Tâches atelier hors-facturation, checklist opérations, planning taux de charge.
-18. Tests d'intégration (réservations, réintégration, ORO, encours, **RLS**).
+16. 🟡 **PARTIEL (2026-06-12)** : **CGV au verso** + pied de facture (champs société, imprimés) + **capacité signature** (table `document_signatures`) FAITS. Reste : UI capture signature (canvas), portails client, modèles de documents configurables.
+17. ✅ **FAIT (2026-06-12)** Tâches atelier hors-facturation, checklist opérations (20 seedées), planning taux de charge %. Backend testé ; câblage UI fin à finaliser.
+18. 🟡 **PARTIEL (2026-06-12)** : 44 tests pure-fonctions verts (+ pain.008) ; règles critiques DB vérifiées par POST réel. Reste : harnais d'intégration DB automatisé + tests RLS automatisés.
 
 ---
 
