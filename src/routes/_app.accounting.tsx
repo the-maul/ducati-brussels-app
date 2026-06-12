@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, FileDown, RefreshCw } from 'lucide-react';
@@ -20,6 +20,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function AccountingPage() {
   const { activeCompanyId } = useAuth();
+  const navigate = useNavigate();
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(today());
 
@@ -42,6 +43,7 @@ function AccountingPage() {
         title={t('accounting.title')}
         description={t('accounting.subtitle')}
         actions={<div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate({ to: '/accounting-sepa' })}>{t('accounting.sepa')}</Button>
           <Button variant="outline" onClick={() => gen.mutate()} disabled={gen.isPending || !journal.data?.length}>{gen.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('accounting.generate')}</Button>
           <Button onClick={() => wb.mutate()} disabled={wb.isPending || !journal.data?.length}>{wb.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('accounting.exportWinbooks')}</Button>
         </div>}

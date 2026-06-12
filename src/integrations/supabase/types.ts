@@ -954,6 +954,7 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          bic: string | null
           city: string | null
           code: string
           country: string | null
@@ -966,6 +967,7 @@ export type Database = {
           name: string
           peppol_id: string | null
           sales_account_default: string
+          sepa_creditor_id: string | null
           updated_at: string
           vat_account_default: string
           vat_number: string | null
@@ -973,6 +975,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          bic?: string | null
           city?: string | null
           code: string
           country?: string | null
@@ -985,6 +988,7 @@ export type Database = {
           name: string
           peppol_id?: string | null
           sales_account_default?: string
+          sepa_creditor_id?: string | null
           updated_at?: string
           vat_account_default?: string
           vat_number?: string | null
@@ -992,6 +996,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          bic?: string | null
           city?: string | null
           code?: string
           country?: string | null
@@ -1004,6 +1009,7 @@ export type Database = {
           name?: string
           peppol_id?: string | null
           sales_account_default?: string
+          sepa_creditor_id?: string | null
           updated_at?: string
           vat_account_default?: string
           vat_number?: string | null
@@ -2399,6 +2405,63 @@ export type Database = {
           },
         ]
       }
+      sepa_mandates: {
+        Row: {
+          bic: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          iban: string
+          id: string
+          mandate_ref: string
+          scheme: string
+          seq_type: string
+          signature_date: string
+          status: string
+        }
+        Insert: {
+          bic?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          iban: string
+          id?: string
+          mandate_ref: string
+          scheme?: string
+          seq_type?: string
+          signature_date?: string
+          status?: string
+        }
+        Update: {
+          bic?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          iban?: string
+          id?: string
+          mandate_ref?: string
+          scheme?: string
+          seq_type?: string
+          signature_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sepa_mandates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sepa_mandates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_settings: {
         Row: {
           address: string | null
@@ -3130,9 +3193,16 @@ export type Database = {
         Args: { _code: string; _company: string }
         Returns: string
       }
+      _cron_dormant_alert: { Args: never; Returns: undefined }
+      _cron_maybe_stock_copy: { Args: never; Returns: undefined }
+      _cron_stock_copies: { Args: never; Returns: number }
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      _recompute_paid_unchecked: {
+        Args: { _document: string }
+        Returns: undefined
       }
       article_stock: {
         Args: { _article: string }
@@ -3209,6 +3279,17 @@ export type Database = {
         Returns: string
       }
       dashboard_kpis: { Args: { _company: string }; Returns: Json }
+      dormant_stock: {
+        Args: { _company: string; _months?: number }
+        Returns: {
+          article_id: string
+          designation: string
+          last_move: string
+          real_qty: number
+          reference: string
+          value_pamp: number
+        }[]
+      }
       finalize_web_order: {
         Args: { _method?: string; _order: string }
         Returns: string
@@ -3306,6 +3387,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_sepa_collection: {
+        Args: { _amount: number; _document: string }
+        Returns: undefined
+      }
+      record_sepa_unpaid: {
+        Args: { _amount: number; _document: string }
+        Returns: undefined
+      }
       record_stock_move: {
         Args: {
           _article: string
@@ -3359,6 +3448,22 @@ export type Database = {
           total_ht: number
           total_ttc: number
           total_vat: number
+        }[]
+      }
+      sepa_collectable: {
+        Args: { _company: string; _due_to: string }
+        Returns: {
+          amount_due: number
+          bic: string
+          contact_id: string
+          contact_name: string
+          document_id: string
+          due_date: string
+          iban: string
+          mandate_ref: string
+          number: string
+          seq_type: string
+          signature_date: string
         }[]
       }
       shop_public_catalog: {

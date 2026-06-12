@@ -539,6 +539,13 @@ export const fr = {
     voRegister: 'Registre TVA sur marge (occasions)', voHint: 'Occasions type O (rachat à un particulier) : TVA sur la marge (PV − PA), art. 58 §4 CTVA. Registre de comparaison obligatoire.',
     voEmpty: 'Aucune vente d\'occasion (type O) sur la période.', voExport: 'Exporter le registre', voAttest: 'Attestation',
     voVin: 'VIN', voPa: 'Prix achat', voPv: 'Prix vente TTC', voMargin: 'Marge', voBase: 'Base imposable', voVat: 'TVA marge', voCount: 'véhicule(s)',
+    // Domiciliation SEPA (pain.008)
+    sepa: 'Domiciliations SEPA', sepaSub: 'Mandats de prélèvement + remise bancaire (pain.008) + impayés.',
+    sepaMandates: 'Mandats SEPA', sepaAddMandate: 'Nouveau mandat', sepaContact: 'Client', sepaRum: 'Référence mandat (RUM)',
+    sepaIban: 'IBAN', sepaBic: 'BIC', sepaSignDate: 'Date de signature', sepaSeq: 'Type', sepaSave: 'Enregistrer le mandat', sepaNoMandate: 'Aucun mandat.',
+    sepaCollect: 'Remise SEPA (prélèvements)', sepaDueTo: 'Échéances jusqu\'au', sepaCollDate: 'Date de prélèvement',
+    sepaGenerate: 'Générer pain.008', sepaNoCollect: 'Aucune facture à prélever (mandat + échéance).', sepaUnpaid: 'Impayé', sepaDue: 'Montant dû',
+    sepaGenerated: 'fichier généré + encaissements enregistrés', sepaUnpaidOk: 'Facture remise en dû.',
   },
 
   // CRM (M10)
