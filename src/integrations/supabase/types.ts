@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -412,6 +412,7 @@ export type Database = {
         Row: {
           bin_location: string | null
           brand: string | null
+          catalog_url: string | null
           category_id: string | null
           category_path: string | null
           coefficient: number | null
@@ -467,6 +468,7 @@ export type Database = {
         Insert: {
           bin_location?: string | null
           brand?: string | null
+          catalog_url?: string | null
           category_id?: string | null
           category_path?: string | null
           coefficient?: number | null
@@ -522,6 +524,7 @@ export type Database = {
         Update: {
           bin_location?: string | null
           brand?: string | null
+          catalog_url?: string | null
           category_id?: string | null
           category_path?: string | null
           coefficient?: number | null

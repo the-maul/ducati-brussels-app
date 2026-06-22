@@ -8,7 +8,7 @@ import { ArticleForm } from '@/modules/articles/article-form';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
-import { Tags } from 'lucide-react';
+import { Tags, BookOpen } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -58,7 +58,14 @@ function EditArticle() {
       <PageHeader
         title={article.designation}
         description={article.reference}
-        actions={<Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: article.sale_price_ttc, withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => window.open(article.catalog_url || 'https://e-catalog.ducati.com/EPC/?lang=fr-FR', '_blank', 'noopener')} title={article.catalog_url ? undefined : t('articles.catalogUrlHint')}>
+              <BookOpen /> {t('articles.openCatalog')}
+            </Button>
+            <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: article.sale_price_ttc, withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
+          </>
+        }
       />
       <Tabs defaultValue="fiche">
         <TabsList>

@@ -45,6 +45,7 @@ type FormState = {
   weight_volume_length: string;
   measure_unit: string;
   supplier_ref: string;
+  catalog_url: string;
   bin_location: string;
   pack_qty: string;
   stock_min: string;
@@ -85,6 +86,7 @@ function fromArticle(a: Article | null): FormState {
     weight_volume_length: s(a?.weight_volume_length),
     measure_unit: a?.measure_unit ?? '',
     supplier_ref: a?.supplier_ref ?? '',
+    catalog_url: a?.catalog_url ?? '',
     bin_location: a?.bin_location ?? '',
     pack_qty: a ? s(a.pack_qty) : '1',
     stock_min: a ? s(a.stock_min) : '0',
@@ -130,6 +132,7 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     weight_volume_length: nnum(f.weight_volume_length),
     measure_unit: nn(f.measure_unit),
     supplier_ref: nn(f.supplier_ref),
+    catalog_url: nn(f.catalog_url),
     bin_location: nn(f.bin_location),
     pack_qty: num(f.pack_qty, 1),
     stock_min: num(f.stock_min),
@@ -279,6 +282,10 @@ export function ArticleForm({
       <Section title={t('articles.secSupplier')}>
         <Field label={t('articles.supplierRef')}>
           <Input value={f.supplier_ref} onChange={(e) => set('supplier_ref', e.target.value)} className="font-mono" />
+        </Field>
+        <Field label={t('articles.catalogUrl')} wide>
+          <Input value={f.catalog_url} onChange={(e) => set('catalog_url', e.target.value)} type="url"
+            placeholder="https://e-catalog.ducati.com/EPC/parts/…?lang=fr-FR" />
         </Field>
         <Field label={t('articles.binLocation')}>
           <Input value={f.bin_location} onChange={(e) => set('bin_location', e.target.value)} className="font-mono" />
