@@ -1,15 +1,17 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { listContactsPaged, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
+
+const PAGE_SIZES = [25, 50, 100, 200];
 
 export const Route = createFileRoute('/_app/clients/')({
   head: () => ({ meta: [{ title: 'Clients — Ducati Bruxelles' }] }),
@@ -22,17 +24,26 @@ function ClientsList() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(id);
   }, [search]);
+  // Revenir à la 1re page quand le filtre/recherche/taille change
+  useEffect(() => { setPage(0); }, [debounced, typeFilter, pageSize]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['contacts', activeCompanyId, debounced, typeFilter],
-    queryFn: () => listContacts(activeCompanyId!, debounced, typeFilter === 'all' ? undefined : typeFilter),
+    queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize],
+    queryFn: () => listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize }),
     enabled: !!activeCompanyId,
   });
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : page * pageSize + 1;
+  const to = Math.min(total, (page + 1) * pageSize);
 
   return (
     <>
@@ -69,7 +80,11 @@ function ClientsList() {
             <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
           </SelectContent>
         </Select>
-        {data && <span className="text-sm text-muted-foreground">{data.length}</span>}
+        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+          <SelectContent>{PAGE_SIZES.map((n) => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}</SelectContent>
+        </Select>
+        {data && <span className="text-sm tabular-nums text-muted-foreground">{from}–{to} / {total}</span>}
       </div>
 
       {error && (
@@ -96,10 +111,10 @@ function ClientsList() {
                 <Loader2 className="mx-auto size-5 animate-spin" />
               </td></tr>
             )}
-            {data && data.length === 0 && (
+            {data && rows.length === 0 && (
               <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('contacts.empty')}</td></tr>
             )}
-            {data?.map((c) => (
+            {rows.map((c) => (
               <tr
                 key={c.id}
                 onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })}
@@ -114,6 +129,13 @@ function ClientsList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-3 flex items-center justify-end gap-3 text-[13px]">
+        <span className="tabular-nums text-muted-foreground">{t('contacts.page')} {page + 1} / {pageCount}</span>
+        <Button variant="outline" size="sm" disabled={page <= 0 || isLoading} onClick={() => setPage((p) => Math.max(0, p - 1))}><ChevronLeft className="size-4" /></Button>
+        <Button variant="outline" size="sm" disabled={page >= pageCount - 1 || isLoading} onClick={() => setPage((p) => p + 1)}><ChevronRight className="size-4" /></Button>
       </div>
     </>
   );

@@ -38,6 +38,7 @@ export function EncoursBar({ contactId }: { contactId: string }) {
 
 /* ---------------- Documents ---------------- */
 export function DocumentsTab({ contactId }: { contactId: string }) {
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({ queryKey: ['client-docs', contactId], queryFn: () => listContactDocuments(contactId) });
   if (isLoading) return <Spinner />;
   if (!data || data.length === 0) return <Empty>Aucun document.</Empty>;
@@ -47,8 +48,8 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
         <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th></tr></thead>
         <tbody>
           {data.map((d) => (
-            <tr key={d.id} className="border-b border-border last:border-0">
-              <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
+            <tr key={d.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}>
+              <td className="px-3 py-2 font-mono text-[12px] text-info underline">{d.number ?? '—'}</td>
               <td className="px-3 py-2">{d.doc_type}</td>
               <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
               <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>

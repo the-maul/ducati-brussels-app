@@ -29,6 +29,7 @@ export const fr = {
     accounting: 'Comptabilité',
     settings: 'Paramètres',
     demo: 'Charte (démo)',
+    more: 'Menu',
   },
 
   // Actions courantes
@@ -378,6 +379,7 @@ export const fr = {
     colCity: 'Ville',
     colContact: 'Contact',
     colFlags: 'Drapeaux',
+    page: 'Page',
     // erreurs
     errLoad: 'Chargement impossible.',
     errSave: 'Enregistrement impossible.',
@@ -434,7 +436,7 @@ export const fr = {
     status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée', status_converti: 'Converti',
     convertTo: 'Convertir en', convert: 'Convertir', creditNote: 'Générer un avoir', print: 'Imprimer',
     // en-tête éditeur
-    type: 'Type', client: 'Client', clientPlaceholder: 'Client…',
+    type: 'Type', client: 'Client', clientPlaceholder: 'Client…', legacyClient: 'Client G8',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
     type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
     type_RES: 'Réservation', type_AVO: 'Avoir',

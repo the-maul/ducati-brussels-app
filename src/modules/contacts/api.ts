@@ -52,6 +52,33 @@ export async function listContacts(companyId: string, search?: string, type?: st
   return data ?? [];
 }
 
+export type ContactPage = { rows: Contact[]; total: number };
+/** Liste paginée des contacts (range + count exact) — pour l'écran liste. */
+export async function listContactsPaged(
+  companyId: string,
+  opts: { search?: string; type?: string; page?: number; pageSize?: number } = {},
+): Promise<ContactPage> {
+  const page = opts.page ?? 0;
+  const pageSize = opts.pageSize ?? 50;
+  let q = supabase
+    .from('contacts')
+    .select('*', { count: 'exact' })
+    .eq('company_id', companyId)
+    .order('last_name', { ascending: true, nullsFirst: false });
+  if (opts.type) q = q.eq('type', opts.type);
+  const s = opts.search ? sanitize(opts.search) : '';
+  if (s) {
+    q = q.or([
+      `last_name.ilike.%${s}%`, `first_name.ilike.%${s}%`, `company_name.ilike.%${s}%`,
+      `email.ilike.%${s}%`, `vat_number.ilike.%${s}%`, `city.ilike.%${s}%`, `legacy_code.eq.${s}`,
+    ].join(','));
+  }
+  q = q.range(page * pageSize, page * pageSize + pageSize - 1);
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
+}
+
 export async function getContact(id: string): Promise<Contact | null> {
   const { data, error } = await supabase.from('contacts').select('*').eq('id', id).maybeSingle();
   if (error) throw error;

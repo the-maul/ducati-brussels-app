@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
+import { getContact, contactDisplayName } from '@/modules/contacts/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
@@ -26,6 +27,8 @@ function DocumentView() {
   const navigate = useNavigate();
   const { companies } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
+  const contactId = data?.doc.contact_id ?? null;
+  const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
   const convert = useMutation({
     mutationFn: (target: string) => convertDocument(documentId, target),
     onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
@@ -80,6 +83,19 @@ function DocumentView() {
           </div>
         )}
       </div>
+
+      {(contactId || doc.code_client_legacy) && (
+        <div className="mb-4 text-[13px]">
+          <span className="text-muted-foreground">{t('sales.client')} : </span>
+          {contactId ? (
+            <button className="font-medium text-info underline" onClick={() => navigate({ to: '/clients/$contactId', params: { contactId } })}>
+              {contactQ.data ? contactDisplayName(contactQ.data) : '…'}
+            </button>
+          ) : (
+            <span className="font-medium">{t('sales.legacyClient')} #{doc.code_client_legacy}</span>
+          )}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
