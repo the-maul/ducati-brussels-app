@@ -13,7 +13,7 @@ Usage (PowerShell) :
 
 Idempotent : n'insère que les enregistrements dont la clé legacy n'existe pas déjà.
 """
-import os, sys, re, json, zipfile, datetime, urllib.request, urllib.parse
+import os, sys, re, json, glob, zipfile, datetime, urllib.request, urllib.parse
 from xml.etree import ElementTree as ET
 
 REF = "ujmrosbgkvgvwfnuryna"
@@ -226,9 +226,53 @@ def import_factures(apply, which="both"):
     if apply and docs: insert_batches("documents", docs)
     elif not apply: print("  (dry-run)")
 
+def _b(v): return str(v).strip().lower() in ('1','oui','true','vrai','x','yes')
+PARTIC_CIV = {'MR','MME','MLLE','M','M.','MR ET MME','MME ET MR','MR.','MELLE',''}
+def import_clients(apply):
+    cid = company_italbike()
+    src_files = sorted(glob.glob(os.path.join(INFO, "Liste des clients*.xlsx")))
+    if not src_files: die("Fichier 'Liste des clients*.xlsx' introuvable dans Info DB")
+    src = rows_as_dicts(src_files[-1])
+    existing = {c["legacy_code"] for c in get_all(f"contacts?select=legacy_code&company_id=eq.{cid}&imported_from=eq.G8&type=neq.fournisseur&legacy_code=not.is.null")}
+    rows = []
+    for r in src:
+        code = (r.get("Code") or "").strip()
+        if not code or code in existing: continue
+        g = lambda k: (r.get(k) or "").strip()
+        vat = re.sub(r"[.\s]", "", g("Identification TVA")) or None
+        civ = g("Civilité"); nom = g("Nom"); prenom = g("Prénom")
+        is_pro = bool(vat) or (civ.upper() not in PARTIC_CIV)
+        rows.append({
+            "company_id": cid, "type": ("professionnel" if is_pro else "particulier"),
+            "legacy_code": code, "notes": ("Statut G8 : " + g("Statut")) if g("Statut") else None,
+            "civility": civ or None, "last_name": nom or None, "first_name": prenom or None,
+            "company_name": nom if is_pro else None,
+            "street_number": g("N° de rue") or None, "address": g("Rue") or None,
+            "address_complement": g("Complément d'adresse") or None,
+            "address_complement2": g("Complément d'adresse (2)") or None,
+            "po_box": g("Boîte postale") or None,
+            "zip": g("Code postal") or None, "city": g("Ville") or None, "country": iso_country(g("Pays")),
+            "phone": g("Téléphone") or None, "mobile": g("Portable") or None,
+            "phone_pro": g("Téléphone pro.") or None, "mobile_pro": g("Portable pro.") or None,
+            "email": g("E-mail") or None, "email_pro": g("E-mail pro.") or None,
+            "price_list": g("Tarif") or None, "category": g("Catégorie") or None,
+            "payment_terms": g("Conditions de reglement") or None,
+            "birth_date": xl_date(g("Date de Naissance")),
+            "opening_balance": num(g("Solde")) or 0,
+            "account_code": g("Compte comptable") or None, "dou": g("Dou") or None,
+            "delivery_address": g("Adresse de livraison") or None,
+            "address_mismatch": _b(g("N.P.A.I.")), "vat_number": vat,
+            "is_watch": _b(g("À Surveiller")), "is_blocked": _b(g("Bloqué")),
+            "imported_from": "G8",
+        })
+    print(f"CLIENTS: {len(src)} lus, {len(existing)} déjà importés, {len(rows)} nouveaux.")
+    if rows[:1]: print("  exemple:", json.dumps({k:v for k,v in rows[0].items() if v}, ensure_ascii=False)[:320])
+    if apply and rows: insert_batches("contacts", rows)
+    elif not apply: print("  (dry-run)")
+
 def main():
     if len(sys.argv) < 2: die("usage: import_g8.py [fournisseurs|vehicules|factures|clients] [--apply]")
     cmd = sys.argv[1]; apply = "--apply" in sys.argv
-    {"fournisseurs": import_fournisseurs, "vehicules": import_vehicules, "factures": import_factures}.get(cmd, lambda a: die("commande inconnue: "+cmd))(apply)
+    {"fournisseurs": import_fournisseurs, "vehicules": import_vehicules, "factures": import_factures, "clients": import_clients}.get(cmd, lambda a: die("commande inconnue: "+cmd))(apply)
 
 if __name__ == "__main__": main()
