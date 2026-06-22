@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { listCommunications, addCommunication, sendEmailViaOutlook } from './api';
 import { getContact } from '@/modules/contacts/api';
+import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 
 const ICON: Record<string, typeof Mail> = { email: Mail, sms: MessageSquare, call: Phone, note: StickyNote };
@@ -35,7 +36,14 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   });
   // Envoi réel depuis Outlook (journalisé côté serveur) — visible quand le canal = e-mail.
   const send = useMutation({
-    mutationFn: () => sendEmailViaOutlook({ companyId, contactId, to, subject, body }),
+    mutationFn: async () => {
+      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body });
+      if (r.error) return r;
+      // déclenche la relève pour journaliser le mail envoyé tout de suite (best-effort)
+      await new Promise((res) => setTimeout(res, 2500));
+      try { await supabase.functions.invoke('outlook-poll', { body: {} }); } catch { /* le cron le fera */ }
+      return r;
+    },
     onSuccess: (r) => {
       if (r.error) { setSendMsg(errLabel(r.error)); return; }
       setSendMsg(t('crm.emailSent')); setSubject(''); setBody('');

@@ -1,10 +1,9 @@
 // M10 — Edge Function : envoyer un e-mail DEPUIS la boîte Outlook de la société
-// (Microsoft Graph), et le journaliser instantanément sur la fiche du contact (sortant).
-// Anti-doublon : on crée un brouillon (→ id), on journalise avec cet id, puis on envoie ;
-// la relève Sent Items reconnaîtra ce même id (idempotence) et ne le re-créera pas.
+// (Microsoft Graph /sendMail). Le mail est sauvé dans "Éléments envoyés" ; la relève
+// (outlook-poll) le journalise ensuite sur la fiche du contact (sortant), sans doublon.
 //
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
-//   (app Azure avec permissions APPLICATION Mail.ReadWrite + Mail.Send).
+//   (app Azure, permission APPLICATION **Mail.Send** uniquement — pas d'écriture).
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
@@ -36,21 +35,15 @@ Deno.serve(async (req) => {
   if (!mailbox) return J({ error: 'no_mailbox' }, 400);
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);
-  const H = { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' };
 
-  // 1) brouillon (récupère l'id pour l'anti-doublon)
-  const draftRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/messages`, {
-    method: 'POST', headers: H,
-    body: JSON.stringify({ subject, body: { contentType: 'HTML', content: String(body || '').replace(/\n/g, '<br>') }, toRecipients: [{ emailAddress: { address: to } }] }),
+  // Envoi simple (Mail.Send) — sauvegardé dans Éléments envoyés ; la relève le journalisera.
+  const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
+    method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: { subject, body: { contentType: 'HTML', content: String(body || '').replace(/\n/g, '<br>') }, toRecipients: [{ emailAddress: { address: to } }] },
+      saveToSentItems: true,
+    }),
   });
-  if (!draftRes.ok) return J({ error: 'draft_failed', detail: (await draftRes.text()).slice(0, 200) }, 502);
-  const draft = await draftRes.json();
-
-  // 2) journalise tout de suite (sortant) avec l'id du message
-  await db('rpc/ingest_email', { method: 'POST', body: JSON.stringify({ _company: companyId, _direction: 'out', _match_email: to, _display_from: mailbox, _subject: subject, _body: String(body || '').slice(0, 4000), _received: new Date().toISOString(), _external_id: draft.id }) });
-
-  // 3) envoie le brouillon
-  const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/messages/${draft.id}/send`, { method: 'POST', headers: H });
   if (!sendRes.ok) return J({ error: 'send_failed', detail: (await sendRes.text()).slice(0, 200) }, 502);
-  return J({ ok: true, message_id: draft.id });
+  return J({ ok: true });
 });
