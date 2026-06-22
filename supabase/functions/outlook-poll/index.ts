@@ -75,15 +75,17 @@ Deno.serve(async () => {
         const row = Array.isArray(ing) ? ing[0] : ing;
         if (!row?.matched || !row?.contact_id) continue;
         logged++;
-        if (m.hasAttachments) {
-          const at = await G(tok, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
-          if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
-            const ctype = String(a.contentType || '');
-            if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
-              const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
-              await gedUpload(co.id, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
-              photos++;
-            }
+        // On récupère TOUJOURS les pièces des mails matchés : les images COLLÉES dans
+        // le corps sont des pièces "inline" et ne déclenchent pas toujours hasAttachments.
+        const at = await G(tok, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
+        if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
+          const ctype = String(a.contentType || '');
+          if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
+            const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
+            // Ignore les petites images inline = logos/espaceurs de signature (pas de vraies photos).
+            if (a.isInline === true && bin.length < 30000) continue;
+            await gedUpload(co.id, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
+            photos++;
           }
         }
       } catch (e) { errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`); }
