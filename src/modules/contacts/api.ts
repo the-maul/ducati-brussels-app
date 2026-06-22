@@ -19,37 +19,13 @@ export function contactDisplayName(c: Pick<Contact, 'company_name' | 'first_name
   return [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
 }
 
-// Neutralise les caractères qui casseraient un filtre PostgREST .or()
-function sanitize(term: string): string {
-  return term.replace(/[,()%*]/g, ' ').trim();
-}
-
+/** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
 export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
-  let q = supabase
-    .from('contacts')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('last_name', { ascending: true, nullsFirst: false })
-    .limit(500);
-
-  if (type) q = q.eq('type', type);
-
-  const s = search ? sanitize(search) : '';
-  if (s) {
-    q = q.or(
-      [
-        `last_name.ilike.%${s}%`,
-        `first_name.ilike.%${s}%`,
-        `company_name.ilike.%${s}%`,
-        `email.ilike.%${s}%`,
-        `vat_number.ilike.%${s}%`,
-        `city.ilike.%${s}%`,
-      ].join(','),
-    );
-  }
-  const { data, error } = await q;
+  const { data, error } = await supabase.rpc('contacts_search', {
+    _company: companyId, _q: search ?? '', _type: type ?? null, _limit: 500, _offset: 0,
+  });
   if (error) throw error;
-  return data ?? [];
+  return (data as Contact[]) ?? [];
 }
 
 export type ContactPage = { rows: Contact[]; total: number };
@@ -60,23 +36,14 @@ export async function listContactsPaged(
 ): Promise<ContactPage> {
   const page = opts.page ?? 0;
   const pageSize = opts.pageSize ?? 50;
-  let q = supabase
-    .from('contacts')
-    .select('*', { count: 'exact' })
-    .eq('company_id', companyId)
-    .order('last_name', { ascending: true, nullsFirst: false });
-  if (opts.type) q = q.eq('type', opts.type);
-  const s = opts.search ? sanitize(opts.search) : '';
-  if (s) {
-    q = q.or([
-      `last_name.ilike.%${s}%`, `first_name.ilike.%${s}%`, `company_name.ilike.%${s}%`,
-      `email.ilike.%${s}%`, `vat_number.ilike.%${s}%`, `city.ilike.%${s}%`, `legacy_code.eq.${s}`,
-    ].join(','));
-  }
-  q = q.range(page * pageSize, page * pageSize + pageSize - 1);
-  const { data, error, count } = await q;
+  const args = { _company: companyId, _q: opts.search ?? '', _type: opts.type ?? null };
+  const [{ data, error }, { data: total, error: ce }] = await Promise.all([
+    supabase.rpc('contacts_search', { ...args, _limit: pageSize, _offset: page * pageSize }),
+    supabase.rpc('contacts_search_count', args),
+  ]);
   if (error) throw error;
-  return { rows: data ?? [], total: count ?? 0 };
+  if (ce) throw ce;
+  return { rows: (data as Contact[]) ?? [], total: Number(total ?? 0) };
 }
 
 export async function getContact(id: string): Promise<Contact | null> {
