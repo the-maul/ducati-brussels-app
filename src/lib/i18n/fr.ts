@@ -605,6 +605,7 @@ export const fr = {
     direction: 'Sens', dir_in: 'Entrant', dir_out: 'Sortant', subject: 'Objet', body: 'Détail', logComm: 'Journaliser (sans envoi)', noComm: 'Aucune communication enregistrée.',
     to: 'Destinataire', sendEmail: 'Envoyer par Outlook', emailSent: 'E-mail envoyé depuis Outlook ✓', emailNotConfigured: 'Envoi Outlook non configuré (clés Microsoft Graph à poser).',
     attach: 'Joindre des fichiers', bodyPlaceholder: 'Rédigez votre message…',
+    fromClientDocs: 'Documents du client', noClientDocs: 'Aucun document pour ce client.',
     // Carte lead détaillée
     details: 'Détails', edit: 'Éditer', save: 'Enregistrer', saved: 'Enregistré', del: 'Supprimer', confirmDel: 'Supprimer ce lead ?',
     activity: 'Activité', addNote: 'Ajouter', notePlaceholder: 'Note, appel, e-mail…', documents: 'Documents', noActivity: 'Aucune activité.',
@@ -617,7 +618,8 @@ export const fr = {
     label: 'Libellé (ex. avant atelier)',
     empty: 'Aucun document joint.', colFile: 'Fichier', colLabel: 'Libellé', colSize: 'Taille', colDate: 'Date', errUpload: 'Upload impossible.',
     allFolders: 'Tous', rootFolder: 'Racine', newFolder: 'Nouveau dossier', newFolderName: 'Nom du dossier', folder: 'Dossier',
-    dragHint: 'Glissez un fichier sur un dossier pour le classer.',
+    dragHint: 'Glissez un fichier sur un dossier pour le classer, ou déposez un fichier ici pour l\'ajouter.',
+    rename: 'Renommer', renamePrompt: 'Nouveau nom du fichier', dropHere: 'Déposez vos fichiers ici pour les ajouter',
   },
 
   // Atelier (M8)

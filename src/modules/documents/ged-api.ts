@@ -35,6 +35,12 @@ export async function moveAttachment(id: string, folder: string | null): Promise
   if (error) throw error;
 }
 
+/** Renomme une pièce (libellé affiché ; le chemin de stockage est conservé). */
+export async function renameAttachment(id: string, name: string): Promise<void> {
+  const { error } = await supabase.from('attachments').update({ file_name: name }).eq('id', id);
+  if (error) throw error;
+}
+
 /** URL signée publique-temporaire pour un aperçu inline (vignette). */
 export async function signedThumb(path: string): Promise<string | null> {
   return signedUrl(path);

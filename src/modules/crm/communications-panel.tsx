@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X } from 'lucide-react';
+import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X, Folder } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RichEditor } from '@/components/rich-editor';
 import { listCommunications, addCommunication, sendEmailViaOutlook, type MailAttachment } from './api';
 import { getContact } from '@/modules/contacts/api';
+import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
 import { supabase } from '@/integrations/supabase/client';
 
 const readBase64 = (file: File) => new Promise<string>((resolve, reject) => {
@@ -66,6 +67,15 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
     for (const f of Array.from(files)) added.push({ name: f.name, contentType: f.type || 'application/octet-stream', contentBytes: await readBase64(f) });
     setAtts((a) => [...a, ...added]);
   };
+  // Choisir une pièce parmi les documents du client (GED)
+  const [showDocs, setShowDocs] = useState(false);
+  const docsQ = useQuery({ queryKey: ['ged-pick', contactId], queryFn: () => listAttachments('contact', contactId), enabled: showDocs });
+  const addFromGed = async (id: string, name: string, ctype: string | null, path: string) => {
+    const url = await signedUrl(path); if (!url) return;
+    const blob = await (await fetch(url)).blob();
+    const b64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.readAsDataURL(blob); });
+    setAtts((a) => [...a, { name, contentType: ctype || 'application/octet-stream', contentBytes: b64 }]);
+  };
   const attTotalKo = Math.round(atts.reduce((s, a) => s + a.contentBytes.length * 0.75, 0) / 1024);
   const errLabel = (code: string) => code === 'graph_not_configured' ? t('crm.emailNotConfigured') : code;
 
@@ -96,13 +106,28 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
         {/* Pièces jointes (e-mail) */}
         {channel === 'email' && (
           <div className="w-full space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] hover:bg-accent">
                 <Paperclip className="size-3.5" /> {t('crm.attach')}
                 <input type="file" multiple className="hidden" onChange={(e) => { onPickFiles(e.target.files); e.target.value = ''; }} />
               </label>
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowDocs((s) => !s)}><Folder className="size-3.5" /> {t('crm.fromClientDocs')}</Button>
               {atts.length > 0 && <span className="text-[11px] text-muted-foreground">{atts.length} fichier(s) · {attTotalKo} Ko</span>}
             </div>
+            {showDocs && (
+              <div className="max-h-44 overflow-auto rounded-md border border-border p-2">
+                {docsQ.isLoading && <Loader2 className="mx-auto size-4 animate-spin text-muted-foreground" />}
+                {docsQ.data && docsQ.data.length === 0 && <p className="text-[12px] text-muted-foreground">{t('crm.noClientDocs')}</p>}
+                {docsQ.data?.map((d) => (
+                  <button key={d.id} type="button" onClick={() => addFromGed(d.id, d.file_name, d.content_type, d.storage_path)}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[12px] hover:bg-accent">
+                    <Paperclip className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 truncate">{d.file_name}</span>
+                    {d.folder && <span className="rounded bg-muted px-1.5 text-[10px] text-muted-foreground">{d.folder}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
             {atts.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {atts.map((a, i) => (
