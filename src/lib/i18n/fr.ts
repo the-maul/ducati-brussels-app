@@ -616,6 +616,8 @@ export const fr = {
     title: 'Documents & photos', upload: 'Ajouter (photo / fichier)', hint: 'Photos (caméra sur mobile), COC, pièce d\'identité, justificatifs…',
     label: 'Libellé (ex. avant atelier)',
     empty: 'Aucun document joint.', colFile: 'Fichier', colLabel: 'Libellé', colSize: 'Taille', colDate: 'Date', errUpload: 'Upload impossible.',
+    allFolders: 'Tous', rootFolder: 'Racine', newFolder: 'Nouveau dossier', newFolderName: 'Nom du dossier', folder: 'Dossier',
+    dragHint: 'Glissez un fichier sur un dossier pour le classer.',
   },
 
   // Atelier (M8)

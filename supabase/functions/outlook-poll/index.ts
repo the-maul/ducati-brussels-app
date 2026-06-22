@@ -33,13 +33,24 @@ async function graphToken(): Promise<string | null> {
 }
 const G = (tok: string, path: string) => fetch(`https://graph.microsoft.com/v1.0${path}`, { headers: { Authorization: `Bearer ${tok}` } });
 
-// upload un fichier (octets) en GED bucket privé + ligne attachments.
-async function gedUpload(companyId: string, contactId: string, name: string, ctype: string, bytes: Uint8Array) {
+async function sha256hex(bytes: Uint8Array): Promise<string> {
+  const h = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// upload un fichier (octets) en GED + ligne attachments, dossier "E-mails".
+// Dédup : si une pièce de même contenu existe déjà pour ce contact, on saute.
+async function gedUpload(companyId: string, contactId: string, name: string, ctype: string, bytes: Uint8Array): Promise<boolean> {
+  const hash = await sha256hex(bytes);
+  const ex = await (await db(`attachments?select=id&entity_type=eq.contact&entity_id=eq.${contactId}&content_hash=eq.${hash}&limit=1`)).json();
+  if (Array.isArray(ex) && ex.length) return false; // déjà présent (même image au fil des échanges)
   const safe = name.replace(/[^\w.\-]+/g, '_').slice(-80);
   const path = `${companyId}/contact/${contactId}/${Date.now()}_${safe}`;
   const up = await fetch(`${URL}/storage/v1/object/ged/${path}`, { method: 'POST', headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': ctype, 'x-upsert': 'true' }, body: bytes });
-  if (!up.ok) return;
-  await db('attachments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ company_id: companyId, entity_type: 'contact', entity_id: contactId, file_name: name, storage_path: path, content_type: ctype, size_bytes: bytes.length, note: 'Pièce jointe e-mail (Outlook)' }) });
+  if (!up.ok) throw new Error(`storage ${up.status}`);
+  const ins = await db('attachments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ company_id: companyId, entity_type: 'contact', entity_id: contactId, file_name: name, storage_path: path, content_type: ctype, size_bytes: bytes.length, content_hash: hash, folder: 'E-mails', note: 'Pièce jointe e-mail (Outlook)' }) });
+  if (!ins.ok) throw new Error(`attach insert ${ins.status}: ${(await ins.text()).slice(0, 120)}`);
+  return true;
 }
 
 Deno.serve(async () => {
@@ -80,13 +91,13 @@ Deno.serve(async () => {
         logged++;
         const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
         if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
-          const ctype = String(a.contentType || '');
-          if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
-            const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
-            if (a.isInline === true && bin.length < 30000) continue; // ignore signatures
-            await gedUpload(coId, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
-            photos++;
-          }
+          if (a['@odata.type'] !== '#microsoft.graph.fileAttachment' || !a.contentBytes) continue;
+          const ctype = String(a.contentType || 'application/octet-stream');
+          const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
+          // On capture TOUS les documents (PDF, Word, images…). On ignore seulement les
+          // petites images inline = logos/espaceurs de signature.
+          if (ctype.startsWith('image/') && a.isInline === true && bin.length < 30000) continue;
+          if (await gedUpload(coId, row.contact_id as string, String(a.name || 'fichier'), ctype, bin)) photos++;
         }
       } catch (e) { errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`); }
     }

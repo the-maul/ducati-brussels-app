@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -629,11 +629,13 @@ export type Database = {
       attachments: {
         Row: {
           company_id: string
+          content_hash: string | null
           content_type: string | null
           created_at: string
           entity_id: string
           entity_type: string
           file_name: string
+          folder: string | null
           id: string
           note: string | null
           size_bytes: number | null
@@ -642,11 +644,13 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          content_hash?: string | null
           content_type?: string | null
           created_at?: string
           entity_id: string
           entity_type: string
           file_name: string
+          folder?: string | null
           id?: string
           note?: string | null
           size_bytes?: number | null
@@ -655,11 +659,13 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          content_hash?: string | null
           content_type?: string | null
           created_at?: string
           entity_id?: string
           entity_type?: string
           file_name?: string
+          folder?: string | null
           id?: string
           note?: string | null
           size_bytes?: number | null
@@ -979,6 +985,7 @@ export type Database = {
           name: string
           peppol_id: string | null
           sales_account_default: string
+          sent_last_check: string | null
           sepa_creditor_id: string | null
           updated_at: string
           vat_account_default: string
@@ -1006,6 +1013,7 @@ export type Database = {
           name: string
           peppol_id?: string | null
           sales_account_default?: string
+          sent_last_check?: string | null
           sepa_creditor_id?: string | null
           updated_at?: string
           vat_account_default?: string
@@ -1033,6 +1041,7 @@ export type Database = {
           name?: string
           peppol_id?: string | null
           sales_account_default?: string
+          sent_last_check?: string | null
           sepa_creditor_id?: string | null
           updated_at?: string
           vat_account_default?: string
@@ -4178,6 +4187,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_email: {
+        Args: {
+          _body: string
+          _company: string
+          _direction: string
+          _display_from: string
+          _external_id: string
+          _match_email: string
+          _received: string
+          _subject: string
+        }
+        Returns: {
+          communication_id: string
+          contact_id: string
+          matched: boolean
+        }[]
+      }
       ingest_inbound_email: {
         Args: {
           _body: string
@@ -4424,6 +4450,10 @@ export type Database = {
       }
       set_inbound_cursor: {
         Args: { _company: string; _ts: string }
+        Returns: undefined
+      }
+      set_mail_cursors: {
+        Args: { _company: string; _in: string; _sent: string }
         Returns: undefined
       }
       settle_consignment: {
