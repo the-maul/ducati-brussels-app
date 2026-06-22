@@ -603,6 +603,7 @@ export const fr = {
     // communications
     history: 'Communications', channel: 'Canal', channel_call: 'Appel', channel_email: 'E-mail', channel_sms: 'SMS', channel_note: 'Note',
     direction: 'Sens', dir_in: 'Entrant', dir_out: 'Sortant', subject: 'Objet', body: 'Détail', logComm: 'Journaliser', noComm: 'Aucune communication enregistrée.',
+    to: 'Destinataire', sendEmail: 'Envoyer par Outlook', emailSent: 'E-mail envoyé depuis Outlook ✓', emailNotConfigured: 'Envoi Outlook non configuré (clés Microsoft Graph à poser).',
     // Carte lead détaillée
     details: 'Détails', edit: 'Éditer', save: 'Enregistrer', saved: 'Enregistré', del: 'Supprimer', confirmDel: 'Supprimer ce lead ?',
     activity: 'Activité', addNote: 'Ajouter', notePlaceholder: 'Note, appel, e-mail…', documents: 'Documents', noActivity: 'Aucune activité.',

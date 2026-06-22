@@ -50,47 +50,57 @@ Deno.serve(async () => {
   let logged = 0, photos = 0, scanned = 0;
   const errors: string[] = [];
   try {
-  const coRes = await db('companies?select=id,inbound_mailbox,inbound_last_check&inbound_mailbox=not.is.null');
+  const coRes = await db('companies?select=id,inbound_mailbox,inbound_last_check,sent_last_check&inbound_mailbox=not.is.null');
   const companies = await coRes.json();
   if (!Array.isArray(companies)) return new Response(JSON.stringify({ error: 'companies_query', detail: companies }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
-  for (const co of companies as Array<Record<string, string>>) {
-    const mailbox = co.inbound_mailbox;
-    const since = co.inbound_last_check || new Date(Date.now() - 864e5).toISOString(); // défaut : dernières 24 h
-    // On récupère les 25 derniers messages (tri desc) et on filtre côté serveur depuis
-    // le curseur ; l'ingestion est idempotente (id Graph) donc aucun doublon possible.
-    const q = `/users/${encodeURIComponent(mailbox)}/messages?$top=25&$orderby=receivedDateTime%20desc&$select=id,subject,bodyPreview,from,receivedDateTime,hasAttachments`;
-    const res = await G(tok, q);
-    if (!res.ok) { errors.push(`messages ${mailbox}: ${res.status}`); continue; }
+  const addr = (o: unknown) => (((o as Record<string, unknown>)?.emailAddress as Record<string, unknown>)?.address as string) || '';
+
+  // Relève d'un dossier (inbox ou sentitems). Pour 'in' on matche l'expéditeur ;
+  // pour 'out' on matche le 1er destinataire. Charge aussi les images (sauf signatures).
+  async function processFolder(coId: string, mailbox: string, folder: string, direction: 'in' | 'out', since: string): Promise<string> {
+    const q = `/users/${encodeURIComponent(mailbox)}/mailFolders/${folder}/messages?$top=25&$orderby=${direction === 'in' ? 'receivedDateTime' : 'sentDateTime'}%20desc&$select=id,subject,bodyPreview,from,toRecipients,receivedDateTime,sentDateTime,hasAttachments`;
+    const res = await G(tok!, q);
+    if (!res.ok) { errors.push(`${folder} ${mailbox}: ${res.status}`); return since; }
     const msgs = (await res.json()).value ?? [];
     let maxTs = since;
     for (const m of msgs as Array<Record<string, unknown>>) {
       try {
-        const recv = m.receivedDateTime as string;
-        if (recv <= since) continue; // déjà traité (antérieur au curseur)
+        const ts = (direction === 'in' ? m.receivedDateTime : (m.sentDateTime || m.receivedDateTime)) as string;
+        if (ts <= since) continue;
         scanned++;
-        const from = (((m.from as Record<string, unknown>)?.emailAddress as Record<string, unknown>)?.address as string) || '';
-        if (recv > maxTs) maxTs = recv;
-        const ing = await rpc('ingest_inbound_email', { _company: co.id, _from: from, _subject: m.subject ?? '', _body: m.bodyPreview ?? '', _received: recv, _external_id: m.id });
+        if (ts > maxTs) maxTs = ts;
+        const sender = addr(m.from);
+        const recips = (m.toRecipients as unknown[] | undefined) ?? [];
+        const matchEmail = direction === 'in' ? sender : (recips.length ? addr(recips[0]) : '');
+        const displayFrom = direction === 'in' ? sender : mailbox;
+        const ing = await rpc('ingest_email', { _company: coId, _direction: direction, _match_email: matchEmail, _display_from: displayFrom, _subject: m.subject ?? '', _body: m.bodyPreview ?? '', _received: ts, _external_id: m.id });
         const row = Array.isArray(ing) ? ing[0] : ing;
         if (!row?.matched || !row?.contact_id) continue;
         logged++;
-        // On récupère TOUJOURS les pièces des mails matchés : les images COLLÉES dans
-        // le corps sont des pièces "inline" et ne déclenchent pas toujours hasAttachments.
-        const at = await G(tok, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
+        const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
         if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
           const ctype = String(a.contentType || '');
           if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
             const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
-            // Ignore les petites images inline = logos/espaceurs de signature (pas de vraies photos).
-            if (a.isInline === true && bin.length < 30000) continue;
-            await gedUpload(co.id, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
+            if (a.isInline === true && bin.length < 30000) continue; // ignore signatures
+            await gedUpload(coId, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
             photos++;
           }
         }
       } catch (e) { errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`); }
     }
-    if (maxTs !== since) await rpc('set_inbound_cursor', { _company: co.id, _ts: maxTs });
+    return maxTs;
+  }
+
+  for (const co of companies as Array<Record<string, string>>) {
+    const mailbox = co.inbound_mailbox;
+    const day = new Date(Date.now() - 864e5).toISOString();
+    const inSince = co.inbound_last_check || day;
+    const sentSince = co.sent_last_check || day;
+    const maxIn = await processFolder(co.id, mailbox, 'inbox', 'in', inSince);
+    const maxSent = await processFolder(co.id, mailbox, 'sentitems', 'out', sentSince);
+    await rpc('set_mail_cursors', { _company: co.id, _in: maxIn !== inSince ? maxIn : null, _sent: maxSent !== sentSince ? maxSent : null });
   }
   } catch (e) {
     return new Response(JSON.stringify({ error: 'unhandled', detail: String(e).slice(0, 300), scanned, logged, photos, errors }), { status: 500, headers: { 'Content-Type': 'application/json' } });

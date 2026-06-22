@@ -4,12 +4,14 @@
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote } from 'lucide-react';
+import { useEffect } from 'react';
+import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { listCommunications, addCommunication } from './api';
+import { listCommunications, addCommunication, sendEmailViaOutlook } from './api';
+import { getContact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
 
 const ICON: Record<string, typeof Mail> = { email: Mail, sms: MessageSquare, call: Phone, note: StickyNote };
@@ -21,11 +23,27 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   const [direction, setDirection] = useState('out');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [to, setTo] = useState('');
+  const [sendMsg, setSendMsg] = useState<string | null>(null);
+
+  const contactQ = useQuery({ queryKey: ['comm-contact', contactId], queryFn: () => getContact(contactId) });
+  useEffect(() => { if (contactQ.data?.email && !to) setTo(contactQ.data.email); }, [contactQ.data]); // eslint-disable-line
 
   const add = useMutation({
     mutationFn: () => addCommunication({ companyId, contactId, channel, direction, subject, body }),
     onSuccess: () => { setSubject(''); setBody(''); qc.invalidateQueries({ queryKey: ['comms', contactId] }); },
   });
+  // Envoi réel depuis Outlook (journalisé côté serveur) — visible quand le canal = e-mail.
+  const send = useMutation({
+    mutationFn: () => sendEmailViaOutlook({ companyId, contactId, to, subject, body }),
+    onSuccess: (r) => {
+      if (r.error) { setSendMsg(errLabel(r.error)); return; }
+      setSendMsg(t('crm.emailSent')); setSubject(''); setBody('');
+      qc.invalidateQueries({ queryKey: ['comms', contactId] });
+    },
+    onError: (e) => setSendMsg(e instanceof Error ? e.message : 'Erreur'),
+  });
+  const errLabel = (code: string) => code === 'graph_not_configured' ? t('crm.emailNotConfigured') : code;
 
   return (
     <div className="space-y-3">
@@ -38,9 +56,12 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
           <Select value={direction} onValueChange={setDirection}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="out">{t('crm.dir_out')}</SelectItem><SelectItem value="in">{t('crm.dir_in')}</SelectItem></SelectContent></Select>
         </div>
+        {channel === 'email' && <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl><Input value={to} onChange={(e) => setTo(e.target.value)} className="w-56" placeholder="email@client" /></div>}
         <div className="flex-1 space-y-1"><Lbl>{t('crm.subject')}</Lbl><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
+        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
+        {channel === 'email' && <Button onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}</Button>}
         <div className="w-full space-y-1"><Lbl>{t('crm.body')}</Lbl><Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} /></div>
+        {sendMsg && <p className="w-full text-[12px] text-info">{sendMsg}</p>}
       </div>
 
       {isLoading ? <div className="grid place-items-center py-6"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div> : (

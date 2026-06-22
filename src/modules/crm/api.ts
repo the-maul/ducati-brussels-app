@@ -56,6 +56,17 @@ export async function addLeadActivity(p: { companyId: string; leadId: string; co
   if (error) throw error;
 }
 
+/** Envoie un e-mail depuis la boîte Outlook de la société (Graph) + journalise (sortant). */
+export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string }): Promise<{ ok?: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('graph-send-email', { body: p });
+  if (error) {
+    // l'Edge Function renvoie un JSON d'erreur (ex. graph_not_configured) → le remonter
+    const ctx = (error as { context?: { body?: unknown } }).context;
+    return { error: (ctx?.body as { error?: string })?.error ?? error.message };
+  }
+  return data as { ok?: boolean };
+}
+
 export async function listCommunications(contactId: string): Promise<Communication[]> {
   const { data, error } = await supabase.from('communications').select('*').eq('contact_id', contactId).order('occurred_at', { ascending: false });
   if (error) throw error;
