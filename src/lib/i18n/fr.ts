@@ -128,8 +128,15 @@ export const fr = {
     secInfo: 'Informations complémentaires',
     secCommercial: 'Suivi commercial',
     secOwners: 'Propriétaires',
+    secDocuments: 'Factures & documents',
+    ducatiHistory: 'Historique Ducati',
     // identification
     vin: 'N° de châssis (VIN)',
+    decodeVin: 'Décoder le VIN',
+    vinDecodedFull: 'VIN reconnu dans vos factures — fiche pré-remplie (modèle, n° moteur, plaque, mise en circulation, garantie, km…). Vérifiez et complétez.',
+    vinDecoded: 'VIN décodé — champs pré-remplis. Vérifiez et complétez la couleur/le pack.',
+    vinPartial: 'Modèle inconnu pour ce code VDS — marque et année remplies. Complétez le reste : l’enregistrement enrichira la base.',
+    vinInvalid: 'VIN Ducati invalide (doit commencer par ZDM et faire 17 caractères).',
     reference: 'Référence',
     brand: 'Marque',
     model: 'Modèle',
@@ -409,6 +416,9 @@ export const fr = {
     domiciliation: 'Domiciliation',
     bic: 'BIC / SWIFT',
     factoringCode: 'Code affacturage',
+    ducatiUrl: 'Lien fiche Ducati (portail)',
+    ducatiUrlHint: 'Collez l’URL de la fiche client du portail Ducati (…/dealer/s/account/…)',
+    ducatiView: 'Voir sur Ducati',
     saleVatType: 'Type de vente (TVA)',
     saleVat_national: 'National',
     saleVat_intracom: 'Intracommunautaire',
@@ -436,7 +446,7 @@ export const fr = {
     status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée', status_converti: 'Converti',
     convertTo: 'Convertir en', convert: 'Convertir', creditNote: 'Générer un avoir', print: 'Imprimer',
     // en-tête éditeur
-    type: 'Type', client: 'Client', clientPlaceholder: 'Client…', legacyClient: 'Client G8',
+    type: 'Type', client: 'Client', clientPlaceholder: 'Client…', legacyClient: 'Client G8', vehicle: 'Véhicule',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
     type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
     type_RES: 'Réservation', type_AVO: 'Avoir',
@@ -790,6 +800,7 @@ export const fr = {
     coZip: 'Code postal', coCity: 'Ville', coCountry: 'Pays', coIban: 'IBAN', coPeppol: 'Identifiant Peppol',
     coSalesAccount: 'Compte de vente', coCustomerAccount: 'Compte client', coVatAccount: 'Compte TVA',
     coActive: 'Active', coSaved: 'Société enregistrée', coSecLegal: 'Identité & TVA', coSecAccounting: 'Comptabilité (UBL / Winbooks)',
+    coInboundMailbox: 'Boîte Outlook écoutée (mails entrants → fiche client)',
   },
 
   // Gestion des utilisateurs (M0)

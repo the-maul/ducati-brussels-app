@@ -5,3 +5,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.dispatch-notifications]
 verify_jwt = false
+[functions.outlook-poll]
+verify_jwt = false

@@ -896,6 +896,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           direction: string
+          external_id: string | null
+          from_address: string | null
           id: string
           lead_id: string | null
           occurred_at: string
@@ -909,6 +911,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           direction?: string
+          external_id?: string | null
+          from_address?: string | null
           id?: string
           lead_id?: string | null
           occurred_at?: string
@@ -922,6 +926,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           direction?: string
+          external_id?: string | null
+          from_address?: string | null
           id?: string
           lead_id?: string | null
           occurred_at?: string
@@ -964,6 +970,8 @@ export type Database = {
           customer_account_default: string
           iban: string | null
           id: string
+          inbound_last_check: string | null
+          inbound_mailbox: string | null
           invoice_footer: string | null
           is_active: boolean
           legal_name: string | null
@@ -989,6 +997,8 @@ export type Database = {
           customer_account_default?: string
           iban?: string | null
           id?: string
+          inbound_last_check?: string | null
+          inbound_mailbox?: string | null
           invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
@@ -1014,6 +1024,8 @@ export type Database = {
           customer_account_default?: string
           iban?: string | null
           id?: string
+          inbound_last_check?: string | null
+          inbound_mailbox?: string | null
           invoice_footer?: string | null
           is_active?: boolean
           legal_name?: string | null
@@ -1184,6 +1196,7 @@ export type Database = {
           delivery_address: string | null
           domiciliation: string | null
           dou: string | null
+          ducati_url: string | null
           email: string | null
           email_pro: string | null
           external_ref: string | null
@@ -1264,6 +1277,7 @@ export type Database = {
           delivery_address?: string | null
           domiciliation?: string | null
           dou?: string | null
+          ducati_url?: string | null
           email?: string | null
           email_pro?: string | null
           external_ref?: string | null
@@ -1344,6 +1358,7 @@ export type Database = {
           delivery_address?: string | null
           domiciliation?: string | null
           dou?: string | null
+          ducati_url?: string | null
           email?: string | null
           email_pro?: string | null
           external_ref?: string | null
@@ -1889,6 +1904,102 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ducati_vds: {
+        Row: {
+          displacement_cc: number | null
+          euro: string | null
+          model: string | null
+          power_cv: number | null
+          samples: number
+          source: string
+          updated_at: string
+          vds: string
+        }
+        Insert: {
+          displacement_cc?: number | null
+          euro?: string | null
+          model?: string | null
+          power_cv?: number | null
+          samples?: number
+          source?: string
+          updated_at?: string
+          vds: string
+        }
+        Update: {
+          displacement_cc?: number | null
+          euro?: string | null
+          model?: string | null
+          power_cv?: number | null
+          samples?: number
+          source?: string
+          updated_at?: string
+          vds?: string
+        }
+        Relationships: []
+      }
+      ducati_vin_facts: {
+        Row: {
+          antipollution: string | null
+          category: string | null
+          color: string | null
+          cylinders: number | null
+          displacement: number | null
+          engine_number: string | null
+          first_registration_date: string | null
+          mileage: number | null
+          model: string | null
+          model_year: number | null
+          origin: string | null
+          plate: string | null
+          power_cv: number | null
+          reference: string | null
+          source: string
+          updated_at: string
+          vin: string
+          warranty_end: string | null
+        }
+        Insert: {
+          antipollution?: string | null
+          category?: string | null
+          color?: string | null
+          cylinders?: number | null
+          displacement?: number | null
+          engine_number?: string | null
+          first_registration_date?: string | null
+          mileage?: number | null
+          model?: string | null
+          model_year?: number | null
+          origin?: string | null
+          plate?: string | null
+          power_cv?: number | null
+          reference?: string | null
+          source?: string
+          updated_at?: string
+          vin: string
+          warranty_end?: string | null
+        }
+        Update: {
+          antipollution?: string | null
+          category?: string | null
+          color?: string | null
+          cylinders?: number | null
+          displacement?: number | null
+          engine_number?: string | null
+          first_registration_date?: string | null
+          mileage?: number | null
+          model?: string | null
+          model_year?: number | null
+          origin?: string | null
+          plate?: string | null
+          power_cv?: number | null
+          reference?: string | null
+          source?: string
+          updated_at?: string
+          vin?: string
+          warranty_end?: string | null
+        }
+        Relationships: []
       }
       events: {
         Row: {
@@ -3785,6 +3896,10 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _contact_haystack: {
+        Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
+        Returns: string
+      }
       _cron_appointment_reminders: { Args: never; Returns: number }
       _cron_dormant_alert: { Args: never; Returns: undefined }
       _cron_invoice_reminders: { Args: never; Returns: number }
@@ -3865,6 +3980,106 @@ export type Database = {
           available: number
           current_due: number
         }[]
+      }
+      contacts_search: {
+        Args: {
+          _company: string
+          _limit: number
+          _offset: number
+          _q: string
+          _type: string
+        }
+        Returns: {
+          account_code: string | null
+          accounting_account: string | null
+          address: string | null
+          address_complement: string | null
+          address_complement2: string | null
+          address_mismatch: boolean
+          bic: string | null
+          birth_date: string | null
+          category: string | null
+          city: string | null
+          civility: string | null
+          code: string | null
+          company_id: string
+          company_name: string | null
+          contact_name: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          delivery_address: string | null
+          domiciliation: string | null
+          dou: string | null
+          ducati_url: string | null
+          email: string | null
+          email_pro: string | null
+          external_ref: string | null
+          factoring_code: string | null
+          fax: string | null
+          first_name: string | null
+          gsm: string | null
+          iban: string | null
+          id: string
+          imported_from: string | null
+          interests: string[]
+          is_account: boolean
+          is_active: boolean
+          is_blocked: boolean
+          is_detaxe: boolean
+          is_vip: boolean
+          is_watch: boolean
+          last_name: string | null
+          legacy_code: string | null
+          license_category:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date: string | null
+          license_number: string | null
+          license_place: string | null
+          marketing_opt_out: boolean
+          mobile: string | null
+          mobile_pro: string | null
+          mode_ht: boolean
+          national_id: string | null
+          national_register: string | null
+          notes: string | null
+          opening_balance: number
+          payment_terms: string | null
+          phone: string | null
+          phone_pro: string | null
+          po_box: string | null
+          price_list: string | null
+          receipt_copies: number
+          sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
+          segment: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos: boolean
+          status: Database["public"]["Enums"]["contact_status"]
+          street_number: string | null
+          supplier_customer_no: string | null
+          supplier_franco_min: number | null
+          supplier_is_internal: boolean
+          supplier_order_min: number | null
+          supplier_order_min_qty: number | null
+          supplier_rfa_rate: number | null
+          type: Database["public"]["Enums"]["contact_type"]
+          updated_at: string
+          vat_number: string | null
+          vies_checked_at: string | null
+          vies_valid: boolean | null
+          zip: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "contacts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      contacts_search_count: {
+        Args: { _company: string; _q: string; _type: string }
+        Returns: number
       }
       create_company: {
         Args: {
@@ -3963,6 +4178,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_inbound_email: {
+        Args: {
+          _body: string
+          _company: string
+          _external_id: string
+          _from: string
+          _received: string
+          _subject: string
+        }
+        Returns: {
+          communication_id: string
+          contact_id: string
+          matched: boolean
+        }[]
+      }
       inventory_gaps: {
         Args: { _company: string; _snapshot: string }
         Returns: {
@@ -3977,6 +4207,16 @@ export type Database = {
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
       is_member: { Args: { _company: string }; Returns: boolean }
+      learn_ducati_vds: {
+        Args: {
+          _cc: number
+          _cv: number
+          _euro: string
+          _model: string
+          _vin: string
+        }
+        Returns: undefined
+      }
       monthly_revenue: {
         Args: { _company: string }
         Returns: {
@@ -4182,6 +4422,10 @@ export type Database = {
         Args: { _company: string; _date: string }
         Returns: undefined
       }
+      set_inbound_cursor: {
+        Args: { _company: string; _ts: string }
+        Returns: undefined
+      }
       settle_consignment: {
         Args: {
           _consignment: string
@@ -4241,6 +4485,7 @@ export type Database = {
         Args: { _from: string; _to: string }
         Returns: undefined
       }
+      unaccent: { Args: { "": string }; Returns: string }
       vat_register: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {

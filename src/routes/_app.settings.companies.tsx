@@ -59,6 +59,7 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
     zip: company.zip, city: company.city, country: company.country, iban: company.iban, peppol_id: company.peppol_id,
     sales_account_default: company.sales_account_default, customer_account_default: company.customer_account_default,
     vat_account_default: company.vat_account_default, is_active: company.is_active,
+    inbound_mailbox: company.inbound_mailbox,
   });
   const set = (k: keyof CompanyPatch, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
   const [msg, setMsg] = useState<string | null>(null);
@@ -82,6 +83,7 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
         <Field label={t('settings.coSalesAccount')}><Input value={f.sales_account_default ?? ''} onChange={(e) => set('sales_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coCustomerAccount')}><Input value={f.customer_account_default ?? ''} onChange={(e) => set('customer_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coVatAccount')}><Input value={f.vat_account_default ?? ''} onChange={(e) => set('vat_account_default', e.target.value)} className="font-mono" /></Field>
+        <Field label={t('settings.coInboundMailbox')}><Input value={f.inbound_mailbox ?? ''} onChange={(e) => set('inbound_mailbox', e.target.value)} placeholder="info@ducatibxl.be" /></Field>
         <Field label={t('settings.coActive')}>
           <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={!!f.is_active} onChange={(e) => set('is_active', e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('settings.coActive')}</label>
         </Field>
