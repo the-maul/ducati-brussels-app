@@ -20,7 +20,9 @@ async function db(path: string, init: RequestInit = {}) {
 }
 async function rpc(fn: string, body: unknown) {
   const r = await db(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(body) });
-  return r.ok ? r.json() : null;
+  if (!r.ok) return null;
+  const txt = await r.text();            // certaines RPC renvoient void (corps vide)
+  return txt ? JSON.parse(txt) : null;
 }
 
 async function graphToken(): Promise<string | null> {
@@ -45,39 +47,51 @@ Deno.serve(async () => {
   const tok = await graphToken();
   if (!tok) return new Response(JSON.stringify({ error: 'graph_auth_failed' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
 
-  const companies = await (await db('companies?select=id,inbound_mailbox,inbound_last_check&inbound_mailbox=not.is.null')).json();
   let logged = 0, photos = 0, scanned = 0;
+  const errors: string[] = [];
+  try {
+  const coRes = await db('companies?select=id,inbound_mailbox,inbound_last_check&inbound_mailbox=not.is.null');
+  const companies = await coRes.json();
+  if (!Array.isArray(companies)) return new Response(JSON.stringify({ error: 'companies_query', detail: companies }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
   for (const co of companies as Array<Record<string, string>>) {
     const mailbox = co.inbound_mailbox;
     const since = co.inbound_last_check || new Date(Date.now() - 864e5).toISOString(); // défaut : dernières 24 h
-    const q = `/users/${encodeURIComponent(mailbox)}/messages?$filter=receivedDateTime gt ${since}&$orderby=receivedDateTime asc&$top=25&$select=id,subject,bodyPreview,from,receivedDateTime,hasAttachments`;
+    // On récupère les 25 derniers messages (tri desc) et on filtre côté serveur depuis
+    // le curseur ; l'ingestion est idempotente (id Graph) donc aucun doublon possible.
+    const q = `/users/${encodeURIComponent(mailbox)}/messages?$top=25&$orderby=receivedDateTime%20desc&$select=id,subject,bodyPreview,from,receivedDateTime,hasAttachments`;
     const res = await G(tok, q);
-    if (!res.ok) continue;
+    if (!res.ok) { errors.push(`messages ${mailbox}: ${res.status}`); continue; }
     const msgs = (await res.json()).value ?? [];
     let maxTs = since;
     for (const m of msgs as Array<Record<string, unknown>>) {
-      scanned++;
-      const from = (((m.from as Record<string, unknown>)?.emailAddress as Record<string, unknown>)?.address as string) || '';
-      const received = m.receivedDateTime as string;
-      if (received > maxTs) maxTs = received;
-      const ing = await rpc('ingest_inbound_email', { _company: co.id, _from: from, _subject: m.subject ?? '', _body: m.bodyPreview ?? '', _received: received, _external_id: m.id });
-      const row = Array.isArray(ing) ? ing[0] : ing;
-      if (!row?.matched || !row?.contact_id) continue;
-      logged++;
-      if (m.hasAttachments) {
-        const at = await G(tok, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
-        if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
-          const ctype = String(a.contentType || '');
-          if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
-            const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
-            await gedUpload(co.id, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
-            photos++;
+      try {
+        const recv = m.receivedDateTime as string;
+        if (recv <= since) continue; // déjà traité (antérieur au curseur)
+        scanned++;
+        const from = (((m.from as Record<string, unknown>)?.emailAddress as Record<string, unknown>)?.address as string) || '';
+        if (recv > maxTs) maxTs = recv;
+        const ing = await rpc('ingest_inbound_email', { _company: co.id, _from: from, _subject: m.subject ?? '', _body: m.bodyPreview ?? '', _received: recv, _external_id: m.id });
+        const row = Array.isArray(ing) ? ing[0] : ing;
+        if (!row?.matched || !row?.contact_id) continue;
+        logged++;
+        if (m.hasAttachments) {
+          const at = await G(tok, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
+          if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
+            const ctype = String(a.contentType || '');
+            if (a['@odata.type'] === '#microsoft.graph.fileAttachment' && ctype.startsWith('image/') && a.contentBytes) {
+              const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
+              await gedUpload(co.id, row.contact_id as string, String(a.name || 'photo'), ctype, bin);
+              photos++;
+            }
           }
         }
-      }
+      } catch (e) { errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`); }
     }
     if (maxTs !== since) await rpc('set_inbound_cursor', { _company: co.id, _ts: maxTs });
   }
-  return new Response(JSON.stringify({ scanned, logged, photos }), { headers: { 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'unhandled', detail: String(e).slice(0, 300), scanned, logged, photos, errors }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+  return new Response(JSON.stringify({ scanned, logged, photos, errors }), { headers: { 'Content-Type': 'application/json' } });
 });
