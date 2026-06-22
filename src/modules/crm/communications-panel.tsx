@@ -5,14 +5,21 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send } from 'lucide-react';
+import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { listCommunications, addCommunication, sendEmailViaOutlook } from './api';
+import { RichEditor } from '@/components/rich-editor';
+import { listCommunications, addCommunication, sendEmailViaOutlook, type MailAttachment } from './api';
 import { getContact } from '@/modules/contacts/api';
 import { supabase } from '@/integrations/supabase/client';
+
+const readBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+  r.onerror = reject; r.readAsDataURL(file);
+});
 import { t } from '@/lib/i18n';
 
 const ICON: Record<string, typeof Mail> = { email: Mail, sms: MessageSquare, call: Phone, note: StickyNote };
@@ -26,6 +33,8 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   const [body, setBody] = useState('');
   const [to, setTo] = useState('');
   const [sendMsg, setSendMsg] = useState<string | null>(null);
+  const [atts, setAtts] = useState<MailAttachment[]>([]);
+  const [editorKey, setEditorKey] = useState(0);
 
   const contactQ = useQuery({ queryKey: ['comm-contact', contactId], queryFn: () => getContact(contactId) });
   useEffect(() => { if (contactQ.data?.email && !to) setTo(contactQ.data.email); }, [contactQ.data]); // eslint-disable-line
@@ -37,7 +46,7 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   // Envoi réel depuis Outlook (journalisé côté serveur) — visible quand le canal = e-mail.
   const send = useMutation({
     mutationFn: async () => {
-      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body });
+      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts });
       if (r.error) return r;
       // déclenche la relève pour journaliser le mail envoyé tout de suite (best-effort)
       await new Promise((res) => setTimeout(res, 2500));
@@ -46,11 +55,18 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
     },
     onSuccess: (r) => {
       if (r.error) { setSendMsg(errLabel(r.error)); return; }
-      setSendMsg(t('crm.emailSent')); setSubject(''); setBody('');
+      setSendMsg(t('crm.emailSent')); setSubject(''); setBody(''); setAtts([]); setEditorKey((k) => k + 1);
       qc.invalidateQueries({ queryKey: ['comms', contactId] });
     },
     onError: (e) => setSendMsg(e instanceof Error ? e.message : 'Erreur'),
   });
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const added: MailAttachment[] = [];
+    for (const f of Array.from(files)) added.push({ name: f.name, contentType: f.type || 'application/octet-stream', contentBytes: await readBase64(f) });
+    setAtts((a) => [...a, ...added]);
+  };
+  const attTotalKo = Math.round(atts.reduce((s, a) => s + a.contentBytes.length * 0.75, 0) / 1024);
   const errLabel = (code: string) => code === 'graph_not_configured' ? t('crm.emailNotConfigured') : code;
 
   return (
@@ -68,7 +84,37 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
         <div className="flex-1 space-y-1"><Lbl>{t('crm.subject')}</Lbl><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
         <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
         {channel === 'email' && <Button onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}</Button>}
-        <div className="w-full space-y-1"><Lbl>{t('crm.body')}</Lbl><Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} /></div>
+
+        {/* Corps : éditeur enrichi pour l'e-mail, zone simple sinon */}
+        <div className="w-full space-y-1">
+          <Lbl>{t('crm.body')}</Lbl>
+          {channel === 'email'
+            ? <RichEditor html={body} onChange={setBody} resetKey={editorKey} placeholder={t('crm.bodyPlaceholder')} />
+            : <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} />}
+        </div>
+
+        {/* Pièces jointes (e-mail) */}
+        {channel === 'email' && (
+          <div className="w-full space-y-1">
+            <div className="flex items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] hover:bg-accent">
+                <Paperclip className="size-3.5" /> {t('crm.attach')}
+                <input type="file" multiple className="hidden" onChange={(e) => { onPickFiles(e.target.files); e.target.value = ''; }} />
+              </label>
+              {atts.length > 0 && <span className="text-[11px] text-muted-foreground">{atts.length} fichier(s) · {attTotalKo} Ko</span>}
+            </div>
+            {atts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {atts.map((a, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[11px]">
+                    {a.name}
+                    <button type="button" onClick={() => setAtts((x) => x.filter((_, j) => j !== i))}><X className="size-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {sendMsg && <p className="w-full text-[12px] text-info">{sendMsg}</p>}
       </div>
 

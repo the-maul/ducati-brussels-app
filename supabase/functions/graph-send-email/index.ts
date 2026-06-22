@@ -27,8 +27,12 @@ async function db(path: string, init: RequestInit = {}) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
-  const { companyId, contactId, to, subject, body } = await req.json();
+  const { companyId, to, subject, body, attachments } = await req.json();
   if (!companyId || !to || !subject) return J({ error: 'missing_params' }, 400);
+  // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
+  const atts = Array.isArray(attachments) ? attachments.map((a: Record<string, string>) => ({
+    '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
+  })) : [];
 
   const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
   const mailbox = co?.[0]?.inbound_mailbox;
@@ -40,7 +44,12 @@ Deno.serve(async (req) => {
   const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
     method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message: { subject, body: { contentType: 'HTML', content: String(body || '').replace(/\n/g, '<br>') }, toRecipients: [{ emailAddress: { address: to } }] },
+      message: {
+        subject,
+        body: { contentType: 'HTML', content: String(body || '') }, // déjà du HTML (éditeur enrichi)
+        toRecipients: [{ emailAddress: { address: to } }],
+        ...(atts.length ? { attachments: atts } : {}),
+      },
       saveToSentItems: true,
     }),
   });
