@@ -13,11 +13,13 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
 
-type ColKey = 'type' | 'city' | 'contact' | 'flags';
+type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
   { key: 'type',    label: () => t('contacts.colType') },
   { key: 'city',    label: () => t('contacts.colCity') },
   { key: 'contact', label: () => t('contacts.colContact') },
+  { key: 'mobile',  label: () => t('contacts.colMobile') },
+  { key: 'email',   label: () => t('contacts.colEmail') },
   { key: 'flags',   label: () => t('contacts.colFlags') },
 ];
 
@@ -141,6 +143,8 @@ function ClientsList() {
               {visibleCols.has('type')    && <Th>{t('contacts.colType')}</Th>}
               {visibleCols.has('city')    && <Th>{t('contacts.colCity')}</Th>}
               {visibleCols.has('contact') && <Th>{t('contacts.colContact')}</Th>}
+              {visibleCols.has('mobile')  && <Th>{t('contacts.colMobile')}</Th>}
+              {visibleCols.has('email')   && <Th>{t('contacts.colEmail')}</Th>}
               {visibleCols.has('flags')   && <Th>{t('contacts.colFlags')}</Th>}
             </tr>
           </thead>
@@ -163,6 +167,8 @@ function ClientsList() {
                 {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}
                 {visibleCols.has('city')    && <td className="px-3 py-2">{c.city ?? '—'}</td>}
                 {visibleCols.has('contact') && <td className="px-3 py-2">{c.email ?? c.mobile ?? c.phone ?? '—'}</td>}
+                {visibleCols.has('mobile')  && <td className="px-3 py-2">{c.mobile ?? '—'}</td>}
+                {visibleCols.has('email')   && <td className="px-3 py-2">{c.email ?? '—'}</td>}
                 {visibleCols.has('flags')   && <td className="px-3 py-2"><Flags c={c} /></td>}
               </tr>
             ))}
