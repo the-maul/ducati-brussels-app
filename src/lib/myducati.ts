@@ -9,7 +9,7 @@ export type MyDucatiPayload = {
   vin: string;
   contact: Record<string, unknown>;
   vehicle: Record<string, unknown>;
-  bulletins?: { bulletin_id?: string; title?: string; number?: string; published_at?: string; url?: string }[];
+  bulletins?: { bulletin_id?: string; title?: string; number?: string; published_at?: string; url?: string; pdf_base64?: string; pdf_name?: string }[];
   maintenance_raw?: unknown;
   scraped_at?: string;
   source_url?: string;
@@ -22,6 +22,14 @@ const isoDate = (s: unknown): string | null => {
 };
 const clean = <T extends Record<string, unknown>>(o: T): Partial<T> =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== '')) as Partial<T>;
+
+/** base64 → Uint8Array (pour uploader un PDF rapatrié par l'extension). */
+const base64ToBytes = (b64: string): Uint8Array => {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+};
 
 /**
  * Demande à l'extension d'aller scraper My Ducati pour ce VIN (ouvre l'URL, scrape, réimporte).
@@ -85,11 +93,21 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   // Bulletins : remplace l'ensemble pour cette moto (données de synchro).
   const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id || b.number || b.title);
   if (bulletins.length) {
+    // Rapatrie les PDF (téléchargés par l'extension) dans le bucket ged avant l'insert.
+    const paths: (string | null)[] = await Promise.all(bulletins.map(async (b) => {
+      if (!b.pdf_base64) return null;
+      try {
+        const safe = (b.pdf_name || 'bulletin.pdf').replace(/[^\w.-]+/g, '_').slice(-60);
+        const path = `${companyId}/vehicle/${vehicleId}/bulletins/${Date.now()}_${safe}`;
+        const { error } = await supabase.storage.from('ged').upload(path, base64ToBytes(b.pdf_base64), { contentType: 'application/pdf', upsert: true });
+        return error ? null : path;
+      } catch { return null; }
+    }));
     await supabase.from('vehicle_bulletins').delete().eq('vehicle_id', vehicleId);
-    await supabase.from('vehicle_bulletins').insert(bulletins.map((b) => ({
+    await supabase.from('vehicle_bulletins').insert(bulletins.map((b, i) => ({
       company_id: companyId, vehicle_id: vehicleId,
       bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null,
-      published_at: isoDate(b.published_at), url: b.url || null,
+      published_at: isoDate(b.published_at), url: b.url || null, storage_path: paths[i],
     })));
   }
 

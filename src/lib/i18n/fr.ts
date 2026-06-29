@@ -223,6 +223,7 @@ export const fr = {
     ducatiMaintenance: 'Maintenance',
     ducatiBulletins: 'Bulletins techniques',
     bulletinOpen: 'Ouvrir le bulletin',
+    bulletinMissing: 'Bulletin introuvable dans le stockage.',
     ducatiNoData: 'Aucune donnée My Ducati pour le moment. Cliquez « Mettre à jour » (extension requise) ou importez depuis la fiche moto du portail Ducati.',
     ducatiUpdate: 'Mettre à jour depuis My Ducati',
     ducatiUpdating: 'Recherche sur My Ducati… (l’onglet Ducati va s’ouvrir puis se fermer)',

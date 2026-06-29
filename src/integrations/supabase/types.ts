@@ -3508,7 +3508,9 @@ export type Database = {
           id: string
           number: string | null
           published_at: string | null
+          storage_path: string | null
           title: string | null
+          url: string | null
           vehicle_id: string
         }
         Insert: {
@@ -3518,7 +3520,9 @@ export type Database = {
           id?: string
           number?: string | null
           published_at?: string | null
+          storage_path?: string | null
           title?: string | null
+          url?: string | null
           vehicle_id: string
         }
         Update: {
@@ -3528,7 +3532,9 @@ export type Database = {
           id?: string
           number?: string | null
           published_at?: string | null
+          storage_path?: string | null
           title?: string | null
+          url?: string | null
           vehicle_id?: string
         }
         Relationships: [

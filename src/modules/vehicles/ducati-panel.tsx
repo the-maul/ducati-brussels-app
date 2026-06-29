@@ -3,7 +3,7 @@
  * synchronisés depuis My Ducati par l'extension navigateur (par VIN).
  */
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, ExternalLink } from 'lucide-react';
+import { RefreshCw, ExternalLink, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,13 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   const v = vehicle as unknown as Record<string, unknown>;
   const maint = useQuery({ queryKey: ['veh-maint', vehicle.id], queryFn: async () => (await supabase.from('vehicle_maintenance').select('*').eq('vehicle_id', vehicle.id).order('event_date', { ascending: false })).data ?? [] });
   const bull = useQuery({ queryKey: ['veh-bull', vehicle.id], queryFn: async () => (await supabase.from('vehicle_bulletins').select('*').eq('vehicle_id', vehicle.id).order('published_at', { ascending: false })).data ?? [] });
+
+  // Ouvre le PDF du bulletin rapatrié dans le DMS (bucket ged, URL signée temporaire).
+  const openBulletin = async (path: string) => {
+    const { data, error } = await supabase.storage.from('ged').createSignedUrl(path, 120);
+    if (error || !data) { toast.error(t('vehicles.bulletinMissing')); return; }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  };
 
   const hasWarranty = v.warranty_start || v.warranty_end || v.warranty_state || v.warranty_activated_by;
   const hasAny = v.my_ducati_synced_at || hasWarranty || (maint.data?.length ?? 0) > 0 || (bull.data?.length ?? 0) > 0;
@@ -80,14 +87,17 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
               <thead className="bg-muted"><tr>{['N°', 'Titre', 'Date'].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
               <tbody>
                 {bull.data!.map((b) => {
-                  const url = (b as { url?: string | null }).url;
+                  const bb = b as { url?: string | null; storage_path?: string | null };
+                  const title = b.title ?? t('vehicles.bulletinOpen');
                   return (
                     <tr key={b.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-1.5 font-mono text-[12px]">{b.number ?? '—'}</td>
                       <td className="px-3 py-1.5">
-                        {url
-                          ? <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{b.title ?? t('vehicles.bulletinOpen')}<ExternalLink className="size-3" /></a>
-                          : (b.title ?? '—')}
+                        {bb.storage_path
+                          ? <button type="button" onClick={() => openBulletin(bb.storage_path!)} className="inline-flex items-center gap-1 text-primary hover:underline">{title}<FileText className="size-3" /></button>
+                          : bb.url
+                            ? <a href={bb.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{title}<ExternalLink className="size-3" /></a>
+                            : (b.title ?? '—')}
                       </td>
                       <td className="px-3 py-1.5 font-mono text-[12px]">{b.published_at ?? '—'}</td>
                     </tr>

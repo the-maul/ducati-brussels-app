@@ -7,6 +7,31 @@
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Encode des octets en base64 (par tranches pour éviter le débordement de pile).
+  function bytesToBase64(bytes) {
+    let bin = ''; const CH = 0x8000;
+    for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+    return btoa(bin);
+  }
+  // Télécharge le PDF de chaque bulletin via la session authentifiée du portail.
+  // Si le lien n'est pas un PDF (page HTML), on garde juste le lien (dégradation propre).
+  async function fetchBulletinPdfs(bulletins) {
+    for (const b of bulletins) {
+      if (!b.url) continue;
+      try {
+        const res = await fetch(b.url, { credentials: 'include' });
+        if (!res.ok) continue;
+        const buf = new Uint8Array(await res.arrayBuffer());
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        const isPdf = ct.includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46); // %PDF
+        if (isPdf && buf.length > 4 && buf.length < 8000000) {
+          b.pdf_base64 = bytesToBase64(buf);
+          b.pdf_name = String(b.number || b.bulletin_id || 'bulletin').replace(/[^\w.-]+/g, '_').slice(0, 60) + '.pdf';
+        }
+      } catch (_) { /* garde juste le lien */ }
+    }
+  }
+
   function byLabel(label) {
     for (const el of document.querySelectorAll('span, label, dt, th, p, div, lightning-formatted-text')) {
       if (norm(el.textContent) !== label) continue;
@@ -84,6 +109,8 @@
     // 2) Puis Événements (maintenance) et Bulletins (tableaux).
     if (clickTab('Événements') || clickTab('Evénements')) { await sleep(2200); harvestTables(); }
     if (clickTab('Bulletins')) { await sleep(2200); harvestTables(); }
+    // 3) Télécharge les PDF des bulletins (session authentifiée) pour les rapatrier dans le DMS.
+    await fetchBulletinPdfs(collected.bulletins);
     return { ...d, bulletins: collected.bulletins, maintenance_raw: collected.maintenance, scraped_at: new Date().toISOString(), source_url: location.href };
   }
 
