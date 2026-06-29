@@ -12,9 +12,11 @@
   // AUTO : dès que la page est chargée, récupère le PDF FR et l'envoie au DMS (rangé par numéro).
   // Marche que l'onglet soit ouvert par l'extension (au scrape) OU par l'utilisateur. Aucun clic.
   if (/bulletins\.ducati\.com\/Bulletins\/Details\//i.test(location.href)) {
+    // UNIQUEMENT le lien de la section FRANÇAISE (#riepilogo_FR). Aucun repli sur « le 1er lien »
+    // de la page (ce serait l'anglais / la section info) — c'était la cause du « toujours le premier ».
     const frPdfUrl = () => {
-      const fr = document.querySelector('#riepilogo_FR') || document.querySelector('[id$="_FR"]');
-      const a = (fr && fr.querySelector('a[href*="/Bulletins/Download/"]')) || document.querySelector('a[href*="/Bulletins/Download/"]');
+      const a = document.querySelector('#riepilogo_FR a[href*="/Bulletins/Download/"]')
+             || document.querySelector('[id$="_FR"] a[href*="/Bulletins/Download/"]');
       return a ? a.href : null;
     };
     const bulletinNumber = () => ((document.body.innerText.match(/[A-Z]{2,5}-[A-Z]{2,5}-\d{2}-\d{3,4}/) || [])[0]) || null;
@@ -23,7 +25,8 @@
     badge.textContent = '… bulletin → DMS';
     (document.body || document.documentElement).appendChild(badge);
     (async () => {
-      for (let i = 0; i < 25 && !document.querySelector('a[href*="/Bulletins/Download/"]'); i++) await sleep(400);
+      // attendre que le lien FR soit réellement présent dans la page (jusqu'à ~14 s)
+      for (let i = 0; i < 35 && !frPdfUrl(); i++) await sleep(400);
       const url = frPdfUrl(); const number = bulletinNumber();
       let ok = false;
       if (url) {
