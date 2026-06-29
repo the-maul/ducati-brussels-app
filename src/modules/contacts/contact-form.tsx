@@ -28,6 +28,29 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'offroad', labelKey: 'contacts.interestOffroad' },
 ];
 
+// Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
+// (datalist) sur le champ `civility`. Valeur = abréviation réelle (alignée sur les
+// données G8 : SRL, SPRL, SA, BV…) ; libellé descriptif FR/NL. Saisie libre conservée
+// pour ne perdre aucune valeur existante (formes étrangères, variantes).
+const COMPANY_TYPES: { value: string; label: string }[] = [
+  { value: 'SRL', label: 'Société à resp. limitée' },
+  { value: 'BV', label: 'Besloten vennootschap' },
+  { value: 'SA', label: 'Société anonyme' },
+  { value: 'NV', label: 'Naamloze vennootschap' },
+  { value: 'SC', label: 'Société coopérative' },
+  { value: 'CV', label: 'Coöperatieve vennootschap' },
+  { value: 'SCRL', label: 'Société coop. à resp. limitée' },
+  { value: 'SNC', label: 'Société en nom collectif' },
+  { value: 'VOF', label: 'Vennootschap onder firma' },
+  { value: 'SComm', label: 'Société en commandite' },
+  { value: 'SCS', label: 'Société en commandite simple' },
+  { value: 'ASBL', label: 'Association sans but lucratif' },
+  { value: 'VZW', label: 'Vereniging zonder winstoogmerk' },
+  { value: 'SPRL', label: 'SPRL (ancienne forme)' },
+  { value: 'BVBA', label: 'BVBA (oude vorm)' },
+  { value: 'Indépendant', label: 'Personne physique / Eenmanszaak' },
+];
+
 type FormState = {
   type: ContactType;
   status: ContactStatus;
@@ -320,9 +343,20 @@ export function ContactForm({
                 <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
               </Field>
             )}
-            <Field label={t('contacts.civility')}>
-              <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
-            </Field>
+            {isPro ? (
+              <Field label={t('contacts.companyType')}>
+                <Input list="company-types" value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder={t('contacts.companyTypePlaceholder')} />
+                <datalist id="company-types">
+                  {COMPANY_TYPES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </datalist>
+              </Field>
+            ) : (
+              <Field label={t('contacts.civility')}>
+                <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
+              </Field>
+            )}
             <Field label={t('contacts.firstName')}>
               <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
             </Field>

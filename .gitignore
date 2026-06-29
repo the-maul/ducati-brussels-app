@@ -39,6 +39,12 @@ docs/reference-g8/
 infos app/
 # Manuels G8 supplémentaires (gros PDF de référence) — hors repo, synthétisés dans docs/g8-fonctions-*.md
 Info Doc/
+# DONNÉES CLIENT (factures PDF importées) — JAMAIS sur le repo (public + données personnelles).
+Info DB/
+# Outillage de migration local (scripts + données VIN/factures clients) — hors repo, peut contenir des PII.
+tools/
+# Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
+docs/manuel/
 
 # Supabase CLI — état local du lien projet (contient l'URL du pooler, etc.)
 supabase/.temp/
