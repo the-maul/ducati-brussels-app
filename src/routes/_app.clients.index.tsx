@@ -1,15 +1,25 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, Columns3 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
+
+type ColKey = 'type' | 'city' | 'contact' | 'flags';
+const ALL_COLS: { key: ColKey; label: () => string }[] = [
+  { key: 'type',    label: () => t('contacts.colType') },
+  { key: 'city',    label: () => t('contacts.colCity') },
+  { key: 'contact', label: () => t('contacts.colContact') },
+  { key: 'flags',   label: () => t('contacts.colFlags') },
+];
 
 const PAGE_SIZES = [25, 50, 100, 200];
 
@@ -26,6 +36,16 @@ function ClientsList() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(['type', 'city', 'contact', 'flags']));
+
+  function toggleCol(key: ColKey) {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+  const colCount = 1 + visibleCols.size;
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -84,6 +104,25 @@ function ClientsList() {
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>{PAGE_SIZES.map((n) => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}</SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Columns3 className="size-4" />
+              {t('contacts.colsBtn')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-2">
+            <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('contacts.colsBtnTitle')}</p>
+            <div className="flex flex-col gap-1.5">
+              {ALL_COLS.map(({ key, label }) => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-[13px] hover:bg-accent">
+                  <Checkbox checked={visibleCols.has(key)} onCheckedChange={() => toggleCol(key)} />
+                  {label()}
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         {data && <span className="text-sm tabular-nums text-muted-foreground">{from}–{to} / {total}</span>}
       </div>
 
@@ -99,20 +138,20 @@ function ClientsList() {
           <thead className="bg-muted">
             <tr>
               <Th>{t('contacts.colName')}</Th>
-              <Th>{t('contacts.colType')}</Th>
-              <Th>{t('contacts.colCity')}</Th>
-              <Th>{t('contacts.colContact')}</Th>
-              <Th>{t('contacts.colFlags')}</Th>
+              {visibleCols.has('type')    && <Th>{t('contacts.colType')}</Th>}
+              {visibleCols.has('city')    && <Th>{t('contacts.colCity')}</Th>}
+              {visibleCols.has('contact') && <Th>{t('contacts.colContact')}</Th>}
+              {visibleCols.has('flags')   && <Th>{t('contacts.colFlags')}</Th>}
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+              <tr><td colSpan={colCount} className="px-3 py-6 text-center text-muted-foreground">
                 <Loader2 className="mx-auto size-5 animate-spin" />
               </td></tr>
             )}
             {data && rows.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('contacts.empty')}</td></tr>
+              <tr><td colSpan={colCount} className="px-3 py-6 text-center text-muted-foreground">{t('contacts.empty')}</td></tr>
             )}
             {rows.map((c) => (
               <tr
@@ -121,10 +160,10 @@ function ClientsList() {
                 className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
               >
                 <td className="px-3 py-2 font-medium">{contactDisplayName(c)}</td>
-                <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>
-                <td className="px-3 py-2">{c.city ?? '—'}</td>
-                <td className="px-3 py-2">{c.email ?? c.mobile ?? c.phone ?? '—'}</td>
-                <td className="px-3 py-2"><Flags c={c} /></td>
+                {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}
+                {visibleCols.has('city')    && <td className="px-3 py-2">{c.city ?? '—'}</td>}
+                {visibleCols.has('contact') && <td className="px-3 py-2">{c.email ?? c.mobile ?? c.phone ?? '—'}</td>}
+                {visibleCols.has('flags')   && <td className="px-3 py-2"><Flags c={c} /></td>}
               </tr>
             ))}
           </tbody>

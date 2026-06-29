@@ -453,6 +453,8 @@ export const fr = {
     colCity: 'Ville',
     colContact: 'Contact',
     colFlags: 'Drapeaux',
+    colsBtn: 'Colonnes',
+    colsBtnTitle: 'Colonnes visibles',
     page: 'Page',
     // erreurs
     errLoad: 'Chargement impossible.',
