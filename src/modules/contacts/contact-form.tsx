@@ -25,47 +25,44 @@ import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
 
-// ─── Modèles Ducati neufs disponibles à la commande ───────────────────────────
-const DUCATI_NEW_MODELS: string[] = [
-  'Diavel V4',
-  'Diavel V4 Black Star',
-  'Diavel V4 S',
-  'DesertX',
-  'DesertX Discovery',
-  'DesertX Rally',
-  'Hypermotard 698 Mono',
-  'Hypermotard 698 Mono RVE',
-  'Hypermotard 698 Mono SP',
-  'Hypermotard 950',
-  'Hypermotard 950 RVE',
-  'Hypermotard 950 SP',
-  'Monster',
-  'Monster 30° Anniversario',
-  'Monster SP',
-  'Multistrada V2',
-  'Multistrada V2 S',
-  'Multistrada V4',
-  'Multistrada V4 Rally',
-  'Multistrada V4 RS',
-  'Multistrada V4 S',
-  'Panigale V2',
-  'Panigale V4',
-  'Panigale V4 R',
-  'Panigale V4 S',
-  'Panigale V4 SP2',
-  'Scrambler Desert Sled',
-  'Scrambler Full Throttle',
-  'Scrambler Icon',
-  'Scrambler Nightshift',
-  'Streetfighter V2',
-  'Streetfighter V4',
-  'Streetfighter V4 SP2',
-  'SuperSport 950',
-  'SuperSport 950 S',
-  'XDiavel V4',
-  'XDiavel V4 Dark',
-  'XDiavel V4 S',
+// ─── Modèles Ducati neufs disponibles à la commande (par famille) ─────────────
+// Source : gamme commerciale 2025/2026. Suffixe « 100 » = édition centenaire.
+const DUCATI_NEW_MODEL_GROUPS: { family: string; models: string[] }[] = [
+  { family: 'DesertX', models: ['DesertX', 'DesertX 100'] },
+  { family: 'Diavel', models: ['Diavel V4', 'Diavel V4 RS', 'Diavel V4 RS 100'] },
+  { family: 'Heritage', models: ['Formula 73'] },
+  { family: 'Hypermotard', models: [
+    'Hypermotard 698 Mono', 'Hypermotard 698 Mono RVE', 'Hypermotard 698 Mono Nera',
+    'Hypermotard V2', 'Hypermotard V2 SP', 'Hypermotard V2 SP 100',
+  ] },
+  { family: 'Monster', models: ['Monster', 'Monster +', 'Monster 100'] },
+  { family: 'Multistrada', models: [
+    'Multistrada V2', 'Multistrada V2 S', 'Multistrada V4', 'Multistrada V4 S',
+    'Multistrada V4 Rally', 'Multistrada V4 Pikes Peak', 'Multistrada V4 RS', 'Multistrada V4 RS 100',
+  ] },
+  { family: 'Off-Road', models: ['Desmo250 MX', 'Desmo450 MX', 'Desmo450 MX Factory', 'Desmo450 EDS'] },
+  { family: 'Panigale', models: [
+    'Panigale V2', 'Panigale V2 S', 'Panigale V2 S 100',
+    'Panigale V2 MM93 (Marc Marquez)', 'Panigale V2 FB63 (Bagnaia)',
+    'Panigale V4', 'Panigale V4 S', 'Panigale V4 S 100', 'Panigale V4 R', 'Panigale V4 Tricolore',
+    'Panigale V4 Marquez 2025 World Champion Replica',
+  ] },
+  { family: 'Streetfighter', models: [
+    'Streetfighter V2', 'Streetfighter V2 S', 'Streetfighter V4', 'Streetfighter V4 S', 'Streetfighter V4 S 100',
+  ] },
+  { family: 'Superleggera', models: ['Superleggera V4 Centenario'] },
+  { family: 'XDiavel', models: ['XDiavel V4', 'XDiavel V4 100'] },
+  { family: 'Scrambler', models: [
+    'Scrambler Icon', 'Scrambler Icon Dark', 'Scrambler Full Throttle', 'Scrambler Nightshift',
+    'Scrambler 10th Anniversary Rizoma Edition', 'Scrambler 100',
+  ] },
+  { family: 'E-Bike (THOK)', models: [
+    'Powerstage RR Limited Edition', 'TK-01RR', 'MIG-S', 'FUTA', 'FUTA AXS', 'FUTA All-Road',
+  ] },
 ];
+
+// Liste aplatie — utilisée pour les tests d'appartenance (.includes)
+const DUCATI_NEW_MODELS: string[] = DUCATI_NEW_MODEL_GROUPS.flatMap((g) => g.models);
 
 // ─── Modèles Ducati anciens (jusqu'à 1990) ────────────────────────────────────
 const DUCATI_VINTAGE_MODELS: string[] = [
@@ -709,7 +706,7 @@ export function ContactForm({
               <Field label={t('contacts.modelInterestsNew')} wide>
                 <p className="mb-1.5 text-[11px] text-muted-foreground">{t('contacts.modelSelectHint')}</p>
                 <ModelMultiSelect
-                  models={DUCATI_NEW_MODELS}
+                  groups={DUCATI_NEW_MODEL_GROUPS}
                   selected={f.model_interests.filter(m => DUCATI_NEW_MODELS.includes(m))}
                   onChange={(selected) => {
                     const vintage = f.model_interests.filter(m => !DUCATI_NEW_MODELS.includes(m));
@@ -882,22 +879,33 @@ function DocUpload({ label, contactId, fieldName, currentPath, onUpload }: {
 }
 
 // ─── Composant : liste multi-sélection de modèles Ducati ─────────────────────
-function ModelMultiSelect({ models, selected, onChange }: {
-  models: string[];
+// Accepte soit une liste plate (`models`), soit des groupes par famille (`groups`).
+function ModelMultiSelect({ models, groups, selected, onChange }: {
+  models?: string[];
+  groups?: { family: string; models: string[] }[];
   selected: string[];
   onChange: (v: string[]) => void;
 }) {
   const toggle = (m: string) =>
     onChange(selected.includes(m) ? selected.filter((s) => s !== m) : [...selected, m]);
 
+  const renderItem = (m: string) => (
+    <label key={m} className="flex items-center gap-2 cursor-pointer rounded px-1 py-0.5 text-sm hover:bg-muted/60">
+      <Checkbox checked={selected.includes(m)} onCheckedChange={() => toggle(m)} />
+      {m}
+    </label>
+  );
+
   return (
     <div className="max-h-52 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5">
-      {models.map((m) => (
-        <label key={m} className="flex items-center gap-2 cursor-pointer rounded px-1 py-0.5 text-sm hover:bg-muted/60">
-          <Checkbox checked={selected.includes(m)} onCheckedChange={() => toggle(m)} />
-          {m}
-        </label>
-      ))}
+      {groups
+        ? groups.map((g) => (
+            <div key={g.family} className="mb-1.5">
+              <div className="px-1 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{g.family}</div>
+              {g.models.map(renderItem)}
+            </div>
+          ))
+        : (models ?? []).map(renderItem)}
     </div>
   );
 }
