@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, Columns3 } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -109,7 +109,7 @@ function ClientsList() {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5">
-              <Columns3 className="size-4" />
+              <SlidersHorizontal className="size-4" />
               {t('contacts.colsBtn')}
             </Button>
           </PopoverTrigger>
