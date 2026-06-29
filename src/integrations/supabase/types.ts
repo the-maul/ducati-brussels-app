@@ -1149,6 +1149,55 @@ export type Database = {
           },
         ]
       }
+      contact_links: {
+        Row: {
+          company_id: string
+          contact_a: string
+          contact_b: string
+          created_at: string
+          created_by: string | null
+          id: string
+        }
+        Insert: {
+          company_id: string
+          contact_a: string
+          contact_b: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Update: {
+          company_id?: string
+          contact_a?: string
+          contact_b?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_links_contact_a_fkey"
+            columns: ["contact_a"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_links_contact_b_fkey"
+            columns: ["contact_b"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_subcontacts: {
         Row: {
           contact_id: string
@@ -1256,14 +1305,6 @@ export type Database = {
           phone_pro: string | null
           po_box: string | null
           price_list: string | null
-          private_address: string | null
-          private_address_complement: string | null
-          private_city: string | null
-          private_country: string | null
-          private_email: string | null
-          private_mobile: string | null
-          private_phone: string | null
-          private_zip: string | null
           receipt_copies: number
           sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
           segment: Database["public"]["Enums"]["customer_segment"]
@@ -1351,14 +1392,6 @@ export type Database = {
           phone_pro?: string | null
           po_box?: string | null
           price_list?: string | null
-          private_address?: string | null
-          private_address_complement?: string | null
-          private_city?: string | null
-          private_country?: string | null
-          private_email?: string | null
-          private_mobile?: string | null
-          private_phone?: string | null
-          private_zip?: string | null
           receipt_copies?: number
           sale_vat_type?: Database["public"]["Enums"]["sale_vat_type"]
           segment?: Database["public"]["Enums"]["customer_segment"]
@@ -1446,14 +1479,6 @@ export type Database = {
           phone_pro?: string | null
           po_box?: string | null
           price_list?: string | null
-          private_address?: string | null
-          private_address_complement?: string | null
-          private_city?: string | null
-          private_country?: string | null
-          private_email?: string | null
-          private_mobile?: string | null
-          private_phone?: string | null
-          private_zip?: string | null
           receipt_copies?: number
           sale_vat_type?: Database["public"]["Enums"]["sale_vat_type"]
           segment?: Database["public"]["Enums"]["customer_segment"]
@@ -3461,7 +3486,6 @@ export type Database = {
           from_date: string
           id: string
           is_current: boolean
-          owner_kind: string | null
           to_date: string | null
           vehicle_id: string
         }
@@ -3471,7 +3495,6 @@ export type Database = {
           from_date?: string
           id?: string
           is_current?: boolean
-          owner_kind?: string | null
           to_date?: string | null
           vehicle_id: string
         }
@@ -3481,7 +3504,6 @@ export type Database = {
           from_date?: string
           id?: string
           is_current?: boolean
-          owner_kind?: string | null
           to_date?: string | null
           vehicle_id?: string
         }
@@ -4216,14 +4238,6 @@ export type Database = {
           phone_pro: string | null
           po_box: string | null
           price_list: string | null
-          private_address: string | null
-          private_address_complement: string | null
-          private_city: string | null
-          private_country: string | null
-          private_email: string | null
-          private_mobile: string | null
-          private_phone: string | null
-          private_zip: string | null
           receipt_copies: number
           sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
           segment: Database["public"]["Enums"]["customer_segment"]

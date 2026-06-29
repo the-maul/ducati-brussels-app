@@ -4,6 +4,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import type { Vehicle } from '@/modules/vehicles/api';
+import type { Contact, ContactInsert } from './api';
 
 export type DeliveryAddress = Database['public']['Tables']['delivery_addresses']['Row'];
 export type DeliveryAddressInsert = Database['public']['Tables']['delivery_addresses']['Insert'];
@@ -53,25 +54,85 @@ export async function deleteClientPriceRule(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export type OwnedVehicle = { ownerId: string; is_current: boolean; from_date: string; to_date: string | null; owner_kind: string | null; vehicle: Vehicle };
+export type OwnedVehicle = { ownerId: string; is_current: boolean; from_date: string; to_date: string | null; ownerContactId: string; vehicle: Vehicle };
 
-/** Parc du client : véhicules dont il est (ou a été) propriétaire (B9). */
-export async function listOwnedVehicles(contactId: string): Promise<OwnedVehicle[]> {
+/** Parc d'un (ou plusieurs) contact(s) : véhicules dont ils sont/ont été propriétaires (B9). */
+export async function listOwnedVehicles(contactIds: string | string[]): Promise<OwnedVehicle[]> {
+  const ids = Array.isArray(contactIds) ? contactIds : [contactIds];
+  if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('vehicle_owners')
-    .select('id, is_current, from_date, to_date, owner_kind, vehicles(*)')
-    .eq('contact_id', contactId)
+    .select('id, contact_id, is_current, from_date, to_date, vehicles(*)')
+    .in('contact_id', ids)
     .order('from_date', { ascending: false });
   if (error) throw error;
   return (data ?? [])
     .filter((r) => r.vehicles)
-    .map((r) => ({ ownerId: r.id, is_current: r.is_current, from_date: r.from_date, to_date: r.to_date, owner_kind: (r as { owner_kind: string | null }).owner_kind, vehicle: r.vehicles as unknown as Vehicle }));
+    .map((r) => ({ ownerId: r.id, is_current: r.is_current, from_date: r.from_date, to_date: r.to_date, ownerContactId: r.contact_id as string, vehicle: r.vehicles as unknown as Vehicle }));
 }
 
-/** Rattache une moto liée au compte « pro » ou « privé » du client (recoupement Ducati). */
-export async function setOwnerKind(ownerId: string, kind: 'pro' | 'prive'): Promise<void> {
-  const { error } = await supabase.from('vehicle_owners').update({ owner_kind: kind }).eq('id', ownerId);
+/* ---------------- Liaison entre fiches (pro ↔ privé, M:N) ---------------- */
+export type ContactLink = { linkId: string; contact: Contact };
+
+/** Fiches liées à ce contact (l'autre extrémité du lien). */
+export async function listLinkedContacts(contactId: string): Promise<ContactLink[]> {
+  const { data: links, error } = await supabase
+    .from('contact_links').select('id, contact_a, contact_b')
+    .or(`contact_a.eq.${contactId},contact_b.eq.${contactId}`);
   if (error) throw error;
+  const rows = links ?? [];
+  const otherIds = rows.map((r) => (r.contact_a === contactId ? r.contact_b : r.contact_a));
+  if (otherIds.length === 0) return [];
+  const { data: contacts, error: e2 } = await supabase.from('contacts').select('*').in('id', otherIds);
+  if (e2) throw e2;
+  const byId = new Map((contacts ?? []).map((c) => [c.id, c as Contact]));
+  return rows.map((r) => ({ linkId: r.id, contact: byId.get(r.contact_a === contactId ? r.contact_b : r.contact_a)! }))
+    .filter((x) => x.contact);
+}
+
+/** Lie deux fiches (paire non ordonnée ; ignore le doublon). */
+export async function linkContact(companyId: string, a: string, b: string): Promise<void> {
+  const { error } = await supabase.from('contact_links').insert({ company_id: companyId, contact_a: a, contact_b: b });
+  if (error && !/duplicate|unique/i.test(error.message)) throw error;
+}
+
+export async function unlinkContact(linkId: string): Promise<void> {
+  const { error } = await supabase.from('contact_links').delete().eq('id', linkId);
+  if (error) throw error;
+}
+
+/** Crée une nouvelle fiche (pré-remplie depuis `source` : nom + adresse + contacts) et la lie. */
+export async function createLinkedContact(companyId: string, source: Contact, targetType: 'particulier' | 'professionnel'): Promise<string> {
+  const ins = {
+    company_id: companyId,
+    type: targetType,
+    last_name: targetType === 'particulier' ? (source.last_name ?? source.company_name ?? null) : null,
+    company_name: targetType === 'professionnel' ? (source.company_name ?? source.last_name ?? null) : null,
+    first_name: source.first_name ?? null,
+    civility: source.civility ?? null,
+    email: source.email ?? null,
+    phone: source.phone ?? null,
+    mobile: source.mobile ?? null,
+    address: source.address ?? null,
+    zip: source.zip ?? null,
+    city: source.city ?? null,
+    country: source.country ?? 'BE',
+  } as ContactInsert;
+  const { data, error } = await supabase.from('contacts').insert(ins).select('id').single();
+  if (error) throw error;
+  await linkContact(companyId, source.id, data.id as string);
+  return data.id as string;
+}
+
+/** Recherche de fiches à lier (par nom / société / code), excluant le contact courant. */
+export async function searchContactsToLink(companyId: string, q: string, excludeId: string): Promise<Contact[]> {
+  if (!q.trim()) return [];
+  const { data, error } = await supabase.from('contacts').select('*')
+    .eq('company_id', companyId)
+    .or(`last_name.ilike.%${q}%,company_name.ilike.%${q}%,code.ilike.%${q}%`)
+    .neq('id', excludeId).limit(10);
+  if (error) throw error;
+  return (data ?? []) as Contact[];
 }
 
 export type Subcontact = Database['public']['Tables']['contact_subcontacts']['Row'];

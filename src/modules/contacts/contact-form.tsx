@@ -7,6 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Save, RefreshCw, Bike } from 'lucide-react';
 import { firstContactVehicle } from './subobjects-api';
+import { ContactLinksPanel } from './contact-links-panel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -47,15 +48,6 @@ type FormState = {
   city: string;
   country: string;
   address_mismatch: boolean;
-  // Face privée (la personne) — coordonnées distinctes de la société
-  private_address: string;
-  private_address_complement: string;
-  private_zip: string;
-  private_city: string;
-  private_country: string;
-  private_phone: string;
-  private_mobile: string;
-  private_email: string;
   birth_date: string;
   national_id: string;
   national_register: string;
@@ -120,14 +112,6 @@ function fromContact(c: Contact | null): FormState {
     city: c?.city ?? '',
     country: c?.country ?? 'BE',
     address_mismatch: c?.address_mismatch ?? false,
-    private_address: c?.private_address ?? '',
-    private_address_complement: c?.private_address_complement ?? '',
-    private_zip: c?.private_zip ?? '',
-    private_city: c?.private_city ?? '',
-    private_country: c?.private_country ?? '',
-    private_phone: c?.private_phone ?? '',
-    private_mobile: c?.private_mobile ?? '',
-    private_email: c?.private_email ?? '',
     birth_date: c?.birth_date ?? '',
     national_id: c?.national_id ?? '',
     national_register: c?.national_register ?? '',
@@ -195,14 +179,6 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     city: nn(f.city),
     country: nn(f.country) ?? 'BE',
     address_mismatch: f.address_mismatch,
-    private_address: nn(f.private_address),
-    private_address_complement: nn(f.private_address_complement),
-    private_zip: nn(f.private_zip),
-    private_city: nn(f.private_city),
-    private_country: nn(f.private_country),
-    private_phone: nn(f.private_phone),
-    private_mobile: nn(f.private_mobile),
-    private_email: nn(f.private_email),
     birth_date: nn(f.birth_date),
     national_id: nn(f.national_id),
     national_register: nn(f.national_register),
@@ -291,90 +267,24 @@ export function ContactForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <Tabs defaultValue="pro" className="w-full">
+      <Tabs defaultValue="self" className="w-full">
         <TabsList>
-          <TabsTrigger value="pro">{t('contacts.tabPro')}</TabsTrigger>
-          {isClient && <TabsTrigger value="privee">{t('contacts.tabPrivate')}</TabsTrigger>}
+          <TabsTrigger value="self">{isPro ? t('contacts.tabPro') : t('contacts.tabPrivate')}</TabsTrigger>
+          {isClient && <TabsTrigger value="linked">{isPro ? t('contacts.tabPrivate') : t('contacts.tabPro')}</TabsTrigger>}
           {isClient && <TabsTrigger value="ducati">{t('contacts.tabDucati')}</TabsTrigger>}
         </TabsList>
 
-        {/* Onglet « Info privée » — la personne (un pro peut aussi avoir des motos en privé) */}
+        {/* Onglet « comptes liés » (l'autre type) — lier / créer une fiche pro ↔ privé */}
         {isClient && (
-        <TabsContent value="privee" className="mt-4 space-y-6">
-          <Section title={t('contacts.secPrivate')}>
-            <Field label={t('contacts.civility')}>
-              <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
-            </Field>
-            <Field label={t('contacts.firstName')}>
-              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.lastName')}>
-              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.birthDate')}>
-              <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.nationalId')}>
-              <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.nationalRegister')}>
-              <Input value={f.national_register} onChange={(e) => set('national_register', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.licenseNumber')}>
-              <Input value={f.license_number} onChange={(e) => set('license_number', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.licenseDate')}>
-              <Input type="date" value={f.license_date} onChange={(e) => set('license_date', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.licensePlace')}>
-              <Input value={f.license_place} onChange={(e) => set('license_place', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.licenseCategory')}>
-              <Select
-                value={f.license_category || undefined}
-                onValueChange={(v) => set('license_category', v as LicenseCategory)}
-              >
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  {(['AM', 'A1', 'A2', 'A', 'B', 'autre'] as const).map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </Section>
-
-          <Section title={t('contacts.secPrivateAddress')}>
-            <Field label={t('contacts.privateEmail')}>
-              <Input type="email" value={f.private_email} onChange={(e) => set('private_email', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.privatePhone')}>
-              <Input value={f.private_phone} onChange={(e) => set('private_phone', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.privateMobile')}>
-              <Input value={f.private_mobile} onChange={(e) => set('private_mobile', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.address')} wide>
-              <Input value={f.private_address} onChange={(e) => set('private_address', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.addressComplement')}>
-              <Input value={f.private_address_complement} onChange={(e) => set('private_address_complement', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.zip')}>
-              <Input value={f.private_zip} onChange={(e) => set('private_zip', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.city')}>
-              <Input value={f.private_city} onChange={(e) => set('private_city', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.country')}>
-              <Input value={f.private_country} onChange={(e) => set('private_country', e.target.value)} />
-            </Field>
-          </Section>
+        <TabsContent value="linked" className="mt-4 space-y-6">
+          {initial
+            ? <ContactLinksPanel companyId={companyId} contact={initial} />
+            : <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('contacts.linksSaveFirst')}</p>}
         </TabsContent>
         )}
 
-        {/* Onglet « Info pro » — identité société, adresse, B2B, comptabilité, fournisseur, catégorisation */}
-        <TabsContent value="pro" className="mt-4 space-y-6">
+        {/* Onglet principal (« Info pro » ou « Info privée » selon le type) — infos propres de la fiche */}
+        <TabsContent value="self" className="mt-4 space-y-6">
           <Section title={t('contacts.secIdentity')}>
             {!lockType && (
               <Field label={t('contacts.type')}>
@@ -410,6 +320,15 @@ export function ContactForm({
                 <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
               </Field>
             )}
+            <Field label={t('contacts.civility')}>
+              <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
+            </Field>
+            <Field label={t('contacts.firstName')}>
+              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.lastName')}>
+              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
+            </Field>
             <Field label={t('contacts.email')}>
               <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
             </Field>
@@ -450,6 +369,39 @@ export function ContactForm({
               <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
             </div>
           </Section>
+
+          {isClient && (
+          <Section title={t('contacts.secMoto')}>
+            <Field label={t('contacts.birthDate')}>
+              <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.nationalId')}>
+              <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.nationalRegister')}>
+              <Input value={f.national_register} onChange={(e) => set('national_register', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseNumber')}>
+              <Input value={f.license_number} onChange={(e) => set('license_number', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseDate')}>
+              <Input type="date" value={f.license_date} onChange={(e) => set('license_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licensePlace')}>
+              <Input value={f.license_place} onChange={(e) => set('license_place', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseCategory')}>
+              <Select value={f.license_category || undefined} onValueChange={(v) => set('license_category', v as LicenseCategory)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  {(['AM', 'A1', 'A2', 'A', 'B', 'autre'] as const).map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </Section>
+          )}
 
           <Section title={t('contacts.secB2B')}>
             <Field label={t('contacts.vatNumber')}>
