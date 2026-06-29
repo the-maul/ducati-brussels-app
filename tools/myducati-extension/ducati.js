@@ -19,6 +19,8 @@
     return null;
   }
   const flag = (label) => { const v = byLabel(label); return v == null ? null : /✓|oui|yes|true|coch/i.test(v) || v === ''; };
+  // Premier libellé trouvé parmi plusieurs variantes (FR/IT/EN du portail).
+  const firstLabel = (...labels) => { for (const l of labels) { const v = byLabel(l); if (v) return v; } return null; };
 
   const collected = { bulletins: [], maintenance: [] };
   function harvestTables() {
@@ -32,7 +34,10 @@
         const c = [...tr.querySelectorAll('td')].map((td) => norm(td.textContent));
         if (!c.length || c.every((x) => !x || x === '-')) continue;
         if (isBull) {
-          if (!collected.bulletins.some((b) => b.bulletin_id === c[0])) collected.bulletins.push({ bulletin_id: c[0], title: c[1], number: c[2], published_at: c[3] });
+          // Lien du bulletin : 1er <a href> de la ligne (page portail ou PDF). .href = absolu.
+          const a = tr.querySelector('a[href]');
+          const url = a ? a.href : null;
+          if (!collected.bulletins.some((b) => b.bulletin_id === c[0])) collected.bulletins.push({ bulletin_id: c[0], title: c[1], number: c[2], published_at: c[3], url });
         } else {
           const row = {};
           heads.forEach((h, i) => { if (h) row[h] = c[i] ?? ''; }); // maintenance : objet clé=libellé colonne
@@ -58,6 +63,11 @@
         production_date: byLabel('Date de Production'), ship_date: byLabel("Date d'Expédition depuis Ducati"), invoiced_to: byLabel('Moto Facturée à'),
         warranty_start: byLabel('Date de Début de Garantie'), warranty_end: byLabel('Date de Fin de Garantie'), warranty_type: byLabel('Type de Garantie'),
         warranty_state: byLabel('État de la Garantie'), warranty_activated_by: byLabel('Garantie Activée par'), last_km: km || null,
+        // Champs standard moto (best-effort selon le portail) — appliqués SI vides côté DMS.
+        model: firstLabel('Modèle', 'Modello', 'Model'),
+        color: firstLabel('Couleur', 'Colore', 'Color'),
+        plate: firstLabel("Plaque d'Immatriculation", 'Plaque', 'Immatriculation', 'Targa'),
+        first_registration_date: firstLabel('Date de Première Immatriculation', 'Première Immatriculation', "Date d'Immatriculation"),
       },
     };
   }

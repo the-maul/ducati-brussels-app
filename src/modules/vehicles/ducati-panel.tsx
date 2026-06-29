@@ -3,7 +3,7 @@
  * synchronisés depuis My Ducati par l'extension navigateur (par VIN).
  */
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,12 +79,20 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
             <table className="w-full border-collapse font-data text-[13px]">
               <thead className="bg-muted"><tr>{['N°', 'Titre', 'Date'].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
               <tbody>
-                {bull.data!.map((b) => (
-                  <tr key={b.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-1.5 font-mono text-[12px]">{b.number ?? '—'}</td><td className="px-3 py-1.5">{b.title ?? '—'}</td>
-                    <td className="px-3 py-1.5 font-mono text-[12px]">{b.published_at ?? '—'}</td>
-                  </tr>
-                ))}
+                {bull.data!.map((b) => {
+                  const url = (b as { url?: string | null }).url;
+                  return (
+                    <tr key={b.id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-1.5 font-mono text-[12px]">{b.number ?? '—'}</td>
+                      <td className="px-3 py-1.5">
+                        {url
+                          ? <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{b.title ?? t('vehicles.bulletinOpen')}<ExternalLink className="size-3" /></a>
+                          : (b.title ?? '—')}
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-[12px]">{b.published_at ?? '—'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

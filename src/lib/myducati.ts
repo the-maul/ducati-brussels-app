@@ -9,7 +9,7 @@ export type MyDucatiPayload = {
   vin: string;
   contact: Record<string, unknown>;
   vehicle: Record<string, unknown>;
-  bulletins?: { bulletin_id?: string; title?: string; number?: string; published_at?: string }[];
+  bulletins?: { bulletin_id?: string; title?: string; number?: string; published_at?: string; url?: string }[];
   maintenance_raw?: unknown;
   scraped_at?: string;
   source_url?: string;
@@ -53,15 +53,34 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   const vehicleId = veh.id as string;
 
   const v = p.vehicle || {};
-  const vehPatch = clean({
-    engine_number: v.engine_number, ducati_state: v.ducati_state, ducati_usage: v.ducati_usage,
+  // 1) Données PROPRES À DUCATI (source de vérité) → toujours mises à jour.
+  const ducatiPatch = clean({
+    ducati_state: v.ducati_state, ducati_usage: v.ducati_usage,
     production_date: isoDate(v.production_date), ship_date: isoDate(v.ship_date), invoiced_to: v.invoiced_to,
     warranty_start: isoDate(v.warranty_start), warranty_end: isoDate(v.warranty_end), warranty_type: v.warranty_type,
     warranty_state: v.warranty_state, warranty_activated_by: v.warranty_activated_by,
-    mileage: v.last_km ? Number(v.last_km) : undefined,
     my_ducati_data: p as unknown as Record<string, unknown>, my_ducati_synced_at: new Date().toISOString(),
   });
-  await supabase.from('vehicles').update(vehPatch).eq('id', vehicleId);
+  // 2) Champs PARTAGÉS avec d'autres sources (factures, parc) → remplis SEULEMENT si vides
+  //    côté DMS (on ne réécrit jamais une donnée déjà saisie).
+  const shared = clean({
+    engine_number: v.engine_number,
+    mileage: v.last_km ? Number(v.last_km) : undefined,
+    model: v.model, color: v.color, plate: v.plate,
+    first_registration_date: isoDate(v.first_registration_date),
+  }) as Record<string, unknown>;
+  const emptyOnly: Record<string, unknown> = {};
+  if (Object.keys(shared).length) {
+    const { data: cur } = await supabase.from('vehicles')
+      .select('engine_number, mileage, model, color, plate, first_registration_date')
+      .eq('id', vehicleId).maybeSingle();
+    const row = (cur ?? {}) as Record<string, unknown>;
+    for (const k of Object.keys(shared)) {
+      const e = row[k];
+      if (e === null || e === undefined || e === '') emptyOnly[k] = shared[k];
+    }
+  }
+  await supabase.from('vehicles').update({ ...ducatiPatch, ...emptyOnly }).eq('id', vehicleId);
 
   // Bulletins : remplace l'ensemble pour cette moto (données de synchro).
   const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id || b.number || b.title);
@@ -69,7 +88,8 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     await supabase.from('vehicle_bulletins').delete().eq('vehicle_id', vehicleId);
     await supabase.from('vehicle_bulletins').insert(bulletins.map((b) => ({
       company_id: companyId, vehicle_id: vehicleId,
-      bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null, published_at: isoDate(b.published_at),
+      bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null,
+      published_at: isoDate(b.published_at), url: b.url || null,
     })));
   }
 

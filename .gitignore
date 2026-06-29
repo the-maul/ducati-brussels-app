@@ -41,8 +41,10 @@ infos app/
 Info Doc/
 # DONNÉES CLIENT (factures PDF importées) — JAMAIS sur le repo (public + données personnelles).
 Info DB/
-# Outillage de migration local (scripts + données VIN/factures clients) — hors repo, peut contenir des PII.
-tools/
+# Outillage de migration local (scripts Python + données VIN/factures clients) — hors repo (PII).
+# Exception : l'extension navigateur My Ducati, qui est du code applicatif versionné.
+tools/*
+!tools/myducati-extension/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 
