@@ -426,15 +426,15 @@ export const fr = {
     country: 'Pays',
     // permis & ID — upload
     uploadLicense: 'Joindre le permis',
-    uploadNationalId: 'Joindre la carte d\’identité',
+    uploadNationalId: 'Joindre la carte d’identité',
     viewDocument: 'Voir le document',
-    uploadHint: 'Enregistrez d\’abord la fiche pour joindre des documents.',
+    uploadHint: 'Enregistrez d’abord la fiche pour joindre des documents.',
     uploadSuccess: 'Document joint.',
     uploadError: 'Envoi impossible.',
     // catégorisation véhicule
     vehiclePreference: 'Intérêt VN ou VO',
     vp_vn: 'Véhicules neufs (VN)',
-    vp_vo: 'Véhicules d\’occasion (VO)',
+    vp_vo: 'Véhicules d’occasion (VO)',
     vp_both: 'Les deux',
     modelInterestsNew: 'Modèles neufs souhaités',
     modelInterestsVintage: 'Modèles anciens souhaités',
