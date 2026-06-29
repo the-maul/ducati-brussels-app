@@ -8,8 +8,9 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const bytesToBase64 = (bytes) => { let bin = ''; const CH = 0x8000; for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH)); return btoa(bin); };
 
-  // ===== Mode BULLETIN : page de détail bulletins.ducati.com → bouton « enregistrer le PDF FR dans le DMS ».
-  // Même origine ici (session du dealer) → on peut télécharger le PDF directement. Rangé par numéro côté DMS.
+  // ===== Mode BULLETIN : page de détail bulletins.ducati.com (même origine, session dealer).
+  // AUTO : dès que la page est chargée, récupère le PDF FR et l'envoie au DMS (rangé par numéro).
+  // Marche que l'onglet soit ouvert par l'extension (au scrape) OU par l'utilisateur. Aucun clic.
   if (/bulletins\.ducati\.com\/Bulletins\/Details\//i.test(location.href)) {
     const frPdfUrl = () => {
       const fr = document.querySelector('#riepilogo_FR') || document.querySelector('[id$="_FR"]');
@@ -17,27 +18,29 @@
       return a ? a.href : null;
     };
     const bulletinNumber = () => ((document.body.innerText.match(/[A-Z]{2,5}-[A-Z]{2,5}-\d{2}-\d{3,4}/) || [])[0]) || null;
-    const LBL = '⬇ Enregistrer le bulletin (FR) dans le DMS';
-    const bb = document.createElement('button');
-    bb.textContent = LBL;
-    bb.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#cc0000;color:#fff;border:0;border-radius:6px;padding:10px 14px;font:600 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)';
-    bb.addEventListener('click', async () => {
+    const badge = document.createElement('div');
+    badge.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#222;color:#fff;border-radius:6px;padding:8px 12px;font:600 12px system-ui;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    badge.textContent = '… bulletin → DMS';
+    (document.body || document.documentElement).appendChild(badge);
+    (async () => {
+      for (let i = 0; i < 25 && !document.querySelector('a[href*="/Bulletins/Download/"]'); i++) await sleep(400);
       const url = frPdfUrl(); const number = bulletinNumber();
-      if (!url) { bb.textContent = '⚠ PDF FR introuvable'; setTimeout(() => (bb.textContent = LBL), 4000); return; }
-      bb.textContent = '… téléchargement';
-      try {
-        const res = await fetch(url, { credentials: 'include' });
-        const buf = new Uint8Array(await res.arrayBuffer());
-        const isPdf = (res.headers.get('content-type') || '').toLowerCase().includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46);
-        if (!isPdf) { bb.textContent = '⚠ téléchargement non-PDF'; setTimeout(() => (bb.textContent = LBL), 4000); return; }
-        const payload = { number, pdf_base64: bytesToBase64(buf), pdf_name: String(number || 'bulletin').replace(/[^\w.-]+/g, '_') + '_FR.pdf' };
-        chrome.runtime.sendMessage({ type: 'bulletin-pdf', payload }, (resp) => {
-          bb.textContent = resp && resp.delivered ? '✓ Enregistré dans le DMS' : '⚠ Onglet DMS non ouvert';
-          setTimeout(() => (bb.textContent = LBL), 4000);
-        });
-      } catch (e) { bb.textContent = '⚠ échec'; setTimeout(() => (bb.textContent = LBL), 4000); }
-    });
-    (document.body || document.documentElement).appendChild(bb);
+      let ok = false;
+      if (url) {
+        try {
+          const res = await fetch(url, { credentials: 'include' });
+          const buf = new Uint8Array(await res.arrayBuffer());
+          const isPdf = (res.headers.get('content-type') || '').toLowerCase().includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46);
+          if (isPdf) {
+            chrome.runtime.sendMessage({ type: 'bulletin-pdf', payload: { number, pdf_base64: bytesToBase64(buf), pdf_name: String(number || 'bulletin').replace(/[^\w.-]+/g, '_') + '_FR.pdf' } });
+            ok = true;
+          }
+        } catch (_) {}
+      }
+      if (!ok) chrome.runtime.sendMessage({ type: 'bulletin-done' }); // l'extension referme l'onglet auto
+      badge.textContent = ok ? '✓ bulletin enregistré' : '⚠ PDF FR introuvable';
+      setTimeout(() => badge.remove(), 3500);
+    })();
     return; // page bulletin : pas de scrape VIN
   }
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DMS Ducati — Import My Ducati",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Importe les infos d'une moto (client, garantie, maintenance, bulletins) depuis le portail My Ducati vers le DMS Ducati Bruxelles.",
   "permissions": ["tabs", "storage", "notifications"],
   "host_permissions": [
