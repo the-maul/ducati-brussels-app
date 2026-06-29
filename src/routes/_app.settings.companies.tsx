@@ -60,6 +60,7 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
     sales_account_default: company.sales_account_default, customer_account_default: company.customer_account_default,
     vat_account_default: company.vat_account_default, is_active: company.is_active,
     inbound_mailbox: company.inbound_mailbox,
+    round_sale_prices_up: company.round_sale_prices_up,
   });
   const set = (k: keyof CompanyPatch, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
   const [msg, setMsg] = useState<string | null>(null);
@@ -87,6 +88,15 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
         <Field label={t('settings.coActive')}>
           <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={!!f.is_active} onChange={(e) => set('is_active', e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('settings.coActive')}</label>
         </Field>
+      </Section>
+      <Section title={t('settings.coSecPricing')}>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={!!f.round_sale_prices_up} onChange={(e) => set('round_sale_prices_up', e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
+            {t('settings.coRoundPrices')}
+          </label>
+          <p className="mt-1 text-[12px] text-muted-foreground">{t('settings.coRoundPricesHint')}</p>
+        </div>
       </Section>
       {msg && <p className="rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">{msg}</p>}
       <div className="flex justify-end"><Button onClick={() => { setMsg(null); save.mutate(); }} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('settings.coSave')}</Button></div>

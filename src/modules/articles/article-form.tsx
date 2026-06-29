@@ -16,6 +16,7 @@ import {
 import { t } from '@/lib/i18n';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
 import { listRef } from '@/modules/settings/reference-api';
+import { supabase } from '@/integrations/supabase/client';
 
 /** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
 export type RoundingRule = { sort_order: number; up_to: number; step: number; mode: 'up' | 'nearest' };
@@ -166,8 +167,10 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
 const toNum = (s: unknown) => { const n = Number(String(s ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
+/** Arrondi des prix de vente à l'euro supérieur, plancher 2 € (ex. 9,2 → 10 ; 1,3 → 2). */
+const roundUpEuro = (p: number): number => (p > 0 ? Math.max(2, Math.ceil(p - 1e-9)) : p);
 
-function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string, rounding: RoundingRule[] = []): Partial<FormState> {
+function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string, rounding: RoundingRule[] = [], roundUp = false): Partial<FormState> {
   const vat = edited === 'vat' ? toNum(value) : toNum(f.vat_rate);
   const vf = 1 + vat / 100;
   const pa = edited === 'pa' ? toNum(value) : toNum(f.purchase_price);
@@ -181,9 +184,10 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
   else if (edited === 'pa') { pvht = pa * coef; pvttc = pvht * vf; }       // garde le coefficient
   else if (edited === 'vat') { pvttc = pvht * vf; }
 
-  // Table d'arrondis : arrondit le PVTTC calculé (pas en saisie manuelle directe du PVTTC).
-  if (edited !== 'pvttc' && rounding.length) {
-    pvttc = applyRounding(pvttc, rounding);
+  // Arrondi du PVTTC calculé (pas en saisie manuelle directe du PVTTC).
+  // La règle « euro supérieur, plancher 2 € » (réglage société) a priorité sur la table d'arrondis.
+  if (edited !== 'pvttc' && (roundUp || rounding.length)) {
+    pvttc = roundUp ? roundUpEuro(pvttc) : applyRounding(pvttc, rounding);
     pvht = vf ? pvttc / vf : pvht;
     coef = pa > 0 ? pvht / pa : coef;
   }
@@ -221,9 +225,16 @@ export function ArticleForm({
     const e = (r.extra ?? {}) as Record<string, unknown>;
     return { sort_order: r.sort_order, up_to: Number(e.up_to) || 0, step: Number(e.step) || 0, mode: e.mode === 'nearest' ? 'nearest' : 'up' };
   });
+  // Réglage société : arrondir les prix de vente à l'euro supérieur (plancher 2 €).
+  const { data: roundCfg } = useQuery({
+    queryKey: ['company-round-prices', companyId],
+    queryFn: async () => (await supabase.from('companies').select('round_sale_prices_up').eq('id', companyId).maybeSingle()).data,
+    enabled: !!companyId,
+  });
+  const roundUp = roundCfg?.round_sale_prices_up ?? true;
   // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA + arrondi.
   const setP = (edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', v: string) =>
-    setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding) }));
+    setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding, roundUp) }));
   // Marges calculées (lecture seule) sur PA et sur PAMP.
   const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
   const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;

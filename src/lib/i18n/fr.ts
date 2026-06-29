@@ -839,6 +839,9 @@ export const fr = {
     coSalesAccount: 'Compte de vente', coCustomerAccount: 'Compte client', coVatAccount: 'Compte TVA',
     coActive: 'Active', coSaved: 'Société enregistrée', coSecLegal: 'Identité & TVA', coSecAccounting: 'Comptabilité (UBL / Winbooks)',
     coInboundMailbox: 'Boîte Outlook écoutée (mails entrants → fiche client)',
+    coSecPricing: 'Prix de vente',
+    coRoundPrices: 'Arrondir les prix de vente à l’euro supérieur (plancher 2 €)',
+    coRoundPricesHint: 'Les prix de vente calculés sont arrondis au montant supérieur (ex. 9,2 € → 10 €) ; tout prix sous 2 € passe à 2 €. Décochez pour conserver le montant précis.',
   },
 
   // Gestion des utilisateurs (M0)

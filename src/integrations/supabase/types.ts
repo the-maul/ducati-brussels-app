@@ -987,6 +987,7 @@ export type Database = {
           logo_url: string | null
           name: string
           peppol_id: string | null
+          round_sale_prices_up: boolean
           sales_account_default: string
           sent_last_check: string | null
           sepa_creditor_id: string | null
@@ -1015,6 +1016,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           peppol_id?: string | null
+          round_sale_prices_up?: boolean
           sales_account_default?: string
           sent_last_check?: string | null
           sepa_creditor_id?: string | null
@@ -1043,6 +1045,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           peppol_id?: string | null
+          round_sale_prices_up?: boolean
           sales_account_default?: string
           sent_last_check?: string | null
           sepa_creditor_id?: string | null
