@@ -73,6 +73,27 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     })));
   }
 
+  // Maintenance (événements) : lignes objet { libellé colonne → valeur } → table dédiée.
+  const maint = Array.isArray(p.maintenance_raw) ? (p.maintenance_raw as Record<string, string>[]) : [];
+  if (maint.length) {
+    const pick = (r: Record<string, string>, needles: string[]) => {
+      for (const k of Object.keys(r)) { const kl = k.toLowerCase(); if (needles.some((n) => kl.includes(n)) && r[k] && r[k] !== '-') return r[k]; }
+      return null;
+    };
+    const rows = maint.map((r) => {
+      const kmRaw = pick(r, ['km/mi', 'km', 'mi/h']) || '';
+      return {
+        company_id: companyId, vehicle_id: vehicleId,
+        service_type: pick(r, ['type']), state: pick(r, ['état', 'etat']),
+        km: kmRaw ? (Number(String(kmRaw).replace(/[^\d]/g, '')) || null) : null,
+        event_date: isoDate(pick(r, ['date de', 'date'])), due_date: isoDate(pick(r, ['éché', 'eche'])),
+        dealer: pick(r, ['concess']), ducati_event_id: pick(r, ['id']),
+      };
+    }).filter((r) => r.service_type || r.km || r.dealer || r.ducati_event_id);
+    await supabase.from('vehicle_maintenance').delete().eq('vehicle_id', vehicleId);
+    if (rows.length) await supabase.from('vehicle_maintenance').insert(rows);
+  }
+
   // Compte client Ducati → propriétaire courant de la moto.
   const c = p.contact || {};
   const contactPatch = clean({
@@ -80,6 +101,7 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     my_ducati_city: c.my_ducati_city, my_ducati_country: c.my_ducati_country,
     my_ducati_marketing: c.my_ducati_marketing as boolean | undefined, my_ducati_profiling: c.my_ducati_profiling as boolean | undefined,
     my_ducati_is_current_owner: c.my_ducati_is_current_owner as boolean | undefined,
+    my_ducati_synced_at: new Date().toISOString(),
   });
   if (Object.keys(contactPatch).length) {
     const { data: owner } = await supabase.from('vehicle_owners').select('contact_id')

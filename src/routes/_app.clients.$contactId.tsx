@@ -89,6 +89,7 @@ function EditClient() {
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
           <ContactForm
+            key={contact.my_ducati_synced_at ?? contact.id}
             initial={contact}
             companyId={activeCompanyId}
             submitting={m.isPending}

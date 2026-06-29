@@ -23,14 +23,21 @@
   const collected = { bulletins: [], maintenance: [] };
   function harvestTables() {
     for (const table of document.querySelectorAll('table')) {
-      const heads = [...table.querySelectorAll('thead th, thead td')].map((h) => norm(h.textContent).toLowerCase());
-      const isBull = heads.some((h) => h.includes('bulletin'));
-      const isMaint = heads.some((h) => h.includes('événement') || h.includes('evenement')) || heads.some((h) => h.includes('km/mi'));
+      const heads = [...table.querySelectorAll('thead th, thead td')].map((h) => norm(h.textContent));
+      const hl = heads.map((h) => h.toLowerCase());
+      const isBull = hl.some((h) => h.includes('bulletin'));
+      const isMaint = hl.some((h) => h.includes('événement') || h.includes('evenement')) || hl.some((h) => h.includes('km/mi'));
+      if (!isBull && !isMaint) continue;
       for (const tr of table.querySelectorAll('tbody tr')) {
         const c = [...tr.querySelectorAll('td')].map((td) => norm(td.textContent));
         if (!c.length || c.every((x) => !x || x === '-')) continue;
-        if (isBull && !collected.bulletins.some((b) => b.bulletin_id === c[0])) collected.bulletins.push({ bulletin_id: c[0], title: c[1], number: c[2], published_at: c[3] });
-        else if (isMaint) collected.maintenance.push(c);
+        if (isBull) {
+          if (!collected.bulletins.some((b) => b.bulletin_id === c[0])) collected.bulletins.push({ bulletin_id: c[0], title: c[1], number: c[2], published_at: c[3] });
+        } else {
+          const row = {};
+          heads.forEach((h, i) => { if (h) row[h] = c[i] ?? ''; }); // maintenance : objet clé=libellé colonne
+          collected.maintenance.push(row);
+        }
       }
     }
   }
@@ -55,16 +62,18 @@
     };
   }
 
-  const ready = () => { const t = document.body.innerText || ''; return /ZDM[A-HJ-NPR-Z0-9]{14}/.test(t) && (t.includes('Code Ducati') || t.includes('Garantie')); };
+  // Prêt dès que le VIN (toujours dans l'en-tête) est présent.
+  const ready = () => /ZDM[A-HJ-NPR-Z0-9]{14}/.test(document.body.innerText || '');
   function clickTab(name) { for (const el of document.querySelectorAll('a, button, span, li, [role="tab"]')) { if (norm(el.textContent) === name) { el.click(); return true; } } return false; }
 
   async function gather() {
     for (let i = 0; i < 25 && !ready(); i++) await sleep(800);
-    harvestTables();
-    if (clickTab('Événements') || clickTab('Evénements')) { await sleep(2000); harvestTables(); }
-    if (clickTab('Bulletins')) { await sleep(2000); harvestTables(); }
-    clickTab('Détails'); await sleep(300);
+    // 1) Onglet Détails d'abord : infos client + moto + garantie.
+    clickTab('Détails'); await sleep(1500);
     const d = details();
+    // 2) Puis Événements (maintenance) et Bulletins (tableaux).
+    if (clickTab('Événements') || clickTab('Evénements')) { await sleep(2200); harvestTables(); }
+    if (clickTab('Bulletins')) { await sleep(2200); harvestTables(); }
     return { ...d, bulletins: collected.bulletins, maintenance_raw: collected.maintenance, scraped_at: new Date().toISOString(), source_url: location.href };
   }
 

@@ -122,6 +122,7 @@ function EditVehicle() {
       )}
 
       <VehicleForm
+        key={vehicle.my_ducati_synced_at ?? vehicle.id}
         initial={vehicle}
         companyId={activeCompanyId}
         submitting={m.isPending}
