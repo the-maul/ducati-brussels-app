@@ -54,6 +54,26 @@ export function requestMyDucati(vin: string): Promise<boolean> {
 
 export type ApplyResult = { matched: boolean; vehicleId?: string; bulletins?: number };
 
+export type BulletinPdfPayload = { number?: string; pdf_base64?: string; pdf_name?: string };
+
+/**
+ * Enregistre le PDF d'un bulletin (téléchargé par l'extension sur bulletins.ducati.com)
+ * et le range sur TOUTES les motos qui référencent ce numéro de bulletin (company courante).
+ * Une seule copie stockée, liée à chaque ligne. Renvoie le nombre de motos mises à jour.
+ */
+export async function saveBulletinPdf(companyId: string, b: BulletinPdfPayload): Promise<{ updated: number }> {
+  if (!b?.number || !b.pdf_base64) return { updated: 0 };
+  const { data: rows } = await supabase.from('vehicle_bulletins')
+    .select('id').eq('company_id', companyId).eq('number', b.number);
+  if (!rows || !rows.length) return { updated: 0 };           // aucune moto avec ce bulletin
+  const safe = (b.pdf_name || `${b.number}.pdf`).replace(/[^\w.-]+/g, '_').slice(-60);
+  const path = `${companyId}/bulletins/${b.number.replace(/[^\w.-]+/g, '_')}/${Date.now()}_${safe}`;
+  const { error } = await supabase.storage.from('ged').upload(path, base64ToBytes(b.pdf_base64), { contentType: 'application/pdf', upsert: true });
+  if (error) throw error;
+  await supabase.from('vehicle_bulletins').update({ storage_path: path }).eq('company_id', companyId).eq('number', b.number);
+  return { updated: rows.length };
+}
+
 export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): Promise<ApplyResult> {
   if (!p?.vin) return { matched: false };
   const { data: veh } = await supabase.from('vehicles').select('id').eq('company_id', companyId).eq('vin', p.vin).maybeSingle();

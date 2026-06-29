@@ -13,7 +13,7 @@ window.addEventListener('message', (ev) => {
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === 'myducati-data') {
-    window.postMessage({ source: 'dms-ducati-ext', action: 'myducati-data', payload: msg.payload }, location.origin);
+  if (msg && (msg.type === 'myducati-data' || msg.type === 'bulletin-pdf')) {
+    window.postMessage({ source: 'dms-ducati-ext', action: msg.type, payload: msg.payload }, location.origin);
   }
 });
