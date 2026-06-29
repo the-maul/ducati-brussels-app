@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge } from '@/components/status-badge';
 import { vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
 import {
-  listOwnedVehicles, listDeliveryAddresses, upsertDeliveryAddress, deleteDeliveryAddress,
+  listOwnedVehicles, setOwnerKind, listDeliveryAddresses, upsertDeliveryAddress, deleteDeliveryAddress,
   listClientPriceRules, upsertClientPriceRule, deleteClientPriceRule,
   listSubcontacts, upsertSubcontact, deleteSubcontact,
 } from './subobjects-api';
@@ -95,13 +95,24 @@ export function DueItemsTab({ contactId }: { contactId: string }) {
 /* ---------------- Parc ---------------- */
 export function ParcTab({ contactId }: { contactId: string }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['client-parc', contactId], queryFn: () => listOwnedVehicles(contactId) });
+  const setKind = useMutation({
+    mutationFn: ({ ownerId, kind }: { ownerId: string; kind: 'pro' | 'prive' }) => setOwnerKind(ownerId, kind),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-parc', contactId] }),
+  });
   if (isLoading) return <Spinner />;
   if (!data || data.length === 0) return <Empty>Aucun véhicule lié à ce client.</Empty>;
+  const KindBtn = ({ ownerId, kind, active, label }: { ownerId: string; kind: 'pro' | 'prive'; active: boolean; label: string }) => (
+    <button type="button" onClick={(e) => { e.stopPropagation(); setKind.mutate({ ownerId, kind }); }}
+      className={`rounded-[var(--radius-badge)] border px-2 py-0.5 text-[11px] ${active ? 'border-[var(--ducati-red)] bg-accent font-medium' : 'border-border text-muted-foreground hover:border-[var(--ducati-red)]'}`}>
+      {label}
+    </button>
+  );
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>Véhicule</Th><Th>VIN</Th><Th>Période</Th><Th>Statut</Th></tr></thead>
+        <thead className="bg-muted"><tr><Th>Véhicule</Th><Th>VIN</Th><Th>Période</Th><Th>Compte</Th><Th>Statut</Th></tr></thead>
         <tbody>
           {data.map((o) => (
             <tr key={o.ownerId} onClick={() => navigate({ to: '/vehicles/$vehicleId', params: { vehicleId: o.vehicle.id } })}
@@ -109,6 +120,10 @@ export function ParcTab({ contactId }: { contactId: string }) {
               <td className="px-3 py-2 font-medium"><Bike className="mr-1 inline size-4" />{vehicleLabel(o.vehicle)}</td>
               <td className="px-3 py-2 font-mono text-[12px]">{o.vehicle.vin ?? '—'}</td>
               <td className="px-3 py-2 font-mono text-[12px]">{o.from_date}{o.to_date ? ` → ${o.to_date}` : (o.is_current ? ' · actuel' : '')}</td>
+              <td className="px-3 py-2"><div className="flex gap-1">
+                <KindBtn ownerId={o.ownerId} kind="pro" active={o.owner_kind === 'pro'} label={t('contacts.tabPro')} />
+                <KindBtn ownerId={o.ownerId} kind="prive" active={o.owner_kind === 'prive'} label={t('contacts.tabPrivate')} />
+              </div></td>
               <td className="px-3 py-2"><StatusBadge tone={toneOf(o.vehicle.status)} label={t(`vehicles.status_${o.vehicle.status}`)} /></td>
             </tr>
           ))}

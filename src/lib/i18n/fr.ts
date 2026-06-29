@@ -367,6 +367,10 @@ export const fr = {
     tabPrivate: 'Info privée',
     tabPro: 'Info pro',
     tabDucati: 'Info chez Ducati',
+    secPrivateAddress: 'Coordonnées privées',
+    privateEmail: 'E-mail privé',
+    privatePhone: 'Téléphone privé',
+    privateMobile: 'Mobile privé',
     secB2B: 'Professionnel (B2B)',
     secCategory: 'Catégorisation',
     // type

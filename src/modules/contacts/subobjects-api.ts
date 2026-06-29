@@ -53,19 +53,25 @@ export async function deleteClientPriceRule(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export type OwnedVehicle = { ownerId: string; is_current: boolean; from_date: string; to_date: string | null; vehicle: Vehicle };
+export type OwnedVehicle = { ownerId: string; is_current: boolean; from_date: string; to_date: string | null; owner_kind: string | null; vehicle: Vehicle };
 
 /** Parc du client : véhicules dont il est (ou a été) propriétaire (B9). */
 export async function listOwnedVehicles(contactId: string): Promise<OwnedVehicle[]> {
   const { data, error } = await supabase
     .from('vehicle_owners')
-    .select('id, is_current, from_date, to_date, vehicles(*)')
+    .select('id, is_current, from_date, to_date, owner_kind, vehicles(*)')
     .eq('contact_id', contactId)
     .order('from_date', { ascending: false });
   if (error) throw error;
   return (data ?? [])
     .filter((r) => r.vehicles)
-    .map((r) => ({ ownerId: r.id, is_current: r.is_current, from_date: r.from_date, to_date: r.to_date, vehicle: r.vehicles as unknown as Vehicle }));
+    .map((r) => ({ ownerId: r.id, is_current: r.is_current, from_date: r.from_date, to_date: r.to_date, owner_kind: (r as { owner_kind: string | null }).owner_kind, vehicle: r.vehicles as unknown as Vehicle }));
+}
+
+/** Rattache une moto liée au compte « pro » ou « privé » du client (recoupement Ducati). */
+export async function setOwnerKind(ownerId: string, kind: 'pro' | 'prive'): Promise<void> {
+  const { error } = await supabase.from('vehicle_owners').update({ owner_kind: kind }).eq('id', ownerId);
+  if (error) throw error;
 }
 
 export type Subcontact = Database['public']['Tables']['contact_subcontacts']['Row'];
