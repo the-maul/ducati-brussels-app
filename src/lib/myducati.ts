@@ -110,25 +110,28 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   }
   await supabase.from('vehicles').update({ ...ducatiPatch, ...emptyOnly }).eq('id', vehicleId);
 
-  // Bulletins : remplace l'ensemble pour cette moto (données de synchro).
+  // Bulletins : remplace l'ensemble pour cette moto, MAIS préserve les PDF déjà rapatriés
+  // (le PDF est téléchargé séparément par l'extension via saveBulletinPdf ; on ne le perd jamais
+  // au re-scrape). On reporte storage_path/url des lignes existantes (par bulletin_id/numéro).
   const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id || b.number || b.title);
   if (bulletins.length) {
-    // Rapatrie les PDF (téléchargés par l'extension) dans le bucket ged avant l'insert.
-    const paths: (string | null)[] = await Promise.all(bulletins.map(async (b) => {
-      if (!b.pdf_base64) return null;
-      try {
-        const safe = (b.pdf_name || 'bulletin.pdf').replace(/[^\w.-]+/g, '_').slice(-60);
-        const path = `${companyId}/vehicle/${vehicleId}/bulletins/${Date.now()}_${safe}`;
-        const { error } = await supabase.storage.from('ged').upload(path, base64ToBytes(b.pdf_base64), { contentType: 'application/pdf', upsert: true });
-        return error ? null : path;
-      } catch { return null; }
-    }));
+    const { data: prev } = await supabase.from('vehicle_bulletins')
+      .select('number, bulletin_id, storage_path, url').eq('vehicle_id', vehicleId);
+    const keep = new Map<string, { storage_path: string | null; url: string | null }>();
+    for (const r of (prev ?? []) as Array<{ number: string | null; bulletin_id: string | null; storage_path: string | null; url: string | null }>) {
+      const k = r.bulletin_id || r.number;
+      if (k) keep.set(String(k), { storage_path: r.storage_path ?? null, url: r.url ?? null });
+    }
     await supabase.from('vehicle_bulletins').delete().eq('vehicle_id', vehicleId);
-    await supabase.from('vehicle_bulletins').insert(bulletins.map((b, i) => ({
-      company_id: companyId, vehicle_id: vehicleId,
-      bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null,
-      published_at: isoDate(b.published_at), url: b.url || null, storage_path: paths[i],
-    })));
+    await supabase.from('vehicle_bulletins').insert(bulletins.map((b) => {
+      const old = keep.get(String(b.bulletin_id || b.number || ''));
+      return {
+        company_id: companyId, vehicle_id: vehicleId,
+        bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null,
+        published_at: isoDate(b.published_at), url: b.url || old?.url || null,
+        storage_path: old?.storage_path ?? null,        // <- PDF préservé
+      };
+    }));
   }
 
   // Maintenance (événements) : lignes objet { libellé colonne → valeur } → table dédiée.
