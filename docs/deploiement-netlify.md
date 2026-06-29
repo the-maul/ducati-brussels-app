@@ -23,7 +23,12 @@ git push origin main  ──►  Netlify rebuild auto  ──►  https://<site>
 | `VITE_SUPABASE_URL` | `https://ujmrosbgkvgvwfnuryna.supabase.co` | non (publique) |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | clé **anon** (cf. `.env`) | non (publique) |
 | `SUPABASE_URL` | `https://ujmrosbgkvgvwfnuryna.supabase.co` | non |
+| `SUPABASE_PUBLISHABLE_KEY` | **même clé anon** (lue côté serveur SSR) | non (publique) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** | **OUI** |
+
+> Le rendu serveur (fonctions SSR) lit les variables **sans** préfixe `VITE_` via
+> `process.env` : il faut donc **dupliquer** l'URL et la clé anon en `SUPABASE_URL` /
+> `SUPABASE_PUBLISHABLE_KEY` en plus de leurs versions `VITE_`.
 
 > `SUPABASE_SERVICE_ROLE_KEY` ne sert qu'à l'écran **admin → Utilisateurs** (création de
 > comptes). Il reste **uniquement** dans Netlify, jamais dans le repo.
@@ -32,7 +37,7 @@ git push origin main  ──►  Netlify rebuild auto  ──►  https://<site>
 
 1. Netlify → **Add new site** → **Import an existing project** → **GitHub** →
    `the-maul/ducati-brussels-app`, branche `main`.
-2. Renseigner les 4 variables ci-dessus **avant** le premier déploiement.
+2. Renseigner les 5 variables ci-dessus **avant** le premier déploiement.
 3. **Deploy** → URL `https://<aléatoire>.netlify.app`.
 4. Supabase → **Authentication → URL Configuration** :
    - **Site URL** : `https://<site>.netlify.app`
