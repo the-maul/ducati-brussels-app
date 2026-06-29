@@ -1,15 +1,16 @@
 /**
  * M1 — Formulaire de fiche client (création + édition).
- * Sections : identité, adresse, permis moto, B2B, catégorisation.
+ * Sections : identité, adresse, permis & ID, B2B, catégorisation.
  * État contrôlé simple ; mappé vers ContactInsert à la soumission.
  */
-import { useState, type ReactNode } from 'react';
+import { useState, useRef, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Save, RefreshCw, Bike } from 'lucide-react';
+import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { firstContactVehicle } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
 import { requestMyDucati } from '@/lib/myducati';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +25,103 @@ import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
 
+// ─── Modèles Ducati neufs disponibles à la commande ───────────────────────────
+const DUCATI_NEW_MODELS: string[] = [
+  'Diavel V4',
+  'Diavel V4 Black Star',
+  'Diavel V4 S',
+  'DesertX',
+  'DesertX Discovery',
+  'DesertX Rally',
+  'Hypermotard 698 Mono',
+  'Hypermotard 698 Mono RVE',
+  'Hypermotard 698 Mono SP',
+  'Hypermotard 950',
+  'Hypermotard 950 RVE',
+  'Hypermotard 950 SP',
+  'Monster',
+  'Monster 30° Anniversario',
+  'Monster SP',
+  'Multistrada V2',
+  'Multistrada V2 S',
+  'Multistrada V4',
+  'Multistrada V4 Rally',
+  'Multistrada V4 RS',
+  'Multistrada V4 S',
+  'Panigale V2',
+  'Panigale V4',
+  'Panigale V4 R',
+  'Panigale V4 S',
+  'Panigale V4 SP2',
+  'Scrambler Desert Sled',
+  'Scrambler Full Throttle',
+  'Scrambler Icon',
+  'Scrambler Nightshift',
+  'Streetfighter V2',
+  'Streetfighter V4',
+  'Streetfighter V4 SP2',
+  'SuperSport 950',
+  'SuperSport 950 S',
+  'XDiavel V4',
+  'XDiavel V4 Dark',
+  'XDiavel V4 S',
+];
+
+// ─── Modèles Ducati anciens (jusqu'à 1990) ────────────────────────────────────
+const DUCATI_VINTAGE_MODELS: string[] = [
+  // 1990–1994
+  '851', '888', '907 IE', '900 SS', '750 SS', '600 SS',
+  // 1994–1999
+  '916', '916 S', '916 SP', '916 SPS', '916 R',
+  '748', '748 S', '748 SP', '748 SPS', '748 R',
+  '996', '996 S', '996 R',
+  'ST2', 'ST4',
+  'Monster 600', 'Monster 750', 'Monster 900', 'Monster M900',
+  // 2000–2005
+  '998', '998 S', '998 R',
+  '999', '999 R', '999 S',
+  '749', '749 R', '749 S',
+  'ST3', 'ST3 S', 'ST4 S',
+  'Monster 620', 'Monster 1000', 'Monster S4', 'Monster S4R',
+  'Multistrada 620', 'Multistrada 1000', 'Multistrada 1000 S DS',
+  'MH900e',
+  // 2006–2009
+  '848', '1098', '1098 S', '1098 R',
+  'Monster 695', 'Monster 1100', 'Monster S4RS',
+  'Multistrada 1100', 'Multistrada 1100 S',
+  'Hypermotard 1100', 'Hypermotard 1100 S',
+  // 2010–2014
+  '848 EVO', '1198', '1198 S', '1198 R',
+  '1199 Panigale', '1199 Panigale S', '1199 Panigale R',
+  'Monster 696', 'Monster 796', 'Monster 1100 EVO', 'Monster 821',
+  'Multistrada 1200', 'Multistrada 1200 S',
+  'Hypermotard 796', 'Hypermotard 821', 'Hyperstrada 821',
+  'Streetfighter 848', 'Streetfighter 1098', 'Streetfighter S',
+  'Diavel', 'Diavel Carbon', 'Diavel Cromo', 'Diavel Titanium', 'Diavel AMG',
+  'Scrambler 400 Sixty2', 'Scrambler 800 Café Racer', 'Scrambler 800 Desert Sled',
+  'Scrambler 800 Full Throttle', 'Scrambler 800 Icon', 'Scrambler 800 Urban Enduro',
+  // 2015–2019
+  '959 Panigale',
+  'SuperSport 937', 'SuperSport 937 S',
+  'Monster 821 S', 'Monster 1200', 'Monster 1200 R', 'Monster 1200 S',
+  'Monster 1200 25° Anniversario',
+  'Multistrada 950', 'Multistrada 950 S',
+  'Multistrada 1260', 'Multistrada 1260 S',
+  'Multistrada 1260 Enduro', 'Multistrada 1260 Pikes Peak',
+  'Hypermotard 939', 'Hypermotard 939 SP',
+  'XDiavel', 'XDiavel S',
+  // 2020–2024
+  'Monster (2021)', 'Monster SP (2023)',
+  'Multistrada V4 (2021)', 'Multistrada V4 S (2021)', 'Multistrada V4 Rally (2021)',
+  'Panigale V2 (2020)', 'Panigale V4 R (2023)', 'Panigale V4 SP2 (2022)',
+  'Streetfighter V4 (2020)', 'Streetfighter V4 S (2020)',
+  'Streetfighter V4 SP (2021)', 'Streetfighter V2 (2022)',
+  'DesertX (2022)', 'Diavel V4 (2023)', 'XDiavel V4 (2023)',
+  'Hypermotard 698 Mono (2024)',
+  'Scrambler Desert Sled (2023)', 'Scrambler Full Throttle (2023)',
+  'Scrambler Icon (2023)', 'Scrambler Nightshift (2023)',
+];
+
 const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'route', labelKey: 'contacts.interestRoute' },
   { key: 'sport', labelKey: 'contacts.interestSport' },
@@ -31,9 +129,6 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
 ];
 
 // Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
-// (datalist) sur le champ `civility`. Valeur = abréviation réelle (alignée sur les
-// données G8 : SRL, SPRL, SA, BV…) ; libellé descriptif FR/NL. Saisie libre conservée
-// pour ne perdre aucune valeur existante (formes étrangères, variantes).
 const COMPANY_TYPES: { value: string; label: string }[] = [
   { value: 'SRL', label: 'Société à resp. limitée' },
   { value: 'BV', label: 'Besloten vennootschap' },
@@ -62,10 +157,10 @@ type FormState = {
   last_name: string;
   company_name: string;
   email: string;
-  phone: string;
   mobile: string;
-  gsm: string;
-  address: string;
+  gsm: string;         // affiché comme "Mobile 2"
+  address: string;     // rue
+  street_number: string;
   address_complement: string;
   address_complement2: string;
   po_box: string;
@@ -80,6 +175,8 @@ type FormState = {
   license_date: string;
   license_place: string;
   license_category: LicenseCategory | '';
+  license_scan_path: string;
+  national_id_scan_path: string;
   vat_number: string;
   sale_vat_type: SaleVatType;
   payment_terms: string;
@@ -107,6 +204,9 @@ type FormState = {
   mode_ht: boolean;
   marketing_opt_out: boolean;
   interests: string[];
+  vehicle_preference: string;
+  model_interests: string[];
+  notify_model_stock: boolean;
   notes: string;
   // Fournisseur (M4)
   supplier_customer_no: string;
@@ -117,6 +217,7 @@ type FormState = {
 };
 
 function fromContact(c: Contact | null): FormState {
+  const ext = c as any; // accès aux colonnes ajoutées par migration (types.ts non régénéré)
   return {
     type: c?.type ?? 'particulier',
     status: c?.status ?? 'prospect',
@@ -126,10 +227,10 @@ function fromContact(c: Contact | null): FormState {
     last_name: c?.last_name ?? '',
     company_name: c?.company_name ?? '',
     email: c?.email ?? '',
-    phone: c?.phone ?? '',
     mobile: c?.mobile ?? '',
     gsm: c?.gsm ?? '',
     address: c?.address ?? '',
+    street_number: ext?.street_number ?? '',
     address_complement: c?.address_complement ?? '',
     address_complement2: c?.address_complement2 ?? '',
     po_box: c?.po_box ?? '',
@@ -144,6 +245,8 @@ function fromContact(c: Contact | null): FormState {
     license_date: c?.license_date ?? '',
     license_place: c?.license_place ?? '',
     license_category: c?.license_category ?? '',
+    license_scan_path: ext?.license_scan_path ?? '',
+    national_id_scan_path: ext?.national_id_scan_path ?? '',
     vat_number: c?.vat_number ?? '',
     sale_vat_type: c?.sale_vat_type ?? 'national',
     payment_terms: c?.payment_terms ?? '',
@@ -171,6 +274,9 @@ function fromContact(c: Contact | null): FormState {
     mode_ht: c?.mode_ht ?? false,
     marketing_opt_out: c?.marketing_opt_out ?? false,
     interests: c?.interests ?? [],
+    vehicle_preference: ext?.vehicle_preference ?? '',
+    model_interests: ext?.model_interests ?? [],
+    notify_model_stock: ext?.notify_model_stock ?? false,
     notes: c?.notes ?? '',
     supplier_customer_no: c?.supplier_customer_no ?? '',
     supplier_is_internal: c?.supplier_is_internal ?? false,
@@ -183,7 +289,7 @@ function fromContact(c: Contact | null): FormState {
 const nn = (s: string) => (s.trim() === '' ? null : s.trim());
 
 export function buildPayload(f: FormState, companyId: string): ContactInsert {
-  return {
+  const base: ContactInsert = {
     company_id: companyId,
     type: f.type,
     status: f.status,
@@ -193,7 +299,7 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     last_name: nn(f.last_name),
     company_name: nn(f.company_name),
     email: nn(f.email),
-    phone: nn(f.phone),
+    phone: null, // champ supprimé de l'UI, on ne le met plus à jour
     mobile: nn(f.mobile),
     gsm: nn(f.gsm),
     address: nn(f.address),
@@ -245,6 +351,15 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     supplier_franco_min: f.supplier_franco_min.trim() === '' ? null : Number(f.supplier_franco_min),
     supplier_order_min: f.supplier_order_min.trim() === '' ? null : Number(f.supplier_order_min),
   };
+  // Colonnes ajoutées par migration 20260629 — pas encore dans types.ts auto-généré
+  return Object.assign(base, {
+    street_number: nn(f.street_number),
+    vehicle_preference: nn(f.vehicle_preference),
+    model_interests: f.model_interests,
+    notify_model_stock: f.notify_model_stock,
+    license_scan_path: nn(f.license_scan_path),
+    national_id_scan_path: nn(f.national_id_scan_path),
+  });
 }
 
 export function ContactForm({
@@ -273,9 +388,10 @@ export function ContactForm({
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const isPro = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
-  // Un fournisseur / une banque n'est pas un « client » : on masque les sections client
-  // (statut prospect/client, permis moto, catégorisation/flags client, centres d'intérêt).
-  const isClient = f.type === 'particulier' || f.type === 'professionnel';
+  const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
+  const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
+
+  const addressTitle = isPro ? t('contacts.secAddressPro') : t('contacts.secAddressPrivate');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,6 +406,9 @@ export function ContactForm({
   const toggleInterest = (key: string, on: boolean) =>
     set('interests', on ? [...f.interests, key] : f.interests.filter((i) => i !== key));
 
+  const toggleModelInterest = (model: string, on: boolean) =>
+    set('model_interests', on ? [...f.model_interests, model] : f.model_interests.filter((m) => m !== model));
+
   return (
     <form onSubmit={submit} className="space-y-6">
       <Tabs defaultValue="self" className="w-full">
@@ -299,7 +418,7 @@ export function ContactForm({
           {isClient && <TabsTrigger value="ducati">{t('contacts.tabDucati')}</TabsTrigger>}
         </TabsList>
 
-        {/* Onglet « comptes liés » (l'autre type) — lier / créer une fiche pro ↔ privé */}
+        {/* Onglet « comptes liés » */}
         {isClient && (
         <TabsContent value="linked" className="mt-4 space-y-6">
           {initial
@@ -308,8 +427,10 @@ export function ContactForm({
         </TabsContent>
         )}
 
-        {/* Onglet principal (« Info pro » ou « Info privée » selon le type) — infos propres de la fiche */}
+        {/* Onglet principal */}
         <TabsContent value="self" className="mt-4 space-y-6">
+
+          {/* ── Identité ───────────────────────────────────────────────────── */}
           <Section title={t('contacts.secIdentity')}>
             {!lockType && (
               <Field label={t('contacts.type')}>
@@ -318,6 +439,7 @@ export function ContactForm({
                   <SelectContent>
                     <SelectItem value="particulier">{t('contacts.type_particulier')}</SelectItem>
                     <SelectItem value="professionnel">{t('contacts.type_professionnel')}</SelectItem>
+                    <SelectItem value="employe">{t('contacts.type_employe')}</SelectItem>
                     <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
                     <SelectItem value="fournisseur">{t('contacts.type_fournisseur')}</SelectItem>
                   </SelectContent>
@@ -368,26 +490,34 @@ export function ContactForm({
             <Field label={t('contacts.email')}>
               <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
             </Field>
-            <Field label={t('contacts.phone')}>
-              <Input value={f.phone} onChange={(e) => set('phone', e.target.value)} />
-            </Field>
+            {/* Mobile avec préfixe +32 par défaut */}
             <Field label={t('contacts.mobile')}>
-              <Input value={f.mobile} onChange={(e) => set('mobile', e.target.value)} />
+              <PhoneInput value={f.mobile} onChange={(v) => set('mobile', v)} />
             </Field>
-            <Field label={t('contacts.gsm')}>
-              <Input value={f.gsm} onChange={(e) => set('gsm', e.target.value)} />
+            {/* Mobile 2 (ex-GSM) avec préfixe */}
+            <Field label={t('contacts.mobile2')}>
+              <PhoneInput value={f.gsm} onChange={(v) => set('gsm', v)} />
             </Field>
           </Section>
 
-          <Section title={t('contacts.secAddress')}>
-            <Field label={t('contacts.address')} wide>
-              <Input value={f.address} onChange={(e) => set('address', e.target.value)} />
-            </Field>
+          {/* ── Adresse (pro ou privée selon le type) ─────────────────────── */}
+          <Section title={addressTitle}>
+            <div className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Rue + Numéro sur la même ligne */}
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('contacts.street')}</Label>
+                <Input value={f.address} onChange={(e) => set('address', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('contacts.streetNumber')}</Label>
+                <Input value={f.street_number} onChange={(e) => set('street_number', e.target.value)} placeholder="12 A" />
+              </div>
+            </div>
             <Field label={t('contacts.addressComplement')}>
               <Input value={f.address_complement} onChange={(e) => set('address_complement', e.target.value)} />
             </Field>
-            <Field label={t('contacts.addressComplement2')}>
-              <Input value={f.address_complement2} onChange={(e) => set('address_complement2', e.target.value)} />
+            <Field label={t('contacts.poBox')}>
+              <Input value={f.po_box} onChange={(e) => set('po_box', e.target.value)} />
             </Field>
             <Field label={t('contacts.zip')}>
               <Input value={f.zip} onChange={(e) => set('zip', e.target.value)} />
@@ -398,14 +528,43 @@ export function ContactForm({
             <Field label={t('contacts.country')}>
               <Input value={f.country} onChange={(e) => set('country', e.target.value)} />
             </Field>
-            <Field label={t('contacts.poBox')}>
-              <Input value={f.po_box} onChange={(e) => set('po_box', e.target.value)} />
-            </Field>
             <div className="col-span-full">
               <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
             </div>
           </Section>
 
+          {/* ── Professionnel (B2B) — juste après l'adresse, uniquement pour pro ── */}
+          {showB2B && (
+            <Section title={t('contacts.secB2B')}>
+              <Field label={t('contacts.vatNumber')}>
+                <Input value={f.vat_number} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." />
+              </Field>
+              <Field label={t('contacts.paymentTerms')}>
+                <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
+              </Field>
+              <Field label={t('contacts.iban')}>
+                <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
+              </Field>
+              <Field label={t('contacts.bic')}>
+                <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
+              </Field>
+              <Field label={t('contacts.saleVatType')}>
+                <Select value={f.sale_vat_type} onValueChange={(v) => set('sale_vat_type', v as SaleVatType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="national">{t('contacts.saleVat_national')}</SelectItem>
+                    <SelectItem value="intracom">{t('contacts.saleVat_intracom')}</SelectItem>
+                    <SelectItem value="export">{t('contacts.saleVat_export')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('contacts.creditLimit')}>
+                <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
+              </Field>
+            </Section>
+          )}
+
+          {/* ── Permis & ID (clients uniquement) ──────────────────────────── */}
           {isClient && (
           <Section title={t('contacts.secMoto')}>
             <Field label={t('contacts.birthDate')}>
@@ -436,37 +595,31 @@ export function ContactForm({
                 </SelectContent>
               </Select>
             </Field>
+            {/* Scan permis */}
+            <Field label={t('contacts.uploadLicense')}>
+              <DocUpload
+                label={t('contacts.uploadLicense')}
+                contactId={initial?.id ?? null}
+                fieldName="license"
+                currentPath={f.license_scan_path}
+                onUpload={(path) => set('license_scan_path', path)}
+              />
+            </Field>
+            {/* Scan carte d'identité */}
+            <Field label={t('contacts.uploadNationalId')}>
+              <DocUpload
+                label={t('contacts.uploadNationalId')}
+                contactId={initial?.id ?? null}
+                fieldName="national_id"
+                currentPath={f.national_id_scan_path}
+                onUpload={(path) => set('national_id_scan_path', path)}
+              />
+            </Field>
           </Section>
           )}
 
-          <Section title={t('contacts.secB2B')}>
-            <Field label={t('contacts.vatNumber')}>
-              <Input value={f.vat_number} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." />
-            </Field>
-            <Field label={t('contacts.paymentTerms')}>
-              <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
-            </Field>
-            <Field label={t('contacts.iban')}>
-              <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
-            </Field>
-            <Field label={t('contacts.bic')}>
-              <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
-            </Field>
-            <Field label={t('contacts.saleVatType')}>
-              <Select value={f.sale_vat_type} onValueChange={(v) => set('sale_vat_type', v as SaleVatType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="national">{t('contacts.saleVat_national')}</SelectItem>
-                  <SelectItem value="intracom">{t('contacts.saleVat_intracom')}</SelectItem>
-                  <SelectItem value="export">{t('contacts.saleVat_export')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={t('contacts.creditLimit')}>
-              <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
-            </Field>
-          </Section>
-
+          {/* ── Comptabilité (pro/fournisseur) ────────────────────────────── */}
+          {showB2B && (
           <Section title={t('contacts.secAccounting')}>
             <Field label={t('contacts.accountingAccount')}>
               <Input value={f.accounting_account} onChange={(e) => set('accounting_account', e.target.value)} className="font-mono" />
@@ -478,8 +631,9 @@ export function ContactForm({
               <Input value={f.factoring_code} onChange={(e) => set('factoring_code', e.target.value)} />
             </Field>
           </Section>
+          )}
 
-          {/* Fournisseur (M4) — visible pour les fiches fournisseur */}
+          {/* ── Fournisseur (M4) ──────────────────────────────────────────── */}
           {f.type === 'fournisseur' && (
             <Section title={t('contacts.secSupplier')}>
               <Field label={t('contacts.supplierCustomerNo')}>
@@ -498,9 +652,9 @@ export function ContactForm({
             </Section>
           )}
 
-          {/* Catégorisation (clients) / Notes */}
-          <Section title={isClient ? t('contacts.secCategory') : t('contacts.notes')}>
-            {isClient && (<>
+          {/* ── Catégorisation (clients) ──────────────────────────────────── */}
+          {isClient && (
+          <Section title={t('contacts.secCategory')}>
             <Field label={t('contacts.segment')}>
               <Select value={f.segment} onValueChange={(v) => set('segment', v as CustomerSegment)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -537,14 +691,76 @@ export function ContactForm({
                 ))}
               </div>
             </Field>
-            </>)}
+
+            {/* Préférence VN / VO */}
+            <Field label={t('contacts.vehiclePreference')}>
+              <Select value={f.vehicle_preference || undefined} onValueChange={(v) => set('vehicle_preference', v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vn">{t('contacts.vp_vn')}</SelectItem>
+                  <SelectItem value="vo">{t('contacts.vp_vo')}</SelectItem>
+                  <SelectItem value="both">{t('contacts.vp_both')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {/* Modèles neufs d'intérêt */}
+            {(!f.vehicle_preference || f.vehicle_preference === 'vn' || f.vehicle_preference === 'both') && (
+              <Field label={t('contacts.modelInterestsNew')} wide>
+                <p className="mb-1.5 text-[11px] text-muted-foreground">{t('contacts.modelSelectHint')}</p>
+                <ModelMultiSelect
+                  models={DUCATI_NEW_MODELS}
+                  selected={f.model_interests.filter(m => DUCATI_NEW_MODELS.includes(m))}
+                  onChange={(selected) => {
+                    const vintage = f.model_interests.filter(m => !DUCATI_NEW_MODELS.includes(m));
+                    set('model_interests', [...vintage, ...selected]);
+                  }}
+                />
+              </Field>
+            )}
+
+            {/* Modèles anciens d'intérêt */}
+            {(!f.vehicle_preference || f.vehicle_preference === 'vo' || f.vehicle_preference === 'both') && (
+              <Field label={t('contacts.modelInterestsVintage')} wide>
+                <p className="mb-1.5 text-[11px] text-muted-foreground">{t('contacts.modelSelectHint')}</p>
+                <ModelMultiSelect
+                  models={DUCATI_VINTAGE_MODELS}
+                  selected={f.model_interests.filter(m => DUCATI_VINTAGE_MODELS.includes(m))}
+                  onChange={(selected) => {
+                    const newModels = f.model_interests.filter(m => !DUCATI_VINTAGE_MODELS.includes(m));
+                    set('model_interests', [...newModels, ...selected]);
+                  }}
+                />
+              </Field>
+            )}
+
+            {/* Notification stock */}
+            {f.model_interests.length > 0 && (
+              <div className="col-span-full">
+                <Check
+                  label={t('contacts.notifyModelStock')}
+                  checked={f.notify_model_stock}
+                  onChange={(v) => set('notify_model_stock', v)}
+                />
+                {f.notify_model_stock && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {f.model_interests.length} modèle(s) surveill{f.model_interests.length > 1 ? 'és' : 'é'} : {f.model_interests.slice(0, 3).join(', ')}{f.model_interests.length > 3 ? `… +${f.model_interests.length - 3}` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </Section>
+          )}
+
+          {/* Notes */}
+          <Section title={t('contacts.notes')}>
             <Field label={t('contacts.notes')} wide>
               <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
             </Field>
           </Section>
         </TabsContent>
 
-        {/* Onglet « Info chez Ducati » — compte My Ducati (rempli par l'extension navigateur) */}
+        {/* Onglet « Info chez Ducati » */}
         {isClient && (
         <TabsContent value="ducati" className="mt-4 space-y-6">
           <MyDucatiSection contactId={initial?.id ?? null} f={f} set={set} />
@@ -567,12 +783,126 @@ export function ContactForm({
   );
 }
 
-/**
- * Section « Infos My Ducati ». Le bouton « Mettre à jour » demande à l'extension
- * navigateur de lire la page My Ducati de la moto liée (par VIN) et de remplir les champs.
- * Contrat avec l'extension : on poste { source:'dms-ducati', action:'fetch-myducati', vin } ;
- * l'extension répond { source:'dms-ducati-ext', action:'myducati-result', vin, payload }.
- */
+// ─── Composant : saisie téléphone avec préfixe pays (+32 par défaut) ──────────
+function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Sépare le préfixe du reste du numéro
+  const parsePhone = (v: string) => {
+    const m = v.match(/^(\+\d{1,4})\s*(.*)/s);
+    if (m) return { prefix: m[1], local: m[2] };
+    return { prefix: '+32', local: v };
+  };
+  const { prefix, local } = parsePhone(value);
+
+  const handlePrefix = (p: string) => onChange(local ? `${p} ${local}` : p);
+  const handleLocal = (l: string) => onChange(l ? `${prefix} ${l}` : prefix);
+
+  return (
+    <div className="flex gap-1">
+      <Input
+        className="w-[72px] font-mono text-center"
+        value={prefix}
+        onChange={(e) => handlePrefix(e.target.value)}
+        placeholder="+32"
+        title={t('contacts.phonePrefixHint')}
+      />
+      <Input
+        className="flex-1"
+        value={local}
+        onChange={(e) => handleLocal(e.target.value)}
+        placeholder="470 12 34 56"
+      />
+    </div>
+  );
+}
+
+// ─── Composant : upload document (permis / carte d'identité) ─────────────────
+function DocUpload({ label, contactId, fieldName, currentPath, onUpload }: {
+  label: string;
+  contactId: string | null;
+  fieldName: string;
+  currentPath: string;
+  onUpload: (path: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  if (!contactId) {
+    return <p className="text-[12px] text-muted-foreground">{t('contacts.uploadHint')}</p>;
+  }
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'bin';
+      const path = `${contactId}/${fieldName}.${ext}`;
+      const { error } = await supabase.storage
+        .from('contact-docs')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (error) {
+        toast.error(t('contacts.uploadError'));
+      } else {
+        onUpload(path);
+        toast.success(t('contacts.uploadSuccess'));
+      }
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const viewUrl = currentPath
+    ? supabase.storage.from('contact-docs').getPublicUrl(currentPath).data.publicUrl
+    : null;
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <input ref={inputRef} type="file" className="sr-only" id={`upload-${fieldName}-${contactId}`}
+        accept=".pdf,image/*,image/heic" onChange={handleFile} />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+      >
+        {uploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
+        {label}
+      </Button>
+      {viewUrl && (
+        <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 text-[11px] text-success hover:underline">
+          <ExternalLink className="size-3" />
+          {t('contacts.viewDocument')}
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─── Composant : liste multi-sélection de modèles Ducati ─────────────────────
+function ModelMultiSelect({ models, selected, onChange }: {
+  models: string[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (m: string) =>
+    onChange(selected.includes(m) ? selected.filter((s) => s !== m) : [...selected, m]);
+
+  return (
+    <div className="max-h-52 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5">
+      {models.map((m) => (
+        <label key={m} className="flex items-center gap-2 cursor-pointer rounded px-1 py-0.5 text-sm hover:bg-muted/60">
+          <Checkbox checked={selected.includes(m)} onCheckedChange={() => toggle(m)} />
+          {m}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ─── Section « Infos My Ducati » ─────────────────────────────────────────────
 function MyDucatiSection({ contactId, f, set }: {
   contactId: string | null;
   f: FormState;
@@ -621,6 +951,7 @@ function MyDucatiSection({ contactId, f, set }: {
   );
 }
 
+// ─── Primitives UI ────────────────────────────────────────────────────────────
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
