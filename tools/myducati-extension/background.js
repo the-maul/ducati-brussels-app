@@ -36,7 +36,7 @@ async function autoFetchBulletins(payload, dmsTabId) {
     const got = await new Promise((resolve) => {
       chrome.tabs.create({ url: DETAIL_URL(b.bulletin_id), active: false }, (tab) => {
         if (!tab) { resolve(false); return; }
-        bulletinTabs[tab.id] = { resolve };
+        bulletinTabs[tab.id] = { resolve, number: b.number || null }; // numéro AUTORITAIRE (issu du scrape)
         setTimeout(() => finishBulletinTab(tab.id, false), 15000); // failsafe (login/SSO lent)
       });
     });
@@ -80,9 +80,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'bulletin-pdf') {
-    broadcastToDms('bulletin-pdf', msg.payload, sendResponse);
     const tid = sender.tab && sender.tab.id;
-    if (bulletinTabs[tid]) finishBulletinTab(tid, true);             // referme l'onglet auto
+    const tracked = bulletinTabs[tid];
+    // Onglet ouvert par l'extension : on impose le numéro AUTORITAIRE du scrape
+    // (la page peut citer d'autres numéros → ne pas se fier à celui lu sur la page).
+    const payload = tracked && tracked.number ? { ...msg.payload, number: tracked.number } : msg.payload;
+    broadcastToDms('bulletin-pdf', payload, sendResponse);
+    if (tracked) finishBulletinTab(tid, true);                       // referme l'onglet auto
     return true;
   }
 
