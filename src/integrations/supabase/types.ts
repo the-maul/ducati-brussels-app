@@ -1211,6 +1211,7 @@ export type Database = {
           delivery_address: string | null
           domiciliation: string | null
           dou: string | null
+          ducati_code: string | null
           ducati_url: string | null
           email: string | null
           email_pro: string | null
@@ -1241,6 +1242,11 @@ export type Database = {
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          my_ducati_data: Json | null
+          my_ducati_email: string | null
+          my_ducati_first_name: string | null
+          my_ducati_last_name: string | null
+          my_ducati_synced_at: string | null
           national_id: string | null
           national_register: string | null
           notes: string | null
@@ -1292,6 +1298,7 @@ export type Database = {
           delivery_address?: string | null
           domiciliation?: string | null
           dou?: string | null
+          ducati_code?: string | null
           ducati_url?: string | null
           email?: string | null
           email_pro?: string | null
@@ -1322,6 +1329,11 @@ export type Database = {
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          my_ducati_data?: Json | null
+          my_ducati_email?: string | null
+          my_ducati_first_name?: string | null
+          my_ducati_last_name?: string | null
+          my_ducati_synced_at?: string | null
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
@@ -1373,6 +1385,7 @@ export type Database = {
           delivery_address?: string | null
           domiciliation?: string | null
           dou?: string | null
+          ducati_code?: string | null
           ducati_url?: string | null
           email?: string | null
           email_pro?: string | null
@@ -1403,6 +1416,11 @@ export type Database = {
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          my_ducati_data?: Json | null
+          my_ducati_email?: string | null
+          my_ducati_first_name?: string | null
+          my_ducati_last_name?: string | null
+          my_ducati_synced_at?: string | null
           national_id?: string | null
           national_register?: string | null
           notes?: string | null
@@ -4126,6 +4144,7 @@ export type Database = {
           delivery_address: string | null
           domiciliation: string | null
           dou: string | null
+          ducati_code: string | null
           ducati_url: string | null
           email: string | null
           email_pro: string | null
@@ -4156,6 +4175,11 @@ export type Database = {
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          my_ducati_data: Json | null
+          my_ducati_email: string | null
+          my_ducati_first_name: string | null
+          my_ducati_last_name: string | null
+          my_ducati_synced_at: string | null
           national_id: string | null
           national_register: string | null
           notes: string | null

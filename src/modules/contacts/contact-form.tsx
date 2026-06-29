@@ -4,7 +4,9 @@
  * État contrôlé simple ; mappé vers ContactInsert à la soumission.
  */
 import { useState, type ReactNode } from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, Save, RefreshCw, Bike } from 'lucide-react';
+import { firstContactVehicle } from './subobjects-api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -59,6 +61,13 @@ type FormState = {
   domiciliation: string;
   factoring_code: string;
   accounting_account: string;
+  ducati_url: string;
+  ducati_code: string;
+  my_ducati_email: string;
+  my_ducati_first_name: string;
+  my_ducati_last_name: string;
+  my_ducati_synced_at: string;
+  my_ducati_data: unknown;
   credit_limit: string;
   segment: CustomerSegment;
   price_list: string;
@@ -116,6 +125,13 @@ function fromContact(c: Contact | null): FormState {
     domiciliation: c?.domiciliation ?? '',
     factoring_code: c?.factoring_code ?? '',
     accounting_account: c?.accounting_account ?? '',
+    ducati_url: c?.ducati_url ?? '',
+    ducati_code: c?.ducati_code ?? '',
+    my_ducati_email: c?.my_ducati_email ?? '',
+    my_ducati_first_name: c?.my_ducati_first_name ?? '',
+    my_ducati_last_name: c?.my_ducati_last_name ?? '',
+    my_ducati_synced_at: c?.my_ducati_synced_at ?? '',
+    my_ducati_data: c?.my_ducati_data ?? null,
     credit_limit: c?.credit_limit != null ? String(c.credit_limit) : '',
     segment: c?.segment ?? 'standard',
     price_list: c?.price_list ?? '',
@@ -176,6 +192,13 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     domiciliation: nn(f.domiciliation),
     factoring_code: nn(f.factoring_code),
     accounting_account: nn(f.accounting_account),
+    ducati_url: nn(f.ducati_url),
+    ducati_code: nn(f.ducati_code),
+    my_ducati_email: nn(f.my_ducati_email),
+    my_ducati_first_name: nn(f.my_ducati_first_name),
+    my_ducati_last_name: nn(f.my_ducati_last_name),
+    my_ducati_synced_at: f.my_ducati_synced_at.trim() === '' ? null : f.my_ducati_synced_at,
+    my_ducati_data: (f.my_ducati_data ?? null) as ContactInsert['my_ducati_data'],
     credit_limit: f.credit_limit.trim() === '' ? 0 : Number(f.credit_limit),
     segment: f.segment,
     price_list: nn(f.price_list),
@@ -278,15 +301,6 @@ export function ContactForm({
             <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
           </Field>
         )}
-        <Field label={t('contacts.civility')}>
-          <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
-        </Field>
-        <Field label={t('contacts.firstName')}>
-          <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.lastName')}>
-          <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
-        </Field>
         <Field label={t('contacts.email')}>
           <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
         </Field>
@@ -329,9 +343,18 @@ export function ContactForm({
         </div>
       </Section>
 
-      {/* Permis & moto — clients uniquement */}
+      {/* Infos privées — la personne (client particulier ou personne derrière la société) */}
       {isClient && (
-      <Section title={t('contacts.secMoto')}>
+      <Section title={t('contacts.secPrivate')}>
+        <Field label={t('contacts.civility')}>
+          <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
+        </Field>
+        <Field label={t('contacts.firstName')}>
+          <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
+        </Field>
+        <Field label={t('contacts.lastName')}>
+          <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
+        </Field>
         <Field label={t('contacts.birthDate')}>
           <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
         </Field>
@@ -365,6 +388,9 @@ export function ContactForm({
         </Field>
       </Section>
       )}
+
+      {/* Infos My Ducati — récupérées du portail Ducati par VIN (extension navigateur) */}
+      {isClient && <MyDucatiSection contactId={initial?.id ?? null} f={f} set={set} />}
 
       {/* B2B */}
       <Section title={t('contacts.secB2B')}>
@@ -483,6 +509,82 @@ export function ContactForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Section « Infos My Ducati ». Le bouton « Mettre à jour » demande à l'extension
+ * navigateur de lire la page My Ducati de la moto liée (par VIN) et de remplir les champs.
+ * Contrat avec l'extension : on poste { source:'dms-ducati', action:'fetch-myducati', vin } ;
+ * l'extension répond { source:'dms-ducati-ext', action:'myducati-result', vin, payload }.
+ */
+function MyDucatiSection({ contactId, f, set }: {
+  contactId: string | null;
+  f: FormState;
+  set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
+}) {
+  const vehQ = useQuery({ queryKey: ['contact-first-vehicle', contactId], queryFn: () => firstContactVehicle(contactId!), enabled: !!contactId });
+  const vin = vehQ.data?.vin ?? null;
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const fetchFromMyDucati = () => {
+    if (!vin) return;
+    setBusy(true); setStatus(t('contacts.myDucatiFetching'));
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev.data as { source?: string; action?: string; payload?: Record<string, unknown> } | null;
+      if (!d || d.source !== 'dms-ducati-ext' || d.action !== 'myducati-result') return;
+      window.removeEventListener('message', onMsg); clearTimeout(timer); setBusy(false);
+      const p = d.payload ?? {};
+      if (p.ducati_code) set('ducati_code', String(p.ducati_code));
+      if (p.email) set('my_ducati_email', String(p.email));
+      if (p.first_name) set('my_ducati_first_name', String(p.first_name));
+      if (p.last_name) set('my_ducati_last_name', String(p.last_name));
+      if (p.url) set('ducati_url', String(p.url));
+      set('my_ducati_data', p);
+      set('my_ducati_synced_at', new Date().toISOString());
+      setStatus(t('contacts.myDucatiDone'));
+    };
+    window.addEventListener('message', onMsg);
+    const timer = setTimeout(() => { window.removeEventListener('message', onMsg); setBusy(false); setStatus(t('contacts.myDucatiNoExt')); }, 2500);
+    window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin }, '*');
+  };
+
+  return (
+    <Section title={t('contacts.secMyDucati')}>
+      <div className="col-span-full flex flex-wrap items-center gap-3">
+        {!contactId ? (
+          <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiSaveFirst')}</p>
+        ) : !vin ? (
+          <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiNoBike')}</p>
+        ) : (
+          <>
+            <Button type="button" variant="outline" onClick={fetchFromMyDucati} disabled={busy}>
+              {busy ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('contacts.myDucatiUpdate')}
+            </Button>
+            <span className="font-mono text-[12px] text-muted-foreground">VIN {vin}</span>
+          </>
+        )}
+        {status && <span className="text-[12px] text-info">{status}</span>}
+        {f.my_ducati_synced_at && <span className="text-[11px] text-muted-foreground">{t('contacts.myDucatiSyncedAt')} {new Date(f.my_ducati_synced_at).toLocaleString('fr-BE')}</span>}
+      </div>
+      <Field label={t('contacts.ducatiCode')}>
+        <Input value={f.ducati_code} onChange={(e) => set('ducati_code', e.target.value)} className="font-mono" />
+      </Field>
+      <Field label={t('contacts.myDucatiEmail')}>
+        <Input value={f.my_ducati_email} onChange={(e) => set('my_ducati_email', e.target.value)} />
+      </Field>
+      <Field label={t('contacts.myDucatiFirstName')}>
+        <Input value={f.my_ducati_first_name} onChange={(e) => set('my_ducati_first_name', e.target.value)} />
+      </Field>
+      <Field label={t('contacts.myDucatiLastName')}>
+        <Input value={f.my_ducati_last_name} onChange={(e) => set('my_ducati_last_name', e.target.value)} />
+      </Field>
+      <Field label={t('contacts.ducatiUrl')} wide>
+        <Input value={f.ducati_url} onChange={(e) => set('ducati_url', e.target.value)} placeholder="https://ducati.my.site.com/dealer/s/account/…" />
+        <p className="text-[11px] text-muted-foreground">{t('contacts.ducatiUrlHint')}</p>
+      </Field>
+    </Section>
   );
 }
 

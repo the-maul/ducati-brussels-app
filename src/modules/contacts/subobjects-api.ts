@@ -10,6 +10,21 @@ export type DeliveryAddressInsert = Database['public']['Tables']['delivery_addre
 export type ClientPriceRule = Database['public']['Tables']['client_price_rules']['Row'];
 export type ClientPriceRuleInsert = Database['public']['Tables']['client_price_rules']['Insert'];
 
+/** 1ère moto liée au contact (la plus récente / courante) — pour la synchro My Ducati par VIN. */
+export async function firstContactVehicle(contactId: string): Promise<{ id: string; vin: string | null } | null> {
+  const { data, error } = await supabase
+    .from('vehicle_owners')
+    .select('vehicle:vehicles(id, vin)')
+    .eq('contact_id', contactId)
+    .order('is_current', { ascending: false })
+    .order('from_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const v = (data as { vehicle?: { id: string; vin: string | null } } | null)?.vehicle;
+  return v ? { id: v.id, vin: v.vin ?? null } : null;
+}
+
 export async function listDeliveryAddresses(contactId: string): Promise<DeliveryAddress[]> {
   const { data, error } = await supabase.from('delivery_addresses').select('*').eq('contact_id', contactId).order('created_at');
   if (error) throw error;
