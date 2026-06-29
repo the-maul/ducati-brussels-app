@@ -7,6 +7,8 @@ window.addEventListener('message', (ev) => {
   const d = ev.data;
   if (d && d.source === 'dms-ducati' && d.action === 'fetch-myducati' && d.vin) {
     chrome.runtime.sendMessage({ type: 'fetch-vin', vin: d.vin });
+    // accusé de réception : l'app sait que l'extension est installée et active
+    window.postMessage({ source: 'dms-ducati-ext', action: 'fetch-ack' }, location.origin);
   }
 });
 

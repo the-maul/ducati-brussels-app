@@ -226,6 +226,7 @@ export const fr = {
     ducatiUpdate: 'Mettre à jour depuis My Ducati',
     ducatiUpdating: 'Recherche sur My Ducati… (l’onglet Ducati va s’ouvrir puis se fermer)',
     ducatiUpdateHint: 'Nécessite l’extension installée et une session My Ducati ouverte.',
+    ducatiExtMissing: 'Extension non détectée. Installez/rechargez l’extension (Paramètres → Extension My Ducati).',
     expositionCode: "Code d'exposition",
     // commercial
     purchasePrice: 'Prix d\'achat / reprise',

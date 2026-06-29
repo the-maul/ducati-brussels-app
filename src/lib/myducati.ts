@@ -23,6 +23,27 @@ const isoDate = (s: unknown): string | null => {
 const clean = <T extends Record<string, unknown>>(o: T): Partial<T> =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== '')) as Partial<T>;
 
+/**
+ * Demande à l'extension d'aller scraper My Ducati pour ce VIN (ouvre l'URL, scrape, réimporte).
+ * Renvoie true si l'extension a accusé réception (donc installée + active), false sinon (timeout).
+ * Les données arrivent ensuite via l'écouteur global (MyDucatiListener).
+ */
+export function requestMyDucati(vin: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!vin) { resolve(false); return; }
+    let done = false;
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev.data as { source?: string; action?: string } | null;
+      if (d && d.source === 'dms-ducati-ext' && d.action === 'fetch-ack') {
+        done = true; window.removeEventListener('message', onMsg); resolve(true);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin }, window.location.origin);
+    setTimeout(() => { if (!done) { window.removeEventListener('message', onMsg); resolve(false); } }, 2000);
+  });
+}
+
 export type ApplyResult = { matched: boolean; vehicleId?: string; bulletins?: number };
 
 export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): Promise<ApplyResult> {

@@ -6,8 +6,10 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Save, RefreshCw, Bike } from 'lucide-react';
+import { toast } from 'sonner';
 import { firstContactVehicle } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
+import { requestMyDucati } from '@/lib/myducati';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -578,6 +580,11 @@ function MyDucatiSection({ contactId, f, set }: {
 }) {
   const vehQ = useQuery({ queryKey: ['contact-first-vehicle', contactId], queryFn: () => firstContactVehicle(contactId!), enabled: !!contactId });
   const vin = vehQ.data?.vin ?? null;
+  const doUpdate = async () => {
+    if (!vin) return;
+    const ok = await requestMyDucati(vin);
+    toast[ok ? 'info' : 'error'](ok ? t('contacts.myDucatiFetching') : t('contacts.myDucatiNoExt'));
+  };
 
   return (
     <Section title={t('contacts.secMyDucati')}>
@@ -588,8 +595,8 @@ function MyDucatiSection({ contactId, f, set }: {
           <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiNoBike')}</p>
         ) : (
           <>
+            <Button type="button" variant="outline" size="sm" onClick={doUpdate}><RefreshCw className="size-4" /> {t('contacts.myDucatiUpdate')}</Button>
             <span className="font-mono text-[12px] text-muted-foreground">VIN {vin}</span>
-            <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground"><RefreshCw className="size-3.5" />{t('contacts.myDucatiExtHint')}</span>
           </>
         )}
         {f.my_ducati_synced_at && <span className="text-[11px] text-muted-foreground">{t('contacts.myDucatiSyncedAt')} {new Date(f.my_ducati_synced_at).toLocaleString('fr-BE')}</span>}

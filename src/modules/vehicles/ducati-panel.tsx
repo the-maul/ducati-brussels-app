@@ -7,6 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { requestMyDucati } from '@/lib/myducati';
 import { t } from '@/lib/i18n';
 import type { Vehicle } from './api';
 
@@ -21,10 +22,11 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   const hasAny = v.my_ducati_synced_at || hasWarranty || (maint.data?.length ?? 0) > 0 || (bull.data?.length ?? 0) > 0;
 
   // Demande à l'extension d'ouvrir l'URL VIN sur My Ducati, scraper et réimporter (par VIN).
-  const requestUpdate = () => {
+  const requestUpdate = async () => {
     if (!vehicle.vin) return;
-    window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin: vehicle.vin }, window.location.origin);
-    toast.info(t('vehicles.ducatiUpdating'));
+    const ok = await requestMyDucati(vehicle.vin);
+    if (ok) toast.info(t('vehicles.ducatiUpdating'));
+    else toast.error(t('vehicles.ducatiExtMissing'));
   };
 
   const Cell = ({ label, value }: { label: string; value: unknown }) => (
