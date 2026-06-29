@@ -2108,6 +2108,105 @@ export type Database = {
           },
         ]
       }
+      improvement_points: {
+        Row: {
+          company_id: string
+          created_at: string
+          done: boolean
+          id: string
+          improvement_id: string
+          label: string
+          parent_id: string | null
+          position: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          improvement_id: string
+          label: string
+          parent_id?: string | null
+          position?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          improvement_id?: string
+          label?: string
+          parent_id?: string | null
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "improvement_points_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "improvement_points_improvement_id_fkey"
+            columns: ["improvement_id"]
+            isOneToOne: false
+            referencedRelation: "improvements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "improvement_points_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "improvement_points"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      improvements: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          position: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          position?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          position?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "improvements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_sessions: {
         Row: {
           closed_at: string | null

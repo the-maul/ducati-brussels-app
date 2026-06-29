@@ -20,6 +20,7 @@ import {
   Calculator,
   Settings,
   Palette,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.eshop', to: '/eshop', icon: Store },
   { labelKey: 'nav.reports', to: '/reports', icon: BarChart3 },
   { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator, roles: ['admin', 'comptable'] },
+  { labelKey: 'nav.improvements', to: '/improvements', icon: ListChecks, roles: ['admin'] },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, roles: ['admin'] },
   { labelKey: 'nav.demo', to: '/demo', icon: Palette, dev: true },
 ];

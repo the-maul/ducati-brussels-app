@@ -5,6 +5,7 @@
  */
 import { Link, useRouterState } from '@tanstack/react-router';
 import { mainNav } from '@/lib/navigation';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -12,14 +13,33 @@ function isActivePath(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + '/');
 }
 
-export function AppSidebar({ collapsed = false }: { collapsed?: boolean }) {
+export function AppSidebar({
+  collapsed = false,
+  mobileOpen = false,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  /** ouvert en tiroir sur smartphone */
+  mobileOpen?: boolean;
+  /** appelé au clic d'un lien (ferme le tiroir mobile) */
+  onNavigate?: () => void;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { rolesForActiveCompany } = useAuth();
+  // Filtre par rôle : une entrée sans `roles` est visible par tous ; sinon il faut
+  // détenir l'un des rôles requis pour la société active.
+  const items = mainNav.filter((item) => !item.roles || item.roles.some((r) => rolesForActiveCompany.includes(r as (typeof rolesForActiveCompany)[number])));
 
   return (
     <aside
       className={cn(
-        'flex h-full shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-150',
-        collapsed ? 'w-16' : 'w-60',
+        'flex h-full shrink-0 flex-col bg-sidebar text-sidebar-foreground',
+        // Desktop : panneau statique repliable (visuel PC inchangé)
+        'md:static md:translate-x-0 md:transition-[width] md:duration-150',
+        collapsed ? 'md:w-16' : 'md:w-60',
+        // Smartphone : tiroir fixe qui glisse depuis la gauche
+        'fixed inset-y-0 left-0 z-50 w-60 transition-transform duration-200',
+        mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full md:translate-x-0',
       )}
     >
       {/* Identité */}
@@ -36,13 +56,14 @@ export function AppSidebar({ collapsed = false }: { collapsed?: boolean }) {
 
       {/* Modules */}
       <nav className="flex-1 overflow-y-auto py-2">
-        {mainNav.map((item) => {
+        {items.map((item) => {
           const active = isActivePath(pathname, item.to);
           const Icon = item.icon;
           return (
             <Link
               key={item.to}
               to={item.to}
+              onClick={() => onNavigate?.()}
               title={collapsed ? t(item.labelKey) : undefined}
               className={cn(
                 'flex h-10 items-center gap-3 border-l-[var(--sidebar-active-bar)] px-4 text-sm transition-colors',
