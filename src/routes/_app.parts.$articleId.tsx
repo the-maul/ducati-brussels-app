@@ -12,6 +12,7 @@ import { Tags, BookOpen } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
+import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/$articleId')({
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/_app/parts/$articleId')({
 function EditArticle() {
   const { articleId } = Route.useParams();
   const { activeCompanyId } = useAuth();
+  const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ function EditArticle() {
             <Button variant="outline" onClick={() => window.open(article.catalog_url || 'https://e-catalog.ducati.com/EPC/?lang=fr-FR', '_blank', 'noopener')} title={article.catalog_url ? undefined : t('articles.catalogUrlHint')}>
               <BookOpen /> {t('articles.openCatalog')}
             </Button>
-            <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: article.sale_price_ttc, withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
+            <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
           </>
         }
       />

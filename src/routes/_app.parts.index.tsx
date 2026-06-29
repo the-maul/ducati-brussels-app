@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listArticles } from '@/modules/articles/api';
+import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/')({
@@ -22,6 +23,7 @@ function fmtEur(n: number): string {
 
 function ArticlesList() {
   const { activeCompanyId } = useAuth();
+  const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -105,7 +107,7 @@ function ArticlesList() {
                 <td className="px-3 py-2"><StatusBadge tone="neutral" label={a.mgmt_type} /></td>
                 <td className="px-3 py-2">{a.brand ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location ?? '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmtEur(a.sale_price_ttc)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
               </tr>
             ))}
           </tbody>

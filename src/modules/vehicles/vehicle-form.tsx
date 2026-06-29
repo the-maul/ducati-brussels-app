@@ -3,7 +3,8 @@
  * Sections : identification (carte grise), caractéristiques, infos compl., commercial.
  */
 import { useState, type ReactNode } from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Wand2 } from 'lucide-react';
+import { decodeDucatiVin } from '@/lib/ducati-vin';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -65,6 +66,40 @@ export function VehicleForm({
   const [localError, setLocalError] = useState<string | null>(null);
   const set = (k: string, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
 
+  const [decoding, setDecoding] = useState(false);
+  const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
+  const decodeVin = async () => {
+    setDecodeMsg(null); setDecoding(true);
+    try {
+      const r = await decodeDucatiVin(String(f.vin ?? ''));
+      if (!r) { setDecodeMsg(t('vehicles.vinInvalid')); return; }
+      const fill = (cur: string | boolean, val: string | number | undefined | null) =>
+        (val != null && val !== '' ? String(val) : (cur as string));
+      setF((p) => ({
+        ...p,
+        brand: (p.brand as string) || 'Ducati',
+        model: fill(p.model, r.model),
+        displacement: fill(p.displacement, r.displacement),
+        power_cv: fill(p.power_cv, r.powerCv),
+        cylinders: fill(p.cylinders, r.cylinders),
+        antipollution: fill(p.antipollution, r.euro),
+        model_year: fill(p.model_year, r.year),
+        color: fill(p.color, r.color),
+        engine_number: fill(p.engine_number, r.engineNumber),
+        plate: fill(p.plate, r.plate),
+        reference: fill(p.reference, r.reference),
+        origin: fill(p.origin, r.origin),
+        category: fill(p.category, r.category),
+        mileage: fill(p.mileage, r.mileage),
+        first_registration_date: fill(p.first_registration_date, r.firstRegistrationDate),
+        warranty_end: fill(p.warranty_end, r.warrantyEnd),
+      }));
+      setDecodeMsg(r.source === 'facts' ? t('vehicles.vinDecodedFull')
+        : r.source === 'vds' ? t('vehicles.vinDecoded')
+        : t('vehicles.vinPartial'));
+    } finally { setDecoding(false); }
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
@@ -101,6 +136,12 @@ export function VehicleForm({
         {T('production_code', t('vehicles.productionCode'))}
         {T('insurance', t('vehicles.insurance'))}
         {T('formula_number', t('vehicles.formulaNumber'))}
+        <div className="col-span-full flex flex-wrap items-center gap-3">
+          <Button type="button" variant="outline" onClick={decodeVin} disabled={decoding || !f.vin}>
+            {decoding ? <Loader2 className="animate-spin" /> : <Wand2 />} {t('vehicles.decodeVin')}
+          </Button>
+          {decodeMsg && <span className="text-[12px] text-muted-foreground">{decodeMsg}</span>}
+        </div>
       </Section>
 
       <Section title={t('vehicles.secCarac')}>

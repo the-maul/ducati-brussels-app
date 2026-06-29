@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
+import { effectiveSaleTtc } from '@/lib/pricing';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
@@ -167,10 +168,8 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
 const toNum = (s: unknown) => { const n = Number(String(s ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
-/** Arrondi des prix de vente à l'euro supérieur, plancher 2 € (ex. 9,2 → 10 ; 1,3 → 2). */
-const roundUpEuro = (p: number): number => (p > 0 ? Math.max(2, Math.ceil(p - 1e-9)) : p);
 
-function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string, rounding: RoundingRule[] = [], roundUp = false): Partial<FormState> {
+function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', value: string, rounding: RoundingRule[] = []): Partial<FormState> {
   const vat = edited === 'vat' ? toNum(value) : toNum(f.vat_rate);
   const vf = 1 + vat / 100;
   const pa = edited === 'pa' ? toNum(value) : toNum(f.purchase_price);
@@ -184,10 +183,11 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
   else if (edited === 'pa') { pvht = pa * coef; pvttc = pvht * vf; }       // garde le coefficient
   else if (edited === 'vat') { pvttc = pvht * vf; }
 
-  // Arrondi du PVTTC calculé (pas en saisie manuelle directe du PVTTC).
-  // La règle « euro supérieur, plancher 2 € » (réglage société) a priorité sur la table d'arrondis.
-  if (edited !== 'pvttc' && (roundUp || rounding.length)) {
-    pvttc = roundUp ? roundUpEuro(pvttc) : applyRounding(pvttc, rounding);
+  // Table d'arrondis paramétrable (appliquée au PV calculé, pas en saisie directe du TTC).
+  // NB : l'arrondi « euro sup. / plancher 2 € » du réglage société N'EST PAS gravé ici —
+  // il est calculé à l'usage (lib/pricing) pour rester réversible (décocher = prix d'origine).
+  if (edited !== 'pvttc' && rounding.length) {
+    pvttc = applyRounding(pvttc, rounding);
     pvht = vf ? pvttc / vf : pvht;
     coef = pa > 0 ? pvht / pa : coef;
   }
@@ -232,9 +232,11 @@ export function ArticleForm({
     enabled: !!companyId,
   });
   const roundUp = roundCfg?.round_sale_prices_up ?? true;
-  // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA + arrondi.
+  // Champs prix interactifs : recalcul croisé PA/coef/PVHT/PVTTC/TVA (prix précis, non arrondi).
   const setP = (edited: 'pa' | 'coef' | 'pvht' | 'pvttc' | 'vat', v: string) =>
-    setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding, roundUp) }));
+    setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding) }));
+  // Prix de vente effectif (arrondi société, calculé à l'usage — non gravé en base).
+  const effTtc = effectiveSaleTtc(toNum(f.sale_price_ttc), roundUp);
   // Marges calculées (lecture seule) sur PA et sur PAMP.
   const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
   const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;
@@ -333,6 +335,11 @@ export function ArticleForm({
         </Field>
         <Field label={t('articles.salePriceTtc')}>
           <NumInput value={f.sale_price_ttc} onChange={(v) => setP('pvttc', v)} step="0.01" />
+          {roundUp && effTtc !== toNum(f.sale_price_ttc) && (
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+              {t('articles.priceApplied')} <b className="text-foreground">{effTtc.toFixed(2).replace('.', ',')} €</b>
+            </p>
+          )}
         </Field>
         <Field label={t('articles.margins')}>
           <div className="flex h-9 items-center gap-3 text-sm tabular-nums">

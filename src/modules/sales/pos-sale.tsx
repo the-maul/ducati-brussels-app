@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { createDocument, computeTotals, searchSaleArticles, getDocumentFull, type SaleArticle } from './write-api';
 import { PaymentPanel } from './payment-panel';
 import { printDocument } from './print-document';
+import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -21,6 +22,7 @@ let ck = 0;
 
 export function PosSale({ companyId, companyName }: { companyId: string; companyName: string }) {
   const qc = useQueryClient();
+  const roundUp = useRoundSalePrices(companyId);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,7 +33,7 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
   const add = (a: SaleArticle) => setCart((c) => {
     const existing = c.find((l) => l.article_id === a.id);
     if (existing) return c.map((l) => (l.article_id === a.id ? { ...l, quantity: l.quantity + 1 } : l));
-    return [...c, { _key: `c${ck++}`, article_id: a.id, designation: a.designation, quantity: 1, unit_price_ht: a.sale_price_ht, vat_rate: a.vat_rate }];
+    return [...c, { _key: `c${ck++}`, article_id: a.id, designation: a.designation, quantity: 1, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate }];
   });
   const setQty = (key: string, q: number) => setCart((c) => c.map((l) => (l._key === key ? { ...l, quantity: q } : l)));
   const remove = (key: string) => setCart((c) => c.filter((l) => l._key !== key));
@@ -105,6 +107,7 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
 }
 
 function ScanBar({ companyId, onAdd }: { companyId: string; onAdd: (a: SaleArticle) => void }) {
+  const roundUp = useRoundSalePrices(companyId);
   const [term, setTerm] = useState('');
   const [deb, setDeb] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,7 +126,7 @@ function ScanBar({ companyId, onAdd }: { companyId: string; onAdd: (a: SaleArtic
         <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
             <button key={a.id} type="button" onClick={() => { onAdd(a); setTerm(''); inputRef.current?.focus(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(a.sale_price_ht)}</span><Plus className="size-4 text-success" />
+              <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span><Plus className="size-4 text-success" />
             </button>
           ))}
         </div>

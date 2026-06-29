@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { listStock } from '@/modules/stock/stock-api';
+import { effectiveSaleTtc } from '@/lib/pricing';
 
 export type ShopItem = {
   article_id: string; reference: string; designation: string; mgmt_type: string;
@@ -12,13 +13,15 @@ export type ShopItem = {
 };
 
 export async function listShop(companyId: string): Promise<ShopItem[]> {
-  const [{ data: arts, error }, stock, { data: imgs }] = await Promise.all([
+  const [{ data: arts, error }, stock, { data: imgs }, { data: co }] = await Promise.all([
     supabase.from('articles').select('id, reference, designation, sale_price_ttc, publishable, mgmt_type').eq('company_id', companyId).order('reference').limit(500),
     listStock(companyId),
     supabase.from('attachments').select('entity_id, storage_path, content_type, created_at')
       .eq('company_id', companyId).eq('entity_type', 'article').order('created_at', { ascending: true }),
+    supabase.from('companies').select('round_sale_prices_up').eq('id', companyId).maybeSingle(),
   ]);
   if (error) throw error;
+  const roundUp = co?.round_sale_prices_up ?? true;
   const availByArt = new Map(stock.map((s) => [s.article_id, s.available_qty]));
   const imgByArt = new Map<string, string>();
   for (const im of imgs ?? []) {
@@ -26,7 +29,7 @@ export async function listShop(companyId: string): Promise<ShopItem[]> {
   }
   return (arts ?? []).map((a) => ({
     article_id: a.id, reference: a.reference, designation: a.designation, mgmt_type: a.mgmt_type as string,
-    price_ttc: Number(a.sale_price_ttc ?? 0), publishable: !!a.publishable,
+    price_ttc: effectiveSaleTtc(a.sale_price_ttc, roundUp), publishable: !!a.publishable,
     available: Number(availByArt.get(a.id) ?? 0), image_path: imgByArt.get(a.id) ?? null,
   }));
 }

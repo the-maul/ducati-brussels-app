@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { createDocument, computeTotals, searchSaleArticles, type LineInput, type SaleArticle, type PiedInput } from './write-api';
+import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
 const DOC_TYPES = ['FAC', 'DEV', 'RES', 'BL', 'TIK'] as const;
@@ -26,6 +27,7 @@ const blankLine = (): EditLine => ({ _key: `l${counter++}`, article_id: null, de
 
 export function DocumentEditor({ companyId, initialContactId }: { companyId: string; initialContactId?: string }) {
   const navigate = useNavigate();
+  const roundUp = useRoundSalePrices(companyId);
   const [docType, setDocType] = useState<string>('FAC');
   const [contact, setContact] = useState<Contact | null>(null);
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -127,7 +129,7 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
                     ) : (
                       <LinePicker companyId={companyId} value={l.designation}
                         onText={(v) => setLine(l._key, { designation: v })}
-                        onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: a.sale_price_ht, vat_rate: a.vat_rate })} />
+                        onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate })} />
                     )}
                   </td>
                   <td className="px-2 py-1"><Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
@@ -230,6 +232,7 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
 }
 
 function LinePicker({ companyId, value, onText, onPick }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: SaleArticle) => void }) {
+  const roundUp = useRoundSalePrices(companyId);
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
   const { data } = useQuery({ queryKey: ['sale-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
@@ -240,7 +243,7 @@ function LinePicker({ companyId, value, onText, onPick }: { companyId: string; v
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
             <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(a.sale_price_ht)}</span>
+              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
             </button>
           ))}
         </div>

@@ -201,3 +201,34 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Smartphone (< md) — règles HORS @layer pour battre les utilitaires Tailwind.
+   Le visuel desktop (≥ md) n'est jamais affecté.
+   Les tableaux denses deviennent défilables au doigt au lieu de casser la page.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  main .overflow-hidden:has(> table),
+  main .overflow-x-auto:has(> table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main .overflow-hidden:has(> table) > table,
+  main .overflow-x-auto:has(> table) > table {
+    min-width: 34rem;
+  }
+
+  /* Barres d'outils (recherche + filtres) : passer à la ligne au lieu de déborder.
+     Ne vise que les rangées flex contenant un champ de saisie (toolbars) ;
+     les divs non-flex matchés ne sont pas affectés. */
+  main > div:has(> input),
+  main > div:has(> .relative input),
+  main > div:has(> [data-slot="select-trigger"]) {
+    flex-wrap: wrap;
+  }
+  /* Le champ de recherche prend toute la largeur sur smartphone */
+  main > div:has(> .relative input) > .relative {
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+}

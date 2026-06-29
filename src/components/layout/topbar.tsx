@@ -73,19 +73,19 @@ function UserMenu() {
   );
 }
 
-export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function Topbar({ onMenu }: { onMenu: () => void }) {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:gap-3 sm:px-4">
       <button
         type="button"
-        onClick={onToggleSidebar}
+        onClick={onMenu}
         className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
         aria-label="Menu"
       >
         <PanelLeft className="size-5" />
       </button>
 
-      <div className="flex flex-1 justify-start">
+      <div className="flex min-w-0 flex-1 justify-start">
         <GlobalSearch />
       </div>
 
@@ -93,7 +93,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
 
       <button
         type="button"
-        className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
+        className="hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
         aria-label="Notifications"
       >
         <Bell className="size-5" />

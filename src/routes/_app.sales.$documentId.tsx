@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName } from '@/modules/contacts/api';
+import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
@@ -29,6 +30,8 @@ function DocumentView() {
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
+  const vehicleId = data?.doc.vehicle_id ?? null;
+  const vehicleQ = useQuery({ queryKey: ['doc-vehicle', vehicleId], queryFn: () => getVehicle(vehicleId!), enabled: !!vehicleId });
   const convert = useMutation({
     mutationFn: (target: string) => convertDocument(documentId, target),
     onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
@@ -94,6 +97,15 @@ function DocumentView() {
           ) : (
             <span className="font-medium">{t('sales.legacyClient')} #{doc.code_client_legacy}</span>
           )}
+        </div>
+      )}
+
+      {vehicleId && (
+        <div className="mb-4 text-[13px]">
+          <span className="text-muted-foreground">{t('sales.vehicle')} : </span>
+          <button className="font-medium text-info underline" onClick={() => navigate({ to: '/vehicles/$vehicleId', params: { vehicleId } })}>
+            {vehicleQ.data ? vehicleLabel(vehicleQ.data) : '…'}{vehicleQ.data?.vin ? ` · ${vehicleQ.data.vin}` : ''}
+          </button>
         </div>
       )}
 

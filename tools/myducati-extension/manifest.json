@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "DMS Ducati — Import My Ducati",
+  "version": "0.1.0",
+  "description": "Importe les infos d'une moto (client, garantie, maintenance, bulletins) depuis le portail My Ducati vers le DMS Ducati Bruxelles.",
+  "permissions": ["tabs", "storage", "notifications"],
+  "host_permissions": [
+    "https://*.ducati.com/*",
+    "https://*.my.site.com/*",
+    "https://*.force.com/*",
+    "https://*.netlify.app/*",
+    "http://localhost:8080/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://*.ducati.com/*", "https://*.my.site.com/*", "https://*.force.com/*"],
+      "js": ["ducati.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.netlify.app/*", "http://localhost:8080/*"],
+      "js": ["dms-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_title": "DMS Ducati — Import My Ducati" }
+}

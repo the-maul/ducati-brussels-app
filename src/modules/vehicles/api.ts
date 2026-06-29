@@ -65,9 +65,26 @@ export async function updateVehicle(id: string, input: VehicleUpdate): Promise<V
 }
 
 /** Historique des propriétaires d'un véhicule (le plus récent en premier). */
-export async function listOwners(vehicleId: string): Promise<VehicleOwner[]> {
+export type VehicleOwnerWithContact = VehicleOwner & {
+  contact: { id: string; first_name: string | null; last_name: string | null; company_name: string | null } | null;
+};
+
+export async function listOwners(vehicleId: string): Promise<VehicleOwnerWithContact[]> {
   const { data, error } = await supabase
-    .from('vehicle_owners').select('*').eq('vehicle_id', vehicleId).order('from_date', { ascending: false });
+    .from('vehicle_owners')
+    .select('*, contact:contacts(id, first_name, last_name, company_name)')
+    .eq('vehicle_id', vehicleId).order('from_date', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as VehicleOwnerWithContact[];
+}
+
+/** Factures / OR / devis rattachés à un véhicule (historique de la moto). */
+export type VehicleDocument = { id: string; number: string | null; doc_type: string; issue_date: string; total_ttc: number; status: string };
+export async function listVehicleDocuments(vehicleId: string): Promise<VehicleDocument[]> {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, number, doc_type, issue_date, total_ttc, status')
+    .eq('vehicle_id', vehicleId).order('issue_date', { ascending: false }).limit(300);
+  if (error) throw error;
+  return (data ?? []).map((d) => ({ ...d, total_ttc: Number(d.total_ttc) }));
 }

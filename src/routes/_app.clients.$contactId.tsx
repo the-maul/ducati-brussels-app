@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -59,7 +59,20 @@ function EditClient() {
       <PageHeader
         title={contactDisplayName(contact)}
         description={t('contacts.edit')}
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {contact.ducati_url && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(contact.ducati_url!, '_blank', 'noopener,noreferrer')}
+                title={contact.ducati_url}
+              >
+                <ExternalLink /> {t('contacts.ducatiView')}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>
+          </div>
+        }
       />
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">

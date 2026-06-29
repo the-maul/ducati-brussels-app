@@ -1291,10 +1291,17 @@ export type Database = {
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          my_ducati_city: string | null
+          my_ducati_country: string | null
           my_ducati_data: Json | null
           my_ducati_email: string | null
           my_ducati_first_name: string | null
+          my_ducati_is_current_owner: boolean | null
           my_ducati_last_name: string | null
+          my_ducati_marketing: boolean | null
+          my_ducati_phone: string | null
+          my_ducati_profiling: boolean | null
+          my_ducati_score: number | null
           my_ducati_synced_at: string | null
           national_id: string | null
           national_register: string | null
@@ -1378,10 +1385,17 @@ export type Database = {
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          my_ducati_city?: string | null
+          my_ducati_country?: string | null
           my_ducati_data?: Json | null
           my_ducati_email?: string | null
           my_ducati_first_name?: string | null
+          my_ducati_is_current_owner?: boolean | null
           my_ducati_last_name?: string | null
+          my_ducati_marketing?: boolean | null
+          my_ducati_phone?: string | null
+          my_ducati_profiling?: boolean | null
+          my_ducati_score?: number | null
           my_ducati_synced_at?: string | null
           national_id?: string | null
           national_register?: string | null
@@ -1465,10 +1479,17 @@ export type Database = {
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          my_ducati_city?: string | null
+          my_ducati_country?: string | null
           my_ducati_data?: Json | null
           my_ducati_email?: string | null
           my_ducati_first_name?: string | null
+          my_ducati_is_current_owner?: boolean | null
           my_ducati_last_name?: string | null
+          my_ducati_marketing?: boolean | null
+          my_ducati_phone?: string | null
+          my_ducati_profiling?: boolean | null
+          my_ducati_score?: number | null
           my_ducati_synced_at?: string | null
           national_id?: string | null
           national_register?: string | null
@@ -3479,6 +3500,114 @@ export type Database = {
           },
         ]
       }
+      vehicle_bulletins: {
+        Row: {
+          bulletin_id: string | null
+          company_id: string
+          created_at: string
+          id: string
+          number: string | null
+          published_at: string | null
+          title: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          bulletin_id?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          number?: string | null
+          published_at?: string | null
+          title?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          bulletin_id?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          number?: string | null
+          published_at?: string | null
+          title?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_bulletins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_bulletins_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_maintenance: {
+        Row: {
+          company_id: string
+          created_at: string
+          dealer: string | null
+          ducati_event_id: string | null
+          due_date: string | null
+          event_date: string | null
+          id: string
+          kind: string | null
+          km: number | null
+          service_type: string | null
+          state: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dealer?: string | null
+          ducati_event_id?: string | null
+          due_date?: string | null
+          event_date?: string | null
+          id?: string
+          kind?: string | null
+          km?: number | null
+          service_type?: string | null
+          state?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dealer?: string | null
+          ducati_event_id?: string | null
+          due_date?: string | null
+          event_date?: string | null
+          id?: string
+          kind?: string | null
+          km?: number | null
+          service_type?: string | null
+          state?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_maintenance_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_owners: {
         Row: {
           contact_id: string
@@ -3542,6 +3671,8 @@ export type Database = {
           cylinders: number | null
           displacement: number | null
           display_price: number | null
+          ducati_state: string | null
+          ducati_usage: string | null
           energy: string | null
           engine_number: string | null
           entry_date: string | null
@@ -3556,6 +3687,7 @@ export type Database = {
           immat_ww: string | null
           imported_from: string | null
           insurance: string | null
+          invoiced_to: string | null
           is_active: boolean
           is_restricted: boolean
           key_number: string | null
@@ -3567,6 +3699,8 @@ export type Database = {
           mileage_qualif: Database["public"]["Enums"]["mileage_qualif"] | null
           model: string | null
           model_year: number | null
+          my_ducati_data: Json | null
+          my_ducati_synced_at: string | null
           mymeca_qr: string | null
           next_inspection_date: string | null
           notes: string | null
@@ -3577,10 +3711,12 @@ export type Database = {
           power_cv: number | null
           power_kw: number | null
           production_code: string | null
+          production_date: string | null
           purchase_invoice_number: string | null
           purchase_price: number | null
           reference: string | null
           segment_type: string | null
+          ship_date: string | null
           sold_date: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar: string | null
@@ -3589,7 +3725,10 @@ export type Database = {
           type_variant_version: string | null
           updated_at: string
           vin: string | null
+          warranty_activated_by: string | null
           warranty_end: string | null
+          warranty_start: string | null
+          warranty_state: string | null
           warranty_type: string | null
         }
         Insert: {
@@ -3609,6 +3748,8 @@ export type Database = {
           cylinders?: number | null
           displacement?: number | null
           display_price?: number | null
+          ducati_state?: string | null
+          ducati_usage?: string | null
           energy?: string | null
           engine_number?: string | null
           entry_date?: string | null
@@ -3623,6 +3764,7 @@ export type Database = {
           immat_ww?: string | null
           imported_from?: string | null
           insurance?: string | null
+          invoiced_to?: string | null
           is_active?: boolean
           is_restricted?: boolean
           key_number?: string | null
@@ -3634,6 +3776,8 @@ export type Database = {
           mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
           model?: string | null
           model_year?: number | null
+          my_ducati_data?: Json | null
+          my_ducati_synced_at?: string | null
           mymeca_qr?: string | null
           next_inspection_date?: string | null
           notes?: string | null
@@ -3644,10 +3788,12 @@ export type Database = {
           power_cv?: number | null
           power_kw?: number | null
           production_code?: string | null
+          production_date?: string | null
           purchase_invoice_number?: string | null
           purchase_price?: number | null
           reference?: string | null
           segment_type?: string | null
+          ship_date?: string | null
           sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar?: string | null
@@ -3656,7 +3802,10 @@ export type Database = {
           type_variant_version?: string | null
           updated_at?: string
           vin?: string | null
+          warranty_activated_by?: string | null
           warranty_end?: string | null
+          warranty_start?: string | null
+          warranty_state?: string | null
           warranty_type?: string | null
         }
         Update: {
@@ -3676,6 +3825,8 @@ export type Database = {
           cylinders?: number | null
           displacement?: number | null
           display_price?: number | null
+          ducati_state?: string | null
+          ducati_usage?: string | null
           energy?: string | null
           engine_number?: string | null
           entry_date?: string | null
@@ -3690,6 +3841,7 @@ export type Database = {
           immat_ww?: string | null
           imported_from?: string | null
           insurance?: string | null
+          invoiced_to?: string | null
           is_active?: boolean
           is_restricted?: boolean
           key_number?: string | null
@@ -3701,6 +3853,8 @@ export type Database = {
           mileage_qualif?: Database["public"]["Enums"]["mileage_qualif"] | null
           model?: string | null
           model_year?: number | null
+          my_ducati_data?: Json | null
+          my_ducati_synced_at?: string | null
           mymeca_qr?: string | null
           next_inspection_date?: string | null
           notes?: string | null
@@ -3711,10 +3865,12 @@ export type Database = {
           power_cv?: number | null
           power_kw?: number | null
           production_code?: string | null
+          production_date?: string | null
           purchase_invoice_number?: string | null
           purchase_price?: number | null
           reference?: string | null
           segment_type?: string | null
+          ship_date?: string | null
           sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tpms_ar?: string | null
@@ -3723,7 +3879,10 @@ export type Database = {
           type_variant_version?: string | null
           updated_at?: string
           vin?: string | null
+          warranty_activated_by?: string | null
           warranty_end?: string | null
+          warranty_start?: string | null
+          warranty_state?: string | null
           warranty_type?: string | null
         }
         Relationships: [
@@ -4224,10 +4383,17 @@ export type Database = {
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          my_ducati_city: string | null
+          my_ducati_country: string | null
           my_ducati_data: Json | null
           my_ducati_email: string | null
           my_ducati_first_name: string | null
+          my_ducati_is_current_owner: boolean | null
           my_ducati_last_name: string | null
+          my_ducati_marketing: boolean | null
+          my_ducati_phone: string | null
+          my_ducati_profiling: boolean | null
+          my_ducati_score: number | null
           my_ducati_synced_at: string | null
           national_id: string | null
           national_register: string | null
