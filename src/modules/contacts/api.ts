@@ -19,6 +19,16 @@ export function contactDisplayName(c: Pick<Contact, 'company_name' | 'first_name
   return [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
 }
 
+/**
+ * Accès sûr aux modèles d'intérêt Ducati d'un contact.
+ * La colonne `model_interests` (text[]) est ajoutée par migration mais pas encore
+ * présente dans les types Supabase auto-générés — d'où le cast localisé.
+ */
+export function getModelInterests(c: Contact): string[] {
+  const v = (c as { model_interests?: string[] | null }).model_interests;
+  return Array.isArray(v) ? v : [];
+}
+
 /** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
 export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
   const { data, error } = await supabase.rpc('contacts_search', {

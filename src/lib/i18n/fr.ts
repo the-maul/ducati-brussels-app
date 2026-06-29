@@ -440,6 +440,9 @@ export const fr = {
     modelInterestsVintage: 'Modèles anciens souhaités',
     notifyModelStock: 'Notifier quand un modèle souhaité rentre en stock',
     modelSelectHint: 'Cochez les modèles qui intéressent ce client.',
+    modelInterestsTitle: "Modèles d'intérêt",
+    noModelInterests: "Aucun modèle d'intérêt sélectionné.",
+    removeModel: 'Retirer',
     // moto
     birthDate: 'Date de naissance',
     nationalId: "N° carte d'identité",
@@ -477,6 +480,7 @@ export const fr = {
     colMobile: 'Mobile',
     colEmail: 'E-mail',
     colFlags: 'Drapeaux',
+    colModels: "Modèles d'intérêt",
     colsBtn: 'Colonnes',
     colsBtnTitle: 'Colonnes visibles',
     page: 'Page',

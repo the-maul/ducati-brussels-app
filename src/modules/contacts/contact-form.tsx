@@ -9,6 +9,7 @@ import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink } from 'lucide-rea
 import { toast } from 'sonner';
 import { firstContactVehicle } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
+import { ModelInterestBadges } from './model-interest-badges';
 import { requestMyDucati } from '@/lib/myducati';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -699,6 +700,16 @@ export function ContactForm({
                   <SelectItem value="both">{t('contacts.vp_both')}</SelectItem>
                 </SelectContent>
               </Select>
+            </Field>
+
+            {/* Balises des modèles sélectionnés — supprimables à tout moment */}
+            <Field label={t('contacts.modelInterestsTitle')} wide>
+              {f.model_interests.length === 0
+                ? <p className="text-[12px] text-muted-foreground">{t('contacts.noModelInterests')}</p>
+                : <ModelInterestBadges
+                    models={f.model_interests}
+                    onRemove={(m) => set('model_interests', f.model_interests.filter((x) => x !== m))}
+                  />}
             </Field>
 
             {/* Modèles neufs d'intérêt */}

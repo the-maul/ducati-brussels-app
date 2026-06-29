@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listContactsPaged, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { listContactsPaged, contactDisplayName, getModelInterests, type Contact } from '@/modules/contacts/api';
+import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { t } from '@/lib/i18n';
 
-type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags';
+type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
   { key: 'type',    label: () => t('contacts.colType') },
   { key: 'city',    label: () => t('contacts.colCity') },
@@ -21,6 +22,7 @@ const ALL_COLS: { key: ColKey; label: () => string }[] = [
   { key: 'mobile',  label: () => t('contacts.colMobile') },
   { key: 'email',   label: () => t('contacts.colEmail') },
   { key: 'flags',   label: () => t('contacts.colFlags') },
+  { key: 'models',  label: () => t('contacts.colModels') },
 ];
 
 const PAGE_SIZES = [25, 50, 100, 200];
@@ -146,6 +148,7 @@ function ClientsList() {
               {visibleCols.has('mobile')  && <Th>{t('contacts.colMobile')}</Th>}
               {visibleCols.has('email')   && <Th>{t('contacts.colEmail')}</Th>}
               {visibleCols.has('flags')   && <Th>{t('contacts.colFlags')}</Th>}
+              {visibleCols.has('models')  && <Th>{t('contacts.colModels')}</Th>}
             </tr>
           </thead>
           <tbody>
@@ -170,6 +173,7 @@ function ClientsList() {
                 {visibleCols.has('mobile')  && <td className="px-3 py-2">{c.mobile ?? '—'}</td>}
                 {visibleCols.has('email')   && <td className="px-3 py-2">{c.email ?? '—'}</td>}
                 {visibleCols.has('flags')   && <td className="px-3 py-2"><Flags c={c} /></td>}
+                {visibleCols.has('models')  && <td className="px-3 py-2">{getModelInterests(c).length ? <ModelInterestBadges models={getModelInterests(c)} max={3} /> : '—'}</td>}
               </tr>
             ))}
           </tbody>

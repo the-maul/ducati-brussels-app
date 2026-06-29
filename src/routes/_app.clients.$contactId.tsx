@@ -6,11 +6,12 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
+import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
-  getContact, updateContact, contactDisplayName, type ContactInsert,
+  getContact, updateContact, contactDisplayName, getModelInterests, type ContactInsert,
 } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
@@ -40,6 +41,15 @@ function EditClient() {
       navigate({ to: '/clients' });
     },
     onError: (e) => setError(e instanceof Error ? e.message : t('contacts.errSave')),
+  });
+
+  // Suppression d'un modèle d'intérêt depuis l'en-tête — patch ciblé, sans quitter la fiche.
+  const removeModel = useMutation({
+    mutationFn: (models: string[]) => updateContact(contactId, { model_interests: models } as unknown as ContactInsert),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      qc.invalidateQueries({ queryKey: ['contact', contactId] });
+    },
   });
 
   if (isLoading) {
@@ -74,6 +84,17 @@ function EditClient() {
           </div>
         }
       />
+      {getModelInterests(contact).length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+            {t('contacts.modelInterestsTitle')}
+          </span>
+          <ModelInterestBadges
+            models={getModelInterests(contact)}
+            onRemove={(model) => removeModel.mutate(getModelInterests(contact).filter((x) => x !== model))}
+          />
+        </div>
+      )}
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">
         <TabsList>
@@ -89,7 +110,7 @@ function EditClient() {
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
           <ContactForm
-            key={contact.my_ducati_synced_at ?? contact.id}
+            key={`${contact.my_ducati_synced_at ?? contact.id}|${getModelInterests(contact).join(',')}`}
             initial={contact}
             companyId={activeCompanyId}
             submitting={m.isPending}
