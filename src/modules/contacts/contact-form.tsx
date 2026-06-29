@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { t } from '@/lib/i18n';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
@@ -343,159 +344,175 @@ export function ContactForm({
         </div>
       </Section>
 
-      {/* Infos privées — la personne (client particulier ou personne derrière la société) */}
-      {isClient && (
-      <Section title={t('contacts.secPrivate')}>
-        <Field label={t('contacts.civility')}>
-          <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
-        </Field>
-        <Field label={t('contacts.firstName')}>
-          <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.lastName')}>
-          <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.birthDate')}>
-          <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.nationalId')}>
-          <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.nationalRegister')}>
-          <Input value={f.national_register} onChange={(e) => set('national_register', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.licenseNumber')}>
-          <Input value={f.license_number} onChange={(e) => set('license_number', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.licenseDate')}>
-          <Input type="date" value={f.license_date} onChange={(e) => set('license_date', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.licensePlace')}>
-          <Input value={f.license_place} onChange={(e) => set('license_place', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.licenseCategory')}>
-          <Select
-            value={f.license_category || undefined}
-            onValueChange={(v) => set('license_category', v as LicenseCategory)}
-          >
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              {(['AM', 'A1', 'A2', 'A', 'B', 'autre'] as const).map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </Section>
-      )}
+      <Tabs defaultValue={isClient ? 'privee' : 'pro'} className="w-full">
+        <TabsList>
+          {isClient && <TabsTrigger value="privee">{t('contacts.tabPrivate')}</TabsTrigger>}
+          <TabsTrigger value="pro">{t('contacts.tabPro')}</TabsTrigger>
+          {isClient && <TabsTrigger value="ducati">{t('contacts.tabDucati')}</TabsTrigger>}
+        </TabsList>
 
-      {/* Infos My Ducati — récupérées du portail Ducati par VIN (extension navigateur) */}
-      {isClient && <MyDucatiSection contactId={initial?.id ?? null} f={f} set={set} />}
+        {/* Onglet « Info privée » — la personne (un pro peut aussi avoir des motos en privé) */}
+        {isClient && (
+        <TabsContent value="privee" className="mt-4 space-y-6">
+          <Section title={t('contacts.secPrivate')}>
+            <Field label={t('contacts.civility')}>
+              <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
+            </Field>
+            <Field label={t('contacts.firstName')}>
+              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.lastName')}>
+              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.birthDate')}>
+              <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.nationalId')}>
+              <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.nationalRegister')}>
+              <Input value={f.national_register} onChange={(e) => set('national_register', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseNumber')}>
+              <Input value={f.license_number} onChange={(e) => set('license_number', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseDate')}>
+              <Input type="date" value={f.license_date} onChange={(e) => set('license_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licensePlace')}>
+              <Input value={f.license_place} onChange={(e) => set('license_place', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.licenseCategory')}>
+              <Select
+                value={f.license_category || undefined}
+                onValueChange={(v) => set('license_category', v as LicenseCategory)}
+              >
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  {(['AM', 'A1', 'A2', 'A', 'B', 'autre'] as const).map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </Section>
+        </TabsContent>
+        )}
 
-      {/* B2B */}
-      <Section title={t('contacts.secB2B')}>
-        <Field label={t('contacts.vatNumber')}>
-          <Input value={f.vat_number} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." />
-        </Field>
-        <Field label={t('contacts.paymentTerms')}>
-          <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
-        </Field>
-        <Field label={t('contacts.iban')}>
-          <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
-        </Field>
-        <Field label={t('contacts.bic')}>
-          <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
-        </Field>
-        <Field label={t('contacts.saleVatType')}>
-          <Select value={f.sale_vat_type} onValueChange={(v) => set('sale_vat_type', v as SaleVatType)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="national">{t('contacts.saleVat_national')}</SelectItem>
-              <SelectItem value="intracom">{t('contacts.saleVat_intracom')}</SelectItem>
-              <SelectItem value="export">{t('contacts.saleVat_export')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('contacts.creditLimit')}>
-          <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
-        </Field>
-      </Section>
+        {/* Onglet « Info pro » — société, B2B, comptabilité, fournisseur, catégorisation */}
+        <TabsContent value="pro" className="mt-4 space-y-6">
+          <Section title={t('contacts.secB2B')}>
+            <Field label={t('contacts.vatNumber')}>
+              <Input value={f.vat_number} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." />
+            </Field>
+            <Field label={t('contacts.paymentTerms')}>
+              <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
+            </Field>
+            <Field label={t('contacts.iban')}>
+              <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
+            </Field>
+            <Field label={t('contacts.bic')}>
+              <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
+            </Field>
+            <Field label={t('contacts.saleVatType')}>
+              <Select value={f.sale_vat_type} onValueChange={(v) => set('sale_vat_type', v as SaleVatType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="national">{t('contacts.saleVat_national')}</SelectItem>
+                  <SelectItem value="intracom">{t('contacts.saleVat_intracom')}</SelectItem>
+                  <SelectItem value="export">{t('contacts.saleVat_export')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={t('contacts.creditLimit')}>
+              <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
+            </Field>
+          </Section>
 
-      <Section title={t('contacts.secAccounting')}>
-        <Field label={t('contacts.accountingAccount')}>
-          <Input value={f.accounting_account} onChange={(e) => set('accounting_account', e.target.value)} className="font-mono" />
-        </Field>
-        <Field label={t('contacts.domiciliation')}>
-          <Input value={f.domiciliation} onChange={(e) => set('domiciliation', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.factoringCode')}>
-          <Input value={f.factoring_code} onChange={(e) => set('factoring_code', e.target.value)} />
-        </Field>
-      </Section>
+          <Section title={t('contacts.secAccounting')}>
+            <Field label={t('contacts.accountingAccount')}>
+              <Input value={f.accounting_account} onChange={(e) => set('accounting_account', e.target.value)} className="font-mono" />
+            </Field>
+            <Field label={t('contacts.domiciliation')}>
+              <Input value={f.domiciliation} onChange={(e) => set('domiciliation', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.factoringCode')}>
+              <Input value={f.factoring_code} onChange={(e) => set('factoring_code', e.target.value)} />
+            </Field>
+          </Section>
 
-      {/* Fournisseur (M4) — visible pour les fiches fournisseur */}
-      {f.type === 'fournisseur' && (
-        <Section title={t('contacts.secSupplier')}>
-          <Field label={t('contacts.supplierCustomerNo')}>
-            <Input value={f.supplier_customer_no} onChange={(e) => set('supplier_customer_no', e.target.value)} />
-          </Field>
-          <Field label={t('contacts.supplierRfa')}>
-            <Input type="number" step="0.01" min="0" value={f.supplier_rfa_rate} onChange={(e) => set('supplier_rfa_rate', e.target.value)} className="text-right tabular-nums" />
-          </Field>
-          <Field label={t('contacts.supplierFranco')}>
-            <Input type="number" step="0.01" min="0" value={f.supplier_franco_min} onChange={(e) => set('supplier_franco_min', e.target.value)} className="text-right tabular-nums" />
-          </Field>
-          <Field label={t('contacts.supplierOrderMin')}>
-            <Input type="number" step="0.01" min="0" value={f.supplier_order_min} onChange={(e) => set('supplier_order_min', e.target.value)} className="text-right tabular-nums" />
-          </Field>
-          <Check label={t('contacts.supplierInternal')} checked={f.supplier_is_internal} onChange={(v) => set('supplier_is_internal', v)} />
-        </Section>
-      )}
+          {/* Fournisseur (M4) — visible pour les fiches fournisseur */}
+          {f.type === 'fournisseur' && (
+            <Section title={t('contacts.secSupplier')}>
+              <Field label={t('contacts.supplierCustomerNo')}>
+                <Input value={f.supplier_customer_no} onChange={(e) => set('supplier_customer_no', e.target.value)} />
+              </Field>
+              <Field label={t('contacts.supplierRfa')}>
+                <Input type="number" step="0.01" min="0" value={f.supplier_rfa_rate} onChange={(e) => set('supplier_rfa_rate', e.target.value)} className="text-right tabular-nums" />
+              </Field>
+              <Field label={t('contacts.supplierFranco')}>
+                <Input type="number" step="0.01" min="0" value={f.supplier_franco_min} onChange={(e) => set('supplier_franco_min', e.target.value)} className="text-right tabular-nums" />
+              </Field>
+              <Field label={t('contacts.supplierOrderMin')}>
+                <Input type="number" step="0.01" min="0" value={f.supplier_order_min} onChange={(e) => set('supplier_order_min', e.target.value)} className="text-right tabular-nums" />
+              </Field>
+              <Check label={t('contacts.supplierInternal')} checked={f.supplier_is_internal} onChange={(v) => set('supplier_is_internal', v)} />
+            </Section>
+          )}
 
-      {/* Catégorisation (clients) / Notes */}
-      <Section title={isClient ? t('contacts.secCategory') : t('contacts.notes')}>
-        {isClient && (<>
-        <Field label={t('contacts.segment')}>
-          <Select value={f.segment} onValueChange={(v) => set('segment', v as CustomerSegment)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard">{t('contacts.segment_standard')}</SelectItem>
-              <SelectItem value="vip">{t('contacts.segment_vip')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('contacts.priceList')}>
-          <Input value={f.price_list} onChange={(e) => set('price_list', e.target.value)} />
-        </Field>
-        <Field label={t('contacts.category')}>
-          <Input value={f.category} onChange={(e) => set('category', e.target.value)} />
-        </Field>
-        <div className="col-span-full grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Check label={t('contacts.flagVip')} checked={f.is_vip} onChange={(v) => set('is_vip', v)} />
-          <Check label={t('contacts.flagDetaxe')} checked={f.is_detaxe} onChange={(v) => set('is_detaxe', v)} />
-          <Check label={t('contacts.flagWatch')} checked={f.is_watch} onChange={(v) => set('is_watch', v)} />
-          <Check label={t('contacts.flagAccount')} checked={f.is_account} onChange={(v) => set('is_account', v)} />
-          <Check label={t('contacts.blocked')} checked={f.is_blocked} onChange={(v) => set('is_blocked', v)} />
-          <Check label={t('contacts.modeHt')} checked={f.mode_ht} onChange={(v) => set('mode_ht', v)} />
-          <Check label={t('contacts.marketingOptOut')} checked={f.marketing_opt_out} onChange={(v) => set('marketing_opt_out', v)} />
-        </div>
-        <Field label={t('contacts.interests')} wide>
-          <div className="flex flex-wrap gap-4 pt-1">
-            {INTEREST_OPTIONS.map((opt) => (
-              <Check
-                key={opt.key}
-                label={t(opt.labelKey)}
-                checked={f.interests.includes(opt.key)}
-                onChange={(v) => toggleInterest(opt.key, v)}
-              />
-            ))}
-          </div>
-        </Field>
-        </>)}
-        <Field label={t('contacts.notes')} wide>
-          <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
-        </Field>
-      </Section>
+          {/* Catégorisation (clients) / Notes */}
+          <Section title={isClient ? t('contacts.secCategory') : t('contacts.notes')}>
+            {isClient && (<>
+            <Field label={t('contacts.segment')}>
+              <Select value={f.segment} onValueChange={(v) => set('segment', v as CustomerSegment)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">{t('contacts.segment_standard')}</SelectItem>
+                  <SelectItem value="vip">{t('contacts.segment_vip')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={t('contacts.priceList')}>
+              <Input value={f.price_list} onChange={(e) => set('price_list', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.category')}>
+              <Input value={f.category} onChange={(e) => set('category', e.target.value)} />
+            </Field>
+            <div className="col-span-full grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Check label={t('contacts.flagVip')} checked={f.is_vip} onChange={(v) => set('is_vip', v)} />
+              <Check label={t('contacts.flagDetaxe')} checked={f.is_detaxe} onChange={(v) => set('is_detaxe', v)} />
+              <Check label={t('contacts.flagWatch')} checked={f.is_watch} onChange={(v) => set('is_watch', v)} />
+              <Check label={t('contacts.flagAccount')} checked={f.is_account} onChange={(v) => set('is_account', v)} />
+              <Check label={t('contacts.blocked')} checked={f.is_blocked} onChange={(v) => set('is_blocked', v)} />
+              <Check label={t('contacts.modeHt')} checked={f.mode_ht} onChange={(v) => set('mode_ht', v)} />
+              <Check label={t('contacts.marketingOptOut')} checked={f.marketing_opt_out} onChange={(v) => set('marketing_opt_out', v)} />
+            </div>
+            <Field label={t('contacts.interests')} wide>
+              <div className="flex flex-wrap gap-4 pt-1">
+                {INTEREST_OPTIONS.map((opt) => (
+                  <Check
+                    key={opt.key}
+                    label={t(opt.labelKey)}
+                    checked={f.interests.includes(opt.key)}
+                    onChange={(v) => toggleInterest(opt.key, v)}
+                  />
+                ))}
+              </div>
+            </Field>
+            </>)}
+            <Field label={t('contacts.notes')} wide>
+              <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
+            </Field>
+          </Section>
+        </TabsContent>
+
+        {/* Onglet « Info chez Ducati » — compte My Ducati (rempli par l'extension navigateur) */}
+        {isClient && (
+        <TabsContent value="ducati" className="mt-4 space-y-6">
+          <MyDucatiSection contactId={initial?.id ?? null} f={f} set={set} />
+        </TabsContent>
+        )}
+      </Tabs>
 
       {(localError || error) && (
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>

@@ -364,6 +364,9 @@ export const fr = {
     secMoto: 'Permis & infos moto',
     secPrivate: 'Infos privées',
     secMyDucati: 'Infos My Ducati',
+    tabPrivate: 'Info privée',
+    tabPro: 'Info pro',
+    tabDucati: 'Info chez Ducati',
     secB2B: 'Professionnel (B2B)',
     secCategory: 'Catégorisation',
     // type
