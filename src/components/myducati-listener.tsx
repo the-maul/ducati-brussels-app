@@ -14,7 +14,9 @@ export function MyDucatiListener() {
   useEffect(() => {
     const handler = async (ev: MessageEvent) => {
       const d = ev.data as { source?: string; action?: string; payload?: MyDucatiPayload } | null;
-      if (!d || d.source !== 'dms-ducati-ext' || d.action !== 'myducati-data' || !activeCompanyId || !d.payload) return;
+      if (!d || d.source !== 'dms-ducati-ext' || d.action !== 'myducati-data' || !d.payload) return;
+      if (!activeCompanyId) { toast.error('Société non sélectionnée — impossible d’importer.'); return; }
+      console.info('[MyDucati] données reçues de l’extension :', d.payload);
       try {
         const r = await applyMyDucatiData(activeCompanyId, d.payload);
         if (!r.matched) { toast.error(`Moto introuvable dans le DMS (VIN ${d.payload.vin}).`); return; }

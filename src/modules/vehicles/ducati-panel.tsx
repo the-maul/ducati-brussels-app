@@ -3,6 +3,9 @@
  * synchronisés depuis My Ducati par l'extension navigateur (par VIN).
  */
 import { useQuery } from '@tanstack/react-query';
+import { RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 import type { Vehicle } from './api';
@@ -16,7 +19,13 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
 
   const hasWarranty = v.warranty_start || v.warranty_end || v.warranty_state || v.warranty_activated_by;
   const hasAny = v.my_ducati_synced_at || hasWarranty || (maint.data?.length ?? 0) > 0 || (bull.data?.length ?? 0) > 0;
-  if (!hasAny) return <p className="text-sm text-muted-foreground">{t('vehicles.ducatiNoData')}</p>;
+
+  // Demande à l'extension d'ouvrir l'URL VIN sur My Ducati, scraper et réimporter (par VIN).
+  const requestUpdate = () => {
+    if (!vehicle.vin) return;
+    window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin: vehicle.vin }, window.location.origin);
+    toast.info(t('vehicles.ducatiUpdating'));
+  };
 
   const Cell = ({ label, value }: { label: string; value: unknown }) => (
     <div><p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</p><p className="text-[13px]">{(value as string) || '—'}</p></div>
@@ -24,6 +33,13 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
 
   return (
     <div className="space-y-4">
+      {vehicle.vin && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={requestUpdate}><RefreshCw className="size-4" /> {t('vehicles.ducatiUpdate')}</Button>
+          <span className="text-[11px] text-muted-foreground">{t('vehicles.ducatiUpdateHint')}</span>
+        </div>
+      )}
+      {!hasAny && <p className="text-sm text-muted-foreground">{t('vehicles.ducatiNoData')}</p>}
       {hasWarranty && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Cell label={t('vehicles.warrantyStart')} value={fdate(v.warranty_start as string)} />

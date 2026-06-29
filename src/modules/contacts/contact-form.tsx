@@ -578,30 +578,6 @@ function MyDucatiSection({ contactId, f, set }: {
 }) {
   const vehQ = useQuery({ queryKey: ['contact-first-vehicle', contactId], queryFn: () => firstContactVehicle(contactId!), enabled: !!contactId });
   const vin = vehQ.data?.vin ?? null;
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const fetchFromMyDucati = () => {
-    if (!vin) return;
-    setBusy(true); setStatus(t('contacts.myDucatiFetching'));
-    const onMsg = (ev: MessageEvent) => {
-      const d = ev.data as { source?: string; action?: string; payload?: Record<string, unknown> } | null;
-      if (!d || d.source !== 'dms-ducati-ext' || d.action !== 'myducati-result') return;
-      window.removeEventListener('message', onMsg); clearTimeout(timer); setBusy(false);
-      const p = d.payload ?? {};
-      if (p.ducati_code) set('ducati_code', String(p.ducati_code));
-      if (p.email) set('my_ducati_email', String(p.email));
-      if (p.first_name) set('my_ducati_first_name', String(p.first_name));
-      if (p.last_name) set('my_ducati_last_name', String(p.last_name));
-      if (p.url) set('ducati_url', String(p.url));
-      set('my_ducati_data', p);
-      set('my_ducati_synced_at', new Date().toISOString());
-      setStatus(t('contacts.myDucatiDone'));
-    };
-    window.addEventListener('message', onMsg);
-    const timer = setTimeout(() => { window.removeEventListener('message', onMsg); setBusy(false); setStatus(t('contacts.myDucatiNoExt')); }, 2500);
-    window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin }, '*');
-  };
 
   return (
     <Section title={t('contacts.secMyDucati')}>
@@ -612,13 +588,10 @@ function MyDucatiSection({ contactId, f, set }: {
           <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiNoBike')}</p>
         ) : (
           <>
-            <Button type="button" variant="outline" onClick={fetchFromMyDucati} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('contacts.myDucatiUpdate')}
-            </Button>
             <span className="font-mono text-[12px] text-muted-foreground">VIN {vin}</span>
+            <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground"><RefreshCw className="size-3.5" />{t('contacts.myDucatiExtHint')}</span>
           </>
         )}
-        {status && <span className="text-[12px] text-info">{status}</span>}
         {f.my_ducati_synced_at && <span className="text-[11px] text-muted-foreground">{t('contacts.myDucatiSyncedAt')} {new Date(f.my_ducati_synced_at).toLocaleString('fr-BE')}</span>}
       </div>
       <Field label={t('contacts.ducatiCode')}>
