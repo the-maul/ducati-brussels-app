@@ -1,0 +1,11 @@
+# Déploiement Netlify — DMS Ducati Bruxelles (frontend SSR TanStack Start).
+# Le build (vite.config.ts → nitro preset "netlify") produit :
+#   - les statiques + redirects dans dist/  (publish)
+#   - la fonction SSR dans .netlify/functions-internal/  (détectée automatiquement)
+# Variables d'environnement à régler dans Netlify (Site settings → Environment variables) :
+#   VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY  (build, publiques)
+#   SUPABASE_URL                                      (runtime SSR)
+#   SUPABASE_SERVICE_ROLE_KEY                          (runtime SSR — SECRET, écran admin)
+[build]
+  command = "bun run build"
+  publish = "dist"

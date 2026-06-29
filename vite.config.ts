@@ -12,4 +12,14 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Hébergement hors Lovable : le plugin de déploiement nitro est désactivé par défaut
+  // (« No Lovable context detected »). On le force-active sur la cible Netlify (notre hôte).
+  // NB : en contexte Lovable (sandbox), la config ré-impose cloudflare-module — déploiement
+  // Lovable préservé. Le preset n'agit qu'au build, pas en `vite dev`.
+  nitro: { preset: "netlify" },
+  // Autorise l'accès via un hôte externe (tunnel Cloudflare/ngrok…) pour les démos client.
+  // En dev, Vite bloque par défaut les hôtes inconnus (403) ; on lève ce garde-fou.
+  vite: {
+    server: { allowedHosts: true },
+  },
 });
