@@ -17,13 +17,22 @@ import { VEHICLE_STATUSES, type Vehicle, type VehicleInsert, type VehicleStatus,
 type F = Record<string, string | boolean>;
 
 const TEXT_FIELDS = [
-  'vin','reference','brand','model','plate','engine_number','type_mine','type_variant_version','genre',
-  'immat_ww','marking','origin','production_code','insurance','formula_number','energy','antipollution',
-  'color','color_code','segment_type','category','autonomy','battery_number','gps_tracker_id','pin_tracker',
+  'vin','reference','brand','model','plate','engine_number',
+  'origin','production_code','energy','antipollution',
+  'color','category','gps_tracker_id','pin_tracker',
   'tpms_av','tpms_ar','antitheft_code','key_number','key_number2','police_book_number','warranty_type','exposition_code',
 ] as const;
-const NUM_FIELDS = ['displacement','power_kw','power_cv','fiscal_power','cylinders','mileage','hours_count','model_year','purchase_price','cost_price','display_price'] as const;
-const DATE_FIELDS = ['marking_date','first_registration_date','next_inspection_date','warranty_end'] as const;
+const NUM_FIELDS = ['displacement','power_kw','power_cv','cylinders','mileage','model_year','purchase_price','cost_price','display_price'] as const;
+const DATE_FIELDS = ['first_registration_date','next_inspection_date','warranty_end'] as const;
+
+// Listes à choix fixes. Valeurs identiques FR/NL (gamme constructeur, normes, nb de cylindres)
+// donc constantes plutôt que dictionnaire i18n.
+const VEHICLE_FAMILIES = [
+  'SCRAMBLER','HERITAGE','SUPERSPORT','MULTISTRADA','DIAVEL','XDIAVEL','MONSTER','SUPERBIKE',
+  'STREETFIGHTER','HYPERMOTARD','DESERT X','OFF-ROAD','SPORTCLASSIC','DESMOSEDICI RR','SPORT TOURING',
+] as const;
+const CYLINDER_OPTIONS = ['1','2','4'] as const;
+const ANTIPOLLUTION_OPTIONS = ['NA','EURO 3','EURO 4','EURO 5','EURO 5+'] as const;
 
 function fromVehicle(v: Vehicle | null): F {
   const f: F = {};
@@ -116,6 +125,16 @@ export function VehicleForm({
   const D = (k: string, label: string) => (
     <Field label={label}><Input type="date" value={f[k] as string} onChange={(e) => set(k, e.target.value)} /></Field>
   );
+  const S = (k: string, label: string, options: readonly string[]) => (
+    <Field label={label}>
+      <Select value={(f[k] as string) || undefined} onValueChange={(v) => set(k, v)}>
+        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -126,16 +145,8 @@ export function VehicleForm({
         {T('model', t('vehicles.model'))}
         {T('engine_number', t('vehicles.engineNumber'), true)}
         {T('reference', t('vehicles.reference'), true)}
-        {T('type_mine', t('vehicles.typeMine'))}
-        {T('type_variant_version', t('vehicles.typeVariant'))}
-        {T('genre', t('vehicles.genre'))}
-        {T('immat_ww', t('vehicles.immatWw'))}
-        {T('marking', t('vehicles.marking'))}
         {T('origin', t('vehicles.origin'))}
-        {D('marking_date', t('vehicles.markingDate'))}
         {T('production_code', t('vehicles.productionCode'))}
-        {T('insurance', t('vehicles.insurance'))}
-        {T('formula_number', t('vehicles.formulaNumber'))}
         <div className="col-span-full flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" onClick={decodeVin} disabled={decoding || !f.vin}>
             {decoding ? <Loader2 className="animate-spin" /> : <Wand2 />} {t('vehicles.decodeVin')}
@@ -148,16 +159,11 @@ export function VehicleForm({
         {N('displacement', t('vehicles.displacement'), '0.1')}
         {N('power_kw', t('vehicles.powerKw'), '0.01')}
         {N('power_cv', t('vehicles.powerCv'), '0.01')}
-        {N('fiscal_power', t('vehicles.fiscalPower'), '0.01')}
         {T('energy', t('vehicles.energy'))}
-        {T('antipollution', t('vehicles.antipollution'))}
+        {S('antipollution', t('vehicles.antipollution'), ANTIPOLLUTION_OPTIONS)}
         {T('color', t('vehicles.color'))}
-        {T('color_code', t('vehicles.colorCode'))}
-        {T('segment_type', t('vehicles.segmentType'))}
-        {T('category', t('vehicles.category'))}
-        {N('cylinders', t('vehicles.cylinders'))}
-        {T('autonomy', t('vehicles.autonomy'))}
-        {T('battery_number', t('vehicles.batteryNumber'))}
+        {S('category', t('vehicles.category'), VEHICLE_FAMILIES)}
+        {S('cylinders', t('vehicles.cylinders'), CYLINDER_OPTIONS)}
         {T('gps_tracker_id', t('vehicles.gpsTracker'))}
         {T('pin_tracker', t('vehicles.pinTracker'))}
         {T('tpms_av', t('vehicles.tpmsAv'))}
@@ -181,7 +187,6 @@ export function VehicleForm({
             </SelectContent>
           </Select>
         </Field>
-        {N('hours_count', t('vehicles.hoursCount'), '0.1')}
         {N('model_year', t('vehicles.modelYear'))}
         {T('key_number', t('vehicles.keyNumber'))}
         {T('key_number2', t('vehicles.keyNumber2'))}

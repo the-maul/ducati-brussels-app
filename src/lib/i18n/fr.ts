@@ -192,7 +192,7 @@ export const fr = {
     color: 'Couleur',
     colorCode: 'Code couleur',
     segmentType: 'Type de segment',
-    category: 'Catégorie',
+    category: 'Famille',
     cylinders: 'Nb de cylindres',
     autonomy: 'Autonomie',
     batteryNumber: 'N° batterie',
