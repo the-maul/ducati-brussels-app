@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { VEHICLE_STATUSES, type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif } from './api';
+import { PurchaseInvoiceField } from './purchase-invoice-field';
 
 type F = Record<string, string | boolean>;
 
@@ -23,7 +24,17 @@ const TEXT_FIELDS = [
   'tpms_av','tpms_ar','antitheft_code','key_number','key_number2','police_book_number','warranty_type','exposition_code',
 ] as const;
 const NUM_FIELDS = ['displacement','power_kw','power_cv','cylinders','mileage','model_year','purchase_price','cost_price','display_price'] as const;
-const DATE_FIELDS = ['first_registration_date','next_inspection_date','warranty_end'] as const;
+const DATE_FIELDS = ['first_registration_date','next_inspection_date','warranty_end','entry_date','sold_date'] as const;
+
+/** Jours en stock : de l'entrée en stock à la sortie (ou à aujourd'hui si encore en stock). */
+function daysInStock(entry: string, sold: string): number | null {
+  if (!entry) return null;
+  const start = new Date(entry);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = sold ? new Date(sold) : new Date();
+  if (Number.isNaN(end.getTime())) return null;
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000));
+}
 
 // Listes à choix fixes. Valeurs identiques FR/NL (gamme constructeur, normes, nb de cylindres)
 // donc constantes plutôt que dictionnaire i18n.
@@ -136,6 +147,8 @@ export function VehicleForm({
     </Field>
   );
 
+  const stockDays = daysInStock(f.entry_date as string, f.sold_date as string);
+
   return (
     <form onSubmit={submit} className="space-y-6">
       <Section title={t('vehicles.secId')}>
@@ -211,6 +224,14 @@ export function VehicleForm({
         {N('purchase_price', t('vehicles.purchasePrice'), '0.01')}
         {N('cost_price', t('vehicles.costPrice'), '0.01')}
         {N('display_price', t('vehicles.displayPrice'), '0.01')}
+        {D('entry_date', t('vehicles.entryDate'))}
+        {D('sold_date', t('vehicles.soldDate'))}
+        <Field label={t('vehicles.daysInStock')}>
+          <Input value={stockDays != null ? String(stockDays) : '—'} readOnly disabled className="text-right tabular-nums" />
+        </Field>
+        <Field label={t('vehicles.invoice')} wide>
+          <PurchaseInvoiceField companyId={companyId} vehicleId={initial?.id ?? null} />
+        </Field>
         <Field label={t('vehicles.notes')} wide>
           <Textarea value={f.notes as string} onChange={(e) => set('notes', e.target.value)} rows={2} />
         </Field>
