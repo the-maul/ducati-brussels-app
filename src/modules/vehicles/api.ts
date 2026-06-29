@@ -34,12 +34,36 @@ function sanitize(term: string): string {
   return term.replace(/[,()%*]/g, ' ').trim();
 }
 
+/**
+ * IDs des véhicules dont un propriétaire (actuel ou passé) correspond au nom recherché.
+ * Réutilise le RPC `contacts_search` (accent-insensible, par mots) pour rester cohérent
+ * avec la recherche de l'écran Contacts, puis remonte aux véhicules via `vehicle_owners`.
+ * Plafonné pour garder l'URL de la requête raisonnable.
+ */
+async function vehicleIdsByOwnerName(companyId: string, search: string): Promise<string[]> {
+  const { data: contacts, error } = await supabase.rpc('contacts_search', {
+    _company: companyId, _q: search, _type: null, _limit: 200, _offset: 0,
+  });
+  if (error) throw error;
+  const contactIds = ((contacts as { id: string }[] | null) ?? []).map((c) => c.id);
+  if (contactIds.length === 0) return [];
+  const { data: owners, error: oe } = await supabase
+    .from('vehicle_owners').select('vehicle_id').in('contact_id', contactIds).limit(1000);
+  if (oe) throw oe;
+  const ids = [...new Set(((owners ?? []) as { vehicle_id: string }[]).map((o) => o.vehicle_id))];
+  return ids.slice(0, 300);
+}
+
 export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all'): Promise<Vehicle[]> {
   let q = supabase.from('vehicles').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(500);
   if (status && status !== 'all') q = q.eq('status', status);
   const s = search ? sanitize(search) : '';
   if (s) {
-    q = q.or([`vin.ilike.%${s}%`, `plate.ilike.%${s}%`, `model.ilike.%${s}%`, `brand.ilike.%${s}%`, `engine_number.ilike.%${s}%`].join(','));
+    const ors = [`vin.ilike.%${s}%`, `plate.ilike.%${s}%`, `model.ilike.%${s}%`, `brand.ilike.%${s}%`, `engine_number.ilike.%${s}%`];
+    // Recherche aussi par nom de client : véhicules rattachés à un contact correspondant.
+    const ownerVehicleIds = await vehicleIdsByOwnerName(companyId, search!);
+    if (ownerVehicleIds.length) ors.push(`id.in.(${ownerVehicleIds.join(',')})`);
+    q = q.or(ors.join(','));
   }
   const { data, error } = await q;
   if (error) throw error;

@@ -149,7 +149,7 @@ export const fr = {
     save: 'Enregistrer',
     saving: 'Enregistrement…',
     empty: 'Aucun véhicule',
-    search: 'Rechercher (VIN, plaque, modèle, n° moteur…)',
+    search: 'Rechercher (VIN, plaque, modèle, n° moteur, client…)',
     allStatuses: 'Tous les statuts',
     // sections
     secId: 'Identification',
