@@ -4,18 +4,32 @@
  */
 import { code128Svg } from './barcode';
 
-export type LabelItem = { code: string; designation: string; price?: number | null; withPrice?: boolean };
+export type LabelItem = {
+  code: string;
+  designation: string;
+  price?: number | null;
+  withPrice?: boolean;
+  /** nb d'étiquettes pour CET article (B12 : défaut = stock réel) ; sinon `copies` global */
+  qty?: number;
+};
+
+export type LabelOptions = {
+  /** imprimer le code-barres Code128 (B12 : avec/sans code-barres) — défaut true */
+  withBarcode?: boolean;
+};
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 
-/** Imprime `copies` étiquettes par article. */
-export function printLabels(items: LabelItem[], copies = 1): void {
+/** Imprime les étiquettes (qté par article via `it.qty`, sinon `copies` pour tous). */
+export function printLabels(items: LabelItem[], copies = 1, opts: LabelOptions = {}): void {
+  const withBarcode = opts.withBarcode !== false;
   const labels: string[] = [];
   for (const it of items) {
-    for (let i = 0; i < Math.max(1, copies); i++) {
+    const n = Math.max(1, Math.round(it.qty ?? copies));
+    for (let i = 0; i < n; i++) {
       labels.push(`<div class="label">
-        <div class="bc">${code128Svg(it.code, { height: 46, module: 1.4 })}</div>
+        ${withBarcode ? `<div class="bc">${code128Svg(it.code, { height: 46, module: 1.4 })}</div>` : ''}
         <div class="code">${esc(it.code)}</div>
         <div class="desig">${esc(it.designation)}</div>
         ${it.withPrice && it.price != null ? `<div class="price">${eur(Number(it.price))}</div>` : ''}

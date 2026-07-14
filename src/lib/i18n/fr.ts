@@ -401,6 +401,26 @@ export const fr = {
     ppcNone: 'Aucune règle — le PV du fichier est utilisé tel quel.',
     ppcApplied: '{n} PV recalculé(s) depuis le PPC.',
     ppcDelete: 'Supprimer',
+    // Traduction FR des désignations importées
+    setTranslate: 'Traduire les désignations en français (IT/EN → FR)',
+    translatedApplied: '{n} désignation(s) traduite(s) en français.',
+    // Références remplacées
+    importReplaced: '{n} référence(s) marquée(s) « remplacée » — la nouvelle référence sera privilégiée.',
+    replacedBadge: 'Remplacée',
+    replacedBy: 'Remplacée par {ref} — utilisez la nouvelle référence.',
+    replacedBanner: 'Cette référence est remplacée par',
+    openReplacement: 'Ouvrir la nouvelle référence',
+    // Étiquettes en masse (B12)
+    labelsBtn: 'Étiquettes',
+    labelsTitle: "Impression d'étiquettes en masse",
+    labelsSubtitle: 'Articles du magasin (apparel, accessoires…) — quantité par défaut = stock réel, avec ou sans prix et code-barres.',
+    labelsCategory: 'Rayon / catégorie',
+    labelsOnlyStock: 'En stock uniquement',
+    labelsWithPrice: 'Avec prix',
+    labelsWithBarcode: 'Avec code-barres',
+    labelsQty: 'Qté étiquettes',
+    labelsPrint: 'Imprimer {n} étiquette(s)',
+    labelsEmpty: 'Aucun article ne correspond aux filtres.',
   },
 
   // Contacts (M1)

@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2 } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listArticles } from '@/modules/articles/api';
+import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
@@ -27,6 +28,7 @@ function ArticlesList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [labelsOpen, setLabelsOpen] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -54,6 +56,9 @@ function ArticlesList() {
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
               <Upload /> {t('articles.import')}
+            </Button>
+            <Button variant="outline" onClick={() => setLabelsOpen(true)}>
+              <Tags /> {t('articles.labelsBtn')}
             </Button>
             <Button onClick={() => navigate({ to: '/parts/new' })}>
               <Plus /> {t('articles.new')}
@@ -96,23 +101,39 @@ function ArticlesList() {
             {data && data.length === 0 && (
               <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
             )}
-            {data?.map((a) => (
+            {data?.map((a) => {
+              const isReplaced = !!a.superseded_by_id;
+              const replTitle = a.replacement?.reference
+                ? t('articles.replacedBy').replace('{ref}', a.replacement.reference)
+                : t('articles.replacedBadge');
+              return (
               <tr
                 key={a.id}
                 onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: a.id } })}
-                className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
+                title={isReplaced ? replTitle : undefined}
+                className={`cursor-pointer border-b border-border last:border-0 hover:bg-accent ${isReplaced ? 'opacity-55' : ''}`}
               >
                 <td className="px-3 py-2 font-mono text-[12px]">{a.reference}</td>
-                <td className="px-3 py-2 font-medium">{a.designation}</td>
+                <td className="px-3 py-2 font-medium">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span className={isReplaced ? 'line-through decoration-1' : ''}>{a.designation}</span>
+                    {isReplaced && (
+                      <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement?.reference ? `${t('articles.replacedBadge')} → ${a.replacement.reference}` : t('articles.replacedBadge')} />
+                    )}
+                  </span>
+                </td>
                 <td className="px-3 py-2"><StatusBadge tone="neutral" label={a.mgmt_type} /></td>
                 <td className="px-3 py-2">{a.brand ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location ?? '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      <LabelsBatchDialog open={labelsOpen} onOpenChange={setLabelsOpen} companyId={activeCompanyId} />
     </>
   );
 }

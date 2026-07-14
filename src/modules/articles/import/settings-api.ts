@@ -34,6 +34,7 @@ export async function getImportSettings(companyId: string): Promise<ImportSettin
     replaced_to_equivalences: Boolean(d.replaced_to_equivalences),
     new_refs_in_library: Boolean(d.new_refs_in_library),
     integrate_supplier_barcodes: Boolean(d.integrate_supplier_barcodes),
+    translate_designations: Boolean(d.translate_designations),
   };
 }
 

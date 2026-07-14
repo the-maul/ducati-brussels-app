@@ -13,6 +13,7 @@ export const IMPORT_FIELDS = [
   'reference', 'designation', 'brand', 'category_path', 'supplier_ref', 'supplier_name',
   'barcode', 'purchase_price', 'sale_price_ttc', 'ppc_ht', 'ppc_ttc',
   'coefficient', 'vat_rate', 'bin_location', 'pack_qty', 'color', 'size',
+  'replacement_ref',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
@@ -79,11 +80,12 @@ export function parseNum(cell: string | undefined): number | null {
 const MATCHERS: [ImportField, RegExp][] = [
   ['supplier_ref', /ref.*fourn/],
   ['supplier_name', /^fournisseur$/],
+  ['replacement_ref', /(remplacement|remplace|replaced|substitu)/],
   ['ppc_ht', /p\.?p\.?c.*h\.?t/],
-  ['ppc_ttc', /p\.?p\.?c.*t\.?t\.?c/],
+  ['ppc_ttc', /(p\.?p\.?c.*t\.?t\.?c|prix.*detail|retail)/],
   ['barcode', /(code.?barre|barcode|ean|gencod)/],
   ['vat_rate', /(code.?tva|^tva|vat)/],
-  ['pack_qty', /(condi|conditionnement)/],
+  ['pack_qty', /(condi|conditionnement|colis)/],
   ['bin_location', /(casier|emplacement)/],
   ['color', /couleur/],
   ['size', /taille/],
@@ -91,8 +93,8 @@ const MATCHERS: [ImportField, RegExp][] = [
   ['purchase_price', /(prix.*achat|^pa.?ht|^pa$|^achat)/],
   ['sale_price_ttc', /(prix.*vente|pv.?ttc|^pv$|prix.?t\.?t\.?c|public|tarif)/],
   ['coefficient', /coef/],
-  ['category_path', /(^rayon$|categorie|famille)/],
-  ['reference', /(^ref|reference|code.?article|^article$)/],
+  ['category_path', /(^rayon$|categorie|famille|hierarchie)/],
+  ['reference', /(^ref|reference|code.?article|^article$|^materiel$|^material)/],
   ['designation', /(designation|libelle|description|nom)/],
 ];
 
@@ -138,5 +140,6 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     pack_qty: parseNum(at(row, 'pack_qty')),
     color: txt(row, 'color'),
     size: txt(row, 'size'),
+    replacement_ref: txt(row, 'replacement_ref'),
   }));
 }

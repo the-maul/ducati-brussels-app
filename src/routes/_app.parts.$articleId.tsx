@@ -8,7 +8,7 @@ import { ArticleForm } from '@/modules/articles/article-form';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
-import { Tags, BookOpen } from 'lucide-react';
+import { Tags, BookOpen, ArrowRight } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -31,6 +31,13 @@ function EditArticle() {
   const { data: article, isLoading } = useQuery({
     queryKey: ['article', articleId],
     queryFn: () => getArticle(articleId),
+  });
+
+  // Réf. de remplacement (bandeau « remplacée par » — pousse vers la nouvelle réf)
+  const { data: replacement } = useQuery({
+    queryKey: ['article-replacement', article?.superseded_by_id],
+    queryFn: () => getArticle(article!.superseded_by_id!),
+    enabled: !!article?.superseded_by_id,
   });
 
   const m = useMutation({
@@ -69,6 +76,24 @@ function EditArticle() {
           </>
         }
       />
+      {article.superseded_by_id && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <ArrowRight className="size-4 shrink-0" />
+          <span>
+            {t('articles.replacedBanner')}{' '}
+            <span className="font-mono font-bold">{replacement?.reference ?? '…'}</span>
+            {replacement?.designation ? ` — ${replacement.designation}` : ''}
+          </span>
+          {replacement && (
+            <Button
+              variant="outline" size="sm"
+              onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: replacement.id } })}
+            >
+              {t('articles.openReplacement')}
+            </Button>
+          )}
+        </div>
+      )}
       <Tabs defaultValue="fiche">
         <TabsList>
           <TabsTrigger value="fiche">Fiche</TabsTrigger>

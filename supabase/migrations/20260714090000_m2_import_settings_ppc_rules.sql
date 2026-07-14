@@ -19,6 +19,7 @@ create table if not exists public.article_import_settings (
   replaced_to_equivalences boolean not null default true,
   new_refs_in_library boolean not null default true,
   integrate_supplier_barcodes boolean not null default true,
+  translate_designations boolean not null default false,
   updated_at timestamptz not null default now()
 );
 

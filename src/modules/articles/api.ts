@@ -28,10 +28,13 @@ function sanitize(term: string): string {
   return term.replace(/[,()%*]/g, ' ').trim();
 }
 
-export async function listArticles(companyId: string, search?: string): Promise<Article[]> {
+/** Article + réf. de remplacement embarquée (self-join sur superseded_by_id). */
+export type ArticleWithReplacement = Article & { replacement?: { id: string; reference: string } | null };
+
+export async function listArticles(companyId: string, search?: string): Promise<ArticleWithReplacement[]> {
   let q = supabase
     .from('articles')
-    .select('*')
+    .select('*, replacement:superseded_by_id(id, reference)')
     .eq('company_id', companyId)
     .order('designation', { ascending: true })
     .limit(500);
@@ -44,7 +47,7 @@ export async function listArticles(companyId: string, search?: string): Promise<
   }
   const { data, error } = await q;
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as ArticleWithReplacement[];
 }
 
 export async function getArticle(id: string): Promise<Article | null> {

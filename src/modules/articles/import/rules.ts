@@ -34,6 +34,8 @@ export type ImportRow = {
   pack_qty?: number | null;
   color?: string | null;
   size?: string | null;
+  /** Réf. de REMPLACEMENT (colonne « Remplacement » Ducati/G8) : la nouvelle réf qui remplace celle-ci. */
+  replacement_ref?: string | null;
   rowIndex: number; // ligne source (pour le rapport)
 };
 
@@ -68,6 +70,7 @@ export type ImportSettings = {
   replaced_to_equivalences: boolean;
   new_refs_in_library: boolean;
   integrate_supplier_barcodes: boolean;
+  translate_designations: boolean;
 };
 
 /** Défauts = règles historiques du cahier des charges (comportement inchangé). */
@@ -84,6 +87,7 @@ export const DEFAULT_IMPORT_SETTINGS: ImportSettings = {
   replaced_to_equivalences: true,
   new_refs_in_library: true,
   integrate_supplier_barcodes: true,
+  translate_designations: false,
 };
 
 /** Options de calcul (plancher de prix société — 0 = désactivé). */
@@ -173,6 +177,9 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     if (row.size != null) patch.size = row.size;
     patch.is_library = s.new_refs_in_library; // non stockée tant que pas réceptionnée
     if (row.barcode && s.integrate_supplier_barcodes) patch.barcode = row.barcode.trim();
+    // Réf. de remplacement (résolue en id à l'application — voir apply.ts)
+    const newRepl = row.replacement_ref?.trim();
+    if (newRepl && newRepl !== ref) patch._replace_with_ref = newRepl;
     return { rowIndex: row.rowIndex, reference: ref, existingId: null, action: 'create', changes: [], patch, anomalies };
   }
 
@@ -230,7 +237,15 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
 
   if (row.barcode && row.barcode.trim() && s.integrate_supplier_barcodes) patch._barcode = row.barcode.trim();
 
-  const action: DiffAction = changes.length > 0 || patch._barcode ? 'update' : 'skip';
+  // Réf. de remplacement : marque l'article existant comme remplacé par la nouvelle
+  // (résolue en id à l'application — voir apply.ts). Ne re-signale pas si déjà posée.
+  const repl = row.replacement_ref?.trim();
+  if (repl && repl !== ref && !existing.superseded_by_id) {
+    patch._replace_with_ref = repl;
+    anomalies.push(`Remplacée par ${repl} — la fiche sera marquée et la nouvelle réf privilégiée.`);
+  }
+
+  const action: DiffAction = changes.length > 0 || patch._barcode || patch._replace_with_ref ? 'update' : 'skip';
   return { rowIndex: row.rowIndex, reference: ref, existingId: existing.id, action, changes, patch, anomalies };
 }
 

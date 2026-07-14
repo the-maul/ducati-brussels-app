@@ -27,6 +27,7 @@ import {
 import {
   getImportSettings, saveImportSettings, listPpcRules, addPpcRule, deletePpcRule, getPriceFloor,
 } from '@/modules/articles/import/settings-api';
+import { translateRows } from '@/modules/articles/import/translate';
 import { applyImport, type ApplyResult } from '@/modules/articles/import/apply';
 import { t } from '@/lib/i18n';
 
@@ -76,6 +77,8 @@ function ImportPage() {
   const [diff, setDiff] = useState<DiffResult[]>([]);
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [ppcApplied, setPpcApplied] = useState(0);
+  const [translated, setTranslated] = useState(0);
+  const [refIds, setRefIds] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<ApplyResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -143,13 +146,16 @@ function ImportPage() {
     setBusy(true);
     try {
       const rows = buildRows(parsed, mapping);
-      // 1. Calcul PV selon PPC (règles paramétrées)
+      // 1. Traduction FR des désignations (IT/EN → FR, réglage)
+      setTranslated(settings.translate_designations ? translateRows(rows) : 0);
+      // 2. Calcul PV selon PPC (règles paramétrées)
       const nPpc = applyPpcRules(rows, ppcRules);
       setPpcApplied(nPpc);
-      // 2. Plancher de prix société + réglages d'intégration
+      // 3. Plancher de prix société + réglages d'intégration
       const floor = await getPriceFloor(activeCompanyId);
-      // 3. Référentiel COMPLET (paginé — pas le listArticles plafonné à 500)
+      // 4. Référentiel COMPLET (paginé — pas le listArticles plafonné à 500)
       const existing = await listAllArticlesLite(activeCompanyId);
+      setRefIds(new Map(existing.map((a) => [a.reference, a.id])));
       const map = new Map(existing.map((a) => [a.reference, toExisting(a)]));
       const d = buildDiff(rows, map, { settings, floorThreshold: floor.threshold, floorMin: floor.min });
       setDiff(d);
@@ -168,7 +174,7 @@ function ImportPage() {
     setError(null);
     setProgress(null);
     try {
-      const res = await applyImport(diff, activeCompanyId, (done, total) => setProgress({ done, total }));
+      const res = await applyImport(diff, activeCompanyId, (done, total) => setProgress({ done, total }), refIds);
       setResult(res);
       setStep('done');
     } catch (e) {
@@ -246,6 +252,7 @@ function ImportPage() {
               <SettingCheck label={t('articles.setReplacedEquiv')} checked={settings.replaced_to_equivalences} onChange={(v) => setSetting('replaced_to_equivalences', v)} />
               <SettingCheck label={t('articles.setNewLibrary')} checked={settings.new_refs_in_library} onChange={(v) => setSetting('new_refs_in_library', v)} />
               <SettingCheck label={t('articles.setBarcodes')} checked={settings.integrate_supplier_barcodes} onChange={(v) => setSetting('integrate_supplier_barcodes', v)} />
+              <SettingCheck label={t('articles.setTranslate')} checked={settings.translate_designations} onChange={(v) => setSetting('translate_designations', v)} />
             </div>
           </Card>
 
@@ -300,9 +307,12 @@ function ImportPage() {
             <Kpi label={t('articles.importAnomalies')} value={summary.anomalies} tone={summary.anomalies > 0 ? 'warn' : undefined} />
           </div>
 
-          {ppcApplied > 0 && (
+          {(ppcApplied > 0 || translated > 0) && (
             <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
-              {t('articles.ppcApplied').replace('{n}', String(ppcApplied))}
+              {[
+                ppcApplied > 0 ? t('articles.ppcApplied').replace('{n}', String(ppcApplied)) : null,
+                translated > 0 ? t('articles.translatedApplied').replace('{n}', String(translated)) : null,
+              ].filter(Boolean).join(' · ')}
             </p>
           )}
 
@@ -366,6 +376,11 @@ function ImportPage() {
               .replace('{updated}', String(result.updated))
               .replace('{errors}', String(result.errors.length))}
           </p>
+          {result.replaced > 0 && (
+            <p className="mt-1 text-sm">
+              {t('articles.importReplaced').replace('{n}', result.replaced.toLocaleString('fr-BE'))}
+            </p>
+          )}
           {result.errors.length > 0 && (
             <ul className="mt-2 space-y-1 text-[12px] text-danger">
               {result.errors.slice(0, 20).map((e, i) => (
