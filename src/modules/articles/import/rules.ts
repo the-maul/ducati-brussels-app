@@ -1,18 +1,19 @@
 /**
  * M2 — Moteur d'import des tarifs (INV013 + ACH003).
- * Applique les règles métier du cahier des charges (dossier §M2) au croisement
+ * Applique les règles d'intégration PARAMÉTRABLES (écran import, table
+ * article_import_settings — équivalent des cases à cocher G8) au croisement
  * d'une ligne de tarif importée avec le référentiel existant. Fonctions PURES
  * (testées dans tests/import-rules.test.ts — CLAUDE.md règle 7).
  *
- * Règles appliquées :
- *  1. Accepter les changements de désignation / PA / fournisseur / rayon / marque.
- *  2. PV à la HAUSSE uniquement (jamais de baisse automatique).
- *  3. CONSERVER le coefficient existant (ne pas l'écraser).
- *  4. NE PAS recréer une référence déjà remplacée (superseded_by) → anomalie.
- *  5. Les remplacées → proposées en équivalence (flag).
- *  6. Créer les NOUVELLES références en "librairie" (non stockées).
- *  7. Codes-barres fournisseurs conservés/ajoutés.
- *  8. PA arrondi à 3 décimales.
+ * Réglages (défauts = comportement historique du cahier des charges) :
+ *  - accepter désignation / PA / réf. fournisseur / rayon / marque
+ *  - PV : à la hausse uniquement / toujours / jamais
+ *  - conserver ou non le coefficient existant
+ *  - ne pas recréer les références remplacées (→ proposées en équivalence)
+ *  - créer les nouvelles références en librairie
+ *  - intégrer les codes-barres fournisseurs
+ *  - PA arrondi à 3 décimales
+ *  - plancher de prix : PV TTC sous le seuil → remonté au minimum (réglage société)
  */
 
 export type ImportRow = {
@@ -21,11 +22,18 @@ export type ImportRow = {
   brand?: string | null;
   category_path?: string | null;
   supplier_ref?: string | null;
+  supplier_name?: string | null; // nom du fournisseur (matching règles PPC — non persisté)
   barcode?: string | null;
   purchase_price?: number | null; // PA HT
   sale_price_ttc?: number | null; // PV TTC proposé
+  ppc_ht?: number | null;         // Prix Public Conseillé HT
+  ppc_ttc?: number | null;        // Prix Public Conseillé TTC
   coefficient?: number | null;
   vat_rate?: number | null;
+  bin_location?: string | null;
+  pack_qty?: number | null;
+  color?: string | null;
+  size?: string | null;
   rowIndex: number; // ligne source (pour le rapport)
 };
 
@@ -42,6 +50,49 @@ export type ExistingArticle = {
   coefficient: number | null;
   superseded_by_id: string | null;
   is_library: boolean;
+  ppc_ht?: number | null;
+  ppc_ttc?: number | null;
+};
+
+/** Réglages d'intégration (mêmes clés que la table article_import_settings). */
+export type ImportSettings = {
+  accept_designation: boolean;
+  accept_purchase_price: boolean;
+  purchase_price_3dec: boolean;
+  sale_price_mode: 'always' | 'increase_only' | 'never';
+  keep_coefficient: boolean;
+  accept_supplier_ref: boolean;
+  accept_category: boolean;
+  accept_brand: boolean;
+  no_recreate_replaced: boolean;
+  replaced_to_equivalences: boolean;
+  new_refs_in_library: boolean;
+  integrate_supplier_barcodes: boolean;
+};
+
+/** Défauts = règles historiques du cahier des charges (comportement inchangé). */
+export const DEFAULT_IMPORT_SETTINGS: ImportSettings = {
+  accept_designation: true,
+  accept_purchase_price: true,
+  purchase_price_3dec: true,
+  sale_price_mode: 'increase_only',
+  keep_coefficient: true,
+  accept_supplier_ref: true,
+  accept_category: true,
+  accept_brand: true,
+  no_recreate_replaced: true,
+  replaced_to_equivalences: true,
+  new_refs_in_library: true,
+  integrate_supplier_barcodes: true,
+};
+
+/** Options de calcul (plancher de prix société — 0 = désactivé). */
+export type ImportOptions = {
+  settings?: ImportSettings;
+  /** PV TTC strictement sous ce seuil → remonté à floorMin (ex. 1 €). */
+  floorThreshold?: number;
+  /** Prix minimum appliqué sous le seuil (ex. 2 €). */
+  floorMin?: number;
 };
 
 export type FieldChange = { field: string; from: unknown; to: unknown };
@@ -65,12 +116,22 @@ export type DiffResult = {
 export const round3 = (n: number) => Math.round(n * 1000) / 1000;
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Plancher de prix : PV TTC > 0 et < seuil → max(PV, minimum). */
+export function applyPriceFloor(pv: number, threshold: number, min: number): number {
+  if (!(pv > 0) || !(threshold > 0) || !(min > 0)) return pv;
+  return pv < threshold ? Math.max(pv, min) : pv;
+}
+
 /**
  * Calcule l'effet d'UNE ligne importée sur le référentiel.
  * @param row ligne de tarif
  * @param existing article existant de MÊME référence (ou null si nouveau)
+ * @param opts réglages d'intégration + plancher (défauts = comportement historique)
  */
-export function diffRow(row: ImportRow, existing: ExistingArticle | null): DiffResult {
+export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: ImportOptions = {}): DiffResult {
+  const s = opts.settings ?? DEFAULT_IMPORT_SETTINGS;
+  const floorT = opts.floorThreshold ?? 0;
+  const floorM = opts.floorMin ?? 0;
   const anomalies: string[] = [];
   const changes: FieldChange[] = [];
   const patch: Record<string, unknown> = {};
@@ -83,10 +144,17 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null): DiffR
     };
   }
 
-  // PA arrondi 3 décimales (règle 8)
-  const pa = row.purchase_price != null ? round3(row.purchase_price) : null;
+  // PA arrondi (3 décimales par défaut, réglage)
+  const pa = row.purchase_price != null
+    ? (s.purchase_price_3dec ? round3(row.purchase_price) : round2(row.purchase_price))
+    : null;
 
-  // ---------- NOUVELLE référence → création en librairie (règle 6) ----------
+  // PV proposé, plancher appliqué (réglage société)
+  const proposedPv = row.sale_price_ttc != null
+    ? applyPriceFloor(round2(row.sale_price_ttc), floorT, floorM)
+    : null;
+
+  // ---------- NOUVELLE référence → création ----------
   if (!existing) {
     patch.reference = ref;
     patch.designation = row.designation?.trim() || ref;
@@ -94,25 +162,33 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null): DiffR
     if (row.category_path != null) patch.category_path = row.category_path;
     if (row.supplier_ref != null) patch.supplier_ref = row.supplier_ref;
     if (pa != null) patch.purchase_price = pa;
-    if (row.sale_price_ttc != null) patch.sale_price_ttc = round2(row.sale_price_ttc);
+    if (proposedPv != null && s.sale_price_mode !== 'never') patch.sale_price_ttc = proposedPv;
     if (row.coefficient != null) patch.coefficient = row.coefficient;
     if (row.vat_rate != null) patch.vat_rate = row.vat_rate;
-    patch.is_library = true; // non stockée tant que pas réceptionnée
-    if (row.barcode) patch.barcode = row.barcode.trim(); // règle 7 (rattaché à part)
+    if (row.ppc_ht != null) patch.ppc_ht = row.ppc_ht;
+    if (row.ppc_ttc != null) patch.ppc_ttc = row.ppc_ttc;
+    if (row.bin_location != null) patch.bin_location = row.bin_location;
+    if (row.pack_qty != null) patch.pack_qty = row.pack_qty;
+    if (row.color != null) patch.color = row.color;
+    if (row.size != null) patch.size = row.size;
+    patch.is_library = s.new_refs_in_library; // non stockée tant que pas réceptionnée
+    if (row.barcode && s.integrate_supplier_barcodes) patch.barcode = row.barcode.trim();
     return { rowIndex: row.rowIndex, reference: ref, existingId: null, action: 'create', changes: [], patch, anomalies };
   }
 
-  // ---------- Référence REMPLACÉE → ne pas recréer (règles 4 & 5) ----------
-  if (existing.superseded_by_id) {
+  // ---------- Référence REMPLACÉE → ne pas recréer (réglage) ----------
+  if (existing.superseded_by_id && s.no_recreate_replaced) {
     anomalies.push('Référence remplacée — non mise à jour ; proposée en équivalence.');
+    const p: Record<string, unknown> = s.replaced_to_equivalences
+      ? { _suggest_equivalence: existing.superseded_by_id }
+      : {};
     return {
       rowIndex: row.rowIndex, reference: ref, existingId: existing.id, action: 'skip',
-      changes: [], patch: { _suggest_equivalence: existing.superseded_by_id }, anomalies,
+      changes: [], patch: p, anomalies,
     };
   }
 
   // ---------- Mise à jour d'une référence existante ----------
-  // Règle 1 : accepter désignation / PA / fournisseur / rayon / marque
   const accept = (field: keyof ExistingArticle, value: unknown, col: string) => {
     if (value == null) return;
     if (existing[field] !== value) {
@@ -120,41 +196,56 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null): DiffR
       patch[col] = value;
     }
   };
-  if (row.designation != null && row.designation.trim()) accept('designation', row.designation.trim(), 'designation');
-  if (pa != null) accept('purchase_price', pa, 'purchase_price');
-  if (row.supplier_ref != null) accept('supplier_ref', row.supplier_ref, 'supplier_ref');
-  if (row.category_path != null) accept('category_path', row.category_path, 'category_path');
-  if (row.brand != null) accept('brand', row.brand, 'brand');
+  if (s.accept_designation && row.designation != null && row.designation.trim()) {
+    accept('designation', row.designation.trim(), 'designation');
+  }
+  if (s.accept_purchase_price && pa != null) accept('purchase_price', pa, 'purchase_price');
+  if (s.accept_supplier_ref && row.supplier_ref != null) accept('supplier_ref', row.supplier_ref, 'supplier_ref');
+  if (s.accept_category && row.category_path != null) accept('category_path', row.category_path, 'category_path');
+  if (s.accept_brand && row.brand != null) accept('brand', row.brand, 'brand');
 
-  // Règle 3 : on ne touche JAMAIS au coefficient existant (pas dans le patch).
+  // Coefficient : conservé par défaut (réglage « garder le coefficient »)
+  if (!s.keep_coefficient && row.coefficient != null) accept('coefficient', row.coefficient, 'coefficient');
 
-  // Règle 2 : PV à la hausse uniquement
-  if (row.sale_price_ttc != null) {
-    const newPv = round2(row.sale_price_ttc);
-    if (newPv > existing.sale_price_ttc) {
-      changes.push({ field: 'sale_price_ttc', from: existing.sale_price_ttc, to: newPv });
-      patch.sale_price_ttc = newPv;
-    } else if (newPv < existing.sale_price_ttc) {
+  // PPC : toujours rafraîchi quand présent (donnée fournisseur, pas un prix de vente)
+  if (row.ppc_ht != null) accept('ppc_ht', row.ppc_ht, 'ppc_ht');
+  if (row.ppc_ttc != null) accept('ppc_ttc', row.ppc_ttc, 'ppc_ttc');
+
+  // PV selon le mode
+  if (proposedPv != null && s.sale_price_mode !== 'never') {
+    if (s.sale_price_mode === 'always') {
+      if (proposedPv !== existing.sale_price_ttc) {
+        changes.push({ field: 'sale_price_ttc', from: existing.sale_price_ttc, to: proposedPv });
+        patch.sale_price_ttc = proposedPv;
+      }
+    } else if (proposedPv > existing.sale_price_ttc) {
+      changes.push({ field: 'sale_price_ttc', from: existing.sale_price_ttc, to: proposedPv });
+      patch.sale_price_ttc = proposedPv;
+    } else if (proposedPv < existing.sale_price_ttc) {
       anomalies.push(
-        `PV en baisse (${existing.sale_price_ttc} → ${newPv}) : conservé à l'ancien prix (règle hausse seule).`,
+        `PV en baisse (${existing.sale_price_ttc} → ${proposedPv}) : conservé à l'ancien prix (règle hausse seule).`,
       );
     }
   }
 
-  if (row.barcode && row.barcode.trim()) patch._barcode = row.barcode.trim(); // règle 7 (table à part)
+  if (row.barcode && row.barcode.trim() && s.integrate_supplier_barcodes) patch._barcode = row.barcode.trim();
 
   const action: DiffAction = changes.length > 0 || patch._barcode ? 'update' : 'skip';
   return { rowIndex: row.rowIndex, reference: ref, existingId: existing.id, action, changes, patch, anomalies };
 }
 
 /** Croise toutes les lignes importées avec le référentiel (indexé par référence). */
-export function buildDiff(rows: ImportRow[], existingByRef: Map<string, ExistingArticle>): DiffResult[] {
+export function buildDiff(
+  rows: ImportRow[],
+  existingByRef: Map<string, ExistingArticle>,
+  opts: ImportOptions = {},
+): DiffResult[] {
   const seen = new Set<string>();
   return rows.map((row) => {
     const ref = row.reference?.trim() ?? '';
     const dup = ref && seen.has(ref);
     if (ref) seen.add(ref);
-    const res = diffRow(row, existingByRef.get(ref) ?? null);
+    const res = diffRow(row, existingByRef.get(ref) ?? null, opts);
     if (dup) res.anomalies.push('Référence en double dans le fichier importé.');
     return res;
   });
@@ -173,4 +264,64 @@ export function summarize(diff: DiffResult[]): DiffSummary {
     },
     { creates: 0, updates: 0, skips: 0, anomalies: 0 },
   );
+}
+
+// ─── Règles PV / PPC (Prix Public Conseillé) ─────────────────────────────────
+
+/** Règle de calcul du PV depuis le PPC (table ppc_price_rules). */
+export type PpcRule = {
+  id?: string;
+  supplier_name: string | null;
+  category_path: string | null;
+  brand: string | null;
+  pct: number; // % PV/PPC : PV TTC = PPC TTC × (1 + pct/100)
+  is_active?: boolean;
+};
+
+const ci = (s: string) => s.trim().toLowerCase();
+
+/**
+ * Trouve la règle PPC la plus spécifique pour une ligne : tous les critères
+ * non nuls de la règle doivent matcher (fournisseur =, rayon = préfixe du
+ * category_path, marque =) ; la règle avec le PLUS de critères remplis gagne.
+ */
+export function resolvePpcRule(row: ImportRow, rules: PpcRule[]): PpcRule | null {
+  let best: PpcRule | null = null;
+  let bestScore = -1;
+  for (const r of rules) {
+    if (r.is_active === false) continue;
+    let score = 0;
+    if (r.supplier_name != null && r.supplier_name.trim() !== '') {
+      if (!row.supplier_name || ci(row.supplier_name) !== ci(r.supplier_name)) continue;
+      score++;
+    }
+    if (r.category_path != null && r.category_path.trim() !== '') {
+      if (!row.category_path || !ci(row.category_path).startsWith(ci(r.category_path))) continue;
+      score++;
+    }
+    if (r.brand != null && r.brand.trim() !== '') {
+      if (!row.brand || ci(row.brand) !== ci(r.brand)) continue;
+      score++;
+    }
+    if (score > bestScore) { best = r; bestScore = score; }
+  }
+  return best;
+}
+
+/**
+ * Applique les règles PPC aux lignes importées : quand une ligne a un PPC TTC
+ * et qu'une règle matche, le PV TTC proposé devient PPC × (1 + pct/100)
+ * (remplace le PV du fichier). Retourne le nombre de lignes recalculées.
+ */
+export function applyPpcRules(rows: ImportRow[], rules: PpcRule[]): number {
+  if (rules.length === 0) return 0;
+  let n = 0;
+  for (const row of rows) {
+    if (row.ppc_ttc == null || !(row.ppc_ttc > 0)) continue;
+    const rule = resolvePpcRule(row, rules);
+    if (!rule) continue;
+    row.sale_price_ttc = round2(row.ppc_ttc * (1 + rule.pct / 100));
+    n++;
+  }
+  return n;
 }

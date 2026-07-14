@@ -61,6 +61,8 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
     vat_account_default: company.vat_account_default, is_active: company.is_active,
     inbound_mailbox: company.inbound_mailbox,
     round_sale_prices_up: company.round_sale_prices_up,
+    price_floor_threshold: Number((company as Record<string, unknown>).price_floor_threshold ?? 1),
+    price_floor_min: Number((company as Record<string, unknown>).price_floor_min ?? 2),
   });
   const set = (k: keyof CompanyPatch, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
   const [msg, setMsg] = useState<string | null>(null);
@@ -96,6 +98,25 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
             {t('settings.coRoundPrices')}
           </label>
           <p className="mt-1 text-[12px] text-muted-foreground">{t('settings.coRoundPricesHint')}</p>
+        </div>
+        <Field label={t('settings.coFloorThreshold')}>
+          <Input
+            type="number" step="0.01" min="0"
+            value={f.price_floor_threshold ?? ''}
+            onChange={(e) => setF((p) => ({ ...p, price_floor_threshold: Number(e.target.value) || 0 }))}
+            className="text-right tabular-nums"
+          />
+        </Field>
+        <Field label={t('settings.coFloorMin')}>
+          <Input
+            type="number" step="0.01" min="0"
+            value={f.price_floor_min ?? ''}
+            onChange={(e) => setF((p) => ({ ...p, price_floor_min: Number(e.target.value) || 0 }))}
+            className="text-right tabular-nums"
+          />
+        </Field>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <p className="text-[12px] text-muted-foreground">{t('settings.coFloorHint')}</p>
         </div>
       </Section>
       {msg && <p className="rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">{msg}</p>}

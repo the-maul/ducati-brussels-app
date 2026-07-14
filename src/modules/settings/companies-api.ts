@@ -16,7 +16,9 @@ export async function listCompanies(): Promise<Company[]> {
 export type CompanyPatch = Partial<Pick<Company,
   'name' | 'legal_name' | 'vat_number' | 'address' | 'zip' | 'city' | 'country' | 'iban' | 'peppol_id' |
   'sales_account_default' | 'customer_account_default' | 'vat_account_default' | 'is_active' | 'inbound_mailbox' |
-  'round_sale_prices_up'>>;
+  'round_sale_prices_up'>>
+  // Plancher de prix (migration 20260714 — colonnes hors types générés)
+  & { price_floor_threshold?: number; price_floor_min?: number };
 
 export async function updateCompany(id: string, patch: CompanyPatch): Promise<void> {
   const { error } = await supabase.from('companies').update(patch).eq('id', id);

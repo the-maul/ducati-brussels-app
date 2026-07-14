@@ -1,6 +1,8 @@
 /**
- * M2 — Parsing CSV des tarifs fournisseurs (Excel : export CSV pour l'instant).
+ * M2 — Parsing des tarifs fournisseurs (CSV collé ou fichier Excel/CSV).
  * Détecte le séparateur (`,` ou `;`), gère les guillemets. Mapping colonnes → champs.
+ * Le mapping auto reconnaît les en-têtes de l'export G8 (Référence, P.P.C. T.T.C.,
+ * Réf Fournisseur, Casier, Condi.achat, Code TVA…).
  */
 import type { ImportRow } from './rules';
 
@@ -8,8 +10,9 @@ export type ParsedCsv = { headers: string[]; rows: string[][] };
 
 /** Champs cibles mappables depuis les colonnes du fichier. */
 export const IMPORT_FIELDS = [
-  'reference', 'designation', 'brand', 'category_path', 'supplier_ref',
-  'barcode', 'purchase_price', 'sale_price_ttc', 'coefficient', 'vat_rate',
+  'reference', 'designation', 'brand', 'category_path', 'supplier_ref', 'supplier_name',
+  'barcode', 'purchase_price', 'sale_price_ttc', 'ppc_ht', 'ppc_ttc',
+  'coefficient', 'vat_rate', 'bin_location', 'pack_qty', 'color', 'size',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
@@ -50,29 +53,59 @@ export function parseCsv(text: string): ParsedCsv {
   return { headers, rows };
 }
 
-/** Nombre depuis une cellule (gère virgule décimale et espaces). */
+/**
+ * Nombre depuis une cellule. Gère la virgule décimale, les espaces (y compris
+ * insécables), les symboles € et % (export G8 : « 49,11 € », « 21,0 % ») et
+ * les milliers européens (« 1.234,56 »).
+ */
 export function parseNum(cell: string | undefined): number | null {
-  if (cell == null || cell.trim() === '') return null;
-  const n = Number(cell.replace(/\s/g, '').replace(',', '.'));
+  if (cell == null) return null;
+  let s = String(cell).trim();
+  if (s === '') return null;
+  s = s.replace(/[€%\s  ]/g, '');
+  if (s === '') return null;
+  if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(',', '.');
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Matchers ordonnés (du plus spécifique au plus générique) : pour chaque colonne,
+ * le premier champ LIBRE qui matche gagne. L'ordre évite les pièges G8 :
+ * « Réf Fournisseur » avant « Fournisseur », « P.P.C. T.T.C. » avant « Prix T.T.C. »,
+ * « Code barre » avant « Code TVA ».
+ */
+const MATCHERS: [ImportField, RegExp][] = [
+  ['supplier_ref', /ref.*fourn/],
+  ['supplier_name', /^fournisseur$/],
+  ['ppc_ht', /p\.?p\.?c.*h\.?t/],
+  ['ppc_ttc', /p\.?p\.?c.*t\.?t\.?c/],
+  ['barcode', /(code.?barre|barcode|ean|gencod)/],
+  ['vat_rate', /(code.?tva|^tva|vat)/],
+  ['pack_qty', /(condi|conditionnement)/],
+  ['bin_location', /(casier|emplacement)/],
+  ['color', /couleur/],
+  ['size', /taille/],
+  ['brand', /(marque|brand)/],
+  ['purchase_price', /(prix.*achat|^pa.?ht|^pa$|^achat)/],
+  ['sale_price_ttc', /(prix.*vente|pv.?ttc|^pv$|prix.?t\.?t\.?c|public|tarif)/],
+  ['coefficient', /coef/],
+  ['category_path', /(^rayon$|categorie|famille)/],
+  ['reference', /(^ref|reference|code.?article|^article$)/],
+  ['designation', /(designation|libelle|description|nom)/],
+];
 
 /** Devine un mapping par défaut à partir des libellés de colonnes. */
 export function guessMapping(headers: string[]): ColumnMapping {
   const m: ColumnMapping = {};
-  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   headers.forEach((h, i) => {
     const n = norm(h);
-    if (m.reference == null && /(^ref|reference|code article|article)/.test(n)) m.reference = i;
-    else if (m.designation == null && /(designation|libelle|description|nom)/.test(n)) m.designation = i;
-    else if (m.brand == null && /(marque|brand)/.test(n)) m.brand = i;
-    else if (m.supplier_ref == null && /(ref.*fourn|fournisseur)/.test(n)) m.supplier_ref = i;
-    else if (m.barcode == null && /(code.?barre|barcode|ean|gencod)/.test(n)) m.barcode = i;
-    else if (m.purchase_price == null && /(prix.*achat|^pa\b|pa ht|achat)/.test(n)) m.purchase_price = i;
-    else if (m.sale_price_ttc == null && /(prix.*vente|pv ttc|^pv\b|public|tarif)/.test(n)) m.sale_price_ttc = i;
-    else if (m.coefficient == null && /(coef)/.test(n)) m.coefficient = i;
-    else if (m.vat_rate == null && /(tva|vat)/.test(n)) m.vat_rate = i;
-    else if (m.category_path == null && /(rayon|categorie|famille)/.test(n)) m.category_path = i;
+    if (!n) return;
+    for (const [field, re] of MATCHERS) {
+      if (m[field] == null && re.test(n)) { m[field] = i; return; }
+    }
   });
   return m;
 }
@@ -82,17 +115,28 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     const idx = mapping[field];
     return idx != null ? row[idx] : undefined;
   };
+  const txt = (row: string[], field: ImportField) => {
+    const v = at(row, field);
+    return v == null || v.trim() === '' ? null : v.trim();
+  };
   return parsed.rows.map((row, i) => ({
     rowIndex: i + 2, // +1 (0-based) +1 (header)
     reference: (at(row, 'reference') ?? '').trim(),
     designation: at(row, 'designation') ?? null,
-    brand: at(row, 'brand') ?? null,
-    category_path: at(row, 'category_path') ?? null,
-    supplier_ref: at(row, 'supplier_ref') ?? null,
-    barcode: at(row, 'barcode') ?? null,
+    brand: txt(row, 'brand'),
+    category_path: txt(row, 'category_path'),
+    supplier_ref: txt(row, 'supplier_ref'),
+    supplier_name: txt(row, 'supplier_name'),
+    barcode: txt(row, 'barcode'),
     purchase_price: parseNum(at(row, 'purchase_price')),
     sale_price_ttc: parseNum(at(row, 'sale_price_ttc')),
+    ppc_ht: parseNum(at(row, 'ppc_ht')),
+    ppc_ttc: parseNum(at(row, 'ppc_ttc')),
     coefficient: parseNum(at(row, 'coefficient')),
     vat_rate: parseNum(at(row, 'vat_rate')),
+    bin_location: txt(row, 'bin_location'),
+    pack_qty: parseNum(at(row, 'pack_qty')),
+    color: txt(row, 'color'),
+    size: txt(row, 'size'),
   }));
 }

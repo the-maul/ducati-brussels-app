@@ -53,6 +53,33 @@ export async function getArticle(id: string): Promise<Article | null> {
   return data;
 }
 
+/** Colonnes minimales pour le diff d'import (voir import/rules.ts ExistingArticle). */
+export type ArticleLite = Pick<Article,
+  'id' | 'reference' | 'designation' | 'brand' | 'category_path' | 'supplier_ref' |
+  'purchase_price' | 'sale_price_ttc' | 'coefficient' | 'superseded_by_id' | 'is_library' |
+  'ppc_ht' | 'ppc_ttc'>;
+
+/**
+ * Référentiel COMPLET (paginé par 1000) pour l'import de tarifs — listArticles
+ * est plafonné à 500 et ne convient pas au croisement d'un gros fichier.
+ */
+export async function listAllArticlesLite(companyId: string): Promise<ArticleLite[]> {
+  const PAGE = 1000;
+  const out: ArticleLite[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('articles')
+      .select('id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc')
+      .eq('company_id', companyId)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
 export async function createArticle(input: ArticleInsert): Promise<Article> {
   const { data, error } = await supabase.from('articles').insert(input).select().single();
   if (error) throw error;
