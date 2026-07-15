@@ -106,6 +106,27 @@ test('PPC + règle % : PV = PPC × (1 + pct/100), arrondi 2 déc.', () => {
   expect(rows[1].sale_price_ttc).toBe(100);   // règle générique 0 %
 });
 
+test('PPC sans règle : PV par défaut = PPC (tarifs Ducati sans colonne PV)', () => {
+  const rows: ImportRow[] = [{ reference: 'A', ppc_ttc: 250, rowIndex: 2 }];
+  const n = applyPpcRules(rows, []);
+  expect(n).toBe(1);
+  expect(rows[0].sale_price_ttc).toBe(250);
+});
+
+test('PPC sans règle mais PV déjà présent : PV du fichier conservé', () => {
+  const rows: ImportRow[] = [{ reference: 'A', ppc_ttc: 250, sale_price_ttc: 199, rowIndex: 2 }];
+  const n = applyPpcRules(rows, []);
+  expect(n).toBe(0);
+  expect(rows[0].sale_price_ttc).toBe(199);
+});
+
+test('règle PPC par fournisseur (fournisseur du fichier)', () => {
+  const rows: ImportRow[] = [{ reference: 'A', ppc_ttc: 100, supplier_name: 'DUCATI WEST EUROPE', rowIndex: 2 }];
+  const n = applyPpcRules(rows, [{ supplier_name: 'DUCATI WEST EUROPE', category_path: null, brand: null, pct: 10 }]);
+  expect(n).toBe(1);
+  expect(rows[0].sale_price_ttc).toBe(110);
+});
+
 test('plancher de prix : PV sous le seuil remonté au minimum', () => {
   const row: ImportRow = { reference: 'NEW2', sale_price_ttc: 0.15, rowIndex: 2 };
   const r = diffRow(row, null, { floorThreshold: 1, floorMin: 2 });

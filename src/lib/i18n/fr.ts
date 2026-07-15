@@ -421,6 +421,21 @@ export const fr = {
     labelsQty: 'Qté étiquettes',
     labelsPrint: 'Imprimer {n} étiquette(s)',
     labelsEmpty: 'Aucun article ne correspond aux filtres.',
+    // Bannière migration en attente (schéma non installé → repli local)
+    migrationBanner: 'Les tables de configuration ne sont pas encore installées en base : vos réglages et règles sont enregistrés localement sur ce poste en attendant. Installez le SQL pour les partager entre postes.',
+    migrationCopySql: 'Copier le SQL à exécuter',
+    migrationCopied: "SQL copié — collez-le dans l'éditeur SQL Supabase puis cliquez Run.",
+    migrationRecheck: 'Revérifier',
+    localBadge: 'local',
+    // Fournisseur appliqué à tout le fichier
+    fileSupplier: 'Fournisseur de ce fichier',
+    fileSupplierHint: "Optionnel — appliqué à toutes les lignes. Utile pour les tarifs Ducati (pas de colonne fournisseur) : active les règles PV/PPC par fournisseur.",
+    ppcAllSuppliers: 'Tous les fournisseurs',
+    ppcRuleAddTitle: 'Ajouter une règle',
+    ppcPctPlaceholder: 'ex. -6 ou 15',
+    // Import → ERP
+    importApplyN: "Importer {n} référence(s) dans l'ERP",
+    previewHint: "Vérifiez le résumé ci-dessous (créations / mises à jour), puis cliquez « Importer » pour envoyer les références dans l'ERP.",
   },
 
   // Contacts (M1)

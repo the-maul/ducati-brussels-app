@@ -324,19 +324,25 @@ export function resolvePpcRule(row: ImportRow, rules: PpcRule[]): PpcRule | null
 }
 
 /**
- * Applique les règles PPC aux lignes importées : quand une ligne a un PPC TTC
- * et qu'une règle matche, le PV TTC proposé devient PPC × (1 + pct/100)
- * (remplace le PV du fichier). Retourne le nombre de lignes recalculées.
+ * Applique les règles PPC aux lignes importées ayant un PPC TTC :
+ *  - si une règle matche → PV TTC = PPC × (1 + pct/100) ;
+ *  - sinon, si la ligne n'a pas de PV (cas des tarifs Ducati : colonne
+ *    « Prix au détail » = PPC, sans prix de vente) → PV par défaut = PPC.
+ * Ne touche jamais un PV déjà fourni par le fichier si aucune règle ne matche.
+ * Retourne le nombre de PV (re)calculés depuis le PPC.
  */
 export function applyPpcRules(rows: ImportRow[], rules: PpcRule[]): number {
-  if (rules.length === 0) return 0;
   let n = 0;
   for (const row of rows) {
     if (row.ppc_ttc == null || !(row.ppc_ttc > 0)) continue;
-    const rule = resolvePpcRule(row, rules);
-    if (!rule) continue;
-    row.sale_price_ttc = round2(row.ppc_ttc * (1 + rule.pct / 100));
-    n++;
+    const rule = rules.length ? resolvePpcRule(row, rules) : null;
+    if (rule) {
+      row.sale_price_ttc = round2(row.ppc_ttc * (1 + rule.pct / 100));
+      n++;
+    } else if (row.sale_price_ttc == null) {
+      row.sale_price_ttc = round2(row.ppc_ttc);
+      n++;
+    }
   }
   return n;
 }
