@@ -15,6 +15,7 @@ async function nextNumber(companyId: string, docType: string): Promise<string> {
 export type RepriseInput = {
   companyId: string;
   isPro: boolean;                 // pro (P, TVA 21%) ou particulier (O, TVA marge)
+  contactId?: string | null;      // vendeur (propriétaire précédent) à lier
   designation: string;
   vin?: string | null;
   brand?: string | null;
@@ -23,7 +24,14 @@ export type RepriseInput = {
   color?: string | null;
   mileage?: number | null;
   firstRegistrationDate?: string | null;
-  reprisePrice: number;           // prix de reprise (PAHT)
+  modelYear?: number | null;
+  powerKw?: number | null;
+  powerCv?: number | null;
+  displacement?: number | null;   // cylindrée cm³
+  cylinders?: number | null;
+  energy?: string | null;         // carburant (Essence / Électrique)
+  notes?: string | null;          // transmission, état, options… (bloc structuré)
+  reprisePrice?: number;          // prix de reprise (PAHT) — 0 si estimation à faire
   resalePriceTtc?: number | null; // prix de revente affiché
   vatRate?: number;
 };
@@ -33,11 +41,12 @@ export async function createReprise(p: RepriseInput): Promise<{ articleId: strin
   const occNumber = await nextNumber(p.companyId, 'OCC');
   const mgmt = p.isPro ? 'P' : 'O';
   const vat = p.vatRate ?? 21;
+  const reprisePrice = p.reprisePrice ?? 0;
 
   // 1) Article occasion (type O/P)
   const { data: art, error: ae } = await supabase.from('articles').insert({
     company_id: p.companyId, reference: occNumber, designation: p.designation, mgmt_type: mgmt,
-    purchase_price: p.reprisePrice, pamp: p.reprisePrice, sale_price_ttc: p.resalePriceTtc ?? 0, vat_rate: vat,
+    purchase_price: reprisePrice, pamp: reprisePrice, sale_price_ttc: p.resalePriceTtc ?? 0, vat_rate: vat,
   }).select('id').single();
   if (ae) throw ae;
   const articleId = art.id as string;
@@ -47,11 +56,24 @@ export async function createReprise(p: RepriseInput): Promise<{ articleId: strin
     company_id: p.companyId, article_id: articleId, vin: p.vin ?? null, brand: p.brand ?? null,
     model: p.model ?? p.designation, engine_number: p.engineNumber ?? null, color: p.color ?? null,
     mileage: p.mileage ?? null, first_registration_date: p.firstRegistrationDate ?? null,
-    purchase_price: p.reprisePrice, cost_price: p.reprisePrice, display_price: p.resalePriceTtc ?? null,
+    model_year: p.modelYear ?? null, power_kw: p.powerKw ?? null, power_cv: p.powerCv ?? null,
+    displacement: p.displacement ?? null, cylinders: p.cylinders ?? null, energy: p.energy ?? null,
+    notes: p.notes ?? null,
+    purchase_price: reprisePrice, cost_price: reprisePrice, display_price: p.resalePriceTtc ?? null,
     status: 'stock_vo',
   }).select('id').single();
   if (ve) throw ve;
   const vehicleId = veh.id as string;
+
+  // 2b) Lien vendeur (propriétaire précédent) — pour recontacter le client.
+  // Non bloquant : ne pas orpheliner une reprise si le lien échoue.
+  if (p.contactId) {
+    await supabase.from('vehicle_owners').insert({
+      vehicle_id: vehicleId, contact_id: p.contactId,
+      from_date: p.firstRegistrationDate ?? new Date().toISOString().slice(0, 10),
+      to_date: new Date().toISOString().slice(0, 10), is_current: false,
+    });
+  }
 
   // 3) Entrée de stock valorisée (1 unité, PAMP = prix de reprise)
   const { error: me } = await supabase.rpc('record_stock_move', {

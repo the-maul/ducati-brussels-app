@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Recycle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,9 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listLeads, createLead, setLeadStage, LEAD_STAGES, type Lead } from '@/modules/crm/api';
 import { LeadDetail } from '@/modules/crm/lead-detail';
 import { t } from '@/lib/i18n';
+
+/** Catégories de lead (source) — filtre CRM. */
+const LEAD_SOURCES = ['REP', 'VN', 'VO', 'ATELIER', 'PIECE', 'FINANCEMENT'] as const;
 
 export const Route = createFileRoute('/_app/crm')({
   head: () => ({ meta: [{ title: 'CRM — Ducati Bruxelles' }] }),
@@ -25,14 +28,27 @@ function CrmPage() {
   const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [sourceFilter, setSourceFilter] = useState('all');
   const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId], queryFn: () => listLeads(activeCompanyId!), enabled: !!activeCompanyId });
   const move = useMutation({ mutationFn: ({ id, stage }: { id: string; stage: string }) => setLeadStage(id, stage), onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] }) });
 
-  const byStage = (s: string) => (data ?? []).filter((l) => l.stage === s);
+  const filtered = (data ?? []).filter((l) => sourceFilter === 'all' || (l.source ?? '').toUpperCase() === sourceFilter);
+  const byStage = (s: string) => filtered.filter((l) => l.stage === s);
 
   return (
     <>
-      <PageHeader title={t('crm.title')} description={t('crm.subtitle')} actions={<Button onClick={() => setShowNew(true)}><Plus /> {t('crm.newLead')}</Button>} />
+      <PageHeader title={t('crm.title')} description={t('crm.subtitle')} actions={
+        <div className="flex gap-2">
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('crm.filterAll')}</SelectItem>
+              {LEAD_SOURCES.map((s) => <SelectItem key={s} value={s}>{t(`crm.src_${s}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setShowNew(true)}><Plus /> {t('crm.newLead')}</Button>
+        </div>
+      } />
       {isLoading && <div className="grid place-items-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-6">
         {LEAD_STAGES.map((s) => (
@@ -40,8 +56,11 @@ function CrmPage() {
             <p className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t(`crm.stage_${s}`)}<span className="rounded bg-muted px-1.5 tabular-nums">{byStage(s).length}</span></p>
             <div className="space-y-2">
               {byStage(s).map((l) => (
-                <div key={l.id} className="cursor-pointer rounded-md border border-border p-2 text-[12px] transition hover:border-[var(--ducati-red)] hover:shadow-sm" onClick={() => setSelected(l)} title={t('crm.openCard')}>
-                  <p className="font-medium">{l.name}</p>
+                <div key={l.id} className="cursor-pointer rounded-md border border-border p-2 text-[12px] transition hover:border-[var(--ducati-red)] hover:shadow-sm" onClick={() => setSelected(l)} title={(l.source ?? '').toUpperCase() === 'REP' ? t('crm.srcRepTitle') : t('crm.openCard')}>
+                  <p className="flex items-center gap-1.5 font-medium">
+                    {(l.source ?? '').toUpperCase() === 'REP' && <Recycle className="size-3.5 shrink-0 text-[var(--ducati-red)]" aria-label={t('crm.src_REP')} />}
+                    <span className="truncate">{l.name}</span>
+                  </p>
                   {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
                   {l.estimated_value != null && <p className="tabular-nums text-muted-foreground">{eur(Number(l.estimated_value))}</p>}
                   <div onClick={(e) => e.stopPropagation()}>
@@ -78,7 +97,12 @@ function NewLeadDialog({ companyId, onClose, onCreated }: { companyId: string; o
           <Field label={t('crm.email')}><Input value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
           <Field label={t('crm.phone')}><Input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
           <Field label={t('crm.vehicleInterest')}><Input value={f.vehicle} onChange={(e) => set('vehicle', e.target.value)} /></Field>
-          <Field label={t('crm.source')}><Input value={f.source} onChange={(e) => set('source', e.target.value)} /></Field>
+          <Field label={t('crm.source')}>
+            <Select value={f.source || undefined} onValueChange={(v) => set('source', v)}>
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>{LEAD_SOURCES.map((s) => <SelectItem key={s} value={s}>{t(`crm.src_${s}`)}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
           <Field label={t('crm.estimatedValue')}><Input type="number" value={f.value} onChange={(e) => set('value', e.target.value)} className="text-right tabular-nums" /></Field>
         </div>
         <DialogFooter>
