@@ -23,6 +23,17 @@ const isoDate = (s: unknown): string | null => {
 const clean = <T extends Record<string, unknown>>(o: T): Partial<T> =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== '')) as Partial<T>;
 
+/**
+ * Découpe le nom combiné du portail DCS (« SÉBASTIEN NUNES ») selon la règle
+ * magasin : le PREMIER mot est le prénom, le reste est le nom.
+ * Fonction pure — testée dans tests/myducati.test.ts.
+ */
+export function splitFullName(full: unknown): { first: string; last: string } {
+  const tokens = String(full ?? '').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { first: '', last: '' };
+  return { first: tokens[0], last: tokens.slice(1).join(' ') };
+}
+
 /** base64 → Uint8Array (pour uploader un PDF rapatrié par l'extension). */
 const base64ToBytes = (b64: string): Uint8Array => {
   const bin = atob(b64);
@@ -157,8 +168,18 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
 
   // Compte client Ducati → propriétaire courant de la moto.
   const c = p.contact || {};
+  // Prénom / Nom : champs séparés si l'extension les fournit, sinon découpage du
+  // champ combiné « Nom » du portail (« SÉBASTIEN NUNES » → prénom puis nom).
+  let firstName = String(c.my_ducati_first_name ?? '').trim();
+  let lastName = String(c.my_ducati_last_name ?? '').trim();
+  if (!firstName && !lastName) {
+    const s = splitFullName(c.my_ducati_name ?? c.name);
+    firstName = s.first;
+    lastName = s.last;
+  }
   const contactPatch = clean({
     ducati_code: c.ducati_code, my_ducati_email: c.my_ducati_email, my_ducati_phone: c.my_ducati_phone,
+    my_ducati_first_name: firstName, my_ducati_last_name: lastName,
     my_ducati_city: c.my_ducati_city, my_ducati_country: c.my_ducati_country,
     my_ducati_marketing: c.my_ducati_marketing as boolean | undefined, my_ducati_profiling: c.my_ducati_profiling as boolean | undefined,
     my_ducati_is_current_owner: c.my_ducati_is_current_owner as boolean | undefined,
