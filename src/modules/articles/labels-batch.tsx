@@ -2,21 +2,25 @@
  * M2/M5 (B12) — Impression d'étiquettes EN MASSE pour les articles du magasin
  * (apparel, accessoires, produits dérivés…). Filtre par rayon/recherche, en stock
  * uniquement ; quantité par article = stock réel (modifiable) ; avec/sans prix,
- * avec/sans code-barres. Utilisé après l'intégration d'un tarif.
+ * avec/sans code-barres ; FORMAT D'ÉTIQUETTE personnalisable (éditeur B12).
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Tags } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { Loader2, Tags, Pencil } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { listStock, type StockRow } from '@/modules/stock/stock-api';
-import { printLabels, type LabelItem } from './label-print';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
+import { listTemplates } from './labels/templates-api';
+import { printLabelsWithTemplate, type TemplateLabelItem } from './labels/render';
+import type { LabelData, LabelTemplateConfig } from './labels/template-types';
 import { t } from '@/lib/i18n';
 
 const MAX_ROWS = 500;
@@ -27,11 +31,13 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
   companyId: string | null;
 }) {
   const roundUp = useRoundSalePrices(companyId);
+  const navigate = useNavigate();
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [onlyStock, setOnlyStock] = useState(true);
   const [withPrice, setWithPrice] = useState(true);
   const [withBarcode, setWithBarcode] = useState(true);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [qtyOverrides, setQtyOverrides] = useState<Record<string, number>>({});
   const [printing, setPrinting] = useState(false);
 
@@ -41,6 +47,14 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
     enabled: !!companyId && open,
     staleTime: 60 * 1000,
   });
+
+  const templatesQ = useQuery({
+    queryKey: ['label-templates', companyId],
+    queryFn: () => listTemplates(companyId!),
+    enabled: !!companyId && open,
+  });
+  const templates = templatesQ.data ?? [];
+  const template = templates.find((x) => x.id === templateId) ?? templates.find((x) => x.is_default) ?? templates[0] ?? null;
 
   const ci = (s: string) => s.trim().toLowerCase();
   const filtered: StockRow[] = useMemo(() => {
@@ -60,30 +74,49 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
   const totalLabels = filtered.reduce((acc, r) => acc + qtyFor(r), 0);
 
   const doPrint = async () => {
-    if (!filtered.length) return;
+    if (!filtered.length || !template) return;
     setPrinting(true);
     try {
       // Prix de vente des articles filtrés (par lots — uniquement si « avec prix »)
-      const prices = new Map<string, number>();
+      const prices = new Map<string, { ttc: number; ht: number }>();
       if (withPrice) {
         const ids = filtered.map((r) => r.article_id);
         for (let i = 0; i < ids.length; i += 200) {
           const { data, error } = await supabase
             .from('articles')
-            .select('id, sale_price_ttc')
+            .select('id, sale_price_ttc, sale_price_ht')
             .in('id', ids.slice(i, i + 200));
           if (error) throw error;
-          for (const a of data ?? []) prices.set(a.id, Number(a.sale_price_ttc ?? 0));
+          for (const a of data ?? []) {
+            prices.set(a.id, { ttc: Number(a.sale_price_ttc ?? 0), ht: Number((a as { sale_price_ht?: number }).sale_price_ht ?? 0) });
+          }
         }
       }
-      const items: LabelItem[] = filtered.map((r) => ({
-        code: r.reference,
-        designation: r.designation,
-        qty: qtyFor(r),
-        withPrice,
-        price: withPrice ? effectiveSaleTtc(prices.get(r.article_id) ?? 0, roundUp) : null,
-      }));
-      printLabels(items, 1, { withBarcode });
+      // Surcharges « avec prix / avec code-barres » sur le format choisi
+      const cfg: LabelTemplateConfig = {
+        ...template.config,
+        elements: template.config.elements.map((e) =>
+          (e.key === 'price_ttc' || e.key === 'price_ht' || e.key === 'price_promo') && !withPrice
+            ? { ...e, visible: false } : e),
+        barcode: { ...template.config.barcode, visible: template.config.barcode.visible && withBarcode },
+      };
+      const items: TemplateLabelItem[] = filtered.map((r) => {
+        const p = prices.get(r.article_id);
+        const data: LabelData = {
+          reference: r.reference,
+          designation: r.designation,
+          price_ttc: withPrice && p ? effectiveSaleTtc(p.ttc, roundUp) : null,
+          price_ht: withPrice && p ? p.ht : null,
+          price_promo: null,
+          discount: null,
+          store_name: t('app.name'),
+          bin: r.bin_location,
+          pack_qty: null,
+          barcode_value: r.reference,
+        };
+        return { data, qty: qtyFor(r) };
+      });
+      printLabelsWithTemplate(cfg, items);
     } finally {
       setPrinting(false);
     }
@@ -96,6 +129,20 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
           <DialogTitle>{t('articles.labelsTitle')}</DialogTitle>
           <DialogDescription>{t('articles.labelsSubtitle')}</DialogDescription>
         </DialogHeader>
+
+        {/* Format d'étiquette + personnalisation (éditeur) */}
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.labelsFormat')}</label>
+            <Select value={template?.id ?? undefined} onValueChange={setTemplateId}>
+              <SelectTrigger className="w-56"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>{templates.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); navigate({ to: '/parts/labels' }); }}>
+            <Pencil className="size-4" /> {t('articles.labelsCustomize')}
+          </Button>
+        </div>
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -157,7 +204,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
           <span className="text-[13px] tabular-nums text-muted-foreground">
             {filtered.length.toLocaleString('fr-BE')} article(s) — {totalLabels.toLocaleString('fr-BE')} étiquette(s)
           </span>
-          <Button onClick={doPrint} disabled={printing || filtered.length === 0}>
+          <Button onClick={doPrint} disabled={printing || filtered.length === 0 || !template}>
             {printing ? <Loader2 className="animate-spin" /> : <Tags />}
             {t('articles.labelsPrint').replace('{n}', totalLabels.toLocaleString('fr-BE'))}
           </Button>
