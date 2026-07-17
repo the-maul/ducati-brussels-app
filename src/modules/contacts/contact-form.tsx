@@ -20,7 +20,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  SelectGroup, SelectLabel, SelectSeparator,
 } from '@/components/ui/select';
+import {
+  FAVORITE_DIAL_CODES, DIAL_CODES, dialCodeName, splitPhone, joinPhone,
+} from '@/lib/dial-codes';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { t } from '@/lib/i18n';
 import type {
@@ -867,30 +871,45 @@ function VatField({ f, set }: {
 
 // ─── Composant : saisie téléphone avec préfixe pays (+32 par défaut) ──────────
 function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  // Sépare le préfixe du reste du numéro
-  const parsePhone = (v: string) => {
-    const m = v.match(/^(\+\d{1,4})\s*(.*)/s);
-    if (m) return { prefix: m[1], local: m[2] };
-    return { prefix: '+32', local: v };
-  };
-  const { prefix, local } = parsePhone(value);
-
-  const handlePrefix = (p: string) => onChange(local ? `${p} ${local}` : p);
-  const handleLocal = (l: string) => onChange(l ? `${prefix} ${l}` : prefix);
+  // Découpage FIABLE (plus longue correspondance sur indicatifs connus).
+  const { prefix, local } = splitPhone(value);
+  const others = DIAL_CODES.filter((d) => !FAVORITE_DIAL_CODES.includes(d.code));
+  const known = DIAL_CODES.some((d) => d.code === prefix);
 
   return (
     <div className="flex gap-1">
-      <Input
-        className="w-[72px] font-mono text-center"
-        value={prefix}
-        onChange={(e) => handlePrefix(e.target.value)}
-        placeholder="+32"
-        title={t('contacts.phonePrefixHint')}
-      />
+      <Select value={prefix} onValueChange={(p) => onChange(joinPhone(p, local))}>
+        <SelectTrigger className="w-[124px] shrink-0 font-mono" title={t('contacts.phonePrefixHint')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="max-h-72">
+          {/* Indicatif inconnu (donnée héritée) rendu sélectionnable */}
+          {!known && <SelectItem value={prefix}><span className="font-mono">{prefix}</span></SelectItem>}
+          <SelectGroup>
+            <SelectLabel>{t('contacts.phoneFavorites')}</SelectLabel>
+            {FAVORITE_DIAL_CODES.map((c) => (
+              <SelectItem key={`fav-${c}`} value={c}>
+                <span className="font-mono">{c}</span>{' '}
+                <span className="text-muted-foreground">{dialCodeName(c)}</span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+          <SelectSeparator />
+          <SelectGroup>
+            <SelectLabel>{t('contacts.phoneAllCountries')}</SelectLabel>
+            {others.map((d) => (
+              <SelectItem key={d.code} value={d.code}>
+                <span className="font-mono">{d.code}</span>{' '}
+                <span className="text-muted-foreground">{d.name}</span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
       <Input
         className="flex-1"
         value={local}
-        onChange={(e) => handleLocal(e.target.value)}
+        onChange={(e) => onChange(joinPhone(prefix, e.target.value))}
         placeholder="470 12 34 56"
       />
     </div>

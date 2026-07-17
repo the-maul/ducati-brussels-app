@@ -553,6 +553,8 @@ export const fr = {
     mobile: 'Mobile',
     mobile2: 'Mobile 2',
     phonePrefixHint: 'Préfixe pays',
+    phoneFavorites: 'Favoris',
+    phoneAllCountries: 'Tous les pays',
     // adresse
     address: 'Adresse',
     street: 'Rue',
