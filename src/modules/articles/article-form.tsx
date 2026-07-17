@@ -16,6 +16,7 @@ import {
 import { t } from '@/lib/i18n';
 import { effectiveSaleTtc } from '@/lib/pricing';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
+import { LocationPhoto } from './location-photo';
 import { PARTNER_BRANDS } from './partner-brands';
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
@@ -311,9 +312,11 @@ export function ArticleForm({
         </Field>
         <Field label={t('articles.binLocation')}>
           <Input value={f.bin_location} onChange={(e) => set('bin_location', e.target.value)} className="font-mono" />
+          {initial?.id && <LocationPhoto companyId={companyId} articleId={initial.id} slot={1} />}
         </Field>
         <Field label={t('articles.binLocation2')}>
           <Input value={f.bin_location2} onChange={(e) => set('bin_location2', e.target.value)} className="font-mono" />
+          {initial?.id && <LocationPhoto companyId={companyId} articleId={initial.id} slot={2} />}
         </Field>
         <Field label={t('articles.packQty')}>
           <NumInput value={f.pack_qty} onChange={(v) => set('pack_qty', v)} />
