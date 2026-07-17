@@ -7,7 +7,7 @@ import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
-import { firstContactVehicle } from './subobjects-api';
+import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
 import { ModelInterestBadges } from './model-interest-badges';
 import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
@@ -1011,25 +1011,87 @@ function MyDucatiSection({ contactId, f, set }: {
   f: FormState;
   set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
 }) {
-  const vehQ = useQuery({ queryKey: ['contact-first-vehicle', contactId], queryFn: () => firstContactVehicle(contactId!), enabled: !!contactId });
-  const vin = vehQ.data?.vin ?? null;
+  const isProType = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
+
+  // Motos du client (les plus récentes d'abord) → choix du châssis pour la MAJ DCS
+  const vehQ = useQuery({
+    queryKey: ['contact-vehicles-vins', contactId],
+    queryFn: () => listOwnedVehicles(contactId!),
+    enabled: !!contactId,
+  });
+  const vinOptions = (vehQ.data ?? [])
+    .filter((v) => v.vehicle.vin)
+    .map((v) => ({ vin: v.vehicle.vin as string, label: [v.vehicle.brand, v.vehicle.model].filter(Boolean).join(' ') || '—' }));
+  // Défaut = châssis le plus récent ; choix manuel possible
+  const [pickedVin, setPickedVin] = useState<string | null>(null);
+  const vin = pickedVin ?? vinOptions[0]?.vin ?? null;
+
   const doUpdate = async () => {
     if (!vin) return;
     const ok = await requestMyDucati(vin);
     toast[ok ? 'info' : 'error'](ok ? t('contacts.myDucatiFetching') : t('contacts.myDucatiNoExt'));
   };
 
+  // Fiches liées (pro ↔ privé) pour la copie des coordonnées
+  const linkedQ = useQuery({
+    queryKey: ['contact-links-copy', contactId],
+    queryFn: () => listLinkedContacts(contactId!),
+    enabled: !!contactId,
+  });
+
+  /** Copie prénom / nom / e-mail depuis la fiche demandée (propre ou liée). */
+  const copyFrom = (wantPro: boolean) => {
+    const ownMatches = wantPro === isProType;
+    let src: { first_name: string | null; last_name: string | null; email: string | null } | null = null;
+    if (ownMatches) {
+      src = { first_name: f.first_name || null, last_name: f.last_name || null, email: f.email || null };
+    } else {
+      const linked = (linkedQ.data ?? []).find((l) =>
+        wantPro
+          ? (l.contact.type === 'professionnel' || l.contact.type === 'fournisseur' || l.contact.type === 'banque_leasing')
+          : l.contact.type === 'particulier');
+      if (linked) src = { first_name: linked.contact.first_name, last_name: linked.contact.last_name, email: linked.contact.email };
+    }
+    if (!src || (!src.first_name && !src.last_name && !src.email)) {
+      toast.error(t('contacts.myDucatiCopyNone'));
+      return;
+    }
+    if (src.first_name) set('my_ducati_first_name', src.first_name);
+    if (src.last_name) set('my_ducati_last_name', src.last_name);
+    if (src.email) set('my_ducati_email', src.email);
+    toast.success(t('contacts.myDucatiCopyDone'));
+  };
+
   return (
     <Section title={t('contacts.secMyDucati')}>
+      {/* Copie des coordonnées depuis la fiche privée / pro (modifiable ensuite) */}
+      <div className="col-span-full flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => copyFrom(false)}>{t('contacts.myDucatiCopyPrivate')}</Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => copyFrom(true)}>{t('contacts.myDucatiCopyPro')}</Button>
+      </div>
+
       <div className="col-span-full flex flex-wrap items-center gap-3">
         {!contactId ? (
           <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiSaveFirst')}</p>
-        ) : !vin ? (
+        ) : vinOptions.length === 0 ? (
           <p className="text-[13px] text-muted-foreground"><Bike className="mr-1 inline size-4" />{t('contacts.myDucatiNoBike')}</p>
         ) : (
           <>
             <Button type="button" variant="outline" size="sm" onClick={doUpdate}><RefreshCw className="size-4" /> {t('contacts.myDucatiUpdate')}</Button>
-            <span className="font-mono text-[12px] text-muted-foreground">VIN {vin}</span>
+            {vinOptions.length > 1 ? (
+              <Select value={vin ?? undefined} onValueChange={setPickedVin}>
+                <SelectTrigger className="h-9 w-[320px]" title={t('contacts.myDucatiVinPick')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {vinOptions.map((o, i) => (
+                    <SelectItem key={o.vin} value={o.vin}>
+                      {o.label} · {o.vin}{i === 0 ? ` — ${t('contacts.myDucatiVinLatest')}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="font-mono text-[12px] text-muted-foreground">VIN {vin}</span>
+            )}
           </>
         )}
         {f.my_ducati_synced_at && <span className="text-[11px] text-muted-foreground">{t('contacts.myDucatiSyncedAt')} {new Date(f.my_ducati_synced_at).toLocaleString('fr-BE')}</span>}
