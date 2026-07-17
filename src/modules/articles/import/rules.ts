@@ -164,7 +164,8 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     patch.designation = row.designation?.trim() || ref;
     if (row.brand != null) patch.brand = row.brand;
     if (row.category_path != null) patch.category_path = row.category_path;
-    if (row.supplier_ref != null) patch.supplier_ref = row.supplier_ref;
+    // Réf. fournisseur = référence principale par défaut (demande magasin)
+    patch.supplier_ref = row.supplier_ref ?? ref;
     if (pa != null) patch.purchase_price = pa;
     if (proposedPv != null && s.sale_price_mode !== 'never') patch.sale_price_ttc = proposedPv;
     if (row.coefficient != null) patch.coefficient = row.coefficient;

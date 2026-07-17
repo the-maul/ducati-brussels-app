@@ -79,18 +79,38 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
     if (!filtered.length || !template) return;
     setPrinting(true);
     try {
-      // Prix de vente des articles filtrés (par lots — uniquement si « avec prix »)
-      const prices = new Map<string, { ttc: number; ht: number }>();
-      if (withPrice) {
+      // Prix + Localisation 2 des articles filtrés (par lots).
+      // Résilient : si la colonne bin_location2 n'existe pas encore (migration
+      // en attente), on retombe sur la requête sans elle.
+      type ExtraRow = { id: string; sale_price_ttc: number | null; sale_price_ht: number | null; bin_location2?: string | null };
+      const extra = new Map<string, { ttc: number; ht: number; bin2: string | null }>();
+      {
         const ids = filtered.map((r) => r.article_id);
+        let withBin2 = true;
         for (let i = 0; i < ids.length; i += 200) {
-          const { data, error } = await supabase
-            .from('articles')
-            .select('id, sale_price_ttc, sale_price_ht')
-            .in('id', ids.slice(i, i + 200));
-          if (error) throw error;
-          for (const a of data ?? []) {
-            prices.set(a.id, { ttc: Number(a.sale_price_ttc ?? 0), ht: Number((a as { sale_price_ht?: number }).sale_price_ht ?? 0) });
+          const slice = ids.slice(i, i + 200);
+          let rows: ExtraRow[] = [];
+          if (withBin2) {
+            const { data, error } = await supabase
+              .from('articles')
+              .select('id, sale_price_ttc, sale_price_ht, bin_location2' as 'id')
+              .in('id', slice);
+            if (error) {
+              withBin2 = false; // colonne absente → repli sans Localisation 2
+            } else {
+              rows = (data ?? []) as unknown as ExtraRow[];
+            }
+          }
+          if (!withBin2) {
+            const { data, error } = await supabase
+              .from('articles')
+              .select('id, sale_price_ttc, sale_price_ht')
+              .in('id', slice);
+            if (error) throw error;
+            rows = (data ?? []) as unknown as ExtraRow[];
+          }
+          for (const a of rows) {
+            extra.set(a.id, { ttc: Number(a.sale_price_ttc ?? 0), ht: Number(a.sale_price_ht ?? 0), bin2: a.bin_location2 ?? null });
           }
         }
       }
@@ -103,7 +123,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
         barcode: { ...template.config.barcode, visible: template.config.barcode.visible && withBarcode },
       };
       const items: TemplateLabelItem[] = filtered.map((r) => {
-        const p = prices.get(r.article_id);
+        const p = extra.get(r.article_id);
         const data: LabelData = {
           reference: r.reference,
           designation: r.designation,
@@ -113,6 +133,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
           discount: null,
           store_name: t('app.name'),
           bin: r.bin_location,
+          bin2: p?.bin2 ?? null,
           pack_qty: null,
           barcode_value: r.reference,
         };

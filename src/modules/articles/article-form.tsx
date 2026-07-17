@@ -16,6 +16,7 @@ import {
 import { t } from '@/lib/i18n';
 import { effectiveSaleTtc } from '@/lib/pricing';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
+import { PARTNER_BRANDS } from './partner-brands';
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -49,6 +50,7 @@ type FormState = {
   supplier_ref: string;
   catalog_url: string;
   bin_location: string;
+  bin_location2: string;
   pack_qty: string;
   stock_min: string;
   stock_max: string;
@@ -90,6 +92,7 @@ function fromArticle(a: Article | null): FormState {
     supplier_ref: a?.supplier_ref ?? '',
     catalog_url: a?.catalog_url ?? '',
     bin_location: a?.bin_location ?? '',
+    bin_location2: (a as { bin_location2?: string | null } | null)?.bin_location2 ?? '',
     pack_qty: a ? s(a.pack_qty) : '1',
     stock_min: a ? s(a.stock_min) : '0',
     stock_max: a ? s(a.stock_max) : '0',
@@ -119,7 +122,7 @@ const nnum = (s: string) => (s.trim() === '' ? null : Number(s));
 const nn = (s: string) => (s.trim() === '' ? null : s.trim());
 
 export function buildPayload(f: FormState, companyId: string): ArticleInsert {
-  return {
+  const payload: ArticleInsert = {
     company_id: companyId,
     reference: f.reference.trim(),
     designation: f.designation.trim(),
@@ -133,7 +136,8 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     color: nn(f.color),
     weight_volume_length: nnum(f.weight_volume_length),
     measure_unit: nn(f.measure_unit),
-    supplier_ref: nn(f.supplier_ref),
+    // Réf. fournisseur = référence principale par défaut (demande magasin)
+    supplier_ref: nn(f.supplier_ref) ?? nn(f.reference),
     catalog_url: nn(f.catalog_url),
     bin_location: nn(f.bin_location),
     pack_qty: num(f.pack_qty, 1),
@@ -158,6 +162,8 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     publishable: f.publishable,
     is_library: f.is_library,
   };
+  // Colonne ajoutée par migration 20260718 — pas encore dans les types générés
+  return Object.assign(payload, { bin_location2: nn(f.bin_location2) });
 }
 
 /**
@@ -259,7 +265,10 @@ export function ArticleForm({
           <Input value={f.designation} onChange={(e) => set('designation', e.target.value)} />
         </Field>
         <Field label={t('articles.brand')}>
-          <Input value={f.brand} onChange={(e) => set('brand', e.target.value)} />
+          <Input list="partner-brands" value={f.brand} onChange={(e) => set('brand', e.target.value)} />
+          <datalist id="partner-brands">
+            {PARTNER_BRANDS.map((b) => <option key={b} value={b} />)}
+          </datalist>
         </Field>
         <Field label={t('articles.mgmtType')}>
           <Select value={f.mgmt_type} onValueChange={(v) => set('mgmt_type', v as ArticleMgmtType)}>
@@ -302,6 +311,9 @@ export function ArticleForm({
         </Field>
         <Field label={t('articles.binLocation')}>
           <Input value={f.bin_location} onChange={(e) => set('bin_location', e.target.value)} className="font-mono" />
+        </Field>
+        <Field label={t('articles.binLocation2')}>
+          <Input value={f.bin_location2} onChange={(e) => set('bin_location2', e.target.value)} className="font-mono" />
         </Field>
         <Field label={t('articles.packQty')}>
           <NumInput value={f.pack_qty} onChange={(v) => set('pack_qty', v)} />

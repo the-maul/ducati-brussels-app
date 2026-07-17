@@ -4,7 +4,7 @@
  * n'est pas appliquée (write-through, comme le paramétrage d'import).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { defaultTemplateConfig, type LabelTemplate, type LabelTemplateConfig } from './template-types';
+import { defaultTemplateConfig, normalizeTemplateConfig, type LabelTemplate, type LabelTemplateConfig } from './template-types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const raw = supabase as any;
@@ -48,7 +48,9 @@ export async function listTemplates(companyId: string): Promise<LabelTemplate[]>
       name: 'Brother 62x29', is_default: true, config: defaultTemplateConfig(),
     }];
   }
-  return list;
+  // Normalisation : formats enregistrés avant l'ajout de nouveaux éléments
+  // (ex. Localisation 2) complétés avec les défauts — jamais de plantage.
+  return list.map((x) => ({ ...x, config: normalizeTemplateConfig(x.config) }));
 }
 
 export async function saveTemplate(companyId: string, t: { id?: string | null; name: string; config: LabelTemplateConfig; is_default?: boolean }): Promise<string> {

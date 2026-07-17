@@ -4,7 +4,7 @@
  */
 import { test, expect } from 'bun:test';
 import {
-  defaultTemplateConfig, sampleLabelData, sheetLayout, formatLabelDate, resolveElementText,
+  defaultTemplateConfig, normalizeTemplateConfig, sampleLabelData, sheetLayout, formatLabelDate, resolveElementText,
   ELEMENT_KEYS,
 } from '../src/modules/articles/labels/template-types';
 import { renderLabelSvg, buildPrintHtml } from '../src/modules/articles/labels/render';
@@ -43,6 +43,28 @@ test('sheetLayout : dimensions nulles (champ vidé) → pas de division par zér
 test('le code-barres du format par défaut tient dans l’étiquette', () => {
   const cfg = defaultTemplateConfig();
   expect(cfg.barcode.yMm + cfg.barcode.heightMm).toBeLessThanOrEqual(cfg.heightMm);
+});
+
+test('normalizeTemplateConfig : un format sauvegardé SANS bin2 est complété (pas de plantage)', () => {
+  const old = defaultTemplateConfig();
+  old.elements = old.elements.filter((e) => e.key !== 'bin2'); // format d'avant l'ajout
+  const norm = normalizeTemplateConfig(old);
+  expect(norm.elements.length).toBe(ELEMENT_KEYS.length);
+  expect(norm.elements.find((e) => e.key === 'bin2')?.visible).toBe(false);
+  // Les réglages existants sont conservés
+  expect(norm.elements.find((e) => e.key === 'reference')?.visible).toBe(true);
+});
+
+test('normalizeTemplateConfig : config nulle → défauts complets', () => {
+  const norm = normalizeTemplateConfig(null);
+  expect(norm.widthMm).toBe(62);
+  expect(norm.elements.length).toBe(ELEMENT_KEYS.length);
+});
+
+test('resolveElementText : bin2 (Localisation 2)', () => {
+  const cfg = defaultTemplateConfig();
+  const data = sampleLabelData('X');
+  expect(resolveElementText('bin2', data, cfg, new Date())).toBe('LOCALISATION 2');
 });
 
 test('formatLabelDate : JJ/MM/AAAA et variantes', () => {

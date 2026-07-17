@@ -92,6 +92,13 @@ test('remplacement : nouvelle référence créée porte aussi le lien', () => {
   expect(r.patch._replace_with_ref).toBe('NEW1');
 });
 
+test('création : réf. fournisseur = référence principale par défaut', () => {
+  const r = diffRow({ reference: '96981391AA', rowIndex: 2 }, null);
+  expect(r.patch.supplier_ref).toBe('96981391AA');
+  const r2 = diffRow({ reference: '96981391AA', supplier_ref: 'FRS-1', rowIndex: 2 }, null);
+  expect(r2.patch.supplier_ref).toBe('FRS-1');
+});
+
 test('PPC + règle % : PV = PPC × (1 + pct/100), arrondi 2 déc.', () => {
   const rows: ImportRow[] = [
     { reference: 'A', ppc_ttc: 106.3, category_path: 'R11', rowIndex: 2 },

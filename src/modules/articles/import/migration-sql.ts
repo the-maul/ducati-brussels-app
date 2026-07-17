@@ -157,6 +157,11 @@ drop policy if exists "label_templates_delete" on public.label_templates;
 create policy "label_templates_delete" on public.label_templates
   for delete using (public.is_member(company_id));
 
--- 7. Recharge du cache de schéma PostgREST
+-- 7. Localisation 2 + reprises de données articles (marque Ducati, réf. frs = réf.)
+alter table public.articles add column if not exists bin_location2 text;
+update public.articles set brand = 'Ducati' where coalesce(trim(brand), '') = '';
+update public.articles set supplier_ref = reference where coalesce(trim(supplier_ref), '') = '';
+
+-- 8. Recharge du cache de schéma PostgREST
 notify pgrst, 'reload schema';
 `;

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
-  ELEMENT_KEYS, defaultTemplateConfig, sampleLabelData, sheetLayout,
+  ELEMENT_KEYS, defaultTemplateConfig, normalizeTemplateConfig, sampleLabelData, sheetLayout,
   type LabelTemplateConfig, type LabelElement, type LabelFont, type ElementKey,
 } from '@/modules/articles/labels/template-types';
 import { listTemplates, saveTemplate, deleteTemplate } from '@/modules/articles/labels/templates-api';
@@ -55,7 +55,7 @@ function LabelEditorPage() {
     setMode('view');
     setSelectedId(id);
     setName(tpl.name);
-    setCfg({ ...defaultTemplateConfig(), ...tpl.config, elements: tpl.config.elements ?? defaultTemplateConfig().elements });
+    setCfg(normalizeTemplateConfig(tpl.config));
   };
 
   // Auto-sélection : uniquement en mode 'view', quand rien n'est sélectionné ou que

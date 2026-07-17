@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
+import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
@@ -105,6 +106,7 @@ function EditArticle() {
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
+          <ArticlePhotoCard companyId={activeCompanyId} articleId={articleId} />
           <ArticleForm
             initial={article}
             companyId={activeCompanyId}

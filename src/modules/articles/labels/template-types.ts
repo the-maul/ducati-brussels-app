@@ -10,7 +10,7 @@ export type LabelFont = 'Arial' | 'Helvetica' | 'Courier';
 /** Clés d'éléments imprimables (mêmes lignes que l'écran G8). */
 export const ELEMENT_KEYS = [
   'reference', 'designation', 'price_ttc', 'price_ht', 'price_promo', 'discount',
-  'date', 'store_name', 'bin', 'pack_qty', 'barcode_value', 'free1', 'free2', 'free3',
+  'date', 'store_name', 'bin', 'bin2', 'pack_qty', 'barcode_value', 'free1', 'free2', 'free3',
 ] as const;
 export type ElementKey = (typeof ELEMENT_KEYS)[number];
 
@@ -62,6 +62,7 @@ export type LabelData = {
   discount: string | null;
   store_name: string;
   bin: string | null;
+  bin2: string | null;
   pack_qty: number | null;
   barcode_value: string;
 };
@@ -88,6 +89,7 @@ export function resolveElementText(key: ElementKey, data: LabelData, cfg: LabelT
     case 'date': return formatLabelDate(cfg.dateFormat, now);
     case 'store_name': return data.store_name;
     case 'bin': return data.bin ?? '';
+    case 'bin2': return data.bin2 ?? '';
     case 'pack_qty': return data.pack_qty != null ? String(data.pack_qty) : '';
     case 'barcode_value': return data.barcode_value;
     case 'free1': return cfg.freeTexts.free1;
@@ -130,6 +132,7 @@ export function defaultTemplateConfig(): LabelTemplateConfig {
       el('date'),
       el('store_name', { visible: true, sizePt: 8, xMm: 20, yMm: 14 }),
       el('bin', { visible: true, sizePt: 8, bold: true, xMm: 30, yMm: 0.5 }),
+      el('bin2'),
       el('pack_qty'),
       el('barcode_value'),
       el('free1'), el('free2'), el('free3'),
@@ -146,6 +149,29 @@ export function sampleLabelData(storeName: string): LabelData {
   return {
     reference: 'REFERENCE', designation: 'DESIGNATION DESIGNATION DESIGNATION',
     price_ttc: 99999.99, price_ht: 83333.33, price_promo: null, discount: '0%',
-    store_name: storeName, bin: 'CASIER', pack_qty: 10, barcode_value: '1234567890128',
+    store_name: storeName, bin: 'LOCALISATION', bin2: 'LOCALISATION 2', pack_qty: 10,
+    barcode_value: '1234567890128',
+  };
+}
+
+/**
+ * Normalise une config sauvegardée : complète les champs manquants avec les
+ * défauts et fusionne les éléments PAR CLÉ (un format enregistré avant l'ajout
+ * d'un nouvel élément — ex. Localisation 2 — reste valide, sans plantage).
+ */
+export function normalizeTemplateConfig(saved: Partial<LabelTemplateConfig> | null | undefined): LabelTemplateConfig {
+  const def = defaultTemplateConfig();
+  const savedEls = saved?.elements ?? [];
+  return {
+    ...def,
+    ...(saved ?? {}),
+    elements: ELEMENT_KEYS.map((key) => {
+      const found = savedEls.find((e) => e.key === key);
+      const defEl = def.elements.find((e) => e.key === key)!;
+      return found ? { ...defEl, ...found } : defEl;
+    }),
+    barcode: { ...def.barcode, ...(saved?.barcode ?? {}) },
+    image: { ...def.image, ...(saved?.image ?? {}) },
+    freeTexts: { ...def.freeTexts, ...(saved?.freeTexts ?? {}) },
   };
 }
