@@ -299,6 +299,7 @@ export const fr = {
     photoTake: 'Prendre une photo',
     photoOf: "Photo de l'article",
     photoNone: 'Aucune photo — prenez-en une avec le smartphone ou la tablette.',
+    photoZoom: 'Cliquer pour agrandir',
     packQty: "Conditionnement d'achat",
     stockMin: 'Stock mini',
     stockMax: 'Stock maxi',
