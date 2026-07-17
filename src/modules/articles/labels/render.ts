@@ -98,26 +98,51 @@ export const DEFAULT_QUICK_STYLE: QuickLabelStyle = {
   scaleX: 100, scaleY: 100, align: 'left',
 };
 
-/** Rendu d'une étiquette de texte libre multi-lignes (unités = mm). */
+/**
+ * Rendu d'une étiquette de texte libre multi-lignes (unités = mm).
+ * @param fit auto-ajuste la taille pour que TOUT tienne dans la zone imprimable
+ *   (marge de sécurité comprise) et centre verticalement — évite tout rognage à
+ *   l'impression sur les étiquettes physiques (Brother/P-touch). La taille `sizePt`
+ *   est un MAXIMUM : on réduit si nécessaire, jamais on n'agrandit.
+ */
 export function renderFreeTextLabelSvg(
   dims: { widthMm: number; heightMm: number },
   lines: string[],
   style: QuickLabelStyle,
   showGuides = false,
+  fit = false,
 ): string {
-  const margin = 1.5;
+  // Marge de sécurité : les imprimantes d'étiquettes ne peuvent pas imprimer
+  // jusqu'au bord. Plus généreuse en mode ajusté.
+  const margin = fit ? 2.5 : 1.5;
   const sx = Math.max(0.1, style.scaleX / 100);
   const sy = Math.max(0.1, style.scaleY / 100);
-  const fsMm = style.sizePt * PT_TO_MM;
+  const drawn = lines.filter((l) => l.trim() !== '');
+  const nLines = Math.max(1, drawn.length);
+
+  let fsMm = style.sizePt * PT_TO_MM;
+  if (fit) {
+    const availW = Math.max(1, dims.widthMm - 2 * margin);
+    const availH = Math.max(1, dims.heightMm - 2 * margin);
+    // Largeur estimée du libellé le plus long (Arial gras MAJUSCULES ≈ 0,64·fs/car.)
+    const maxChars = drawn.reduce((m, l) => Math.max(m, l.length), 1);
+    const CHARW = 0.64;
+    const wScale = availW / (maxChars * fsMm * CHARW * sx);
+    const hScale = availH / (nLines * fsMm * 1.2 * sy);
+    fsMm = fsMm * Math.min(1, wScale, hScale); // on ne fait que réduire
+  }
+
   const lineH = fsMm * 1.2 * sy;
   const anchor = style.align === 'center' ? 'middle' : style.align === 'right' ? 'end' : 'start';
   const xBase = style.align === 'center' ? dims.widthMm / 2 : style.align === 'right' ? dims.widthMm - margin : margin;
+  // Centrage vertical du bloc dans la zone imprimable (mode ajusté).
+  const totalH = nLines * lineH;
+  const yStart = fit ? margin + Math.max(0, (dims.heightMm - 2 * margin - totalH) / 2) : margin;
 
   const parts: string[] = [];
   parts.push(`<rect x="0" y="0" width="${dims.widthMm}" height="${dims.heightMm}" fill="#fff"${showGuides ? ' stroke="#bbb" stroke-width="0.2"' : ''}/>`);
-  lines.forEach((line, i) => {
-    if (line.trim() === '') return;
-    const y = margin + i * lineH;
+  drawn.forEach((line, i) => {
+    const y = yStart + i * lineH;
     parts.push(
       `<g transform="translate(${xBase} ${y}) scale(${sx} ${sy})">` +
       `<text x="0" y="0" font-family="${style.font}, sans-serif" font-size="${fsMm.toFixed(2)}"` +

@@ -18,6 +18,7 @@ import { listOwnedVehicles } from './subobjects-api';
 import { listContactDocuments } from '@/modules/sales/api';
 import { listTemplates } from '@/modules/articles/labels/templates-api';
 import { renderFreeTextLabelSvg, printRawLabels, DEFAULT_QUICK_STYLE } from '@/modules/articles/labels/render';
+import { abbreviateBikeModel } from '@/modules/vehicles/model-abbrev';
 import {
   LABEL_LOCATIONS, LOCATION_FREE, buildContactLabelLines, type ContactLabelSelection,
 } from './contact-label-data';
@@ -78,7 +79,8 @@ export function ContactLabelDialog({ open, onOpenChange, companyId, contact }: {
   const selection: ContactLabelSelection = {
     includeName: incName, nameLine: personName,
     includeCompany: incCompany, companyLine: contact.company_name ?? '',
-    includeModel: incModel, modelLine: vehicle ? [vehicle.vehicle.brand, vehicle.vehicle.model].filter(Boolean).join(' ') : '',
+    // Étiquette : on retire la marque « Ducati » et on abrège le modèle (SF V4 S…).
+    includeModel: incModel, modelLine: vehicle ? abbreviateBikeModel(vehicle.vehicle.model) : '',
     includeVin6: incVin, vin: vehicle?.vehicle.vin ?? null,
     includeDoc: incDoc, docNumber,
     includeLocation: incLoc, location, freeLocation,
@@ -87,11 +89,12 @@ export function ContactLabelDialog({ open, onOpenChange, companyId, contact }: {
 
   const style = { ...DEFAULT_QUICK_STYLE, sizePt: Math.max(4, num(sizePt)), bold };
   const dims = template ? { widthMm: template.config.widthMm, heightMm: template.config.heightMm } : { widthMm: 62, heightMm: 29 };
-  const previewSvg = useMemo(() => renderFreeTextLabelSvg(dims, lines, style, true), [dims, lines, style]);
+  // fit=true : auto-ajuste + marges de sécurité → impression complète, jamais rognée.
+  const previewSvg = useMemo(() => renderFreeTextLabelSvg(dims, lines, style, true, true), [dims, lines, style]);
 
   const doPrint = () => {
     if (!template || lines.length === 0) return;
-    printRawLabels(template.config, renderFreeTextLabelSvg(dims, lines, style, false), num(copies) || 1);
+    printRawLabels(template.config, renderFreeTextLabelSvg(dims, lines, style, false, true), num(copies) || 1);
   };
 
   return (
