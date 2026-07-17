@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, ExternalLink, Tags } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
+import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
@@ -27,6 +28,7 @@ function EditClient() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [labelOpen, setLabelOpen] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', contactId],
@@ -80,10 +82,12 @@ function EditClient() {
                 <ExternalLink /> {t('contacts.ducatiView')}
               </Button>
             )}
+            <Button variant="outline" onClick={() => setLabelOpen(true)}><Tags /> {t('contacts.labelBtn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>
           </div>
         }
       />
+      <ContactLabelDialog open={labelOpen} onOpenChange={setLabelOpen} companyId={activeCompanyId} contact={contact} />
       {getModelInterests(contact).length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">

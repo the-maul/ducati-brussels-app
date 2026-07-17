@@ -16,6 +16,7 @@ import {
 } from '@/modules/articles/labels/template-types';
 import { listTemplates, saveTemplate, deleteTemplate } from '@/modules/articles/labels/templates-api';
 import { renderLabelSvg, printLabelsWithTemplate } from '@/modules/articles/labels/render';
+import { QuickLabelDialog } from '@/modules/articles/labels/quick-label';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/labels')({
@@ -46,6 +47,7 @@ function LabelEditorPage() {
   const [name, setName] = useState('');
   const [cfg, setCfg] = useState<LabelTemplateConfig>(defaultTemplateConfig());
   const [testBarcode, setTestBarcode] = useState('1234567890128');
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const pick = (id: string) => {
     const tpl = templates.find((x) => x.id === id);
@@ -149,12 +151,14 @@ function LabelEditorPage() {
           <Trash2 className="size-4" /> {t('articles.tplDelete')}
         </Button>
         <div className="ml-auto flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setQuickOpen(true)}>{t('articles.quickTitle')}</Button>
           <Button variant="outline" size="sm" onClick={previewPrint}><Eye className="size-4" /> {t('articles.tplPreviewPrint')}</Button>
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} {t('articles.tplSave')}
           </Button>
         </div>
       </div>
+      <QuickLabelDialog open={quickOpen} onOpenChange={setQuickOpen} companyId={activeCompanyId} />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* ── Colonne gauche : dimensions + éléments ─────────────────────────── */}

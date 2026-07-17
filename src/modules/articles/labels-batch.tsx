@@ -20,6 +20,7 @@ import { listStock, type StockRow } from '@/modules/stock/stock-api';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { listTemplates } from './labels/templates-api';
 import { printLabelsWithTemplate, type TemplateLabelItem } from './labels/render';
+import { QuickLabelDialog } from './labels/quick-label';
 import type { LabelData, LabelTemplateConfig } from './labels/template-types';
 import { t } from '@/lib/i18n';
 
@@ -40,6 +41,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [qtyOverrides, setQtyOverrides] = useState<Record<string, number>>({});
   const [printing, setPrinting] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const stockQ = useQuery({
     queryKey: ['stock-for-labels', companyId],
@@ -142,7 +144,11 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
           <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); navigate({ to: '/parts/labels' }); }}>
             <Pencil className="size-4" /> {t('articles.labelsCustomize')}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setQuickOpen(true)}>
+            <Tags className="size-4" /> {t('articles.quickTitle')}
+          </Button>
         </div>
+        <QuickLabelDialog open={quickOpen} onOpenChange={setQuickOpen} companyId={companyId} />
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">

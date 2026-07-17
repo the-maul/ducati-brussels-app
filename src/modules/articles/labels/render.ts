@@ -79,6 +79,61 @@ function sharedImageDefs(cfg: LabelTemplateConfig, id: string): string {
 
 export type TemplateLabelItem = { data: LabelData; qty: number };
 
+// ── Étiquette « texte libre » (impression rapide, style P-touch) ─────────────
+
+export type QuickLabelStyle = {
+  font: 'Arial' | 'Helvetica' | 'Courier';
+  sizePt: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  /** Proportions : étirement horizontal / vertical en % (100 = normal). */
+  scaleX: number;
+  scaleY: number;
+  align: 'left' | 'center' | 'right';
+};
+
+export const DEFAULT_QUICK_STYLE: QuickLabelStyle = {
+  font: 'Arial', sizePt: 19, bold: true, italic: false, underline: false,
+  scaleX: 100, scaleY: 100, align: 'left',
+};
+
+/** Rendu d'une étiquette de texte libre multi-lignes (unités = mm). */
+export function renderFreeTextLabelSvg(
+  dims: { widthMm: number; heightMm: number },
+  lines: string[],
+  style: QuickLabelStyle,
+  showGuides = false,
+): string {
+  const margin = 1.5;
+  const sx = Math.max(0.1, style.scaleX / 100);
+  const sy = Math.max(0.1, style.scaleY / 100);
+  const fsMm = style.sizePt * PT_TO_MM;
+  const lineH = fsMm * 1.2 * sy;
+  const anchor = style.align === 'center' ? 'middle' : style.align === 'right' ? 'end' : 'start';
+  const xBase = style.align === 'center' ? dims.widthMm / 2 : style.align === 'right' ? dims.widthMm - margin : margin;
+
+  const parts: string[] = [];
+  parts.push(`<rect x="0" y="0" width="${dims.widthMm}" height="${dims.heightMm}" fill="#fff"${showGuides ? ' stroke="#bbb" stroke-width="0.2"' : ''}/>`);
+  lines.forEach((line, i) => {
+    if (line.trim() === '') return;
+    const y = margin + i * lineH;
+    parts.push(
+      `<g transform="translate(${xBase} ${y}) scale(${sx} ${sy})">` +
+      `<text x="0" y="0" font-family="${style.font}, sans-serif" font-size="${fsMm.toFixed(2)}"` +
+      ` font-weight="${style.bold ? '700' : '400'}"${style.italic ? ' font-style="italic"' : ''}` +
+      `${style.underline ? ' text-decoration="underline"' : ''} fill="#000" text-anchor="${anchor}" dominant-baseline="hanging">${esc(line)}</text></g>`,
+    );
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${dims.widthMm}mm" height="${dims.heightMm}mm" viewBox="0 0 ${dims.widthMm} ${dims.heightMm}">${parts.join('')}</svg>`;
+}
+
+/** Dimensions d'impression (sous-ensemble d'un format — compatible LabelTemplateConfig). */
+export type PrintDims = {
+  widthMm: number; heightMm: number; sheetA4: boolean;
+  paperWidthMm: number; paperHeightMm: number; gapXMm: number; gapYMm: number;
+};
+
 /** Page d'impression : rouleau (une étiquette par page papier) ou planche A4. */
 export function buildPrintHtml(cfg: LabelTemplateConfig, items: TemplateLabelItem[], now: Date): string {
   const IMG_ID = 'tpl-shared-image';
@@ -97,14 +152,19 @@ export function buildPrintHtml(cfg: LabelTemplateConfig, items: TemplateLabelIte
     total += n;
   }
 
-  if (cfg.sheetA4) {
+  return wrapPrintHtml(cfg, defs, labels);
+}
+
+/** Enveloppe HTML d'impression : rouleau (1 étiquette/page papier) ou planche A4. */
+function wrapPrintHtml(dims: PrintDims, defs: string, labels: string[]): string {
+  if (dims.sheetA4) {
     return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Étiquettes</title>
 <style>
   * { margin: 0; box-sizing: border-box; }
   @page { size: A4; margin: 8mm; }
   body { font-family: Arial, sans-serif; }
-  .sheet { display: flex; flex-wrap: wrap; column-gap: ${cfg.gapXMm}mm; row-gap: ${cfg.gapYMm}mm; }
-  .label { width: ${cfg.widthMm}mm; height: ${cfg.heightMm}mm; overflow: hidden; page-break-inside: avoid; }
+  .sheet { display: flex; flex-wrap: wrap; column-gap: ${dims.gapXMm}mm; row-gap: ${dims.gapYMm}mm; }
+  .label { width: ${dims.widthMm}mm; height: ${dims.heightMm}mm; overflow: hidden; page-break-inside: avoid; }
   .label svg { display: block; }
 </style></head>
 <body>${defs}<div class="sheet">${labels.map((s) => `<div class="label">${s}</div>`).join('')}</div>
@@ -116,9 +176,9 @@ export function buildPrintHtml(cfg: LabelTemplateConfig, items: TemplateLabelIte
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Étiquettes</title>
 <style>
   * { margin: 0; box-sizing: border-box; }
-  @page { size: ${cfg.paperWidthMm}mm ${cfg.paperHeightMm}mm; margin: 0; }
+  @page { size: ${dims.paperWidthMm}mm ${dims.paperHeightMm}mm; margin: 0; }
   body { font-family: Arial, sans-serif; }
-  .page { width: ${cfg.paperWidthMm}mm; height: ${cfg.paperHeightMm}mm; page-break-after: always; overflow: hidden; }
+  .page { width: ${dims.paperWidthMm}mm; height: ${dims.paperHeightMm}mm; page-break-after: always; overflow: hidden; }
   .page svg { display: block; }
 </style></head>
 <body>${defs}${labels.map((s) => `<div class="page">${s}</div>`).join('')}
@@ -126,10 +186,20 @@ export function buildPrintHtml(cfg: LabelTemplateConfig, items: TemplateLabelIte
 </body></html>`;
 }
 
-/** Ouvre la fenêtre d'impression avec le format personnalisé. */
-export function printLabelsWithTemplate(cfg: LabelTemplateConfig, items: TemplateLabelItem[]): void {
-  const html = buildPrintHtml(cfg, items, new Date());
+function openPrintWindow(html: string): void {
   const w = window.open('', '_blank', 'width=900,height=900');
   if (!w) return;
   w.document.open(); w.document.write(html); w.document.close();
+}
+
+/** Ouvre la fenêtre d'impression avec le format personnalisé. */
+export function printLabelsWithTemplate(cfg: LabelTemplateConfig, items: TemplateLabelItem[]): void {
+  openPrintWindow(buildPrintHtml(cfg, items, new Date()));
+}
+
+/** Impression de SVG déjà rendus (texte libre, étiquette client…) — copies bornées. */
+export function printRawLabels(dims: PrintDims, svg: string, copies: number): void {
+  const n = Number.isFinite(copies) ? Math.max(1, Math.min(MAX_PRINT_LABELS, Math.round(copies))) : 1;
+  const labels = Array.from({ length: n }, () => svg);
+  openPrintWindow(wrapPrintHtml(dims, '', labels));
 }
