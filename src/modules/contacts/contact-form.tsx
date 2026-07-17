@@ -5,14 +5,14 @@
  */
 import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
+import { Loader2, Save, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
 import { ModelInterestBadges } from './model-interest-badges';
 import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
+import { IdDocsSection } from './id-docs';
 import { requestMyDucati } from '@/lib/myducati';
-import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -174,8 +174,6 @@ type FormState = {
   license_date: string;
   license_place: string;
   license_category: LicenseCategory | '';
-  license_scan_path: string;
-  national_id_scan_path: string;
   vat_number: string;
   vies_valid: boolean | null;
   vies_checked_at: string | null;
@@ -246,8 +244,6 @@ function fromContact(c: Contact | null): FormState {
     license_date: c?.license_date ?? '',
     license_place: c?.license_place ?? '',
     license_category: c?.license_category ?? '',
-    license_scan_path: ext?.license_scan_path ?? '',
-    national_id_scan_path: ext?.national_id_scan_path ?? '',
     vat_number: c?.vat_number ?? '',
     vies_valid: c?.vies_valid ?? null,
     vies_checked_at: c?.vies_checked_at ?? null,
@@ -362,8 +358,6 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     vehicle_preference: nn(f.vehicle_preference),
     model_interests: f.model_interests,
     notify_model_stock: f.notify_model_stock,
-    license_scan_path: nn(f.license_scan_path),
-    national_id_scan_path: nn(f.national_id_scan_path),
   });
 }
 
@@ -600,26 +594,22 @@ export function ContactForm({
                 </SelectContent>
               </Select>
             </Field>
-            {/* Scan permis */}
-            <Field label={t('contacts.uploadLicense')}>
-              <DocUpload
-                label={t('contacts.uploadLicense')}
-                contactId={initial?.id ?? null}
-                fieldName="license"
-                currentPath={f.license_scan_path}
-                onUpload={(path) => set('license_scan_path', path)}
-              />
-            </Field>
-            {/* Scan carte d'identité */}
-            <Field label={t('contacts.uploadNationalId')}>
-              <DocUpload
-                label={t('contacts.uploadNationalId')}
-                contactId={initial?.id ?? null}
-                fieldName="national_id"
-                currentPath={f.national_id_scan_path}
-                onUpload={(path) => set('national_id_scan_path', path)}
-              />
-            </Field>
+            {/* Photos recto/verso permis + carte d'identité (GED) + lecture auto */}
+            <IdDocsSection
+              companyId={companyId}
+              contactId={initial?.id ?? null}
+              current={{
+                first_name: f.first_name, last_name: f.last_name, birth_date: f.birth_date,
+                national_id: f.national_id, national_register: f.national_register,
+                license_number: f.license_number, license_date: f.license_date,
+                license_place: f.license_place, license_category: f.license_category,
+              }}
+              onApply={(patch) => {
+                for (const [k, v] of Object.entries(patch)) {
+                  set(k as keyof FormState, v as FormState[keyof FormState]);
+                }
+              }}
+            />
           </Section>
           )}
 
@@ -907,71 +897,8 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
-// ─── Composant : upload document (permis / carte d'identité) ─────────────────
-function DocUpload({ label, contactId, fieldName, currentPath, onUpload }: {
-  label: string;
-  contactId: string | null;
-  fieldName: string;
-  currentPath: string;
-  onUpload: (path: string) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  if (!contactId) {
-    return <p className="text-[12px] text-muted-foreground">{t('contacts.uploadHint')}</p>;
-  }
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const ext = file.name.split('.').pop() ?? 'bin';
-      const path = `${contactId}/${fieldName}.${ext}`;
-      const { error } = await supabase.storage
-        .from('contact-docs')
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (error) {
-        toast.error(t('contacts.uploadError'));
-      } else {
-        onUpload(path);
-        toast.success(t('contacts.uploadSuccess'));
-      }
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  };
-
-  const viewUrl = currentPath
-    ? supabase.storage.from('contact-docs').getPublicUrl(currentPath).data.publicUrl
-    : null;
-
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <input ref={inputRef} type="file" className="sr-only" id={`upload-${fieldName}-${contactId}`}
-        accept=".pdf,image/*,image/heic" onChange={handleFile} />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-      >
-        {uploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
-        {label}
-      </Button>
-      {viewUrl && (
-        <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[11px] text-success hover:underline">
-          <ExternalLink className="size-3" />
-          {t('contacts.viewDocument')}
-        </a>
-      )}
-    </div>
-  );
-}
+// (Upload permis / carte d'identité : voir IdDocsSection dans ./id-docs.tsx —
+// photos recto/verso en GED + lecture automatique.)
 
 // ─── Composant : liste multi-sélection de modèles Ducati ─────────────────────
 // Accepte soit une liste plate (`models`), soit des groupes par famille (`groups`).
