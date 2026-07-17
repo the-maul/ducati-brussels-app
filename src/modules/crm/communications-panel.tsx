@@ -90,7 +90,7 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
           <Select value={direction} onValueChange={setDirection}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="out">{t('crm.dir_out')}</SelectItem><SelectItem value="in">{t('crm.dir_in')}</SelectItem></SelectContent></Select>
         </div>
-        {channel === 'email' && <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl><Input value={to} onChange={(e) => setTo(e.target.value)} className="w-56" placeholder="email@client" /></div>}
+        {channel === 'email' && <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl><Input type="email" value={to} onChange={(e) => setTo(e.target.value)} className="w-56" placeholder="email@client" /></div>}
         <div className="flex-1 space-y-1"><Lbl>{t('crm.subject')}</Lbl><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
         <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
         {channel === 'email' && <Button onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}</Button>}

@@ -1100,7 +1100,7 @@ function MyDucatiSection({ contactId, f, set }: {
         <Input value={f.ducati_code} onChange={(e) => set('ducati_code', e.target.value)} className="font-mono" />
       </Field>
       <Field label={t('contacts.myDucatiEmail')}>
-        <Input value={f.my_ducati_email} onChange={(e) => set('my_ducati_email', e.target.value)} />
+        <Input type="email" value={f.my_ducati_email} onChange={(e) => set('my_ducati_email', e.target.value)} />
       </Field>
       <Field label={t('contacts.myDucatiFirstName')}>
         <Input value={f.my_ducati_first_name} onChange={(e) => set('my_ducati_first_name', e.target.value)} />
@@ -1109,7 +1109,7 @@ function MyDucatiSection({ contactId, f, set }: {
         <Input value={f.my_ducati_last_name} onChange={(e) => set('my_ducati_last_name', e.target.value)} />
       </Field>
       <Field label={t('contacts.ducatiUrl')} wide>
-        <Input value={f.ducati_url} onChange={(e) => set('ducati_url', e.target.value)} placeholder="https://ducati.my.site.com/dealer/s/account/…" />
+        <Input type="url" data-case="preserve" value={f.ducati_url} onChange={(e) => set('ducati_url', e.target.value)} placeholder="https://ducati.my.site.com/dealer/s/account/…" />
         <p className="text-[11px] text-muted-foreground">{t('contacts.ducatiUrlHint')}</p>
       </Field>
     </Section>

@@ -94,7 +94,7 @@ function NewLeadDialog({ companyId, onClose, onCreated }: { companyId: string; o
         <DialogHeader><DialogTitle>{t('crm.newLead')}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('crm.leadName')}><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
-          <Field label={t('crm.email')}><Input value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
+          <Field label={t('crm.email')}><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
           <Field label={t('crm.phone')}><Input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
           <Field label={t('crm.vehicleInterest')}><Input value={f.vehicle} onChange={(e) => set('vehicle', e.target.value)} /></Field>
           <Field label={t('crm.source')}>

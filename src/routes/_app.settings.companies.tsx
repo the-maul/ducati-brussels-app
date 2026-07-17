@@ -86,7 +86,7 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
         <Field label={t('settings.coSalesAccount')}><Input value={f.sales_account_default ?? ''} onChange={(e) => set('sales_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coCustomerAccount')}><Input value={f.customer_account_default ?? ''} onChange={(e) => set('customer_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coVatAccount')}><Input value={f.vat_account_default ?? ''} onChange={(e) => set('vat_account_default', e.target.value)} className="font-mono" /></Field>
-        <Field label={t('settings.coInboundMailbox')}><Input value={f.inbound_mailbox ?? ''} onChange={(e) => set('inbound_mailbox', e.target.value)} placeholder="info@ducatibxl.be" /></Field>
+        <Field label={t('settings.coInboundMailbox')}><Input type="email" value={f.inbound_mailbox ?? ''} onChange={(e) => set('inbound_mailbox', e.target.value)} placeholder="info@ducatibxl.be" /></Field>
         <Field label={t('settings.coActive')}>
           <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={!!f.is_active} onChange={(e) => set('is_active', e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('settings.coActive')}</label>
         </Field>

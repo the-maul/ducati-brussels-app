@@ -55,7 +55,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
             <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.details')}</p>
             <Field label={t('crm.leadName')}><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label={t('crm.email')}><Input value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
+              <Field label={t('crm.email')}><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label={t('crm.phone')}><Input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
             </div>
             <Field label={t('crm.vehicleInterest')}><Input value={f.vehicle_interest} onChange={(e) => set('vehicle_interest', e.target.value)} /></Field>

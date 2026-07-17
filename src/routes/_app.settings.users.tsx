@@ -253,7 +253,7 @@ function CreateUserDialog({
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <Field label={t('users.password')} hint={t('users.passwordHint')}>
-            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input type="text" data-case="preserve" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           <div>
             <p className="mb-2 font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">

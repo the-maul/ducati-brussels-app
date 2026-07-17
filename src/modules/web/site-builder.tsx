@@ -75,8 +75,8 @@ export function SiteBuilder({ companyId }: { companyId: string }) {
         {/* Domaine & publication */}
         <div className="space-y-2 rounded-md border border-border bg-card p-3">
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground"><Globe className="size-4" /> {t('eshop.domainSection')}</p>
-          <Lbl>{t('eshop.slug')}</Lbl><Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} className="font-mono" />
-          <Lbl>{t('eshop.customDomain')}</Lbl><Input value={domain} onChange={(e) => setDomain(e.target.value.toLowerCase().trim())} className="font-mono" placeholder="boutique.ducati-bxl.be" />
+          <Lbl>{t('eshop.slug')}</Lbl><Input data-case="preserve" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} className="font-mono" />
+          <Lbl>{t('eshop.customDomain')}</Lbl><Input data-case="preserve" value={domain} onChange={(e) => setDomain(e.target.value.toLowerCase().trim())} className="font-mono" placeholder="boutique.ducati-bxl.be" />
           <div className="rounded-md bg-muted p-2 text-[12px] text-muted-foreground">{t('eshop.dnsHelp')}<br /><span className="font-mono">{domain || 'votre-domaine'} → CNAME → app.ducati-bruxelles</span></div>
           <a href={`/shop/${slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-[12px] text-info underline">/shop/{slug} <ExternalLink className="size-3" /></a>
         </div>
@@ -170,7 +170,7 @@ function BlockFields({ block, companyId, onChange }: { block: Block; companyId: 
     case 'products':
       return <Input value={block.heading} onChange={(e) => onChange({ heading: e.target.value })} placeholder="Titre de la section produits" />;
     case 'contact':
-      return (<div className="space-y-2"><Input value={block.heading} onChange={(e) => onChange({ heading: e.target.value })} placeholder="Titre" /><Input value={block.phone} onChange={(e) => onChange({ phone: e.target.value })} placeholder="Téléphone" /><Input value={block.email} onChange={(e) => onChange({ email: e.target.value })} placeholder="E-mail" /><Input value={block.address} onChange={(e) => onChange({ address: e.target.value })} placeholder="Adresse" /></div>);
+      return (<div className="space-y-2"><Input value={block.heading} onChange={(e) => onChange({ heading: e.target.value })} placeholder="Titre" /><Input value={block.phone} onChange={(e) => onChange({ phone: e.target.value })} placeholder="Téléphone" /><Input type="email" value={block.email} onChange={(e) => onChange({ email: e.target.value })} placeholder="E-mail" /><Input value={block.address} onChange={(e) => onChange({ address: e.target.value })} placeholder="Adresse" /></div>);
     case 'divider':
       return <p className="text-[12px] text-muted-foreground">Ligne de séparation.</p>;
   }

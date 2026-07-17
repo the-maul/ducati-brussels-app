@@ -261,7 +261,7 @@ export function SubcontactsTab({ contactId }: { contactId: string }) {
         <Input placeholder="Nom" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         <Input placeholder="Fonction" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
         <Input placeholder="Téléphone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-        <Input placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+        <Input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
         <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> Ajouter</Button>
       </div>
     </div>
