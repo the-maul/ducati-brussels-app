@@ -4,12 +4,13 @@
  * État contrôlé simple ; mappé vers ContactInsert à la soumission.
  */
 import { useState, useRef, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Loader2, Save, RefreshCw, Bike, Upload, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { firstContactVehicle } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
 import { ModelInterestBadges } from './model-interest-badges';
+import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
 import { requestMyDucati } from '@/lib/myducati';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -176,6 +177,8 @@ type FormState = {
   license_scan_path: string;
   national_id_scan_path: string;
   vat_number: string;
+  vies_valid: boolean | null;
+  vies_checked_at: string | null;
   sale_vat_type: SaleVatType;
   payment_terms: string;
   iban: string;
@@ -246,6 +249,8 @@ function fromContact(c: Contact | null): FormState {
     license_scan_path: ext?.license_scan_path ?? '',
     national_id_scan_path: ext?.national_id_scan_path ?? '',
     vat_number: c?.vat_number ?? '',
+    vies_valid: c?.vies_valid ?? null,
+    vies_checked_at: c?.vies_checked_at ?? null,
     sale_vat_type: c?.sale_vat_type ?? 'national',
     payment_terms: c?.payment_terms ?? '',
     iban: c?.iban ?? '',
@@ -316,6 +321,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     license_place: nn(f.license_place),
     license_category: f.license_category === '' ? null : f.license_category,
     vat_number: nn(f.vat_number),
+    vies_valid: f.vies_valid,
+    vies_checked_at: f.vies_checked_at,
     sale_vat_type: f.sale_vat_type,
     payment_terms: nn(f.payment_terms),
     iban: nn(f.iban),
@@ -534,8 +541,8 @@ export function ContactForm({
           {/* ── Professionnel (B2B) — juste après l'adresse, uniquement pour pro ── */}
           {showB2B && (
             <Section title={t('contacts.secB2B')}>
-              <Field label={t('contacts.vatNumber')}>
-                <Input value={f.vat_number} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." />
+              <Field label={t('contacts.vatNumber')} wide>
+                <VatField f={f} set={set} />
               </Field>
               <Field label={t('contacts.paymentTerms')}>
                 <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
@@ -788,6 +795,83 @@ export function ContactForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+// ─── Composant : n° TVA avec vérification VIES + préremplissage ──────────────
+function VatField({ f, set }: {
+  f: FormState;
+  set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
+}) {
+  const verify = useMutation({
+    mutationFn: () => checkVat(f.vat_number),
+    onSuccess: (r) => {
+      if (!r) return;
+      if (r.status === 'not_configured') { toast.error(t('contacts.viesNotConfigured')); return; }
+      if (r.status === 'unavailable') { toast.error(t('contacts.viesUnavailable')); return; }
+      // Normalise le numéro affiché + trace le résultat (colonnes vies_*)
+      set('vat_number', `${r.country}${r.number}`);
+      set('vies_valid', r.status === 'valid');
+      set('vies_checked_at', new Date().toISOString());
+      if (r.status === 'invalid') { toast.error(t('contacts.viesInvalid')); return; }
+      // Préremplissage depuis VIES (uniquement les champs vides)
+      const filled: string[] = [];
+      if (r.name && !f.company_name.trim()) { set('company_name', r.name); filled.push(t('contacts.companyName')); }
+      const addr = parseViesAddress(r.address);
+      if (addr.street && !f.address.trim()) { set('address', addr.street); filled.push(t('contacts.street')); }
+      if (addr.number && !f.street_number.trim()) set('street_number', addr.number);
+      if (addr.zip && !f.zip.trim()) { set('zip', addr.zip); filled.push(t('contacts.zip')); }
+      if (addr.city && !f.city.trim()) { set('city', addr.city); filled.push(t('contacts.city')); }
+      if (r.country !== 'BE') set('country', r.country === 'EL' ? 'GR' : r.country === 'XI' ? 'GB' : r.country);
+      toast.success(filled.length
+        ? t('contacts.viesPrefilled').replace('{fields}', filled.join(', '))
+        : t('contacts.viesValid'));
+    },
+    onError: () => toast.error(t('contacts.viesUnavailable')),
+  });
+
+  const digits = f.vat_number.replace(/\D/g, '');
+  const isBe = /^BE/i.test(f.vat_number.trim()) || !/^[A-Za-z]{2}/.test(f.vat_number.trim());
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={f.vat_number}
+          onChange={(e) => { set('vat_number', e.target.value.toUpperCase()); set('vies_valid', null); set('vies_checked_at', null); }}
+          className="w-56 font-mono uppercase" placeholder="BE0123456789"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={() => verify.mutate()} disabled={verify.isPending || !f.vat_number.trim()}>
+          {verify.isPending ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+          {verify.isPending ? t('contacts.viesChecking') : t('contacts.viesCheck')}
+        </Button>
+        {f.vies_valid === true && (
+          <span className="inline-flex items-center gap-1 rounded-[var(--radius-badge)] bg-success-bg px-2 py-0.5 text-[12px] font-bold uppercase text-success">
+            <ShieldCheck className="size-3.5" /> {t('contacts.viesValid')}
+          </span>
+        )}
+        {f.vies_valid === false && (
+          <span className="inline-flex items-center gap-1 rounded-[var(--radius-badge)] bg-danger-bg px-2 py-0.5 text-[12px] font-bold uppercase text-danger">
+            <ShieldX className="size-3.5" /> {t('contacts.viesInvalid')}
+          </span>
+        )}
+        {f.vies_checked_at && (
+          <span className="text-[11px] text-muted-foreground">
+            {t('contacts.viesCheckedAt')} {new Date(f.vies_checked_at).toLocaleDateString('fr-BE')}
+          </span>
+        )}
+      </div>
+      {isBe && digits.length >= 9 && (
+        <div className="flex flex-wrap gap-3 text-[12px]">
+          <a href={kboUrl(digits)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-info hover:underline">
+            <ExternalLink className="size-3" /> {t('contacts.viesOpenKbo')}
+          </a>
+          <a href={companywebUrl(digits)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-info hover:underline">
+            <ExternalLink className="size-3" /> {t('contacts.viesOpenCompanyweb')}
+          </a>
+        </div>
+      )}
+    </div>
   );
 }
 
