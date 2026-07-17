@@ -954,6 +954,10 @@ export const fr = {
     status_ouvert: 'Ouvert', status_cloture: 'Clôturé',
     oroTitle: 'Fiche de reprise moto', vehicleCost: 'Coût de revient', reprise: 'Reprise', oroCost: 'Remise en état', margin: 'Marge potentielle',
     pdfSheet: 'PDF',
+    printSheet: 'Imprimer',
+    // TVA déductible (moto professionnelle)
+    vatQuestion: 'La TVA de cette moto est-elle déductible ?',
+    vatHint: "Ce n'est pas le cas pour tous les statuts — vérifiez avec le vendeur.",
     // Relance marchands (objectif : 4 réponses minimum)
     followUp: 'À relancer',
     followUpHint: 'Moins de 4 offres reçues — relancez les marchands.',

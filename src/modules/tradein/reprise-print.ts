@@ -15,6 +15,8 @@ export type RepriseSheet = {
   number: string;          // référence REP-AAAA-NNNNN
   date: string;            // date formatée FR
   clientRef: string | null; // code client INTERNE uniquement (jamais le nom)
+  /** TVA déductible (pro) : true/false ; null = non renseigné (particulier) */
+  vatDeductible: boolean | null;
   title: string;           // marque + modèle
   sections: RepriseSheetSection[];
   accessories: string[];
@@ -81,7 +83,7 @@ export function printRepriseSheet(s: RepriseSheet): void {
     </div>
   </div>
 
-  <h1>${esc(s.title)}</h1>
+  <h1>${esc(s.title)}${s.vatDeductible != null ? ` <span style="font-size:12px;color:#C8102E;vertical-align:middle;letter-spacing:.06em;">${s.vatDeductible ? 'TVA DÉDUCTIBLE' : 'TVA NON DÉDUCTIBLE'}</span>` : ''}</h1>
 
   ${s.sections.map(sectionHtml).join('')}
 

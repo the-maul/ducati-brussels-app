@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus, Trash2, Lock, Printer, Award } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, Lock, Printer, FileDown, Award } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
   listOffers, addOffer, deleteOffer, listPartners, partnersForBrand,
   needsFollowUp, buildDispatchMailto,
 } from '@/modules/tradein/partners-api';
-import { printSheetForOro } from '@/modules/tradein/sheet-builder';
+import { printSheetForOro, downloadSheetForOro } from '@/modules/tradein/sheet-builder';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/$oroId')({
@@ -54,7 +54,8 @@ function OroView() {
   const del = useMutation({ mutationFn: (id: string) => deleteOroLine(id, oroId), onSuccess: refresh });
   const close = useMutation({ mutationFn: () => closeOro(oroId), onSuccess: refresh });
 
-  // Impression de la fiche de reprise (données véhicule + photos/documents GED)
+  // Fiche de reprise : PDF téléchargé (transmissible) ou impression papier
+  const download = useMutation({ mutationFn: () => downloadSheetForOro(oroId) });
   const print = useMutation({ mutationFn: () => printSheetForOro(oroId) });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
@@ -81,8 +82,11 @@ function OroView() {
         description={[repriseClientLabel(client), motoLabel, vehicle?.vin ?? null].filter((s) => s && s !== '—').join(' · ')}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => download.mutate()} disabled={download.isPending}>
+              {download.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('tradein.pdfSheet')}
+            </Button>
             <Button variant="outline" onClick={() => print.mutate()} disabled={print.isPending}>
-              {print.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('tradein.pdfSheet')}
+              {print.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('tradein.printSheet')}
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/tradein' })}><ArrowLeft /> {t('tradein.back')}</Button>
           </div>

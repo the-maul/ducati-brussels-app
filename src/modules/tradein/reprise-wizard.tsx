@@ -7,12 +7,12 @@
  * CRM (source « Reprise ») et diffuse aux marchands partenaires (mailto)
  * selon le mode d'envoi. Pensé tablette/smartphone, réutilisable sur le site.
  */
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Loader2, Check, X, Search, User, Building2, Recycle, Pencil, Camera,
-  Bike, Gauge, Hash, Cog, FileText, CheckCircle2, Printer, Mail, Image,
+  Bike, Gauge, Hash, Cog, FileText, CheckCircle2, Download, Mail, Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,8 @@ import { createReprise } from './write-api';
 import {
   listPartners, partnersForBrand, getDispatchMode, buildDispatchMailto,
 } from './partners-api';
-import { printSheetForOro, DOCS_FOLDER, PHOTOS_FOLDER } from './sheet-builder';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { downloadSheetForOro, DOCS_FOLDER, PHOTOS_FOLDER } from './sheet-builder';
 import { findSpecs, modelsForBrand } from './moto-specs';
 import {
   MOTO_BRANDS, FUELS, TRANSMISSIONS, OWNER_COUNTS, TECH_STATES, TECH_STATES_WITH_DESC,
@@ -47,6 +48,9 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('type');
   const [isPro, setIsPro] = useState(false);
+  // TVA déductible (pro uniquement) — demandé en pop-up au choix « Moto professionnel »
+  const [vatDeductible, setVatDeductible] = useState<boolean | null>(null);
+  const [vatDialogOpen, setVatDialogOpen] = useState(false);
   const [existing, setExisting] = useState<boolean | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
   const [contactLabel, setContactLabel] = useState('');
@@ -158,6 +162,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   // ── Résumé texte (notes véhicule, mail marchands, communication client) ─────
   const buildNotes = (): string => {
     const lines: string[] = [];
+    if (isPro && vatDeductible != null) lines.push(`TVA déductible : ${vatDeductible ? 'Oui' : 'Non'}`);
     if (v.fuel) lines.push(`Carburant : ${v.fuel}`);
     if (v.transmission) lines.push(`Transmission : ${v.transmission}`);
     if (v.owners) lines.push(`Propriétaires : ${v.owners}`);
@@ -256,9 +261,9 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
     onError: (e) => setError(e instanceof Error ? e.message : t('tradein.errSave')),
   });
 
-  // ── Fiche imprimable (PDF via impression) — données + photos depuis l'ERP ───
+  // ── Fiche PDF téléchargée directement (Téléchargements du navigateur) ───────
   const printSheet = () => {
-    if (created) void printSheetForOro(created.oroId);
+    if (created) void downloadSheetForOro(created.oroId);
   };
 
   const back = () => {
@@ -280,7 +285,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           <p className="mt-2 text-[13px] text-muted-foreground">{t('tradein.wizDoneHint')}</p>
           {created && <p className="mt-2 font-mono text-[13px] text-muted-foreground">{created.occNumber}</p>}
           <div className="mt-6 grid gap-2">
-            <Button className="h-12" onClick={printSheet}><Printer /> {t('tradein.wizDoneSheet')}</Button>
+            <Button className="h-12" onClick={printSheet}><Download /> {t('tradein.wizDoneSheet')}</Button>
             {mailto && (
               <Button variant="outline" className="h-12" onClick={() => { window.location.href = mailto; }}>
                 <Mail /> {t('tradein.wizDoneDispatch')}
@@ -330,9 +335,25 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
             </p>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            <BigChoice icon={<User className="size-7" />} label={t('tradein.wizTypePart')} onClick={() => { setIsPro(false); setStep('client'); }} />
-            <BigChoice icon={<Building2 className="size-7" />} label={t('tradein.wizTypePro')} onClick={() => { setIsPro(true); setStep('client'); }} />
+            <BigChoice icon={<User className="size-7" />} label={t('tradein.wizTypePart')} onClick={() => { setIsPro(false); setVatDeductible(null); setStep('client'); }} />
+            <BigChoice icon={<Building2 className="size-7" />} label={t('tradein.wizTypePro')} onClick={() => setVatDialogOpen(true)} />
           </div>
+
+          {/* Pop-up TVA déductible (moto professionnelle) */}
+          <Dialog open={vatDialogOpen} onOpenChange={setVatDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t('tradein.vatQuestion')}</DialogTitle>
+                <DialogDescription>{t('tradein.vatHint')}</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BigChoice icon={<Check className="size-6 text-success" />} label={t('tradein.wizYes')}
+                  onClick={() => { setVatDeductible(true); setIsPro(true); setVatDialogOpen(false); setStep('client'); }} />
+                <BigChoice icon={<X className="size-6 text-muted-foreground" />} label={t('tradein.wizNo')}
+                  onClick={() => { setVatDeductible(false); setIsPro(true); setVatDialogOpen(false); setStep('client'); }} />
+              </div>
+            </DialogContent>
+          </Dialog>
         </Panel>
       )}
 
@@ -641,13 +662,18 @@ const SLOT_ICONS: Record<string, ReactNode> = {
 
 function PhotoBox({ slot, file, onFile }: { slot: PhotoSlot; file: File | null; onFile: (f: File | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Aperçu DÉRIVÉ du fichier (état partagé entre étapes) : une photo prise dans
+  // le module Documents reste visible dans l'étape Photos, et inversement.
   const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) { setPreview(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const handle = (f: File | undefined) => {
-    if (!f) return;
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(URL.createObjectURL(f));
-    onFile(f);
+    if (f) onFile(f);
   };
 
   return (

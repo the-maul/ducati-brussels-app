@@ -13,7 +13,7 @@ import {
   offerStatsByOro, markOffersSeen, needsFollowUp, getDispatchMode, setDispatchMode, type DispatchMode,
 } from '@/modules/tradein/partners-api';
 import { PartnersDialog } from '@/modules/tradein/partners-dialog';
-import { printSheetForOro } from '@/modules/tradein/sheet-builder';
+import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/')({
@@ -50,7 +50,7 @@ function TradeinList() {
   }, [activeCompanyId, qc]);
 
   const printSheet = (oroId: string) => {
-    printSheetForOro(oroId).catch(() => toast.error(t('tradein.errSave')));
+    downloadSheetForOro(oroId).catch(() => toast.error(t('tradein.errSave')));
   };
 
   return (
