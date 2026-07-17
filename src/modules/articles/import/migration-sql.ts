@@ -80,7 +80,11 @@ create table if not exists public.tradein_partners (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
   name text not null,
+  first_name text,
+  company text,
   email text not null,
+  phone text,
+  extra_contacts jsonb not null default '[]',
   brands text[] not null default '{}',
   is_active boolean not null default true,
   created_at timestamptz not null default now()

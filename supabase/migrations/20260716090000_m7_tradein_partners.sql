@@ -6,8 +6,13 @@
 create table if not exists public.tradein_partners (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  name text not null,
+  name text not null,                    -- nom (personne de contact)
+  first_name text,                       -- prénom
+  company text,                          -- société du marchand
   email text not null,
+  phone text,
+  -- contacts supplémentaires flexibles : [{kind:'mail'|'phone'|'autre', label, value}]
+  extra_contacts jsonb not null default '[]',
   brands text[] not null default '{}',   -- vide = toutes les marques
   is_active boolean not null default true,
   created_at timestamptz not null default now()

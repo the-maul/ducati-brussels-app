@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getOroFull } from '@/modules/tradein/api';
+import { getOroFull, repriseClientLabel } from '@/modules/tradein/api';
 import { addOroLine, deleteOroLine, closeOro, type OroLineInput } from '@/modules/tradein/write-api';
 import { searchPurchaseArticles, type PurchaseArticle } from '@/modules/purchases/api';
-import { listOffers, addOffer, deleteOffer, listPartners, partnersForBrand } from '@/modules/tradein/partners-api';
-import { printRepriseSheet, type RepriseSheetSection } from '@/modules/tradein/reprise-print';
-import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
+import {
+  listOffers, addOffer, deleteOffer, listPartners, partnersForBrand,
+  needsFollowUp, buildDispatchMailto,
+} from '@/modules/tradein/partners-api';
+import { printSheetForOro } from '@/modules/tradein/sheet-builder';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/$oroId')({
@@ -30,6 +32,7 @@ function OroView() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['oro-full', oroId], queryFn: () => getOroFull(oroId) });
+  const offersQ = useQuery({ queryKey: ['oro-offers', oroId], queryFn: () => listOffers(oroId) });
 
   const [kind, setKind] = useState<'piece' | 'mo' | 'frais'>('piece');
   const [designation, setDesignation] = useState('');
@@ -51,76 +54,45 @@ function OroView() {
   const del = useMutation({ mutationFn: (id: string) => deleteOroLine(id, oroId), onSuccess: refresh });
   const close = useMutation({ mutationFn: () => closeOro(oroId), onSuccess: refresh });
 
-  // Impression de la fiche de reprise (données véhicule + photos GED)
-  const print = useMutation({
-    mutationFn: async () => {
-      const veh = data?.vehicle;
-      if (!veh) return;
-      const ext = veh as Record<string, unknown>;
-      const cv = Number(ext.power_cv ?? 0), kw = Number(ext.power_kw ?? 0);
-      const sections: RepriseSheetSection[] = [
-        { title: 'Données de base', rows: [
-          { label: 'Marque', value: String(veh.brand ?? '') }, { label: 'Modèle', value: String(veh.model ?? '') },
-          { label: 'Type de véhicule', value: 'Occasion — reprise' },
-        ] },
-        { title: 'Historique du véhicule', rows: [
-          { label: 'Année', value: ext.model_year ? String(ext.model_year) : '' },
-          { label: 'Kilométrage', value: veh.mileage != null ? `${veh.mileage} km` : '' },
-        ] },
-        { title: 'Caractéristiques techniques', rows: [
-          { label: 'Puissance', value: cv > 0 ? `${cv} ch (${kw} kW)` : '' },
-          { label: 'Carburant', value: String(ext.energy ?? '') },
-          { label: 'Cylindrée', value: ext.displacement ? `${ext.displacement} cm³` : '' },
-          { label: 'Numéro de châssis', value: String(veh.vin ?? '') },
-        ] },
-      ];
-      // Photos depuis la GED du véhicule
-      const atts = await listAttachments('vehicle', veh.id);
-      const photos: { label: string; url: string }[] = [];
-      for (const a of atts) {
-        try { const url = await signedUrl(a.storage_path); if (url) photos.push({ label: a.note ?? a.file_name, url }); } catch { /* skip */ }
-      }
-      printRepriseSheet({
-        companyName: t('app.name'),
-        number: data?.oro.number ?? '—',
-        date: new Date().toLocaleDateString('fr-BE'),
-        clientName: '', clientDetails: [],
-        title: [veh.brand, veh.model].filter(Boolean).join(' ') || 'Occasion',
-        sections,
-        accessories: [],
-        remarks: (ext.notes as string) || null,
-        photos,
-      });
-    },
-  });
+  // Impression de la fiche de reprise (données véhicule + photos/documents GED)
+  const print = useMutation({ mutationFn: () => printSheetForOro(oroId) });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return <><PageHeader title="ORO" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('tradein.notFound')}</p></>;
 
-  const { oro, lines, vehicle } = data;
+  const { oro, lines, vehicle, client } = data;
   const reprise = Number(vehicle?.purchase_price ?? 0);
   const oroCost = Number(oro.total_cost);
   const cost_revient = Number(vehicle?.cost_price ?? reprise + oroCost);
   const resale = Number(vehicle?.display_price ?? 0);
   const margin = resale > 0 ? resale - cost_revient : 0;
   const open = oro.status === 'ouvert';
+  const offers = offersQ.data ?? [];
+  const best = offers.length ? Number(offers[0].amount) : 0;
+  const followUp = needsFollowUp(oro.created_at, offers.length, oro.status);
+  const motoLabel = vehicle
+    ? [vehicle.brand, vehicle.model, vehicle.model_year ? `(${vehicle.model_year})` : null].filter(Boolean).join(' ')
+    : '';
 
   return (
     <>
       <PageHeader
         title={`${t('tradein.oroTitle')} ${oro.number ?? ''}`}
-        description={vehicle ? `${vehicle.brand ?? ''} ${vehicle.model ?? ''} · ${vehicle.vin ?? ''}` : ''}
+        description={[repriseClientLabel(client), motoLabel, vehicle?.vin ?? null].filter((s) => s && s !== '—').join(' · ')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => print.mutate()} disabled={print.isPending}>
-              {print.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('tradein.wizDoneSheet')}
+              {print.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('tradein.pdfSheet')}
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/tradein' })}><ArrowLeft /> {t('tradein.back')}</Button>
           </div>
         }
       />
-      <div className="mb-4 flex flex-wrap items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <StatusBadge tone={open ? 'warning' : 'success'} label={t(`tradein.status_${oro.status}`)} />
+        {followUp && <StatusBadge tone="danger" label={t('tradein.followUp')} />}
+        <span className="font-data text-sm tabular-nums">{t('tradein.colOffers')} : <b>{offers.length}</b>{offers.length > 0 && <span className="text-muted-foreground"> ({offers.slice(0, 3).map((o) => o.partner_name).filter(Boolean).join(', ')}{offers.length > 3 ? '…' : ''})</span>}</span>
+        {best > 0 && <span className="font-data text-sm tabular-nums">{t('tradein.colBest')} : <b>{eur(best)}</b></span>}
         <span className="font-data text-sm tabular-nums">{t('tradein.reprise')} : <b>{eur(reprise)}</b></span>
         <span className="font-data text-sm tabular-nums">{t('tradein.oroCost')} : <b>{eur(oroCost)}</b></span>
         <span className="font-data text-sm tabular-nums">{t('tradein.vehicleCost')} : <b>{eur(cost_revient)}</b></span>
@@ -173,13 +145,13 @@ function OroView() {
         </div>
       )}
 
-      <OffersPanel oroId={oroId} companyId={activeCompanyId!} brand={vehicle?.brand ?? null} />
+      <OffersPanel oroId={oroId} companyId={activeCompanyId!} brand={vehicle?.brand ?? null} motoTitle={motoLabel} followUp={followUp} />
     </>
   );
 }
 
 /** Offres des marchands partenaires — triées de la plus haute à la plus basse. */
-function OffersPanel({ oroId, companyId, brand }: { oroId: string; companyId: string; brand: string | null }) {
+function OffersPanel({ oroId, companyId, brand, motoTitle, followUp }: { oroId: string; companyId: string; brand: string | null; motoTitle?: string; followUp?: boolean }) {
   const qc = useQueryClient();
   const [partnerId, setPartnerId] = useState<string>('');
   const [partnerName, setPartnerName] = useState('');
@@ -201,9 +173,22 @@ function OffersPanel({ oroId, companyId, brand }: { oroId: string; companyId: st
   });
   const del = useMutation({ mutationFn: (id: string) => deleteOffer(id), onSuccess: refreshOffers });
 
+  const relanceMailto = buildDispatchMailto(
+    partners,
+    t('tradein.followUpSubject').replace('{title}', motoTitle || ''),
+    `${t('tradein.followUpHint')}\n\n${motoTitle ?? ''}`,
+  );
+
   return (
     <div className="mt-6">
-      <h2 className="mb-2 font-ui text-[15px] font-bold text-foreground">{t('tradein.offers')}</h2>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-ui text-[15px] font-bold text-foreground">{t('tradein.offers')}</h2>
+        {followUp && relanceMailto && (
+          <Button variant="outline" size="sm" onClick={() => { window.location.href = relanceMailto; }}>
+            {t('tradein.followUpBtn')}
+          </Button>
+        )}
+      </div>
       {offers.length === 0
         ? <p className="rounded-md border border-dashed border-border px-3 py-3 text-[13px] text-muted-foreground">{t('tradein.offersNone')}</p>
         : (

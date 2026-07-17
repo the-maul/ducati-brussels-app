@@ -36,9 +36,11 @@ export type RepriseInput = {
   vatRate?: number;
 };
 
-/** Crée l'article occasion + la fiche véhicule + l'entrée stock + un ORO. Retourne les ids. */
+/** Crée l'article occasion + la fiche véhicule + l'entrée stock + le dossier de reprise.
+ *  Référence unique REP-AAAA-NNNNN (séquence M0 « REP », année en cours, incrément auto)
+ *  partagée par l'article, le dossier et les documents. */
 export async function createReprise(p: RepriseInput): Promise<{ articleId: string; vehicleId: string; oroId: string; occNumber: string }> {
-  const occNumber = await nextNumber(p.companyId, 'OCC');
+  const occNumber = await nextNumber(p.companyId, 'REP');
   const mgmt = p.isPro ? 'P' : 'O';
   const vat = p.vatRate ?? 21;
   const reprisePrice = p.reprisePrice ?? 0;
@@ -82,10 +84,9 @@ export async function createReprise(p: RepriseInput): Promise<{ articleId: strin
   });
   if (me) throw me;
 
-  // 4) Ouverture de l'ORO
-  const oroNumber = await nextNumber(p.companyId, 'ORO');
+  // 4) Ouverture du dossier de remise en état — même référence REP que l'article
   const { data: oro, error: oe } = await supabase.from('oro').insert({
-    company_id: p.companyId, number: oroNumber, vehicle_id: vehicleId, status: 'ouvert',
+    company_id: p.companyId, number: occNumber, vehicle_id: vehicleId, status: 'ouvert',
   }).select('id').single();
   if (oe) throw oe;
 

@@ -948,10 +948,33 @@ export const fr = {
     engineNumber: 'N° moteur', color: 'Couleur', mileage: 'Kilométrage', firstReg: 'Mise en circulation',
     reprisePrice: 'Prix de reprise (HT)', resalePrice: 'Prix de revente (TTC)', vatRate: 'TVA %',
     create: 'Créer la reprise', createInfo: 'Crée l\'article occasion + la fiche véhicule + ouvre un ORO.',
-    // ORO
-    colNumber: 'N° ORO', colVehicle: 'Véhicule', colStatus: 'Statut', colCost: 'Coût remise en état',
+    // Dossier de reprise (réf. REP-AAAA-NNNNN)
+    colNumber: 'N° REP', colVehicle: 'Véhicule', colStatus: 'Statut', colCost: 'Coût remise en état',
+    colClient: 'Client', colMoto: 'Moto', colBest: 'Meilleure offre',
     status_ouvert: 'Ouvert', status_cloture: 'Clôturé',
-    oroTitle: 'Ordre de remise en état', vehicleCost: 'Coût de revient', reprise: 'Reprise', oroCost: 'Remise en état', margin: 'Marge potentielle',
+    oroTitle: 'Fiche de reprise moto', vehicleCost: 'Coût de revient', reprise: 'Reprise', oroCost: 'Remise en état', margin: 'Marge potentielle',
+    pdfSheet: 'PDF',
+    // Relance marchands (objectif : 4 réponses minimum)
+    followUp: 'À relancer',
+    followUpHint: 'Moins de 4 offres reçues — relancez les marchands.',
+    followUpBtn: 'Relancer les marchands',
+    followUpSubject: 'Relance — moto à reprendre : {title}',
+    // Module documents (bouton rouge avant le type de reprise)
+    docsWarn: 'Attention : préparez vos 3 dernières factures d’entretien, la facture d’achat si disponible et les documents de votre moto (certificat d’immatriculation et COC).',
+    docsWarnAction: 'Photographier mes documents',
+    docsTitle: 'Documents de la moto',
+    docsHint: 'Photographiez chaque document (ou choisissez-le dans la galerie). Les factures aident à estimer correctement votre moto.',
+    docsAdded: '{n} document(s) ajouté(s)',
+    docsSection: 'Documents',
+    // Préremplissage des caractéristiques
+    specsFilled: 'Caractéristiques préremplies depuis la fiche modèle — vérifiez-les.',
+    // Marchands — page dédiée & champs enrichis
+    partnersManage: 'Gérer les marchands',
+    partnerFirstName: 'Prénom', partnerCompany: 'Société', partnerPhone: 'Téléphone',
+    partnerExtra: 'Contacts supplémentaires',
+    extraKind_mail: 'Mail', extraKind_phone: 'Téléphone', extraKind_autre: 'Autre',
+    extraLabel: 'Libellé (ex. Mail 2)', extraValue: 'Valeur', extraAdd: 'Ajouter un contact',
+    partnersCount: '{n} marchand(s)',
     addLine: 'Ajouter', lineKind: 'Type', kind_piece: 'Pièce', kind_mo: 'Main d\'œuvre', kind_frais: 'Frais',
     lineDesignation: 'Désignation', lineQty: 'Qté', lineCost: 'Coût unit.', lineTotal: 'Total',
     closeOro: 'Clôturer l\'ORO', articlePlaceholder: 'Pièce (réf, désignation)…', errSave: 'Erreur',

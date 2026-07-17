@@ -18,9 +18,20 @@ export function isMissingSchema(e: unknown): boolean {
   return code === 'PGRST205' || code === '42P01' || code === '42703';
 }
 
+/** Contact supplémentaire flexible d'un marchand (Mail 2, Téléphone 2…). */
+export type PartnerExtraContact = { kind: 'mail' | 'phone' | 'autre'; label: string; value: string };
+
 export type TradeinPartner = {
-  id: string; company_id: string; name: string; email: string;
+  id: string; company_id: string; name: string; first_name: string | null;
+  company: string | null; email: string; phone: string | null;
+  extra_contacts: PartnerExtraContact[];
   brands: string[]; is_active: boolean; created_at: string;
+};
+
+export type PartnerInput = {
+  name: string; first_name?: string | null; company?: string | null;
+  email: string; phone?: string | null; extra_contacts?: PartnerExtraContact[];
+  brands: string[];
 };
 
 export type TradeinOffer = {
@@ -51,14 +62,17 @@ export async function listPartners(companyId: string): Promise<TradeinPartner[]>
   }
 }
 
-export async function addPartner(companyId: string, p: { name: string; email: string; brands: string[] }): Promise<void> {
+export async function addPartner(companyId: string, p: PartnerInput): Promise<void> {
   const { error } = await raw.from('tradein_partners').insert({
-    company_id: companyId, name: p.name.trim(), email: p.email.trim().toLowerCase(), brands: p.brands,
+    company_id: companyId, name: p.name.trim(), first_name: p.first_name?.trim() || null,
+    company: p.company?.trim() || null, email: p.email.trim().toLowerCase(),
+    phone: p.phone?.trim() || null, extra_contacts: p.extra_contacts ?? [],
+    brands: p.brands,
   });
   if (error) throw error;
 }
 
-export async function updatePartner(id: string, patch: Partial<Pick<TradeinPartner, 'name' | 'email' | 'brands' | 'is_active'>>): Promise<void> {
+export async function updatePartner(id: string, patch: Partial<Pick<TradeinPartner, 'name' | 'first_name' | 'company' | 'email' | 'phone' | 'extra_contacts' | 'brands' | 'is_active'>>): Promise<void> {
   const { error } = await raw.from('tradein_partners').update(patch).eq('id', id);
   if (error) throw error;
 }
@@ -105,20 +119,41 @@ export async function deleteOffer(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Nombre d'offres par reprise (aperçu liste) — Map oro_id → count. */
-export async function offerCountsByOro(companyId: string): Promise<Map<string, number>> {
+/** Stats d'offres par reprise (aperçu liste) — Map oro_id → { count, best }. */
+export type OfferStats = { count: number; best: number };
+export async function offerStatsByOro(companyId: string): Promise<Map<string, OfferStats>> {
   try {
     const { data, error } = await raw
-      .from('tradein_offers').select('oro_id')
+      .from('tradein_offers').select('oro_id, amount')
       .eq('company_id', companyId);
     if (error) throw error;
-    const m = new Map<string, number>();
-    for (const r of (data as { oro_id: string }[]) ?? []) m.set(r.oro_id, (m.get(r.oro_id) ?? 0) + 1);
+    const m = new Map<string, OfferStats>();
+    for (const r of (data as { oro_id: string; amount: number }[]) ?? []) {
+      const cur = m.get(r.oro_id) ?? { count: 0, best: 0 };
+      cur.count += 1;
+      cur.best = Math.max(cur.best, Number(r.amount) || 0);
+      m.set(r.oro_id, cur);
+    }
     return m;
   } catch (e) {
     if (isMissingSchema(e)) return new Map();
     throw e;
   }
+}
+
+// ── Relance marchands ─────────────────────────────────────────────────────────
+/** Objectif de réponses : à partir de 4 c'est bon ; en dessous, relance suggérée. */
+export const OFFERS_TARGET = 4;
+/** Délai avant de proposer une relance (jours). */
+export const FOLLOW_UP_AFTER_DAYS = 3;
+
+/** Une reprise ouverte a-t-elle besoin d'une relance marchands ? */
+export function needsFollowUp(createdAt: string | null, offerCount: number, status: string): boolean {
+  if (status !== 'ouvert') return false;
+  if (offerCount >= OFFERS_TARGET) return false;
+  if (!createdAt) return false;
+  const ageDays = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
+  return ageDays >= FOLLOW_UP_AFTER_DAYS;
 }
 
 /** Offres non vues (pastille de notification du menu). */

@@ -111,6 +111,7 @@ export function phonePrefixFor(countryCode: string): string {
 // ── Cases photos (guide photos) ───────────────────────────────────────────────
 export type PhotoSlot = { key: string; label: string; free?: boolean };
 
+/** Photos du véhicule (étape Photos). */
 export const PHOTO_SLOTS: PhotoSlot[] = [
   { key: 'face_avant', label: 'Face avant' },
   { key: 'face_arriere', label: 'Face arrière' },
@@ -119,10 +120,19 @@ export const PHOTO_SLOTS: PhotoSlot[] = [
   { key: 'compteur', label: 'Compteur avec km' },
   { key: 'chassis', label: 'Numéro de châssis' },
   { key: 'moteur', label: 'Numéro du moteur' },
-  { key: 'immat_recto', label: 'Certificat immatriculation — recto' },
-  { key: 'immat_verso', label: 'Certificat immatriculation — verso' },
-  { key: 'coc_recto', label: 'COC — recto' },
-  { key: 'coc_verso', label: 'COC — verso' },
+];
+
+/** Documents à préparer (module « préparez vos documents » — bouton rouge). */
+export const DOC_SLOTS: PhotoSlot[] = [
+  { key: 'doc_facture_1', label: 'Facture 1' },
+  { key: 'doc_facture_2', label: 'Facture 2' },
+  { key: 'doc_facture_3', label: 'Facture 3' },
+  { key: 'doc_facture_4', label: 'Facture 4' },
+  { key: 'doc_facture_5', label: 'Facture 5' },
+  { key: 'doc_immat_recto', label: 'Certificat immatriculation — recto' },
+  { key: 'doc_immat_verso', label: 'Certificat immatriculation — verso' },
+  { key: 'doc_coc_recto', label: 'Certificat de conformité — recto' },
+  { key: 'doc_coc_verso', label: 'Certificat de conformité — verso' },
 ];
 
 /** Cases libres (options / dommages) — 10 emplacements. */

@@ -27,16 +27,17 @@ import { createReprise } from './write-api';
 import {
   listPartners, partnersForBrand, getDispatchMode, buildDispatchMailto,
 } from './partners-api';
-import { printRepriseSheet, type RepriseSheetSection } from './reprise-print';
+import { printSheetForOro, DOCS_FOLDER, PHOTOS_FOLDER } from './sheet-builder';
+import { findSpecs, modelsForBrand } from './moto-specs';
 import {
-  MOTO_BRANDS, DUCATI_MODELS, FUELS, TRANSMISSIONS, OWNER_COUNTS, TECH_STATES, TECH_STATES_WITH_DESC,
-  WEAR_STATES, TIRE_STATES, ACCESSORIES, COUNTRIES, PHOTO_SLOTS, FREE_PHOTO_SLOTS,
+  MOTO_BRANDS, FUELS, TRANSMISSIONS, OWNER_COUNTS, TECH_STATES, TECH_STATES_WITH_DESC,
+  WEAR_STATES, TIRE_STATES, ACCESSORIES, COUNTRIES, PHOTO_SLOTS, DOC_SLOTS, FREE_PHOTO_SLOTS,
   years, kmSuggestions, ccSuggestions, convertPower, powerConversionLabel, normalizeVat, phonePrefixFor,
   type PowerUnit, type PhotoSlot,
 } from './reprise-wizard-data';
 import { t } from '@/lib/i18n';
 
-type Step = 'type' | 'client' | 'existing' | 'new' | 'vehicle' | 'photos' | 'done';
+type Step = 'type' | 'docs' | 'client' | 'existing' | 'new' | 'vehicle' | 'photos' | 'done';
 const num = (s: string) => { const n = Number(String(s).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 type FoundContact = { id: string; first_name: string | null; last_name: string | null; company_name: string | null; vat_number: string | null; email: string | null; mobile: string | null };
@@ -81,7 +82,23 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   const dispatchQ = useQuery({ queryKey: ['tradein-dispatch', companyId], queryFn: () => getDispatchMode(companyId) });
 
   const vehTitle = [v.brand, v.model].filter(Boolean).join(' ') || 'Occasion';
-  const displayStep = step === 'type' ? 1 : step === 'client' ? 2 : step === 'existing' || step === 'new' ? 3 : step === 'vehicle' ? 4 : 5;
+  const displayStep = step === 'type' || step === 'docs' ? 1 : step === 'client' ? 2 : step === 'existing' || step === 'new' ? 3 : step === 'vehicle' ? 4 : 5;
+  const docsCount = DOC_SLOTS.filter((s) => photos[s.key]).length;
+
+  // Préremplissage automatique des caractéristiques depuis la fiche modèle
+  const [specsFilled, setSpecsFilled] = useState(false);
+  const autofillSpecs = (brand: string, model: string) => {
+    const spec = findSpecs(brand, model);
+    if (!spec) { setSpecsFilled(false); return; }
+    setV((p) => ({
+      ...p,
+      cc: p.cc || (spec.cc > 0 ? String(spec.cc) : p.cc),
+      power: p.power || String(spec.ch),
+      powerUnit: p.power ? p.powerUnit : 'ch',
+      fuel: p.fuel || spec.fuel,
+    }));
+    setSpecsFilled(true);
+  };
 
   // ── Recherche client (Oui) ──────────────────────────────────────────────────
   const search = useMutation({
@@ -197,15 +214,16 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
         notes: buildNotes() || null,
         reprisePrice: 0, // estimation à faire par le magasin
       });
-      // 2. Photos → GED du véhicule (dossier « Reprise »)
+      // 2. Photos → GED du véhicule (photos : « Reprise » ; documents : « Reprise-Documents »)
       const stamp = Date.now();
-      const slots = [...PHOTO_SLOTS, ...FREE_PHOTO_SLOTS];
+      const slots = [...PHOTO_SLOTS, ...FREE_PHOTO_SLOTS, ...DOC_SLOTS];
       let i = 0;
       for (const slot of slots) {
         const file = photos[slot.key];
         if (!file) continue;
+        const folder = slot.key.startsWith('doc_') ? DOCS_FOLDER : PHOTOS_FOLDER;
         try {
-          await uploadAttachment(companyId, 'vehicle', r.vehicleId, file, stamp + i++, slot.label, 'Reprise');
+          await uploadAttachment(companyId, 'vehicle', r.vehicleId, file, stamp + i++, slot.label, folder);
         } catch { /* photo non bloquante */ }
       }
       // 3. Trace sur la fiche client + lead CRM (source Reprise)
@@ -238,49 +256,9 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
     onError: (e) => setError(e instanceof Error ? e.message : t('tradein.errSave')),
   });
 
-  // ── Fiche imprimable (PDF via impression) ───────────────────────────────────
+  // ── Fiche imprimable (PDF via impression) — données + photos depuis l'ERP ───
   const printSheet = () => {
-    const pw = num(v.power);
-    const conv = pw > 0 ? convertPower(pw, v.powerUnit) : null;
-    const sections: RepriseSheetSection[] = [
-      { title: 'Données de base', rows: [
-        { label: 'Marque', value: v.brand }, { label: 'Modèle', value: v.model },
-        { label: 'Type de véhicule', value: 'Occasion — reprise' },
-        { label: 'Vendeur', value: isPro ? t('tradein.wizAnswerPro') : t('tradein.wizAnswerPart') },
-      ] },
-      { title: 'Historique du véhicule', rows: [
-        { label: 'Année', value: v.year }, { label: 'Kilométrage', value: v.km ? `${v.km} km` : '' },
-        { label: 'Nombre de propriétaires', value: v.owners },
-        { label: 'Peinture d’origine', value: originalPaint == null ? '' : originalPaint ? 'Oui' : 'Non' },
-        { label: 'Véhicule importé', value: imported == null ? '' : imported ? 'Oui' : 'Non' },
-      ] },
-      { title: 'Caractéristiques techniques', rows: [
-        { label: 'Puissance', value: conv ? `${conv.ch} ch (${conv.kw} kW)${v.papers100 ? ' — papiers 100 CH' : ''}` : '' },
-        { label: 'Carburant', value: v.fuel }, { label: 'Transmission', value: v.transmission },
-        { label: 'Cylindrée', value: v.cc ? `${v.cc} cm³` : '' },
-        { label: 'Numéro de châssis', value: v.chassis.toUpperCase() },
-      ] },
-      { title: 'État', rows: [
-        { label: 'État technique', value: v.techState + (v.techDesc ? ` — ${v.techDesc}` : '') },
-        { label: 'Pièces d’usure', value: v.wear }, { label: 'Pneus', value: v.tires },
-      ] },
-    ];
-    const slots = [...PHOTO_SLOTS, ...FREE_PHOTO_SLOTS];
-    printRepriseSheet({
-      companyName: t('app.name'),
-      number: created?.occNumber ?? '—',
-      date: new Date().toLocaleDateString('fr-BE'),
-      clientName: contactLabel || '—',
-      clientDetails: [
-        c.phone.trim() ? `${c.phonePrefix} ${c.phone.trim()}` : '', c.email.trim(),
-        [c.address, c.zip, c.city].filter(Boolean).join(', '), c.country,
-      ].filter(Boolean),
-      title: vehTitle,
-      sections,
-      accessories: [...accessories],
-      remarks: v.remarks.trim() || null,
-      photos: slots.filter((s) => photos[s.key]).map((s) => ({ label: s.label, url: URL.createObjectURL(photos[s.key]) })),
-    });
+    if (created) void printSheetForOro(created.oroId);
   };
 
   const back = () => {
@@ -295,7 +273,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   if (step === 'done') {
     const mailto = dispatchQ.data !== 'auto' ? dispatchMailto() : null;
     return (
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-2xl">
         <div className="rounded-md border border-border bg-card p-8 text-center shadow-[var(--shadow-card)]">
           <CheckCircle2 className="mx-auto size-14 text-success" />
           <h2 className="mt-4 font-ui text-[20px] font-bold text-foreground">{t('tradein.wizDoneTitle')}</h2>
@@ -313,7 +291,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
                 {t('tradein.wizDoneOpen')}
               </Button>
             )}
-            <Button variant="ghost" className="h-11" onClick={() => window.location.reload()}>{t('tradein.wizDoneNewRequest')}</Button>
+            <Button variant="ghost" className="h-12 text-[15px]" onClick={() => window.location.reload()}>{t('tradein.wizDoneNewRequest')}</Button>
           </div>
         </div>
       </div>
@@ -321,7 +299,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-2xl">
       {/* Progression (5 écrans) */}
       <div className="mb-6 flex gap-1.5">
         {[1, 2, 3, 4, 5].map((i) => (
@@ -334,10 +312,45 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       {/* ── Étape 1 : type ───────────────────────────────────────────────────── */}
       {step === 'type' && (
         <Panel title={t('tradein.wizTypeTitle')}>
+          {/* Avertissement documents — gros bouton interpellant, à toucher AVANT de choisir */}
+          <button
+            type="button"
+            onClick={() => setStep('docs')}
+            className="mb-4 flex w-full items-center gap-3 rounded-md bg-[var(--ducati-red)] px-4 py-4 text-left text-[14px] font-bold leading-snug text-primary-foreground shadow-[var(--shadow-card)] transition-transform hover:bg-[var(--ducati-red-dark)] active:scale-[0.99] sm:text-[15px]"
+          >
+            <Camera className="size-8 shrink-0" />
+            <span>
+              {t('tradein.docsWarn')}
+              <span className="mt-1 block text-[12px] font-normal underline underline-offset-2 opacity-90">{t('tradein.docsWarnAction')}</span>
+            </span>
+          </button>
+          {docsCount > 0 && (
+            <p className="mb-4 rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">
+              {t('tradein.docsAdded').replace('{n}', String(docsCount))}
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
-            <BigChoice icon={<User className="size-6" />} label={t('tradein.wizTypePart')} onClick={() => { setIsPro(false); setStep('client'); }} />
-            <BigChoice icon={<Building2 className="size-6" />} label={t('tradein.wizTypePro')} onClick={() => { setIsPro(true); setStep('client'); }} />
+            <BigChoice icon={<User className="size-7" />} label={t('tradein.wizTypePart')} onClick={() => { setIsPro(false); setStep('client'); }} />
+            <BigChoice icon={<Building2 className="size-7" />} label={t('tradein.wizTypePro')} onClick={() => { setIsPro(true); setStep('client'); }} />
           </div>
+        </Panel>
+      )}
+
+      {/* ── Module documents (depuis le bouton rouge) ────────────────────────── */}
+      {step === 'docs' && (
+        <Panel title={t('tradein.docsTitle')} hint={t('tradein.docsHint')}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {DOC_SLOTS.map((slot) => (
+              <PhotoBox key={slot.key} slot={slot} file={photos[slot.key] ?? null}
+                onFile={(f) => setPhotos((p) => { const n = { ...p }; if (f) n[slot.key] = f; else delete n[slot.key]; return n; })} />
+            ))}
+          </div>
+          {docsCount > 0 && (
+            <p className="mt-3 rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">
+              {t('tradein.docsAdded').replace('{n}', String(docsCount))}
+            </p>
+          )}
+          <StepFooter onBack={() => setStep('type')} next={{ label: t('tradein.wizNext'), onClick: () => setStep('type') }} />
         </Panel>
       )}
 
@@ -355,15 +368,15 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       {step === 'existing' && (
         <Panel title={t('tradein.wizFindTitle')} hint={t('tradein.wizFindHint')} recap={<Recap onEdit={() => setStep('type')}>{isPro ? t('tradein.wizTypePro') : t('tradein.wizTypePart')}</Recap>}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {isPro && <Field label={t('tradein.fCompany')}><Input className="h-11" value={c.company} onChange={(e) => setCf('company', e.target.value)} /></Field>}
-            <Field label={t('tradein.fLastName')}><Input className="h-11" value={c.lastName} onChange={(e) => setCf('lastName', e.target.value)} /></Field>
-            <Field label={t('tradein.fFirstName')}><Input className="h-11" value={c.firstName} onChange={(e) => setCf('firstName', e.target.value)} /></Field>
+            {isPro && <Field label={t('tradein.fCompany')}><Input className="h-12 text-[15px]" value={c.company} onChange={(e) => setCf('company', e.target.value)} /></Field>}
+            <Field label={t('tradein.fLastName')}><Input className="h-12 text-[15px]" value={c.lastName} onChange={(e) => setCf('lastName', e.target.value)} /></Field>
+            <Field label={t('tradein.fFirstName')}><Input className="h-12 text-[15px]" value={c.firstName} onChange={(e) => setCf('firstName', e.target.value)} /></Field>
             <Field label={t('tradein.fVat')}>
-              <Input className="h-11 font-mono uppercase" value={c.vat} onChange={(e) => setCf('vat', normalizeVat(e.target.value))} placeholder={t('tradein.fVatPlaceholder')} />
+              <Input className="h-12 text-[15px] font-mono uppercase" value={c.vat} onChange={(e) => setCf('vat', normalizeVat(e.target.value))} placeholder={t('tradein.fVatPlaceholder')} />
             </Field>
           </div>
           <div className="mt-3">
-            <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => search.mutate()} disabled={search.isPending}>
+            <Button variant="outline" className="h-12 text-[15px] w-full sm:w-auto" onClick={() => search.mutate()} disabled={search.isPending}>
               {search.isPending ? <Loader2 className="animate-spin" /> : <Search />} {t('tradein.wizSearch')}
             </Button>
           </div>
@@ -399,30 +412,30 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
         <Panel title={t('tradein.wizNewTitle')} hint={t('tradein.wizNewHint')} recap={<Recap onEdit={() => setStep('type')}>{isPro ? t('tradein.wizTypePro') : t('tradein.wizTypePart')}</Recap>}>
           {isPro && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label={t('tradein.fCompany')} wide><Input className="h-11" value={c.company} onChange={(e) => setCf('company', e.target.value)} /></Field>
-              <Field label={t('tradein.fVat')}><Input className="h-11 font-mono uppercase" value={c.vat} onChange={(e) => setCf('vat', normalizeVat(e.target.value))} placeholder={t('tradein.fVatPlaceholder')} /></Field>
+              <Field label={t('tradein.fCompany')} wide><Input className="h-12 text-[15px]" value={c.company} onChange={(e) => setCf('company', e.target.value)} /></Field>
+              <Field label={t('tradein.fVat')}><Input className="h-12 text-[15px] font-mono uppercase" value={c.vat} onChange={(e) => setCf('vat', normalizeVat(e.target.value))} placeholder={t('tradein.fVatPlaceholder')} /></Field>
             </div>
           )}
           {isPro && <p className="mt-4 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.wizPersonSection')}</p>}
           <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={t('tradein.fLastName')}><Input className="h-11" value={c.lastName} onChange={(e) => setCf('lastName', e.target.value)} /></Field>
-            <Field label={t('tradein.fFirstName')}><Input className="h-11" value={c.firstName} onChange={(e) => setCf('firstName', e.target.value)} /></Field>
+            <Field label={t('tradein.fLastName')}><Input className="h-12 text-[15px]" value={c.lastName} onChange={(e) => setCf('lastName', e.target.value)} /></Field>
+            <Field label={t('tradein.fFirstName')}><Input className="h-12 text-[15px]" value={c.firstName} onChange={(e) => setCf('firstName', e.target.value)} /></Field>
             <Field label={t('contacts.country')}>
               <Select value={c.country} onValueChange={(val) => { setCf('country', val); setCf('phonePrefix', phonePrefixFor(val)); }}>
-                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{COUNTRIES.map((co) => <SelectItem key={co.code} value={co.code}>{co.label} ({co.code})</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.fPhone')}>
               <div className="flex gap-1">
-                <Input className="h-11 w-[74px] text-center font-mono" value={c.phonePrefix} onChange={(e) => setCf('phonePrefix', e.target.value)} />
-                <Input className="h-11 flex-1" type="tel" value={c.phone} onChange={(e) => setCf('phone', e.target.value)} placeholder="470 12 34 56" />
+                <Input className="h-12 text-[15px] w-[74px] text-center font-mono" value={c.phonePrefix} onChange={(e) => setCf('phonePrefix', e.target.value)} />
+                <Input className="h-12 text-[15px] flex-1" type="tel" value={c.phone} onChange={(e) => setCf('phone', e.target.value)} placeholder="470 12 34 56" />
               </div>
             </Field>
-            <Field label={t('tradein.fEmail')} wide><Input className="h-11" type="email" value={c.email} onChange={(e) => setCf('email', e.target.value)} /></Field>
-            <Field label={t('tradein.fAddress')} wide><Input className="h-11" value={c.address} onChange={(e) => setCf('address', e.target.value)} /></Field>
-            <Field label={t('tradein.fZip')}><Input className="h-11" value={c.zip} onChange={(e) => setCf('zip', e.target.value)} /></Field>
-            <Field label={t('tradein.fCity')}><Input className="h-11" value={c.city} onChange={(e) => setCf('city', e.target.value)} /></Field>
+            <Field label={t('tradein.fEmail')} wide><Input className="h-12 text-[15px]" type="email" value={c.email} onChange={(e) => setCf('email', e.target.value)} /></Field>
+            <Field label={t('tradein.fAddress')} wide><Input className="h-12 text-[15px]" value={c.address} onChange={(e) => setCf('address', e.target.value)} /></Field>
+            <Field label={t('tradein.fZip')}><Input className="h-12 text-[15px]" value={c.zip} onChange={(e) => setCf('zip', e.target.value)} /></Field>
+            <Field label={t('tradein.fCity')}><Input className="h-12 text-[15px]" value={c.city} onChange={(e) => setCf('city', e.target.value)} /></Field>
           </div>
           <StepFooter
             onBack={back}
@@ -442,22 +455,27 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('tradein.vBrand')}>
               <Select value={v.brand || undefined} onValueChange={(val) => setVf('brand', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{MOTO_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vModel')}>
-              <Input className="h-11" list="wiz-models" value={v.model} onChange={(e) => setVf('model', e.target.value)} placeholder={t('tradein.wizChoose')} />
-              {v.brand === 'Ducati' && <datalist id="wiz-models">{DUCATI_MODELS.map((m) => <option key={m} value={m} />)}</datalist>}
+              <Input
+                className="h-12 text-[15px]" list="wiz-models" value={v.model}
+                onChange={(e) => { setVf('model', e.target.value); autofillSpecs(v.brand, e.target.value); }}
+                placeholder={t('tradein.wizChoose')}
+              />
+              <datalist id="wiz-models">{modelsForBrand(v.brand).map((m) => <option key={m} value={m} />)}</datalist>
+              {specsFilled && <p className="mt-1 text-[12px] text-info">{t('tradein.specsFilled')}</p>}
             </Field>
             <Field label={t('tradein.vYear')}>
               <Select value={v.year || undefined} onValueChange={(val) => setVf('year', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{years().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vKm')}>
-              <Input className="h-11 text-right tabular-nums" list="wiz-km" inputMode="numeric" value={v.km} onChange={(e) => setVf('km', e.target.value)} placeholder={t('tradein.vKmPlaceholder')} />
+              <Input className="h-12 text-[15px] text-right tabular-nums" list="wiz-km" inputMode="numeric" value={v.km} onChange={(e) => setVf('km', e.target.value)} placeholder={t('tradein.vKmPlaceholder')} />
               <datalist id="wiz-km">{kmSuggestions().map((k) => <option key={k} value={k} />)}</datalist>
             </Field>
 
@@ -465,10 +483,10 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
             <Field label={t('tradein.vPower')}>
               <div className="flex gap-2">
                 <Select value={v.powerUnit} onValueChange={(val) => setVf('powerUnit', val as PowerUnit)}>
-                  <SelectTrigger className="h-11 w-24"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-12 text-[15px] w-24"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="ch">CH</SelectItem><SelectItem value="kw">kW</SelectItem></SelectContent>
                 </Select>
-                <Input className="h-11 flex-1 text-right tabular-nums" inputMode="numeric" value={v.power} onChange={(e) => setVf('power', e.target.value)} placeholder={t('tradein.vPowerPlaceholder')} />
+                <Input className="h-12 text-[15px] flex-1 text-right tabular-nums" inputMode="numeric" value={v.power} onChange={(e) => setVf('power', e.target.value)} placeholder={t('tradein.vPowerPlaceholder')} />
               </div>
               {num(v.power) > 0 && <p className="mt-1 text-[12px] text-muted-foreground">({powerConversionLabel(num(v.power), v.powerUnit)})</p>}
               <label className="mt-1.5 flex items-center gap-2 text-[13px]">
@@ -478,30 +496,30 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
 
             <Field label={t('tradein.vFuel')}>
               <Select value={v.fuel || undefined} onValueChange={(val) => setVf('fuel', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{FUELS.map((fu) => <SelectItem key={fu} value={fu}>{fu}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vTransmission')}>
               <Select value={v.transmission || undefined} onValueChange={(val) => setVf('transmission', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{TRANSMISSIONS.map((tr) => <SelectItem key={tr} value={tr}>{tr}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vCc')}>
-              <Input className="h-11 text-right tabular-nums" list="wiz-cc" inputMode="numeric" value={v.cc} onChange={(e) => setVf('cc', e.target.value)} placeholder={t('tradein.vCcPlaceholder')} />
+              <Input className="h-12 text-[15px] text-right tabular-nums" list="wiz-cc" inputMode="numeric" value={v.cc} onChange={(e) => setVf('cc', e.target.value)} placeholder={t('tradein.vCcPlaceholder')} />
               <datalist id="wiz-cc">{ccSuggestions().map((cc) => <option key={cc} value={cc} />)}</datalist>
             </Field>
             <Field label={t('tradein.vOwners')}>
               <Select value={v.owners || undefined} onValueChange={(val) => setVf('owners', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{OWNER_COUNTS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
 
             <Field label={t('tradein.vTechState')}>
               <Select value={v.techState || undefined} onValueChange={(val) => setVf('techState', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{TECH_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
@@ -513,18 +531,18 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
 
             <Field label={<>{t('tradein.vWear')} <span className="font-normal normal-case text-muted-foreground">{t('tradein.vWearHint')}</span></>} wide>
               <Select value={v.wear || undefined} onValueChange={(val) => setVf('wear', val)}>
-                <SelectTrigger className="h-11 sm:max-w-xs"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px] sm:max-w-xs"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{WEAR_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vTires')}>
               <Select value={v.tires || undefined} onValueChange={(val) => setVf('tires', val)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{TIRE_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t('tradein.vChassis')}>
-              <Input className="h-11 font-mono uppercase" value={v.chassis} onChange={(e) => setVf('chassis', e.target.value.toUpperCase())} maxLength={17} placeholder={t('tradein.vChassisPlaceholder')} />
+              <Input className="h-12 text-[15px] font-mono uppercase" value={v.chassis} onChange={(e) => setVf('chassis', e.target.value.toUpperCase())} maxLength={17} placeholder={t('tradein.vChassisPlaceholder')} />
             </Field>
           </div>
 
@@ -580,6 +598,15 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
             ))}
           </div>
 
+          {/* Documents (module « préparez vos documents ») — intégrés en fin d'étape */}
+          <p className="mb-2 mt-5 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.docsSection')}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {DOC_SLOTS.map((slot) => (
+              <PhotoBox key={slot.key} slot={slot} file={photos[slot.key] ?? null}
+                onFile={(f) => setPhotos((p) => { const n = { ...p }; if (f) n[slot.key] = f; else delete n[slot.key]; return n; })} />
+            ))}
+          </div>
+
           {photoCount > 0 && (
             <p className="mt-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
               {t('tradein.wizPhotoTaken').replace('{n}', String(photoCount))}
@@ -610,10 +637,6 @@ const SLOT_ICONS: Record<string, ReactNode> = {
   compteur: <Gauge className="size-6" />,
   chassis: <Hash className="size-6" />,
   moteur: <Cog className="size-6" />,
-  immat_recto: <FileText className="size-6" />,
-  immat_verso: <FileText className="size-6" />,
-  coc_recto: <FileText className="size-6" />,
-  coc_verso: <FileText className="size-6" />,
 };
 
 function PhotoBox({ slot, file, onFile }: { slot: PhotoSlot; file: File | null; onFile: (f: File | null) => void }) {
@@ -643,7 +666,7 @@ function PhotoBox({ slot, file, onFile }: { slot: PhotoSlot; file: File | null; 
           </div>
         ) : (
           <div className="grid h-24 w-full place-items-center bg-muted/50 text-muted-foreground sm:h-28">
-            {slot.free ? <Image className="size-6" /> : (SLOT_ICONS[slot.key] ?? <Camera className="size-6" />)}
+            {slot.free ? <Image className="size-6" /> : slot.key.startsWith('doc_') ? <FileText className="size-6" /> : (SLOT_ICONS[slot.key] ?? <Camera className="size-6" />)}
           </div>
         )}
         <div className="flex items-center justify-between gap-1 px-2 py-1.5">
@@ -672,7 +695,7 @@ function Panel({ title, hint, recap, children }: { title: string; hint?: string;
 function BigChoice({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-border px-4 py-8 text-center text-[16px] font-bold uppercase tracking-[0.02em] text-foreground transition-colors hover:border-[var(--ducati-red)] hover:bg-accent active:scale-[0.99]">
+      className="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-border px-4 py-10 text-center text-[17px] font-bold uppercase tracking-[0.02em] text-foreground transition-colors hover:border-[var(--ducati-red)] hover:bg-accent active:scale-[0.99]">
       {icon}
       {label}
     </button>

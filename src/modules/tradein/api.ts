@@ -25,24 +25,71 @@ export async function settleConsignment(consignmentId: string, salePriceTtc: num
   return { commission: Number(r.commission), reversal: Number(r.reversal) };
 }
 
-export async function listOro(companyId: string, status?: string): Promise<Oro[]> {
-  let q = supabase.from('oro').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(100);
+/** Client lié à une reprise (via l'historique propriétaires du véhicule). */
+export type RepriseClient = { first_name: string | null; last_name: string | null; company_name: string | null; code: string | null };
+
+export function repriseClientLabel(c: RepriseClient | null): string {
+  if (!c) return '—';
+  const person = [c.first_name, c.last_name].filter(Boolean).join(' ');
+  if (c.company_name) return person ? `${c.company_name} (${person})` : c.company_name;
+  return person || '—';
+}
+
+export type OroListItem = Oro & {
+  vehicle_info: { brand: string | null; model: string | null; model_year: number | null } | null;
+  client: RepriseClient | null;
+};
+
+export async function listOro(companyId: string, status?: string): Promise<OroListItem[]> {
+  let q = supabase
+    .from('oro')
+    .select('*, vehicle:vehicle_id(brand, model, model_year, vehicle_owners(created_at, contact:contact_id(first_name, last_name, company_name, code)))')
+    .eq('company_id', companyId).order('created_at', { ascending: false }).limit(100);
   if (status) q = q.eq('status', status);
   const { data, error } = await q;
   if (error) throw error;
-  return data ?? [];
+  type Row = Oro & { vehicle?: { brand: string | null; model: string | null; model_year: number | null; vehicle_owners?: { created_at: string; contact: RepriseClient | null }[] } | null };
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const owners = r.vehicle?.vehicle_owners ?? [];
+    const latest = [...owners].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))[0];
+    const { vehicle: _v, ...oro } = r;
+    return {
+      ...(oro as Oro),
+      vehicle_info: r.vehicle ? { brand: r.vehicle.brand, model: r.vehicle.model, model_year: r.vehicle.model_year } : null,
+      client: latest?.contact ?? null,
+    };
+  });
 }
 
-export type OroFull = { oro: Oro; lines: OroLine[]; vehicle: { id: string; vin: string | null; brand: string | null; model: string | null; purchase_price: number | null; cost_price: number | null; display_price: number | null } | null };
+export type OroVehicle = {
+  id: string; vin: string | null; brand: string | null; model: string | null;
+  model_year: number | null; mileage: number | null; energy: string | null;
+  displacement: number | null; power_cv: number | null; power_kw: number | null; notes: string | null;
+  purchase_price: number | null; cost_price: number | null; display_price: number | null;
+};
+export type OroFull = { oro: Oro; lines: OroLine[]; vehicle: OroVehicle | null; client: RepriseClient | null };
 export async function getOroFull(id: string): Promise<OroFull> {
   const { data: oro, error } = await supabase.from('oro').select('*').eq('id', id).single();
   if (error) throw error;
   const { data: lines, error: le } = await supabase.from('oro_lines').select('*').eq('oro_id', id).order('created_at');
   if (le) throw le;
-  let vehicle = null;
+  let vehicle: OroVehicle | null = null;
+  let client: RepriseClient | null = null;
   if (oro.vehicle_id) {
-    const { data: v } = await supabase.from('vehicles').select('id, vin, brand, model, purchase_price, cost_price, display_price').eq('id', oro.vehicle_id).maybeSingle();
-    vehicle = v ?? null;
+    const { data: v } = await supabase
+      .from('vehicles')
+      .select('id, vin, brand, model, model_year, mileage, energy, displacement, power_cv, power_kw, notes, purchase_price, cost_price, display_price')
+      .eq('id', oro.vehicle_id).maybeSingle();
+    vehicle = (v as OroVehicle | null) ?? null;
+    if (vehicle) {
+      const { data: own } = await supabase
+        .from('vehicle_owners')
+        .select('created_at, contact:contact_id(first_name, last_name, company_name, code)')
+        .eq('vehicle_id', vehicle.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      client = ((own?.[0] as { contact?: RepriseClient } | undefined)?.contact) ?? null;
+    }
   }
-  return { oro: oro as Oro, lines: lines ?? [], vehicle };
+  return { oro: oro as Oro, lines: lines ?? [], vehicle, client };
 }
