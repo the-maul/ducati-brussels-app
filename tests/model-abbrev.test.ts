@@ -50,11 +50,21 @@ test('couverture occasion / vintage (workflow)', () => {
   expect(ab('MH900e')).toBe('MH900E');
 });
 
-test('modèles dont le nom est un nombre (aucune famille)', () => {
+test('superbikes « cylindrée + famille » → famille abrégée', () => {
+  expect(ab('1199 Panigale S')).toBe('1199 PANI S');
+  expect(ab('1199 Panigale')).toBe('1199 PANI');
+  expect(ab('959 Panigale')).toBe('959 PANI');
+  expect(ab('899 Panigale')).toBe('899 PANI');
+  expect(ab('1299 Superleggera')).toBe('1299 SL');
+});
+
+test('modèles dont le nom est un nombre SANS famille → tout gardé', () => {
   expect(ab('916')).toBe('916');
   expect(ab('999 R')).toBe('999 R');
   expect(ab('916 SPS')).toBe('916 SPS');
-  expect(ab('1199 Panigale S')).toBe('1199 PANIGALE S');
+  expect(ab('888 SP2')).toBe('888 SP2');
+  expect(ab('851 Strada')).toBe('851 STRADA');
+  expect(ab('900 SS')).toBe('900 SS');
   expect(ab('ST4 S')).toBe('ST4 S');
 });
 
