@@ -186,6 +186,7 @@ export const fr = {
     powerKw: 'Puissance (kW)',
     powerCv: 'Puissance (CV)',
     restricted: 'Bridé (A2 / 35 kW)',
+    papers100hp: 'Papiers 100 CH',
     energy: 'Énergie',
     fiscalPower: 'Puissance fiscale',
     antipollution: 'Norme antipollution',

@@ -76,14 +76,52 @@ export async function getVehicle(id: string): Promise<Vehicle | null> {
   return data;
 }
 
+/**
+ * Retire du payload la colonne signalée « inconnue » par PostgREST (migration pas
+ * encore appliquée) pour pouvoir réessayer sans elle. Retourne null si l'erreur
+ * n'est pas une colonne manquante → l'appelant relance l'erreur d'origine.
+ * Rend l'ajout de champs (ex. papers_100hp) tolérant au décalage de migration.
+ */
+function stripUnknownColumn(
+  payload: Record<string, unknown>,
+  error: { code?: string; message?: string } | null,
+): Record<string, unknown> | null {
+  if (!error) return null;
+  // PGRST204 : "Could not find the 'X' column of 'vehicles' in the schema cache"
+  // 42703   : "column vehicles.X does not exist"
+  if (error.code !== 'PGRST204' && error.code !== '42703') return null;
+  const m = error.message?.match(/'([^']+)' column/) ?? error.message?.match(/column [\w.]*?\.?(\w+) does not exist/i);
+  const col = m?.[1];
+  if (!col || !(col in payload)) return null;
+  const rest = { ...payload };
+  delete rest[col];
+  return rest;
+}
+
 export async function createVehicle(input: VehicleInsert): Promise<Vehicle> {
-  const { data, error } = await supabase.from('vehicles').insert(input).select().single();
+  let payload: Record<string, unknown> = { ...input };
+  for (let i = 0; i < 8; i++) {
+    const { data, error } = await supabase.from('vehicles').insert(payload as VehicleInsert).select().single();
+    if (!error) return data;
+    const stripped = stripUnknownColumn(payload, error);
+    if (!stripped) throw error;
+    payload = stripped;
+  }
+  const { data, error } = await supabase.from('vehicles').insert(payload as VehicleInsert).select().single();
   if (error) throw error;
   return data;
 }
 
 export async function updateVehicle(id: string, input: VehicleUpdate): Promise<Vehicle> {
-  const { data, error } = await supabase.from('vehicles').update(input).eq('id', id).select().single();
+  let payload: Record<string, unknown> = { ...input };
+  for (let i = 0; i < 8; i++) {
+    const { data, error } = await supabase.from('vehicles').update(payload as VehicleUpdate).eq('id', id).select().single();
+    if (!error) return data;
+    const stripped = stripUnknownColumn(payload, error);
+    if (!stripped) throw error;
+    payload = stripped;
+  }
+  const { data, error } = await supabase.from('vehicles').update(payload as VehicleUpdate).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }

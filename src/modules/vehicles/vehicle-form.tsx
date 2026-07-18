@@ -51,6 +51,7 @@ function fromVehicle(v: Vehicle | null): F {
   for (const k of NUM_FIELDS) { const n = v?.[k] as number | null | undefined; f[k] = n != null ? String(n) : ''; }
   for (const k of DATE_FIELDS) f[k] = (v?.[k] as string | null) ?? '';
   f.is_restricted = v?.is_restricted ?? false;
+  f.papers_100hp = (v as { papers_100hp?: boolean } | null)?.papers_100hp ?? false;
   f.status = v?.status ?? 'stock_vn';
   f.mileage_qualif = v?.mileage_qualif ?? 'reel';
   f.notes = v?.notes ?? '';
@@ -66,6 +67,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
   for (const k of NUM_FIELDS) out[k] = nnum(f[k]);
   for (const k of DATE_FIELDS) out[k] = nn(f[k]);
   out.is_restricted = f.is_restricted === true;
+  out.papers_100hp = f.papers_100hp === true;
   out.status = f.status as VehicleStatus;
   out.mileage_qualif = f.mileage_qualif as MileageQualif;
   out.notes = nn(f.notes);
@@ -160,6 +162,9 @@ export function VehicleForm({
         {T('reference', t('vehicles.reference'), true)}
         {T('origin', t('vehicles.origin'))}
         {T('production_code', t('vehicles.productionCode'))}
+        <div className="col-span-full">
+          <Check label={t('vehicles.papers100hp')} checked={f.papers_100hp === true} onChange={(v) => set('papers_100hp', v)} />
+        </div>
         <div className="col-span-full flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" onClick={decodeVin} disabled={decoding || !f.vin}>
             {decoding ? <Loader2 className="animate-spin" /> : <Wand2 />} {t('vehicles.decodeVin')}

@@ -189,6 +189,9 @@ end;
 $$;
 grant execute on function public.vies_check(text, text) to authenticated, service_role;
 
+-- 10. Fiche véhicule : indicateur « Papiers 100 CH »
+alter table public.vehicles add column if not exists papers_100hp boolean not null default false;
+
 -- 9. Recharge du cache de schéma PostgREST
 notify pgrst, 'reload schema';
 `;
