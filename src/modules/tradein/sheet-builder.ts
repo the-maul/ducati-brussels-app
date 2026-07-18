@@ -43,7 +43,8 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
       { label: 'Puissance', value: cv > 0 ? `${cv} ch (${kw} kW)` : '' },
       { label: 'Carburant', value: vehicle.energy ?? '' },
       { label: 'Cylindrée', value: vehicle.displacement ? `${vehicle.displacement} cm³` : '' },
-      { label: 'Numéro de châssis', value: vehicle.vin ?? '' },
+      // N° de châssis et n° moteur : volontairement ABSENTS du PDF partagé —
+      // ces informations restent internes (fiche véhicule / ORO dans l'ERP).
     ] },
   ];
 

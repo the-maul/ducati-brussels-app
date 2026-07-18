@@ -1003,6 +1003,11 @@ export const fr = {
     vWear: "État pièces d'usure", vWearHint: "(Plaquettes de freins, kit pignons et chaîne…)",
     vTires: 'Pneus',
     vChassis: 'Numéro de châssis', vChassisPlaceholder: 'ZDM…',
+    vEngine: 'Numéro du moteur', vEnginePlaceholder: 'ex. ZDM…',
+    // Pré-remplissage depuis le parc du client
+    parcFound: 'Ce client possède déjà {n} véhicule(s) dans son parc. Sélectionnez-en un pour pré-remplir la fiche.',
+    parcFillHint: 'Pré-remplir depuis le parc',
+    parcFilled: 'Fiche pré-remplie depuis le parc du client — vérifiez et complétez.',
     vOriginalPaint: "Peinture d'origine", vImported: 'Véhicule importé',
     vAccessories: 'Accessoires & options',
     vRemarks: 'Remarques',

@@ -32,8 +32,8 @@ export const OWNER_COUNTS = ['1', '2', '3', '4+'];
 export const TECH_STATES = ['Comme Neuf', "Traces d'usure", 'Défaut à réparer', 'Accidenté'];
 /** États techniques qui ouvrent le champ « description des dommages ». */
 export const TECH_STATES_WITH_DESC = ['Défaut à réparer', 'Accidenté'];
-export const WEAR_STATES = ['Neuf', 'Satisfaisant', 'A remplacer'];
-export const TIRE_STATES = ['Neuf', 'Satisfaisant', 'A remplacer'];
+export const WEAR_STATES = ['Neuf', 'Moyen', 'A remplacer', 'Je ne sais pas'];
+export const TIRE_STATES = ['Neuf', 'Moyen', 'A remplacer', 'Je ne sais pas'];
 
 export const ACCESSORIES = [
   'ABS', 'Anti-démarrage', 'Pare-chute', 'Phares LED', 'Bulle', 'Poignées chauffantes',

@@ -21,6 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { createContact, contactDisplayName } from '@/modules/contacts/api';
+import { listOwnedVehicles, type OwnedVehicle } from '@/modules/contacts/subobjects-api';
 import { uploadAttachment } from '@/modules/documents/ged-api';
 import { createLead, addCommunication } from '@/modules/crm/api';
 import { createReprise } from './write-api';
@@ -69,7 +70,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   const [v, setV] = useState({
     brand: '', model: '', year: '', km: '', powerUnit: 'ch' as PowerUnit, power: '', papers100: false,
     fuel: '', transmission: '', cc: '', owners: '', techState: '', techDesc: '', wear: '', tires: '',
-    chassis: '', remarks: '',
+    chassis: '', engine: '', remarks: '',
   });
   const setVf = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV((p) => ({ ...p, [k]: val }));
   const [originalPaint, setOriginalPaint] = useState<boolean | null>(null);
@@ -102,6 +103,31 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       fuel: p.fuel || spec.fuel,
     }));
     setSpecsFilled(true);
+  };
+
+  // ── Pré-remplissage depuis le PARC du client (véhicules déjà possédés, B9) ───
+  const parcQ = useQuery({
+    queryKey: ['tradein-parc', contactId],
+    queryFn: () => listOwnedVehicles(contactId!),
+    enabled: !!contactId && step === 'vehicle',
+  });
+  const ownedVehicles = parcQ.data ?? [];
+  const [parcFilled, setParcFilled] = useState(false);
+  const fillFromVehicle = (veh: OwnedVehicle['vehicle']) => {
+    setV((p) => ({
+      ...p,
+      brand: veh.brand ?? p.brand,
+      model: veh.model ?? p.model,
+      year: veh.model_year != null ? String(veh.model_year) : p.year,
+      km: veh.mileage != null ? String(veh.mileage) : p.km,
+      power: veh.power_cv != null ? String(veh.power_cv) : (veh.power_kw != null ? String(veh.power_kw) : p.power),
+      powerUnit: veh.power_cv != null ? 'ch' : (veh.power_kw != null ? 'kw' : p.powerUnit),
+      cc: veh.displacement != null ? String(veh.displacement) : p.cc,
+      fuel: veh.energy ?? p.fuel,
+      chassis: veh.vin ?? p.chassis,
+      engine: veh.engine_number ?? p.engine,
+    }));
+    setParcFilled(true);
   };
 
   // ── Recherche client (Oui) ──────────────────────────────────────────────────
@@ -212,6 +238,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
         companyId, isPro, contactId,
         designation: vehTitle,
         brand: v.brand || null, model: v.model || null, vin: v.chassis.trim().toUpperCase() || null,
+        engineNumber: v.engine.trim().toUpperCase() || null,
         mileage: v.km ? Math.round(num(v.km)) : null,
         firstRegistrationDate: year ? `${year}-01-01` : null, modelYear: year,
         powerCv: conv ? conv.ch : null, powerKw: conv ? conv.kw : null,
@@ -473,6 +500,34 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       {/* ── Étape 4 : données du véhicule ────────────────────────────────────── */}
       {step === 'vehicle' && (
         <Panel title={t('tradein.wizVehTitle')} recap={<Recap onEdit={() => setStep(existing ? 'existing' : 'new')}>{(isPro ? t('tradein.wizAnswerPro') : t('tradein.wizAnswerPart')) + (contactLabel ? ` · ${contactLabel}` : '')}</Recap>}>
+          {/* Parc du client : pré-remplissage si le client possède déjà des véhicules */}
+          {ownedVehicles.length > 0 && (
+            <div className="mb-4 rounded-md border border-[var(--ducati-red)]/40 bg-[var(--ducati-red-tint)] p-3">
+              <p className="mb-2 flex items-center gap-2 text-[13px] font-bold text-foreground">
+                <Bike className="size-4 shrink-0 text-[var(--ducati-red)]" />
+                {t('tradein.parcFound').replace('{n}', String(ownedVehicles.length))}
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {ownedVehicles.map((ov) => (
+                  <button
+                    key={ov.vehicle.id}
+                    type="button"
+                    onClick={() => fillFromVehicle(ov.vehicle)}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2.5 text-left hover:border-[var(--ducati-red)]"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-bold">{[ov.vehicle.brand, ov.vehicle.model].filter(Boolean).join(' ') || '—'}</span>
+                      <span className="block truncate text-[12px] text-muted-foreground">
+                        {[ov.vehicle.model_year, ov.vehicle.vin ? `…${ov.vehicle.vin.slice(-6)}` : null].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[12px] font-bold text-[var(--ducati-red)]">{t('tradein.parcFillHint')}</span>
+                  </button>
+                ))}
+              </div>
+              {parcFilled && <p className="mt-2 text-[12px] text-success">{t('tradein.parcFilled')}</p>}
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('tradein.vBrand')}>
               <Select value={v.brand || undefined} onValueChange={(val) => setVf('brand', val)}>
@@ -488,6 +543,13 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
               />
               <datalist id="wiz-models">{modelsForBrand(v.brand).map((m) => <option key={m} value={m} />)}</datalist>
               {specsFilled && <p className="mt-1 text-[12px] text-info">{t('tradein.specsFilled')}</p>}
+            </Field>
+            {/* N° de châssis + n° moteur (juste après marque/modèle ; absents du PDF partagé) */}
+            <Field label={t('tradein.vChassis')}>
+              <Input className="h-12 text-[15px] font-mono uppercase" value={v.chassis} onChange={(e) => setVf('chassis', e.target.value.toUpperCase())} maxLength={17} placeholder={t('tradein.vChassisPlaceholder')} />
+            </Field>
+            <Field label={t('tradein.vEngine')}>
+              <Input className="h-12 text-[15px] font-mono uppercase" value={v.engine} onChange={(e) => setVf('engine', e.target.value.toUpperCase())} placeholder={t('tradein.vEnginePlaceholder')} />
             </Field>
             <Field label={t('tradein.vYear')}>
               <Select value={v.year || undefined} onValueChange={(val) => setVf('year', val)}>
@@ -561,9 +623,6 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
                 <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
                 <SelectContent>{TIRE_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
-            </Field>
-            <Field label={t('tradein.vChassis')}>
-              <Input className="h-12 text-[15px] font-mono uppercase" value={v.chassis} onChange={(e) => setVf('chassis', e.target.value.toUpperCase())} maxLength={17} placeholder={t('tradein.vChassisPlaceholder')} />
             </Field>
           </div>
 
