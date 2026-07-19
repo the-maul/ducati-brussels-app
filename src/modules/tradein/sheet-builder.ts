@@ -21,6 +21,35 @@ export function parseVatDeductible(notes: string | null | undefined): boolean | 
   return m[1].toLowerCase() === 'oui';
 }
 
+/**
+ * Prix souhaité par le client + visibilité sur le PDF (marqueurs des notes).
+ * « Prix souhaité : 5000 € » (valeur) + « Prix souhaité visible PDF : Oui/Non »
+ * (marqueur interne). Visible par défaut si le marqueur est absent.
+ */
+export function parseWishedPrice(notes: string | null | undefined): { amount: string; visible: boolean } | null {
+  const s = notes ?? '';
+  const m = s.match(/Prix souhaité\s*:\s*([^\n]+)/i);
+  if (!m) return null;
+  const amount = m[1].replace(/€/g, '').trim();
+  if (!amount) return null;
+  const vm = s.match(/Prix souhaité visible PDF\s*:\s*(Oui|Non)/i);
+  return { amount, visible: vm ? vm[1].toLowerCase() === 'oui' : true };
+}
+
+/** Retire les lignes-marqueurs de prix souhaité du texte de remarques. */
+export function stripRepriseMarkers(notes: string | null | undefined): string {
+  return (notes ?? '').split('\n')
+    .filter((l) => !/^Prix souhaité(\s+visible PDF)?\s*:/i.test(l.trim()))
+    .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Formate un montant libre avec séparateur de milliers (espace normale). */
+function fmtWished(amount: string): string {
+  const n = Number(amount.replace(/[^\d.,]/g, '').replace(/\s/g, '').replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return `${amount} €`;
+  return `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €`;
+}
+
 /** Charge le dossier + la GED et construit la fiche (null si véhicule absent). */
 export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | null> {
   const { oro, vehicle, client } = await getOroFull(oroId);
@@ -28,12 +57,16 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
 
   const cv = Number(vehicle.power_cv ?? 0), kw = Number(vehicle.power_kw ?? 0);
   const vatDeductible = parseVatDeductible(vehicle.notes);
+  const wished = parseWishedPrice(vehicle.notes);
   const sections: RepriseSheetSection[] = [
     { title: 'Données de base', rows: [
       { label: 'Marque', value: vehicle.brand ?? '' },
       { label: 'Modèle', value: vehicle.model ?? '' },
       { label: 'Type de véhicule', value: 'Occasion — reprise' },
       { label: 'TVA', value: vatDeductible == null ? '' : vatDeductible ? 'Déductible' : 'Non déductible' },
+      // Prix souhaité par le client : uniquement si la case « Visible sur PDF »
+      // est cochée (le marqueur de visibilité est retiré des remarques).
+      { label: 'Prix souhaité', value: wished && wished.visible ? fmtWished(wished.amount) : '' },
     ] },
     { title: 'Historique du véhicule', rows: [
       { label: 'Année', value: vehicle.model_year ? String(vehicle.model_year) : '' },
@@ -73,7 +106,9 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
     title: [vehicle.brand, vehicle.model, vehicle.model_year ? `(${vehicle.model_year})` : null].filter(Boolean).join(' ') || 'Occasion',
     sections,
     accessories: [],
-    remarks: vehicle.notes ?? null,
+    // Remarques : notes brutes SANS les marqueurs de prix souhaité (le prix
+    // apparaît en ligne dédiée ci-dessus, uniquement s'il est visible).
+    remarks: stripRepriseMarkers(vehicle.notes) || null,
     photos,
     documents,
   };

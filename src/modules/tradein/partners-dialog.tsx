@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PhoneInput } from '@/components/phone-input';
 import { listPartners, addPartner, deletePartner, checkPartnersSchema } from './partners-api';
 import { MOTO_BRANDS } from './reprise-wizard-data';
 import { t } from '@/lib/i18n';
@@ -87,7 +88,7 @@ export function PartnersDialog({ open, onOpenChange, companyId }: { open: boolea
             <Input placeholder={t('tradein.partnerName')} value={name} onChange={(e) => setName(e.target.value)} />
             <Input placeholder={t('tradein.partnerFirstName')} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             <Input placeholder={t('tradein.partnerCompany')} value={company} onChange={(e) => setCompany(e.target.value)} />
-            <Input placeholder={t('tradein.partnerPhone')} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <PhoneInput value={phone} onChange={setPhone} />
             <Input className="sm:col-span-2" placeholder={t('tradein.partnerEmail')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <p className="mb-1 mt-3 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">

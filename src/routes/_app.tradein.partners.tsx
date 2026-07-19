@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/phone-input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -154,7 +155,7 @@ function PartnersPage() {
             <Field label={t('tradein.partnerFirstName')}><Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} /></Field>
             <Field label={t('tradein.partnerCompany')}><Input value={f.company} onChange={(e) => set('company', e.target.value)} /></Field>
             <Field label={t('tradein.partnerEmail')}><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
-            <Field label={t('tradein.partnerPhone')}><Input type="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
+            <Field label={t('tradein.partnerPhone')}><PhoneInput value={f.phone} onChange={(v) => set('phone', v)} /></Field>
           </div>
 
           {/* Contacts supplémentaires flexibles (Mail 2, Téléphone 2, Autre…) */}
@@ -171,7 +172,9 @@ function PartnersPage() {
                   </SelectContent>
                 </Select>
                 <Input className="w-40" placeholder={t('tradein.extraLabel')} value={x.label} onChange={(e) => set('extra', f.extra.map((y, j) => j === i ? { ...y, label: e.target.value } : y))} />
-                <Input className="w-64 flex-1" placeholder={t('tradein.extraValue')} value={x.value} onChange={(e) => set('extra', f.extra.map((y, j) => j === i ? { ...y, value: e.target.value } : y))} />
+                {x.kind === 'phone'
+                  ? <div className="w-64 flex-1"><PhoneInput value={x.value} onChange={(v) => set('extra', f.extra.map((y, j) => j === i ? { ...y, value: v } : y))} /></div>
+                  : <Input className="w-64 flex-1" placeholder={t('tradein.extraValue')} value={x.value} onChange={(e) => set('extra', f.extra.map((y, j) => j === i ? { ...y, value: e.target.value } : y))} />}
                 <Button variant="ghost" size="sm" onClick={() => set('extra', f.extra.filter((_, j) => j !== i))}><X className="size-4" /></Button>
               </div>
             ))}

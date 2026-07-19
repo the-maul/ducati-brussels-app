@@ -15,13 +15,36 @@ export async function listLeads(companyId: string): Promise<Lead[]> {
   return data ?? [];
 }
 
-export async function createLead(p: { companyId: string; name: string; email?: string; phone?: string; vehicleInterest?: string; source?: string; estimatedValue?: number | null; contactId?: string | null }): Promise<string> {
-  const { data, error } = await supabase.from('leads').insert({
+export async function createLead(p: { companyId: string; name: string; email?: string; phone?: string; vehicleInterest?: string; source?: string; estimatedValue?: number | null; contactId?: string | null; oroId?: string | null; repriseStatus?: string | null }): Promise<string> {
+  const base = {
     company_id: p.companyId, name: p.name, email: p.email || null, phone: p.phone || null,
     vehicle_interest: p.vehicleInterest || null, source: p.source || null, estimated_value: p.estimatedValue ?? null, contact_id: p.contactId ?? null,
-  }).select('id').single();
-  if (error) throw error;
-  return data.id as string;
+  };
+  // Lien reprise + tag de statut : colonnes récentes (migration 20260720).
+  // Résilient : si absentes, on retombe sur l'insert de base.
+  const withRep = { ...base, oro_id: p.oroId ?? null, reprise_status: p.repriseStatus ?? null };
+  let res = await supabase.from('leads').insert(withRep as typeof base).select('id').single();
+  if (res.error && isMissingSchema(res.error)) {
+    res = await supabase.from('leads').insert(base).select('id').single();
+  }
+  if (res.error) throw res.error;
+  return res.data.id as string;
+}
+
+const isMissingSchema = (e: unknown): boolean => {
+  const code = (e as { code?: string })?.code ?? '';
+  return code === 'PGRST205' || code === '42P01' || code === '42703' || code === 'PGRST204';
+};
+
+/**
+ * Synchronise le TAG de statut de reprise sur la fiche CRM (lead lié par
+ * oro_id). Best-effort : silencieux si la colonne n'existe pas encore
+ * (migration non appliquée) — le tag se synchronisera après migration.
+ */
+export async function syncLeadRepriseStatus(oroId: string, repriseStatus: string): Promise<void> {
+  try {
+    await supabase.from('leads').update({ reprise_status: repriseStatus } as never).eq('oro_id', oroId as never);
+  } catch { /* colonne absente — non bloquant */ }
 }
 
 export async function setLeadStage(id: string, stage: string): Promise<void> {

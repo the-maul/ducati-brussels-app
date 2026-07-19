@@ -25,6 +25,7 @@ import { listOwnedVehicles, type OwnedVehicle } from '@/modules/contacts/subobje
 import { uploadAttachment } from '@/modules/documents/ged-api';
 import { createLead, addCommunication } from '@/modules/crm/api';
 import { createReprise } from './write-api';
+import { markRepriseSent } from './validate-api';
 import {
   listPartners, partnersForBrand, getDispatchMode, buildDispatchMailto,
 } from './partners-api';
@@ -70,7 +71,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   const [v, setV] = useState({
     brand: '', model: '', year: '', km: '', powerUnit: 'ch' as PowerUnit, power: '', papers100: false,
     fuel: '', transmission: '', cc: '', owners: '', techState: '', techDesc: '', wear: '', tires: '',
-    chassis: '', engine: '', remarks: '',
+    chassis: '', engine: '', remarks: '', wishedPrice: '', wishedPriceOnPdf: true,
   });
   const setVf = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV((p) => ({ ...p, [k]: val }));
   const [originalPaint, setOriginalPaint] = useState<boolean | null>(null);
@@ -199,8 +200,18 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
     if (imported != null) lines.push(`Véhicule importé : ${imported ? 'Oui' : 'Non'}`);
     if (v.papers100) lines.push('Papiers 100 CH : Oui');
     if (accessories.size) lines.push(`Accessoires : ${[...accessories].join(', ')}`);
+    if (v.wishedPrice.trim()) lines.push(`Prix souhaité : ${v.wishedPrice.trim()} €`);
     if (v.remarks.trim()) lines.push(`Remarques : ${v.remarks.trim()}`);
     return lines.join('\n');
+  };
+
+  // Notes stockées sur le véhicule : résumé + marqueur de visibilité PDF du
+  // prix souhaité (parsé/retiré par sheet-builder). Le marqueur n'est PAS
+  // envoyé aux marchands (buildNotes seul y va).
+  const buildVehicleNotes = (): string => {
+    const base = buildNotes();
+    if (!v.wishedPrice.trim()) return base;
+    return `${base}\nPrix souhaité visible PDF : ${v.wishedPriceOnPdf ? 'Oui' : 'Non'}`;
   };
 
   const buildDetails = (): string => {
@@ -243,7 +254,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
         firstRegistrationDate: year ? `${year}-01-01` : null, modelYear: year,
         powerCv: conv ? conv.ch : null, powerKw: conv ? conv.kw : null,
         displacement: v.cc ? num(v.cc) : null, energy: v.fuel || null,
-        notes: buildNotes() || null,
+        notes: buildVehicleNotes() || null,
         reprisePrice: 0, // estimation à faire par le magasin
       });
       // 2. Photos → GED du véhicule (photos : « Reprise » ; documents : « Reprise-Documents »)
@@ -272,6 +283,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           companyId, name: contactLabel || vehTitle, vehicleInterest: vehTitle,
           source: 'REP', contactId: contactId ?? undefined,
           email: c.email.trim() || undefined, phone: c.phone.trim() ? `${c.phonePrefix} ${c.phone.trim()}` : undefined,
+          oroId: r.oroId, repriseStatus: 'collecte',
         });
       } catch { /* non bloquant */ }
       return r;
@@ -282,7 +294,10 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       // Mode automatique → ouvre directement le mail aux marchands de la marque
       if (dispatchQ.data === 'auto') {
         const url = dispatchMailto();
-        if (url) window.location.href = url;
+        if (url) {
+          void markRepriseSent(r.oroId, 'collecte'); // statut → Envoyé
+          window.location.href = url;
+        }
       }
     },
     onError: (e) => setError(e instanceof Error ? e.message : t('tradein.errSave')),
@@ -313,8 +328,8 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           {created && <p className="mt-2 font-mono text-[13px] text-muted-foreground">{created.occNumber}</p>}
           <div className="mt-6 grid gap-2">
             <Button className="h-12" onClick={printSheet}><Download /> {t('tradein.wizDoneSheet')}</Button>
-            {mailto && (
-              <Button variant="outline" className="h-12" onClick={() => { window.location.href = mailto; }}>
+            {mailto && created && (
+              <Button variant="outline" className="h-12" onClick={() => { void markRepriseSent(created.oroId, 'collecte'); window.location.href = mailto; }}>
                 <Mail /> {t('tradein.wizDoneDispatch')}
               </Button>
             )}
@@ -648,6 +663,25 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           <div className="mt-5">
             <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.vRemarks')}</p>
             <Textarea value={v.remarks} onChange={(e) => setVf('remarks', e.target.value)} rows={3} placeholder={t('tradein.vRemarksPlaceholder')} />
+          </div>
+
+          {/* Prix souhaité par le client + visibilité sur le PDF */}
+          <div className="mt-5">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.vWishedPrice')}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Input
+                  inputMode="decimal" value={v.wishedPrice}
+                  onChange={(e) => setVf('wishedPrice', e.target.value)}
+                  placeholder="0,00" className="h-11 w-40 pr-8 text-right tabular-nums"
+                />
+                <span className="absolute right-3 top-2.5 text-muted-foreground">€</span>
+              </div>
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[13px]">
+                <Checkbox checked={v.wishedPriceOnPdf} onCheckedChange={(c) => setVf('wishedPriceOnPdf', c === true)} />
+                {t('tradein.vWishedPriceOnPdf')}
+              </label>
+            </div>
           </div>
 
           <StepFooter

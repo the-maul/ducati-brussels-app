@@ -207,6 +207,17 @@ alter table public.oro
   add column if not exists validated_at timestamptz,
   add column if not exists cancelled_at timestamptz;
 
--- 10. Recharge du cache de schéma PostgREST
+-- 10. Workflow de statut de reprise + offre acceptée + synchro CRM
+alter table public.oro
+  add column if not exists dispatched_at timestamptz,
+  add column if not exists accepted_amount numeric(14,2),
+  add column if not exists best_offer_amount numeric(14,2),
+  add column if not exists invoice_partner_name text,
+  add column if not exists accepted_at timestamptz;
+alter table public.leads
+  add column if not exists oro_id uuid,
+  add column if not exists reprise_status text;
+
+-- 11. Recharge du cache de schéma PostgREST
 notify pgrst, 'reload schema';
 `;

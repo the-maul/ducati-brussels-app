@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listLeads, createLead, setLeadStage, LEAD_STAGES, type Lead } from '@/modules/crm/api';
+import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
+import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
 import { t } from '@/lib/i18n';
 
@@ -62,6 +64,10 @@ function CrmPage() {
                     <span className="truncate">{l.name}</span>
                   </p>
                   {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
+                  {/* Tag de statut de reprise synchronisé depuis le module Reprises */}
+                  {(l as { reprise_status?: string | null }).reprise_status && (
+                    <div className="mt-1"><RepriseStatusBadge status={normalizeRepriseStatus((l as { reprise_status?: string | null }).reprise_status)} /></div>
+                  )}
                   {l.estimated_value != null && <p className="tabular-nums text-muted-foreground">{eur(Number(l.estimated_value))}</p>}
                   <div onClick={(e) => e.stopPropagation()}>
                     <Select value={l.stage} onValueChange={(v) => move.mutate({ id: l.id, stage: v })}>

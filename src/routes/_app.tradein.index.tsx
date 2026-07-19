@@ -1,20 +1,23 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Bike, ChevronRight, Store, FileDown, BellRing, Users } from 'lucide-react';
+import { Loader2, Bike, ChevronRight, Store, FileDown, BellRing, Users, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listOro, repriseClientLabel } from '@/modules/tradein/api';
+import { listOro, repriseClientLabel, type OroListItem } from '@/modules/tradein/api';
 import {
   offerStatsByOro, markOffersSeen, needsFollowUp, getDispatchMode, setDispatchMode, type DispatchMode,
 } from '@/modules/tradein/partners-api';
 import { PartnersDialog } from '@/modules/tradein/partners-dialog';
 import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
-import { tradeinStatusOf } from '@/modules/tradein/validate-api';
+import { tradeinStatusOf, setRepriseStatusManual, cancelReprise } from '@/modules/tradein/validate-api';
+import { REPRISE_STATUSES, type RepriseStatus } from '@/modules/tradein/reprise-status';
+import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/')({
@@ -29,6 +32,9 @@ function TradeinList() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [partnersOpen, setPartnersOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  // Saisie rapide « Offre acceptée » ouverte via un changement de statut manuel
+  const [acceptFor, setAcceptFor] = useState<{ oroId: string; vehicleId: string | null; best: { amount: number; partnerName: string } | null } | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: ['oro', activeCompanyId], queryFn: () => listOro(activeCompanyId!), enabled: !!activeCompanyId });
   const statsQ = useQuery({ queryKey: ['oro-offer-stats', activeCompanyId], queryFn: () => offerStatsByOro(activeCompanyId!), enabled: !!activeCompanyId });
@@ -53,6 +59,58 @@ function TradeinList() {
   const printSheet = (oroId: string) => {
     downloadSheetForOro(oroId).catch(() => toast.error(t('tradein.errSave')));
   };
+
+  // Changement de statut manuel depuis la liste. Transitions « douces »
+  // (collecte/envoye) → écriture directe ; les transitions qui touchent le
+  // STOCK passent par le bon chemin (accepté = dialogue, repris = validation,
+  // annulé = cancelReprise avec sortie de stock).
+  const changeStatus = useMutation({
+    mutationFn: ({ oroId, status }: { oroId: string; status: RepriseStatus }) => setRepriseStatusManual(oroId, status),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] }); },
+    onError: () => toast.error(t('tradein.errSave')),
+  });
+  const cancelAnnule = useMutation({
+    mutationFn: (o: OroListItem) => cancelReprise(activeCompanyId!, o.id, o.number ?? o.id, o.vehicle_id ?? null),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] }); qc.invalidateQueries({ queryKey: ['vehicles'] }); },
+    onError: () => toast.error(t('tradein.errSave')),
+  });
+  const onStatusPick = (o: OroListItem, status: RepriseStatus) => {
+    const current = tradeinStatusOf(o as unknown as Record<string, unknown>, o.id, o.vehicle_info);
+    if (status === current) return;
+    if (status === 'annule') {
+      // Annulation SÛRE : sortie de stock si le véhicule était validé (B7).
+      if (window.confirm(t('tradein.cancelConfirm'))) cancelAnnule.mutate(o);
+      return;
+    }
+    if (current === 'repris') {
+      // Déjà en stock : tout autre changement passe par la fiche (Modifier).
+      navigate({ to: '/tradein/$oroId', params: { oroId: o.id } });
+      return;
+    }
+    if (status === 'accepte') {
+      // Saisie rapide : montant accepté + miroir de la meilleure offre marchand.
+      const st = stats.get(o.id) ?? { count: 0, best: 0 };
+      setAcceptFor({ oroId: o.id, vehicleId: o.vehicle_id ?? null, best: st.best > 0 ? { amount: st.best, partnerName: '' } : null });
+      return;
+    }
+    if (status === 'repris') {
+      // « Repris » = entrée en stock → passe par la validation (fiche).
+      navigate({ to: '/tradein/$oroId', params: { oroId: o.id } });
+      return;
+    }
+    changeStatus.mutate({ oroId: o.id, status }); // collecte / envoye
+  };
+
+  // Filtre de recherche : n° REP, client, société, véhicule (insensible aux
+  // accents : « societe » retrouve « Société »).
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filtered = (data ?? []).filter((o) => {
+    const q = norm(search.trim());
+    if (!q) return true;
+    const moto = o.vehicle_info ? [o.vehicle_info.brand, o.vehicle_info.model, o.vehicle_info.model_year].filter(Boolean).join(' ') : '';
+    const hay = [o.number, repriseClientLabel(o.client), moto].filter(Boolean).map((s) => norm(String(s))).join(' | ');
+    return hay.includes(q);
+  });
 
   return (
     <>
@@ -86,6 +144,12 @@ function TradeinList() {
         </span>
       </Button>
 
+      {/* Recherche : n° REP, client, société, véhicule */}
+      <div className="relative mb-3">
+        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+        <Input className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('tradein.searchPlaceholder')} />
+      </div>
+
       {/* Reprises en cours */}
       <h2 className="mb-2 font-ui text-[13px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.ongoing')}</h2>
       <div className="overflow-x-auto rounded-md border border-border">
@@ -104,14 +168,14 @@ function TradeinList() {
           </thead>
           <tbody>
             {isLoading && <tr><td colSpan={8} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && data.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{t('tradein.empty')}</td></tr>}
-            {data?.map((o) => {
+            {data && filtered.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{search.trim() ? t('tradein.searchEmpty') : t('tradein.empty')}</td></tr>}
+            {filtered.map((o) => {
               const st = stats.get(o.id) ?? { count: 0, best: 0 };
               const moto = o.vehicle_info
                 ? [o.vehicle_info.brand, o.vehicle_info.model, o.vehicle_info.model_year ? `(${o.vehicle_info.model_year})` : null].filter(Boolean).join(' ')
                 : '—';
               const tStatus = tradeinStatusOf(o as unknown as Record<string, unknown>, o.id, o.vehicle_info);
-              const followUp = tStatus === 'ouvert' && needsFollowUp(o.created_at, st.count, o.status);
+              const followUp = tStatus === 'collecte' && needsFollowUp(o.created_at, st.count, o.status);
               return (
                 <tr key={o.id} onClick={() => navigate({ to: '/tradein/$oroId', params: { oroId: o.id } })} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
                   <td className="px-3 py-3 font-mono text-[12px]">
@@ -119,12 +183,16 @@ function TradeinList() {
                   </td>
                   <td className="px-3 py-3 font-medium">{repriseClientLabel(o.client)}</td>
                   <td className="px-3 py-3">{moto}</td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <span className="inline-flex flex-wrap items-center gap-1.5">
-                      <StatusBadge
-                        tone={tStatus === 'valide' ? 'success' : tStatus === 'annule' ? 'neutral' : 'warning'}
-                        label={t(`tradein.tstatus_${tStatus}`)}
-                      />
+                      <Select value={tStatus} onValueChange={(v) => onStatusPick(o, v as RepriseStatus)}>
+                        <SelectTrigger className="h-8 w-[150px]" title={t('tradein.statusChange')}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {REPRISE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{t(`tradein.rstatus_${s}`)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {followUp && <StatusBadge tone="danger" icon={BellRing} label={t('tradein.followUp')} />}
                     </span>
                   </td>
@@ -148,6 +216,13 @@ function TradeinList() {
       </div>
 
       {activeCompanyId && <PartnersDialog open={partnersOpen} onOpenChange={setPartnersOpen} companyId={activeCompanyId} />}
+      {acceptFor && (
+        <AcceptOfferDialog
+          open onOpenChange={(o) => { if (!o) setAcceptFor(null); }}
+          oroId={acceptFor.oroId} vehicleId={acceptFor.vehicleId} best={acceptFor.best}
+          onDone={() => { setAcceptFor(null); qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] }); }}
+        />
+      )}
     </>
   );
 }

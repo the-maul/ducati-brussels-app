@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus, Trash2, Lock, Printer, FileDown, Award, CheckCircle2, Pencil, XCircle, FileUp, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, Lock, Printer, FileDown, Award, CheckCircle2, Check, Pencil, XCircle, FileUp, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -18,7 +18,9 @@ import {
 } from '@/modules/tradein/partners-api';
 import { printSheetForOro, downloadSheetForOro } from '@/modules/tradein/sheet-builder';
 import { ValidateRepriseDialog } from '@/modules/tradein/validate-dialog';
-import { cancelReprise, tradeinStatusOf } from '@/modules/tradein/validate-api';
+import { cancelReprise, tradeinStatusOf, readValidationMeta } from '@/modules/tradein/validate-api';
+import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
+import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type Attachment } from '@/modules/documents/ged-api';
 import { t } from '@/lib/i18n';
 
@@ -62,8 +64,9 @@ function OroView() {
   const download = useMutation({ mutationFn: () => downloadSheetForOro(oroId) });
   const print = useMutation({ mutationFn: () => printSheetForOro(oroId) });
 
-  // Validation / annulation de la reprise (entrée en stock)
+  // Validation / annulation / offre acceptée
   const [validateOpen, setValidateOpen] = useState(false);
+  const [acceptOpen, setAcceptOpen] = useState(false);
   const cancel = useMutation({
     mutationFn: () => cancelReprise(activeCompanyId!, oroId, data?.oro.number ?? oroId, data?.vehicle?.id ?? null),
     onSuccess: () => { refresh(); qc.invalidateQueries({ queryKey: ['vehicles'] }); },
@@ -84,6 +87,8 @@ function OroView() {
   const best = offers.length ? Number(offers[0].amount) : 0;
   const followUp = needsFollowUp(oro.created_at, offers.length, oro.status);
   const tStatus = tradeinStatusOf(oro as unknown as Record<string, unknown>, oroId, vehicle);
+  const meta = readValidationMeta(oro as unknown as Record<string, unknown>, oroId);
+  const accepted = meta.accepted_amount != null || meta.invoice_partner_name ? meta : null;
   const motoLabel = vehicle
     ? [vehicle.brand, vehicle.model, vehicle.model_year ? `(${vehicle.model_year})` : null].filter(Boolean).join(' ')
     : '';
@@ -106,27 +111,40 @@ function OroView() {
         }
       />
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <StatusBadge
-          tone={tStatus === 'valide' ? 'success' : tStatus === 'annule' ? 'neutral' : 'warning'}
-          label={t(`tradein.tstatus_${tStatus}`)}
-        />
-        {followUp && tStatus === 'ouvert' && <StatusBadge tone="danger" label={t('tradein.followUp')} />}
+        <RepriseStatusBadge status={tStatus} />
+        {followUp && tStatus === 'collecte' && <StatusBadge tone="danger" label={t('tradein.followUp')} />}
         <span className="font-data text-sm tabular-nums">{t('tradein.colOffers')} : <b>{offers.length}</b>{offers.length > 0 && <span className="text-muted-foreground"> ({offers.slice(0, 3).map((o) => o.partner_name).filter(Boolean).join(', ')}{offers.length > 3 ? '…' : ''})</span>}</span>
         {best > 0 && <span className="font-data text-sm tabular-nums">{t('tradein.colBest')} : <b>{eur(best)}</b></span>}
+        {accepted && (
+          <span className="font-data text-sm tabular-nums text-success">
+            {t('tradein.acceptAmount')} : <b>{eur(Number(accepted.accepted_amount ?? 0))}</b>
+            {accepted.invoice_partner_name ? <span className="text-muted-foreground"> · {t('tradein.invoiceTo')} {accepted.invoice_partner_name}</span> : null}
+          </span>
+        )}
         <span className="font-data text-sm tabular-nums">{t('tradein.reprise')} : <b>{eur(reprise)}</b></span>
         <span className="font-data text-sm tabular-nums">{t('tradein.oroCost')} : <b>{eur(oroCost)}</b></span>
         <span className="font-data text-sm tabular-nums">{t('tradein.vehicleCost')} : <b>{eur(cost_revient)}</b></span>
         {resale > 0 && <span className={`font-data text-sm tabular-nums ${margin < 0 ? 'text-danger' : 'text-success'}`}>{t('tradein.margin')} : <b>{eur(margin)}</b></span>}
       </div>
 
-      {/* Validation de la reprise : appel d'offres → entrée en stock */}
+      {/* Flux : offre acceptée → validation (entrée en stock) */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {tStatus !== 'valide' && vehicle && (
+        {(tStatus === 'collecte' || tStatus === 'envoye') && (
+          <Button variant="outline" onClick={() => setAcceptOpen(true)}>
+            <Check /> {t('tradein.acceptBtn')}
+          </Button>
+        )}
+        {tStatus === 'accepte' && (
+          <Button variant="outline" onClick={() => setAcceptOpen(true)}>
+            <Pencil /> {t('tradein.acceptEdit')}
+          </Button>
+        )}
+        {tStatus !== 'repris' && vehicle && (
           <Button onClick={() => setValidateOpen(true)}>
             <CheckCircle2 /> {t('tradein.valOpen')}
           </Button>
         )}
-        {tStatus === 'valide' && vehicle && (
+        {tStatus === 'repris' && vehicle && (
           <Button variant="outline" onClick={() => setValidateOpen(true)}>
             <Pencil /> {t('tradein.valEdit')}
           </Button>
@@ -192,6 +210,17 @@ function OroView() {
 
       {/* Facture d'achat (reprises professionnelles) — annexable à tout moment */}
       {vehicle && <PurchaseInvoicePanel companyId={activeCompanyId!} vehicleId={vehicle.id} />}
+
+      {acceptOpen && (
+        <AcceptOfferDialog
+          open={acceptOpen}
+          onOpenChange={setAcceptOpen}
+          oroId={oroId}
+          vehicleId={vehicle?.id ?? null}
+          best={best > 0 ? { amount: best, partnerName: offers[0]?.partner_name ?? '' } : null}
+          onDone={refresh}
+        />
+      )}
 
       {vehicle && (
         <ValidateRepriseDialog
