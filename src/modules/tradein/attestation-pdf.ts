@@ -5,6 +5,8 @@
  * coché, lieu/date, signature manuscrite incrustée. Sortie : PDF A4 (Blob).
  * Document imprimé : polices/couleurs en dur autorisées (charte §7).
  */
+import { patchPdfText } from '@/modules/documents/pdf-text';
+
 export type AttestationData = {
   lastName: string;
   firstName: string;
@@ -35,6 +37,7 @@ const frDate = (iso: string): string => {
 export async function buildMarginAttestationPdf(d: AttestationData): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  patchPdfText(doc as unknown as { text: (...a: unknown[]) => unknown });
   const W = 210;
   const M = 20;
   let y = 22;

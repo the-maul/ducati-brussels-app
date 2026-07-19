@@ -5,6 +5,7 @@
  * ET à celle du client. Document imprimé : styles en dur autorisés (charte §7).
  */
 import { uploadAttachment } from '@/modules/documents/ged-api';
+import { patchPdfText, sanitizePdfText } from '@/modules/documents/pdf-text';
 import { CHECKLIST_KEYS, type ValidationData } from './validate-data';
 import { t } from '@/lib/i18n';
 
@@ -16,13 +17,12 @@ export type ValidationSheetData = {
   attestation: { place: string; date: string; signed: boolean } | null;
 };
 
-// Espaces insécables (U+00A0 / U+202F) remplacés : hors WinAnsi, jsPDF les rendrait mal
-const clean = (s: string) => s.split(String.fromCharCode(0xA0)).join(' ').split(String.fromCharCode(0x202F)).join(' ');
-const eur = (n: number) => clean(`${n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`);
+const eur = (n: number) => sanitizePdfText(`${n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`);
 
 export async function buildValidationPdf(s: ValidationSheetData): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  patchPdfText(doc as unknown as { text: (...a: unknown[]) => unknown });
   const W = 210;
   const M = 16;
   let y = 0;
@@ -72,7 +72,7 @@ export async function buildValidationPdf(s: ValidationSheetData): Promise<Blob> 
   row(t('tradein.colMoto') + ' :', s.vehicle.label);
   row('VIN :', s.vehicle.vin?.toUpperCase() ?? '');
   row(t('vehicles.engineNumber') + ' :', s.vehicle.engine ?? '');
-  row(t('vehicles.mileage') + ' :', s.vehicle.mileage != null ? clean(`${s.vehicle.mileage.toLocaleString('fr-BE')} km`) : '');
+  row(t('vehicles.mileage') + ' :', s.vehicle.mileage != null ? `${s.vehicle.mileage.toLocaleString('fr-BE')} km` : '');
   row(t('vehicles.firstRegistration') + ' :', s.vehicle.firstRegistration ?? '');
   row(t('vehicles.displacement') + ' :', s.vehicle.displacement != null ? `${s.vehicle.displacement} cm³` : '');
   row(t('tradein.valPower') + ' :', s.vehicle.power ?? '');

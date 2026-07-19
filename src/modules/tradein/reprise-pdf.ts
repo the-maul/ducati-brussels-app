@@ -6,6 +6,7 @@
  * Anonyme : seule la référence client interne apparaît.
  */
 import type { RepriseSheet, RepriseSheetPhoto, RepriseSheetSection } from './reprise-print';
+import { patchPdfText } from '@/modules/documents/pdf-text';
 
 const PAGE_W = 210, PAGE_H = 297;          // A4 mm
 const MARGIN = 12;
@@ -41,30 +42,10 @@ async function loadImage(url: string): Promise<Img | null> {
   } catch { return null; }
 }
 
-/** Espaces insécables (U+00A0 / U+202F) → espace normal : hors WinAnsi,
- *  jsPDF les rend comme « / ». Appliqué à TOUTE chaîne écrite dans le PDF. */
-const sane = (v: string): string =>
-  v.split(String.fromCharCode(0xA0)).join(' ').split(String.fromCharCode(0x202F)).join(' ');
-
-export async function downloadRepriseSheetPdf(input: RepriseSheet): Promise<void> {
-  // Normalisation défensive de toutes les valeurs texte de la fiche
-  const s: RepriseSheet = {
-    ...input,
-    companyName: sane(input.companyName),
-    number: sane(input.number),
-    date: sane(input.date),
-    clientRef: input.clientRef ? sane(input.clientRef) : input.clientRef,
-    title: sane(input.title),
-    sections: input.sections.map((sec) => ({
-      ...sec,
-      title: sane(sec.title),
-      rows: sec.rows.map((r) => ({ ...r, label: sane(r.label), value: sane(r.value) })),
-    })),
-    accessories: input.accessories.map(sane),
-    remarks: input.remarks ? sane(input.remarks) : input.remarks,
-  };
+export async function downloadRepriseSheetPdf(s: RepriseSheet): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  patchPdfText(doc as unknown as { text: (...a: unknown[]) => unknown });
   let y = MARGIN;
 
   const ensure = (h: number) => {
