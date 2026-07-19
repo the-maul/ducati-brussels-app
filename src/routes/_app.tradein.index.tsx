@@ -14,6 +14,7 @@ import {
 } from '@/modules/tradein/partners-api';
 import { PartnersDialog } from '@/modules/tradein/partners-dialog';
 import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
+import { tradeinStatusOf } from '@/modules/tradein/validate-api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/')({
@@ -76,10 +77,13 @@ function TradeinList() {
       {/* Action principale — grande cible tactile (tablette / smartphone) */}
       <Button
         onClick={() => navigate({ to: '/tradein/new' })}
-        className="mb-6 h-auto w-full gap-3 py-5 text-[17px] font-bold uppercase tracking-[0.03em] shadow-[var(--shadow-card)] active:scale-[0.99] sm:py-6 sm:text-[19px]"
+        className="mb-6 h-auto w-full gap-3 py-4 shadow-[var(--shadow-card)] active:scale-[0.99] sm:py-5"
       >
         <Bike className="size-6" />
-        {t('tradein.newMoto')}
+        <span className="flex flex-col items-center leading-tight">
+          <span className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-80 sm:text-[11px]">{t('tradein.formLabel')}</span>
+          <span className="text-[17px] font-bold uppercase tracking-[0.03em] sm:text-[19px]">{t('tradein.newMoto')}</span>
+        </span>
       </Button>
 
       {/* Reprises en cours */}
@@ -106,15 +110,21 @@ function TradeinList() {
               const moto = o.vehicle_info
                 ? [o.vehicle_info.brand, o.vehicle_info.model, o.vehicle_info.model_year ? `(${o.vehicle_info.model_year})` : null].filter(Boolean).join(' ')
                 : '—';
-              const followUp = needsFollowUp(o.created_at, st.count, o.status);
+              const tStatus = tradeinStatusOf(o as unknown as Record<string, unknown>, o.id, o.vehicle_info);
+              const followUp = tStatus === 'ouvert' && needsFollowUp(o.created_at, st.count, o.status);
               return (
                 <tr key={o.id} onClick={() => navigate({ to: '/tradein/$oroId', params: { oroId: o.id } })} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
-                  <td className="px-3 py-3 font-mono text-[12px]">{o.number ?? '—'}</td>
+                  <td className="px-3 py-3 font-mono text-[12px]">
+                    <span className="underline decoration-dotted underline-offset-2">{o.number ?? '—'}</span>
+                  </td>
                   <td className="px-3 py-3 font-medium">{repriseClientLabel(o.client)}</td>
                   <td className="px-3 py-3">{moto}</td>
                   <td className="px-3 py-3">
                     <span className="inline-flex flex-wrap items-center gap-1.5">
-                      <StatusBadge tone={o.status === 'cloture' ? 'success' : 'warning'} label={t(`tradein.status_${o.status}`)} />
+                      <StatusBadge
+                        tone={tStatus === 'valide' ? 'success' : tStatus === 'annule' ? 'neutral' : 'warning'}
+                        label={t(`tradein.tstatus_${tStatus}`)}
+                      />
                       {followUp && <StatusBadge tone="danger" icon={BellRing} label={t('tradein.followUp')} />}
                     </span>
                   </td>

@@ -54,20 +54,36 @@ async function vehicleIdsByOwnerName(companyId: string, search: string): Promise
   return ids.slice(0, 300);
 }
 
-export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all'): Promise<Vehicle[]> {
-  let q = supabase.from('vehicles').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(500);
-  if (status && status !== 'all') q = q.eq('status', status);
+/** Véhicule + son éventuel dossier de reprise (référence REP cliquable en liste). */
+export type VehicleWithRep = Vehicle & { oro?: { id: string; number: string | null }[] };
+
+export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all'): Promise<VehicleWithRep[]> {
+  // Jointure oro(id, number) : affiche la référence REP des demandes de reprise.
+  // Repli sans jointure si elle échoue (la liste ne doit jamais casser).
+  const build = (select: string) => {
+    let q = supabase.from('vehicles').select(select as '*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(500);
+    if (status && status !== 'all') q = q.eq('status', status);
+    return q;
+  };
   const s = search ? sanitize(search) : '';
+  let ownerOr = '';
   if (s) {
     const ors = [`vin.ilike.%${s}%`, `plate.ilike.%${s}%`, `model.ilike.%${s}%`, `brand.ilike.%${s}%`, `engine_number.ilike.%${s}%`];
     // Recherche aussi par nom de client : véhicules rattachés à un contact correspondant.
     const ownerVehicleIds = await vehicleIdsByOwnerName(companyId, search!);
     if (ownerVehicleIds.length) ors.push(`id.in.(${ownerVehicleIds.join(',')})`);
-    q = q.or(ors.join(','));
+    ownerOr = ors.join(',');
   }
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  let q = build('*, oro(id, number)');
+  if (ownerOr) q = q.or(ownerOr);
+  let { data, error } = await q;
+  if (error) {
+    let q2 = build('*');
+    if (ownerOr) q2 = q2.or(ownerOr);
+    ({ data, error } = await q2);
+    if (error) throw error;
+  }
+  return (data ?? []) as unknown as VehicleWithRep[];
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {

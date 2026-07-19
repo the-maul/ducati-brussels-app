@@ -36,38 +36,29 @@ export type RepriseInput = {
   vatRate?: number;
 };
 
-/** Crée l'article occasion + la fiche véhicule + l'entrée stock + le dossier de reprise.
- *  Référence unique REP-AAAA-NNNNN (séquence M0 « REP », année en cours, incrément auto)
- *  partagée par l'article, le dossier et les documents. */
-export async function createReprise(p: RepriseInput): Promise<{ articleId: string; vehicleId: string; oroId: string; occNumber: string }> {
+/** Crée une DEMANDE de reprise (appel d'offres aux marchands partenaires) :
+ *  fiche véhicule en statut « Demande de reprise » + dossier REP-AAAA-NNNNN.
+ *  ⚠️ PAS d'article ni d'entrée en stock à ce stade : le véhicule n'entre en
+ *  stock qu'à la VALIDATION de la reprise (validate-api.validateReprise). */
+export async function createReprise(p: RepriseInput): Promise<{ vehicleId: string; oroId: string; occNumber: string }> {
   const occNumber = await nextNumber(p.companyId, 'REP');
-  const mgmt = p.isPro ? 'P' : 'O';
-  const vat = p.vatRate ?? 21;
   const reprisePrice = p.reprisePrice ?? 0;
 
-  // 1) Article occasion (type O/P)
-  const { data: art, error: ae } = await supabase.from('articles').insert({
-    company_id: p.companyId, reference: occNumber, designation: p.designation, mgmt_type: mgmt,
-    purchase_price: reprisePrice, pamp: reprisePrice, sale_price_ttc: p.resalePriceTtc ?? 0, vat_rate: vat,
-  }).select('id').single();
-  if (ae) throw ae;
-  const articleId = art.id as string;
-
-  // 2) Fiche véhicule (jointure B9) — statut occasion en stock
+  // 1) Fiche véhicule (jointure B9) — statut « Demande de reprise » (repris)
   const { data: veh, error: ve } = await supabase.from('vehicles').insert({
-    company_id: p.companyId, article_id: articleId, vin: p.vin ?? null, brand: p.brand ?? null,
+    company_id: p.companyId, vin: p.vin ?? null, brand: p.brand ?? null,
     model: p.model ?? p.designation, engine_number: p.engineNumber ?? null, color: p.color ?? null,
     mileage: p.mileage ?? null, first_registration_date: p.firstRegistrationDate ?? null,
     model_year: p.modelYear ?? null, power_kw: p.powerKw ?? null, power_cv: p.powerCv ?? null,
     displacement: p.displacement ?? null, cylinders: p.cylinders ?? null, energy: p.energy ?? null,
     notes: p.notes ?? null,
     purchase_price: reprisePrice, cost_price: reprisePrice, display_price: p.resalePriceTtc ?? null,
-    status: 'stock_vo',
+    status: 'repris',
   }).select('id').single();
   if (ve) throw ve;
   const vehicleId = veh.id as string;
 
-  // 2b) Lien vendeur (propriétaire précédent) — pour recontacter le client.
+  // 1b) Lien vendeur (propriétaire précédent) — pour recontacter le client.
   // Non bloquant : ne pas orpheliner une reprise si le lien échoue.
   if (p.contactId) {
     await supabase.from('vehicle_owners').insert({
@@ -77,20 +68,13 @@ export async function createReprise(p: RepriseInput): Promise<{ articleId: strin
     });
   }
 
-  // 3) Entrée de stock valorisée (1 unité, PAMP = prix de reprise)
-  const { error: me } = await supabase.rpc('record_stock_move', {
-    _article: articleId, _type: 'entree', _qty: 1, _unit_cost: p.reprisePrice,
-    _is_reservation: false, _bin: null, _origin: 'reception', _ref: occNumber, _note: 'Reprise occasion',
-  });
-  if (me) throw me;
-
-  // 4) Ouverture du dossier de remise en état — même référence REP que l'article
+  // 2) Ouverture du dossier de reprise — la référence REP sert d'appel d'offres
   const { data: oro, error: oe } = await supabase.from('oro').insert({
     company_id: p.companyId, number: occNumber, vehicle_id: vehicleId, status: 'ouvert',
   }).select('id').single();
   if (oe) throw oe;
 
-  return { articleId, vehicleId, oroId: oro.id as string, occNumber };
+  return { vehicleId, oroId: oro.id as string, occNumber };
 }
 
 export type OroLineInput = { kind: 'piece' | 'mo' | 'frais'; article_id?: string | null; designation: string; quantity: number; unit_cost: number };

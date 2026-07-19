@@ -105,7 +105,22 @@ function VehiclesList() {
                 <td className="px-3 py-2 font-medium">{vehicleLabel(v)}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{v.vin ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{v.plate ?? '—'}</td>
-                <td className="px-3 py-2"><StatusBadge tone={toneOf(v.status)} label={t(`vehicles.status_${v.status}`)} /></td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <StatusBadge tone={toneOf(v.status)} label={t(`vehicles.status_${v.status}`)} />
+                    {(v.oro ?? []).filter((o) => o.number).slice(0, 1).map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); navigate({ to: '/tradein/$oroId', params: { oroId: o.id } }); }}
+                        className="font-mono text-[11px] text-info underline decoration-dotted underline-offset-2 hover:text-foreground"
+                        title={t('vehicles.openReprise')}
+                      >
+                        {o.number}
+                      </button>
+                    ))}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmtEur(v.display_price)}</td>
               </tr>
             ))}

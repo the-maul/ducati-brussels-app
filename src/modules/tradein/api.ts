@@ -36,26 +36,28 @@ export function repriseClientLabel(c: RepriseClient | null): string {
 }
 
 export type OroListItem = Oro & {
-  vehicle_info: { brand: string | null; model: string | null; model_year: number | null } | null;
+  vehicle_info: { brand: string | null; model: string | null; model_year: number | null; status: string | null; article_id: string | null } | null;
   client: RepriseClient | null;
 };
 
 export async function listOro(companyId: string, status?: string): Promise<OroListItem[]> {
   let q = supabase
     .from('oro')
-    .select('*, vehicle:vehicle_id(brand, model, model_year, vehicle_owners(created_at, contact:contact_id(first_name, last_name, company_name, code)))')
+    .select('*, vehicle:vehicle_id(brand, model, model_year, status, article_id, vehicle_owners(created_at, contact:contact_id(first_name, last_name, company_name, code)))')
     .eq('company_id', companyId).order('created_at', { ascending: false }).limit(100);
   if (status) q = q.eq('status', status);
   const { data, error } = await q;
   if (error) throw error;
-  type Row = Oro & { vehicle?: { brand: string | null; model: string | null; model_year: number | null; vehicle_owners?: { created_at: string; contact: RepriseClient | null }[] } | null };
+  type Row = Oro & { vehicle?: { brand: string | null; model: string | null; model_year: number | null; status: string | null; article_id: string | null; vehicle_owners?: { created_at: string; contact: RepriseClient | null }[] } | null };
   return ((data ?? []) as unknown as Row[]).map((r) => {
     const owners = r.vehicle?.vehicle_owners ?? [];
     const latest = [...owners].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))[0];
     const { vehicle: _v, ...oro } = r;
     return {
       ...(oro as Oro),
-      vehicle_info: r.vehicle ? { brand: r.vehicle.brand, model: r.vehicle.model, model_year: r.vehicle.model_year } : null,
+      vehicle_info: r.vehicle
+        ? { brand: r.vehicle.brand, model: r.vehicle.model, model_year: r.vehicle.model_year, status: r.vehicle.status, article_id: r.vehicle.article_id }
+        : null,
       client: latest?.contact ?? null,
     };
   });
@@ -66,6 +68,7 @@ export type OroVehicle = {
   model_year: number | null; mileage: number | null; energy: string | null;
   displacement: number | null; power_cv: number | null; power_kw: number | null; notes: string | null;
   purchase_price: number | null; cost_price: number | null; display_price: number | null;
+  first_registration_date?: string | null; status?: string | null; article_id?: string | null;
 };
 export type OroFull = { oro: Oro; lines: OroLine[]; vehicle: OroVehicle | null; client: RepriseClient | null };
 export async function getOroFull(id: string): Promise<OroFull> {
@@ -78,7 +81,7 @@ export async function getOroFull(id: string): Promise<OroFull> {
   if (oro.vehicle_id) {
     const { data: v } = await supabase
       .from('vehicles')
-      .select('id, vin, brand, model, model_year, mileage, energy, displacement, power_cv, power_kw, notes, purchase_price, cost_price, display_price')
+      .select('id, vin, brand, model, model_year, mileage, energy, displacement, power_cv, power_kw, notes, purchase_price, cost_price, display_price, first_registration_date, status, article_id')
       .eq('id', oro.vehicle_id).maybeSingle();
     vehicle = (v as OroVehicle | null) ?? null;
     if (vehicle) {

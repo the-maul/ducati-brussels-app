@@ -28,16 +28,18 @@ type SlotItem = { att: Attachment; url: string | null; isPdf: boolean };
 
 const ACCEPT = 'image/*,.pdf,application/pdf';
 
-export function IdDocsSection({ companyId, contactId, current, onApply }: {
+export function IdDocsSection({ companyId, contactId, current, onApply, only }: {
   companyId: string;
   contactId: string | null;
   current: IdTargets;
   onApply: (patch: Partial<IdTargets>, filledLabels: string[]) => void;
+  /** Limiter aux documents listés (défaut : permis + carte d'identité). */
+  only?: ('license' | 'idcard')[];
 }) {
   const qc = useQueryClient();
   const [zoom, setZoom] = useState<{ url: string; title: string } | null>(null);
 
-  const docs: DocDef[] = [
+  const allDocs: DocDef[] = [
     {
       key: 'license', title: t('contacts.idLicense'),
       slots: [
@@ -53,6 +55,7 @@ export function IdDocsSection({ companyId, contactId, current, onApply }: {
       ],
     },
   ];
+  const docs = only ? allDocs.filter((d) => only.includes(d.key)) : allDocs;
   const allFolders = docs.flatMap((d) => d.slots.map((s) => s.folder));
 
   // Un scan par dossier (le plus récent)

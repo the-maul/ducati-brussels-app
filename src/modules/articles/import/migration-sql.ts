@@ -192,6 +192,21 @@ grant execute on function public.vies_check(text, text) to authenticated, servic
 -- 10. Fiche véhicule : indicateur « Papiers 100 CH »
 alter table public.vehicles add column if not exists papers_100hp boolean not null default false;
 
--- 9. Recharge du cache de schéma PostgREST
+-- 9. Validation de reprise (appel d'offres -> entrée en stock après validation)
+alter table public.oro
+  add column if not exists tradein_status text not null default 'ouvert',
+  add column if not exists checklist jsonb,
+  add column if not exists seller_vat_status text,
+  add column if not exists attestation jsonb,
+  add column if not exists vat_rate numeric(5,2),
+  add column if not exists buy_price_ttc numeric(14,2),
+  add column if not exists buy_price_ht numeric(14,2),
+  add column if not exists sale_price numeric(14,2),
+  add column if not exists min_sale_price numeric(14,2),
+  add column if not exists classification jsonb,
+  add column if not exists validated_at timestamptz,
+  add column if not exists cancelled_at timestamptz;
+
+-- 10. Recharge du cache de schéma PostgREST
 notify pgrst, 'reload schema';
 `;
