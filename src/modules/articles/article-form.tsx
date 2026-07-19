@@ -18,6 +18,9 @@ import { effectiveSaleTtc } from '@/lib/pricing';
 import { MGMT_TYPES, type Article, type ArticleInsert, type ArticleMgmtType, type KitBillingMode } from './api';
 import { LocationPhoto } from './location-photo';
 import { PARTNER_BRANDS } from './partner-brands';
+import {
+  RAYONS_SORTED, sousRayonsFor, categoriesFor, buildFamilyCode, parseFamilyCode,
+} from './product-families';
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -40,7 +43,10 @@ type FormState = {
   designation: string;
   brand: string;
   mgmt_type: ArticleMgmtType;
-  category_path: string;
+  // Familles (Rayon > Sous-rayon > Catégorie) — combinées en UID category_path
+  rayon_code: string;
+  sub_rayon_code: string;
+  category_code: string;
   descriptif: string;
   show_descriptif_on_documents: boolean;
   note: string;
@@ -82,7 +88,9 @@ function fromArticle(a: Article | null): FormState {
     designation: a?.designation ?? '',
     brand: a?.brand ?? '',
     mgmt_type: a?.mgmt_type ?? 'A',
-    category_path: a?.category_path ?? '',
+    rayon_code: parseFamilyCode(a?.category_path)?.rayon ?? '',
+    sub_rayon_code: parseFamilyCode(a?.category_path)?.sousRayon ?? '',
+    category_code: parseFamilyCode(a?.category_path)?.cat ?? '',
     descriptif: a?.descriptif ?? '',
     show_descriptif_on_documents: a?.show_descriptif_on_documents ?? false,
     note: a?.note ?? '',
@@ -129,7 +137,8 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     designation: f.designation.trim(),
     brand: nn(f.brand),
     mgmt_type: f.mgmt_type,
-    category_path: nn(f.category_path),
+    // UID famille « Rayon-Sous-rayon-Catégorie » (ex. 01-01-01)
+    category_path: buildFamilyCode(f.rayon_code, f.sub_rayon_code, f.category_code) || null,
     descriptif: nn(f.descriptif),
     show_descriptif_on_documents: f.show_descriptif_on_documents,
     note: nn(f.note),
@@ -279,8 +288,47 @@ export function ArticleForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t('articles.categoryPath')}>
-          <Input value={f.category_path} onChange={(e) => set('category_path', e.target.value)} placeholder="Rayon / sous-rayon" />
+        {/* Familles : Rayon > Sous-rayon > Catégorie (cascade) */}
+        <Field label={t('articles.rayon')}>
+          <Select
+            value={f.rayon_code || undefined}
+            onValueChange={(v) => setF((p) => ({ ...p, rayon_code: v, sub_rayon_code: '', category_code: '' }))}
+          >
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {RAYONS_SORTED.map((r) => (
+                <SelectItem key={r.code} value={r.code}><span className="font-mono">{r.code}</span> {r.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t('articles.subRayon')}>
+          <Select
+            value={f.sub_rayon_code || undefined}
+            onValueChange={(v) => setF((p) => ({ ...p, sub_rayon_code: v, category_code: '' }))}
+            disabled={!f.rayon_code}
+          >
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {sousRayonsFor(f.rayon_code).map((s) => (
+                <SelectItem key={s.code} value={s.code}><span className="font-mono">{s.code}</span> {s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t('articles.categoryLevel')}>
+          <Select
+            value={f.category_code || undefined}
+            onValueChange={(v) => set('category_code', v)}
+            disabled={!f.sub_rayon_code}
+          >
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {categoriesFor(f.rayon_code, f.sub_rayon_code).map((c) => (
+                <SelectItem key={c.code} value={c.code}><span className="font-mono">{c.code}</span> {c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label={t('articles.size')}>
           <Input value={f.size} onChange={(e) => set('size', e.target.value)} />

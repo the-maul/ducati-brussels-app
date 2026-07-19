@@ -163,7 +163,8 @@ export async function validateReprise(a: ValidateArgs): Promise<{ articleId: str
       company_id: a.companyId, reference: a.oroNumber, designation: a.designation,
       mgmt_type: isPro ? 'P' : 'O', purchase_price: unitCost, pamp: unitCost,
       sale_price_ttc: a.data.sale_price, vat_rate: a.data.vat_rate,
-      category_path: a.data.classification.rayon || null,
+      // UID famille : 08 OCCASIONS > 01 PARTICULIERS / 02 PROS > 01
+      category_path: isPro ? '08-02-01' : '08-01-01',
       note: `${a.data.classification.supplier} / ${a.data.classification.rayon} / ${a.data.classification.sub_rayon} / ${a.data.classification.category}`,
     }).select('id').single();
     if (ae) throw ae;
