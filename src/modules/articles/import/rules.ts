@@ -34,6 +34,9 @@ export type ImportRow = {
   pack_qty?: number | null;
   color?: string | null;
   size?: string | null;
+  /** Année modèle « Du … Au … » (colonne Année/Millésime du fichier). */
+  year_from?: number | null;
+  year_to?: number | null;
   /** Réf. de REMPLACEMENT (colonne « Remplacement » Ducati/G8) : la nouvelle réf qui remplace celle-ci. */
   replacement_ref?: string | null;
   rowIndex: number; // ligne source (pour le rapport)
@@ -54,6 +57,8 @@ export type ExistingArticle = {
   is_library: boolean;
   ppc_ht?: number | null;
   ppc_ttc?: number | null;
+  year_from?: number | null;
+  year_to?: number | null;
 };
 
 /** Réglages d'intégration (mêmes clés que la table article_import_settings). */
@@ -176,6 +181,8 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     if (row.pack_qty != null) patch.pack_qty = row.pack_qty;
     if (row.color != null) patch.color = row.color;
     if (row.size != null) patch.size = row.size;
+    if (row.year_from != null) patch.year_from = row.year_from;
+    if (row.year_to != null) patch.year_to = row.year_to;
     patch.is_library = s.new_refs_in_library; // non stockée tant que pas réceptionnée
     if (row.barcode && s.integrate_supplier_barcodes) patch.barcode = row.barcode.trim();
     // Réf. de remplacement (résolue en id à l'application — voir apply.ts)
@@ -218,6 +225,10 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   // PPC : toujours rafraîchi quand présent (donnée fournisseur, pas un prix de vente)
   if (row.ppc_ht != null) accept('ppc_ht', row.ppc_ht, 'ppc_ht');
   if (row.ppc_ttc != null) accept('ppc_ttc', row.ppc_ttc, 'ppc_ttc');
+
+  // Année modèle : donnée factuelle fournisseur — rafraîchie quand présente
+  if (row.year_from != null) accept('year_from', row.year_from, 'year_from');
+  if (row.year_to != null) accept('year_to', row.year_to, 'year_to');
 
   // PV selon le mode
   if (proposedPv != null && s.sale_price_mode !== 'never') {

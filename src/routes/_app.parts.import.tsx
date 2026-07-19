@@ -58,6 +58,8 @@ const FIELD_LABELS: Record<ImportField, string> = {
   pack_qty: t('articles.packQty'),
   color: t('articles.color'),
   size: t('articles.size'),
+  year_from: `${t('articles.year')} (${t('articles.yearFrom')})`,
+  year_to: `${t('articles.year')} (${t('articles.yearTo')})`,
   replacement_ref: 'Remplacement',
 };
 
@@ -68,6 +70,7 @@ function toExisting(a: ArticleLite): ExistingArticle {
     purchase_price: a.purchase_price, sale_price_ttc: a.sale_price_ttc,
     coefficient: a.coefficient, superseded_by_id: a.superseded_by_id, is_library: a.is_library,
     ppc_ht: a.ppc_ht, ppc_ttc: a.ppc_ttc,
+    year_from: a.year_from ?? null, year_to: a.year_to ?? null,
   };
 }
 

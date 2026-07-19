@@ -43,6 +43,9 @@ type FormState = {
   designation: string;
   brand: string;
   mgmt_type: ArticleMgmtType;
+  // Année modèle « Du … Au … » (auto-remplie par l'import tarif quand le fichier la donne)
+  year_from: string;
+  year_to: string;
   // Familles (Rayon > Sous-rayon > Catégorie) — combinées en UID category_path
   rayon_code: string;
   sub_rayon_code: string;
@@ -88,6 +91,8 @@ function fromArticle(a: Article | null): FormState {
     designation: a?.designation ?? '',
     brand: a?.brand ?? '',
     mgmt_type: a?.mgmt_type ?? 'A',
+    year_from: s((a as { year_from?: number | null } | null)?.year_from),
+    year_to: s((a as { year_to?: number | null } | null)?.year_to),
     rayon_code: parseFamilyCode(a?.category_path)?.rayon ?? '',
     sub_rayon_code: parseFamilyCode(a?.category_path)?.sousRayon ?? '',
     category_code: parseFamilyCode(a?.category_path)?.cat ?? '',
@@ -172,8 +177,30 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     publishable: f.publishable,
     is_library: f.is_library,
   };
-  // Colonne ajoutée par migration 20260718 — pas encore dans les types générés
-  return Object.assign(payload, { bin_location2: nn(f.bin_location2) });
+  // Colonnes ajoutées par migrations 20260718/20260720 — pas encore dans les types générés
+  const year = (s: string) => {
+    const n = Number(s);
+    return s.trim() !== '' && Number.isInteger(n) && n >= 1900 && n <= 2100 ? n : null;
+  };
+  let yearFrom = year(f.year_from);
+  let yearTo = year(f.year_to);
+  // Bornes inversées (Du > Au) : réordonnées, sinon l'article ne sort d'aucun filtre Année.
+  if (yearFrom != null && yearTo != null && yearTo < yearFrom) {
+    const tmp = yearFrom; yearFrom = yearTo; yearTo = tmp;
+  }
+  return Object.assign(payload, {
+    bin_location2: nn(f.bin_location2),
+    year_from: yearFrom,
+    year_to: yearTo,
+  });
+}
+
+/** Années proposées dans les menus « Du … Au … » (récentes d'abord). */
+export function yearOptions(): number[] {
+  const max = new Date().getFullYear() + 1;
+  const out: number[] = [];
+  for (let y = max; y >= 1990; y--) out.push(y);
+  return out;
 }
 
 /**
@@ -253,10 +280,13 @@ export function ArticleForm({
     setF((p) => ({ ...p, ...recomputePricing(p, edited, v, rounding) }));
   // Prix de vente effectif (arrondi société, calculé à l'usage — non gravé en base).
   const effTtc = effectiveSaleTtc(toNum(f.sale_price_ttc), roundUp);
-  // Marges calculées (lecture seule) sur PA et sur PAMP.
+  // Marges calculées (lecture seule) sur PA et sur PAMP, en % ET en € HT
+  // (ex. PA 25 € / PV HT 32,50 € → marge 30 % · 7,50 €).
   const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
   const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;
   const margePamp = pamp > 0 ? r2(((pvht - pamp) / pamp) * 100) : null;
+  const eur = (n: number) => `${r2(n).toFixed(2).replace('.', ',')} €`;
+  const pct = (n: number) => `${String(n).replace('.', ',')} %`;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -287,6 +317,13 @@ export function ArticleForm({
               {MGMT_TYPES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </Field>
+        {/* Année modèle « Du … Au … » — auto-remplie par l'import tarif quand la colonne existe */}
+        <Field label={t('articles.year')}>
+          <div className="grid grid-cols-2 gap-2">
+            <YearSelect value={f.year_from} placeholder={t('articles.yearFrom')} onChange={(v) => set('year_from', v)} />
+            <YearSelect value={f.year_to} placeholder={t('articles.yearTo')} onChange={(v) => set('year_to', v)} />
+          </div>
         </Field>
         {/* Familles : Rayon > Sous-rayon > Catégorie (cascade) — les 3 alignés sur une même ligne */}
         <div className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -407,9 +444,9 @@ export function ArticleForm({
           )}
         </Field>
         <Field label={t('articles.margins')}>
-          <div className="flex h-9 items-center gap-3 text-sm tabular-nums">
-            <span title="Marge sur PA">PA <b className={margePa != null && margePa < 0 ? 'text-danger' : 'text-success'}>{margePa != null ? `${margePa} %` : '—'}</b></span>
-            <span className="text-muted-foreground" title="Marge sur PAMP">PAMP <b>{margePamp != null ? `${margePamp} %` : '—'}</b></span>
+          <div className="flex min-h-9 flex-wrap items-center gap-3 text-sm tabular-nums">
+            <span title="Marge sur PA">PA <b className={margePa != null && margePa < 0 ? 'text-danger' : 'text-success'}>{margePa != null ? `${pct(margePa)} · ${eur(pvht - pa)}` : '—'}</b></span>
+            <span className="text-muted-foreground" title="Marge sur PAMP">PAMP <b>{margePamp != null ? `${pct(margePamp)} · ${eur(pvht - pamp)}` : '—'}</b></span>
           </div>
         </Field>
         <Field label={t('articles.ppcHt')}>
@@ -500,6 +537,24 @@ function Field({ label, children, wide }: { label: string; children: ReactNode; 
 function NumInput({ value, onChange, step = '1' }: { value: string; onChange: (v: string) => void; step?: string }) {
   return (
     <Input type="number" step={step} value={value} onChange={(e) => onChange(e.target.value)} className="text-right tabular-nums" />
+  );
+}
+
+function YearSelect({ value, placeholder, onChange }: { value: string; placeholder: string; onChange: (v: string) => void }) {
+  // Une année stockée hors de la liste (donnée importée : 1985…) reste affichable.
+  const base = yearOptions();
+  const n = Number(value);
+  const years = value && Number.isInteger(n) && !base.includes(n)
+    ? [...base, n].sort((a, b) => b - a)
+    : base;
+  return (
+    <Select value={value || undefined} onValueChange={(v) => onChange(v === '-' ? '' : v)}>
+      <SelectTrigger className="tabular-nums"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent className="max-h-72">
+        <SelectItem value="-">—</SelectItem>
+        {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
 

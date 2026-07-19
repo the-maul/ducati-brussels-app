@@ -42,11 +42,20 @@ const kSettings = (companyId: string) => `ducati.import-settings.${companyId}`;
 const kRules = (companyId: string) => `ducati.ppc-rules.${companyId}`;
 const kFloor = (companyId: string) => `ducati.price-floor.${companyId}`;
 
-/** Le schéma de config d'import est-il présent en base ? (bannière migration) */
+/**
+ * Le schéma requis par l'import est-il présent en base ? (bannière migration)
+ * Sonde la table de config ET les colonnes récentes (articles.year_from) : un
+ * client ayant appliqué un ancien blob SQL doit revoir le bandeau pour la suite.
+ */
 export async function checkImportConfigSchema(): Promise<boolean> {
-  const { error } = await raw.from('article_import_settings').select('company_id').limit(1);
-  if (!error) return true;
-  if (isMissingSchema(error)) return false;
+  const [cfg, yearCol] = await Promise.all([
+    raw.from('article_import_settings').select('company_id').limit(1),
+    raw.from('articles').select('year_from').limit(1),
+  ]);
+  const missing = (e: unknown) =>
+    isMissingSchema(e) || (e as { code?: string } | null)?.code === 'PGRST204';
+  if (cfg.error && missing(cfg.error)) return false;
+  if (yearCol.error && missing(yearCol.error)) return false;
   return true; // autre erreur (RLS…) : le schéma existe
 }
 

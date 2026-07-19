@@ -9,8 +9,35 @@
  *  - codes-barres upsertés par lots.
  */
 import { supabase } from '@/integrations/supabase/client';
-import { updateArticle, type ArticleInsert, type ArticleUpdate } from '../api';
+import { isMissingSchema, missingColumn, stripOptionalCols, updateArticle, type ArticleInsert, type ArticleUpdate } from '../api';
 import type { DiffResult } from './rules';
+
+/**
+ * Insert (lot ou ligne) résilient aux colonnes pas encore migrées : retire la
+ * colonne NOMMÉE par l'erreur et réessaie (jusqu'à 3 colonnes optionnelles),
+ * repli « tout le groupe » si la colonne n'est pas identifiable.
+ */
+type InsertedRow = { id: string; reference: string };
+type InsertRes = { data: InsertedRow[] | null; error: { code?: string; message: string } | null };
+
+async function insertResilient(rows: ArticleInsert[], select: string): Promise<InsertRes> {
+  let payloads = rows as Record<string, unknown>[];
+  const run = async (): Promise<InsertRes> =>
+    (await supabase.from('articles').insert(payloads as ArticleInsert[]).select(select)) as unknown as InsertRes;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await run();
+    if (!res.error || !isMissingSchema(res.error)) return res;
+    const col = missingColumn(res.error);
+    if (col && payloads.some((r) => col in r)) {
+      payloads = payloads.map((r) => { const c = { ...r }; delete c[col]; return c; });
+      continue;
+    }
+    const stripped = payloads.map((r) => stripOptionalCols(r));
+    if (JSON.stringify(stripped) === JSON.stringify(payloads)) return res; // plus rien à retirer
+    payloads = stripped;
+  }
+  return run();
+}
 
 export type ApplyResult = {
   created: number;
@@ -88,13 +115,15 @@ export async function applyImport(
       const { fields } = cleanPatch(d.patch);
       return { company_id: companyId, mgmt_type: 'A', ...fields } as ArticleInsert;
     });
-    const { data, error } = await supabase.from('articles').insert(rows).select('id, reference');
+    // Colonnes récentes absentes (migration pas appliquée) : retry granulaire du lot.
+    const { data, error } = await insertResilient(rows, 'id, reference');
     if (error) {
       // Repli ligne à ligne : rapport d'erreur précis, les bonnes lignes passent.
       for (const d of chunk) {
         const { fields, barcode } = cleanPatch(d.patch);
         const insert = { company_id: companyId, mgmt_type: 'A', ...fields } as ArticleInsert;
-        const { data: one, error: e1 } = await supabase.from('articles').insert(insert).select('id').single();
+        const { data: ones, error: e1 } = await insertResilient([insert], 'id');
+        const one = ones?.[0] ?? null;
         if (e1) {
           errors.push({ rowIndex: d.rowIndex, reference: d.reference, message: e1.message });
         } else {

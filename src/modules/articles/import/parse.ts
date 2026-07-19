@@ -13,6 +13,7 @@ export const IMPORT_FIELDS = [
   'reference', 'designation', 'brand', 'category_path', 'supplier_ref', 'supplier_name',
   'barcode', 'purchase_price', 'sale_price_ttc', 'ppc_ht', 'ppc_ttc',
   'coefficient', 'vat_rate', 'bin_location', 'pack_qty', 'color', 'size',
+  'year_from', 'year_to',
   'replacement_ref',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
@@ -72,6 +73,23 @@ export function parseNum(cell: string | undefined): number | null {
 }
 
 /**
+ * Années depuis une cellule : « 2023 », « 2020-2023 », « 2020/2023 »,
+ * « 2020 a 2023 »… Retourne la plage {from, to} (to = null si année unique).
+ */
+export function parseYearRange(cell: string | undefined | null): { from: number | null; to: number | null } {
+  if (cell == null) return { from: null, to: null };
+  // Nombres ENTIERS de 4 chiffres commençant par 19/20 (« 12023 » n'est pas une année).
+  const years = (String(cell).match(/\d+/g) ?? [])
+    .filter((n) => n.length === 4 && /^(19|20)/.test(n))
+    .map(Number);
+  if (years.length === 0) return { from: null, to: null };
+  let from = years[0];
+  let to = years.length > 1 ? years[years.length - 1] : null;
+  if (to != null && to < from) { const tmp = from; from = to; to = tmp; }
+  return { from, to };
+}
+
+/**
  * Matchers ordonnés (du plus spécifique au plus générique) : pour chaque colonne,
  * le premier champ LIBRE qui matche gagne. L'ordre évite les pièges G8 :
  * « Réf Fournisseur » avant « Fournisseur », « P.P.C. T.T.C. » avant « Prix T.T.C. »,
@@ -81,6 +99,9 @@ const MATCHERS: [ImportField, RegExp][] = [
   ['supplier_ref', /ref.*fourn/],
   ['supplier_name', /^fournisseur$/],
   ['replacement_ref', /(remplacement|remplace|replaced|substitu)/],
+  // Année modèle : « Année fin » / « Year to » avant le générique « Année »
+  ['year_to', /(annee|year|millesime).*\b(fin|max|jusqu\w*|au|to|end)\b/],
+  ['year_from', /(annee|year|millesime|^my$|^model.?year)/],
   ['ppc_ht', /p\.?p\.?c.*h\.?t/],
   ['ppc_ttc', /(p\.?p\.?c.*t\.?t\.?c|prix.*detail|retail)/],
   ['barcode', /(code.?barre|barcode|ean|gencod)/],
@@ -121,7 +142,18 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     const v = at(row, field);
     return v == null || v.trim() === '' ? null : v.trim();
   };
-  return parsed.rows.map((row, i) => ({
+  return parsed.rows.map((row, i) => {
+    // Année : la colonne « Du » peut contenir une plage (« 2020-2023 ») ;
+    // une colonne « Au » explicite l'emporte sur la borne haute de la plage
+    // (borne HAUTE si cette colonne contient elle-même une plage).
+    const yr = parseYearRange(at(row, 'year_from'));
+    const yrTo = parseYearRange(at(row, 'year_to'));
+    let yearFrom = yr.from;
+    let yearTo = yrTo.to ?? yrTo.from ?? yr.to;
+    if (yearFrom != null && yearTo != null && yearTo < yearFrom) {
+      const tmp = yearFrom; yearFrom = yearTo; yearTo = tmp;
+    }
+    return {
     rowIndex: i + 2, // +1 (0-based) +1 (header)
     reference: (at(row, 'reference') ?? '').trim(),
     designation: at(row, 'designation') ?? null,
@@ -140,6 +172,9 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     pack_qty: parseNum(at(row, 'pack_qty')),
     color: txt(row, 'color'),
     size: txt(row, 'size'),
+    year_from: yearFrom,
+    year_to: yearTo,
     replacement_ref: txt(row, 'replacement_ref'),
-  }));
+    };
+  });
 }

@@ -10,11 +10,11 @@ export type PurchaseSchedule = Database['public']['Tables']['purchase_schedules'
 export type Supplier = Database['public']['Tables']['contacts']['Row'];
 
 /** Fournisseurs de la société (contacts type fournisseur). */
-export async function listSuppliers(companyId: string, term = ''): Promise<Supplier[]> {
+export async function listSuppliers(companyId: string, term = '', limit = 50): Promise<Supplier[]> {
   let q = supabase.from('contacts').select('*').eq('company_id', companyId).eq('type', 'fournisseur').order('company_name');
   const s = term.replace(/[,()%*]/g, ' ').trim();
   if (s) q = q.or(`company_name.ilike.%${s}%,last_name.ilike.%${s}%`);
-  const { data, error } = await q.limit(50);
+  const { data, error } = await q.limit(limit);
   if (error) throw error;
   return data ?? [];
 }
