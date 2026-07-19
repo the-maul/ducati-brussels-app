@@ -288,48 +288,50 @@ export function ArticleForm({
             </SelectContent>
           </Select>
         </Field>
-        {/* Familles : Rayon > Sous-rayon > Catégorie (cascade) */}
-        <Field label={t('articles.rayon')}>
-          <Select
-            value={f.rayon_code || undefined}
-            onValueChange={(v) => setF((p) => ({ ...p, rayon_code: v, sub_rayon_code: '', category_code: '' }))}
-          >
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent className="max-h-72">
-              {RAYONS_SORTED.map((r) => (
-                <SelectItem key={r.code} value={r.code}><span className="font-mono">{r.code}</span> {r.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('articles.subRayon')}>
-          <Select
-            value={f.sub_rayon_code || undefined}
-            onValueChange={(v) => setF((p) => ({ ...p, sub_rayon_code: v, category_code: '' }))}
-            disabled={!f.rayon_code}
-          >
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent className="max-h-72">
-              {sousRayonsFor(f.rayon_code).map((s) => (
-                <SelectItem key={s.code} value={s.code}><span className="font-mono">{s.code}</span> {s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('articles.categoryLevel')}>
-          <Select
-            value={f.category_code || undefined}
-            onValueChange={(v) => set('category_code', v)}
-            disabled={!f.sub_rayon_code}
-          >
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent className="max-h-72">
-              {categoriesFor(f.rayon_code, f.sub_rayon_code).map((c) => (
-                <SelectItem key={c.code} value={c.code}><span className="font-mono">{c.code}</span> {c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        {/* Familles : Rayon > Sous-rayon > Catégorie (cascade) — les 3 alignés sur une même ligne */}
+        <div className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Field label={t('articles.rayon')}>
+            <Select
+              value={f.rayon_code || undefined}
+              onValueChange={(v) => setF((p) => ({ ...p, rayon_code: v, sub_rayon_code: '', category_code: '' }))}
+            >
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {RAYONS_SORTED.map((r) => (
+                  <SelectItem key={r.code} value={r.code}><span className="font-mono">{r.code}</span> {r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t('articles.subRayon')}>
+            <Select
+              value={f.sub_rayon_code || undefined}
+              onValueChange={(v) => setF((p) => ({ ...p, sub_rayon_code: v, category_code: '' }))}
+              disabled={!f.rayon_code}
+            >
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {sousRayonsFor(f.rayon_code).map((s) => (
+                  <SelectItem key={s.code} value={s.code}><span className="font-mono">{s.code}</span> {s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t('articles.categoryLevel')}>
+            <Select
+              value={f.category_code || undefined}
+              onValueChange={(v) => set('category_code', v)}
+              disabled={!f.sub_rayon_code}
+            >
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {categoriesFor(f.rayon_code, f.sub_rayon_code).map((c) => (
+                  <SelectItem key={c.code} value={c.code}><span className="font-mono">{c.code}</span> {c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
         <Field label={t('articles.size')}>
           <Input value={f.size} onChange={(e) => set('size', e.target.value)} />
         </Field>
