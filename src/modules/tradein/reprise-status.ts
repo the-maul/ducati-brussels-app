@@ -21,12 +21,29 @@ export const REPRISE_FLOW: RepriseStatus[] = ['collecte', 'envoye', 'accepte', '
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
+// Code couleurs (charte : tokens, jamais de hex) :
+// Collecté = bleu ciel · Envoyé = orange clair · Accepté = vert (pré-accord)
+// · Repris = vert (repris physiquement) · Annulé = rouge clair.
 export const REPRISE_STATUS_META: Record<RepriseStatus, { tone: Tone; icon: LucideIcon }> = {
-  collecte: { tone: 'neutral', icon: ClipboardList },
-  envoye: { tone: 'info', icon: Send },
-  accepte: { tone: 'warning', icon: Check },
+  collecte: { tone: 'info', icon: ClipboardList },
+  envoye: { tone: 'warning', icon: Send },
+  accepte: { tone: 'success', icon: Check },
   repris: { tone: 'success', icon: Flag },
-  annule: { tone: 'neutral', icon: XCircle },
+  annule: { tone: 'danger', icon: XCircle },
+};
+
+/**
+ * Fond DOUX du champ « Statut » dans la liste des reprises (classes token).
+ * Nuance demandée : « Accepté » n'a PAS de fond (pré-accord) — une pastille
+ * ronde vert clair est ajoutée à la place ; « Repris » a le fond vert complet
+ * (moto reprise physiquement).
+ */
+export const REPRISE_STATUS_FIELD_BG: Record<RepriseStatus, string> = {
+  collecte: 'bg-info-bg',
+  envoye: 'bg-warning-bg',
+  accepte: '',
+  repris: 'bg-success-bg',
+  annule: 'bg-danger-bg',
 };
 
 /** Anciens statuts (ouvert/valide) + valeurs inconnues → statut du nouveau flux. */

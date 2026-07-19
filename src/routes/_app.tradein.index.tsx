@@ -16,7 +16,7 @@ import {
 import { PartnersDialog } from '@/modules/tradein/partners-dialog';
 import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
 import { tradeinStatusOf, setRepriseStatusManual, cancelReprise } from '@/modules/tradein/validate-api';
-import { REPRISE_STATUSES, type RepriseStatus } from '@/modules/tradein/reprise-status';
+import { REPRISE_STATUSES, REPRISE_STATUS_FIELD_BG, type RepriseStatus } from '@/modules/tradein/reprise-status';
 import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { t } from '@/lib/i18n';
 
@@ -185,14 +185,23 @@ function TradeinList() {
                   <td className="px-3 py-3">{moto}</td>
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <span className="inline-flex flex-wrap items-center gap-1.5">
-                      <Select value={tStatus} onValueChange={(v) => onStatusPick(o, v as RepriseStatus)}>
-                        <SelectTrigger className="h-8 w-[150px]" title={t('tradein.statusChange')}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {REPRISE_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>{t(`tradein.rstatus_${s}`)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {/* Fond doux par statut ; Accepté = pastille verte (pré-accord) */}
+                      <span className="relative inline-block">
+                        {tStatus === 'accepte' && (
+                          <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-2.5 -translate-y-1/2 rounded-full bg-success" aria-hidden />
+                        )}
+                        <Select value={tStatus} onValueChange={(v) => onStatusPick(o, v as RepriseStatus)}>
+                          <SelectTrigger
+                            className={`h-8 w-[150px] ${REPRISE_STATUS_FIELD_BG[tStatus]} ${tStatus === 'accepte' ? 'pl-6' : ''}`}
+                            title={t('tradein.statusChange')}
+                          ><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {REPRISE_STATUSES.map((s) => (
+                              <SelectItem key={s} value={s}>{t(`tradein.rstatus_${s}`)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </span>
                       {followUp && <StatusBadge tone="danger" icon={BellRing} label={t('tradein.followUp')} />}
                     </span>
                   </td>
