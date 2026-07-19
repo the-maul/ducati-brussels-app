@@ -89,6 +89,24 @@ export function tradeinStatusOf(
   return 'collecte';
 }
 
+/**
+ * Horodatage du STATUT courant (date + heure du dernier changement) : dérivé
+ * des timestamps déjà stockés par statut, sans nouvelle colonne.
+ *  - collecté → date de création (collecte) ;
+ *  - envoyé → dispatched_at ; accepté → accepted_at ;
+ *  - repris → validated_at ; annulé → cancelled_at.
+ * Repli sur created_at si le timestamp du statut est absent (donnée ancienne).
+ */
+export function statusChangedAt(meta: Partial<ValidationMeta>, createdAt: string | null, status: RepriseStatus): string | null {
+  switch (status) {
+    case 'envoye': return meta.dispatched_at ?? createdAt;
+    case 'accepte': return meta.accepted_at ?? createdAt;
+    case 'repris': return meta.validated_at ?? createdAt;
+    case 'annule': return meta.cancelled_at ?? createdAt;
+    default: return createdAt; // collecté = date de création
+  }
+}
+
 // Colonnes déjà migrées (20260719) : toujours écrites en base même si les
 // colonnes plus récentes (20260720 : accepted_amount, dispatched_at…) manquent.
 const CORE_ORO_COLS = new Set([

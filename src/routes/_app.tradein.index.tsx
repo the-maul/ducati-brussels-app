@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Bike, ChevronRight, Store, FileDown, BellRing, Users, Search } from 'lucide-react';
+import { Loader2, Bike, ChevronRight, Store, FileDown, BellRing, Users, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -15,7 +15,7 @@ import {
 } from '@/modules/tradein/partners-api';
 import { PartnersDialog } from '@/modules/tradein/partners-dialog';
 import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
-import { tradeinStatusOf, setRepriseStatusManual, cancelReprise } from '@/modules/tradein/validate-api';
+import { tradeinStatusOf, setRepriseStatusManual, cancelReprise, statusChangedAt, readValidationMeta } from '@/modules/tradein/validate-api';
 import { REPRISE_STATUSES, REPRISE_STATUS_FIELD_BG, type RepriseStatus } from '@/modules/tradein/reprise-status';
 import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { t } from '@/lib/i18n';
@@ -26,6 +26,8 @@ export const Route = createFileRoute('/_app/tradein/')({
 });
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
+const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-BE') : '—');
+const fmtDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
 function TradeinList() {
   const { activeCompanyId } = useAuth();
@@ -33,6 +35,9 @@ function TradeinList() {
   const qc = useQueryClient();
   const [partnersOpen, setPartnersOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<RepriseStatus | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   // Saisie rapide « Offre acceptée » ouverte via un changement de statut manuel
   const [acceptFor, setAcceptFor] = useState<{ oroId: string; vehicleId: string | null; best: { amount: number; partnerName: string } | null } | null>(null);
 
@@ -104,13 +109,24 @@ function TradeinList() {
   // Filtre de recherche : n° REP, client, société, véhicule (insensible aux
   // accents : « societe » retrouve « Société »).
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const q = norm(search.trim());
   const filtered = (data ?? []).filter((o) => {
-    const q = norm(search.trim());
-    if (!q) return true;
-    const moto = o.vehicle_info ? [o.vehicle_info.brand, o.vehicle_info.model, o.vehicle_info.model_year].filter(Boolean).join(' ') : '';
-    const hay = [o.number, repriseClientLabel(o.client), moto].filter(Boolean).map((s) => norm(String(s))).join(' | ');
-    return hay.includes(q);
+    // Filtre statut
+    const st = tradeinStatusOf(o as unknown as Record<string, unknown>, o.id, o.vehicle_info);
+    if (statusFilter !== 'all' && st !== statusFilter) return false;
+    // Filtre plage de dates (date de cr\u00e9ation / d'\u00e9mission de la demande)
+    const day = (o.created_at ?? '').slice(0, 10); // AAAA-MM-JJ
+    if (dateFrom && day && day < dateFrom) return false;
+    if (dateTo && day && day > dateTo) return false;
+    // Recherche texte
+    if (q) {
+      const moto = o.vehicle_info ? [o.vehicle_info.brand, o.vehicle_info.model, o.vehicle_info.model_year].filter(Boolean).join(' ') : '';
+      const hay = [o.number, repriseClientLabel(o.client), moto].filter(Boolean).map((s) => norm(String(s))).join(' | ');
+      if (!hay.includes(q)) return false;
+    }
+    return true;
   });
+  const hasFilter = !!(q || statusFilter !== 'all' || dateFrom || dateTo);
 
   return (
     <>
@@ -150,6 +166,33 @@ function TradeinList() {
         <Input className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('tradein.searchPlaceholder')} />
       </div>
 
+      {/* Filtres : par statut + par plage de dates (De … à …) */}
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.filterStatus')}</label>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as RepriseStatus | 'all')}>
+            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('tradein.filterAllStatuses')}</SelectItem>
+              {REPRISE_STATUSES.map((s) => <SelectItem key={s} value={s}>{t(`tradein.rstatus_${s}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.filterDateFrom')}</label>
+          <Input type="date" className="h-9 w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.filterDateTo')}</label>
+          <Input type="date" className="h-9 w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
+        {hasFilter && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}>
+            <X className="size-4" /> {t('tradein.filterReset')}
+          </Button>
+        )}
+      </div>
+
       {/* Reprises en cours */}
       <h2 className="mb-2 font-ui text-[13px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.ongoing')}</h2>
       <div className="overflow-x-auto rounded-md border border-border">
@@ -157,6 +200,7 @@ function TradeinList() {
           <thead className="bg-muted">
             <tr>
               <Th>{t('tradein.colNumber')}</Th>
+              <Th>{t('tradein.colCreated')}</Th>
               <Th>{t('tradein.colClient')}</Th>
               <Th>{t('tradein.colMoto')}</Th>
               <Th>{t('tradein.colStatus')}</Th>
@@ -167,8 +211,8 @@ function TradeinList() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={8} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && filtered.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{search.trim() ? t('tradein.searchEmpty') : t('tradein.empty')}</td></tr>}
+            {isLoading && <tr><td colSpan={9} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
+            {data && filtered.length === 0 && <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">{hasFilter ? t('tradein.searchEmpty') : t('tradein.empty')}</td></tr>}
             {filtered.map((o) => {
               const st = stats.get(o.id) ?? { count: 0, best: 0 };
               const moto = o.vehicle_info
@@ -176,11 +220,13 @@ function TradeinList() {
                 : '—';
               const tStatus = tradeinStatusOf(o as unknown as Record<string, unknown>, o.id, o.vehicle_info);
               const followUp = tStatus === 'collecte' && needsFollowUp(o.created_at, st.count, o.status);
+              const changedAt = statusChangedAt(readValidationMeta(o as unknown as Record<string, unknown>, o.id), o.created_at, tStatus);
               return (
                 <tr key={o.id} onClick={() => navigate({ to: '/tradein/$oroId', params: { oroId: o.id } })} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
                   <td className="px-3 py-3 font-mono text-[12px]">
                     <span className="underline decoration-dotted underline-offset-2">{o.number ?? '—'}</span>
                   </td>
+                  <td className="px-3 py-3 tabular-nums text-muted-foreground">{fmtDate(o.created_at)}</td>
                   <td className="px-3 py-3 font-medium">{repriseClientLabel(o.client)}</td>
                   <td className="px-3 py-3">{moto}</td>
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -202,6 +248,8 @@ function TradeinList() {
                           </SelectContent>
                         </Select>
                       </span>
+                      {/* Date + heure du changement de statut (grisé) */}
+                      {changedAt && <span className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">{fmtDateTime(changedAt)}</span>}
                       {followUp && <StatusBadge tone="danger" icon={BellRing} label={t('tradein.followUp')} />}
                     </span>
                   </td>
