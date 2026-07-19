@@ -37,7 +37,9 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
     ] },
     { title: 'Historique du véhicule', rows: [
       { label: 'Année', value: vehicle.model_year ? String(vehicle.model_year) : '' },
-      { label: 'Kilométrage', value: vehicle.mileage != null ? `${Number(vehicle.mileage).toLocaleString('fr-BE')} km` : '' },
+      // Séparateur de milliers = espace NORMAL : l'insécable étroit de
+      // toLocaleString('fr-BE') est hors WinAnsi et sort en « / » dans jsPDF.
+      { label: 'Kilométrage', value: vehicle.mileage != null ? `${String(Math.round(Number(vehicle.mileage))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} km` : '' },
     ] },
     { title: 'Caractéristiques techniques', rows: [
       { label: 'Puissance', value: cv > 0 ? `${cv} ch (${kw} kW)` : '' },
