@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, listArticleFacets, getSupplierAvailability, type ArticleFilters } from '@/modules/articles/api';
+import { listArticles, listArticleFacets, getSupplierAvailability, duplicateArticle, type ArticleFilters } from '@/modules/articles/api';
 import { yearOptions } from '@/modules/articles/article-form';
 import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/product-families';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
@@ -71,6 +72,7 @@ function ArticlesList() {
   const { activeCompanyId } = useAuth();
   const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [labelsOpen, setLabelsOpen] = useState(false);
@@ -78,6 +80,16 @@ function ArticlesList() {
   const [f, setF] = useState<FiltersState>(EMPTY_FILTERS);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
+
+  const duplicate = useMutation({
+    mutationFn: (articleId: string) => duplicateArticle(articleId),
+    onSuccess: (newId) => {
+      qc.invalidateQueries({ queryKey: ['articles'] });
+      toast.success(t('articles.duplicated'));
+      navigate({ to: '/parts/$articleId', params: { articleId: newId } });
+    },
+    onError: () => toast.error(t('articles.errDuplicate')),
+  });
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -302,14 +314,15 @@ function ArticlesList() {
               <Th className="text-right">{t('articles.colOnProposal')}</Th>
               <Th className="text-right">{t('articles.colOnOrder')}</Th>
               <Th className="text-right">{t('articles.colPrice')}</Th>
+              <Th className="w-10" />
             </tr>
           </thead>
           <tbody>
             {(isLoading || (data && !rows)) && (
-              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
+              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
             )}
             {rows && rows.length === 0 && (
-              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
+              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
             )}
             {rows?.map((a) => {
               const isReplaced = !!a.superseded_by_id;
@@ -352,6 +365,15 @@ function ArticlesList() {
                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
+                <td className="px-1 py-2 text-right">
+                  <Button
+                    variant="ghost" size="sm" title={t('articles.duplicate')} aria-label={t('articles.duplicate')}
+                    disabled={duplicate.isPending}
+                    onClick={(e) => { e.stopPropagation(); duplicate.mutate(a.id); }}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
+                </td>
               </tr>
               );
             })}

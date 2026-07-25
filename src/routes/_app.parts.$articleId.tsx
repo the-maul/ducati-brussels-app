@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
@@ -9,9 +10,9 @@ import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
-import { Tags, BookOpen, ArrowRight } from 'lucide-react';
+import { Tags, BookOpen, ArrowRight, Copy } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
-import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
+import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
@@ -51,6 +52,16 @@ function EditArticle() {
     onError: (e) => setError(e instanceof Error ? e.message : t('articles.errSave')),
   });
 
+  const duplicate = useMutation({
+    mutationFn: () => duplicateArticle(articleId),
+    onSuccess: (newId) => {
+      qc.invalidateQueries({ queryKey: ['articles'] });
+      toast.success(t('articles.duplicated'));
+      navigate({ to: '/parts/$articleId', params: { articleId: newId } });
+    },
+    onError: () => toast.error(t('articles.errDuplicate')),
+  });
+
   if (isLoading) {
     return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -74,6 +85,9 @@ function EditArticle() {
               <BookOpen /> {t('articles.openCatalog')}
             </Button>
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
+            <Button variant="outline" disabled={duplicate.isPending} onClick={() => duplicate.mutate()}>
+              <Copy /> {t('articles.duplicate')}
+            </Button>
           </>
         }
       />
