@@ -29,6 +29,12 @@ export function getModelInterests(c: Contact): string[] {
   return Array.isArray(v) ? v : [];
 }
 
+/** Motif de surveillance (colonne ajoutée par migration, pas encore dans les types Supabase générés). */
+export function getWatchNote(c: Contact): string | null {
+  const v = (c as { watch_note?: string | null }).watch_note;
+  return v || null;
+}
+
 /** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
 export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
   const { data, error } = await supabase.rpc('contacts_search', {

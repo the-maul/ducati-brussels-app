@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText, ExternalLink, Tags } from 'lucide-react';
+import { Loader2, FileText, ExternalLink, Tags, Star, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
@@ -12,10 +13,13 @@ import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItems
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
-  getContact, updateContact, contactDisplayName, getModelInterests, type ContactInsert,
+  getContact, updateContact, contactDisplayName, getModelInterests, getWatchNote, type ContactInsert,
 } from '@/modules/contacts/api';
+import { getDebtorsList } from '@/modules/accounting/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+
+const eurFormat = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
 export const Route = createFileRoute('/_app/clients/$contactId')({
   head: () => ({ meta: [{ title: 'Fiche client — Ducati Bruxelles' }] }),
@@ -29,11 +33,27 @@ function EditClient() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
+  const [debtorAlertOpen, setDebtorAlertOpen] = useState(false);
+  const debtorAlertShown = useRef(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', contactId],
     queryFn: () => getContact(contactId),
   });
+
+  const { data: debtors } = useQuery({
+    queryKey: ['debtors-list', activeCompanyId],
+    queryFn: () => getDebtorsList(activeCompanyId!, new Date().toISOString().slice(0, 10)),
+    enabled: !!activeCompanyId,
+  });
+  const debtorRow = debtors?.find((d) => d.contact_id === contactId);
+
+  useEffect(() => {
+    if (!debtorAlertShown.current && debtorRow && debtorRow.total_due > 0) {
+      debtorAlertShown.current = true;
+      setDebtorAlertOpen(true);
+    }
+  }, [debtorRow]);
 
   const m = useMutation({
     mutationFn: (payload: ContactInsert) => updateContact(contactId, payload),
@@ -69,7 +89,13 @@ function EditClient() {
   return (
     <>
       <PageHeader
-        title={contactDisplayName(contact)}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {contactDisplayName(contact)}
+            {contact.is_vip && <Star className="size-4 shrink-0 fill-current text-warning" title={t('contacts.flagVip')} />}
+            {contact.is_watch && <AlertTriangle className="size-4 shrink-0 text-danger" title={getWatchNote(contact) ?? t('contacts.flagWatch')} />}
+          </span>
+        }
         description={t('contacts.edit')}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -88,6 +114,27 @@ function EditClient() {
         }
       />
       <ContactLabelDialog open={labelOpen} onOpenChange={setLabelOpen} companyId={activeCompanyId} contact={contact} />
+      <Dialog open={debtorAlertOpen} onOpenChange={setDebtorAlertOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('contacts.debtorAlertTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-foreground">
+            {t('contacts.debtorAlertBody').replace('{amount}', eurFormat.format(debtorRow?.total_due ?? 0))}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDebtorAlertOpen(false)}>{t('common.no')}</Button>
+            <Button
+              onClick={() => {
+                // TODO: brancher flux paiement M6
+                setDebtorAlertOpen(false);
+              }}
+            >
+              {t('contacts.debtorSettle')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {getModelInterests(contact).length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">

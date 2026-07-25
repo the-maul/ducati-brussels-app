@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listContactsPaged, contactDisplayName, getModelInterests, type Contact } from '@/modules/contacts/api';
+import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact } from '@/modules/contacts/api';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { t } from '@/lib/i18n';
 
@@ -49,7 +49,7 @@ function ClientsList() {
       return next;
     });
   }
-  const colCount = 1 + visibleCols.size;
+  const colCount = 2 + visibleCols.size;
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -141,6 +141,7 @@ function ClientsList() {
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
             <tr>
+              <Th>{t('contacts.colCode')}</Th>
               <Th>{t('contacts.colName')}</Th>
               {visibleCols.has('type')    && <Th>{t('contacts.colType')}</Th>}
               {visibleCols.has('city')    && <Th>{t('contacts.colCity')}</Th>}
@@ -166,7 +167,14 @@ function ClientsList() {
                 onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })}
                 className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
               >
-                <td className="px-3 py-2 font-medium">{contactDisplayName(c)}</td>
+                <td className="px-3 py-2 font-mono text-muted-foreground">{c.code ?? '—'}</td>
+                <td className="px-3 py-2 font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    {contactDisplayName(c)}
+                    {c.is_vip && <Star className="size-3.5 shrink-0 fill-current text-warning" title={t('contacts.flagVip')} />}
+                    {c.is_watch && <AlertTriangle className="size-3.5 shrink-0 text-danger" title={getWatchNote(c) ?? t('contacts.flagWatch')} />}
+                  </span>
+                </td>
                 {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}
                 {visibleCols.has('city')    && <td className="px-3 py-2">{c.city ?? '—'}</td>}
                 {visibleCols.has('contact') && <td className="px-3 py-2">{c.email ?? c.mobile ?? c.phone ?? '—'}</td>}

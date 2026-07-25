@@ -11,6 +11,11 @@ export const fr = {
     tagline: 'DMS — Gestion concession',
   },
 
+  // Libellés génériques réutilisables (boutons de dialogues, etc.)
+  common: {
+    no: 'Non',
+  },
+
   // Modules de la sidebar (charte §4.1)
   nav: {
     dashboard: 'Tableau de bord',
@@ -549,6 +554,13 @@ export const fr = {
     noLinks: 'Aucune fiche liée.',
     openFiche: 'Ouvrir la fiche',
     unlink: 'Délier',
+    linkLimitReached: 'Limite de 2 fiches liées atteinte.',
+    inheritTitle: 'Créer la fiche liée',
+    inheritContact: 'Mail et téléphone identiques à la fiche pro',
+    inheritAddress: 'Adresse postale identique à la fiche pro',
+    debtorAlertTitle: 'Attention client débiteur',
+    debtorAlertBody: 'Redevable de {amount}.',
+    debtorSettle: 'Solder le compte',
     secPrivateAddress: 'Coordonnées privées',
     privateEmail: 'E-mail privé',
     privatePhone: 'Téléphone privé',
@@ -674,6 +686,7 @@ export const fr = {
     interestPiste: 'Piste',
     notes: 'Notes',
     // colonnes liste
+    colCode: 'Code',
     colName: 'Nom',
     colType: 'Type',
     colCity: 'Ville',
