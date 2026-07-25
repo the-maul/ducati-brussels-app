@@ -82,6 +82,14 @@ export function stripMissingCol<T extends Record<string, unknown>>(input: T, e: 
 /** Article + réf. de remplacement embarquée (self-join sur superseded_by_id). */
 export type ArticleWithReplacement = Article & { replacement?: { id: string; reference: string } | null };
 
+export type SupplierAvailability = 'green' | 'yellow' | 'red';
+
+/** Colonne ajoutée par la migration 20260726 — pas encore dans les types générés. */
+export function getSupplierAvailability(a: Article): SupplierAvailability | null {
+  const v = (a as { supplier_availability?: string | null }).supplier_availability;
+  return v === 'green' || v === 'yellow' || v === 'red' ? v : null;
+}
+
 /** Filtres de la recherche multicritères (page Pièces & Accessoires). */
 export type ArticleFilters = {
   search?: string;

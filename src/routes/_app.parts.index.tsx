@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, listArticleFacets, type ArticleFilters } from '@/modules/articles/api';
+import { listArticles, listArticleFacets, getSupplierAvailability, type ArticleFilters } from '@/modules/articles/api';
 import { yearOptions } from '@/modules/articles/article-form';
 import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/product-families';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
@@ -125,25 +125,26 @@ function ArticlesList() {
     enabled: !!activeCompanyId && filtersOpen,
     staleTime: 5 * 60 * 1000,
   });
-  // Stock réel (somme de stock_moves) — uniquement si le filtre Stocks est actif
+  // Stock réel/réservé/disponible (somme de stock_moves) — chargé en permanence pour
+  // alimenter les colonnes du tableau ET le filtre Stocks (croisement client).
   const { data: stockRows, error: stockError } = useQuery({
     queryKey: ['stock-for-filter', activeCompanyId],
     queryFn: () => listStock(activeCompanyId!),
-    enabled: !!activeCompanyId && f.stock !== 'all',
+    enabled: !!activeCompanyId,
     staleTime: 60 * 1000,
   });
+  const stockById = useMemo(() => new Map(stockRows?.map((r) => [r.article_id, r]) ?? []), [stockRows]);
 
   const rows = useMemo(() => {
     if (!data) return data;
     if (f.stock === 'all') return data;
     if (stockError) return data; // stock indisponible : liste non filtrée + bandeau d'erreur
     if (!stockRows) return undefined; // stock en cours de chargement
-    const qtyById = new Map(stockRows.map((r) => [r.article_id, r.real_qty]));
     return data.filter((a) => {
-      const q = qtyById.get(a.id) ?? 0;
+      const q = stockById.get(a.id)?.real_qty ?? 0;
       return f.stock === 'pos' ? q > 0 : f.stock === 'neg' ? q < 0 : q === 0;
     });
-  }, [data, stockRows, stockError, f.stock]);
+  }, [data, stockRows, stockById, stockError, f.stock]);
 
   const yearsList = facets?.years?.length ? facets.years : yearOptions();
 
@@ -173,7 +174,7 @@ function ArticlesList() {
         }
       />
 
-      <div className="mb-2 flex items-center gap-2">
+      <div className="sticky top-0 z-20 flex items-center gap-2 bg-background pb-2">
         <div className="relative max-w-md flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('articles.search')} className="pl-9" />
@@ -286,30 +287,43 @@ function ArticlesList() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-md border border-border">
+      <div className="overflow-auto rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted">
+          <thead className="sticky top-11 z-10 bg-muted">
             <tr>
               <Th>{t('articles.colRef')}</Th>
               <Th>{t('articles.colDesignation')}</Th>
-              <Th>{t('articles.colType')}</Th>
-              <Th>{t('articles.colBrand')}</Th>
+              <Th>{t('articles.colSupplierAvail')}</Th>
+              <Th className="text-right">{t('articles.colRealStock')}</Th>
+              <Th className="text-right">{t('articles.colReserved')}</Th>
+              <Th className="text-right">{t('articles.colAvailable')}</Th>
               <Th>{t('articles.colStock')}</Th>
+              <Th>{t('articles.binLocation2')}</Th>
+              <Th className="text-right">{t('articles.colOnProposal')}</Th>
+              <Th className="text-right">{t('articles.colOnOrder')}</Th>
               <Th className="text-right">{t('articles.colPrice')}</Th>
             </tr>
           </thead>
           <tbody>
             {(isLoading || (data && !rows)) && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
             )}
             {rows && rows.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
             )}
             {rows?.map((a) => {
               const isReplaced = !!a.superseded_by_id;
               const replTitle = a.replacement?.reference
                 ? t('articles.replacedBy').replace('{ref}', a.replacement.reference)
                 : t('articles.replacedBadge');
+              const avail = getSupplierAvailability(a);
+              const availTone = avail === 'green' ? 'bg-success' : avail === 'yellow' ? 'bg-warning' : avail === 'red' ? 'bg-danger' : 'bg-neutral-bg';
+              const availLabel = avail === 'green' ? t('articles.availGreen') : avail === 'yellow' ? t('articles.availYellow') : avail === 'red' ? t('articles.availRed') : t('articles.availUnknown');
+              const stock = stockById.get(a.id);
+              const realQty = stock?.real_qty;
+              const reservedQty = stock?.reserved_qty;
+              const availableQty = stock ? (reservedQty != null ? stock.real_qty - reservedQty : stock.real_qty) : undefined;
+              const bin2 = (a as { bin_location2?: string | null }).bin_location2;
               return (
               <tr
                 key={a.id}
@@ -326,9 +340,17 @@ function ArticlesList() {
                     )}
                   </span>
                 </td>
-                <td className="px-3 py-2"><StatusBadge tone="neutral" label={a.mgmt_type} /></td>
-                <td className="px-3 py-2">{a.brand ?? '—'}</td>
+                <td className="px-3 py-2">
+                  <span className={`inline-block size-2.5 rounded-full ${availTone}`} title={availLabel} />
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{realQty != null ? realQty : '—'}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{reservedQty != null ? reservedQty : '—'}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{availableQty != null ? availableQty : '—'}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location ?? '—'}</td>
+                <td className="px-3 py-2 font-mono text-[12px]">{bin2 || '—'}</td>
+                {/* TODO: brancher quantités en proposition/commande (M4 achats) */}
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
               </tr>
               );
