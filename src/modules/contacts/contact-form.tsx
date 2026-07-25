@@ -122,10 +122,18 @@ const DUCATI_VINTAGE_MODELS: string[] = [
   'Scrambler Icon (2023)', 'Scrambler Nightshift (2023)',
 ];
 
+const PAYMENT_TERMS_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: 'immediat', labelKey: 'contacts.payTermImmediate' },
+  { value: '7j', labelKey: 'contacts.payTerm7' },
+  { value: '15j', labelKey: 'contacts.payTerm15' },
+  { value: '30j', labelKey: 'contacts.payTerm30' },
+];
+
 const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'route', labelKey: 'contacts.interestRoute' },
   { key: 'sport', labelKey: 'contacts.interestSport' },
   { key: 'offroad', labelKey: 'contacts.interestOffroad' },
+  { key: 'piste', labelKey: 'contacts.interestPiste' },
 ];
 
 // Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
@@ -199,6 +207,7 @@ type FormState = {
   is_vip: boolean;
   is_detaxe: boolean;
   is_watch: boolean;
+  watch_note: string;
   is_account: boolean;
   is_blocked: boolean;
   mode_ht: boolean;
@@ -269,6 +278,7 @@ function fromContact(c: Contact | null): FormState {
     is_vip: c?.is_vip ?? false,
     is_detaxe: c?.is_detaxe ?? false,
     is_watch: c?.is_watch ?? false,
+    watch_note: ext?.watch_note ?? '',
     is_account: c?.is_account ?? false,
     is_blocked: c?.is_blocked ?? false,
     mode_ht: c?.mode_ht ?? false,
@@ -359,6 +369,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     vehicle_preference: nn(f.vehicle_preference),
     model_interests: f.model_interests,
     notify_model_stock: f.notify_model_stock,
+    // Colonne ajoutée par migration 20260726 — pas encore dans types.ts auto-généré
+    watch_note: nn(f.watch_note),
   });
 }
 
@@ -540,7 +552,17 @@ export function ContactForm({
                 <VatField f={f} set={set} />
               </Field>
               <Field label={t('contacts.paymentTerms')}>
-                <Input value={f.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} placeholder="30 jours" />
+                <Select
+                  value={PAYMENT_TERMS_OPTIONS.some((o) => o.value === f.payment_terms) ? f.payment_terms : undefined}
+                  onValueChange={(v) => set('payment_terms', v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_TERMS_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{t(o.labelKey)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label={t('contacts.iban')}>
                 <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
@@ -651,21 +673,6 @@ export function ContactForm({
           {/* ── Catégorisation (clients) ──────────────────────────────────── */}
           {isClient && (
           <Section title={t('contacts.secCategory')}>
-            <Field label={t('contacts.segment')}>
-              <Select value={f.segment} onValueChange={(v) => set('segment', v as CustomerSegment)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">{t('contacts.segment_standard')}</SelectItem>
-                  <SelectItem value="vip">{t('contacts.segment_vip')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={t('contacts.priceList')}>
-              <Input value={f.price_list} onChange={(e) => set('price_list', e.target.value)} />
-            </Field>
-            <Field label={t('contacts.category')}>
-              <Input value={f.category} onChange={(e) => set('category', e.target.value)} />
-            </Field>
             <div className="col-span-full grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Check label={t('contacts.flagVip')} checked={f.is_vip} onChange={(v) => set('is_vip', v)} />
               <Check label={t('contacts.flagDetaxe')} checked={f.is_detaxe} onChange={(v) => set('is_detaxe', v)} />
@@ -675,6 +682,11 @@ export function ContactForm({
               <Check label={t('contacts.modeHt')} checked={f.mode_ht} onChange={(v) => set('mode_ht', v)} />
               <Check label={t('contacts.marketingOptOut')} checked={f.marketing_opt_out} onChange={(v) => set('marketing_opt_out', v)} />
             </div>
+            {f.is_watch && (
+              <Field label={t('contacts.watchNote')} wide>
+                <Textarea value={f.watch_note} onChange={(e) => set('watch_note', e.target.value)} rows={2} />
+              </Field>
+            )}
             <Field label={t('contacts.interests')} wide>
               <div className="flex flex-wrap gap-4 pt-1">
                 {INTEREST_OPTIONS.map((opt) => (
