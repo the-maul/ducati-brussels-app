@@ -1218,6 +1218,14 @@ export const fr = {
     // cessions internes
     cessions: 'Cessions internes', cessionsTitle: 'Cessions internes', cessionsSubtitle: 'Sorties de stock valorisées non facturables, typées (cadeau, démo, fournitures, garantie).',
     cessionArticle: 'Article', cessionArticlePlaceholder: 'Réf, désignation…', cessionQty: 'Quantité', cessionType: 'Type de cession', cessionNote: 'Note', cessionAdd: 'Enregistrer', cessionErr: 'Erreur',
+    // filtres multicritères
+    filters: 'Filtres', filterAll: 'Tous', filterReset: 'Réinitialiser',
+    filterSupplier: 'Fournisseur', filterRayon: 'Rayon', filterDateFrom: 'Du', filterDateTo: 'Au',
+    // export CSV
+    export: 'Exporter',
+    // réappro / back-order
+    reorderView: 'Réappro', reorderEmpty: 'Aucun article à surveiller pour réappro.',
+    colSupplier: 'Fournisseur', colGap: 'Manque',
   },
 
   // Achats & réceptions (M4)
