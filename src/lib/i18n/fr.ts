@@ -929,6 +929,25 @@ export const fr = {
     stage: 'Étape', value: 'Valeur estimée', openCard: 'Ouvrir la fiche', deleted: 'Lead supprimé.', notes: 'Notes',
   },
 
+  // Matching client intéressé ↔ moto en stock (M10 × M3)
+  matching: {
+    title: 'Clients intéressés par ce modèle',
+    subtitle: 'Contacts dont les préférences correspondent à cette moto.',
+    reasonModel: 'Modèle suivi',
+    reasonUsage: 'Usage compatible',
+    notify: 'Notifier',
+    notifyEmail: 'Notifier par e-mail',
+    notifySms: 'Notifier par SMS',
+    notifyAll: 'Tout notifier par e-mail',
+    notifying: 'Envoi…',
+    notified: 'Client notifié.',
+    notifyError: 'Notification impossible.',
+    notifyAllResult: '{count} client(s) notifié(s) par e-mail.',
+    notifyAllNone: 'Aucun client avec e-mail à notifier.',
+    none: 'Aucun client intéressé par ce modèle pour le moment.',
+    colContact: 'Contact', colReason: 'Correspondance', colContactInfo: 'Coordonnées', colActions: 'Actions',
+  },
+
   // Documents & GED (M9)
   ged: {
     title: 'Documents & photos', upload: 'Ajouter (photo / fichier)', hint: 'Photos (caméra sur mobile), COC, pièce d\'identité, justificatifs…',
