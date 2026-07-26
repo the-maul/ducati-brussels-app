@@ -12,6 +12,9 @@ import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
+import { listStock } from '@/modules/stock/stock-api';
+import { computeDocAvailability, AVAILABILITY_DOC_TYPES } from '@/modules/sales/availability';
+import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -26,8 +29,16 @@ const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' |
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
-  const { companies } = useAuth();
+  const { companies, activeCompanyId } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
+  const showAvailability = data ? (AVAILABILITY_DOC_TYPES as readonly string[]).includes(data.doc.doc_type) : false;
+  const stockQ = useQuery({
+    queryKey: ['stock-availability', activeCompanyId],
+    queryFn: () => listStock(activeCompanyId!),
+    enabled: !!activeCompanyId && showAvailability,
+  });
+  const stockMap = new Map((stockQ.data ?? []).map((r) => [r.article_id, r.available_qty]));
+  const docAvailability = data && showAvailability ? computeDocAvailability(data.lines, stockMap) : null;
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
   const vehicleId = data?.doc.vehicle_id ?? null;
@@ -70,6 +81,7 @@ function DocumentView() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
+        {docAvailability && <AvailabilityBadge status={docAvailability.status} pct={docAvailability.pct} />}
         {canConvert && (convertTargets.length > 0 || doc.doc_type === 'FAC') && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
@@ -111,17 +123,34 @@ function DocumentView() {
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>{t('sales.colDesignation')}</Th><Th className="text-right">{t('sales.colQty')}</Th><Th className="text-right">{t('sales.colPuHt')}</Th><Th className="text-right">{t('sales.colVat')}</Th><Th className="text-right">{t('sales.colLineHt')}</Th></tr></thead>
+          <thead className="bg-muted">
+            <tr>
+              <Th>{t('sales.colDesignation')}</Th>
+              <Th className="text-right">{t('sales.colQty')}</Th>
+              <Th className="text-right">{t('sales.colPuHt')}</Th>
+              <Th className="text-right">{t('sales.colVat')}</Th>
+              <Th className="text-right">{t('sales.colLineHt')}</Th>
+              {showAvailability && <Th>{t('availability.colDispo')}</Th>}
+            </tr>
+          </thead>
           <tbody>
-            {lines.map((l) => (
-              <tr key={l.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">{l.designation}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_price_ht))}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.vat_rate}%</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
-              </tr>
-            ))}
+            {lines.map((l) => {
+              const lineAvail = showAvailability ? computeDocAvailability([l], stockMap) : null;
+              return (
+                <tr key={l.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2">{l.designation}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_price_ht))}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{l.vat_rate}%</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
+                  {showAvailability && (
+                    <td className="px-3 py-2">
+                      {lineAvail && lineAvail.status !== 'na' && <AvailabilityBadge status={lineAvail.status} pct={lineAvail.pct} />}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

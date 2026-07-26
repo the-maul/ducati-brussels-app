@@ -1434,6 +1434,21 @@ export const fr = {
     colStatus: 'Statut',
     colPrice: 'Prix',
   },
+
+  // Disponibilité des lignes sur les documents de vente (dept Ventes, point 2)
+  availability: {
+    statusDisponible: 'Disponible',
+    statusPartiel: 'Partiel',
+    statusIndisponible: 'Indisponible',
+    statusNa: 'N/A',
+    colDispo: 'Dispo',
+    filterLabel: 'Disponibilité',
+    filterAll: 'Toutes',
+    filterTotal: 'Totalement disponible',
+    filterPartial: 'Partiellement disponible',
+    filterOrder: 'En commande',
+    filterNone: 'Indisponible',
+  },
 } as const;
 
 export type Dictionary = typeof fr;

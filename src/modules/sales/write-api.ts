@@ -302,6 +302,20 @@ export async function listDocuments(companyId: string, docType?: string): Promis
   return data ?? [];
 }
 
+export type AvailabilityLineRow = { document_id: string; article_id: string | null; quantity: number };
+/**
+ * Lignes (article_id, quantity) d'un lot de documents, en un seul aller-retour — utilisé
+ * par la liste des ventes pour calculer la pastille de disponibilité (B4) sans requête N+1
+ * par document. Bornée par la liste appelante (max 100 documents, cf. listDocuments).
+ */
+export async function listDocumentLinesFor(documentIds: string[]): Promise<AvailabilityLineRow[]> {
+  if (documentIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('document_lines').select('document_id, article_id, quantity').in('document_id', documentIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export type PaymentRow = Database['public']['Tables']['document_payments']['Row'];
 /** Une ligne de règlement à enregistrer (un mode). */
 export type NewPayment = {
