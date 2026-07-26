@@ -1226,6 +1226,13 @@ export const fr = {
     // réappro / back-order
     reorderView: 'Réappro', reorderEmpty: 'Aucun article à surveiller pour réappro.',
     colSupplier: 'Fournisseur', colGap: 'Manque',
+    // dépréciation de stock
+    deprecBtn: 'Dépréciations', deprecTitle: 'Dépréciations de stock',
+    deprecSubtitle: 'Décote de la valeur PAMP du vieux stock — provision de valeur, sans impact sur les quantités.',
+    deprecDormant: 'Seulement stock dormant', deprecRate: 'Décote %', deprecPreview: 'Aperçu décote',
+    deprecReason: 'Motif', deprecApply: 'Appliquer', deprecApplied: 'Dépréciation enregistrée.',
+    deprecActive: 'Dépréciations en cours', deprecTotal: 'Provision totale', deprecCancel: 'Annuler',
+    deprecCancelled: 'Dépréciation annulée.', deprecEmpty: 'Aucune dépréciation en cours.', deprecErr: 'Erreur',
   },
 
   // Achats & réceptions (M4)
