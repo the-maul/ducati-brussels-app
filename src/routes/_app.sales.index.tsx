@@ -12,8 +12,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listDocuments, duplicateDocument, deleteDocument, getDocumentFull, type DocumentRow } from '@/modules/sales/write-api';
+import { listDocuments, duplicateDocument, deleteDocument, purgeQuotesBefore, getDocumentFull, type DocumentRow } from '@/modules/sales/write-api';
 import { printDocument } from '@/modules/sales/print-document';
 import { listContactsByIds, contactDisplayName } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
@@ -69,6 +70,7 @@ function SalesList() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
   const [f, setF] = useState<FiltersState>(EMPTY_FILTERS);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
@@ -163,7 +165,12 @@ function SalesList() {
       <PageHeader
         title={t('nav.sales')}
         description={t('sales.subtitle')}
-        actions={<Button onClick={() => navigate({ to: '/sales/new' })}><Plus /> {t('sales.newDoc')}</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setPurgeOpen(true)}><Trash2 /> {t('sales.purgeQuotes')}</Button>
+            <Button onClick={() => navigate({ to: '/sales/new' })}><Plus /> {t('sales.newDoc')}</Button>
+          </div>
+        }
       />
 
       <div className="mb-2 flex items-center gap-2">
@@ -272,7 +279,58 @@ function SalesList() {
           </tbody>
         </table>
       </div>
+
+      {purgeOpen && (
+        <PurgeQuotesDialog
+          companyId={activeCompanyId!}
+          documents={data ?? []}
+          onClose={() => setPurgeOpen(false)}
+          onDone={() => qc.invalidateQueries({ queryKey: ['documents', activeCompanyId] })}
+        />
+      )}
     </>
+  );
+}
+
+function PurgeQuotesDialog({ companyId, documents, onClose, onDone }: { companyId: string; documents: DocumentRow[]; onClose: () => void; onDone: () => void }) {
+  const [date, setDate] = useState('');
+  const estimate = useMemo(
+    () => date ? documents.filter((d) => d.doc_type === 'DEV' && (d.status === 'brouillon' || d.status === 'validee') && d.issue_date < date).length : 0,
+    [documents, date],
+  );
+  const purge = useMutation({
+    mutationFn: () => purgeQuotesBefore(companyId, date),
+    onSuccess: (n) => {
+      toast.success(t('sales.purgeQuotesDone').replace('{n}', String(n)));
+      onDone();
+      onClose();
+    },
+    onError: () => toast.error(t('sales.errPurge')),
+  });
+  const onConfirm = () => {
+    if (!date) return;
+    if (estimate === 0) { toast.info(t('sales.purgeQuotesNone')); return; }
+    if (window.confirm(t('sales.purgeQuotesConfirm').replace('{n}', String(estimate)))) purge.mutate();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t('sales.purgeQuotesTitle')}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>{t('sales.purgeQuotesBefore')}</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <p className="text-[12px] text-muted-foreground">{t('sales.purgeQuotesHint')}</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={!date || purge.isPending}>
+            {purge.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} {t('action.confirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

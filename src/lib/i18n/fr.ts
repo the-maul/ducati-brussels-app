@@ -804,6 +804,26 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+    // envoi du document (e-mail / SMS)
+    sendMail: 'Envoyer par e-mail', sendSms: 'Envoyer par SMS',
+    sendMailTitle: 'Envoyer le document par e-mail', sendSmsTitle: 'Envoyer le document par SMS',
+    mailTo: 'À', mailSubject: 'Objet', mailBody: 'Message', smsTo: 'À', smsBody: 'Message',
+    mailSubjectDefault: 'Votre document {number}',
+    mailBodyDefault: 'Bonjour,\n\nVeuillez trouver votre document {number} en pièce jointe.\n\nCordialement,\nDucati Bruxelles',
+    smsBodyDefault: 'Bonjour, votre commande {number} est disponible en magasin.',
+    send: 'Envoyer', notifHint: 'L\'envoi part dès que la messagerie est configurée.',
+    noEmail: 'Ce contact n\'a pas d\'adresse e-mail.', noPhone: 'Ce contact n\'a pas de numéro de téléphone.',
+    mailQueued: 'E-mail mis en file d\'envoi.', smsQueued: 'SMS mis en file d\'envoi.',
+    errSend: 'Erreur à l\'envoi.',
+    // purge des devis
+    purgeQuotes: 'Purger les devis',
+    purgeQuotesTitle: 'Purger les devis',
+    purgeQuotesBefore: 'Supprimer les devis (DEV) antérieurs au…',
+    purgeQuotesHint: 'Seuls les devis brouillon ou validés sont supprimés — les devis transformés en facture/BL/réservation sont conservés.',
+    purgeQuotesConfirm: '{n} devis seront supprimés définitivement. Confirmer ?',
+    purgeQuotesNone: 'Aucun devis à purger avant cette date.',
+    purgeQuotesDone: '{n} devis supprimé(s).',
+    errPurge: 'Erreur à la purge.',
   },
 
   // Tableau de bord (M13)

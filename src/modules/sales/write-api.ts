@@ -321,6 +321,25 @@ export async function deleteDocument(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Purge des devis anciens (trop nombreux au fil du temps) : supprime les DEV
+ * antérieurs à `dateIso`, uniquement à l'état brouillon/validée — jamais un devis
+ * converti en facture (B7 : un document facturé ne se supprime pas). Retourne le
+ * nombre de devis supprimés.
+ */
+export async function purgeQuotesBefore(companyId: string, dateIso: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('documents')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('doc_type', 'DEV')
+    .in('status', ['brouillon', 'validee'])
+    .lt('issue_date', dateIso)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
 export async function listDocuments(companyId: string, docType?: string): Promise<DocumentRow[]> {
   let q = supabase.from('documents').select('*').eq('company_id', companyId).order('issue_date', { ascending: false }).limit(100);
   if (docType) q = q.eq('doc_type', docType);
