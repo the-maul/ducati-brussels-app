@@ -753,7 +753,21 @@ export const fr = {
     empty: 'Aucun document.',
     notFound: 'Introuvable.',
     // colonnes liste
-    colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC', colPaid: 'Réglé',
+    colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC',
+    colAcompte: 'Acompte / Solde', colActions: 'Actions',
+    // filtres liste
+    filters: 'Filtres', filterAll: 'Tous', filterReset: 'Réinitialiser',
+    filterDepartment: 'Département', filterDeptStore: 'Magasin', filterDeptEshop: 'E-shop',
+    filterDocType: 'Type de document',
+    filterContent: 'Contenu', contentVn: 'Véhicule neuf', contentVo: 'Véhicule occasion', contentDv: 'Dépôt-vente', contentNone: 'Sans véhicule',
+    filterDateFrom: 'Du', filterDateTo: 'Au',
+    filterClientType: 'Type de client', clientTypePro: 'Professionnel', clientTypeParticulier: 'Particulier',
+    searchPlaceholder: 'N° document ou client (nom, code)…',
+    filterEmpty: 'Aucun document ne correspond aux filtres.',
+    badgeReceived: 'Reçu {n}', badgeBalance: 'Solde {n}', badgePaid: 'Payé',
+    duplicated: 'Document dupliqué (brouillon).', deleted: 'Document supprimé.',
+    deleteConfirm: 'Supprimer ce document brouillon ? Cette action est irréversible.',
+    errPrint: 'Erreur à l\'impression.', errDuplicate: 'Erreur à la duplication.', errDelete: 'Erreur à la suppression.',
     // statuts document
     status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée', status_converti: 'Converti',
     convertTo: 'Convertir en', convert: 'Convertir', creditNote: 'Générer un avoir', print: 'Imprimer',

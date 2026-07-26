@@ -56,6 +56,14 @@ export async function listContactsPaged(
   return { rows: (data as Contact[]) ?? [], total: Number(total ?? 0) };
 }
 
+/** Contacts par lot d'ids — pour croiser une liste de documents/véhicules avec leur client. */
+export async function listContactsByIds(ids: string[]): Promise<Contact[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from('contacts').select('*').in('id', ids);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getContact(id: string): Promise<Contact | null> {
   const { data, error } = await supabase.from('contacts').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
