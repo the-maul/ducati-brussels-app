@@ -517,6 +517,20 @@ export const fr = {
     previewHint: "Vérifiez le résumé ci-dessous (créations / mises à jour), puis cliquez « Importer » pour envoyer les références dans l'ERP.",
   },
 
+  // Applicabilités articles (M2) — compatibilité modèle/année, import CSV fournisseur
+  applicability: {
+    tab: 'Applicabilités',
+    count: '{n} modèle(s) compatible(s)',
+    importCsv: "Importer un CSV d'applicabilité",
+    imported: '{n} ligne(s) importée(s) pour la référence {ref}.',
+    importError: "Import impossible — vérifiez le format du fichier.",
+    none: 'Aucune applicabilité connue pour cet article.',
+    gamme: 'Gamme',
+    year: 'Année',
+    model: 'Modèle',
+    qty: 'Qté',
+  },
+
   // Contacts (M1)
   contacts: {
     title: 'Contacts',

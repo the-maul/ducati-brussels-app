@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
-import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
+import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight } from 'lucide-react';
@@ -102,6 +102,7 @@ function EditArticle() {
           <TabsTrigger value="barcodes">Codes-barres</TabsTrigger>
           <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
           <TabsTrigger value="replacement">Remplacement</TabsTrigger>
+          <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
           <TabsTrigger value="stats">Statistiques</TabsTrigger>
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
@@ -121,6 +122,9 @@ function EditArticle() {
         <TabsContent value="kit" className="mt-4"><KitTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="replacement" className="mt-4">
           <ReplacementTab articleId={articleId} companyId={activeCompanyId} supersededById={article.superseded_by_id} />
+        </TabsContent>
+        <TabsContent value="applicability" className="mt-4">
+          <ApplicabilityTab articleId={articleId} companyId={activeCompanyId} reference={article.reference} />
         </TabsContent>
         <TabsContent value="stats" className="mt-4"><StatsTab articleId={articleId} /></TabsContent>
         <TabsContent value="photos" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="article" entityId={articleId} /></TabsContent>
