@@ -980,6 +980,25 @@ export const fr = {
     noRdv: 'Aucun rendez-vous.', changeStatus: 'Statut',
   },
 
+  // Aide à la Réparation Ducati — moto accidentée (note réseau Ducati, M8)
+  accident: {
+    btn: 'Aide réparation Ducati (moto accidentée)',
+    title: 'Aide à la Réparation Ducati — moto accidentée',
+    subtitle: '15% de remise supplémentaire sur les pièces si le devis pièces dépasse 1 500 € HT.',
+    chassis: 'N° de châssis', clientName: 'Nom client',
+    colReference: 'Référence', colDesignation: 'Désignation', colQty: 'Qté', colPuHt: 'PU HT',
+    noParts: 'Aucune pièce sur cet OR.',
+    totalParts: 'Total pièces HT', discount: 'Remise 15%', net: 'Net après remise',
+    eligible: 'Éligible — remise 15% : {discount} €',
+    notEligible: 'Non éligible (devis pièces < 1 500 € HT)',
+    toSend: 'Éléments à envoyer à {email}',
+    toSendList: 'Fichier de commande (généré), devis de réparation, photos de la moto avant réparation, photo du n° de châssis gravé sur le cadre.',
+    downloadXlsx: 'Télécharger le fichier de commande (Excel)',
+    sendEmail: "Préparer l'e-mail",
+    emailSubject: 'Aide à la Réparation — Moto accidentée',
+    close: 'Fermer',
+  },
+
   // Reprises / Occasion / ORO (M7)
   tradein: {
     title: 'Reprises motos clients', subtitle: "Estimez et enregistrez la reprise d'une moto — en magasin ou à distance.",

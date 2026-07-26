@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileText, Receipt } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
 import { updateRepairOrder, transformToInvoice, type OrPayload } from '@/modules/workshop/write-api';
 import { OrEditor } from '@/modules/workshop/or-editor';
+import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { t } from '@/lib/i18n';
 
@@ -26,6 +27,7 @@ function OrView() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [accidentOpen, setAccidentOpen] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
 
@@ -59,6 +61,7 @@ function OrView() {
           <div className="flex flex-wrap gap-2">
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
             {!invoiced && <Button onClick={() => toInvoice.mutate()} disabled={toInvoice.isPending || pending}><FileText /> {t('workshop.toInvoice')}</Button>}
+            <Button variant="outline" onClick={() => setAccidentOpen(true)}><LifeBuoy /> {t('accident.btn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
         }
@@ -74,6 +77,7 @@ function OrView() {
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
         <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
       </div>
+      <AccidentHelpDialog key={String(accidentOpen)} open={accidentOpen} onOpenChange={setAccidentOpen} orFull={data} />
     </>
   );
 }
