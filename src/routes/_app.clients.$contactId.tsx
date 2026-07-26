@@ -60,7 +60,10 @@ function EditClient() {
   if (!contact || !activeCompanyId) {
     return (
       <>
-        <PageHeader title={t('contacts.title')} />
+        <PageHeader
+          title={t('contacts.title')}
+          breadcrumbs={[{ label: t('nav.clients'), to: '/clients' }, { label: t('contacts.title') }]}
+        />
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('contacts.errLoad')}</p>
       </>
     );
@@ -71,6 +74,7 @@ function EditClient() {
       <PageHeader
         title={contactDisplayName(contact)}
         description={t('contacts.edit')}
+        breadcrumbs={[{ label: t('nav.clients'), to: '/clients' }, { label: contactDisplayName(contact) }]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {contact.ducati_url && (

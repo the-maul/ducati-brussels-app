@@ -42,7 +42,15 @@ function DocumentView() {
   });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p></>;
+  if (!data) return (
+    <>
+      <PageHeader
+        title={t('nav.sales')}
+        breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: t('nav.sales') }]}
+      />
+      <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p>
+    </>
+  );
 
   const { doc, lines } = data;
   const due = Number(doc.total_ttc) - Number(doc.paid_amount);
@@ -59,6 +67,7 @@ function DocumentView() {
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
         description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
+        breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>

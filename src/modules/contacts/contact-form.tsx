@@ -778,7 +778,7 @@ export function ContactForm({
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>
       )}
 
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
         <Button type="submit" disabled={submitting}>
           {submitting ? <Loader2 className="animate-spin" /> : <Save />}
