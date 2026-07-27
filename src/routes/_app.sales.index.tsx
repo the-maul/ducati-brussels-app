@@ -14,9 +14,15 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listDocuments, duplicateDocument, deleteDocument, purgeQuotesBefore, getDocumentFull, type DocumentRow } from '@/modules/sales/write-api';
+import {
+  listDocuments, duplicateDocument, deleteDocument, purgeQuotesBefore, getDocumentFull,
+  listDocumentLinesFor, type DocumentRow,
+} from '@/modules/sales/write-api';
 import { printDocument } from '@/modules/sales/print-document';
 import { listContactsByIds, contactDisplayName } from '@/modules/contacts/api';
+import { listStock } from '@/modules/stock/stock-api';
+import { computeDocAvailability, AVAILABILITY_DOC_TYPES, type AvailabilityStatus } from '@/modules/sales/availability';
+import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/')({
@@ -38,6 +44,7 @@ function isEshopDoc(d: DocumentRow): boolean {
 
 type ContentFlags = { vn: boolean; vo: boolean; dv: boolean; none: boolean };
 type ClientTypeFlags = { pro: boolean; particulier: boolean };
+type AvailFilter = 'all' | 'total' | 'partial' | 'order' | 'none';
 
 type FiltersState = {
   department: 'all' | 'store' | 'eshop';
@@ -46,12 +53,14 @@ type FiltersState = {
   dateFrom: string;
   dateTo: string;
   clientType: ClientTypeFlags;
+  availability: AvailFilter;
 };
 
 const EMPTY_CONTENT: ContentFlags = { vn: false, vo: false, dv: false, none: false };
 const EMPTY_CLIENT_TYPE: ClientTypeFlags = { pro: false, particulier: false };
 const EMPTY_FILTERS: FiltersState = {
   department: 'all', docType: '', content: EMPTY_CONTENT, dateFrom: '', dateTo: '', clientType: EMPTY_CLIENT_TYPE,
+  availability: 'all',
 };
 
 function countActive(f: FiltersState): number {
@@ -61,7 +70,18 @@ function countActive(f: FiltersState): number {
   if (f.content.vn || f.content.vo || f.content.dv || f.content.none) n++;
   if (f.dateFrom || f.dateTo) n++;
   if (f.clientType.pro || f.clientType.particulier) n++;
+  if (f.availability !== 'all') n++;
   return n;
+}
+
+function matchesAvailFilter(filter: AvailFilter, status: AvailabilityStatus | undefined): boolean {
+  if (filter === 'all') return true;
+  if (!status) return false;
+  if (filter === 'total') return status === 'disponible';
+  if (filter === 'partial') return status === 'partiel';
+  // "En commande" et "Indisponible" retombent tous deux sur le même statut 0 % faute
+  // de rapprochement fiable avec les commandes fournisseur en cours (TODO availability.ts).
+  return status === 'indisponible';
 }
 
 function SalesList() {
@@ -94,6 +114,38 @@ function SalesList() {
   });
   const contactById = useMemo(() => new Map((contacts ?? []).map((c) => [c.id, c])), [contacts]);
 
+  // Dispo : liste bornée à 100 documents (listDocuments) → 2 requêtes groupées
+  // (lignes de ces documents + stock disponible société) plutôt qu'une requête par
+  // ligne de tableau, pour rester performant.
+  const docIds = useMemo(() => (data ?? []).map((d) => d.id), [data]);
+  const linesQ = useQuery({
+    queryKey: ['doc-lines-availability', docIds],
+    queryFn: () => listDocumentLinesFor(docIds),
+    enabled: docIds.length > 0,
+  });
+  const stockQ = useQuery({
+    queryKey: ['stock-availability', activeCompanyId],
+    queryFn: () => listStock(activeCompanyId!),
+    enabled: !!activeCompanyId,
+  });
+
+  const availByDoc = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeDocAvailability>>();
+    if (!linesQ.data || !stockQ.data) return map;
+    const stockMap = new Map(stockQ.data.map((r) => [r.article_id, r.available_qty]));
+    const linesByDoc = new Map<string, { article_id: string | null; quantity: number }[]>();
+    for (const l of linesQ.data) {
+      const arr = linesByDoc.get(l.document_id) ?? [];
+      arr.push({ article_id: l.article_id, quantity: l.quantity });
+      linesByDoc.set(l.document_id, arr);
+    }
+    for (const d of data ?? []) {
+      if (!(AVAILABILITY_DOC_TYPES as readonly string[]).includes(d.doc_type)) continue;
+      map.set(d.id, computeDocAvailability(linesByDoc.get(d.id) ?? [], stockMap));
+    }
+    return map;
+  }, [data, linesQ.data, stockQ.data]);
+
   const rows = useMemo(() => {
     if (!data) return data;
     const q = search.trim().toLowerCase();
@@ -124,6 +176,8 @@ function SalesList() {
         if (!isPro && !f.clientType.particulier) return false;
       }
 
+      if (!matchesAvailFilter(f.availability, availByDoc.get(d.id)?.status)) return false;
+
       if (q) {
         const num = (d.number ?? '').toLowerCase();
         const name = contact ? contactDisplayName(contact).toLowerCase() : '';
@@ -132,7 +186,7 @@ function SalesList() {
       }
       return true;
     });
-  }, [data, search, f, contactById]);
+  }, [data, search, f, contactById, availByDoc]);
 
   const printMut = useMutation({
     mutationFn: async (id: string) => printDocument(await getDocumentFull(id), activeCompany?.name ?? ''),
@@ -212,6 +266,18 @@ function SalesList() {
             <FilterField label={t('sales.filterDateTo')}>
               <Input type="date" value={f.dateTo} onChange={(e) => set('dateTo', e.target.value)} />
             </FilterField>
+            <FilterField label={t('availability.filterLabel')}>
+              <Select value={f.availability} onValueChange={(v) => set('availability', v as AvailFilter)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('availability.filterAll')}</SelectItem>
+                  <SelectItem value="total">{t('availability.filterTotal')}</SelectItem>
+                  <SelectItem value="partial">{t('availability.filterPartial')}</SelectItem>
+                  <SelectItem value="order">{t('availability.filterOrder')}</SelectItem>
+                  <SelectItem value="none">{t('availability.filterNone')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
             <div className="flex flex-wrap items-end gap-4 pb-1 sm:col-span-2 lg:col-span-2">
               <CheckboxGroupLabel>{t('sales.filterContent')}</CheckboxGroupLabel>
               <CheckLabel checked={f.content.vn} onChange={(v) => set('content', { ...f.content, vn: v })}>{t('sales.contentVn')}</CheckLabel>
@@ -239,43 +305,48 @@ function SalesList() {
               <Th>{t('sales.colType')}</Th>
               <Th>{t('sales.colDate')}</Th>
               <Th>{t('sales.colStatus')}</Th>
+              <Th>{t('availability.colDispo')}</Th>
               <Th className="text-right">{t('sales.colTtc')}</Th>
               <Th>{t('sales.colAcompte')}</Th>
               <Th className="w-32 text-right">{t('sales.colActions')}</Th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={7} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && data.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{t('sales.empty')}</td></tr>}
-            {data && data.length > 0 && rows && rows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{t('sales.filterEmpty')}</td></tr>}
-            {rows?.map((d) => (
-              <tr key={d.id} onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}
-                className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
-                <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
-                <td className="px-3 py-2">{t(`sales.type_${d.doc_type}`)}</td>
-                <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
-                <td className="px-3 py-2"><StatusBadge tone={statusTone(d.status)} label={t(`sales.status_${d.status}`)} /></td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
-                <td className="px-3 py-2"><PaidBadge ttc={Number(d.total_ttc)} paid={Number(d.paid_amount)} /></td>
-                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" title={t('sales.print')} onClick={() => printMut.mutate(d.id)}>
-                      <Printer className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title={t('action.duplicate')} onClick={() => duplicateMut.mutate(d.id)}>
-                      <Copy className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost" size="icon" title={t('action.delete')}
-                      disabled={d.status !== 'brouillon'}
-                      onClick={() => onDelete(d)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {isLoading && <tr><td colSpan={8} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
+            {data && data.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{t('sales.empty')}</td></tr>}
+            {data && data.length > 0 && rows && rows.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{t('sales.filterEmpty')}</td></tr>}
+            {rows?.map((d) => {
+              const avail = availByDoc.get(d.id);
+              return (
+                <tr key={d.id} onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
+                  <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
+                  <td className="px-3 py-2">{t(`sales.type_${d.doc_type}`)}</td>
+                  <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
+                  <td className="px-3 py-2"><StatusBadge tone={statusTone(d.status)} label={t(`sales.status_${d.status}`)} /></td>
+                  <td className="px-3 py-2">{avail && <AvailabilityBadge status={avail.status} pct={avail.pct} />}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
+                  <td className="px-3 py-2"><PaidBadge ttc={Number(d.total_ttc)} paid={Number(d.paid_amount)} /></td>
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" title={t('sales.print')} onClick={() => printMut.mutate(d.id)}>
+                        <Printer className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title={t('action.duplicate')} onClick={() => duplicateMut.mutate(d.id)}>
+                        <Copy className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon" title={t('action.delete')}
+                        disabled={d.status !== 'brouillon'}
+                        onClick={() => onDelete(d)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

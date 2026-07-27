@@ -566,6 +566,20 @@ export const fr = {
     docType_commande: 'Commande',
   },
 
+  // Applicabilités articles (M2) — compatibilité modèle/année, import CSV fournisseur
+  applicability: {
+    tab: 'Applicabilités',
+    count: '{n} modèle(s) compatible(s)',
+    importCsv: "Importer un CSV d'applicabilité",
+    imported: '{n} ligne(s) importée(s) pour la référence {ref}.',
+    importError: "Import impossible — vérifiez le format du fichier.",
+    none: 'Aucune applicabilité connue pour cet article.',
+    gamme: 'Gamme',
+    year: 'Année',
+    model: 'Modèle',
+    qty: 'Qté',
+  },
+
   // Contacts (M1)
   contacts: {
     title: 'Contacts',
@@ -1597,6 +1611,21 @@ export const fr = {
     colModel: 'Modèle',
     colStatus: 'Statut',
     colPrice: 'Prix',
+  },
+
+  // Disponibilité des lignes sur les documents de vente (dept Ventes, point 2)
+  availability: {
+    statusDisponible: 'Disponible',
+    statusPartiel: 'Partiel',
+    statusIndisponible: 'Indisponible',
+    statusNa: 'N/A',
+    colDispo: 'Dispo',
+    filterLabel: 'Disponibilité',
+    filterAll: 'Toutes',
+    filterTotal: 'Totalement disponible',
+    filterPartial: 'Partiellement disponible',
+    filterOrder: 'En commande',
+    filterNone: 'Indisponible',
   },
 } as const;
 

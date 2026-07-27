@@ -1,9 +1,10 @@
 /**
- * M2 — Onglets de la fiche article : codes-barres, kit/nomenclature, remplacement/équivalence.
+ * M2 — Onglets de la fiche article : codes-barres, kit/nomenclature, remplacement/équivalence, applicabilités.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +14,7 @@ import {
   setReplacement, searchArticlesLite,
 } from './subobjects-api';
 import { getArticle } from './api';
+import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
 import { t } from '@/lib/i18n';
@@ -150,6 +152,74 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
         </div>
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Applicabilités (compatibilité modèle/année) ---------------- */
+export function ApplicabilityTab({ articleId, companyId, reference }: { articleId: string; companyId: string; reference: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const byArticle = useQuery({ queryKey: ['applicability', articleId], queryFn: () => listApplicabilitiesForArticle(articleId) });
+  const byRef = useQuery({
+    queryKey: ['applicability-ref', companyId, reference],
+    queryFn: () => listApplicabilitiesByReference(companyId, reference),
+    enabled: !!byArticle.data && byArticle.data.length === 0,
+  });
+  const data = byArticle.data && byArticle.data.length > 0 ? byArticle.data : (byRef.data ?? []);
+  const isLoading = byArticle.isLoading || (byArticle.data?.length === 0 && byRef.isLoading);
+
+  const inv = () => {
+    qc.invalidateQueries({ queryKey: ['applicability', articleId] });
+    qc.invalidateQueries({ queryKey: ['applicability-ref', companyId, reference] });
+  };
+
+  const onFile = async (f: File | null) => {
+    if (!f) return;
+    setBusy(true);
+    try {
+      const text = await f.text();
+      const res = await importApplicabilityCsv(companyId, text);
+      toast.success(t('applicability.imported').replace('{n}', String(res.inserted)).replace('{ref}', res.reference));
+      inv();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('applicability.importError'));
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">{t('applicability.count').replace('{n}', String(data.length))}</span>
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent ${busy ? 'pointer-events-none opacity-60' : ''}`}>
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {t('applicability.importCsv')}
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+        </label>
+      </div>
+      {isLoading ? <Spinner /> : data.length === 0 ? (
+        <Empty>{t('applicability.none')}</Empty>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-border">
+          <table className="w-full border-collapse font-data text-[13px]">
+            <thead className="bg-muted"><tr><Th>{t('applicability.gamme')}</Th><Th>{t('applicability.year')}</Th><Th>{t('applicability.model')}</Th><Th className="text-right">{t('applicability.qty')}</Th></tr></thead>
+            <tbody>
+              {data.map((a) => (
+                <tr key={a.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2">{a.gamme ?? '—'}</td>
+                  <td className="px-3 py-2 tabular-nums">{a.model_year ?? '—'}</td>
+                  <td className="px-3 py-2">{a.model ?? '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{a.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
