@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Play, Upload, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth/auth-context';
-import { parseContactsCsv, applyContactsImport, type ImportPreview } from '@/modules/migration/contacts-import';
+import { parseContactsCsv, applyContactsImport } from '@/modules/migration/contacts-import';
+import { parseArticlesCsv, applyArticlesImport } from '@/modules/migration/articles-import';
+import { parseVehiclesCsv, applyVehiclesImport } from '@/modules/migration/vehicles-import';
+import { ImportPanel } from '@/modules/migration/import-panel';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/migration')({
@@ -17,55 +18,73 @@ export const Route = createFileRoute('/_app/settings/migration')({
 function MigrationPage() {
   const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [text, setText] = useState('');
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [done, setDone] = useState<number | null>(null);
-
-  const apply = useMutation({
-    mutationFn: () => applyContactsImport(activeCompanyId!, preview!),
-    onSuccess: (n) => { setDone(n); setPreview(null); setText(''); },
-  });
 
   if (!isAdmin()) return <><PageHeader title={t('migration.title')} /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('settings.notAdmin')}</p></>;
+  if (!activeCompanyId) return null;
 
   return (
     <>
       <PageHeader
-        title={t('migration.contactsTitle')}
-        description={t('migration.contactsSubtitle')}
+        title={t('migration.title')}
+        description={t('migration.subtitle')}
         actions={<Button variant="outline" onClick={() => navigate({ to: '/settings' })}><ArrowLeft /> {t('settings.title')}</Button>}
       />
-      {done !== null && <p className="mb-3 flex items-center gap-2 rounded-md bg-success-bg px-3 py-2 text-[13px] text-success"><CheckCircle2 className="size-4" /> {t('migration.done').replace('{n}', String(done))}</p>}
 
-      <Textarea value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} rows={8} placeholder={'Nom;Prénom;Email;Ville;Type\nMoreau;Simon;simon@x.be;Bruxelles;particulier'} className="font-mono text-[12px]" />
-      <div className="mt-3 flex gap-2">
-        <Button variant="outline" onClick={() => setPreview(parseContactsCsv(text))} disabled={!text.trim()}><Play /> {t('migration.analyze')}</Button>
-        {preview && preview.toCreate > 0 && <Button onClick={() => apply.mutate()} disabled={apply.isPending}>{apply.isPending ? <Loader2 className="animate-spin" /> : <Upload />} {t('migration.apply')} ({preview.toCreate})</Button>}
-      </div>
+      <Tabs defaultValue="contacts">
+        <TabsList>
+          <TabsTrigger value="contacts">{t('migration.tabContacts')}</TabsTrigger>
+          <TabsTrigger value="articles">{t('migration.tabArticles')}</TabsTrigger>
+          <TabsTrigger value="vehicles">{t('migration.tabVehicles')}</TabsTrigger>
+        </TabsList>
 
-      {preview && (
-        <div className="mt-4">
-          <p className="mb-2 text-sm"><b>{preview.toCreate}</b> {t('migration.toCreate')} · <b className={preview.errors ? 'text-danger' : ''}>{preview.errors}</b> {t('migration.errors')}</p>
-          <div className="max-h-[50vh] overflow-auto rounded-md border border-border">
-            <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted sticky top-0"><tr><Th>{t('migration.colName')}</Th><Th>{t('migration.colEmail')}</Th><Th>{t('migration.colCity')}</Th><Th>{t('migration.colType')}</Th><Th>{t('migration.colStatus')}</Th></tr></thead>
-              <tbody>
-                {preview.mapped.map((m, i) => (
-                  <tr key={i} className="border-b border-border last:border-0">
-                    <td className="px-3 py-1.5">{String(m.payload.last_name ?? m.payload.company_name ?? '—')}</td>
-                    <td className="px-3 py-1.5">{String(m.payload.email ?? '—')}</td>
-                    <td className="px-3 py-1.5">{String(m.payload.city ?? '—')}</td>
-                    <td className="px-3 py-1.5">{String(m.payload.type ?? '—')}</td>
-                    <td className="px-3 py-1.5">{m.error ? <span className="text-danger">{m.error}</span> : <span className="text-success">{t('migration.ok')}</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        <TabsContent value="contacts" className="mt-4">
+          <ImportPanel
+            companyId={activeCompanyId}
+            subtitle={t('migration.contactsSubtitle')}
+            placeholder={'Nom;Prénom;Email;Ville;Type\nMoreau;Simon;simon@x.be;Bruxelles;particulier'}
+            columns={[
+              { key: 'name', label: t('migration.colName'), get: (p) => String(p.last_name ?? p.company_name ?? '') },
+              { key: 'email', label: t('migration.colEmail'), get: (p) => String(p.email ?? '') },
+              { key: 'city', label: t('migration.colCity'), get: (p) => String(p.city ?? '') },
+              { key: 'type', label: t('migration.colType'), get: (p) => String(p.type ?? '') },
+            ]}
+            parse={parseContactsCsv}
+            apply={applyContactsImport}
+          />
+        </TabsContent>
+
+        <TabsContent value="articles" className="mt-4">
+          <ImportPanel
+            companyId={activeCompanyId}
+            subtitle={t('migration.articlesHint')}
+            placeholder={'Référence;Désignation;Prix TTC;Marque;Code-barres\n123-456;Plaquette de frein;89,90;Ducati;5410000000001'}
+            columns={[
+              { key: 'reference', label: t('migration.colReference'), get: (p) => String(p.reference ?? '') },
+              { key: 'designation', label: t('migration.colDesignation'), get: (p) => String(p.designation ?? '') },
+              { key: 'price', label: t('migration.colPrice'), get: (p) => (p.sale_price_ttc != null ? String(p.sale_price_ttc) : '') },
+              { key: 'brand', label: t('migration.colBrand'), get: (p) => String(p.brand ?? '') },
+            ]}
+            parse={parseArticlesCsv}
+            apply={applyArticlesImport}
+          />
+        </TabsContent>
+
+        <TabsContent value="vehicles" className="mt-4">
+          <ImportPanel
+            companyId={activeCompanyId}
+            subtitle={t('migration.vehiclesHint')}
+            placeholder={'VIN;Modèle;Année;Immatriculation\nZDM1000AAAAA12345;Panigale V4;2024;1-ABC-123'}
+            columns={[
+              { key: 'vin', label: t('migration.colVin'), get: (p) => String(p.vin ?? '') },
+              { key: 'model', label: t('migration.colModel'), get: (p) => String(p.model ?? '') },
+              { key: 'year', label: t('migration.colYear'), get: (p) => (p.model_year != null ? String(p.model_year) : '') },
+              { key: 'plate', label: t('migration.colPlate'), get: (p) => String(p.plate ?? '') },
+            ]}
+            parse={parseVehiclesCsv}
+            apply={applyVehiclesImport}
+          />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
-
-function Th({ children }: { children?: React.ReactNode }) { return <th className="px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{children}</th>; }

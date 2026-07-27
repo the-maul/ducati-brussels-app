@@ -65,6 +65,9 @@ export type LabelData = {
   bin2: string | null;
   pack_qty: number | null;
   barcode_value: string;
+  /** Rapprochement réception ↔ client (nom client + n° de document, ex. commande/OR). */
+  customerName?: string;
+  docNumber?: string;
 };
 
 export const eurLabel = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;

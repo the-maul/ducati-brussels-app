@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileDown } from 'lucide-react';
+import { ArrowLeft, Loader2, FileDown, Tag } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getPurchaseFull, listSuppliers, supplierName } from '@/modules/purchases/api';
 import { downloadDcs } from '@/modules/purchases/dcs-export';
+import { CustomerLabelDialog } from '@/modules/purchases/customer-label-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -21,9 +22,10 @@ const statusTone = (s: string) => (s === 'recue' ? 'success' : s === 'annulee' ?
 function PurchaseView() {
   const { orderId } = Route.useParams();
   const navigate = useNavigate();
-  const { activeCompanyId } = useAuth();
+  const { activeCompanyId, activeCompany } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['purchase-full', orderId], queryFn: () => getPurchaseFull(orderId) });
   const { data: suppliers } = useQuery({ queryKey: ['suppliers-map', activeCompanyId], queryFn: () => listSuppliers(activeCompanyId!), enabled: !!activeCompanyId });
+  const [labelsOpen, setLabelsOpen] = useState(false);
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('purchases.notFound')}</p></>;
@@ -43,6 +45,9 @@ function PurchaseView() {
                 <Button variant="outline" onClick={() => downloadDcs(order, lines, 'STANDARD')}><FileDown /> {t('purchases.dcsStandard')}</Button>
                 <Button variant="outline" onClick={() => downloadDcs(order, lines, 'URGENTE')}><FileDown /> {t('purchases.dcsUrgent')}</Button>
               </>
+            )}
+            {order.doc_type === 'REC' && lines.length > 0 && (
+              <Button variant="outline" onClick={() => setLabelsOpen(true)}><Tag /> {t('labels.customerLabel')}</Button>
             )}
             <Button variant="outline" onClick={() => navigate({ to: '/purchases' })}><ArrowLeft /> {t('purchases.backToList')}</Button>
           </div>
@@ -96,6 +101,17 @@ function PurchaseView() {
             </table>
           </div>
         </div>
+      )}
+
+      {order.doc_type === 'REC' && (
+        <CustomerLabelDialog
+          open={labelsOpen}
+          onOpenChange={setLabelsOpen}
+          companyId={activeCompanyId}
+          storeName={activeCompany?.name ?? ''}
+          docNumber={order.number ?? ''}
+          lines={lines}
+        />
       )}
     </>
   );

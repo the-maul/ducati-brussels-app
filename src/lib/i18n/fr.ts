@@ -962,12 +962,27 @@ export const fr = {
 
   // Migration G8 (M14)
   migration: {
-    title: 'Migration & imports', subtitle: 'Importer des contacts/articles depuis un CSV (dry-run + application).',
+    title: 'Migration & imports', subtitle: 'Importer des contacts, articles et véhicules depuis un CSV (dry-run + application).',
     contactsTitle: 'Import de contacts', contactsSubtitle: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : Nom, Prénom, Société, Email, Tél, GSM, Adresse, CP, Ville, Pays, TVA, Type.',
     paste: 'Contenu CSV', analyze: 'Analyser (dry-run)', apply: 'Importer les contacts', applying: 'Import…',
     toCreate: 'à créer', errors: 'erreurs', done: '{n} contact(s) importé(s).',
     colName: 'Nom / Société', colEmail: 'E-mail', colCity: 'Ville', colType: 'Type', colStatus: 'État',
     ok: 'OK', preview: 'Aperçu', empty: 'Collez un CSV puis cliquez sur Analyser.',
+    // Onglets
+    tabContacts: 'Contacts', tabArticles: 'Articles', tabVehicles: 'Véhicules',
+    articlesHint: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : Référence (obligatoire), Désignation (obligatoire), Prix TTC, Marque, Code-barres. Une référence déjà existante pour la société est ignorée (jamais écrasée).',
+    vehiclesHint: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : VIN (obligatoire, 17 caractères max), Modèle, Année, Immatriculation. Un VIN déjà existant pour la société est ignoré (jamais écrasé).',
+    colReference: 'Référence', colDesignation: 'Désignation', colPrice: 'Prix TTC', colBrand: 'Marque',
+    colVin: 'VIN', colModel: 'Modèle', colYear: 'Année', colPlate: 'Plaque',
+    imported: 'importés', ignored: 'ignorés (déjà existants)',
+  },
+
+  // Étiquettes — rapprochement réception ↔ client (M2/M4, B12)
+  labels: {
+    customerLabel: 'Étiquettes client',
+    customerName: 'Nom du client',
+    docNumber: 'N° de document',
+    printCustomerLabels: 'Imprimer',
   },
 
   // Rapports (M13)
@@ -1470,6 +1485,7 @@ export const fr = {
     reorderAvail: 'Dispo', reorderMin: 'Mini', reorderQty: 'À commander', reorderEmpty: 'Aucun article sous le stock mini.',
     createOrders: 'Créer les commandes', ordersCreated: '{n} commande(s) créée(s).',
     reorderHighlightNotEligible: "Cet article n'est actuellement pas sous son stock mini — ajoutez-le manuellement à une commande si besoin.",
+    customerLabelHint: 'Choisissez la ligne réceptionnée puis renseignez le nom du client — le n° de document est préempli depuis cette réception.',
   },
 
   // Caisse — vente comptoir (M6 POS)
