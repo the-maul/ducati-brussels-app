@@ -1280,6 +1280,21 @@ export const fr = {
     // cessions internes
     cessions: 'Cessions internes', cessionsTitle: 'Cessions internes', cessionsSubtitle: 'Sorties de stock valorisées non facturables, typées (cadeau, démo, fournitures, garantie).',
     cessionArticle: 'Article', cessionArticlePlaceholder: 'Réf, désignation…', cessionQty: 'Quantité', cessionType: 'Type de cession', cessionNote: 'Note', cessionAdd: 'Enregistrer', cessionErr: 'Erreur',
+    // filtres multicritères
+    filters: 'Filtres', filterAll: 'Tous', filterReset: 'Réinitialiser',
+    filterSupplier: 'Fournisseur', filterRayon: 'Rayon', filterDateFrom: 'Du', filterDateTo: 'Au',
+    // export CSV
+    export: 'Exporter',
+    // réappro / back-order
+    reorderView: 'Réappro', reorderEmpty: 'Aucun article à surveiller pour réappro.',
+    colSupplier: 'Fournisseur', colGap: 'Manque',
+    // dépréciation de stock
+    deprecBtn: 'Dépréciations', deprecTitle: 'Dépréciations de stock',
+    deprecSubtitle: 'Décote de la valeur PAMP du vieux stock — provision de valeur, sans impact sur les quantités.',
+    deprecDormant: 'Seulement stock dormant', deprecRate: 'Décote %', deprecPreview: 'Aperçu décote',
+    deprecReason: 'Motif', deprecApply: 'Appliquer', deprecApplied: 'Dépréciation enregistrée.',
+    deprecActive: 'Dépréciations en cours', deprecTotal: 'Provision totale', deprecCancel: 'Annuler',
+    deprecCancelled: 'Dépréciation annulée.', deprecEmpty: 'Aucune dépréciation en cours.', deprecErr: 'Erreur',
   },
 
   // Achats & réceptions (M4)
