@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   listBarcodes, addBarcodeRow, deleteBarcode, listKitItems, addKitItem, deleteKitItem,
@@ -14,6 +15,7 @@ import {
 import { getArticle } from './api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
+import { t } from '@/lib/i18n';
 
 type LiteArticle = { id: string; reference: string; designation: string };
 
@@ -156,6 +158,20 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
 /* ---------------- Stock (triple stock + mouvements) ---------------- */
 const MOVE_CHOICES: StockMoveType[] = ['entree', 'sortie', 'correction', 'inventaire', 'cession'];
 
+/** Types de document (best-effort) : mots-clés cherchés dans origin/ref du mouvement, insensible casse. */
+const DOC_TYPE_FILTERS: { key: string; i18nKey: string; keywords: string[] }[] = [
+  { key: 'facture', i18nKey: 'articles.docType_facture', keywords: ['fac', 'facture', 'invoice'] },
+  { key: 'bonCommande', i18nKey: 'articles.docType_bonCommande', keywords: ['cmd', 'bon de commande'] },
+  { key: 'devis', i18nKey: 'articles.docType_devis', keywords: ['dev', 'devis', 'quote'] },
+  { key: 'ordreReparation', i18nKey: 'articles.docType_ordreReparation', keywords: ['or-', 'ordre de réparation', 'atelier', 'workshop'] },
+  { key: 'cession', i18nKey: 'articles.docType_cession', keywords: ['cession'] },
+  { key: 'reception', i18nKey: 'articles.docType_reception', keywords: ['rec', 'réception', 'reception'] },
+  { key: 'propositionCommande', i18nKey: 'articles.docType_propositionCommande', keywords: ['proposition'] },
+  { key: 'commande', i18nKey: 'articles.docType_commande', keywords: ['commande', 'eshop'] },
+];
+
+type MoveSens = 'all' | 'in' | 'out';
+
 export function StockTab({ articleId }: { articleId: string }) {
   const qc = useQueryClient();
   const stock = useQuery({ queryKey: ['stock', articleId], queryFn: () => getArticleStock(articleId) });
@@ -164,6 +180,10 @@ export function StockTab({ articleId }: { articleId: string }) {
   const [qty, setQty] = useState('');
   const [cost, setCost] = useState('');
   const [note, setNote] = useState('');
+  const [sens, setSens] = useState<MoveSens>('all');
+  const [docTypes, setDocTypes] = useState<Record<string, boolean>>({});
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const inv = () => { qc.invalidateQueries({ queryKey: ['stock', articleId] }); qc.invalidateQueries({ queryKey: ['moves', articleId] }); qc.invalidateQueries({ queryKey: ['article', articleId] }); };
   const rec = useMutation({
     mutationFn: () => {
@@ -173,6 +193,20 @@ export function StockTab({ articleId }: { articleId: string }) {
     },
     onSuccess: () => { inv(); setQty(''); setCost(''); setNote(''); },
   });
+
+  const checkedDocTypes = DOC_TYPE_FILTERS.filter((d) => docTypes[d.key]);
+  const filteredMoves = (moves.data ?? []).filter((mv) => {
+    if (sens === 'in' && mv.qty_delta <= 0) return false;
+    if (sens === 'out' && mv.qty_delta >= 0) return false;
+    if (dateFrom && mv.occurred_at < dateFrom) return false;
+    if (dateTo && mv.occurred_at.slice(0, 10) > dateTo) return false;
+    if (checkedDocTypes.length > 0) {
+      const haystack = `${mv.origin} ${mv.ref ?? ''}`.toLowerCase();
+      if (!checkedDocTypes.some((d) => d.keywords.some((k) => haystack.includes(k)))) return false;
+    }
+    return true;
+  });
+  const hasActiveFilters = sens !== 'all' || checkedDocTypes.length > 0 || !!dateFrom || !!dateTo;
 
   return (
     <div className="space-y-4">
@@ -184,33 +218,87 @@ export function StockTab({ articleId }: { articleId: string }) {
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Mouvement</label>
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveType')}</label>
           <Select value={type} onValueChange={(v) => setType(v as StockMoveType)}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>{MOVE_CHOICES.map((m) => <SelectItem key={m} value={m}>{MOVE_TYPE_LABELS[m]}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Quantité</label>
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveQty')}</label>
           <Input type="number" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} className="w-28 text-right tabular-nums" />
         </div>
         {type === 'entree' && (
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">PA unitaire (PAMP)</label>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.movePamp')}</label>
             <Input type="number" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} className="w-32 text-right tabular-nums" />
           </div>
         )}
-        <Input placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} className="max-w-xs" />
-        <Button onClick={() => rec.mutate()} disabled={rec.isPending || !qty.trim()}>{rec.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Enregistrer</Button>
+        <Input placeholder={t('articles.moveNote')} value={note} onChange={(e) => setNote(e.target.value)} className="max-w-xs" />
+        <Button onClick={() => rec.mutate()} disabled={rec.isPending || !qty.trim()}>{rec.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('articles.moveRecord')}</Button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-4 rounded-md border border-border bg-card p-3">
+        <div className="space-y-1">
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveSens')}</label>
+          <Select value={sens} onValueChange={(v) => setSens(v as MoveSens)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('articles.moveAll')}</SelectItem>
+              <SelectItem value="in">{t('articles.moveIn')}</SelectItem>
+              <SelectItem value="out">{t('articles.moveOut')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveDateFrom')}</label>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
+        </div>
+        <div className="space-y-1">
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveDateTo')}</label>
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.moveDocTypes')}</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {DOC_TYPE_FILTERS.map((d) => (
+              <label key={d.key} className="flex items-center gap-1.5 text-sm">
+                <Checkbox
+                  checked={!!docTypes[d.key]}
+                  onCheckedChange={(v) => setDocTypes((p) => ({ ...p, [d.key]: v === true }))}
+                />
+                {t(d.i18nKey)}
+              </label>
+            ))}
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <Button
+            type="button" variant="ghost" size="sm"
+            onClick={() => { setSens('all'); setDocTypes({}); setDateFrom(''); setDateTo(''); }}
+          >
+            <X /> {t('articles.filterReset')}
+          </Button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>Date</Th><Th>Type</Th><Th className="text-right">Qté</Th><Th className="text-right">PA</Th><Th>Origine</Th><Th>Note</Th></tr></thead>
+          <thead className="bg-muted">
+            <tr>
+              <Th>{t('articles.moveColDate')}</Th>
+              <Th>{t('articles.moveColType')}</Th>
+              <Th className="text-right">{t('articles.moveColQty')}</Th>
+              <Th className="text-right">{t('articles.moveColPa')}</Th>
+              <Th>{t('articles.moveColOrigin')}</Th>
+              <Th>{t('articles.moveColNote')}</Th>
+            </tr>
+          </thead>
           <tbody>
             {moves.isLoading && <tr><td colSpan={6} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {moves.data && moves.data.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Aucun mouvement.</td></tr>}
-            {moves.data?.map((mv) => (
+            {moves.data && moves.data.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('articles.moveEmpty')}</td></tr>}
+            {moves.data && moves.data.length > 0 && filteredMoves.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('articles.moveNoMatch')}</td></tr>}
+            {filteredMoves.map((mv) => (
               <tr key={mv.id} className="border-b border-border last:border-0">
                 <td className="px-3 py-1.5 font-mono text-[12px]">{new Date(mv.occurred_at).toLocaleString('fr-BE')}</td>
                 <td className="px-3 py-1.5">{MOVE_TYPE_LABELS[mv.move_type]}</td>

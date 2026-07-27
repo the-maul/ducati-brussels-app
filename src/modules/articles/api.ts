@@ -82,6 +82,14 @@ export function stripMissingCol<T extends Record<string, unknown>>(input: T, e: 
 /** Article + réf. de remplacement embarquée (self-join sur superseded_by_id). */
 export type ArticleWithReplacement = Article & { replacement?: { id: string; reference: string } | null };
 
+export type SupplierAvailability = 'green' | 'yellow' | 'red';
+
+/** Colonne ajoutée par la migration 20260726 — pas encore dans les types générés. */
+export function getSupplierAvailability(a: Article): SupplierAvailability | null {
+  const v = (a as { supplier_availability?: string | null }).supplier_availability;
+  return v === 'green' || v === 'yellow' || v === 'red' ? v : null;
+}
+
 /** Filtres de la recherche multicritères (page Pièces & Accessoires). */
 export type ArticleFilters = {
   search?: string;
@@ -252,11 +260,19 @@ async function writeResilient(
 }
 
 export async function createArticle(input: ArticleInsert): Promise<Article> {
-  return writeResilient(
+  const created = await writeResilient(
     input as Record<string, unknown>,
     (p) => supabase.from('articles').insert(p as ArticleInsert).select().single(),
     async () => { throw new Error('createArticle: payload vide'); },
   );
+  // La référence sert de code-barres par défaut (demande client) : best-effort, ne bloque
+  // jamais la création (table article_barcodes pas encore migrée, doublon, etc.).
+  try {
+    await addBarcode(created.id, created.reference);
+  } catch {
+    // silencieux : la fiche reste utilisable sans code-barres par défaut
+  }
+  return created;
 }
 
 export async function updateArticle(id: string, input: ArticleUpdate): Promise<Article> {
@@ -304,4 +320,35 @@ export async function addBarcode(articleId: string, barcode: string): Promise<vo
     .from('article_barcodes')
     .upsert({ article_id: articleId, barcode }, { onConflict: 'article_id,barcode', ignoreDuplicates: true });
   if (error) throw error;
+}
+
+async function nextCopyReference(companyId: string, baseReference: string): Promise<string> {
+  const base = `${baseReference}-COPIE`;
+  const { data, error } = await supabase
+    .from('articles').select('reference').eq('company_id', companyId).ilike('reference', `${base}%`);
+  if (error) throw error;
+  const taken = new Set((data ?? []).map((r) => r.reference));
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+/**
+ * Duplique un article : copie les champs descriptifs/prix/classification/famille/
+ * fournisseur, nouvelle référence (« -COPIE », suffixe numérique si déjà prise),
+ * stock remis à zéro (aucun stock_move copié, B7). Retourne le nouvel id.
+ */
+export async function duplicateArticle(articleId: string): Promise<string> {
+  const source = await getArticle(articleId);
+  if (!source) throw new Error('duplicateArticle: article introuvable');
+  const {
+    id: _id, created_at: _createdAt, updated_at: _updatedAt, created_by: _createdBy, reference: _reference,
+    pamp: _pamp, last_purchased_at: _lastPurchasedAt, last_sold_at: _lastSoldAt, last_tariff_at: _lastTariffAt,
+    superseded_by_id: _supersededById, origin_reference_id: _originReferenceId,
+    ...rest
+  } = source;
+  const reference = await nextCopyReference(source.company_id, source.reference);
+  const created = await createArticle({ ...rest, reference } as ArticleInsert);
+  return created.id;
 }
