@@ -197,6 +197,19 @@ export async function getArticle(id: string): Promise<Article | null> {
   return data;
 }
 
+export type PredecessorArticle = Pick<Article, 'id' | 'reference' | 'designation'>;
+
+/** Anciennes références remplacées PAR cet article (superseded_by_id = articleId) — onglet Équivalences. */
+export async function listPredecessorArticles(articleId: string): Promise<PredecessorArticle[]> {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('id, reference, designation')
+    .eq('superseded_by_id', articleId)
+    .order('reference', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Colonnes minimales pour le diff d'import (voir import/rules.ts ExistingArticle). */
 export type ArticleLite = Pick<Article,
   'id' | 'reference' | 'designation' | 'brand' | 'category_path' | 'supplier_ref' |

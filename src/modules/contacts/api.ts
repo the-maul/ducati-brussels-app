@@ -87,3 +87,51 @@ export async function updateContact(id: string, input: ContactUpdate): Promise<C
   if (error) throw error;
   return data;
 }
+
+/** Archive une fiche (is_active=false) : jamais de suppression physique, pour préserver l'audit. */
+export async function archiveContact(id: string): Promise<void> {
+  const { error } = await supabase.from('contacts').update({ is_active: false }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function unarchiveContact(id: string): Promise<void> {
+  const { error } = await supabase.from('contacts').update({ is_active: true }).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Tables métier portant contact_id, réassignées lors d'une fusion. Liste tenue à jour
+ * manuellement (pas d'introspection de schéma côté client) : client_price_rules,
+ * communications, contact_subcontacts, customer_price_rules, delivery_addresses,
+ * documents, leads, repair_orders, sepa_mandates, vehicle_owners, workshop_appointments.
+ */
+const MERGE_TABLES = [
+  'client_price_rules', 'communications', 'contact_subcontacts', 'customer_price_rules',
+  'delivery_addresses', 'documents', 'leads', 'repair_orders', 'sepa_mandates',
+  'vehicle_owners', 'workshop_appointments',
+] as const;
+
+export type MergeContactsResult = { reassigned: string[]; failed: { table: string; error: string }[] };
+
+/**
+ * Fusionne mergeId dans keepId : réassigne contact_id vers keepId sur chaque table de
+ * MERGE_TABLES (défensif, une table par une table — un schéma pas encore migré ou une
+ * colonne absente ne doit pas bloquer la fusion des autres), puis archive mergeId
+ * (is_active=false) plutôt que de le supprimer, pour préserver l'audit (règle 4).
+ */
+export async function mergeContacts(keepId: string, mergeId: string): Promise<MergeContactsResult> {
+  const reassigned: string[] = [];
+  const failed: { table: string; error: string }[] = [];
+  for (const table of MERGE_TABLES) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from(table) as any).update({ contact_id: keepId }).eq('contact_id', mergeId);
+      if (error) throw error;
+      reassigned.push(table);
+    } catch (e) {
+      failed.push({ table, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  await archiveContact(mergeId);
+  return { reassigned, failed };
+}

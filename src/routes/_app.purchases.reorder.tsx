@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -12,16 +12,24 @@ import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/reorder')({
   head: () => ({ meta: [{ title: 'Proposition de commande — Ducati Bruxelles' }] }),
+  validateSearch: (s: Record<string, unknown>) => ({ highlight: typeof s.highlight === 'string' ? s.highlight : undefined }),
   component: ReorderPage,
 });
 
 function ReorderPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  const { highlight } = Route.useSearch();
   const { data, isLoading } = useQuery({ queryKey: ['reorder', activeCompanyId], queryFn: () => getReorderProposals(activeCompanyId!), enabled: !!activeCompanyId });
   const { data: suppliers } = useQuery({ queryKey: ['suppliers-map', activeCompanyId], queryFn: () => listSuppliers(activeCompanyId!), enabled: !!activeCompanyId });
   const [qty, setQty] = useState<Record<string, string>>({});
   const [done, setDone] = useState<number | null>(null);
+  const highlightRowRef = useRef<HTMLTableRowElement>(null);
+  const highlightFound = !!highlight && (data ?? []).some((p) => p.article_id === highlight);
+
+  useEffect(() => {
+    if (highlightFound) highlightRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightFound]);
 
   const supName = (id: string | null) => (id ? supplierName(suppliers?.find((s) => s.id === id) ?? { company_name: null, first_name: null, last_name: null }) : '—');
   const getQty = (p: ReorderProposal) => (qty[p.article_id] !== undefined ? Number(qty[p.article_id].replace(',', '.')) || 0 : p.suggested_qty);
@@ -51,6 +59,9 @@ function ReorderPage() {
         }
       />
       {done !== null && <p className="mb-3 rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">{t('purchases.ordersCreated').replace('{n}', String(done))}</p>}
+      {highlight && data && !highlightFound && (
+        <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('purchases.reorderHighlightNotEligible')}</p>
+      )}
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
@@ -60,7 +71,11 @@ function ReorderPage() {
             {isLoading && <tr><td colSpan={6} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
             {data && data.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('purchases.reorderEmpty')}</td></tr>}
             {data?.map((p) => (
-              <tr key={p.article_id} className="border-b border-border last:border-0">
+              <tr
+                key={p.article_id}
+                ref={p.article_id === highlight ? highlightRowRef : undefined}
+                className={`border-b border-border last:border-0 ${p.article_id === highlight ? 'bg-primary/5 outline outline-1 -outline-offset-1 outline-primary/40' : ''}`}
+              >
                 <td className="px-3 py-2 font-mono text-[12px]">{p.reference}</td>
                 <td className="px-3 py-2">{p.designation}</td>
                 <td className="px-3 py-2">{supName(p.supplier_id)}</td>

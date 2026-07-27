@@ -10,9 +10,10 @@ import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
-import { Tags, BookOpen, ArrowRight, Copy } from 'lucide-react';
+import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
+import { addToReorderProposal } from '@/modules/purchases/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
@@ -91,6 +92,12 @@ function EditArticle() {
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
             <Button variant="outline" disabled={duplicate.isPending} onClick={() => duplicate.mutate()}>
               <Copy /> {t('articles.duplicate')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { toast.info(t('articles.proposedToOrder')); navigate(addToReorderProposal(activeCompanyId, articleId)); }}
+            >
+              <ShoppingCart /> {t('articles.proposeOrder')}
             </Button>
           </>
         }

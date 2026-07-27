@@ -38,6 +38,7 @@ function ClientsList() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(['type', 'city', 'contact', 'flags']));
@@ -63,7 +64,7 @@ function ClientsList() {
     queryFn: () => listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize }),
     enabled: !!activeCompanyId,
   });
-  const rows = data?.rows ?? [];
+  const rows = showArchived ? (data?.rows ?? []) : (data?.rows ?? []).filter((c) => c.is_active);
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : page * pageSize + 1;
@@ -108,6 +109,10 @@ function ClientsList() {
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>{PAGE_SIZES.map((n) => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}</SelectContent>
         </Select>
+        <label className="flex shrink-0 items-center gap-2 text-[13px] text-muted-foreground">
+          <Checkbox checked={showArchived} onCheckedChange={(v) => setShowArchived(v === true)} />
+          {t('contacts.showArchived')}
+        </label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5">
@@ -205,6 +210,7 @@ function Flags({ c }: { c: Contact }) {
       {c.is_detaxe && <StatusBadge tone="info" label={t('contacts.flagDetaxe')} />}
       {c.is_watch && <StatusBadge tone="danger" label={t('contacts.flagWatch')} />}
       {c.is_account && <StatusBadge tone="neutral" label={t('contacts.flagAccount')} />}
+      {!c.is_active && <StatusBadge tone="neutral" label={t('contacts.archivedBadge')} />}
     </div>
   );
 }

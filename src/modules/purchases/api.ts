@@ -43,6 +43,19 @@ export async function getPurchaseFull(id: string): Promise<PurchaseFull> {
   return { order: order as PurchaseOrder, lines: lines ?? [], schedules: schedules ?? [] };
 }
 
+/**
+ * Met en avant un article sur l'écran de proposition de commande.
+ * reorder_proposals (ci-dessous) est calculé dynamiquement (dispo < stock mini) — il n'y a
+ * pas de table de « lignes de proposition » où insérer une ligne manuelle pour un article
+ * qui n'est pas sous son seuil. On renvoie donc la destination de navigation avec l'article
+ * à surligner plutôt qu'une écriture en base.
+ * TODO: si une table de propositions manuelles est ajoutée, créer ici une ligne persistée
+ * au lieu de rediriger.
+ */
+export function addToReorderProposal(_companyId: string, articleId: string): { to: '/purchases/reorder'; search: { highlight: string } } {
+  return { to: '/purchases/reorder', search: { highlight: articleId } };
+}
+
 export type ReorderProposal = {
   article_id: string; reference: string; designation: string; supplier_id: string | null;
   real_qty: number; available_qty: number; stock_min: number; stock_max: number; pack_qty: number; suggested_qty: number;

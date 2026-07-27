@@ -3,6 +3,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { Loader2, Plus, Trash2, Search, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import {
   listBarcodes, addBarcodeRow, deleteBarcode, listKitItems, addKitItem, deleteKitItem,
   setReplacement, searchArticlesLite,
 } from './subobjects-api';
-import { getArticle } from './api';
+import { getArticle, listPredecessorArticles } from './api';
 import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
@@ -120,8 +121,10 @@ export function KitTab({ articleId, companyId }: { articleId: string; companyId:
 /* ---------------- Remplacement / équivalence ---------------- */
 export function ReplacementTab({ articleId, companyId, supersededById }: { articleId: string; companyId: string; supersededById: string | null }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [transferStock, setTransferStock] = useState(true);
   const { data: replacement } = useQuery({ queryKey: ['article', supersededById], queryFn: () => (supersededById ? getArticle(supersededById) : null), enabled: !!supersededById });
+  const { data: predecessors } = useQuery({ queryKey: ['article-predecessors', articleId], queryFn: () => listPredecessorArticles(articleId) });
   const inv = () => {
     qc.invalidateQueries({ queryKey: ['article', articleId] });
     qc.invalidateQueries({ queryKey: ['articles'] });
@@ -153,6 +156,26 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
       )}
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.predecessorsTitle')}</p>
+        {predecessors && predecessors.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {predecessors.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: p.id } })}
+                className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-accent"
+              >
+                <span className="font-mono text-[12px]">{p.reference}</span>
+                <span className="truncate text-muted-foreground">{p.designation}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('articles.noPredecessors')}</p>
+        )}
+      </div>
     </div>
   );
 }

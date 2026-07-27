@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listArticles, listArticleFacets, getSupplierAvailability, duplicateArticle, type ArticleFilters } from '@/modules/articles/api';
 import { yearOptions } from '@/modules/articles/article-form';
 import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/product-families';
-import { listSuppliers, supplierName } from '@/modules/purchases/api';
+import { listSuppliers, supplierName, addToReorderProposal } from '@/modules/purchases/api';
 import { listStock } from '@/modules/stock/stock-api';
 import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
@@ -314,7 +314,7 @@ function ArticlesList() {
               <Th className="text-right">{t('articles.colOnProposal')}</Th>
               <Th className="text-right">{t('articles.colOnOrder')}</Th>
               <Th className="text-right">{t('articles.colPrice')}</Th>
-              <Th className="w-10" />
+              <Th className="w-20" />
             </tr>
           </thead>
           <tbody>
@@ -366,6 +366,16 @@ function ArticlesList() {
                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
                 <td className="px-1 py-2 text-right">
+                  <Button
+                    variant="ghost" size="sm" title={t('articles.proposeOrder')} aria-label={t('articles.proposeOrder')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toast.info(t('articles.proposedToOrder'));
+                      navigate(addToReorderProposal(activeCompanyId!, a.id));
+                    }}
+                  >
+                    <ShoppingCart className="size-4" />
+                  </Button>
                   <Button
                     variant="ghost" size="sm" title={t('articles.duplicate')} aria-label={t('articles.duplicate')}
                     disabled={duplicate.isPending}
