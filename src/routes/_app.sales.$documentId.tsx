@@ -1,17 +1,26 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, Mail, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS } from '@/modules/sales/write-api';
-import { getContact, contactDisplayName } from '@/modules/contacts/api';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, type DocumentRow } from '@/modules/sales/write-api';
+import { enqueueDocumentEmail, enqueueDocumentSms } from '@/modules/sales/notify-api';
+import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
+import { listStock } from '@/modules/stock/stock-api';
+import { computeDocAvailability, AVAILABILITY_DOC_TYPES } from '@/modules/sales/availability';
+import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -26,8 +35,16 @@ const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' |
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
-  const { companies } = useAuth();
+  const { companies, activeCompanyId } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
+  const showAvailability = data ? (AVAILABILITY_DOC_TYPES as readonly string[]).includes(data.doc.doc_type) : false;
+  const stockQ = useQuery({
+    queryKey: ['stock-availability', activeCompanyId],
+    queryFn: () => listStock(activeCompanyId!),
+    enabled: !!activeCompanyId && showAvailability,
+  });
+  const stockMap = new Map((stockQ.data ?? []).map((r) => [r.article_id, r.available_qty]));
+  const docAvailability = data && showAvailability ? computeDocAvailability(data.lines, stockMap) : null;
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
   const vehicleId = data?.doc.vehicle_id ?? null;
@@ -40,9 +57,19 @@ function DocumentView() {
     mutationFn: () => generateCreditNote(documentId),
     onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
   });
+  const [mailOpen, setMailOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p></>;
+  if (!data) return (
+    <>
+      <PageHeader
+        title={t('nav.sales')}
+        breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: t('nav.sales') }]}
+      />
+      <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.notFound')}</p>
+    </>
+  );
 
   const { doc, lines } = data;
   const due = Number(doc.total_ttc) - Number(doc.paid_amount);
@@ -59,10 +86,13 @@ function DocumentView() {
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
         description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
+        breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
+            {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
+            {contactId && <Button variant="outline" onClick={() => setSmsOpen(true)}><MessageSquare /> {t('sales.sendSms')}</Button>}
             <Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>
           </div>
         }
@@ -70,6 +100,7 @@ function DocumentView() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
+        {docAvailability && <AvailabilityBadge status={docAvailability.status} pct={docAvailability.pct} />}
         {canConvert && (convertTargets.length > 0 || doc.doc_type === 'FAC') && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
@@ -111,17 +142,34 @@ function DocumentView() {
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>{t('sales.colDesignation')}</Th><Th className="text-right">{t('sales.colQty')}</Th><Th className="text-right">{t('sales.colPuHt')}</Th><Th className="text-right">{t('sales.colVat')}</Th><Th className="text-right">{t('sales.colLineHt')}</Th></tr></thead>
+          <thead className="bg-muted">
+            <tr>
+              <Th>{t('sales.colDesignation')}</Th>
+              <Th className="text-right">{t('sales.colQty')}</Th>
+              <Th className="text-right">{t('sales.colPuHt')}</Th>
+              <Th className="text-right">{t('sales.colVat')}</Th>
+              <Th className="text-right">{t('sales.colLineHt')}</Th>
+              {showAvailability && <Th>{t('availability.colDispo')}</Th>}
+            </tr>
+          </thead>
           <tbody>
-            {lines.map((l) => (
-              <tr key={l.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">{l.designation}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_price_ht))}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.vat_rate}%</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
-              </tr>
-            ))}
+            {lines.map((l) => {
+              const lineAvail = showAvailability ? computeDocAvailability([l], stockMap) : null;
+              return (
+                <tr key={l.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2">{l.designation}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_price_ht))}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{l.vat_rate}%</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
+                  {showAvailability && (
+                    <td className="px-3 py-2">
+                      {lineAvail && lineAvail.status !== 'na' && <AvailabilityBadge status={lineAvail.status} pct={lineAvail.pct} />}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -146,7 +194,96 @@ function DocumentView() {
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
         <AttachmentsPanel companyId={doc.company_id} entityType="document" entityId={documentId} />
       </div>
+
+      {mailOpen && contactQ.data && (
+        <SendMailDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setMailOpen(false)} />
+      )}
+      {smsOpen && contactQ.data && (
+        <SendSmsDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setSmsOpen(false)} />
+      )}
     </>
+  );
+}
+
+function SendMailDialog({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
+  const label = document.number ?? t('sales.draftSuffix');
+  const [subject, setSubject] = useState(t('sales.mailSubjectDefault').replace('{number}', label));
+  const [body, setBody] = useState(t('sales.mailBodyDefault').replace('{number}', label));
+  const send = useMutation({
+    mutationFn: () => enqueueDocumentEmail({ companyId, document, contact, subject, body }),
+    onSuccess: () => { toast.success(t('sales.mailQueued')); onClose(); },
+    onError: () => toast.error(t('sales.errSend')),
+  });
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t('sales.sendMailTitle')}</DialogTitle></DialogHeader>
+        {!contact.email ? (
+          <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.noEmail')}</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t('sales.mailTo')}</Label>
+              <Input value={contact.email} disabled />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('sales.mailSubject')}</Label>
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('sales.mailBody')}</Label>
+              <Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
+            </div>
+            <p className="text-[12px] text-muted-foreground">{t('sales.notifHint')}</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button onClick={() => send.mutate()} disabled={send.isPending || !contact.email}>
+            {send.isPending ? <Loader2 className="animate-spin" /> : <Mail />} {t('sales.send')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SendSmsDialog({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
+  const label = document.number ?? t('sales.draftSuffix');
+  const to = contact.mobile || contact.phone || '';
+  const [body, setBody] = useState(t('sales.smsBodyDefault').replace('{number}', label));
+  const send = useMutation({
+    mutationFn: () => enqueueDocumentSms({ companyId, document, contact, body }),
+    onSuccess: () => { toast.success(t('sales.smsQueued')); onClose(); },
+    onError: () => toast.error(t('sales.errSend')),
+  });
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t('sales.sendSmsTitle')}</DialogTitle></DialogHeader>
+        {!to ? (
+          <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.noPhone')}</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t('sales.smsTo')}</Label>
+              <Input value={to} disabled />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('sales.smsBody')}</Label>
+              <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} />
+            </div>
+            <p className="text-[12px] text-muted-foreground">{t('sales.notifHint')}</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button onClick={() => send.mutate()} disabled={send.isPending || !to}>
+            {send.isPending ? <Loader2 className="animate-spin" /> : <MessageSquare />} {t('sales.send')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

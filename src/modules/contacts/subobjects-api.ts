@@ -102,7 +102,14 @@ export async function unlinkContact(linkId: string): Promise<void> {
 }
 
 /** Crée une nouvelle fiche (pré-remplie depuis `source` : nom + adresse + contacts) et la lie. */
-export async function createLinkedContact(companyId: string, source: Contact, targetType: 'particulier' | 'professionnel'): Promise<string> {
+export async function createLinkedContact(
+  companyId: string,
+  source: Contact,
+  targetType: 'particulier' | 'professionnel',
+  opts?: { inheritContact: boolean; inheritAddress: boolean },
+): Promise<string> {
+  const inheritContact = opts?.inheritContact ?? true;
+  const inheritAddress = opts?.inheritAddress ?? true;
   const ins = {
     company_id: companyId,
     type: targetType,
@@ -110,13 +117,14 @@ export async function createLinkedContact(companyId: string, source: Contact, ta
     company_name: targetType === 'professionnel' ? (source.company_name ?? source.last_name ?? null) : null,
     first_name: source.first_name ?? null,
     civility: source.civility ?? null,
-    email: source.email ?? null,
-    phone: source.phone ?? null,
-    mobile: source.mobile ?? null,
-    address: source.address ?? null,
-    zip: source.zip ?? null,
-    city: source.city ?? null,
-    country: source.country ?? 'BE',
+    email: inheritContact ? (source.email ?? null) : null,
+    phone: inheritContact ? (source.phone ?? null) : null,
+    mobile: inheritContact ? (source.mobile ?? null) : null,
+    address: inheritAddress ? (source.address ?? null) : null,
+    zip: inheritAddress ? (source.zip ?? null) : null,
+    city: inheritAddress ? (source.city ?? null) : null,
+    address_complement: inheritAddress ? (source.address_complement ?? null) : null,
+    country: inheritAddress ? (source.country ?? 'BE') : 'BE',
   } as ContactInsert;
   const { data, error } = await supabase.from('contacts').insert(ins).select('id').single();
   if (error) throw error;

@@ -297,6 +297,10 @@ export function ArticleForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      <div className="flex items-center rounded-md border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
+        <Check label={t('articles.publishable')} checked={f.publishable} onChange={(v) => set('publishable', v)} />
+      </div>
+
       <Section title={t('articles.secMain')}>
         <Field label={t('articles.reference')}>
           <Input value={f.reference} onChange={(e) => set('reference', e.target.value)} className="font-mono" />
@@ -478,25 +482,27 @@ export function ArticleForm({
       </Section>
 
       <Section title={t('articles.secEquiv')}>
-        <Field label={t('articles.kitBillingMode')}>
-          <Select
-            value={f.kit_billing_mode || undefined}
-            onValueChange={(v) => set('kit_billing_mode', v as KitBillingMode)}
-          >
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="forfait">{t('articles.kit_forfait')}</SelectItem>
-              <SelectItem value="nomenclature">{t('articles.kit_nomenclature')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        {/* Non pertinent hors kit (composant de forfait/nomenclature) — le champ reste dans le payload */}
+        {f.mgmt_type === 'N' && (
+          <Field label={t('articles.kitBillingMode')}>
+            <Select
+              value={f.kit_billing_mode || undefined}
+              onValueChange={(v) => set('kit_billing_mode', v as KitBillingMode)}
+            >
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="forfait">{t('articles.kit_forfait')}</SelectItem>
+                <SelectItem value="nomenclature">{t('articles.kit_nomenclature')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         {(f.mgmt_type === 'R' || f.mgmt_type === 'P') && (
           <Field label={t('articles.reprisePrefix')}>
             <Input value={f.reprise_prefix} onChange={(e) => set('reprise_prefix', e.target.value)} className="font-mono" placeholder="REP-" />
           </Field>
         )}
         <div className="col-span-full flex flex-wrap gap-4">
-          <Check label={t('articles.publishable')} checked={f.publishable} onChange={(v) => set('publishable', v)} />
           <Check label={t('articles.isLibrary')} checked={f.is_library} onChange={(v) => set('is_library', v)} />
         </div>
       </Section>
@@ -505,7 +511,7 @@ export function ArticleForm({
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>
       )}
 
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
         <Button type="submit" disabled={submitting}>
           {submitting ? <Loader2 className="animate-spin" /> : <Save />}

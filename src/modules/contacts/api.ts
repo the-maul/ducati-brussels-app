@@ -29,6 +29,12 @@ export function getModelInterests(c: Contact): string[] {
   return Array.isArray(v) ? v : [];
 }
 
+/** Motif de surveillance (colonne ajoutée par migration, pas encore dans les types Supabase générés). */
+export function getWatchNote(c: Contact): string | null {
+  const v = (c as { watch_note?: string | null }).watch_note;
+  return v || null;
+}
+
 /** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
 export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
   const { data, error } = await supabase.rpc('contacts_search', {
@@ -56,6 +62,14 @@ export async function listContactsPaged(
   return { rows: (data as Contact[]) ?? [], total: Number(total ?? 0) };
 }
 
+/** Contacts par lot d'ids — pour croiser une liste de documents/véhicules avec leur client. */
+export async function listContactsByIds(ids: string[]): Promise<Contact[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from('contacts').select('*').in('id', ids);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getContact(id: string): Promise<Contact | null> {
   const { data, error } = await supabase.from('contacts').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
@@ -72,4 +86,52 @@ export async function updateContact(id: string, input: ContactUpdate): Promise<C
   const { data, error } = await supabase.from('contacts').update(input).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+/** Archive une fiche (is_active=false) : jamais de suppression physique, pour préserver l'audit. */
+export async function archiveContact(id: string): Promise<void> {
+  const { error } = await supabase.from('contacts').update({ is_active: false }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function unarchiveContact(id: string): Promise<void> {
+  const { error } = await supabase.from('contacts').update({ is_active: true }).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Tables métier portant contact_id, réassignées lors d'une fusion. Liste tenue à jour
+ * manuellement (pas d'introspection de schéma côté client) : client_price_rules,
+ * communications, contact_subcontacts, customer_price_rules, delivery_addresses,
+ * documents, leads, repair_orders, sepa_mandates, vehicle_owners, workshop_appointments.
+ */
+const MERGE_TABLES = [
+  'client_price_rules', 'communications', 'contact_subcontacts', 'customer_price_rules',
+  'delivery_addresses', 'documents', 'leads', 'repair_orders', 'sepa_mandates',
+  'vehicle_owners', 'workshop_appointments',
+] as const;
+
+export type MergeContactsResult = { reassigned: string[]; failed: { table: string; error: string }[] };
+
+/**
+ * Fusionne mergeId dans keepId : réassigne contact_id vers keepId sur chaque table de
+ * MERGE_TABLES (défensif, une table par une table — un schéma pas encore migré ou une
+ * colonne absente ne doit pas bloquer la fusion des autres), puis archive mergeId
+ * (is_active=false) plutôt que de le supprimer, pour préserver l'audit (règle 4).
+ */
+export async function mergeContacts(keepId: string, mergeId: string): Promise<MergeContactsResult> {
+  const reassigned: string[] = [];
+  const failed: { table: string; error: string }[] = [];
+  for (const table of MERGE_TABLES) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from(table) as any).update({ contact_id: keepId }).eq('contact_id', mergeId);
+      if (error) throw error;
+      reassigned.push(table);
+    } catch (e) {
+      failed.push({ table, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  await archiveContact(mergeId);
+  return { reassigned, failed };
 }

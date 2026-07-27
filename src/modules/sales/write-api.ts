@@ -294,10 +294,70 @@ export async function getDocumentFull(id: string): Promise<DocumentFull> {
   return { doc: doc as DocumentRow, lines: lines ?? [] };
 }
 
+/**
+ * Duplique un document (en-tête + lignes) en un nouveau brouillon, sans numéro ni
+ * règlements (G8 : « dupliquer » repart d'une page blanche à valider). Retourne l'id créé.
+ */
+export async function duplicateDocument(id: string): Promise<string> {
+  const { doc, lines } = await getDocumentFull(id);
+  const lineInputs: LineInput[] = lines.map((l) => ({
+    article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
+    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
+  }));
+  const today = new Date().toISOString().slice(0, 10);
+  return createDocument({
+    companyId: doc.company_id, docType: doc.doc_type, contactId: doc.contact_id, vehicleId: doc.vehicle_id,
+    issueDate: today, dueDate: null, status: 'brouillon', notes: doc.notes,
+    lines: lineInputs, pied: docRowToPied(doc),
+  });
+}
+
+/**
+ * Supprime un document brouillon (lignes + règlements cascadent en base). Réservé aux
+ * brouillons : un document validé/payé ne se supprime pas (B7, avoir/annulation sinon).
+ */
+export async function deleteDocument(id: string): Promise<void> {
+  const { error } = await supabase.from('documents').delete().eq('id', id).eq('status', 'brouillon');
+  if (error) throw error;
+}
+
+/**
+ * Purge des devis anciens (trop nombreux au fil du temps) : supprime les DEV
+ * antérieurs à `dateIso`, uniquement à l'état brouillon/validée — jamais un devis
+ * converti en facture (B7 : un document facturé ne se supprime pas). Retourne le
+ * nombre de devis supprimés.
+ */
+export async function purgeQuotesBefore(companyId: string, dateIso: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('documents')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('doc_type', 'DEV')
+    .in('status', ['brouillon', 'validee'])
+    .lt('issue_date', dateIso)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
 export async function listDocuments(companyId: string, docType?: string): Promise<DocumentRow[]> {
   let q = supabase.from('documents').select('*').eq('company_id', companyId).order('issue_date', { ascending: false }).limit(100);
   if (docType) q = q.eq('doc_type', docType);
   const { data, error } = await q;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type AvailabilityLineRow = { document_id: string; article_id: string | null; quantity: number };
+/**
+ * Lignes (article_id, quantity) d'un lot de documents, en un seul aller-retour — utilisé
+ * par la liste des ventes pour calculer la pastille de disponibilité (B4) sans requête N+1
+ * par document. Bornée par la liste appelante (max 100 documents, cf. listDocuments).
+ */
+export async function listDocumentLinesFor(documentIds: string[]): Promise<AvailabilityLineRow[]> {
+  if (documentIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('document_lines').select('document_id, article_id, quantity').in('document_id', documentIds);
   if (error) throw error;
   return data ?? [];
 }

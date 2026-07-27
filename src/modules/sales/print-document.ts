@@ -111,30 +111,35 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   *{box-sizing:border-box}
-  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:14mm;font-size:12px}
-  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:14mm;font-size:12px;line-height:1.4}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
   .co{max-width:46%}
-  .co .brand{font-size:20px;font-weight:800;letter-spacing:.5px;color:#cc0000}
-  .co .sub{font-size:11px;color:#333;margin-top:6px;line-height:1.5}
+  .co .brand{font-size:21px;font-weight:800;letter-spacing:.5px;color:#cc0000}
+  .co .sub{font-size:11px;color:#333;margin-top:6px;line-height:1.6}
   .cli{border:1px solid #333;border-radius:8px;padding:10px 14px;min-width:300px}
   .bc svg{height:46px}
-  .band{display:flex;border:1px solid #333;border-radius:8px;overflow:hidden;margin:10px 0 2px}
+  .doctitle{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #111;border-bottom:1px solid #111;padding:6px 2px;margin:2px 0 10px}
+  .doctitle .type{font-size:17px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+  .doctitle .num{font-size:13px;color:#333;font-variant-numeric:tabular-nums}
+  .band{display:flex;border:1px solid #333;border-radius:8px;overflow:hidden;margin:0 0 12px}
   .band>div{padding:5px 8px;border-right:1px solid #ccc;font-size:10px;color:#555}
   .band>div:last-child{border-right:none}
   .band b{display:block;color:#111;font-size:12px;margin-top:2px}
   table{width:100%;border-collapse:collapse}
-  .lines thead th{text-align:left;padding:5px 6px;font-size:9px;text-transform:uppercase;color:#555;border-bottom:1px solid #999}
-  .lines tbody td{padding:5px 6px;border-bottom:1px solid #eee;font-size:11px}
+  .lines thead th{text-align:left;padding:6px;font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:#555;border-bottom:1px solid #999}
+  .lines tbody td{padding:6px;border-bottom:1px solid #eee;font-size:11px;font-variant-numeric:tabular-nums}
+  .lines tbody tr:nth-child(even){background:#fafafa}
   .r{text-align:right;font-variant-numeric:tabular-nums}
   .vehblock{display:flex;gap:24px;font-size:10px;color:#333;padding:8px 6px;border-bottom:1px solid #eee}
   .vehblock>div{flex:1}
-  .bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:18px}
-  .totals{width:280px;border:1px solid #333;border-radius:6px}
-  .totals td{padding:4px 10px;font-size:12px}
-  .totals .strong td{font-weight:800}
-  .pays td{padding:2px 8px;font-size:10px;border-bottom:1px solid #eee}
+  .bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px}
+  .totals{width:280px;border:1px solid #333;border-radius:6px;overflow:hidden}
+  .totals td{padding:5px 10px;font-size:12px;font-variant-numeric:tabular-nums}
+  .totals tr:not(:last-child) td{border-bottom:1px solid #eee}
+  .totals .strong td{font-weight:800;background:#f5f5f5}
+  .pays td{padding:2px 8px;font-size:10px;border-bottom:1px solid #eee;font-variant-numeric:tabular-nums}
   .mention{margin-top:12px;font-size:10px;color:#444;font-style:italic}
-  .footer-note{margin-top:8px;font-size:11px}
+  .footer-note{margin-top:8px;font-size:11px;color:#333}
   .cgv{page-break-before:always;font-size:10px;color:#333}
   .cgv div{white-space:pre-wrap}
   .cgv .signature{margin-top:16px;font-weight:bold}
@@ -154,6 +159,8 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
       <div class="bc">${barcode}</div>
     </div>
   </div>
+
+  <div class="doctitle"><span class="type">${esc(typeLabel)}</span><span class="num">N° ${esc(doc.number ?? '')}</span></div>
 
   <div class="band">
     <div>${esc(typeLabel.toUpperCase())}<b>${esc(doc.number ?? '')}</b></div>

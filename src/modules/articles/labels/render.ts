@@ -55,6 +55,16 @@ export function renderLabelSvg(cfg: LabelTemplateConfig, data: LabelData, now: D
     parts.push(barcodeSvgMm(data.barcode_value, cfg.barcode.xMm, cfg.barcode.yMm, cfg.barcode.widthMm, cfg.barcode.heightMm, cfg.barcode.vertical));
   }
 
+  // Rapprochement réception ↔ client (facultatif) : ligne "<n° document> — <client>"
+  // en pied d'étiquette, sans impacter les étiquettes qui n'ont pas ces données.
+  if (data.customerName || data.docNumber) {
+    const line = [data.docNumber, data.customerName].filter(Boolean).join(' — ');
+    const fs = (6 * PT_TO_MM).toFixed(2);
+    parts.push(
+      `<text x="1" y="${(cfg.heightMm - 0.8).toFixed(2)}" font-family="Arial, sans-serif" font-size="${fs}" font-weight="700" fill="#000">${esc(line)}</text>`,
+    );
+  }
+
   if (cfg.image.visible && cfg.image.dataUrl) {
     const im = cfg.image;
     parts.push(imageHref

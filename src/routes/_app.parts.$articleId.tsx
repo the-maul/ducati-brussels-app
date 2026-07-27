@@ -2,16 +2,18 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
-import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab } from '@/modules/articles/article-tabs';
+import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { Button } from '@/components/ui/button';
-import { Tags, BookOpen, ArrowRight } from 'lucide-react';
+import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
-import { getArticle, updateArticle, type ArticleInsert } from '@/modules/articles/api';
+import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
+import { addToReorderProposal } from '@/modules/purchases/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
@@ -51,13 +53,26 @@ function EditArticle() {
     onError: (e) => setError(e instanceof Error ? e.message : t('articles.errSave')),
   });
 
+  const duplicate = useMutation({
+    mutationFn: () => duplicateArticle(articleId),
+    onSuccess: (newId) => {
+      qc.invalidateQueries({ queryKey: ['articles'] });
+      toast.success(t('articles.duplicated'));
+      navigate({ to: '/parts/$articleId', params: { articleId: newId } });
+    },
+    onError: () => toast.error(t('articles.errDuplicate')),
+  });
+
   if (isLoading) {
     return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   }
   if (!article || !activeCompanyId) {
     return (
       <>
-        <PageHeader title={t('articles.title')} />
+        <PageHeader
+          title={t('articles.title')}
+          breadcrumbs={[{ label: t('articles.title'), to: '/parts' }, { label: t('articles.title') }]}
+        />
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('articles.errLoad')}</p>
       </>
     );
@@ -68,12 +83,22 @@ function EditArticle() {
       <PageHeader
         title={article.designation}
         description={article.reference}
+        breadcrumbs={[{ label: t('articles.title'), to: '/parts' }, { label: article.reference }]}
         actions={
           <>
             <Button variant="outline" onClick={() => window.open(article.catalog_url || 'https://e-catalog.ducati.com/EPC/?lang=fr-FR', '_blank', 'noopener')} title={article.catalog_url ? undefined : t('articles.catalogUrlHint')}>
               <BookOpen /> {t('articles.openCatalog')}
             </Button>
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
+            <Button variant="outline" disabled={duplicate.isPending} onClick={() => duplicate.mutate()}>
+              <Copy /> {t('articles.duplicate')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { toast.info(t('articles.proposedToOrder')); navigate(addToReorderProposal(activeCompanyId, articleId)); }}
+            >
+              <ShoppingCart /> {t('articles.proposeOrder')}
+            </Button>
           </>
         }
       />
@@ -102,6 +127,7 @@ function EditArticle() {
           <TabsTrigger value="barcodes">Codes-barres</TabsTrigger>
           <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
           <TabsTrigger value="replacement">Remplacement</TabsTrigger>
+          <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
           <TabsTrigger value="stats">Statistiques</TabsTrigger>
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
@@ -121,6 +147,9 @@ function EditArticle() {
         <TabsContent value="kit" className="mt-4"><KitTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="replacement" className="mt-4">
           <ReplacementTab articleId={articleId} companyId={activeCompanyId} supersededById={article.superseded_by_id} />
+        </TabsContent>
+        <TabsContent value="applicability" className="mt-4">
+          <ApplicabilityTab articleId={articleId} companyId={activeCompanyId} reference={article.reference} />
         </TabsContent>
         <TabsContent value="stats" className="mt-4"><StatsTab articleId={articleId} /></TabsContent>
         <TabsContent value="photos" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="article" entityId={articleId} /></TabsContent>

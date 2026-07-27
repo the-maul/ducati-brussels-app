@@ -11,6 +11,11 @@ export const fr = {
     tagline: 'DMS — Gestion concession',
   },
 
+  // Libellés génériques réutilisables (boutons de dialogues, etc.)
+  common: {
+    no: 'Non',
+  },
+
   // Modules de la sidebar (charte §4.1)
   nav: {
     dashboard: 'Tableau de bord',
@@ -21,6 +26,7 @@ export const fr = {
     tradein: 'Reprises motos clients',
     purchases: 'Achats & réceptions',
     sales: 'Ventes & Facturation',
+    picking: 'Picking list',
     clients: 'Contacts',
     crm: 'CRM',
     pos: 'Caisse',
@@ -283,6 +289,12 @@ export const fr = {
     create: "Créer l'article",
     save: 'Enregistrer',
     saving: 'Enregistrement…',
+    duplicate: 'Dupliquer',
+    duplicating: 'Duplication…',
+    duplicated: 'Référence dupliquée.',
+    errDuplicate: 'Duplication impossible.',
+    proposeOrder: 'Proposer à la commande',
+    proposedToOrder: 'Article mis en avant sur la proposition de commande.',
     empty: 'Aucun article',
     search: 'Rechercher (référence, désignation, marque…)',
     secMain: 'Identification',
@@ -343,6 +355,16 @@ export const fr = {
     colType: 'Type',
     colBrand: 'Marque',
     colStock: 'Localisation',
+    colSupplierAvail: 'Dispo. fourn.',
+    availGreen: 'Disponible chez le fournisseur',
+    availYellow: 'Disponibilité limitée chez le fournisseur',
+    availRed: 'Indisponible chez le fournisseur',
+    availUnknown: 'Disponibilité fournisseur inconnue',
+    colRealStock: 'Stock réel',
+    colReserved: 'Réservé',
+    colAvailable: 'Disponible',
+    colOnProposal: 'En proposition',
+    colOnOrder: 'En commande',
     colPrice: 'PV TTC',
     printLabel: 'Imprimer l\'étiquette',
     errLoad: 'Chargement impossible.',
@@ -441,6 +463,8 @@ export const fr = {
     replacedBy: 'Remplacée par {ref} — utilisez la nouvelle référence.',
     replacedBanner: 'Cette référence est remplacée par',
     openReplacement: 'Ouvrir la nouvelle référence',
+    predecessorsTitle: 'Anciennes références',
+    noPredecessors: 'Aucune ancienne référence liée à cet article.',
     // Étiquettes en masse (B12)
     labelsBtn: 'Étiquettes',
     labelsTitle: "Impression d'étiquettes en masse",
@@ -515,6 +539,49 @@ export const fr = {
     // Import → ERP
     importApplyN: "Importer {n} référence(s) dans l'ERP",
     previewHint: "Vérifiez le résumé ci-dessous (créations / mises à jour), puis cliquez « Importer » pour envoyer les références dans l'ERP.",
+    // Onglet Stock — filtres des mouvements
+    moveSens: 'Sens',
+    moveAll: 'Tous',
+    moveIn: 'Entrée',
+    moveOut: 'Sortie',
+    moveDocTypes: 'Types de document',
+    moveDateFrom: 'Du',
+    moveDateTo: 'Au',
+    moveEmpty: 'Aucun mouvement.',
+    moveNoMatch: 'Aucun mouvement ne correspond aux filtres.',
+    moveType: 'Mouvement',
+    moveQty: 'Quantité',
+    movePamp: 'PA unitaire (PAMP)',
+    moveNote: 'Note',
+    moveRecord: 'Enregistrer',
+    moveColDate: 'Date',
+    moveColType: 'Type',
+    moveColQty: 'Qté',
+    moveColPa: 'PA',
+    moveColOrigin: 'Origine',
+    moveColNote: 'Note',
+    docType_facture: 'Facture',
+    docType_bonCommande: 'Bon de commande',
+    docType_devis: 'Devis',
+    docType_ordreReparation: 'Ordre de réparation',
+    docType_cession: 'Cession',
+    docType_reception: 'Réception',
+    docType_propositionCommande: 'Proposition de commande',
+    docType_commande: 'Commande',
+  },
+
+  // Applicabilités articles (M2) — compatibilité modèle/année, import CSV fournisseur
+  applicability: {
+    tab: 'Applicabilités',
+    count: '{n} modèle(s) compatible(s)',
+    importCsv: "Importer un CSV d'applicabilité",
+    imported: '{n} ligne(s) importée(s) pour la référence {ref}.',
+    importError: "Import impossible — vérifiez le format du fichier.",
+    none: 'Aucune applicabilité connue pour cet article.',
+    gamme: 'Gamme',
+    year: 'Année',
+    model: 'Modèle',
+    qty: 'Qté',
   },
 
   // Contacts (M1)
@@ -549,6 +616,13 @@ export const fr = {
     noLinks: 'Aucune fiche liée.',
     openFiche: 'Ouvrir la fiche',
     unlink: 'Délier',
+    linkLimitReached: 'Limite de 2 fiches liées atteinte.',
+    inheritTitle: 'Créer la fiche liée',
+    inheritContact: 'Mail et téléphone identiques à la fiche pro',
+    inheritAddress: 'Adresse postale identique à la fiche pro',
+    debtorAlertTitle: 'Attention client débiteur',
+    debtorAlertBody: 'Redevable de {amount}.',
+    debtorSettle: 'Solder le compte',
     secPrivateAddress: 'Coordonnées privées',
     privateEmail: 'E-mail privé',
     privatePhone: 'Téléphone privé',
@@ -652,6 +726,10 @@ export const fr = {
     idReadNotConfigured: 'Lecture automatique non installée — la fonction serveur « read-id-doc » et la clé API Anthropic doivent être configurées côté Supabase.',
     idReadError: 'Lecture impossible — réessayez dans un instant.',
     paymentTerms: 'Conditions de paiement',
+    payTermImmediate: 'Paiement immédiat',
+    payTerm7: '7 jours',
+    payTerm15: '15 jours',
+    payTerm30: '30 jours',
     iban: 'IBAN',
     creditLimit: 'Limite de crédit',
     // catégorisation
@@ -661,13 +739,34 @@ export const fr = {
     flagVip: 'VIP',
     flagDetaxe: 'Détaxé (export)',
     flagWatch: 'À surveiller',
+    watchNote: 'Motif de surveillance',
     flagAccount: 'En compte',
     interests: "Centres d'intérêt",
     interestRoute: 'Route',
     interestSport: 'Sport',
     interestOffroad: 'Off-road',
+    interestPiste: 'Piste',
     notes: 'Notes',
+    // archivage / fusion
+    archive: 'Archiver',
+    archived: 'Fiche archivée.',
+    archivedBadge: 'Archivée',
+    archiveConfirm: 'Archiver cette fiche ? Elle n’apparaîtra plus dans la liste par défaut mais restera consultable.',
+    unarchive: 'Désarchiver',
+    unarchived: 'Fiche réactivée.',
+    merge: 'Fusionner…',
+    mergeTitle: 'Fusionner une fiche dans celle-ci',
+    mergeHint: 'Recherchez la fiche à fusionner : ses documents, communications, leads, adresses de livraison, véhicules et échéances sont transférés sur cette fiche, qui est ensuite archivée.',
+    mergeSearchPlaceholder: 'Rechercher un contact à fusionner (nom, société, code)…',
+    mergeBack: 'Choisir un autre contact',
+    mergeCancel: 'Annuler',
+    mergeConfirm: 'Fusionner',
+    mergeConfirmQuestion: 'Fusionner {name} dans cette fiche ? Action irréversible (la fiche fusionnée sera archivée).',
+    merged: 'Fusion effectuée.',
+    mergePartialError: 'Fusion effectuée avec des avertissements — {n} table(s) non mise(s) à jour.',
+    showArchived: 'Afficher les archivés',
     // colonnes liste
+    colCode: 'Code',
     colName: 'Nom',
     colType: 'Type',
     colCity: 'Ville',
@@ -753,7 +852,21 @@ export const fr = {
     empty: 'Aucun document.',
     notFound: 'Introuvable.',
     // colonnes liste
-    colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC', colPaid: 'Réglé',
+    colNumber: 'N°', colType: 'Type', colDate: 'Date', colStatus: 'Statut', colTtc: 'TTC',
+    colAcompte: 'Acompte / Solde', colActions: 'Actions',
+    // filtres liste
+    filters: 'Filtres', filterAll: 'Tous', filterReset: 'Réinitialiser',
+    filterDepartment: 'Département', filterDeptStore: 'Magasin', filterDeptEshop: 'E-shop',
+    filterDocType: 'Type de document',
+    filterContent: 'Contenu', contentVn: 'Véhicule neuf', contentVo: 'Véhicule occasion', contentDv: 'Dépôt-vente', contentNone: 'Sans véhicule',
+    filterDateFrom: 'Du', filterDateTo: 'Au',
+    filterClientType: 'Type de client', clientTypePro: 'Professionnel', clientTypeParticulier: 'Particulier',
+    searchPlaceholder: 'N° document ou client (nom, code)…',
+    filterEmpty: 'Aucun document ne correspond aux filtres.',
+    badgeReceived: 'Reçu {n}', badgeBalance: 'Solde {n}', badgePaid: 'Payé',
+    duplicated: 'Document dupliqué (brouillon).', deleted: 'Document supprimé.',
+    deleteConfirm: 'Supprimer ce document brouillon ? Cette action est irréversible.',
+    errPrint: 'Erreur à l\'impression.', errDuplicate: 'Erreur à la duplication.', errDelete: 'Erreur à la suppression.',
     // statuts document
     status_brouillon: 'Brouillon', status_validee: 'Validée', status_payee: 'Payée', status_annulee: 'Annulée', status_converti: 'Converti',
     convertTo: 'Convertir en', convert: 'Convertir', creditNote: 'Générer un avoir', print: 'Imprimer',
@@ -790,6 +903,54 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+    // envoi du document (e-mail / SMS)
+    sendMail: 'Envoyer par e-mail', sendSms: 'Envoyer par SMS',
+    sendMailTitle: 'Envoyer le document par e-mail', sendSmsTitle: 'Envoyer le document par SMS',
+    mailTo: 'À', mailSubject: 'Objet', mailBody: 'Message', smsTo: 'À', smsBody: 'Message',
+    mailSubjectDefault: 'Votre document {number}',
+    mailBodyDefault: 'Bonjour,\n\nVeuillez trouver votre document {number} en pièce jointe.\n\nCordialement,\nDucati Bruxelles',
+    smsBodyDefault: 'Bonjour, votre commande {number} est disponible en magasin.',
+    send: 'Envoyer', notifHint: 'L\'envoi part dès que la messagerie est configurée.',
+    noEmail: 'Ce contact n\'a pas d\'adresse e-mail.', noPhone: 'Ce contact n\'a pas de numéro de téléphone.',
+    mailQueued: 'E-mail mis en file d\'envoi.', smsQueued: 'SMS mis en file d\'envoi.',
+    errSend: 'Erreur à l\'envoi.',
+    // purge des devis
+    purgeQuotes: 'Purger les devis',
+    purgeQuotesTitle: 'Purger les devis',
+    purgeQuotesBefore: 'Supprimer les devis (DEV) antérieurs au…',
+    purgeQuotesHint: 'Seuls les devis brouillon ou validés sont supprimés — les devis transformés en facture/BL/réservation sont conservés.',
+    purgeQuotesConfirm: '{n} devis seront supprimés définitivement. Confirmer ?',
+    purgeQuotesNone: 'Aucun devis à purger avant cette date.',
+    purgeQuotesDone: '{n} devis supprimé(s).',
+    errPurge: 'Erreur à la purge.',
+  },
+
+  // Picking list digitale (M6 — Ventes & Facturation, item 11)
+  picking: {
+    title: 'Picking list', subtitle: 'Préparation des commandes clients — reçu, à préparer, à recevoir.',
+    new: 'Nouvelle picking list', newTitle: 'Nouvelle picking list',
+    sourceLabel: 'Origine', fromDocument: 'Depuis un document de vente', empty: 'Picking list vide (attribution manuelle)',
+    document: 'Document', documentPlaceholder: 'Choisir un document…',
+    location: 'Localisation', locationPlaceholder: 'Choisir une localisation…',
+    locBuanderie: 'Buanderie', locGetc: 'G.ET.C', locPetc: 'P.ET.C', locEta: 'ET@', locOther: 'Autre…',
+    locOtherPlaceholder: 'Localisation…',
+    create: 'Créer',
+    colDocument: 'Document', colLocation: 'Localisation', colStatus: 'Statut', colProgress: 'Prêts / Total', colDate: 'Date',
+    noDocument: 'Sans document',
+    statusEnCours: 'En cours', statusPret: 'Prête', statusLivre: 'Livrée',
+    itemStatus_a_preparer: 'À préparer', itemStatus_partiel: 'Partiel', itemStatus_pret: 'Prêt', itemStatus_a_recevoir: 'À recevoir',
+    listEmpty: 'Aucune picking list.',
+    detailTitle: 'Détail de la picking list',
+    colDesignation: 'Désignation', colReference: 'Réf.', colStatusItem: 'Statut',
+    qtyOrdered: 'Qté commandée', qtyPicked: 'Qté préparée',
+    addItem: 'Ajouter un article', addItemTitle: 'Ajouter un article',
+    itemDesignation: 'Désignation', itemReference: 'Référence', itemQty: 'Qté commandée',
+    add: 'Ajouter', itemsEmpty: 'Aucun article dans cette picking list.',
+    globalStatus: 'Statut de la picking list',
+    created: 'Picking list créée.', errCreate: 'Erreur à la création.',
+    updated: 'Picking list mise à jour.', errUpdate: 'Erreur à la mise à jour.',
+    itemAdded: 'Article ajouté.', errAddItem: 'Erreur à l\'ajout de l\'article.',
+    errQty: 'Erreur à la mise à jour de la quantité.',
   },
 
   // Tableau de bord (M13)
@@ -801,12 +962,27 @@ export const fr = {
 
   // Migration G8 (M14)
   migration: {
-    title: 'Migration & imports', subtitle: 'Importer des contacts/articles depuis un CSV (dry-run + application).',
+    title: 'Migration & imports', subtitle: 'Importer des contacts, articles et véhicules depuis un CSV (dry-run + application).',
     contactsTitle: 'Import de contacts', contactsSubtitle: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : Nom, Prénom, Société, Email, Tél, GSM, Adresse, CP, Ville, Pays, TVA, Type.',
     paste: 'Contenu CSV', analyze: 'Analyser (dry-run)', apply: 'Importer les contacts', applying: 'Import…',
     toCreate: 'à créer', errors: 'erreurs', done: '{n} contact(s) importé(s).',
     colName: 'Nom / Société', colEmail: 'E-mail', colCity: 'Ville', colType: 'Type', colStatus: 'État',
     ok: 'OK', preview: 'Aperçu', empty: 'Collez un CSV puis cliquez sur Analyser.',
+    // Onglets
+    tabContacts: 'Contacts', tabArticles: 'Articles', tabVehicles: 'Véhicules',
+    articlesHint: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : Référence (obligatoire), Désignation (obligatoire), Prix TTC, Marque, Code-barres. Une référence déjà existante pour la société est ignorée (jamais écrasée).',
+    vehiclesHint: 'Collez ou déposez un CSV (1re ligne = en-têtes). Colonnes reconnues : VIN (obligatoire, 17 caractères max), Modèle, Année, Immatriculation. Un VIN déjà existant pour la société est ignoré (jamais écrasé).',
+    colReference: 'Référence', colDesignation: 'Désignation', colPrice: 'Prix TTC', colBrand: 'Marque',
+    colVin: 'VIN', colModel: 'Modèle', colYear: 'Année', colPlate: 'Plaque',
+    imported: 'importés', ignored: 'ignorés (déjà existants)',
+  },
+
+  // Étiquettes — rapprochement réception ↔ client (M2/M4, B12)
+  labels: {
+    customerLabel: 'Étiquettes client',
+    customerName: 'Nom du client',
+    docNumber: 'N° de document',
+    printCustomerLabels: 'Imprimer',
   },
 
   // Rapports (M13)
@@ -929,6 +1105,25 @@ export const fr = {
     stage: 'Étape', value: 'Valeur estimée', openCard: 'Ouvrir la fiche', deleted: 'Lead supprimé.', notes: 'Notes',
   },
 
+  // Matching client intéressé ↔ moto en stock (M10 × M3)
+  matching: {
+    title: 'Clients intéressés par ce modèle',
+    subtitle: 'Contacts dont les préférences correspondent à cette moto.',
+    reasonModel: 'Modèle suivi',
+    reasonUsage: 'Usage compatible',
+    notify: 'Notifier',
+    notifyEmail: 'Notifier par e-mail',
+    notifySms: 'Notifier par SMS',
+    notifyAll: 'Tout notifier par e-mail',
+    notifying: 'Envoi…',
+    notified: 'Client notifié.',
+    notifyError: 'Notification impossible.',
+    notifyAllResult: '{count} client(s) notifié(s) par e-mail.',
+    notifyAllNone: 'Aucun client avec e-mail à notifier.',
+    none: 'Aucun client intéressé par ce modèle pour le moment.',
+    colContact: 'Contact', colReason: 'Correspondance', colContactInfo: 'Coordonnées', colActions: 'Actions',
+  },
+
   // Documents & GED (M9)
   ged: {
     title: 'Documents & photos', upload: 'Ajouter (photo / fichier)', hint: 'Photos (caméra sur mobile), COC, pièce d\'identité, justificatifs…',
@@ -978,6 +1173,25 @@ export const fr = {
     apptStatus_prevu: 'Prévu', apptStatus_arrive: 'Véhicule arrivé', apptStatus_en_cours: 'En cours', apptStatus_termine: 'Terminé', apptStatus_annule: 'Annulé',
     createOrFromRdv: 'Créer l\'OR', viewOr: 'Voir l\'OR', prevWeek: 'Semaine précédente', nextWeek: 'Semaine suivante', thisWeek: 'Cette semaine',
     noRdv: 'Aucun rendez-vous.', changeStatus: 'Statut',
+  },
+
+  // Aide à la Réparation Ducati — moto accidentée (note réseau Ducati, M8)
+  accident: {
+    btn: 'Aide réparation Ducati (moto accidentée)',
+    title: 'Aide à la Réparation Ducati — moto accidentée',
+    subtitle: '15% de remise supplémentaire sur les pièces si le devis pièces dépasse 1 500 € HT.',
+    chassis: 'N° de châssis', clientName: 'Nom client',
+    colReference: 'Référence', colDesignation: 'Désignation', colQty: 'Qté', colPuHt: 'PU HT',
+    noParts: 'Aucune pièce sur cet OR.',
+    totalParts: 'Total pièces HT', discount: 'Remise 15%', net: 'Net après remise',
+    eligible: 'Éligible — remise 15% : {discount} €',
+    notEligible: 'Non éligible (devis pièces < 1 500 € HT)',
+    toSend: 'Éléments à envoyer à {email}',
+    toSendList: 'Fichier de commande (généré), devis de réparation, photos de la moto avant réparation, photo du n° de châssis gravé sur le cadre.',
+    downloadXlsx: 'Télécharger le fichier de commande (Excel)',
+    sendEmail: "Préparer l'e-mail",
+    emailSubject: 'Aide à la Réparation — Moto accidentée',
+    close: 'Fermer',
   },
 
   // Reprises / Occasion / ORO (M7)
@@ -1218,6 +1432,21 @@ export const fr = {
     // cessions internes
     cessions: 'Cessions internes', cessionsTitle: 'Cessions internes', cessionsSubtitle: 'Sorties de stock valorisées non facturables, typées (cadeau, démo, fournitures, garantie).',
     cessionArticle: 'Article', cessionArticlePlaceholder: 'Réf, désignation…', cessionQty: 'Quantité', cessionType: 'Type de cession', cessionNote: 'Note', cessionAdd: 'Enregistrer', cessionErr: 'Erreur',
+    // filtres multicritères
+    filters: 'Filtres', filterAll: 'Tous', filterReset: 'Réinitialiser',
+    filterSupplier: 'Fournisseur', filterRayon: 'Rayon', filterDateFrom: 'Du', filterDateTo: 'Au',
+    // export CSV
+    export: 'Exporter',
+    // réappro / back-order
+    reorderView: 'Réappro', reorderEmpty: 'Aucun article à surveiller pour réappro.',
+    colSupplier: 'Fournisseur', colGap: 'Manque',
+    // dépréciation de stock
+    deprecBtn: 'Dépréciations', deprecTitle: 'Dépréciations de stock',
+    deprecSubtitle: 'Décote de la valeur PAMP du vieux stock — provision de valeur, sans impact sur les quantités.',
+    deprecDormant: 'Seulement stock dormant', deprecRate: 'Décote %', deprecPreview: 'Aperçu décote',
+    deprecReason: 'Motif', deprecApply: 'Appliquer', deprecApplied: 'Dépréciation enregistrée.',
+    deprecActive: 'Dépréciations en cours', deprecTotal: 'Provision totale', deprecCancel: 'Annuler',
+    deprecCancelled: 'Dépréciation annulée.', deprecEmpty: 'Aucune dépréciation en cours.', deprecErr: 'Erreur',
   },
 
   // Achats & réceptions (M4)
@@ -1255,6 +1484,8 @@ export const fr = {
     reorderTitle: 'Proposition de commande', reorderSubtitle: 'Articles sous le stock mini — quantités à commander, par fournisseur.',
     reorderAvail: 'Dispo', reorderMin: 'Mini', reorderQty: 'À commander', reorderEmpty: 'Aucun article sous le stock mini.',
     createOrders: 'Créer les commandes', ordersCreated: '{n} commande(s) créée(s).',
+    reorderHighlightNotEligible: "Cet article n'est actuellement pas sous son stock mini — ajoutez-le manuellement à une commande si besoin.",
+    customerLabelHint: 'Choisissez la ligne réceptionnée puis renseignez le nom du client — le n° de document est préempli depuis cette réception.',
   },
 
   // Caisse — vente comptoir (M6 POS)
@@ -1419,6 +1650,21 @@ export const fr = {
     colModel: 'Modèle',
     colStatus: 'Statut',
     colPrice: 'Prix',
+  },
+
+  // Disponibilité des lignes sur les documents de vente (dept Ventes, point 2)
+  availability: {
+    statusDisponible: 'Disponible',
+    statusPartiel: 'Partiel',
+    statusIndisponible: 'Indisponible',
+    statusNa: 'N/A',
+    colDispo: 'Dispo',
+    filterLabel: 'Disponibilité',
+    filterAll: 'Toutes',
+    filterTotal: 'Totalement disponible',
+    filterPartial: 'Partiellement disponible',
+    filterOrder: 'En commande',
+    filterNone: 'Indisponible',
   },
 } as const;
 
