@@ -6,7 +6,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { listContacts, contactDisplayName, getModelInterests, type Contact } from '@/modules/contacts/api';
-import { addCommunication } from '@/modules/crm/api';
+import { addCommunication, sendEmailViaOutlook } from '@/modules/crm/api';
 import { vehicleLabel, type Vehicle } from '@/modules/vehicles/api';
 
 export type VehicleUsage = 'route' | 'sport' | 'offroad' | 'piste';
@@ -115,17 +115,25 @@ export async function notifyInterestedContact(p: {
   const subject = `Ducati Bruxelles — ${label} disponible`;
   const body = `Bonjour ${contactDisplayName(contact)},\n\nLa moto ${label} qui vous intéresse vient d'entrer en stock chez Ducati Bruxelles. Contactez-nous pour en savoir plus ou planifier un essai.\n\nDucati Bruxelles`;
 
-  const { error } = await supabase.rpc('enqueue_notification', {
-    _company: companyId,
-    _channel: channel,
-    _to: toAddress,
-    _subject: subject,
-    _body: body,
-    _template: 'crm_match',
-    _entity_type: 'vehicle',
-    _entity_id: vehicle.id,
-  });
-  if (error) throw error;
+  if (channel === 'email') {
+    const { error } = await sendEmailViaOutlook({
+      companyId, contactId: contact.id, to: toAddress,
+      subject, body: body.replace(/\n/g, '<br>'),
+    });
+    if (error) throw new Error(error);
+  } else {
+    const { error } = await supabase.rpc('enqueue_notification', {
+      _company: companyId,
+      _channel: channel,
+      _to: toAddress,
+      _subject: subject,
+      _body: body,
+      _template: 'crm_match',
+      _entity_type: 'vehicle',
+      _entity_id: vehicle.id,
+    });
+    if (error) throw error;
+  }
 
   await addCommunication({
     companyId,
