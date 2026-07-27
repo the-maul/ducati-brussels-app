@@ -68,7 +68,10 @@ function EditArticle() {
   if (!article || !activeCompanyId) {
     return (
       <>
-        <PageHeader title={t('articles.title')} />
+        <PageHeader
+          title={t('articles.title')}
+          breadcrumbs={[{ label: t('articles.title'), to: '/parts' }, { label: t('articles.title') }]}
+        />
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('articles.errLoad')}</p>
       </>
     );
@@ -79,6 +82,7 @@ function EditArticle() {
       <PageHeader
         title={article.designation}
         description={article.reference}
+        breadcrumbs={[{ label: t('articles.title'), to: '/parts' }, { label: article.reference }]}
         actions={
           <>
             <Button variant="outline" onClick={() => window.open(article.catalog_url || 'https://e-catalog.ducati.com/EPC/?lang=fr-FR', '_blank', 'noopener')} title={article.catalog_url ? undefined : t('articles.catalogUrlHint')}>

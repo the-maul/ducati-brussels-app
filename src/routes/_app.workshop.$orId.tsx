@@ -47,7 +47,15 @@ function OrView() {
   });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  if (!data) return <><PageHeader title="OR" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p></>;
+  if (!data) return (
+    <>
+      <PageHeader
+        title={t('nav.workshop')}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('nav.workshop') }]}
+      />
+      <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p>
+    </>
+  );
 
   const { or } = data;
   const invoiced = or.status === 'facture';
@@ -57,6 +65,7 @@ function OrView() {
     <>
       <PageHeader
         title={`OR ${or.number ?? ''}`}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: `OR ${or.number ?? ''}` }]}
         actions={
           <div className="flex flex-wrap gap-2">
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
