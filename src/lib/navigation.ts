@@ -21,6 +21,7 @@ import {
   Settings,
   Palette,
   ListChecks,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -45,6 +46,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },
+  { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },
   { labelKey: 'nav.clients', to: '/clients', icon: Users },
   { labelKey: 'nav.crm', to: '/crm', icon: Target },
   { labelKey: 'nav.pos', to: '/pos', icon: CreditCard },
