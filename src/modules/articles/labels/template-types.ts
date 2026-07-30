@@ -31,6 +31,23 @@ export type LabelImage = { visible: boolean; xMm: number; yMm: number; widthMm: 
 /** Cadre (bordure) imprimé sur le pourtour de l'étiquette — imprimé ET à l'aperçu. */
 export type LabelBorder = { visible: boolean; widthMm: number; insetMm: number };
 
+/**
+ * Ligne personnalisée (texte libre) ajoutable/supprimable par l'utilisateur, en
+ * plus des 14 éléments data-liés. Chaque ligne porte son propre texte et son
+ * style/position. `id` stable = clé React + suppression ciblée.
+ */
+export type LabelCustomElement = {
+  id: string;
+  text: string;
+  visible: boolean;
+  font: LabelFont;
+  sizePt: number;
+  bold: boolean;
+  xMm: number;
+  yMm: number;
+  vertical: boolean;
+};
+
 export type LabelTemplateConfig = {
   widthMm: number;    // étiquette
   heightMm: number;
@@ -40,6 +57,8 @@ export type LabelTemplateConfig = {
   gapXMm: number;     // planche : espaces entre étiquettes
   gapYMm: number;
   elements: LabelElement[];
+  /** Lignes de texte libre ajoutées par l'utilisateur (ajout/édition/suppression). */
+  custom: LabelCustomElement[];
   barcode: LabelBarcode;
   image: LabelImage;
   border: LabelBorder;
@@ -47,6 +66,15 @@ export type LabelTemplateConfig = {
   freeTexts: { free1: string; free2: string; free3: string };
   dateFormat: string; // ex. JJ/MM/AAAA
 };
+
+/** Fabrique une ligne personnalisée avec des valeurs par défaut sûres. */
+export function makeCustomElement(over: Partial<LabelCustomElement> = {}): LabelCustomElement {
+  return {
+    id: (globalThis.crypto?.randomUUID?.() ?? `c${Date.now()}${Math.random().toString(36).slice(2, 7)}`),
+    text: 'Nouveau texte', visible: true, font: 'Arial', sizePt: 8, bold: false,
+    xMm: 2.5, yMm: 12, vertical: false, ...over,
+  };
+}
 
 export type LabelTemplate = {
   id: string;
@@ -152,6 +180,7 @@ export function defaultTemplateConfig(): LabelTemplateConfig {
       el('barcode_value'),
       el('free1'), el('free2'), el('free3'),
     ],
+    custom: [],
     // Code-barres masqué par défaut (étiquette type sans code-barres).
     barcode: { visible: false, xMm: 13, yMm: 17.5, widthMm: 40, heightMm: 10, vertical: false },
     // Logo Ducati en bas-droite (remplace l'ancien pictogramme eShop).
@@ -192,6 +221,9 @@ export function normalizeTemplateConfig(saved: Partial<LabelTemplateConfig> | nu
     barcode: { ...def.barcode, ...(saved?.barcode ?? {}) },
     image: { ...def.image, ...(saved?.image ?? {}) },
     border: { ...def.border, ...(saved?.border ?? {}) },
+    // Lignes personnalisées : conservées telles quelles (chaque ligne complétée
+    // avec les défauts manquants pour rester tolérant aux anciens enregistrements).
+    custom: (saved?.custom ?? []).map((c) => ({ ...makeCustomElement(), ...c })),
     freeTexts: { ...def.freeTexts, ...(saved?.freeTexts ?? {}) },
   };
 }

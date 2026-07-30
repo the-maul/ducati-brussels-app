@@ -86,6 +86,17 @@ export const fr = {
     back: 'Retour',
   },
 
+  // Dialogue de confirmation générique (useConfirm)
+  confirm: {
+    deleteTitle: 'Confirmer la suppression',
+    deleteMessage: 'Cette action est irréversible. Voulez-vous vraiment supprimer cet élément ?',
+    genericTitle: 'Confirmer l’action',
+    genericMessage: 'Voulez-vous vraiment continuer ?',
+    delete: 'Supprimer',
+    cancel: 'Annuler',
+    confirm: 'Confirmer',
+  },
+
   // Société / contexte (multi-société COM005)
   company: {
     switch: 'Changer de société',
@@ -493,6 +504,10 @@ export const fr = {
     tplColStyle: 'Mise en forme', tplColX: 'Position X', tplColY: 'Position Y', tplColOrientation: 'Orientation',
     tplStyleNormal: 'Normal', tplStyleBold: 'Gras',
     tplHorizontal: 'Horizontal', tplVertical: 'Vertical',
+    // Lignes personnalisées (ajout/édition/suppression libre)
+    tplCustomLines: 'Lignes personnalisées', tplCustomAdd: 'Ajouter une ligne',
+    tplCustomRemove: 'Supprimer la ligne', tplCustomText: 'Texte',
+    tplCustomEmpty: 'Aucune ligne personnalisée. Cliquez sur « Ajouter une ligne » pour en créer une.',
     // Éléments (lignes G8)
     tplEl_reference: 'Référence', tplEl_designation: 'Désignation', tplEl_price_ttc: 'Prix TTC',
     tplEl_price_ht: 'Prix HT', tplEl_price_promo: 'Prix promo', tplEl_discount: 'Remise',

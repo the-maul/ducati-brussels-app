@@ -5,7 +5,7 @@
 import { test, expect } from 'bun:test';
 import {
   defaultTemplateConfig, normalizeTemplateConfig, sampleLabelData, sheetLayout, formatLabelDate, resolveElementText,
-  ELEMENT_KEYS,
+  ELEMENT_KEYS, makeCustomElement,
 } from '../src/modules/articles/labels/template-types';
 import { renderLabelSvg, buildPrintHtml } from '../src/modules/articles/labels/render';
 
@@ -102,6 +102,29 @@ test('renderLabelSvg : SVG en mm, textes échappés, cadre + logo ; code-barres 
   expect(svg).toContain('preserveAspectRatio="none"'); // code-barres imbriqué
   expect(svg).toContain('stroke="#000"');          // cadre imprimé
   expect(svg).toContain('data:image/svg+xml');     // logo Ducati
+});
+
+test('renderLabelSvg : lignes personnalisées (ajout) rendues, ligne masquée ou vide ignorée', () => {
+  const cfg = defaultTemplateConfig();
+  cfg.custom = [
+    makeCustomElement({ text: 'MADE IN ITALY', xMm: 3, yMm: 15, bold: true }),
+    makeCustomElement({ text: 'CACHÉ', visible: false }),
+    makeCustomElement({ text: '', visible: true }),
+  ];
+  const svg = renderLabelSvg(cfg, sampleLabelData('X'), new Date(), false);
+  expect(svg).toContain('MADE IN ITALY');
+  expect(svg).not.toContain('CACHÉ');       // ligne non visible ignorée
+});
+
+test('normalizeTemplateConfig : lignes personnalisées conservées, défauts complétés', () => {
+  const cfg = defaultTemplateConfig();
+  cfg.custom = [makeCustomElement({ text: 'X', id: 'fixe-1' })];
+  const norm = normalizeTemplateConfig(cfg);
+  expect(norm.custom.length).toBe(1);
+  expect(norm.custom[0].id).toBe('fixe-1');
+  expect(norm.custom[0].text).toBe('X');
+  // config sans custom (ancien enregistrement) → tableau vide, pas de plantage
+  expect(normalizeTemplateConfig({ widthMm: 62 }).custom).toEqual([]);
 });
 
 test('buildPrintHtml : rouleau = @page papier ; planche = @page A4', () => {

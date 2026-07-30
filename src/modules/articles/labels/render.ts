@@ -51,6 +51,18 @@ export function renderLabelSvg(cfg: LabelTemplateConfig, data: LabelData, now: D
     );
   }
 
+  // Lignes personnalisées (texte libre ajouté par l'utilisateur) : même rendu que
+  // les éléments data-liés, texte pris tel quel.
+  for (const c of cfg.custom ?? []) {
+    if (!c.visible || !c.text) continue;
+    const fs = (c.sizePt * PT_TO_MM).toFixed(2);
+    const weight = c.bold ? '700' : '400';
+    const transform = c.vertical ? ` transform="rotate(90 ${c.xMm} ${c.yMm})"` : '';
+    parts.push(
+      `<text x="${c.xMm}" y="${c.yMm}" font-family="${c.font}, sans-serif" font-size="${fs}" font-weight="${weight}" fill="#000" dominant-baseline="hanging"${transform}>${esc(c.text)}</text>`,
+    );
+  }
+
   if (cfg.barcode.visible && data.barcode_value) {
     parts.push(barcodeSvgMm(data.barcode_value, cfg.barcode.xMm, cfg.barcode.yMm, cfg.barcode.widthMm, cfg.barcode.heightMm, cfg.barcode.vertical));
   }

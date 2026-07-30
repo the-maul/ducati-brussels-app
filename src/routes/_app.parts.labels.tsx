@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   ELEMENT_KEYS, defaultTemplateConfig, normalizeTemplateConfig, sampleLabelData, sheetLayout,
-  type LabelTemplateConfig, type LabelElement, type LabelFont, type ElementKey,
+  makeCustomElement,
+  type LabelTemplateConfig, type LabelElement, type LabelFont, type ElementKey, type LabelCustomElement,
 } from '@/modules/articles/labels/template-types';
 import { listTemplates, saveTemplate, deleteTemplate } from '@/modules/articles/labels/templates-api';
 import { renderLabelSvg, printLabelsWithTemplate } from '@/modules/articles/labels/render';
 import { QuickLabelDialog } from '@/modules/articles/labels/quick-label';
+import { useConfirm } from '@/components/confirm-provider';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/labels')({
@@ -30,6 +32,7 @@ const num = (s: string) => { const n = Number(String(s).replace(',', '.')); retu
 function LabelEditorPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const imgRef = useRef<HTMLInputElement>(null);
 
@@ -72,6 +75,13 @@ function LabelEditorPage() {
   const setEl = (key: ElementKey, patch: Partial<LabelElement>) =>
     setCfg((p) => ({ ...p, elements: p.elements.map((e) => (e.key === key ? { ...e, ...patch } : e)) }));
 
+  // Lignes personnalisées : ajout / édition / suppression.
+  const addCustom = () => setCfg((p) => ({ ...p, custom: [...(p.custom ?? []), makeCustomElement()] }));
+  const setCustom = (id: string, patch: Partial<LabelCustomElement>) =>
+    setCfg((p) => ({ ...p, custom: (p.custom ?? []).map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  const removeCustom = (id: string) =>
+    setCfg((p) => ({ ...p, custom: (p.custom ?? []).filter((c) => c.id !== id) }));
+
   const save = useMutation({
     mutationFn: () => saveTemplate(activeCompanyId!, {
       id: mode === 'new' ? null : selectedId,
@@ -92,6 +102,7 @@ function LabelEditorPage() {
     onSuccess: () => {
       setMode('view');
       setSelectedId(null); // l'auto-sélection reprendra le premier format restant
+      toast.success('Élément supprimé');
       qc.invalidateQueries({ queryKey: ['label-templates', activeCompanyId] });
     },
   });
@@ -147,7 +158,7 @@ function LabelEditorPage() {
         </Select>
         <Button variant="outline" size="sm" onClick={newFormat}><Plus className="size-4" /> {t('articles.tplNew')}</Button>
         <Button variant="outline" size="sm" onClick={duplicate}><Copy className="size-4" /> {t('articles.tplDuplicate')}</Button>
-        <Button variant="outline" size="sm" disabled={!selectedId || del.isPending} onClick={() => { if (window.confirm(t('articles.tplDeleteConfirm'))) del.mutate(); }}>
+        <Button variant="outline" size="sm" disabled={!selectedId || del.isPending} onClick={async () => { if (await confirm({ variant: 'delete', message: t('articles.tplDeleteConfirm') })) del.mutate(); }}>
           <Trash2 className="size-4" /> {t('articles.tplDelete')}
         </Button>
         <div className="ml-auto flex gap-2">
@@ -248,6 +259,87 @@ function LabelEditorPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Lignes personnalisées : ajout / édition texte / suppression */}
+            <div className="mt-3 border-t border-border pt-3">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="font-ui text-[13px] font-bold text-foreground">{t('articles.tplCustomLines')}</h3>
+                <Button type="button" variant="outline" size="sm" onClick={addCustom}>
+                  <Plus className="size-4" /> {t('articles.tplCustomAdd')}
+                </Button>
+              </div>
+              {(cfg.custom ?? []).length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">{t('articles.tplCustomEmpty')}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse font-data text-[12.5px]">
+                    <thead className="bg-muted">
+                      <tr>
+                        <Th>{t('articles.tplColVisible')}</Th>
+                        <Th>{t('articles.tplCustomText')}</Th>
+                        <Th>{t('articles.tplColFont')}</Th>
+                        <Th>{t('articles.tplColSize')}</Th>
+                        <Th>{t('articles.tplColStyle')}</Th>
+                        <Th>{t('articles.tplColX')}</Th>
+                        <Th>{t('articles.tplColY')}</Th>
+                        <Th>{t('articles.tplColOrientation')}</Th>
+                        <Th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(cfg.custom ?? []).map((c) => (
+                        <tr key={c.id} className={`border-b border-border last:border-0 ${c.visible ? '' : 'opacity-50'}`}>
+                          <td className="px-2 py-1 text-center">
+                            <Checkbox checked={c.visible} onCheckedChange={(v) => setCustom(c.id, { visible: v === true })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Input className="h-8 min-w-40" value={c.text} onChange={(e) => setCustom(c.id, { text: e.target.value })} placeholder={t('articles.tplCustomText')} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Select value={c.font} onValueChange={(v) => setCustom(c.id, { font: v as LabelFont })}>
+                              <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                              <SelectContent>{FONTS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1">
+                            <NumInput className="h-8 w-16 text-right tabular-nums" value={c.sizePt} onChange={(v) => setCustom(c.id, { sizePt: v })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Select value={c.bold ? 'bold' : 'normal'} onValueChange={(v) => setCustom(c.id, { bold: v === 'bold' })}>
+                              <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="normal">{t('articles.tplStyleNormal')}</SelectItem>
+                                <SelectItem value="bold">{t('articles.tplStyleBold')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1">
+                            <NumInput className="h-8 w-20 text-right tabular-nums" value={c.xMm} onChange={(v) => setCustom(c.id, { xMm: v })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <NumInput className="h-8 w-20 text-right tabular-nums" value={c.yMm} onChange={(v) => setCustom(c.id, { yMm: v })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Select value={c.vertical ? 'v' : 'h'} onValueChange={(v) => setCustom(c.id, { vertical: v === 'v' })}>
+                              <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="h">{t('articles.tplHorizontal')}</SelectItem>
+                                <SelectItem value="v">{t('articles.tplVertical')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            <Button type="button" variant="ghost" size="sm" aria-label={t('articles.tplCustomRemove')} onClick={() => removeCustom(c.id)}>
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Code-barres + image (positions/dimensions) */}
