@@ -22,6 +22,7 @@ import {
   Palette,
   ListChecks,
   ClipboardCheck,
+  ShoppingCart,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -44,6 +45,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
+  { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },
   { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },

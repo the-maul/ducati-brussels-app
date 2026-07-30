@@ -25,6 +25,7 @@ export const fr = {
     stock: 'Stock & inventaire',
     tradein: 'Reprises motos clients',
     purchases: 'Achats & réceptions',
+    orders: 'Commandes de pièces',
     sales: 'Ventes & Facturation',
     picking: 'Picking list',
     clients: 'Contacts',
@@ -1447,6 +1448,56 @@ export const fr = {
     deprecReason: 'Motif', deprecApply: 'Appliquer', deprecApplied: 'Dépréciation enregistrée.',
     deprecActive: 'Dépréciations en cours', deprecTotal: 'Provision totale', deprecCancel: 'Annuler',
     deprecCancelled: 'Dépréciation annulée.', deprecEmpty: 'Aucune dépréciation en cours.', deprecErr: 'Erreur',
+  },
+
+  // Commandes de pièces (process Miro 2026-07-30)
+  orders: {
+    title: 'Commandes de pièces',
+    subtitle: 'Réservations de pièces validées selon 4 types : urgente, standard, Excel, accident.',
+    new: 'Nouvelle commande',
+    newSubtitle: 'Choisissez le type de commande et le canal (comptoir ou mail).',
+    create: 'Créer la commande',
+    draft: 'Brouillon',
+    empty: 'Aucune commande.',
+    notFound: 'Commande introuvable.',
+    noLines: 'Aucune ligne.',
+    backToList: 'Commandes',
+    filterAll: 'Toutes',
+    // types
+    kind_urgente: 'Urgente', kind_standard: 'Standard', kind_excel: 'Excel', kind_accident: 'Accident',
+    kindDesc_urgente: 'Sans minima, +10 % facturé au client. Max 1×/jour.',
+    kindDesc_standard: 'Journalière — minima 250 € HTVA.',
+    kindDesc_excel: 'Classeur Ducati (Demo/Courtoisie/Showroom), 2000 € HTVA par onglet.',
+    kindDesc_accident: 'Minima 1500 € HTVA, sinon repasse en standard.',
+    // canaux
+    channel_comptoir: 'Comptoir', channel_mail: 'Par mail',
+    // dispatch
+    dispatch_brouillon: 'Brouillon', dispatch_en_attente_paiement: 'En attente de paiement',
+    dispatch_payee: 'Payée', dispatch_a_envoyer: 'À envoyer', dispatch_envoyee: 'Envoyée', dispatch_annulee: 'Annulée',
+    // colonnes liste
+    colNumber: 'N°', colKind: 'Type', colChannel: 'Canal', colStatus: 'Statut', colTtc: 'TTC',
+    // lignes
+    lineRef: 'Réf.', lineDesignation: 'Désignation', lineQtyClient: 'Qté client', lineQtyShop: 'Qté magasin', lineHt: 'Total HT',
+    totalHt: 'Total HT',
+    // règles métier (bandeau détail)
+    ruleStandard: 'Commande standard : validée au minima',
+    ruleUrgente: 'Commande urgente : surcharge appliquée au client',
+    ruleAccident: 'Commande accident : minima',
+    ruleExcel: 'Commande Excel : seuil extra-discount',
+    perTab: 'onglet',
+    thresholdMet: 'Seuil atteint ✓',
+    thresholdPending: 'En attente d’atteindre le seuil.',
+    accidentFallback: 'Sous le seuil → repasse en standard.',
+    openExcel: 'Ouvrir le classeur Excel',
+    // Commande Excel
+    excelTitle: 'Commande Excel',
+    excelSubtitle: 'Chargez les pièces par onglet (Demo/Courtoisie/Showroom). Seuil 2000 € HTVA par onglet. Téléchargez le classeur prérempli.',
+    excelDownload: 'Télécharger l’Excel',
+    excelEmpty: 'Aucune ligne sur cet onglet. Ajoutez des pièces.',
+    excelAddLine: 'Ajouter une ligne',
+    excelQty: 'Q. commande', excelPriceDealer: 'Prix dealer', excelExtra: 'Extra-remise', excelFinal: 'Prix final',
+    excelThresholdReached: 'Onglet {tab} : seuil {min} atteint — extra-discount actif.',
+    tab_demo: 'Demo', tab_courtoisie: 'Courtoisie', tab_showroom: 'Showroom',
   },
 
   // Achats & réceptions (M4)
