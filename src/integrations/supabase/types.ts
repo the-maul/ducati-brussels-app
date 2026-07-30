@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -218,6 +218,57 @@ export type Database = {
           },
         ]
       }
+      article_applicabilities: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          gamme: string | null
+          id: string
+          model: string | null
+          model_year: number | null
+          quantity: number | null
+          reference: string
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          gamme?: string | null
+          id?: string
+          model?: string | null
+          model_year?: number | null
+          quantity?: number | null
+          reference: string
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          gamme?: string | null
+          id?: string
+          model?: string | null
+          model_year?: number | null
+          quantity?: number | null
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_applicabilities_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_applicabilities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_barcodes: {
         Row: {
           article_id: string
@@ -411,6 +462,7 @@ export type Database = {
       articles: {
         Row: {
           bin_location: string | null
+          bin_location2: string | null
           brand: string | null
           catalog_url: string | null
           category_id: string | null
@@ -460,6 +512,7 @@ export type Database = {
           stock_max: number
           stock_min: number
           superseded_by_id: string | null
+          supplier_availability: string | null
           supplier_ref: string | null
           updated_at: string
           vat_rate: number
@@ -467,6 +520,7 @@ export type Database = {
         }
         Insert: {
           bin_location?: string | null
+          bin_location2?: string | null
           brand?: string | null
           catalog_url?: string | null
           category_id?: string | null
@@ -516,6 +570,7 @@ export type Database = {
           stock_max?: number
           stock_min?: number
           superseded_by_id?: string | null
+          supplier_availability?: string | null
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
@@ -523,6 +578,7 @@ export type Database = {
         }
         Update: {
           bin_location?: string | null
+          bin_location2?: string | null
           brand?: string | null
           catalog_url?: string | null
           category_id?: string | null
@@ -572,6 +628,7 @@ export type Database = {
           stock_max?: number
           stock_min?: number
           superseded_by_id?: string | null
+          supplier_availability?: string | null
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
@@ -1329,6 +1386,7 @@ export type Database = {
           vat_number: string | null
           vies_checked_at: string | null
           vies_valid: boolean | null
+          watch_note: string | null
           zip: string | null
         }
         Insert: {
@@ -1423,6 +1481,7 @@ export type Database = {
           vat_number?: string | null
           vies_checked_at?: string | null
           vies_valid?: boolean | null
+          watch_note?: string | null
           zip?: string | null
         }
         Update: {
@@ -1517,6 +1576,7 @@ export type Database = {
           vat_number?: string | null
           vies_checked_at?: string | null
           vies_valid?: boolean | null
+          watch_note?: string | null
           zip?: string | null
         }
         Relationships: [
@@ -2151,6 +2211,185 @@ export type Database = {
           },
         ]
       }
+      excel_catalog: {
+        Row: {
+          availability: string | null
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          discount_class: string | null
+          family: string | null
+          id: string
+          models: string | null
+          price_dealer: number | null
+          price_public_ht: number | null
+          reference: string
+        }
+        Insert: {
+          availability?: string | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          discount_class?: string | null
+          family?: string | null
+          id?: string
+          models?: string | null
+          price_dealer?: number | null
+          price_public_ht?: number | null
+          reference: string
+        }
+        Update: {
+          availability?: string | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          discount_class?: string | null
+          family?: string | null
+          id?: string
+          models?: string | null
+          price_dealer?: number | null
+          price_public_ht?: number | null
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excel_catalog_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      excel_order_lines: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          excel_order_id: string
+          extra_discount: number
+          id: string
+          moto_label: string | null
+          moto_vin: string | null
+          price_dealer: number
+          qty: number
+          reference: string
+          sort_order: number
+          tab: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          excel_order_id: string
+          extra_discount?: number
+          id?: string
+          moto_label?: string | null
+          moto_vin?: string | null
+          price_dealer?: number
+          qty?: number
+          reference: string
+          sort_order?: number
+          tab?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          excel_order_id?: string
+          extra_discount?: number
+          id?: string
+          moto_label?: string | null
+          moto_vin?: string | null
+          price_dealer?: number
+          qty?: number
+          reference?: string
+          sort_order?: number
+          tab?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excel_order_lines_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "excel_order_lines_excel_order_id_fkey"
+            columns: ["excel_order_id"]
+            isOneToOne: false
+            referencedRelation: "excel_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      excel_orders: {
+        Row: {
+          archive_path: string | null
+          archived_at: string | null
+          company_id: string
+          created_at: string
+          dealer_code: string | null
+          dealer_name: string | null
+          downloaded_at: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          part_order_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          archive_path?: string | null
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          dealer_code?: string | null
+          dealer_name?: string | null
+          downloaded_at?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          part_order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          archive_path?: string | null
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          dealer_code?: string | null
+          dealer_name?: string | null
+          downloaded_at?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          part_order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excel_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "excel_orders_part_order_id_fkey"
+            columns: ["part_order_id"]
+            isOneToOne: false
+            referencedRelation: "part_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_closures: {
         Row: {
           closed_at: string
@@ -2402,6 +2641,41 @@ export type Database = {
           },
         ]
       }
+      label_templates: {
+        Row: {
+          company_id: string
+          config: Json
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+        }
+        Insert: {
+          company_id: string
+          config?: Json
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+        }
+        Update: {
+          company_id?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -2625,6 +2899,283 @@ export type Database = {
             columns: ["oro_id"]
             isOneToOne: false
             referencedRelation: "oro"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_order_lines: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          designation: string
+          id: string
+          line_ht: number
+          order_id: string
+          qty_client: number
+          qty_shop: number
+          reference: string | null
+          sort_order: number
+          supplier_id: string | null
+          unit_price_ht: number
+          vat_rate: number
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          designation: string
+          id?: string
+          line_ht?: number
+          order_id: string
+          qty_client?: number
+          qty_shop?: number
+          reference?: string | null
+          sort_order?: number
+          supplier_id?: string | null
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          designation?: string
+          id?: string
+          line_ht?: number
+          order_id?: string
+          qty_client?: number
+          qty_shop?: number
+          reference?: string | null
+          sort_order?: number
+          supplier_id?: string | null
+          unit_price_ht?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "part_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_lines_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_orders: {
+        Row: {
+          channel: string
+          claim_ref: string | null
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          dispatch_status: Database["public"]["Enums"]["order_dispatch_status"]
+          id: string
+          is_accident: boolean
+          notes: string | null
+          number: string | null
+          order_kind: Database["public"]["Enums"]["order_kind"]
+          paid: boolean
+          paid_at: string | null
+          payment_method: string | null
+          source_document_id: string | null
+          surcharge_pct: number
+          total_ht: number
+          total_ttc: number
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          channel?: string
+          claim_ref?: string | null
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          dispatch_status?: Database["public"]["Enums"]["order_dispatch_status"]
+          id?: string
+          is_accident?: boolean
+          notes?: string | null
+          number?: string | null
+          order_kind?: Database["public"]["Enums"]["order_kind"]
+          paid?: boolean
+          paid_at?: string | null
+          payment_method?: string | null
+          source_document_id?: string | null
+          surcharge_pct?: number
+          total_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          channel?: string
+          claim_ref?: string | null
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          dispatch_status?: Database["public"]["Enums"]["order_dispatch_status"]
+          id?: string
+          is_accident?: boolean
+          notes?: string | null
+          number?: string | null
+          order_kind?: Database["public"]["Enums"]["order_kind"]
+          paid?: boolean
+          paid_at?: string | null
+          payment_method?: string | null
+          source_document_id?: string | null
+          surcharge_pct?: number
+          total_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_orders_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      picking_list_items: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          designation: string | null
+          id: string
+          picking_id: string
+          qty_ordered: number
+          qty_picked: number
+          reference: string | null
+          status: string
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          designation?: string | null
+          id?: string
+          picking_id: string
+          qty_ordered?: number
+          qty_picked?: number
+          reference?: string | null
+          status?: string
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          designation?: string | null
+          id?: string
+          picking_id?: string
+          qty_ordered?: number
+          qty_picked?: number
+          reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picking_list_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_list_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_list_items_picking_id_fkey"
+            columns: ["picking_id"]
+            isOneToOne: false
+            referencedRelation: "picking_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      picking_lists: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          document_id: string | null
+          id: string
+          location: string | null
+          note: string | null
+          status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          location?: string | null
+          note?: string | null
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          location?: string | null
+          note?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picking_lists_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_lists_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -3329,6 +3880,60 @@ export type Database = {
             foreignKeyName: "shop_settings_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_depreciations: {
+        Row: {
+          article_id: string
+          base_value: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          depreciated_value: number
+          id: string
+          is_active: boolean
+          rate: number
+          reason: string | null
+        }
+        Insert: {
+          article_id: string
+          base_value?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          depreciated_value: number
+          id?: string
+          is_active?: boolean
+          rate: number
+          reason?: string | null
+        }
+        Update: {
+          article_id?: string
+          base_value?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          depreciated_value?: number
+          id?: string
+          is_active?: boolean
+          rate?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_depreciations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_depreciations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -4427,6 +5032,7 @@ export type Database = {
           vat_number: string | null
           vies_checked_at: string | null
           vies_valid: boolean | null
+          watch_note: string | null
           zip: string | null
         }[]
         SetofOptions: {
@@ -4765,6 +5371,7 @@ export type Database = {
         Args: { _company: string; _dimension: string; _key: string }
         Returns: string
       }
+      round_up_euro: { Args: { p: number }; Returns: number }
       sales_journal: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {
@@ -4959,6 +5566,14 @@ export type Database = {
       kit_billing_mode: "forfait" | "nomenclature"
       license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
       mileage_qualif: "nc" | "reel" | "ng"
+      order_dispatch_status:
+        | "brouillon"
+        | "en_attente_paiement"
+        | "payee"
+        | "a_envoyer"
+        | "envoyee"
+        | "annulee"
+      order_kind: "urgente" | "standard" | "excel" | "accident"
       sale_vat_type: "national" | "intracom" | "export"
       stock_move_type:
         | "entree"
@@ -5132,6 +5747,15 @@ export const Constants = {
       kit_billing_mode: ["forfait", "nomenclature"],
       license_category: ["AM", "A1", "A2", "A", "B", "autre"],
       mileage_qualif: ["nc", "reel", "ng"],
+      order_dispatch_status: [
+        "brouillon",
+        "en_attente_paiement",
+        "payee",
+        "a_envoyer",
+        "envoyee",
+        "annulee",
+      ],
+      order_kind: ["urgente", "standard", "excel", "accident"],
       sale_vat_type: ["national", "intracom", "export"],
       stock_move_type: [
         "entree",
