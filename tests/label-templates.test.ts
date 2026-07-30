@@ -9,13 +9,17 @@ import {
 } from '../src/modules/articles/labels/template-types';
 import { renderLabelSvg, buildPrintHtml } from '../src/modules/articles/labels/render';
 
-test('defaultTemplateConfig : format Brother 62×29, 14 éléments, code-barres visible', () => {
+test('defaultTemplateConfig : format 62×29, 14 éléments, code-barres masqué, cadre + logo', () => {
   const cfg = defaultTemplateConfig();
   expect(cfg.widthMm).toBe(62);
   expect(cfg.paperHeightMm).toBe(29);
   expect(cfg.elements.length).toBe(ELEMENT_KEYS.length);
-  expect(cfg.barcode.visible).toBe(true);
+  expect(cfg.barcode.visible).toBe(false);   // étiquette type sans code-barres
+  expect(cfg.border.visible).toBe(true);      // cadre imprimé
+  expect(cfg.image.visible).toBe(true);       // logo Ducati
+  expect(cfg.image.dataUrl?.startsWith('data:image/svg+xml')).toBe(true);
   expect(cfg.elements.find((e) => e.key === 'reference')?.visible).toBe(true);
+  expect(cfg.elements.find((e) => e.key === 'bin')?.visible).toBe(true); // CASIER
 });
 
 test('sheetLayout : planche A4 pour étiquettes 62×29 sans espaces', () => {
@@ -80,14 +84,15 @@ test('resolveElementText : mapping des données', () => {
   const data = sampleLabelData('DUCATI BRUXELLES');
   const now = new Date(2026, 6, 17);
   expect(resolveElementText('reference', data, cfg, now)).toBe('REFERENCE');
-  expect(resolveElementText('price_ttc', data, cfg, now)).toBe('99999,99 €');
+  expect(resolveElementText('price_ttc', data, cfg, now)).toBe('99 999,99 €');
   expect(resolveElementText('store_name', data, cfg, now)).toBe('DUCATI BRUXELLES');
   expect(resolveElementText('free1', data, cfg, now)).toBe('PROMO ÉTÉ');
   expect(resolveElementText('date', data, cfg, now)).toBe('17/07/2026');
 });
 
-test('renderLabelSvg : SVG en mm, textes échappés, code-barres imbriqué', () => {
+test('renderLabelSvg : SVG en mm, textes échappés, cadre + logo ; code-barres imbriqué si activé', () => {
   const cfg = defaultTemplateConfig();
+  cfg.barcode.visible = true; // on active pour vérifier le rendu du code-barres
   const data = { ...sampleLabelData('A<B&C'), designation: 'Levier "S" <embouts>' };
   const svg = renderLabelSvg(cfg, data, new Date(), false);
   expect(svg.startsWith('<svg')).toBe(true);
@@ -95,6 +100,8 @@ test('renderLabelSvg : SVG en mm, textes échappés, code-barres imbriqué', () 
   expect(svg).toContain('&lt;embouts&gt;');       // échappement
   expect(svg).not.toContain('<embouts>');
   expect(svg).toContain('preserveAspectRatio="none"'); // code-barres imbriqué
+  expect(svg).toContain('stroke="#000"');          // cadre imprimé
+  expect(svg).toContain('data:image/svg+xml');     // logo Ducati
 });
 
 test('buildPrintHtml : rouleau = @page papier ; planche = @page A4', () => {

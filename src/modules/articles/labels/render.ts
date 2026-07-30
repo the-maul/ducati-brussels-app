@@ -56,12 +56,14 @@ export function renderLabelSvg(cfg: LabelTemplateConfig, data: LabelData, now: D
   }
 
   // Rapprochement réception ↔ client (facultatif) : ligne "<n° document> — <client>"
-  // en pied d'étiquette, sans impacter les étiquettes qui n'ont pas ces données.
+  // placée en bande médiane (sous la désignation), sans chevaucher le pied
+  // (prix / magasin / logo). N'impacte pas les étiquettes sans ces données.
   if (data.customerName || data.docNumber) {
     const line = [data.docNumber, data.customerName].filter(Boolean).join(' — ');
-    const fs = (6 * PT_TO_MM).toFixed(2);
+    const fs = (7 * PT_TO_MM).toFixed(2);
+    const yMid = (cfg.heightMm * 0.5).toFixed(2);
     parts.push(
-      `<text x="1" y="${(cfg.heightMm - 0.8).toFixed(2)}" font-family="Arial, sans-serif" font-size="${fs}" font-weight="700" fill="#000">${esc(line)}</text>`,
+      `<text x="2.5" y="${yMid}" font-family="Arial, sans-serif" font-size="${fs}" font-weight="700" fill="#000" dominant-baseline="hanging">${esc(line)}</text>`,
     );
   }
 
@@ -70,6 +72,18 @@ export function renderLabelSvg(cfg: LabelTemplateConfig, data: LabelData, now: D
     parts.push(imageHref
       ? `<use href="#${imageHref}" x="${im.xMm}" y="${im.yMm}" width="${im.widthMm}" height="${im.heightMm}"/>`
       : `<image href="${esc(im.dataUrl)}" x="${im.xMm}" y="${im.yMm}" width="${im.widthMm}" height="${im.heightMm}" preserveAspectRatio="xMidYMid meet"/>`);
+  }
+
+  // Cadre (bordure) imprimé sur le pourtour — dessiné EN DERNIER pour rester
+  // au-dessus des fonds, et présent à l'impression (pas seulement à l'aperçu).
+  if (cfg.border?.visible) {
+    const w = cfg.border.widthMm > 0 ? cfg.border.widthMm : 0.3;
+    const inset = cfg.border.insetMm >= 0 ? cfg.border.insetMm : 0.4;
+    const x = inset + w / 2;
+    const y = inset + w / 2;
+    const bw = Math.max(0, cfg.widthMm - 2 * x);
+    const bh = Math.max(0, cfg.heightMm - 2 * y);
+    parts.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="none" stroke="#000" stroke-width="${w}"/>`);
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${cfg.widthMm}mm" height="${cfg.heightMm}mm" viewBox="0 0 ${cfg.widthMm} ${cfg.heightMm}">${parts.join('')}</svg>`;

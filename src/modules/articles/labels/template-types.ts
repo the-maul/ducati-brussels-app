@@ -4,6 +4,7 @@
  * planche A4) + éléments positionnés en mm + code-barres + image importée.
  * Fonctions PURES (layout planche, données) — testées dans tests/label-templates.test.ts.
  */
+import { DUCATI_LOGO_DATA_URL } from './ducati-logo';
 
 export type LabelFont = 'Arial' | 'Helvetica' | 'Courier';
 
@@ -27,6 +28,8 @@ export type LabelElement = {
 
 export type LabelBarcode = { visible: boolean; xMm: number; yMm: number; widthMm: number; heightMm: number; vertical: boolean };
 export type LabelImage = { visible: boolean; xMm: number; yMm: number; widthMm: number; heightMm: number; dataUrl: string | null };
+/** Cadre (bordure) imprimé sur le pourtour de l'étiquette — imprimé ET à l'aperçu. */
+export type LabelBorder = { visible: boolean; widthMm: number; insetMm: number };
 
 export type LabelTemplateConfig = {
   widthMm: number;    // étiquette
@@ -39,6 +42,7 @@ export type LabelTemplateConfig = {
   elements: LabelElement[];
   barcode: LabelBarcode;
   image: LabelImage;
+  border: LabelBorder;
   /** Textes libres (imprimés tels quels quand l'élément est visible). */
   freeTexts: { free1: string; free2: string; free3: string };
   dateFormat: string; // ex. JJ/MM/AAAA
@@ -70,7 +74,8 @@ export type LabelData = {
   docNumber?: string;
 };
 
-export const eurLabel = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+export const eurLabel = (n: number) =>
+  `${(Math.round(n * 100) / 100).toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\u202f|\u00a0/g, ' ')} €`;
 
 /** Date du jour au format du template (JJ/MM/AAAA, MM/JJ/AAAA, AAAA-MM-JJ…). */
 export function formatLabelDate(fmt: string, d: Date): string {
@@ -115,33 +120,44 @@ export function sheetLayout(cfg: LabelTemplateConfig, marginMm = 8): { cols: num
   return { cols, rows, perSheet: cols * rows };
 }
 
-/** Format par défaut — Brother 62×29 (rouleau), reproduit l'étiquette actuelle. */
+/**
+ * Format par défaut — étiquette standard « pièces / motos » Ducati Bruxelles
+ * (62×29 rouleau) reproduisant l'étiquette type : cadre, REFERENCE en haut-gauche,
+ * CASIER en haut-droite, DESIGNATION en ligne pleine, ligne INFOS COMMANDE CLIENT
+ * au milieu, prix en bas-gauche, magasin au centre, logo Ducati en bas-droite.
+ * Code-barres masqué par défaut (réactivable dans le paramétrage).
+ */
 export function defaultTemplateConfig(): LabelTemplateConfig {
   const el = (key: ElementKey, over: Partial<LabelElement> = {}): LabelElement => ({
     key, visible: false, font: 'Arial', sizePt: 8, bold: false, xMm: 1, yMm: 1, vertical: false, ...over,
   });
   return {
-    // 62 × 29 : le code-barres (Y 17,5 + H 10 = 27,5) doit tenir DANS l'étiquette
-    // (tout ce qui dépasse la hauteur est rogné par le SVG).
     widthMm: 62, heightMm: 29, sheetA4: false,
     paperWidthMm: 62, paperHeightMm: 29, gapXMm: 0, gapYMm: 0,
     elements: [
-      el('reference', { visible: true, sizePt: 9, bold: true, xMm: 1, yMm: 0.5 }),
-      el('designation', { visible: true, sizePt: 8, xMm: 1, yMm: 4 }),
-      el('price_ttc', { visible: true, sizePt: 8, xMm: 2, yMm: 13.3 }),
+      // Ligne 1 : REFERENCE (gauche, gras) · CASIER (droite, gras)
+      el('reference', { visible: true, sizePt: 9, bold: true, xMm: 2.5, yMm: 2 }),
+      el('bin', { visible: true, sizePt: 9, bold: true, xMm: 40, yMm: 2 }),
+      // Ligne 2 : DESIGNATION (pleine largeur)
+      el('designation', { visible: true, sizePt: 7.5, xMm: 2.5, yMm: 7.5 }),
+      // Ligne 4 : prix (gras, gauche) · magasin (centre)
+      el('price_ttc', { visible: true, sizePt: 8.5, bold: true, xMm: 2.5, yMm: 20.5 }),
       el('price_ht'),
       el('price_promo'),
       el('discount'),
       el('date'),
-      el('store_name', { visible: true, sizePt: 8, xMm: 20, yMm: 14 }),
-      el('bin', { visible: true, sizePt: 8, bold: true, xMm: 30, yMm: 0.5 }),
+      el('store_name', { visible: true, sizePt: 7, xMm: 19.5, yMm: 21.3 }),
       el('bin2'),
       el('pack_qty'),
       el('barcode_value'),
       el('free1'), el('free2'), el('free3'),
     ],
-    barcode: { visible: true, xMm: 13, yMm: 17.5, widthMm: 40, heightMm: 10, vertical: false },
-    image: { visible: false, xMm: 49, yMm: 9.7, widthMm: 7, heightMm: 7, dataUrl: null },
+    // Code-barres masqué par défaut (étiquette type sans code-barres).
+    barcode: { visible: false, xMm: 13, yMm: 17.5, widthMm: 40, heightMm: 10, vertical: false },
+    // Logo Ducati en bas-droite (remplace l'ancien pictogramme eShop).
+    image: { visible: true, xMm: 47.5, yMm: 18.5, widthMm: 12, heightMm: 8, dataUrl: DUCATI_LOGO_DATA_URL },
+    // Cadre noir sur tout le pourtour, imprimé (pas seulement aperçu).
+    border: { visible: true, widthMm: 0.3, insetMm: 0.4 },
     freeTexts: { free1: '', free2: '', free3: '' },
     dateFormat: 'JJ/MM/AAAA',
   };
@@ -175,6 +191,7 @@ export function normalizeTemplateConfig(saved: Partial<LabelTemplateConfig> | nu
     }),
     barcode: { ...def.barcode, ...(saved?.barcode ?? {}) },
     image: { ...def.image, ...(saved?.image ?? {}) },
+    border: { ...def.border, ...(saved?.border ?? {}) },
     freeTexts: { ...def.freeTexts, ...(saved?.freeTexts ?? {}) },
   };
 }
