@@ -21,7 +21,9 @@ export type RepriseSheet = {
   sections: RepriseSheetSection[];
   accessories: string[];
   remarks: string | null;
-  photos: RepriseSheetPhoto[];     // photos du véhicule — pleine largeur
+  /** Aperçu en tête de fiche (photo « Côté droit ») — null si absente. */
+  heroPhoto: RepriseSheetPhoto | null;
+  photos: RepriseSheetPhoto[];     // photos du véhicule — pleine largeur, ORDRE DU FORMULAIRE
   documents: RepriseSheetPhoto[];  // factures / immat / COC — à la fin
 };
 
@@ -65,6 +67,9 @@ export function printRepriseSheet(s: RepriseSheet): void {
   .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
   .chip { border: 1px solid #ccc; border-radius: 10px; padding: 2.5px 9px; font-size: 11px; }
   .remarks { white-space: pre-wrap; background: #f6f6f6; border-radius: 6px; padding: 9px 11px; margin-top: 4px; }
+  /* Aperçu du véhicule (côté droit) sous le titre */
+  .hero { margin: 8px 0 2px; page-break-inside: avoid; }
+  .hero img { width: 100%; max-height: 95mm; object-fit: contain; border-radius: 4px; border: 1px solid #ddd; background: #fafafa; }
   /* Photos en PLEINE LARGEUR A4 — l'offre du marchand doit être objective */
   .photos { display: block; margin-top: 6px; }
   .ph { page-break-inside: avoid; margin-bottom: 6mm; }
@@ -84,6 +89,8 @@ export function printRepriseSheet(s: RepriseSheet): void {
   </div>
 
   <h1>${esc(s.title)}${s.vatDeductible != null ? ` <span style="font-size:12px;color:#C8102E;vertical-align:middle;letter-spacing:.06em;">${s.vatDeductible ? 'TVA DÉDUCTIBLE' : 'TVA NON DÉDUCTIBLE'}</span>` : ''}</h1>
+
+  ${s.heroPhoto ? `<div class="hero"><img src="${esc(s.heroPhoto.url)}" alt=""></div>` : ''}
 
   ${s.sections.map(sectionHtml).join('')}
 

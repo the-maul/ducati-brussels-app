@@ -33,7 +33,19 @@ export const TECH_STATES = ['Comme Neuf', "Traces d'usure", 'Défaut à réparer
 /** États techniques qui ouvrent le champ « description des dommages ». */
 export const TECH_STATES_WITH_DESC = ['Défaut à réparer', 'Accidenté'];
 export const WEAR_STATES = ['Neuf', 'Moyen', 'A remplacer', 'Je ne sais pas'];
-export const TIRE_STATES = ['Neuf', 'Moyen', 'A remplacer', 'Je ne sais pas'];
+
+/**
+ * Pièces d'usure évaluées une par une (un menu déroulant par élément).
+ * Remplace l'ancien couple « État pièces d'usure » + « Pneus » (qui faisait doublon).
+ */
+export type WearItem = { key: string; label: string };
+export const WEAR_ITEMS: WearItem[] = [
+  { key: 'brake_front', label: 'Plaquettes avant' },
+  { key: 'brake_rear', label: 'Plaquettes arrière' },
+  { key: 'tyre_front', label: 'Pneu avant' },
+  { key: 'tyre_rear', label: 'Pneu arrière' },
+  { key: 'chain_kit', label: 'Kit pignons/chaîne' },
+];
 
 export const ACCESSORIES = [
   'ABS', 'Anti-démarrage', 'Pare-chute', 'Phares LED', 'Bulle', 'Poignées chauffantes',
@@ -111,16 +123,35 @@ export function phonePrefixFor(countryCode: string): string {
 // ── Cases photos (guide photos) ───────────────────────────────────────────────
 export type PhotoSlot = { key: string; label: string; free?: boolean };
 
-/** Photos du véhicule (étape Photos). */
+/**
+ * Photos du véhicule (étape Photos) — l'ORDRE FAIT FOI : il est repris tel quel
+ * dans la fiche PDF (documents à la fin). La 1re photo (côté droit) sert
+ * d'aperçu en tête du PDF.
+ */
 export const PHOTO_SLOTS: PhotoSlot[] = [
+  { key: 'cote_droit', label: 'Côté droit' },
+  { key: 'cote_gauche', label: 'Côté gauche' },
   { key: 'face_avant', label: 'Face avant' },
   { key: 'face_arriere', label: 'Face arrière' },
-  { key: 'cote_gauche', label: 'Côté gauche' },
-  { key: 'cote_droit', label: 'Côté droit' },
   { key: 'compteur', label: 'Compteur avec km' },
   { key: 'chassis', label: 'Numéro de châssis' },
   { key: 'moteur', label: 'Numéro du moteur' },
+  { key: 'pneu_avant', label: 'Pneu avant' },
+  { key: 'plaquettes_avant', label: 'Plaquettes avant' },
+  { key: 'pneu_arriere', label: 'Pneu arrière' },
+  { key: 'plaquettes_arriere', label: 'Plaquettes arrière' },
 ];
+
+/** Clé de la photo mise en avant (aperçu en tête de la fiche PDF). */
+export const HERO_PHOTO_KEY = 'cote_droit';
+
+/** Ordre d'affichage/impression d'une photo d'après son libellé (999 = inconnu). */
+export function photoOrderIndex(label: string): number {
+  const i = PHOTO_SLOTS.findIndex((s) => s.label.toLowerCase() === label.trim().toLowerCase());
+  if (i >= 0) return i;
+  const f = FREE_PHOTO_SLOTS.findIndex((s) => s.label.toLowerCase() === label.trim().toLowerCase());
+  return f >= 0 ? PHOTO_SLOTS.length + f : 999;
+}
 
 /** Documents à préparer (module « préparez vos documents » — bouton rouge). */
 export const DOC_SLOTS: PhotoSlot[] = [

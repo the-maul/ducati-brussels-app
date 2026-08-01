@@ -6,6 +6,7 @@
  * Réutilisé par la liste des reprises, la fiche et l'assistant.
  */
 import { getOroFull } from './api';
+import { PHOTO_SLOTS, DOC_SLOTS, HERO_PHOTO_KEY, photoOrderIndex } from './reprise-wizard-data';
 import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
 import { printRepriseSheet, type RepriseSheet, type RepriseSheetSection, type RepriseSheetPhoto } from './reprise-print';
 import { downloadRepriseSheetPdf } from './reprise-pdf';
@@ -96,6 +97,20 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
       else if (a.folder === PHOTOS_FOLDER) photos.push(item);
     } catch { /* pièce illisible — ignorée */ }
   }
+  // ORDRE DU FORMULAIRE : côté droit, côté gauche, faces, châssis/moteur,
+  // pneus/plaquettes, puis photos libres (documents rendus à la fin du PDF).
+  photos.sort((a, b) => photoOrderIndex(a.label) - photoOrderIndex(b.label));
+  // Documents : ordre des emplacements du formulaire (factures, immat, COC),
+  // sinon ils sortiraient dans l'ordre inverse de leur date d'ajout.
+  const docOrder = (label: string) => {
+    const i = DOC_SLOTS.findIndex((s) => s.label.toLowerCase() === label.trim().toLowerCase());
+    return i >= 0 ? i : 999;
+  };
+  documents.sort((a, b) => docOrder(a.label) - docOrder(b.label));
+
+  // Aperçu en tête de fiche : la photo « Côté droit » (sinon la 1re disponible)
+  const heroLabel = PHOTO_SLOTS.find((s) => s.key === HERO_PHOTO_KEY)?.label ?? '';
+  const heroPhoto = photos.find((p) => p.label.trim().toLowerCase() === heroLabel.toLowerCase()) ?? photos[0] ?? null;
 
   return {
     companyName: t('app.name'),
@@ -109,6 +124,7 @@ export async function buildSheetForOro(oroId: string): Promise<RepriseSheet | nu
     // Remarques : notes brutes SANS les marqueurs de prix souhaité (le prix
     // apparaît en ligne dédiée ci-dessus, uniquement s'il est visible).
     remarks: stripRepriseMarkers(vehicle.notes) || null,
+    heroPhoto,
     photos,
     documents,
   };

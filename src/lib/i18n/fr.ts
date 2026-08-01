@@ -1260,6 +1260,19 @@ export const fr = {
     parcFound: 'Ce client possède déjà {n} véhicule(s) dans son parc. Sélectionnez-en un pour pré-remplir la fiche.',
     parcFillHint: 'Pré-remplir depuis le parc',
     parcFilled: 'Fiche pré-remplie depuis le parc du client — vérifiez et complétez.',
+    // Photos : appareil / galerie / retouche
+    photoCamera: 'Prendre une photo',
+    photoGallery: 'Choisir une photo existante',
+    photoEdit: 'Retoucher (pivoter, recadrer, annoter)',
+    photoRemove: 'Retirer la photo',
+    photoRemoveConfirm: 'Supprimer définitivement la pièce « {label} » ? Cette action est irréversible.',
+    // Modification d'une reprise existante
+    editBtn: 'Modifier la reprise',
+    editTitle: 'Modifier la reprise',
+    editHint: 'Corrigez les données du véhicule et les réponses du formulaire. Les photos et documents se gèrent dans le panneau ci-dessous.',
+    editSaved: 'Reprise mise à jour.',
+    photosPanelTitle: 'Photos & documents du dossier',
+    photosPanelHint: "Ajoutez, remplacez, retouchez ou supprimez une pièce à tout moment. L'ordre des emplacements est repris dans la fiche PDF.",
     vOriginalPaint: "Peinture d'origine", vImported: 'Véhicule importé',
     vAccessories: 'Accessoires & options',
     vRemarks: 'Remarques',
@@ -1683,6 +1696,24 @@ export const fr = {
     chef_atelier: "Chef d'atelier",
     comptable: 'Comptable',
     marketing: 'Marketing',
+  },
+
+  // Éditeur de photo (retouche avant envoi)
+  photoEditor: {
+    title: 'Retoucher la photo',
+    hint: 'Pivotez, recadrez ou entourez un détail (rectangle, cercle, flèche) avant l’envoi.',
+    rotateLeft: 'Pivoter à gauche',
+    rotateRight: 'Pivoter à droite',
+    crop: 'Recadrer',
+    applyCrop: 'Appliquer le recadrage',
+    rect: 'Rectangle',
+    ellipse: 'Cercle',
+    arrow: 'Flèche',
+    undo: 'Annuler le dernier tracé',
+    clear: 'Tout effacer',
+    save: 'Valider la photo',
+    loadError: "Cette image n'a pas pu être ouverte (format non pris en charge). Reprenez la photo ou choisissez un autre fichier.",
+    discardConfirm: 'Abandonner les modifications de cette photo ?',
   },
 
   // États génériques

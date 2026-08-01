@@ -77,6 +77,39 @@ export async function createReprise(p: RepriseInput): Promise<{ vehicleId: strin
   return { vehicleId, oroId: oro.id as string, occNumber };
 }
 
+/** Champs modifiables d'une reprise déjà enregistrée (fiche véhicule). */
+export type RepriseVehiclePatch = {
+  brand?: string | null;
+  model?: string | null;
+  vin?: string | null;
+  engine_number?: string | null;
+  model_year?: number | null;
+  first_registration_date?: string | null;
+  mileage?: number | null;
+  power_cv?: number | null;
+  power_kw?: number | null;
+  displacement?: number | null;
+  energy?: string | null;
+  notes?: string | null;
+};
+
+/**
+ * Met à jour les données d'une reprise (fiche véhicule + désignation de
+ * l'article occasion associé) — la reprise reste modifiable à tout moment.
+ * Le prix de reprise / coût de revient ne passe PAS par ici (ORO + validation).
+ */
+export async function updateRepriseVehicle(vehicleId: string, patch: RepriseVehiclePatch): Promise<void> {
+  const { data, error } = await supabase
+    .from('vehicles').update(patch).eq('id', vehicleId).select('article_id, brand, model').single();
+  if (error) throw error;
+  // Garde la désignation de l'article occasion alignée sur marque + modèle
+  const articleId = (data as { article_id: string | null } | null)?.article_id ?? null;
+  const designation = [patch.brand ?? data?.brand, patch.model ?? data?.model].filter(Boolean).join(' ').trim();
+  if (articleId && designation) {
+    await supabase.from('articles').update({ designation }).eq('id', articleId);
+  }
+}
+
 export type OroLineInput = { kind: 'piece' | 'mo' | 'frais'; article_id?: string | null; designation: string; quantity: number; unit_cost: number };
 
 /** Ajoute une ligne à un ORO (et sort la pièce du stock si article stocké) puis recalcule le coût de revient. */

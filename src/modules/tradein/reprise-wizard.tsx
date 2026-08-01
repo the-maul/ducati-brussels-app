@@ -13,6 +13,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Loader2, Check, X, Search, User, Building2, Recycle, Pencil, Camera,
   Bike, Gauge, Hash, Cog, FileText, CheckCircle2, Download, Mail, Image,
+  CircleDot, Disc3, ImagePlus, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,10 +35,12 @@ import { downloadSheetForOro, DOCS_FOLDER, PHOTOS_FOLDER } from './sheet-builder
 import { findSpecs, modelsForBrand } from './moto-specs';
 import {
   MOTO_BRANDS, FUELS, TRANSMISSIONS, OWNER_COUNTS, TECH_STATES, TECH_STATES_WITH_DESC,
-  WEAR_STATES, TIRE_STATES, ACCESSORIES, COUNTRIES, PHOTO_SLOTS, DOC_SLOTS, FREE_PHOTO_SLOTS,
+  WEAR_STATES, WEAR_ITEMS, ACCESSORIES, COUNTRIES, PHOTO_SLOTS, DOC_SLOTS, FREE_PHOTO_SLOTS,
   years, kmSuggestions, ccSuggestions, convertPower, powerConversionLabel, normalizeVat, phonePrefixFor,
   type PowerUnit, type PhotoSlot,
 } from './reprise-wizard-data';
+import { PhotoEditor } from '@/components/photo-editor';
+import { compressImageFile } from '@/lib/image-tools';
 import { t } from '@/lib/i18n';
 
 type Step = 'type' | 'docs' | 'client' | 'existing' | 'new' | 'vehicle' | 'photos' | 'done';
@@ -70,10 +73,13 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   // Véhicule
   const [v, setV] = useState({
     brand: '', model: '', year: '', km: '', powerUnit: 'ch' as PowerUnit, power: '', papers100: false,
-    fuel: '', transmission: '', cc: '', owners: '', techState: '', techDesc: '', wear: '', tires: '',
+    fuel: '', transmission: '', cc: '', owners: '', techState: '', techDesc: '',
     chassis: '', engine: '', remarks: '', wishedPrice: '', wishedPriceOnPdf: true,
   });
   const setVf = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV((p) => ({ ...p, [k]: val }));
+  // État des pièces d'usure, élément par élément (clé WEAR_ITEMS → état choisi)
+  const [wear, setWear] = useState<Record<string, string>>({});
+  const setWearItem = (key: string, val: string) => setWear((p) => ({ ...p, [key]: val }));
   const [originalPaint, setOriginalPaint] = useState<boolean | null>(null);
   const [imported, setImported] = useState<boolean | null>(null);
   const [accessories, setAccessories] = useState<Set<string>>(new Set());
@@ -194,8 +200,9 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
     if (v.transmission) lines.push(`Transmission : ${v.transmission}`);
     if (v.owners) lines.push(`Propriétaires : ${v.owners}`);
     if (v.techState) lines.push(`État technique : ${v.techState}${v.techDesc ? ` — ${v.techDesc}` : ''}`);
-    if (v.wear) lines.push(`Pièces d'usure : ${v.wear}`);
-    if (v.tires) lines.push(`Pneus : ${v.tires}`);
+    for (const it of WEAR_ITEMS) {
+      if (wear[it.key]) lines.push(`${it.label} : ${wear[it.key]}`);
+    }
     if (originalPaint != null) lines.push(`Peinture d'origine : ${originalPaint ? 'Oui' : 'Non'}`);
     if (imported != null) lines.push(`Véhicule importé : ${imported ? 'Oui' : 'Non'}`);
     if (v.papers100) lines.push('Papiers 100 CH : Oui');
@@ -627,18 +634,26 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
               </Field>
             )}
 
-            <Field label={<>{t('tradein.vWear')} <span className="font-normal normal-case text-muted-foreground">{t('tradein.vWearHint')}</span></>} wide>
-              <Select value={v.wear || undefined} onValueChange={(val) => setVf('wear', val)}>
-                <SelectTrigger className="h-12 text-[15px] sm:max-w-xs"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
-                <SelectContent>{WEAR_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field label={t('tradein.vTires')}>
-              <Select value={v.tires || undefined} onValueChange={(val) => setVf('tires', val)}>
-                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('tradein.wizChoose')} /></SelectTrigger>
-                <SelectContent>{TIRE_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
+            {/* État des pièces d'usure — un menu par élément (remplace l'ancien
+                champ unique + le champ « Pneus » qui faisait doublon). */}
+            <div className="sm:col-span-2">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                {t('tradein.vWear')}
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {WEAR_ITEMS.map((it) => (
+                  <div key={it.key} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                    <span className="text-[14px]">{it.label}</span>
+                    <Select value={wear[it.key] || undefined} onValueChange={(val) => setWearItem(it.key, val)}>
+                      <SelectTrigger className="h-10 w-[150px] shrink-0 text-[14px]">
+                        <SelectValue placeholder={t('tradein.wizChoose')} />
+                      </SelectTrigger>
+                      <SelectContent>{WEAR_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Peinture / import — Oui / Non */}
@@ -742,7 +757,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
   );
 }
 
-// ── Case photo (prise de vue ou galerie, aperçu, reprendre) ──────────────────
+// ── Case photo : appareil photo OU galerie, aperçu, retouche, suppression ────
 const SLOT_ICONS: Record<string, ReactNode> = {
   face_avant: <Bike className="size-6" />,
   face_arriere: <Bike className="size-6 -scale-x-100" />,
@@ -751,13 +766,21 @@ const SLOT_ICONS: Record<string, ReactNode> = {
   compteur: <Gauge className="size-6" />,
   chassis: <Hash className="size-6" />,
   moteur: <Cog className="size-6" />,
+  pneu_avant: <CircleDot className="size-6" />,
+  pneu_arriere: <CircleDot className="size-6" />,
+  plaquettes_avant: <Disc3 className="size-6" />,
+  plaquettes_arriere: <Disc3 className="size-6" />,
 };
 
 function PhotoBox({ slot, file, onFile }: { slot: PhotoSlot; file: File | null; onFile: (f: File | null) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);     // appareil photo (mobile)
+  const libRef = useRef<HTMLInputElement>(null);     // galerie / fichiers
+  const [preview, setPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
   // Aperçu DÉRIVÉ du fichier (état partagé entre étapes) : une photo prise dans
   // le module Documents reste visible dans l'étape Photos, et inversement.
-  const [preview, setPreview] = useState<string | null>(null);
   useEffect(() => {
     if (!file) { setPreview(null); return; }
     const url = URL.createObjectURL(file);
@@ -765,35 +788,86 @@ function PhotoBox({ slot, file, onFile }: { slot: PhotoSlot; file: File | null; 
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const handle = (f: File | undefined) => {
-    if (f) onFile(f);
+  /** Compression à l'ajout : photos ~2000 px, documents ~2400 px (texte lisible). */
+  const handle = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true);
+    try {
+      onFile(await compressImageFile(f, slot.key.startsWith('doc_') ? 'document' : 'upload'));
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const isDoc = slot.key.startsWith('doc_');
 
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <input
-        ref={inputRef} type="file" accept="image/*" capture="environment" className="sr-only"
-        onChange={(e) => { handle(e.target.files?.[0]); if (inputRef.current) inputRef.current.value = ''; }}
+        ref={camRef} type="file" accept="image/*" capture="environment" className="sr-only"
+        onChange={(e) => { void handle(e.target.files?.[0]); if (camRef.current) camRef.current.value = ''; }}
       />
-      <button type="button" onClick={() => inputRef.current?.click()} className="block w-full text-left">
-        {file && preview ? (
-          <div className="relative">
+      <input
+        ref={libRef} type="file" accept={isDoc ? 'image/*,application/pdf' : 'image/*'} className="sr-only"
+        onChange={(e) => { void handle(e.target.files?.[0]); if (libRef.current) libRef.current.value = ''; }}
+      />
+
+      <div className="relative">
+        {busy ? (
+          <div className="grid h-24 w-full place-items-center bg-muted/50 sm:h-28">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : file && preview ? (
+          <button type="button" onClick={() => setEditOpen(true)} className="block w-full" title={t('tradein.photoEdit')}>
             <img src={preview} alt={slot.label} className="h-24 w-full object-cover sm:h-28" />
             <span className="absolute right-1 top-1 rounded bg-success-bg px-1 py-0.5 text-[10px] font-bold text-success">
               <Check className="inline size-3" />
             </span>
-          </div>
+          </button>
         ) : (
-          <div className="grid h-24 w-full place-items-center bg-muted/50 text-muted-foreground sm:h-28">
-            {slot.free ? <Image className="size-6" /> : slot.key.startsWith('doc_') ? <FileText className="size-6" /> : (SLOT_ICONS[slot.key] ?? <Camera className="size-6" />)}
-          </div>
+          <button type="button" onClick={() => camRef.current?.click()} className="block w-full">
+            <div className="grid h-24 w-full place-items-center bg-muted/50 text-muted-foreground sm:h-28">
+              {slot.free ? <Image className="size-6" /> : isDoc ? <FileText className="size-6" /> : (SLOT_ICONS[slot.key] ?? <Camera className="size-6" />)}
+            </div>
+          </button>
         )}
-        <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-          <span className="truncate text-[11px] leading-tight">{slot.label}</span>
-          <Camera className="size-3.5 shrink-0 text-muted-foreground" />
+      </div>
+
+      <div className="px-2 pb-1.5 pt-1.5">
+        <p className="truncate text-[11px] leading-tight">{slot.label}</p>
+        <div className="mt-1 flex items-center gap-1">
+          <IconAction onClick={() => camRef.current?.click()} title={t('tradein.photoCamera')}><Camera className="size-3.5" /></IconAction>
+          <IconAction onClick={() => libRef.current?.click()} title={t('tradein.photoGallery')}><ImagePlus className="size-3.5" /></IconAction>
+          {file && file.type.startsWith('image/') && (
+            <IconAction onClick={() => setEditOpen(true)} title={t('tradein.photoEdit')}><Pencil className="size-3.5" /></IconAction>
+          )}
+          {file && (
+            <IconAction onClick={() => onFile(null)} title={t('tradein.photoRemove')}><Trash2 className="size-3.5" /></IconAction>
+          )}
         </div>
-      </button>
+      </div>
+
+      {file && file.type.startsWith('image/') && (
+        <PhotoEditor
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          file={file}
+          title={slot.label}
+          onSave={(f) => onFile(f)}
+        />
+      )}
     </div>
+  );
+}
+
+function IconAction({ onClick, title, children }: { onClick: () => void; title: string; children: ReactNode }) {
+  return (
+    <button
+      type="button" onClick={onClick} title={title} aria-label={title}
+      className="grid size-7 place-items-center rounded border border-border text-muted-foreground hover:border-[var(--ducati-red)] hover:text-[var(--ducati-red)]"
+    >
+      {children}
+    </button>
   );
 }
 

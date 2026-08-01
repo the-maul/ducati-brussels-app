@@ -22,6 +22,8 @@ import { cancelReprise, tradeinStatusOf, readValidationMeta } from '@/modules/tr
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type Attachment } from '@/modules/documents/ged-api';
+import { RepriseEditDialog } from '@/modules/tradein/reprise-edit-dialog';
+import { ReprisePhotosPanel } from '@/modules/tradein/reprise-photos-panel';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/$oroId')({
@@ -64,7 +66,8 @@ function OroView() {
   const download = useMutation({ mutationFn: () => downloadSheetForOro(oroId) });
   const print = useMutation({ mutationFn: () => printSheetForOro(oroId) });
 
-  // Validation / annulation / offre acceptée
+  // Validation / annulation / offre acceptée / modification du dossier
+  const [editOpen, setEditOpen] = useState(false);
   const [validateOpen, setValidateOpen] = useState(false);
   const [acceptOpen, setAcceptOpen] = useState(false);
   const cancel = useMutation({
@@ -129,6 +132,12 @@ function OroView() {
 
       {/* Flux : offre acceptée → validation (entrée en stock) */}
       <div className="mb-4 flex flex-wrap gap-2">
+        {/* Modification du dossier — possible à tout moment */}
+        {vehicle && (
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <Pencil /> {t('tradein.editBtn')}
+          </Button>
+        )}
         {(tStatus === 'collecte' || tStatus === 'envoye') && (
           <Button variant="outline" onClick={() => setAcceptOpen(true)}>
             <Check /> {t('tradein.acceptBtn')}
@@ -210,6 +219,23 @@ function OroView() {
 
       {/* Facture d'achat (reprises professionnelles) — annexable à tout moment */}
       {vehicle && <PurchaseInvoicePanel companyId={activeCompanyId!} vehicleId={vehicle.id} />}
+
+      {/* Photos & documents du dossier — ajout / retouche / suppression à tout moment */}
+      {vehicle && (
+        <div className="mt-4">
+          <ReprisePhotosPanel companyId={activeCompanyId!} vehicleId={vehicle.id} />
+        </div>
+      )}
+
+      {/* Modification des données du dossier (véhicule + réponses du formulaire) */}
+      {vehicle && editOpen && (
+        <RepriseEditDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          vehicle={vehicle}
+          onSaved={() => { refresh(); toast.success(t('tradein.editSaved')); }}
+        />
+      )}
 
       {acceptOpen && (
         <AcceptOfferDialog

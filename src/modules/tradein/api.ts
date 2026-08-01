@@ -64,7 +64,7 @@ export async function listOro(companyId: string, status?: string): Promise<OroLi
 }
 
 export type OroVehicle = {
-  id: string; vin: string | null; brand: string | null; model: string | null;
+  id: string; vin: string | null; engine_number: string | null; brand: string | null; model: string | null;
   model_year: number | null; mileage: number | null; energy: string | null;
   displacement: number | null; power_cv: number | null; power_kw: number | null; notes: string | null;
   purchase_price: number | null; cost_price: number | null; display_price: number | null;
@@ -81,7 +81,7 @@ export async function getOroFull(id: string): Promise<OroFull> {
   if (oro.vehicle_id) {
     const { data: v } = await supabase
       .from('vehicles')
-      .select('id, vin, brand, model, model_year, mileage, energy, displacement, power_cv, power_kw, notes, purchase_price, cost_price, display_price, first_registration_date, status, article_id')
+      .select('id, vin, engine_number, brand, model, model_year, mileage, energy, displacement, power_cv, power_kw, notes, purchase_price, cost_price, display_price, first_registration_date, status, article_id')
       .eq('id', oro.vehicle_id).maybeSingle();
     vehicle = (v as OroVehicle | null) ?? null;
     if (vehicle) {
