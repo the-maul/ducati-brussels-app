@@ -1,7 +1,7 @@
 /**
  * M2 (B12) — Marque Ducati (wordmark) embarquée en SVG dataURL pour l'étiquette
  * standard « pièces / motos ». Vectoriel = net à l'impression quelle que soit la
- * résolution, et aucune dépendance réseau (déployable Lovable tel quel).
+ * résolution, et aucune dépendance réseau.
  * NB : logo texte de repli. Si la société configure un `companies.logo_url`
  * officiel, préférer celui-ci côté appelant.
  */

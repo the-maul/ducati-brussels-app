@@ -2,7 +2,7 @@
    tokens.css — SOURCE DE VÉRITÉ UNIQUE des couleurs, typographies et
    espacements de l'ERP Ducati Bruxelles (CLAUDE.md règle 9 + charte §2-4).
    ---------------------------------------------------------------------
-   - Valeurs couleur en oklch (convention Lovable/Tailwind v4) ; le hex
+   - Valeurs couleur en oklch (convention Tailwind v4) ; le hex
      d'origine de la charte est rappelé en commentaire pour traçabilité.
    - AUCUN composant ne redéfinit de hex ni de font-family : tout vient d'ici.
    - Importé par src/styles.css ; les mappages Tailwind (@theme) y sont faits.

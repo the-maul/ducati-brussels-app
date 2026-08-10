@@ -1,7 +1,7 @@
 /**
  * Server functions d'administration des utilisateurs (M0).
  * Réservées aux admins : création de comptes, attribution de rôles par société.
- * Exécutées côté serveur avec la clé service role (injectée par Lovable au runtime).
+ * Exécutées côté serveur avec la clé service role (injectée par Netlify au runtime).
  * Le token de l'appelant est validé par requireSupabaseAuth ; on vérifie ensuite
  * qu'il est admin de la/les société(s) ciblée(s) avant toute écriture.
  */

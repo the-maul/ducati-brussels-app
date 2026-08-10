@@ -1,6 +1,6 @@
 /**
  * M2/M5 (B12) — Génération de code-barres réels (Code128B) en SVG, sans dépendance
- * externe (déployable Lovable). Sert à imprimer des étiquettes scannables.
+ * externe. Sert à imprimer des étiquettes scannables.
  */
 
 // Table standard des 107 patterns Code128 (largeurs de modules) + stop.

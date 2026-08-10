@@ -4,7 +4,7 @@
  * société + bloc client encadré + code-barres, bandeau (date/heure/n° client/condition/
  * échéance/opérateur/page), lignes, bloc détail véhicule, encadré totaux (BRUT/NET HT/
  * TVA/NET TTC/RESTE À PAYER), règlements datés, mention TVA marge, CGV au verso.
- * HTML imprimable, sans dépendance externe (déployable Lovable).
+ * HTML imprimable, sans dépendance externe.
  */
 import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
