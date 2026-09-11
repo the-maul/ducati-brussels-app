@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText, ExternalLink, Tags, Star, AlertTriangle, Archive, ArchiveRestore, Merge, Search } from 'lucide-react';
+import { Loader2, FileText, ExternalLink, Tags, Star, AlertTriangle, Archive, ArchiveRestore, Merge, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,11 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
   getContact, updateContact, archiveContact, unarchiveContact, mergeContacts, listContacts,
-  contactDisplayName, getModelInterests, getWatchNote, type ContactInsert, type Contact,
+  contactDisplayName, getModelInterests, getWatchNote, contactDependencies, deleteContact,
+  type ContactInsert, type Contact,
 } from '@/modules/contacts/api';
 import { getDebtorsList } from '@/modules/accounting/api';
+import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -32,7 +34,7 @@ export const Route = createFileRoute('/_app/clients/$contactId')({
 
 function EditClient() {
   const { contactId } = Route.useParams();
-  const { activeCompanyId } = useAuth();
+  const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +102,46 @@ function EditClient() {
     onError: () => toast.error(t('contacts.errSave')),
   });
 
+  // ── Suppression definitive ──────────────────────────────────────────
+  // Reservee aux fiches vierges : la base refuse si la moindre donnee metier
+  // est rattachee, auquel cas on propose l'archivage (regle 4, audit preserve).
+  const confirm = useConfirm();
+  const del = useMutation({
+    mutationFn: () => deleteContact(contactId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success(t('contacts.deleted'));
+      navigate({ to: '/clients' });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : t('contacts.errSave')),
+  });
+
+  const askDelete = async () => {
+    // Idem : sans catch, un rejet laisserait le bouton Supprimer muet.
+    let deps;
+    try {
+      deps = await contactDependencies(contactId);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('contacts.errSave'));
+      return;
+    }
+    if (deps.length > 0) {
+      const ok = await confirm({
+        title: t('contacts.deleteBlockedTitle'),
+        message: t('contacts.deleteBlockedMessage'),
+        confirmLabel: t('contacts.deleteBlockedArchive'),
+      });
+      if (ok) archive.mutate();
+      return;
+    }
+    const ok = await confirm({
+      title: t('contacts.deleteTitle'),
+      message: t('contacts.deleteMessage'),
+      variant: 'delete',
+    });
+    if (ok) del.mutate();
+  };
+
   if (isLoading) {
     return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -153,6 +195,12 @@ function EditClient() {
             ) : (
               <Button variant="outline" disabled={unarchive.isPending} onClick={() => unarchive.mutate()}>
                 <ArchiveRestore /> {t('contacts.unarchive')}
+              </Button>
+            )}
+            {/* Suppression physique reservee aux admins (policy RLS contacts_delete). */}
+            {isAdmin() && (
+              <Button variant="outline" disabled={del.isPending} onClick={() => { void askDelete(); }}>
+                <Trash2 className="text-danger" /> {t('contacts.delete')}
               </Button>
             )}
           </div>

@@ -857,6 +857,29 @@ export const fr = {
     supplierRfa: 'RFA — remise fin d\'année (%)',
     supplierFranco: 'Franco de port (€)',
     supplierOrderMin: 'Minimum de commande (€)',
+
+    // Suppression de fiche (doublons, comptes crees par erreur)
+    delete: 'Supprimer',
+    deleteTitle: 'Supprimer définitivement cette fiche ?',
+    deleteMessage: 'Cette fiche ne porte aucun document, véhicule ni mouvement. La suppression est définitive et retire aussi ses liens vers les autres fiches.',
+    deleteChecking: 'Vérification…',
+    deleted: 'Fiche supprimée.',
+    deleteBlockedTitle: 'Suppression impossible',
+    deleteBlockedMessage: 'Cette fiche est rattachée à des données métier ; la supprimer casserait l\'historique. Vous pouvez l\'archiver : elle disparaîtra des listes sans perte.',
+    deleteBlockedArchive: 'Archiver à la place',
+
+    // Detection de doublons a la creation
+    dupTitle: 'Cette fiche existe déjà',
+    dupMessage: 'Une fiche identique (nom, ville, téléphone et e-mail) est déjà enregistrée :',
+    dupCreateAnyway: 'Créer quand même',
+    dupCancel: 'Annuler',
+    dupChecking: 'Recherche de doublons…',
+
+    // Civilite (fiche privee) — liste fermee
+    civilityMr: 'Monsieur',
+    civilityMrs: 'Madame',
+    civilityOther: 'Autre',
+    civilityNone: '—',
   },
 
   // Ventes & Facturation (M6 — POS)

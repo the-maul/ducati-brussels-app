@@ -135,3 +135,55 @@ export async function mergeContacts(keepId: string, mergeId: string): Promise<Me
   await archiveContact(mergeId);
   return { reassigned, failed };
 }
+
+// ── Doublons, dependances, suppression ────────────────────────────────
+
+export type DuplicateProbe = {
+  name: string;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  excludeId?: string | null;
+};
+
+/**
+ * Fiches strictement identiques (nom + ville + telephone + e-mail, normalises
+ * cote base : casse/accents ignores, telephone reduit a ses chiffres).
+ * Sert d'alerte non bloquante avant creation : on previent, on ne refuse pas.
+ */
+export async function findDuplicateContacts(companyId: string, probe: DuplicateProbe): Promise<Contact[]> {
+  const { data, error } = await supabase.rpc('contacts_find_duplicates', {
+    _company: companyId,
+    _name: probe.name ?? '',
+    _city: probe.city ?? '',
+    _phone: probe.phone ?? '',
+    _email: probe.email ?? '',
+    _exclude: probe.excludeId ?? null,
+  });
+  if (error) throw error;
+  return (data as Contact[]) ?? [];
+}
+
+export type ContactDependency = { table_name: string; n: number };
+
+/** Lignes metier rattachees a une fiche. Vide => suppression physique possible. */
+export async function contactDependencies(id: string): Promise<ContactDependency[]> {
+  const { data, error } = await supabase.rpc('contact_dependencies', { _id: id });
+  if (error) throw error;
+  return (data as ContactDependency[]) ?? [];
+}
+
+/**
+ * Suppression physique, reservee aux fiches vierges (doublons, comptes crees par
+ * erreur). La base refuse et leve CONTACT_HAS_DEPENDENCIES si la fiche porte le
+ * moindre document/vehicule/mouvement : l'appelant bascule alors sur l'archivage.
+ */
+export async function deleteContact(id: string): Promise<void> {
+  const { error } = await supabase.rpc('contact_delete_safe', { _id: id });
+  if (error) throw error;
+}
+
+/** Vrai si l'erreur remontee est le refus de suppression pour cause de dependances. */
+export function isDependencyError(e: unknown): boolean {
+  return e instanceof Error && e.message.includes('CONTACT_HAS_DEPENDENCIES');
+}

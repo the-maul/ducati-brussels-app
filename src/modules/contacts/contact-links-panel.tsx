@@ -5,13 +5,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Link2, Unlink, Search, ExternalLink, User, Building2 } from 'lucide-react';
+import { Loader2, Plus, Link2, Unlink, Search, ExternalLink, User, Building2, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { listLinkedContacts, linkContact, unlinkContact, createLinkedContact, searchContactsToLink } from './subobjects-api';
-import { contactDisplayName, type Contact } from './api';
+import { contactDisplayName, contactDependencies, deleteContact, archiveContact, type Contact } from './api';
+import { useConfirm } from '@/components/confirm-provider';
+import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
 const LINK_LIMIT = 2;
@@ -34,6 +37,49 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
 
   const link = useMutation({ mutationFn: (otherId: string) => linkContact(companyId, contact.id, otherId), onSuccess: () => { setQ(''); refresh(); } });
   const unlink = useMutation({ mutationFn: (linkId: string) => unlinkContact(linkId), onSuccess: refresh });
+
+  // ── Suppression d'une fiche liee (doublon, compte cree par erreur) ──
+  // Suppression physique reservee aux fiches vierges ; sinon on propose
+  // l'archivage, qui preserve l'historique (regle 4).
+  const confirm = useConfirm();
+  const { isAdmin } = useAuth();
+  const del = useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => { toast.success(t('contacts.deleted')); refresh(); },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+  });
+  const archive = useMutation({
+    mutationFn: (id: string) => archiveContact(id),
+    onSuccess: () => { toast.success(t('contacts.archived')); refresh(); },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+  });
+
+  const askDelete = async (id: string) => {
+    // Un echec de lecture des dependances (reseau, RLS) doit se voir : sans ce
+    // catch, la promesse rejetee laisserait le bouton Supprimer sans reaction.
+    let deps;
+    try {
+      deps = await contactDependencies(id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (deps.length > 0) {
+      const ok = await confirm({
+        title: t('contacts.deleteBlockedTitle'),
+        message: t('contacts.deleteBlockedMessage'),
+        confirmLabel: t('contacts.deleteBlockedArchive'),
+      });
+      if (ok) archive.mutate(id);
+      return;
+    }
+    const ok = await confirm({
+      title: t('contacts.deleteTitle'),
+      message: t('contacts.deleteMessage'),
+      variant: 'delete',
+    });
+    if (ok) del.mutate(id);
+  };
   const create = useMutation({
     mutationFn: (opts: { inheritContact: boolean; inheritAddress: boolean }) => createLinkedContact(companyId, contact, targetType, opts),
     onSuccess: (id) => { setInheritDialogOpen(false); refresh(); navigate({ to: '/clients/$contactId', params: { contactId: id } }); },
@@ -109,6 +155,10 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
                   <span className="rounded bg-muted px-1.5 text-[10px] text-muted-foreground">{t(`contacts.type_${c.type}`)}</span>
                   <Button type="button" size="sm" variant="ghost" onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })} title={t('contacts.openFiche')}><ExternalLink className="size-4 text-info" /></Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => unlink.mutate(linkId)} disabled={unlink.isPending} title={t('contacts.unlink')}><Unlink className="size-4 text-danger" /></Button>
+                  {/* Suppression physique reservee aux admins (policy RLS contacts_delete). */}
+                  {isAdmin(companyId) && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { void askDelete(c.id); }} disabled={del.isPending} title={t('contacts.delete')}><Trash2 className="size-4 text-danger" /></Button>
+                  )}
                 </div>
               );
             })}

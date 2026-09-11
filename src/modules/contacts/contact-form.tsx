@@ -21,9 +21,13 @@ import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { t } from '@/lib/i18n';
+import { findDuplicateContacts, contactDisplayName } from './api';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
@@ -137,6 +141,12 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
 ];
 
 // Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
+/** Valeur sentinelle : Radix Select interdit un SelectItem de valeur vide. */
+const CIVILITY_NONE = '__none__';
+/** Liste fermee de la civilite (fiche privee). Une valeur hors liste heritee d'une
+ *  reprise reste affichee telle quelle plutot que d'etre perdue silencieusement. */
+const CIVILITY_OPTIONS = ['Monsieur', 'Madame', 'Autre'];
+
 const COMPANY_TYPES: { value: string; label: string }[] = [
   { value: 'SRL', label: 'Société à resp. limitée' },
   { value: 'BV', label: 'Besloten vennootschap' },
@@ -405,14 +415,53 @@ export function ContactForm({
 
   const addressTitle = isPro ? t('contacts.secAddressPro') : t('contacts.secAddressPrivate');
 
-  const submit = (e: React.FormEvent) => {
+  // ── Doublons a la creation ──────────────────────────────────────────
+  // Alerte non bloquante : on montre les fiches identiques et on laisse
+  // l'utilisateur trancher. Jamais de refus sec (demande client, image 1).
+  const [dupes, setDupes] = useState<Contact[] | null>(null);
+  const [checkingDupes, setCheckingDupes] = useState(false);
+  const pendingPayload = useRef<ContactInsert | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
     if (!f.last_name.trim() && !f.company_name.trim()) {
       setLocalError(t('contacts.requiredName'));
       return;
     }
-    onSubmit(buildPayload(f, companyId));
+    const payload = buildPayload(f, companyId);
+
+    // Uniquement a la creation : en edition, la fiche serait son propre doublon.
+    if (!initial) {
+      setCheckingDupes(true);
+      try {
+        const found = await findDuplicateContacts(companyId, {
+          name: f.company_name.trim() || [f.first_name, f.last_name].filter(Boolean).join(' ').trim(),
+          city: f.city,
+          phone: f.mobile || f.gsm,
+          email: f.email,
+        });
+        if (found.length > 0) {
+          pendingPayload.current = payload;
+          setDupes(found);
+          return;
+        }
+      } catch {
+        // Un controle indisponible ne doit jamais empecher de creer une fiche.
+      } finally {
+        setCheckingDupes(false);
+      }
+    }
+    onSubmit(payload);
+  };
+
+  const closeDupes = () => { setDupes(null); pendingPayload.current = null; };
+
+  /** L'utilisateur a vu les fiches existantes et choisit de creer quand meme. */
+  const confirmDuplicate = () => {
+    const payload = pendingPayload.current;
+    closeDupes();
+    if (payload) onSubmit(payload);
   };
 
   const toggleInterest = (key: string, on: boolean) =>
@@ -423,6 +472,28 @@ export function ContactForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {/* Fiche deja existante : on previent, on propose de creer quand meme. */}
+      <Dialog open={dupes !== null} onOpenChange={(o) => { if (!o) closeDupes(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('contacts.dupTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">{t('contacts.dupMessage')}</p>
+          <div className="max-h-48 space-y-1.5 overflow-auto">
+            {(dupes ?? []).map((c) => (
+              <div key={c.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px]">
+                <span className="flex-1 truncate font-medium">{contactDisplayName(c)}</span>
+                {c.city && <span className="truncate text-muted-foreground">{c.city}</span>}
+                {c.code && <span className="font-mono text-[11px] text-muted-foreground">{c.code}</span>}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeDupes}>{t('contacts.dupCancel')}</Button>
+            <Button type="button" onClick={confirmDuplicate}>{t('contacts.dupCreateAnyway')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Tabs defaultValue="self" className="w-full">
         <TabsList>
           <TabsTrigger value="self">{isPro ? t('contacts.tabPro') : t('contacts.tabPrivate')}</TabsTrigger>
@@ -490,7 +561,23 @@ export function ContactForm({
               </Field>
             ) : (
               <Field label={t('contacts.civility')}>
-                <Input value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder="M / Mme" />
+                {/* Liste fermee : la saisie libre laissait passer des formes juridiques
+                    (SPRL, SA...) heritees a tort de la fiche pro liee. */}
+                <Select
+                  value={f.civility || CIVILITY_NONE}
+                  onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
+                    <SelectItem value="Monsieur">{t('contacts.civilityMr')}</SelectItem>
+                    <SelectItem value="Madame">{t('contacts.civilityMrs')}</SelectItem>
+                    <SelectItem value="Autre">{t('contacts.civilityOther')}</SelectItem>
+                    {f.civility && !CIVILITY_OPTIONS.includes(f.civility) && (
+                      <SelectItem value={f.civility}>{f.civility}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </Field>
             )}
             <Field label={t('contacts.firstName')}>
@@ -792,9 +879,9 @@ export function ContactForm({
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? <Loader2 className="animate-spin" /> : <Save />}
-          {submitting ? t('contacts.saving') : initial ? t('contacts.save') : t('contacts.create')}
+        <Button type="submit" disabled={submitting || checkingDupes}>
+          {submitting || checkingDupes ? <Loader2 className="animate-spin" /> : <Save />}
+          {checkingDupes ? t('contacts.dupChecking') : submitting ? t('contacts.saving') : initial ? t('contacts.save') : t('contacts.create')}
         </Button>
       </div>
     </form>

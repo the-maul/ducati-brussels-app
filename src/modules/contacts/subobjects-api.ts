@@ -116,10 +116,14 @@ export async function createLinkedContact(
     last_name: targetType === 'particulier' ? (source.last_name ?? source.company_name ?? null) : null,
     company_name: targetType === 'professionnel' ? (source.company_name ?? source.last_name ?? null) : null,
     first_name: source.first_name ?? null,
-    civility: source.civility ?? null,
+    // La civilite d'une fiche pro porte la forme juridique (SPRL, SA...), celle d'un
+    // particulier porte M./Mme : ne jamais la recopier d'un type vers l'autre.
+    civility: source.type === targetType ? (source.civility ?? null) : null,
     email: inheritContact ? (source.email ?? null) : null,
     phone: inheritContact ? (source.phone ?? null) : null,
     mobile: inheritContact ? (source.mobile ?? null) : null,
+    // Mobile 2 (colonne gsm) : repris comme le mobile principal.
+    gsm: inheritContact ? (source.gsm ?? null) : null,
     address: inheritAddress ? (source.address ?? null) : null,
     zip: inheritAddress ? (source.zip ?? null) : null,
     city: inheritAddress ? (source.city ?? null) : null,
