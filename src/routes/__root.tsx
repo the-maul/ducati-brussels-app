@@ -13,6 +13,7 @@ import tokensCss from "../styles/tokens.css?url";
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { ConfirmProvider } from "@/components/confirm-provider";
 
 function NotFoundComponent() {
   return (
@@ -125,8 +126,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        {/* useConfirm() jette hors provider : monte ici pour couvrir toutes les routes. */}
+        <ConfirmProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </ConfirmProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
