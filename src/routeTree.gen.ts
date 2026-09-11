@@ -9,85 +9,116 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
-import { Route as AppVehiclesRouteImport } from './routes/_app.vehicles'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppSalesRouteImport } from './routes/_app.sales'
-import { Route as AppReportsRouteImport } from './routes/_app.reports'
-import { Route as AppPosRouteImport } from './routes/_app.pos'
-import { Route as AppPartsRouteImport } from './routes/_app.parts'
-import { Route as AppEshopRouteImport } from './routes/_app.eshop'
-import { Route as AppDemoRouteImport } from './routes/_app.demo'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
+import { Route as AppAccountingClosureRouteImport } from './routes/_app.accounting-closure'
+import { Route as AppAccountingSepaRouteImport } from './routes/_app.accounting-sepa'
+import { Route as AppClientPricingRouteImport } from './routes/_app.client-pricing'
 import { Route as AppClientsRouteImport } from './routes/_app.clients'
+import { Route as AppConsignmentRouteImport } from './routes/_app.consignment'
+import { Route as AppCrmRouteImport } from './routes/_app.crm'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppDemoRouteImport } from './routes/_app.demo'
+import { Route as AppEshopRouteImport } from './routes/_app.eshop'
+import { Route as AppImprovementsRouteImport } from './routes/_app.improvements'
+import { Route as AppOrdersRouteImport } from './routes/_app.orders'
+import { Route as AppPartsRouteImport } from './routes/_app.parts'
+import { Route as AppPickingRouteImport } from './routes/_app.picking'
+import { Route as AppPosRouteImport } from './routes/_app.pos'
+import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppSalesRouteImport } from './routes/_app.sales'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppStockRouteImport } from './routes/_app.stock'
+import { Route as AppTradeinRouteImport } from './routes/_app.tradein'
+import { Route as AppVehiclesRouteImport } from './routes/_app.vehicles'
+import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
+import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
+import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
+import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
+import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
+import { Route as AppOrdersIndexRouteImport } from './routes/_app.orders.index'
+import { Route as AppOrdersOrderIdRouteImport } from './routes/_app.orders.$orderId'
+import { Route as AppOrdersExcelRouteImport } from './routes/_app.orders.excel'
+import { Route as AppOrdersNewRouteImport } from './routes/_app.orders.new'
+import { Route as AppPartsIndexRouteImport } from './routes/_app.parts.index'
+import { Route as AppPartsArticleIdRouteImport } from './routes/_app.parts.$articleId'
+import { Route as AppPartsCascadeRouteImport } from './routes/_app.parts.cascade'
+import { Route as AppPartsFamiliesRouteImport } from './routes/_app.parts.families'
+import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
+import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
+import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
+import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
+import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
+import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
+import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases.reorder'
+import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchases.suppliers'
+import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
+import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
+import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
+import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
+import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
+import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
+import { Route as AppSettingsNumberingRouteImport } from './routes/_app.settings.numbering'
+import { Route as AppSettingsTablesRouteImport } from './routes/_app.settings.tables'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app.settings.users'
+import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
+import { Route as AppStockCessionsRouteImport } from './routes/_app.stock.cessions'
+import { Route as AppStockDepreciationRouteImport } from './routes/_app.stock.depreciation'
+import { Route as AppStockInventoryRouteImport } from './routes/_app.stock.inventory'
+import { Route as AppTradeinIndexRouteImport } from './routes/_app.tradein.index'
+import { Route as AppTradeinOroIdRouteImport } from './routes/_app.tradein.$oroId'
+import { Route as AppTradeinNewRouteImport } from './routes/_app.tradein.new'
+import { Route as AppTradeinPartnersRouteImport } from './routes/_app.tradein.partners'
+import { Route as AppVehiclesIndexRouteImport } from './routes/_app.vehicles.index'
+import { Route as AppVehiclesVehicleIdRouteImport } from './routes/_app.vehicles.$vehicleId'
+import { Route as AppVehiclesNewRouteImport } from './routes/_app.vehicles.new'
+import { Route as AppWorkshopIndexRouteImport } from './routes/_app.workshop.index'
+import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orId'
+import { Route as AppWorkshopChronoRouteImport } from './routes/_app.workshop.chrono'
+import { Route as AppWorkshopNewRouteImport } from './routes/_app.workshop.new'
+import { Route as AppWorkshopPlanningRouteImport } from './routes/_app.workshop.planning'
+import { Route as AppPurchasesSuppliersIndexRouteImport } from './routes/_app.purchases.suppliers.index'
+import { Route as AppPurchasesSuppliersSupplierIdRouteImport } from './routes/_app.purchases.suppliers.$supplierId'
+import { Route as AppPurchasesSuppliersNewRouteImport } from './routes/_app.purchases.suppliers.new'
+import { Route as AppSettingsTablesIndexRouteImport } from './routes/_app.settings.tables.index'
+import { Route as AppSettingsTablesTableKeyRouteImport } from './routes/_app.settings.tables.$tableKey'
 
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppWorkshopRoute = AppWorkshopRouteImport.update({
-  id: '/workshop',
-  path: '/workshop',
+const AppAccountingRoute = AppAccountingRouteImport.update({
+  id: '/accounting',
+  path: '/accounting',
   getParentRoute: () => AppRoute,
 } as any)
-const AppVehiclesRoute = AppVehiclesRouteImport.update({
-  id: '/vehicles',
-  path: '/vehicles',
+const AppAccountingClosureRoute = AppAccountingClosureRouteImport.update({
+  id: '/accounting-closure',
+  path: '/accounting-closure',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AppAccountingSepaRoute = AppAccountingSepaRouteImport.update({
+  id: '/accounting-sepa',
+  path: '/accounting-sepa',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSalesRoute = AppSalesRouteImport.update({
-  id: '/sales',
-  path: '/sales',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPosRoute = AppPosRouteImport.update({
-  id: '/pos',
-  path: '/pos',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPartsRoute = AppPartsRouteImport.update({
-  id: '/parts',
-  path: '/parts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEshopRoute = AppEshopRouteImport.update({
-  id: '/eshop',
-  path: '/eshop',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDemoRoute = AppDemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AppClientPricingRoute = AppClientPricingRouteImport.update({
+  id: '/client-pricing',
+  path: '/client-pricing',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientsRoute = AppClientsRouteImport.update({
@@ -95,9 +126,239 @@ const AppClientsRoute = AppClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConsignmentRoute = AppConsignmentRouteImport.update({
+  id: '/consignment',
+  path: '/consignment',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmRoute = AppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDemoRoute = AppDemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEshopRoute = AppEshopRouteImport.update({
+  id: '/eshop',
+  path: '/eshop',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImprovementsRoute = AppImprovementsRouteImport.update({
+  id: '/improvements',
+  path: '/improvements',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOrdersRoute = AppOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPartsRoute = AppPartsRouteImport.update({
+  id: '/parts',
+  path: '/parts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPickingRoute = AppPickingRouteImport.update({
+  id: '/picking',
+  path: '/picking',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPosRoute = AppPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesRoute = AppPurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalesRoute = AppSalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStockRoute = AppStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTradeinRoute = AppTradeinRouteImport.update({
+  id: '/tradein',
+  path: '/tradein',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVehiclesRoute = AppVehiclesRouteImport.update({
+  id: '/vehicles',
+  path: '/vehicles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkshopRoute = AppWorkshopRouteImport.update({
+  id: '/workshop',
+  path: '/workshop',
+  getParentRoute: () => AppRoute,
+} as any)
+const ShopSlugRoute = ShopSlugRouteImport.update({
+  id: '/shop/$slug',
+  path: '/shop/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsContactIdRoute = AppClientsContactIdRouteImport.update({
+  id: '/$contactId',
+  path: '/$contactId',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsNewRoute = AppClientsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrdersRoute,
+} as any)
+const AppOrdersOrderIdRoute = AppOrdersOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => AppOrdersRoute,
+} as any)
+const AppOrdersExcelRoute = AppOrdersExcelRouteImport.update({
+  id: '/excel',
+  path: '/excel',
+  getParentRoute: () => AppOrdersRoute,
+} as any)
+const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppOrdersRoute,
+} as any)
+const AppPartsIndexRoute = AppPartsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsArticleIdRoute = AppPartsArticleIdRouteImport.update({
+  id: '/$articleId',
+  path: '/$articleId',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsCascadeRoute = AppPartsCascadeRouteImport.update({
+  id: '/cascade',
+  path: '/cascade',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsFamiliesRoute = AppPartsFamiliesRouteImport.update({
+  id: '/families',
+  path: '/families',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsImportRoute = AppPartsImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsLabelsRoute = AppPartsLabelsRouteImport.update({
+  id: '/labels',
+  path: '/labels',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsNewRoute = AppPartsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesOrderIdRoute = AppPurchasesOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesReorderRoute = AppPurchasesReorderRouteImport.update({
+  id: '/reorder',
+  path: '/reorder',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesSuppliersRoute = AppPurchasesSuppliersRouteImport.update({
+  id: '/suppliers',
+  path: '/suppliers',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSalesRoute,
+} as any)
+const AppSalesDocumentIdRoute = AppSalesDocumentIdRouteImport.update({
+  id: '/$documentId',
+  path: '/$documentId',
+  getParentRoute: () => AppSalesRoute,
+} as any)
+const AppSalesNewRoute = AppSalesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsCompaniesRoute = AppSettingsCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsExtensionRoute = AppSettingsExtensionRouteImport.update({
+  id: '/extension',
+  path: '/extension',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsMigrationRoute = AppSettingsMigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsNumberingRoute = AppSettingsNumberingRouteImport.update({
+  id: '/numbering',
+  path: '/numbering',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsTablesRoute = AppSettingsTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsUsersRoute = AppSettingsUsersRouteImport.update({
@@ -105,126 +366,580 @@ const AppSettingsUsersRoute = AppSettingsUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppStockIndexRoute = AppStockIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockCessionsRoute = AppStockCessionsRouteImport.update({
+  id: '/cessions',
+  path: '/cessions',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockDepreciationRoute = AppStockDepreciationRouteImport.update({
+  id: '/depreciation',
+  path: '/depreciation',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockInventoryRoute = AppStockInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppTradeinIndexRoute = AppTradeinIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTradeinRoute,
+} as any)
+const AppTradeinOroIdRoute = AppTradeinOroIdRouteImport.update({
+  id: '/$oroId',
+  path: '/$oroId',
+  getParentRoute: () => AppTradeinRoute,
+} as any)
+const AppTradeinNewRoute = AppTradeinNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppTradeinRoute,
+} as any)
+const AppTradeinPartnersRoute = AppTradeinPartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => AppTradeinRoute,
+} as any)
+const AppVehiclesIndexRoute = AppVehiclesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppVehiclesRoute,
+} as any)
+const AppVehiclesVehicleIdRoute = AppVehiclesVehicleIdRouteImport.update({
+  id: '/$vehicleId',
+  path: '/$vehicleId',
+  getParentRoute: () => AppVehiclesRoute,
+} as any)
+const AppVehiclesNewRoute = AppVehiclesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppVehiclesRoute,
+} as any)
+const AppWorkshopIndexRoute = AppWorkshopIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
+const AppWorkshopOrIdRoute = AppWorkshopOrIdRouteImport.update({
+  id: '/$orId',
+  path: '/$orId',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
+const AppWorkshopChronoRoute = AppWorkshopChronoRouteImport.update({
+  id: '/chrono',
+  path: '/chrono',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
+const AppWorkshopNewRoute = AppWorkshopNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
+const AppWorkshopPlanningRoute = AppWorkshopPlanningRouteImport.update({
+  id: '/planning',
+  path: '/planning',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
+const AppPurchasesSuppliersIndexRoute =
+  AppPurchasesSuppliersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppPurchasesSuppliersRoute,
+  } as any)
+const AppPurchasesSuppliersSupplierIdRoute =
+  AppPurchasesSuppliersSupplierIdRouteImport.update({
+    id: '/$supplierId',
+    path: '/$supplierId',
+    getParentRoute: () => AppPurchasesSuppliersRoute,
+  } as any)
+const AppPurchasesSuppliersNewRoute =
+  AppPurchasesSuppliersNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AppPurchasesSuppliersRoute,
+  } as any)
+const AppSettingsTablesIndexRoute = AppSettingsTablesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsTablesRoute,
+} as any)
+const AppSettingsTablesTableKeyRoute =
+  AppSettingsTablesTableKeyRouteImport.update({
+    id: '/$tableKey',
+    path: '/$tableKey',
+    getParentRoute: () => AppSettingsTablesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/clients': typeof AppClientsRoute
+  '/accounting': typeof AppAccountingRoute
+  '/accounting-closure': typeof AppAccountingClosureRoute
+  '/accounting-sepa': typeof AppAccountingSepaRoute
+  '/client-pricing': typeof AppClientPricingRoute
+  '/clients': typeof AppClientsRouteWithChildren
+  '/consignment': typeof AppConsignmentRoute
+  '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
   '/eshop': typeof AppEshopRoute
-  '/parts': typeof AppPartsRoute
+  '/improvements': typeof AppImprovementsRoute
+  '/orders': typeof AppOrdersRouteWithChildren
+  '/parts': typeof AppPartsRouteWithChildren
+  '/picking': typeof AppPickingRoute
   '/pos': typeof AppPosRoute
+  '/purchases': typeof AppPurchasesRouteWithChildren
   '/reports': typeof AppReportsRoute
-  '/sales': typeof AppSalesRoute
+  '/sales': typeof AppSalesRouteWithChildren
   '/settings': typeof AppSettingsRouteWithChildren
-  '/vehicles': typeof AppVehiclesRoute
-  '/workshop': typeof AppWorkshopRoute
+  '/stock': typeof AppStockRouteWithChildren
+  '/tradein': typeof AppTradeinRouteWithChildren
+  '/vehicles': typeof AppVehiclesRouteWithChildren
+  '/workshop': typeof AppWorkshopRouteWithChildren
+  '/shop/$slug': typeof ShopSlugRoute
+  '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/new': typeof AppClientsNewRoute
+  '/orders/$orderId': typeof AppOrdersOrderIdRoute
+  '/orders/excel': typeof AppOrdersExcelRoute
+  '/orders/new': typeof AppOrdersNewRoute
+  '/parts/$articleId': typeof AppPartsArticleIdRoute
+  '/parts/cascade': typeof AppPartsCascadeRoute
+  '/parts/families': typeof AppPartsFamiliesRoute
+  '/parts/import': typeof AppPartsImportRoute
+  '/parts/labels': typeof AppPartsLabelsRoute
+  '/parts/new': typeof AppPartsNewRoute
+  '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
+  '/purchases/reorder': typeof AppPurchasesReorderRoute
+  '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
+  '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/new': typeof AppSalesNewRoute
+  '/settings/companies': typeof AppSettingsCompaniesRoute
+  '/settings/extension': typeof AppSettingsExtensionRoute
+  '/settings/migration': typeof AppSettingsMigrationRoute
+  '/settings/numbering': typeof AppSettingsNumberingRoute
+  '/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/settings/users': typeof AppSettingsUsersRoute
+  '/stock/cessions': typeof AppStockCessionsRoute
+  '/stock/depreciation': typeof AppStockDepreciationRoute
+  '/stock/inventory': typeof AppStockInventoryRoute
+  '/tradein/$oroId': typeof AppTradeinOroIdRoute
+  '/tradein/new': typeof AppTradeinNewRoute
+  '/tradein/partners': typeof AppTradeinPartnersRoute
+  '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/vehicles/new': typeof AppVehiclesNewRoute
+  '/workshop/$orId': typeof AppWorkshopOrIdRoute
+  '/workshop/chrono': typeof AppWorkshopChronoRoute
+  '/workshop/new': typeof AppWorkshopNewRoute
+  '/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/clients/': typeof AppClientsIndexRoute
+  '/orders/': typeof AppOrdersIndexRoute
+  '/parts/': typeof AppPartsIndexRoute
+  '/purchases/': typeof AppPurchasesIndexRoute
+  '/sales/': typeof AppSalesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/stock/': typeof AppStockIndexRoute
+  '/tradein/': typeof AppTradeinIndexRoute
+  '/vehicles/': typeof AppVehiclesIndexRoute
+  '/workshop/': typeof AppWorkshopIndexRoute
+  '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
+  '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
+  '/settings/tables/': typeof AppSettingsTablesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/clients': typeof AppClientsRoute
+  '/accounting': typeof AppAccountingRoute
+  '/accounting-closure': typeof AppAccountingClosureRoute
+  '/accounting-sepa': typeof AppAccountingSepaRoute
+  '/client-pricing': typeof AppClientPricingRoute
+  '/consignment': typeof AppConsignmentRoute
+  '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
   '/eshop': typeof AppEshopRoute
-  '/parts': typeof AppPartsRoute
+  '/improvements': typeof AppImprovementsRoute
+  '/picking': typeof AppPickingRoute
   '/pos': typeof AppPosRoute
   '/reports': typeof AppReportsRoute
-  '/sales': typeof AppSalesRoute
-  '/vehicles': typeof AppVehiclesRoute
-  '/workshop': typeof AppWorkshopRoute
+  '/shop/$slug': typeof ShopSlugRoute
+  '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/new': typeof AppClientsNewRoute
+  '/orders/$orderId': typeof AppOrdersOrderIdRoute
+  '/orders/excel': typeof AppOrdersExcelRoute
+  '/orders/new': typeof AppOrdersNewRoute
+  '/parts/$articleId': typeof AppPartsArticleIdRoute
+  '/parts/cascade': typeof AppPartsCascadeRoute
+  '/parts/families': typeof AppPartsFamiliesRoute
+  '/parts/import': typeof AppPartsImportRoute
+  '/parts/labels': typeof AppPartsLabelsRoute
+  '/parts/new': typeof AppPartsNewRoute
+  '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
+  '/purchases/reorder': typeof AppPurchasesReorderRoute
+  '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/new': typeof AppSalesNewRoute
+  '/settings/companies': typeof AppSettingsCompaniesRoute
+  '/settings/extension': typeof AppSettingsExtensionRoute
+  '/settings/migration': typeof AppSettingsMigrationRoute
+  '/settings/numbering': typeof AppSettingsNumberingRoute
   '/settings/users': typeof AppSettingsUsersRoute
+  '/stock/cessions': typeof AppStockCessionsRoute
+  '/stock/depreciation': typeof AppStockDepreciationRoute
+  '/stock/inventory': typeof AppStockInventoryRoute
+  '/tradein/$oroId': typeof AppTradeinOroIdRoute
+  '/tradein/new': typeof AppTradeinNewRoute
+  '/tradein/partners': typeof AppTradeinPartnersRoute
+  '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/vehicles/new': typeof AppVehiclesNewRoute
+  '/workshop/$orId': typeof AppWorkshopOrIdRoute
+  '/workshop/chrono': typeof AppWorkshopChronoRoute
+  '/workshop/new': typeof AppWorkshopNewRoute
+  '/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/clients': typeof AppClientsIndexRoute
+  '/orders': typeof AppOrdersIndexRoute
+  '/parts': typeof AppPartsIndexRoute
+  '/purchases': typeof AppPurchasesIndexRoute
+  '/sales': typeof AppSalesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/stock': typeof AppStockIndexRoute
+  '/tradein': typeof AppTradeinIndexRoute
+  '/vehicles': typeof AppVehiclesIndexRoute
+  '/workshop': typeof AppWorkshopIndexRoute
+  '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
+  '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/purchases/suppliers': typeof AppPurchasesSuppliersIndexRoute
+  '/settings/tables': typeof AppSettingsTablesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/clients': typeof AppClientsRoute
+  '/_app/accounting': typeof AppAccountingRoute
+  '/_app/accounting-closure': typeof AppAccountingClosureRoute
+  '/_app/accounting-sepa': typeof AppAccountingSepaRoute
+  '/_app/client-pricing': typeof AppClientPricingRoute
+  '/_app/clients': typeof AppClientsRouteWithChildren
+  '/_app/consignment': typeof AppConsignmentRoute
+  '/_app/crm': typeof AppCrmRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/demo': typeof AppDemoRoute
   '/_app/eshop': typeof AppEshopRoute
-  '/_app/parts': typeof AppPartsRoute
+  '/_app/improvements': typeof AppImprovementsRoute
+  '/_app/orders': typeof AppOrdersRouteWithChildren
+  '/_app/parts': typeof AppPartsRouteWithChildren
+  '/_app/picking': typeof AppPickingRoute
   '/_app/pos': typeof AppPosRoute
+  '/_app/purchases': typeof AppPurchasesRouteWithChildren
   '/_app/reports': typeof AppReportsRoute
-  '/_app/sales': typeof AppSalesRoute
+  '/_app/sales': typeof AppSalesRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteWithChildren
-  '/_app/vehicles': typeof AppVehiclesRoute
-  '/_app/workshop': typeof AppWorkshopRoute
+  '/_app/stock': typeof AppStockRouteWithChildren
+  '/_app/tradein': typeof AppTradeinRouteWithChildren
+  '/_app/vehicles': typeof AppVehiclesRouteWithChildren
+  '/_app/workshop': typeof AppWorkshopRouteWithChildren
+  '/shop/$slug': typeof ShopSlugRoute
+  '/_app/clients/$contactId': typeof AppClientsContactIdRoute
+  '/_app/clients/new': typeof AppClientsNewRoute
+  '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
+  '/_app/orders/excel': typeof AppOrdersExcelRoute
+  '/_app/orders/new': typeof AppOrdersNewRoute
+  '/_app/parts/$articleId': typeof AppPartsArticleIdRoute
+  '/_app/parts/cascade': typeof AppPartsCascadeRoute
+  '/_app/parts/families': typeof AppPartsFamiliesRoute
+  '/_app/parts/import': typeof AppPartsImportRoute
+  '/_app/parts/labels': typeof AppPartsLabelsRoute
+  '/_app/parts/new': typeof AppPartsNewRoute
+  '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
+  '/_app/purchases/new': typeof AppPurchasesNewRoute
+  '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
+  '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
+  '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/_app/sales/new': typeof AppSalesNewRoute
+  '/_app/settings/companies': typeof AppSettingsCompaniesRoute
+  '/_app/settings/extension': typeof AppSettingsExtensionRoute
+  '/_app/settings/migration': typeof AppSettingsMigrationRoute
+  '/_app/settings/numbering': typeof AppSettingsNumberingRoute
+  '/_app/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/_app/settings/users': typeof AppSettingsUsersRoute
+  '/_app/stock/cessions': typeof AppStockCessionsRoute
+  '/_app/stock/depreciation': typeof AppStockDepreciationRoute
+  '/_app/stock/inventory': typeof AppStockInventoryRoute
+  '/_app/tradein/$oroId': typeof AppTradeinOroIdRoute
+  '/_app/tradein/new': typeof AppTradeinNewRoute
+  '/_app/tradein/partners': typeof AppTradeinPartnersRoute
+  '/_app/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/_app/vehicles/new': typeof AppVehiclesNewRoute
+  '/_app/workshop/$orId': typeof AppWorkshopOrIdRoute
+  '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
+  '/_app/workshop/new': typeof AppWorkshopNewRoute
+  '/_app/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/_app/clients/': typeof AppClientsIndexRoute
+  '/_app/orders/': typeof AppOrdersIndexRoute
+  '/_app/parts/': typeof AppPartsIndexRoute
+  '/_app/purchases/': typeof AppPurchasesIndexRoute
+  '/_app/sales/': typeof AppSalesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/stock/': typeof AppStockIndexRoute
+  '/_app/tradein/': typeof AppTradeinIndexRoute
+  '/_app/vehicles/': typeof AppVehiclesIndexRoute
+  '/_app/workshop/': typeof AppWorkshopIndexRoute
+  '/_app/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
+  '/_app/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/_app/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
+  '/_app/settings/tables/': typeof AppSettingsTablesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
+    | '/accounting'
+    | '/accounting-closure'
+    | '/accounting-sepa'
+    | '/client-pricing'
     | '/clients'
+    | '/consignment'
+    | '/crm'
     | '/dashboard'
     | '/demo'
     | '/eshop'
+    | '/improvements'
+    | '/orders'
     | '/parts'
+    | '/picking'
     | '/pos'
+    | '/purchases'
     | '/reports'
     | '/sales'
     | '/settings'
+    | '/stock'
+    | '/tradein'
     | '/vehicles'
     | '/workshop'
+    | '/shop/$slug'
+    | '/clients/$contactId'
+    | '/clients/new'
+    | '/orders/$orderId'
+    | '/orders/excel'
+    | '/orders/new'
+    | '/parts/$articleId'
+    | '/parts/cascade'
+    | '/parts/families'
+    | '/parts/import'
+    | '/parts/labels'
+    | '/parts/new'
+    | '/purchases/$orderId'
+    | '/purchases/new'
+    | '/purchases/reorder'
+    | '/purchases/suppliers'
+    | '/sales/$documentId'
+    | '/sales/new'
+    | '/settings/companies'
+    | '/settings/extension'
+    | '/settings/migration'
+    | '/settings/numbering'
+    | '/settings/tables'
     | '/settings/users'
+    | '/stock/cessions'
+    | '/stock/depreciation'
+    | '/stock/inventory'
+    | '/tradein/$oroId'
+    | '/tradein/new'
+    | '/tradein/partners'
+    | '/vehicles/$vehicleId'
+    | '/vehicles/new'
+    | '/workshop/$orId'
+    | '/workshop/chrono'
+    | '/workshop/new'
+    | '/workshop/planning'
+    | '/clients/'
+    | '/orders/'
+    | '/parts/'
+    | '/purchases/'
+    | '/sales/'
     | '/settings/'
+    | '/stock/'
+    | '/tradein/'
+    | '/vehicles/'
+    | '/workshop/'
+    | '/purchases/suppliers/$supplierId'
+    | '/purchases/suppliers/new'
+    | '/settings/tables/$tableKey'
+    | '/purchases/suppliers/'
+    | '/settings/tables/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/clients'
+    | '/accounting'
+    | '/accounting-closure'
+    | '/accounting-sepa'
+    | '/client-pricing'
+    | '/consignment'
+    | '/crm'
     | '/dashboard'
     | '/demo'
     | '/eshop'
-    | '/parts'
+    | '/improvements'
+    | '/picking'
     | '/pos'
     | '/reports'
+    | '/shop/$slug'
+    | '/clients/$contactId'
+    | '/clients/new'
+    | '/orders/$orderId'
+    | '/orders/excel'
+    | '/orders/new'
+    | '/parts/$articleId'
+    | '/parts/cascade'
+    | '/parts/families'
+    | '/parts/import'
+    | '/parts/labels'
+    | '/parts/new'
+    | '/purchases/$orderId'
+    | '/purchases/new'
+    | '/purchases/reorder'
+    | '/sales/$documentId'
+    | '/sales/new'
+    | '/settings/companies'
+    | '/settings/extension'
+    | '/settings/migration'
+    | '/settings/numbering'
+    | '/settings/users'
+    | '/stock/cessions'
+    | '/stock/depreciation'
+    | '/stock/inventory'
+    | '/tradein/$oroId'
+    | '/tradein/new'
+    | '/tradein/partners'
+    | '/vehicles/$vehicleId'
+    | '/vehicles/new'
+    | '/workshop/$orId'
+    | '/workshop/chrono'
+    | '/workshop/new'
+    | '/workshop/planning'
+    | '/clients'
+    | '/orders'
+    | '/parts'
+    | '/purchases'
     | '/sales'
+    | '/settings'
+    | '/stock'
+    | '/tradein'
     | '/vehicles'
     | '/workshop'
-    | '/settings/users'
-    | '/settings'
+    | '/purchases/suppliers/$supplierId'
+    | '/purchases/suppliers/new'
+    | '/settings/tables/$tableKey'
+    | '/purchases/suppliers'
+    | '/settings/tables'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/accounting'
+    | '/_app/accounting-closure'
+    | '/_app/accounting-sepa'
+    | '/_app/client-pricing'
     | '/_app/clients'
+    | '/_app/consignment'
+    | '/_app/crm'
     | '/_app/dashboard'
     | '/_app/demo'
     | '/_app/eshop'
+    | '/_app/improvements'
+    | '/_app/orders'
     | '/_app/parts'
+    | '/_app/picking'
     | '/_app/pos'
+    | '/_app/purchases'
     | '/_app/reports'
     | '/_app/sales'
     | '/_app/settings'
+    | '/_app/stock'
+    | '/_app/tradein'
     | '/_app/vehicles'
     | '/_app/workshop'
+    | '/shop/$slug'
+    | '/_app/clients/$contactId'
+    | '/_app/clients/new'
+    | '/_app/orders/$orderId'
+    | '/_app/orders/excel'
+    | '/_app/orders/new'
+    | '/_app/parts/$articleId'
+    | '/_app/parts/cascade'
+    | '/_app/parts/families'
+    | '/_app/parts/import'
+    | '/_app/parts/labels'
+    | '/_app/parts/new'
+    | '/_app/purchases/$orderId'
+    | '/_app/purchases/new'
+    | '/_app/purchases/reorder'
+    | '/_app/purchases/suppliers'
+    | '/_app/sales/$documentId'
+    | '/_app/sales/new'
+    | '/_app/settings/companies'
+    | '/_app/settings/extension'
+    | '/_app/settings/migration'
+    | '/_app/settings/numbering'
+    | '/_app/settings/tables'
     | '/_app/settings/users'
+    | '/_app/stock/cessions'
+    | '/_app/stock/depreciation'
+    | '/_app/stock/inventory'
+    | '/_app/tradein/$oroId'
+    | '/_app/tradein/new'
+    | '/_app/tradein/partners'
+    | '/_app/vehicles/$vehicleId'
+    | '/_app/vehicles/new'
+    | '/_app/workshop/$orId'
+    | '/_app/workshop/chrono'
+    | '/_app/workshop/new'
+    | '/_app/workshop/planning'
+    | '/_app/clients/'
+    | '/_app/orders/'
+    | '/_app/parts/'
+    | '/_app/purchases/'
+    | '/_app/sales/'
     | '/_app/settings/'
+    | '/_app/stock/'
+    | '/_app/tradein/'
+    | '/_app/vehicles/'
+    | '/_app/workshop/'
+    | '/_app/purchases/suppliers/$supplierId'
+    | '/_app/purchases/suppliers/new'
+    | '/_app/settings/tables/$tableKey'
+    | '/_app/purchases/suppliers/'
+    | '/_app/settings/tables/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ShopSlugRoute: typeof ShopSlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -234,81 +949,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/workshop': {
-      id: '/_app/workshop'
-      path: '/workshop'
-      fullPath: '/workshop'
-      preLoaderRoute: typeof AppWorkshopRouteImport
+    '/_app/accounting': {
+      id: '/_app/accounting'
+      path: '/accounting'
+      fullPath: '/accounting'
+      preLoaderRoute: typeof AppAccountingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/vehicles': {
-      id: '/_app/vehicles'
-      path: '/vehicles'
-      fullPath: '/vehicles'
-      preLoaderRoute: typeof AppVehiclesRouteImport
+    '/_app/accounting-closure': {
+      id: '/_app/accounting-closure'
+      path: '/accounting-closure'
+      fullPath: '/accounting-closure'
+      preLoaderRoute: typeof AppAccountingClosureRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
+    '/_app/accounting-sepa': {
+      id: '/_app/accounting-sepa'
+      path: '/accounting-sepa'
+      fullPath: '/accounting-sepa'
+      preLoaderRoute: typeof AppAccountingSepaRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/sales': {
-      id: '/_app/sales'
-      path: '/sales'
-      fullPath: '/sales'
-      preLoaderRoute: typeof AppSalesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pos': {
-      id: '/_app/pos'
-      path: '/pos'
-      fullPath: '/pos'
-      preLoaderRoute: typeof AppPosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/parts': {
-      id: '/_app/parts'
-      path: '/parts'
-      fullPath: '/parts'
-      preLoaderRoute: typeof AppPartsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/eshop': {
-      id: '/_app/eshop'
-      path: '/eshop'
-      fullPath: '/eshop'
-      preLoaderRoute: typeof AppEshopRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/demo': {
-      id: '/_app/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof AppDemoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
+    '/_app/client-pricing': {
+      id: '/_app/client-pricing'
+      path: '/client-pricing'
+      fullPath: '/client-pricing'
+      preLoaderRoute: typeof AppClientPricingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clients': {
@@ -318,11 +991,333 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/consignment': {
+      id: '/_app/consignment'
+      path: '/consignment'
+      fullPath: '/consignment'
+      preLoaderRoute: typeof AppConsignmentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm': {
+      id: '/_app/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AppCrmRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/demo': {
+      id: '/_app/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof AppDemoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/eshop': {
+      id: '/_app/eshop'
+      path: '/eshop'
+      fullPath: '/eshop'
+      preLoaderRoute: typeof AppEshopRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/improvements': {
+      id: '/_app/improvements'
+      path: '/improvements'
+      fullPath: '/improvements'
+      preLoaderRoute: typeof AppImprovementsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/orders': {
+      id: '/_app/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof AppOrdersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parts': {
+      id: '/_app/parts'
+      path: '/parts'
+      fullPath: '/parts'
+      preLoaderRoute: typeof AppPartsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/picking': {
+      id: '/_app/picking'
+      path: '/picking'
+      fullPath: '/picking'
+      preLoaderRoute: typeof AppPickingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pos': {
+      id: '/_app/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof AppPosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases': {
+      id: '/_app/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof AppPurchasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales': {
+      id: '/_app/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof AppSalesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/stock': {
+      id: '/_app/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof AppStockRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tradein': {
+      id: '/_app/tradein'
+      path: '/tradein'
+      fullPath: '/tradein'
+      preLoaderRoute: typeof AppTradeinRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vehicles': {
+      id: '/_app/vehicles'
+      path: '/vehicles'
+      fullPath: '/vehicles'
+      preLoaderRoute: typeof AppVehiclesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/workshop': {
+      id: '/_app/workshop'
+      path: '/workshop'
+      fullPath: '/workshop'
+      preLoaderRoute: typeof AppWorkshopRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/shop/$slug': {
+      id: '/shop/$slug'
+      path: '/shop/$slug'
+      fullPath: '/shop/$slug'
+      preLoaderRoute: typeof ShopSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/clients/': {
+      id: '/_app/clients/'
+      path: '/'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AppClientsIndexRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/$contactId': {
+      id: '/_app/clients/$contactId'
+      path: '/$contactId'
+      fullPath: '/clients/$contactId'
+      preLoaderRoute: typeof AppClientsContactIdRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/new': {
+      id: '/_app/clients/new'
+      path: '/new'
+      fullPath: '/clients/new'
+      preLoaderRoute: typeof AppClientsNewRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/orders/': {
+      id: '/_app/orders/'
+      path: '/'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof AppOrdersIndexRouteImport
+      parentRoute: typeof AppOrdersRoute
+    }
+    '/_app/orders/$orderId': {
+      id: '/_app/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/orders/$orderId'
+      preLoaderRoute: typeof AppOrdersOrderIdRouteImport
+      parentRoute: typeof AppOrdersRoute
+    }
+    '/_app/orders/excel': {
+      id: '/_app/orders/excel'
+      path: '/excel'
+      fullPath: '/orders/excel'
+      preLoaderRoute: typeof AppOrdersExcelRouteImport
+      parentRoute: typeof AppOrdersRoute
+    }
+    '/_app/orders/new': {
+      id: '/_app/orders/new'
+      path: '/new'
+      fullPath: '/orders/new'
+      preLoaderRoute: typeof AppOrdersNewRouteImport
+      parentRoute: typeof AppOrdersRoute
+    }
+    '/_app/parts/': {
+      id: '/_app/parts/'
+      path: '/'
+      fullPath: '/parts/'
+      preLoaderRoute: typeof AppPartsIndexRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/$articleId': {
+      id: '/_app/parts/$articleId'
+      path: '/$articleId'
+      fullPath: '/parts/$articleId'
+      preLoaderRoute: typeof AppPartsArticleIdRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/cascade': {
+      id: '/_app/parts/cascade'
+      path: '/cascade'
+      fullPath: '/parts/cascade'
+      preLoaderRoute: typeof AppPartsCascadeRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/families': {
+      id: '/_app/parts/families'
+      path: '/families'
+      fullPath: '/parts/families'
+      preLoaderRoute: typeof AppPartsFamiliesRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/import': {
+      id: '/_app/parts/import'
+      path: '/import'
+      fullPath: '/parts/import'
+      preLoaderRoute: typeof AppPartsImportRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/labels': {
+      id: '/_app/parts/labels'
+      path: '/labels'
+      fullPath: '/parts/labels'
+      preLoaderRoute: typeof AppPartsLabelsRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/new': {
+      id: '/_app/parts/new'
+      path: '/new'
+      fullPath: '/parts/new'
+      preLoaderRoute: typeof AppPartsNewRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/purchases/': {
+      id: '/_app/purchases/'
+      path: '/'
+      fullPath: '/purchases/'
+      preLoaderRoute: typeof AppPurchasesIndexRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/$orderId': {
+      id: '/_app/purchases/$orderId'
+      path: '/$orderId'
+      fullPath: '/purchases/$orderId'
+      preLoaderRoute: typeof AppPurchasesOrderIdRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/new': {
+      id: '/_app/purchases/new'
+      path: '/new'
+      fullPath: '/purchases/new'
+      preLoaderRoute: typeof AppPurchasesNewRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/reorder': {
+      id: '/_app/purchases/reorder'
+      path: '/reorder'
+      fullPath: '/purchases/reorder'
+      preLoaderRoute: typeof AppPurchasesReorderRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/suppliers': {
+      id: '/_app/purchases/suppliers'
+      path: '/suppliers'
+      fullPath: '/purchases/suppliers'
+      preLoaderRoute: typeof AppPurchasesSuppliersRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/sales/': {
+      id: '/_app/sales/'
+      path: '/'
+      fullPath: '/sales/'
+      preLoaderRoute: typeof AppSalesIndexRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
+    '/_app/sales/$documentId': {
+      id: '/_app/sales/$documentId'
+      path: '/$documentId'
+      fullPath: '/sales/$documentId'
+      preLoaderRoute: typeof AppSalesDocumentIdRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
+    '/_app/sales/new': {
+      id: '/_app/sales/new'
+      path: '/new'
+      fullPath: '/sales/new'
+      preLoaderRoute: typeof AppSalesNewRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/settings/': {
       id: '/_app/settings/'
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/companies': {
+      id: '/_app/settings/companies'
+      path: '/companies'
+      fullPath: '/settings/companies'
+      preLoaderRoute: typeof AppSettingsCompaniesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/extension': {
+      id: '/_app/settings/extension'
+      path: '/extension'
+      fullPath: '/settings/extension'
+      preLoaderRoute: typeof AppSettingsExtensionRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/migration': {
+      id: '/_app/settings/migration'
+      path: '/migration'
+      fullPath: '/settings/migration'
+      preLoaderRoute: typeof AppSettingsMigrationRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/numbering': {
+      id: '/_app/settings/numbering'
+      path: '/numbering'
+      fullPath: '/settings/numbering'
+      preLoaderRoute: typeof AppSettingsNumberingRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/tables': {
+      id: '/_app/settings/tables'
+      path: '/tables'
+      fullPath: '/settings/tables'
+      preLoaderRoute: typeof AppSettingsTablesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/users': {
@@ -332,15 +1327,296 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsUsersRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/stock/': {
+      id: '/_app/stock/'
+      path: '/'
+      fullPath: '/stock/'
+      preLoaderRoute: typeof AppStockIndexRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/cessions': {
+      id: '/_app/stock/cessions'
+      path: '/cessions'
+      fullPath: '/stock/cessions'
+      preLoaderRoute: typeof AppStockCessionsRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/depreciation': {
+      id: '/_app/stock/depreciation'
+      path: '/depreciation'
+      fullPath: '/stock/depreciation'
+      preLoaderRoute: typeof AppStockDepreciationRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/inventory': {
+      id: '/_app/stock/inventory'
+      path: '/inventory'
+      fullPath: '/stock/inventory'
+      preLoaderRoute: typeof AppStockInventoryRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/tradein/': {
+      id: '/_app/tradein/'
+      path: '/'
+      fullPath: '/tradein/'
+      preLoaderRoute: typeof AppTradeinIndexRouteImport
+      parentRoute: typeof AppTradeinRoute
+    }
+    '/_app/tradein/$oroId': {
+      id: '/_app/tradein/$oroId'
+      path: '/$oroId'
+      fullPath: '/tradein/$oroId'
+      preLoaderRoute: typeof AppTradeinOroIdRouteImport
+      parentRoute: typeof AppTradeinRoute
+    }
+    '/_app/tradein/new': {
+      id: '/_app/tradein/new'
+      path: '/new'
+      fullPath: '/tradein/new'
+      preLoaderRoute: typeof AppTradeinNewRouteImport
+      parentRoute: typeof AppTradeinRoute
+    }
+    '/_app/tradein/partners': {
+      id: '/_app/tradein/partners'
+      path: '/partners'
+      fullPath: '/tradein/partners'
+      preLoaderRoute: typeof AppTradeinPartnersRouteImport
+      parentRoute: typeof AppTradeinRoute
+    }
+    '/_app/vehicles/': {
+      id: '/_app/vehicles/'
+      path: '/'
+      fullPath: '/vehicles/'
+      preLoaderRoute: typeof AppVehiclesIndexRouteImport
+      parentRoute: typeof AppVehiclesRoute
+    }
+    '/_app/vehicles/$vehicleId': {
+      id: '/_app/vehicles/$vehicleId'
+      path: '/$vehicleId'
+      fullPath: '/vehicles/$vehicleId'
+      preLoaderRoute: typeof AppVehiclesVehicleIdRouteImport
+      parentRoute: typeof AppVehiclesRoute
+    }
+    '/_app/vehicles/new': {
+      id: '/_app/vehicles/new'
+      path: '/new'
+      fullPath: '/vehicles/new'
+      preLoaderRoute: typeof AppVehiclesNewRouteImport
+      parentRoute: typeof AppVehiclesRoute
+    }
+    '/_app/workshop/': {
+      id: '/_app/workshop/'
+      path: '/'
+      fullPath: '/workshop/'
+      preLoaderRoute: typeof AppWorkshopIndexRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
+    '/_app/workshop/$orId': {
+      id: '/_app/workshop/$orId'
+      path: '/$orId'
+      fullPath: '/workshop/$orId'
+      preLoaderRoute: typeof AppWorkshopOrIdRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
+    '/_app/workshop/chrono': {
+      id: '/_app/workshop/chrono'
+      path: '/chrono'
+      fullPath: '/workshop/chrono'
+      preLoaderRoute: typeof AppWorkshopChronoRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
+    '/_app/workshop/new': {
+      id: '/_app/workshop/new'
+      path: '/new'
+      fullPath: '/workshop/new'
+      preLoaderRoute: typeof AppWorkshopNewRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
+    '/_app/workshop/planning': {
+      id: '/_app/workshop/planning'
+      path: '/planning'
+      fullPath: '/workshop/planning'
+      preLoaderRoute: typeof AppWorkshopPlanningRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
+    '/_app/purchases/suppliers/': {
+      id: '/_app/purchases/suppliers/'
+      path: '/'
+      fullPath: '/purchases/suppliers/'
+      preLoaderRoute: typeof AppPurchasesSuppliersIndexRouteImport
+      parentRoute: typeof AppPurchasesSuppliersRoute
+    }
+    '/_app/purchases/suppliers/$supplierId': {
+      id: '/_app/purchases/suppliers/$supplierId'
+      path: '/$supplierId'
+      fullPath: '/purchases/suppliers/$supplierId'
+      preLoaderRoute: typeof AppPurchasesSuppliersSupplierIdRouteImport
+      parentRoute: typeof AppPurchasesSuppliersRoute
+    }
+    '/_app/purchases/suppliers/new': {
+      id: '/_app/purchases/suppliers/new'
+      path: '/new'
+      fullPath: '/purchases/suppliers/new'
+      preLoaderRoute: typeof AppPurchasesSuppliersNewRouteImport
+      parentRoute: typeof AppPurchasesSuppliersRoute
+    }
+    '/_app/settings/tables/': {
+      id: '/_app/settings/tables/'
+      path: '/'
+      fullPath: '/settings/tables/'
+      preLoaderRoute: typeof AppSettingsTablesIndexRouteImport
+      parentRoute: typeof AppSettingsTablesRoute
+    }
+    '/_app/settings/tables/$tableKey': {
+      id: '/_app/settings/tables/$tableKey'
+      path: '/$tableKey'
+      fullPath: '/settings/tables/$tableKey'
+      preLoaderRoute: typeof AppSettingsTablesTableKeyRouteImport
+      parentRoute: typeof AppSettingsTablesRoute
+    }
   }
 }
 
+interface AppClientsRouteChildren {
+  AppClientsContactIdRoute: typeof AppClientsContactIdRoute
+  AppClientsNewRoute: typeof AppClientsNewRoute
+  AppClientsIndexRoute: typeof AppClientsIndexRoute
+}
+
+const AppClientsRouteChildren: AppClientsRouteChildren = {
+  AppClientsContactIdRoute: AppClientsContactIdRoute,
+  AppClientsNewRoute: AppClientsNewRoute,
+  AppClientsIndexRoute: AppClientsIndexRoute,
+}
+
+const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
+  AppClientsRouteChildren,
+)
+
+interface AppOrdersRouteChildren {
+  AppOrdersOrderIdRoute: typeof AppOrdersOrderIdRoute
+  AppOrdersExcelRoute: typeof AppOrdersExcelRoute
+  AppOrdersNewRoute: typeof AppOrdersNewRoute
+  AppOrdersIndexRoute: typeof AppOrdersIndexRoute
+}
+
+const AppOrdersRouteChildren: AppOrdersRouteChildren = {
+  AppOrdersOrderIdRoute: AppOrdersOrderIdRoute,
+  AppOrdersExcelRoute: AppOrdersExcelRoute,
+  AppOrdersNewRoute: AppOrdersNewRoute,
+  AppOrdersIndexRoute: AppOrdersIndexRoute,
+}
+
+const AppOrdersRouteWithChildren = AppOrdersRoute._addFileChildren(
+  AppOrdersRouteChildren,
+)
+
+interface AppPartsRouteChildren {
+  AppPartsArticleIdRoute: typeof AppPartsArticleIdRoute
+  AppPartsCascadeRoute: typeof AppPartsCascadeRoute
+  AppPartsFamiliesRoute: typeof AppPartsFamiliesRoute
+  AppPartsImportRoute: typeof AppPartsImportRoute
+  AppPartsLabelsRoute: typeof AppPartsLabelsRoute
+  AppPartsNewRoute: typeof AppPartsNewRoute
+  AppPartsIndexRoute: typeof AppPartsIndexRoute
+}
+
+const AppPartsRouteChildren: AppPartsRouteChildren = {
+  AppPartsArticleIdRoute: AppPartsArticleIdRoute,
+  AppPartsCascadeRoute: AppPartsCascadeRoute,
+  AppPartsFamiliesRoute: AppPartsFamiliesRoute,
+  AppPartsImportRoute: AppPartsImportRoute,
+  AppPartsLabelsRoute: AppPartsLabelsRoute,
+  AppPartsNewRoute: AppPartsNewRoute,
+  AppPartsIndexRoute: AppPartsIndexRoute,
+}
+
+const AppPartsRouteWithChildren = AppPartsRoute._addFileChildren(
+  AppPartsRouteChildren,
+)
+
+interface AppPurchasesSuppliersRouteChildren {
+  AppPurchasesSuppliersSupplierIdRoute: typeof AppPurchasesSuppliersSupplierIdRoute
+  AppPurchasesSuppliersNewRoute: typeof AppPurchasesSuppliersNewRoute
+  AppPurchasesSuppliersIndexRoute: typeof AppPurchasesSuppliersIndexRoute
+}
+
+const AppPurchasesSuppliersRouteChildren: AppPurchasesSuppliersRouteChildren = {
+  AppPurchasesSuppliersSupplierIdRoute: AppPurchasesSuppliersSupplierIdRoute,
+  AppPurchasesSuppliersNewRoute: AppPurchasesSuppliersNewRoute,
+  AppPurchasesSuppliersIndexRoute: AppPurchasesSuppliersIndexRoute,
+}
+
+const AppPurchasesSuppliersRouteWithChildren =
+  AppPurchasesSuppliersRoute._addFileChildren(
+    AppPurchasesSuppliersRouteChildren,
+  )
+
+interface AppPurchasesRouteChildren {
+  AppPurchasesOrderIdRoute: typeof AppPurchasesOrderIdRoute
+  AppPurchasesNewRoute: typeof AppPurchasesNewRoute
+  AppPurchasesReorderRoute: typeof AppPurchasesReorderRoute
+  AppPurchasesSuppliersRoute: typeof AppPurchasesSuppliersRouteWithChildren
+  AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
+}
+
+const AppPurchasesRouteChildren: AppPurchasesRouteChildren = {
+  AppPurchasesOrderIdRoute: AppPurchasesOrderIdRoute,
+  AppPurchasesNewRoute: AppPurchasesNewRoute,
+  AppPurchasesReorderRoute: AppPurchasesReorderRoute,
+  AppPurchasesSuppliersRoute: AppPurchasesSuppliersRouteWithChildren,
+  AppPurchasesIndexRoute: AppPurchasesIndexRoute,
+}
+
+const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
+  AppPurchasesRouteChildren,
+)
+
+interface AppSalesRouteChildren {
+  AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
+  AppSalesNewRoute: typeof AppSalesNewRoute
+  AppSalesIndexRoute: typeof AppSalesIndexRoute
+}
+
+const AppSalesRouteChildren: AppSalesRouteChildren = {
+  AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
+  AppSalesNewRoute: AppSalesNewRoute,
+  AppSalesIndexRoute: AppSalesIndexRoute,
+}
+
+const AppSalesRouteWithChildren = AppSalesRoute._addFileChildren(
+  AppSalesRouteChildren,
+)
+
+interface AppSettingsTablesRouteChildren {
+  AppSettingsTablesTableKeyRoute: typeof AppSettingsTablesTableKeyRoute
+  AppSettingsTablesIndexRoute: typeof AppSettingsTablesIndexRoute
+}
+
+const AppSettingsTablesRouteChildren: AppSettingsTablesRouteChildren = {
+  AppSettingsTablesTableKeyRoute: AppSettingsTablesTableKeyRoute,
+  AppSettingsTablesIndexRoute: AppSettingsTablesIndexRoute,
+}
+
+const AppSettingsTablesRouteWithChildren =
+  AppSettingsTablesRoute._addFileChildren(AppSettingsTablesRouteChildren)
+
 interface AppSettingsRouteChildren {
+  AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
+  AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
+  AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
+  AppSettingsNumberingRoute: typeof AppSettingsNumberingRoute
+  AppSettingsTablesRoute: typeof AppSettingsTablesRouteWithChildren
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
+  AppSettingsExtensionRoute: AppSettingsExtensionRoute,
+  AppSettingsMigrationRoute: AppSettingsMigrationRoute,
+  AppSettingsNumberingRoute: AppSettingsNumberingRoute,
+  AppSettingsTablesRoute: AppSettingsTablesRouteWithChildren,
   AppSettingsUsersRoute: AppSettingsUsersRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
@@ -349,32 +1625,128 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
   AppSettingsRouteChildren,
 )
 
+interface AppStockRouteChildren {
+  AppStockCessionsRoute: typeof AppStockCessionsRoute
+  AppStockDepreciationRoute: typeof AppStockDepreciationRoute
+  AppStockInventoryRoute: typeof AppStockInventoryRoute
+  AppStockIndexRoute: typeof AppStockIndexRoute
+}
+
+const AppStockRouteChildren: AppStockRouteChildren = {
+  AppStockCessionsRoute: AppStockCessionsRoute,
+  AppStockDepreciationRoute: AppStockDepreciationRoute,
+  AppStockInventoryRoute: AppStockInventoryRoute,
+  AppStockIndexRoute: AppStockIndexRoute,
+}
+
+const AppStockRouteWithChildren = AppStockRoute._addFileChildren(
+  AppStockRouteChildren,
+)
+
+interface AppTradeinRouteChildren {
+  AppTradeinOroIdRoute: typeof AppTradeinOroIdRoute
+  AppTradeinNewRoute: typeof AppTradeinNewRoute
+  AppTradeinPartnersRoute: typeof AppTradeinPartnersRoute
+  AppTradeinIndexRoute: typeof AppTradeinIndexRoute
+}
+
+const AppTradeinRouteChildren: AppTradeinRouteChildren = {
+  AppTradeinOroIdRoute: AppTradeinOroIdRoute,
+  AppTradeinNewRoute: AppTradeinNewRoute,
+  AppTradeinPartnersRoute: AppTradeinPartnersRoute,
+  AppTradeinIndexRoute: AppTradeinIndexRoute,
+}
+
+const AppTradeinRouteWithChildren = AppTradeinRoute._addFileChildren(
+  AppTradeinRouteChildren,
+)
+
+interface AppVehiclesRouteChildren {
+  AppVehiclesVehicleIdRoute: typeof AppVehiclesVehicleIdRoute
+  AppVehiclesNewRoute: typeof AppVehiclesNewRoute
+  AppVehiclesIndexRoute: typeof AppVehiclesIndexRoute
+}
+
+const AppVehiclesRouteChildren: AppVehiclesRouteChildren = {
+  AppVehiclesVehicleIdRoute: AppVehiclesVehicleIdRoute,
+  AppVehiclesNewRoute: AppVehiclesNewRoute,
+  AppVehiclesIndexRoute: AppVehiclesIndexRoute,
+}
+
+const AppVehiclesRouteWithChildren = AppVehiclesRoute._addFileChildren(
+  AppVehiclesRouteChildren,
+)
+
+interface AppWorkshopRouteChildren {
+  AppWorkshopOrIdRoute: typeof AppWorkshopOrIdRoute
+  AppWorkshopChronoRoute: typeof AppWorkshopChronoRoute
+  AppWorkshopNewRoute: typeof AppWorkshopNewRoute
+  AppWorkshopPlanningRoute: typeof AppWorkshopPlanningRoute
+  AppWorkshopIndexRoute: typeof AppWorkshopIndexRoute
+}
+
+const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
+  AppWorkshopOrIdRoute: AppWorkshopOrIdRoute,
+  AppWorkshopChronoRoute: AppWorkshopChronoRoute,
+  AppWorkshopNewRoute: AppWorkshopNewRoute,
+  AppWorkshopPlanningRoute: AppWorkshopPlanningRoute,
+  AppWorkshopIndexRoute: AppWorkshopIndexRoute,
+}
+
+const AppWorkshopRouteWithChildren = AppWorkshopRoute._addFileChildren(
+  AppWorkshopRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppClientsRoute: typeof AppClientsRoute
+  AppAccountingRoute: typeof AppAccountingRoute
+  AppAccountingClosureRoute: typeof AppAccountingClosureRoute
+  AppAccountingSepaRoute: typeof AppAccountingSepaRoute
+  AppClientPricingRoute: typeof AppClientPricingRoute
+  AppClientsRoute: typeof AppClientsRouteWithChildren
+  AppConsignmentRoute: typeof AppConsignmentRoute
+  AppCrmRoute: typeof AppCrmRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDemoRoute: typeof AppDemoRoute
   AppEshopRoute: typeof AppEshopRoute
-  AppPartsRoute: typeof AppPartsRoute
+  AppImprovementsRoute: typeof AppImprovementsRoute
+  AppOrdersRoute: typeof AppOrdersRouteWithChildren
+  AppPartsRoute: typeof AppPartsRouteWithChildren
+  AppPickingRoute: typeof AppPickingRoute
   AppPosRoute: typeof AppPosRoute
+  AppPurchasesRoute: typeof AppPurchasesRouteWithChildren
   AppReportsRoute: typeof AppReportsRoute
-  AppSalesRoute: typeof AppSalesRoute
+  AppSalesRoute: typeof AppSalesRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
-  AppVehiclesRoute: typeof AppVehiclesRoute
-  AppWorkshopRoute: typeof AppWorkshopRoute
+  AppStockRoute: typeof AppStockRouteWithChildren
+  AppTradeinRoute: typeof AppTradeinRouteWithChildren
+  AppVehiclesRoute: typeof AppVehiclesRouteWithChildren
+  AppWorkshopRoute: typeof AppWorkshopRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppClientsRoute: AppClientsRoute,
+  AppAccountingRoute: AppAccountingRoute,
+  AppAccountingClosureRoute: AppAccountingClosureRoute,
+  AppAccountingSepaRoute: AppAccountingSepaRoute,
+  AppClientPricingRoute: AppClientPricingRoute,
+  AppClientsRoute: AppClientsRouteWithChildren,
+  AppConsignmentRoute: AppConsignmentRoute,
+  AppCrmRoute: AppCrmRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDemoRoute: AppDemoRoute,
   AppEshopRoute: AppEshopRoute,
-  AppPartsRoute: AppPartsRoute,
+  AppImprovementsRoute: AppImprovementsRoute,
+  AppOrdersRoute: AppOrdersRouteWithChildren,
+  AppPartsRoute: AppPartsRouteWithChildren,
+  AppPickingRoute: AppPickingRoute,
   AppPosRoute: AppPosRoute,
+  AppPurchasesRoute: AppPurchasesRouteWithChildren,
   AppReportsRoute: AppReportsRoute,
-  AppSalesRoute: AppSalesRoute,
+  AppSalesRoute: AppSalesRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,
-  AppVehiclesRoute: AppVehiclesRoute,
-  AppWorkshopRoute: AppWorkshopRoute,
+  AppStockRoute: AppStockRouteWithChildren,
+  AppTradeinRoute: AppTradeinRouteWithChildren,
+  AppVehiclesRoute: AppVehiclesRouteWithChildren,
+  AppWorkshopRoute: AppWorkshopRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -383,7 +1755,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ShopSlugRoute: ShopSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
