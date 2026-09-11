@@ -191,6 +191,40 @@ Rapports → M13 (exports compta M12) · Paramètres → M0 (+ M14 Migration, ad
 
 ## 5. Méthode de travail
 
+### 5.0 Sauvegarde avant tout changement conséquent — RÈGLE ABSOLUE
+
+**Avant d'implémenter un changement conséquent, TOUJOURS demander au client si l'on fait un
+backup, et attendre sa réponse.** Jamais d'office, jamais sauté en silence. En cas de doute sur
+le caractère « conséquent », demander quand même.
+
+Est **conséquent** : migration Supabase, refonte ou suppression d'un module, modification
+transverse (tokens de charte, i18n, RLS, `types.ts` régénéré), renommage/déplacement de fichiers
+en masse, montée de version d'une dépendance, toute opération difficilement réversible.
+Ne l'est **pas** : correctif localisé, ajout d'un libellé, ajustement de style, mise à jour de doc.
+
+**Dépôts** — l'authentification passe par le coffre Windows (Git Credential Manager).
+Aucun token en clair dans `.git/config`, jamais.
+
+| Remote   | Dépôt                          | Rôle               |
+|----------|--------------------------------|--------------------|
+| `origin` | `the-maul/ducati-brussels-app` | dépôt principal    |
+| `backup` | `the-maul/ducati-backup`       | dépôt de sauvegarde |
+
+**Procédure**, une fois le client d'accord (arbre de travail propre et à jour exigés) :
+
+```bash
+git fetch origin && git status --porcelain   # doit être vide
+TS=$(date +%Y%m%d-%H%M%S)
+git push backup main:main                    # instantané sur le dépôt de backup
+git tag "backup-$TS" && git push backup "backup-$TS"
+git push origin "main:refs/heads/backup/$TS" # branche miroir sur le principal
+```
+
+**Restauration** : `git fetch backup --tags` puis `git reset --hard backup-<AAAAMMJJ-HHMMSS>`.
+
+Convention héritée du backup du 25/07/2026 (tag `backup-20260725-224552` côté `backup`,
+branche `backup/20260725-224552` côté `origin`) — la conserver.
+
 - **Une branche par epic, une PR par fonctionnalité.** Référence d'exigence dans **chaque commit**
   (`type(scope): description CODE`).
 - **`docs/avancement.md`** : tableau des 140 refs + 12 invariants + 10 angles morts, chacun avec
