@@ -1,12 +1,10 @@
 /**
  * M1 — Vérification des numéros de TVA (BE + UE) via VIES (Commission
- * européenne), appelée par la fonction SQL `vies_check` (anti-CORS).
+ * européenne), appelée par l'Edge Function `vies-check` (anti-CORS).
  * Fonctions pures (parsing du numéro, analyse de l'adresse VIES pour le
  * préremplissage) testées dans tests/vies.test.ts.
  */
 import { supabase } from '@/integrations/supabase/client';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Codes pays UE acceptés par VIES (EL = Grèce, XI = Irlande du Nord). */
 const EU_CODES = new Set([
@@ -58,15 +56,27 @@ export type ViesResult = {
   number: string;
 };
 
-/** Interroge VIES via la fonction SQL. Gère l'absence de la fonction (SQL non installé). */
+/**
+ * Interroge VIES via l'Edge Function `vies-check`.
+ *
+ * Passait auparavant par la fonction SQL `vies_check` (extension http de
+ * Postgres) : `ec.europa.eu` coupe la connexion TLS avec ce client
+ * (`OpenSSL SSL_read: SSL_ERROR_SYSCALL`) alors que les autres domaines
+ * répondent, et l'option curl permettant d'y remédier n'est pas configurable à
+ * l'exécution. Le `fetch` de Deno passe sans difficulté.
+ *
+ * Un 404 signifie que la fonction n'est pas déployée : on le distingue d'une
+ * indisponibilité de VIES, les deux n'appellent pas la même action.
+ */
 export async function checkVat(raw: string): Promise<ViesResult | null> {
   const parsed = parseVatInput(raw);
   if (!parsed) return null;
-  const { data, error } = await (supabase as any).rpc('vies_check', { _country: parsed.country, _number: parsed.number });
+  const { data, error } = await supabase.functions.invoke('vies-check', {
+    body: { country: parsed.country, number: parsed.number },
+  });
   if (error) {
-    const code = (error as { code?: string }).code ?? '';
-    const missing = code === 'PGRST202' || code === '42883' || /vies_check/i.test(error.message ?? '');
-    return { status: missing ? 'not_configured' : 'unavailable', name: null, address: null, ...parsed };
+    const status = (error as { context?: { status?: number } }).context?.status;
+    return { status: status === 404 ? 'not_configured' : 'unavailable', name: null, address: null, ...parsed };
   }
   const d = (data ?? {}) as { error?: string; isValid?: boolean; name?: string | null; address?: string | null };
   if (d.error) return { status: 'unavailable', name: null, address: null, ...parsed };
