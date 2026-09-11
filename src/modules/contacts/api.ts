@@ -159,7 +159,8 @@ export async function findDuplicateContacts(companyId: string, probe: DuplicateP
     _city: probe.city ?? '',
     _phone: probe.phone ?? '',
     _email: probe.email ?? '',
-    _exclude: probe.excludeId ?? null,
+    // undefined : `_exclude` est DEFAULT NULL cote SQL, l'omettre equivaut a NULL.
+    _exclude: probe.excludeId ?? undefined,
   });
   if (error) throw error;
   return (data as Contact[]) ?? [];

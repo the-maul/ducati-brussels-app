@@ -42,8 +42,9 @@ export async function listCessions(companyId: string): Promise<StockMove[]> {
 /** Enregistre une cession interne typée (cadeau, démo, fournitures atelier, garantie…). */
 export async function recordCession(articleId: string, qty: number, cessionType: string, note: string): Promise<void> {
   const { error } = await supabase.rpc('record_stock_move', {
-    _article: articleId, _type: 'cession', _qty: -Math.abs(qty), _unit_cost: null,
-    _is_reservation: false, _bin: null, _origin: 'cession', _ref: cessionType, _note: note || cessionType,
+    // undefined : _unit_cost et _bin sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+    _article: articleId, _type: 'cession', _qty: -Math.abs(qty), _unit_cost: undefined,
+    _is_reservation: false, _bin: undefined, _origin: 'cession', _ref: cessionType, _note: note || cessionType,
   });
   if (error) throw error;
 }

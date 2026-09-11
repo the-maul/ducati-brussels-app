@@ -100,7 +100,8 @@ export async function createWebOrder(companyId: string, customer: { name: string
   // Réservation de stock (disponible), append-only B4/B7
   for (const l of lines) {
     if (l.quantity <= 0) continue;
-    await supabase.rpc('record_stock_move', { _article: l.article_id, _type: 'reservation', _qty: Math.abs(l.quantity), _unit_cost: null, _is_reservation: true, _bin: null, _origin: 'eshop', _ref: orderId, _note: 'Commande web' });
+    // undefined : _unit_cost et _bin sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+    await supabase.rpc('record_stock_move', { _article: l.article_id, _type: 'reservation', _qty: Math.abs(l.quantity), _unit_cost: undefined, _is_reservation: true, _bin: undefined, _origin: 'eshop', _ref: orderId, _note: 'Commande web' });
   }
   return orderId;
 }

@@ -173,7 +173,7 @@ export async function validateReprise(a: ValidateArgs): Promise<{ articleId: str
     // 2) Entrée de stock valorisée (PAMP = coût de reprise) — append-only
     const { error: me } = await supabase.rpc('record_stock_move', {
       _article: articleId, _type: 'entree', _qty: 1, _unit_cost: unitCost,
-      _is_reservation: false, _bin: null, _origin: 'reception', _ref: a.oroNumber,
+      _is_reservation: false, _bin: undefined, _origin: 'reception', _ref: a.oroNumber,
       _note: 'Reprise validée — entrée en stock occasion',
     });
     if (me) throw me;
@@ -193,7 +193,7 @@ export async function validateReprise(a: ValidateArgs): Promise<{ articleId: str
     if (realQty <= 0) {
       const { error: re } = await supabase.rpc('record_stock_move', {
         _article: articleId, _type: 'entree', _qty: 1, _unit_cost: unitCost,
-        _is_reservation: false, _bin: null, _origin: 'reception', _ref: a.oroNumber,
+        _is_reservation: false, _bin: undefined, _origin: 'reception', _ref: a.oroNumber,
         _note: 'Reprise re-validée après annulation — ré-entrée en stock',
       });
       if (re) throw re;
@@ -239,8 +239,8 @@ export async function cancelReprise(companyId: string, oroId: string, oroNumber:
       // Erreur propagée AVANT tout changement d'état : jamais de sortie de
       // stock silencieusement perdue (B7) — l'annulation reste rejouable.
       const { error: me } = await supabase.rpc('record_stock_move', {
-        _article: articleId, _type: 'sortie', _qty: -1, _unit_cost: null,
-        _is_reservation: false, _bin: null, _origin: 'reception', _ref: oroNumber,
+        _article: articleId, _type: 'sortie', _qty: -1, _unit_cost: undefined,
+        _is_reservation: false, _bin: undefined, _origin: 'reception', _ref: oroNumber,
         _note: 'Annulation de la reprise — sortie de stock',
       });
       if (me) throw me;

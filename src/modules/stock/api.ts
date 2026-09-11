@@ -29,9 +29,11 @@ export async function recordMove(p: {
   isReservation?: boolean; bin?: string | null; origin?: string; ref?: string | null; note?: string | null;
 }): Promise<void> {
   const { error } = await supabase.rpc('record_stock_move', {
-    _article: p.article, _type: p.type, _qty: p.qty, _unit_cost: p.unitCost ?? null,
-    _is_reservation: p.isReservation ?? false, _bin: p.bin ?? null,
-    _origin: p.origin ?? 'screen', _ref: p.ref ?? null, _note: p.note ?? null,
+    // undefined : _unit_cost/_bin/_ref/_note sont DEFAULT NULL cote SQL, les omettre
+    // equivaut exactement a passer NULL, et c'est ce que le type genere attend.
+    _article: p.article, _type: p.type, _qty: p.qty, _unit_cost: p.unitCost ?? undefined,
+    _is_reservation: p.isReservation ?? false, _bin: p.bin ?? undefined,
+    _origin: p.origin ?? 'screen', _ref: p.ref ?? undefined, _note: p.note ?? undefined,
   });
   if (error) throw error;
 }

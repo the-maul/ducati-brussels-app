@@ -27,8 +27,10 @@ export async function updateCompany(id: string, patch: CompanyPatch): Promise<vo
 
 export async function createCompany(p: { code: string; name: string; legal_name?: string; vat?: string; address?: string; zip?: string; city?: string }): Promise<string> {
   const { data, error } = await supabase.rpc('create_company', {
-    _code: p.code, _name: p.name, _legal_name: p.legal_name ?? null, _vat: p.vat ?? null,
-    _address: p.address ?? null, _zip: p.zip ?? null, _city: p.city ?? null,
+    // undefined et non null : ces parametres sont DEFAULT NULL cote SQL, les omettre
+    // revient exactement a passer NULL, et c'est ce que le type genere attend.
+    _code: p.code, _name: p.name, _legal_name: p.legal_name ?? undefined, _vat: p.vat ?? undefined,
+    _address: p.address ?? undefined, _zip: p.zip ?? undefined, _city: p.city ?? undefined,
   });
   if (error) throw error;
   return data as string;

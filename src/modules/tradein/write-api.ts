@@ -124,8 +124,9 @@ export async function addOroLine(oroId: string, companyId: string, l: OroLineInp
   // Pièce stockée → cession de stock vers le véhicule (sortie valorisée, pas une vente).
   if (l.kind === 'piece' && l.article_id && l.quantity > 0) {
     const { error: me } = await supabase.rpc('record_stock_move', {
-      _article: l.article_id, _type: 'cession', _qty: -Math.abs(l.quantity), _unit_cost: null,
-      _is_reservation: false, _bin: null, _origin: 'oro', _ref: oroId, _note: 'Remise en état occasion',
+      // undefined : _unit_cost et _bin sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+      _article: l.article_id, _type: 'cession', _qty: -Math.abs(l.quantity), _unit_cost: undefined,
+      _is_reservation: false, _bin: undefined, _origin: 'oro', _ref: oroId, _note: 'Remise en état occasion',
     });
     if (me) throw me;
   }

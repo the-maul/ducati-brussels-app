@@ -18,14 +18,16 @@ export async function recordBinCount(articleId: string, counted: number, bin: st
 /** Inventaire tournant : articles à recompter (priorité au plus ancien mouvement). */
 export type CycleCandidate = { article_id: string; reference: string; designation: string; bin_location: string | null; real_qty: number; last_move: string | null };
 export async function getCycleCandidates(companyId: string, category?: string, limit = 50): Promise<CycleCandidate[]> {
-  const { data, error } = await supabase.rpc('cycle_count_candidates', { _company: companyId, _category: category ?? null, _limit: limit });
+  // undefined : `_category` est DEFAULT NULL cote SQL, l'omettre equivaut a NULL.
+  const { data, error } = await supabase.rpc('cycle_count_candidates', { _company: companyId, _category: category ?? undefined, _limit: limit });
   if (error) throw error;
   return (data ?? []).map((r) => ({ ...r, real_qty: Number(r.real_qty) }));
 }
 
 /** Étiquetage différé cumulable (B12) : ajoute une étiquette à la file du poste. */
 export async function enqueueLabel(articleId: string, qty?: number, withBarcode = true, withPrice = true): Promise<void> {
-  const { error } = await supabase.rpc('enqueue_label', { _article: articleId, _qty: qty ?? null, _barcode: withBarcode, _price: withPrice });
+  // undefined : `_qty` est DEFAULT NULL cote SQL (= quantite par defaut), l'omettre equivaut a NULL.
+  const { error } = await supabase.rpc('enqueue_label', { _article: articleId, _qty: qty ?? undefined, _barcode: withBarcode, _price: withPrice });
   if (error) throw error;
 }
 export type LabelQueueRow = Database['public']['Tables']['label_queue']['Row'];
@@ -77,7 +79,8 @@ export async function resetRealStock(companyId: string, keepVehicles: boolean): 
 }
 
 export async function recordCount(articleId: string, counted: number, mode: ReadjustMode, bin?: string | null): Promise<void> {
-  const { error } = await supabase.rpc('record_inventory_count', { _article: articleId, _counted: counted, _mode: mode, _bin: bin ?? null });
+  // undefined : `_bin` est DEFAULT NULL cote SQL, l'omettre equivaut a NULL.
+  const { error } = await supabase.rpc('record_inventory_count', { _article: articleId, _counted: counted, _mode: mode, _bin: bin ?? undefined });
   if (error) throw error;
 }
 

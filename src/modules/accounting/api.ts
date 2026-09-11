@@ -112,11 +112,13 @@ export async function getPendingEffects(companyId: string, to: string): Promise<
   return (data ?? []).map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 export async function closeFiscalYear(companyId: string, from: string, to: string, label?: string): Promise<string> {
-  const { data, error } = await supabase.rpc('close_fiscal_year', { _company: companyId, _from: from, _to: to, _label: label ?? null });
+  // undefined : `_label` est DEFAULT NULL cote SQL, l'omettre equivaut a NULL.
+  const { data, error } = await supabase.rpc('close_fiscal_year', { _company: companyId, _from: from, _to: to, _label: label ?? undefined });
   if (error) throw error;
   return data as string;
 }
-export type ClosureRow = Database['public']['Tables']['fiscal_closures']['Row'];
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+export type ClosureRow = import('@/integrations/supabase/types').Database['public']['Tables']['fiscal_closures']['Row'];
 export async function listClosures(companyId: string): Promise<ClosureRow[]> {
   const { data, error } = await supabase.from('fiscal_closures').select('*').eq('company_id', companyId).order('period_to', { ascending: false });
   if (error) throw error;

@@ -19,7 +19,8 @@ export async function createConsignment(companyId: string, p: { depositor_id?: s
   if (error) throw error;
 }
 export async function settleConsignment(consignmentId: string, salePriceTtc: number): Promise<{ commission: number; reversal: number }> {
-  const { data, error } = await supabase.rpc('settle_consignment', { _consignment: consignmentId, _sale_price_ttc: salePriceTtc, _sale_document: null });
+  // undefined : `_sale_document` est DEFAULT NULL cote SQL, l'omettre equivaut a NULL.
+  const { data, error } = await supabase.rpc('settle_consignment', { _consignment: consignmentId, _sale_price_ttc: salePriceTtc, _sale_document: undefined });
   if (error) throw error;
   const r = (Array.isArray(data) ? data[0] : data) as { commission: number; reversal: number };
   return { commission: Number(r.commission), reversal: Number(r.reversal) };

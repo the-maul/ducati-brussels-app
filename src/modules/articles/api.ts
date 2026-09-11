@@ -311,8 +311,10 @@ export async function recordPriceChange(
   p: { purchase?: number; saleHt?: number; saleTtc?: number; coef?: number; origin?: string },
 ): Promise<void> {
   const { error } = await supabase.rpc('record_price_change', {
-    _article: articleId, _purchase: p.purchase ?? null, _sale_ht: p.saleHt ?? null,
-    _sale_ttc: p.saleTtc ?? null, _coef: p.coef ?? null, _origin: p.origin ?? 'screen',
+    // undefined et non null : ces parametres sont declares DEFAULT NULL cote SQL,
+    // les omettre revient exactement a passer NULL, et c'est ce que le type attend.
+    _article: articleId, _purchase: p.purchase ?? undefined, _sale_ht: p.saleHt ?? undefined,
+    _sale_ttc: p.saleTtc ?? undefined, _coef: p.coef ?? undefined, _origin: p.origin ?? 'screen',
   });
   if (error) throw error;
 }

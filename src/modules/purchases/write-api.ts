@@ -103,7 +103,11 @@ export async function createPurchaseOrder(p: {
     order_date: p.orderDate ?? null, expected_date: p.expectedDate ?? null,
     shipping_ht: p.shippingHt ?? 0, shipping_taxed: p.shippingTaxed !== false, shipping_vat_rate: p.shippingVatRate ?? 21,
     global_discount_pct: p.globalDiscountPct ?? 0, source_order_id: p.sourceOrderId ?? null, notes: p.notes ?? null,
-    ...totals,
+    // On n'ecrit QUE les trois totaux qui sont des colonnes. computePurchaseTotals
+    // renvoie aussi lines_ht et global_discount, utiles a l'affichage mais absents
+    // de la table : les spreader faisait rejeter TOUT l'insert par PostgREST (400),
+    // donc aucune commande ni reception n'etait creable.
+    total_ht: totals.total_ht, total_vat: totals.total_vat, total_ttc: totals.total_ttc,
   }).select('id').single();
   if (error) throw error;
   const orderId = order.id as string;
@@ -133,7 +137,8 @@ export async function createPurchaseOrder(p: {
       const unitNet = r3(l.unit_price_ht * (1 - (l.discount_pct || 0) / 100));
       const { error: me } = await supabase.rpc('record_stock_move', {
         _article: l.article_id, _type: 'entree', _qty: Math.abs(l.quantity), _unit_cost: unitNet,
-        _is_reservation: false, _bin: l.bin_location ?? null, _origin: 'reception', _ref: number, _note: null,
+        // undefined : _bin/_ref/_note sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+      _is_reservation: false, _bin: l.bin_location ?? undefined, _origin: 'reception', _ref: number ?? undefined, _note: undefined,
       });
       if (me) throw me;
 

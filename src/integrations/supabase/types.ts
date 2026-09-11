@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       account_mappings: {
@@ -1344,10 +1319,12 @@ export type Database = {
           license_date: string | null
           license_number: string | null
           license_place: string | null
+          license_scan_path: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          model_interests: string[] | null
           my_ducati_city: string | null
           my_ducati_country: string | null
           my_ducati_data: Json | null
@@ -1361,8 +1338,10 @@ export type Database = {
           my_ducati_score: number | null
           my_ducati_synced_at: string | null
           national_id: string | null
+          national_id_scan_path: string | null
           national_register: string | null
           notes: string | null
+          notify_model_stock: boolean | null
           opening_balance: number
           payment_terms: string | null
           phone: string | null
@@ -1384,6 +1363,7 @@ export type Database = {
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
           vat_number: string | null
+          vehicle_preference: string | null
           vies_checked_at: string | null
           vies_valid: boolean | null
           watch_note: string | null
@@ -1439,10 +1419,12 @@ export type Database = {
           license_date?: string | null
           license_number?: string | null
           license_place?: string | null
+          license_scan_path?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          model_interests?: string[] | null
           my_ducati_city?: string | null
           my_ducati_country?: string | null
           my_ducati_data?: Json | null
@@ -1456,8 +1438,10 @@ export type Database = {
           my_ducati_score?: number | null
           my_ducati_synced_at?: string | null
           national_id?: string | null
+          national_id_scan_path?: string | null
           national_register?: string | null
           notes?: string | null
+          notify_model_stock?: boolean | null
           opening_balance?: number
           payment_terms?: string | null
           phone?: string | null
@@ -1479,6 +1463,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
+          vehicle_preference?: string | null
           vies_checked_at?: string | null
           vies_valid?: boolean | null
           watch_note?: string | null
@@ -1534,10 +1519,12 @@ export type Database = {
           license_date?: string | null
           license_number?: string | null
           license_place?: string | null
+          license_scan_path?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
           mode_ht?: boolean
+          model_interests?: string[] | null
           my_ducati_city?: string | null
           my_ducati_country?: string | null
           my_ducati_data?: Json | null
@@ -1551,8 +1538,10 @@ export type Database = {
           my_ducati_score?: number | null
           my_ducati_synced_at?: string | null
           national_id?: string | null
+          national_id_scan_path?: string | null
           national_register?: string | null
           notes?: string | null
+          notify_model_stock?: boolean | null
           opening_balance?: number
           payment_terms?: string | null
           phone?: string | null
@@ -1574,6 +1563,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["contact_type"]
           updated_at?: string
           vat_number?: string | null
+          vehicle_preference?: string | null
           vies_checked_at?: string | null
           vies_valid?: boolean | null
           watch_note?: string | null
@@ -4924,6 +4914,14 @@ export type Database = {
         Args: { _company: string; _from: string; _label?: string; _to: string }
         Returns: string
       }
+      contact_delete_safe: { Args: { _id: string }; Returns: undefined }
+      contact_dependencies: {
+        Args: { _id: string }
+        Returns: {
+          n: number
+          table_name: string
+        }[]
+      }
       contact_encours: {
         Args: { _contact: string }
         Returns: {
@@ -4932,17 +4930,8 @@ export type Database = {
           current_due: number
         }[]
       }
-      contact_delete_safe: {
-        Args: { _id: string }
-        Returns: undefined
-      }
-      contact_dependencies: {
-        Args: { _id: string }
-        Returns: {
-          n: number
-          table_name: string
-        }[]
-      }
+      contact_norm_phone: { Args: { _v: string }; Returns: string }
+      contact_norm_txt: { Args: { _v: string }; Returns: string }
       contacts_find_duplicates: {
         Args: {
           _city: string
@@ -5002,10 +4991,12 @@ export type Database = {
           license_date: string | null
           license_number: string | null
           license_place: string | null
+          license_scan_path: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          model_interests: string[] | null
           my_ducati_city: string | null
           my_ducati_country: string | null
           my_ducati_data: Json | null
@@ -5019,8 +5010,10 @@ export type Database = {
           my_ducati_score: number | null
           my_ducati_synced_at: string | null
           national_id: string | null
+          national_id_scan_path: string | null
           national_register: string | null
           notes: string | null
+          notify_model_stock: boolean | null
           opening_balance: number
           payment_terms: string | null
           phone: string | null
@@ -5042,6 +5035,7 @@ export type Database = {
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
           vat_number: string | null
+          vehicle_preference: string | null
           vies_checked_at: string | null
           vies_valid: boolean | null
           watch_note: string | null
@@ -5112,10 +5106,12 @@ export type Database = {
           license_date: string | null
           license_number: string | null
           license_place: string | null
+          license_scan_path: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
           mode_ht: boolean
+          model_interests: string[] | null
           my_ducati_city: string | null
           my_ducati_country: string | null
           my_ducati_data: Json | null
@@ -5129,8 +5125,10 @@ export type Database = {
           my_ducati_score: number | null
           my_ducati_synced_at: string | null
           national_id: string | null
+          national_id_scan_path: string | null
           national_register: string | null
           notes: string | null
+          notify_model_stock: boolean | null
           opening_balance: number
           payment_terms: string | null
           phone: string | null
@@ -5152,6 +5150,7 @@ export type Database = {
           type: Database["public"]["Enums"]["contact_type"]
           updated_at: string
           vat_number: string | null
+          vehicle_preference: string | null
           vies_checked_at: string | null
           vies_valid: boolean | null
           watch_note: string | null
@@ -5329,6 +5328,7 @@ export type Database = {
           revenue_ttc: number
         }[]
       }
+      next_contact_code: { Args: { _company: string }; Returns: string }
       next_document_number: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -5684,6 +5684,7 @@ export type Database = {
         | "professionnel"
         | "banque_leasing"
         | "fournisseur"
+        | "employe"
       customer_segment: "standard" | "vip"
       kit_billing_mode: "forfait" | "nomenclature"
       license_category: "AM" | "A1" | "A2" | "A" | "B" | "autre"
@@ -5733,12 +5734,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5762,11 +5763,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5787,11 +5788,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5812,11 +5813,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5829,11 +5830,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5843,9 +5844,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [
@@ -5864,6 +5862,7 @@ export const Constants = {
         "professionnel",
         "banque_leasing",
         "fournisseur",
+        "employe",
       ],
       customer_segment: ["standard", "vip"],
       kit_billing_mode: ["forfait", "nomenclature"],

@@ -139,7 +139,9 @@ export async function createDocument(p: {
           ? { _type: 'sortie', _qty: -qty, _is_reservation: false }      // débite le réel
           : { _type: 'reservation', _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
         const { error: se } = await supabase.rpc('record_stock_move', {
-          _article: l.article_id, _unit_cost: null, _bin: null, _origin: 'sale', _ref: number, _note: null, ...args,
+          // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+          _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
+          _ref: number ?? undefined, _note: undefined, ...args,
         });
         if (se) throw se;
       }
@@ -158,8 +160,8 @@ export async function liberateReservation(docId: string): Promise<void> {
   for (const l of lines) {
     if (!l.article_id || Number(l.quantity) <= 0) continue;
     const { error } = await supabase.rpc('record_stock_move', {
-      _article: l.article_id, _type: 'liberation', _qty: -Math.abs(Number(l.quantity)), _unit_cost: null,
-      _is_reservation: true, _bin: null, _origin: 'sale', _ref: doc.number, _note: 'Libération réservation',
+      _article: l.article_id, _type: 'liberation', _qty: -Math.abs(Number(l.quantity)), _unit_cost: undefined,
+      _is_reservation: true, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Libération réservation',
     });
     if (error) throw error;
   }
@@ -261,8 +263,8 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
   for (const l of lines) {
     if (!l.article_id || Number(l.quantity) <= 0) continue;
     const { error } = await supabase.rpc('record_stock_move', {
-      _article: l.article_id, _type: 'entree', _qty: Math.abs(Number(l.quantity)), _unit_cost: null,
-      _is_reservation: false, _bin: null, _origin: 'sale', _ref: doc.number, _note: 'Avoir / réintégration',
+      _article: l.article_id, _type: 'entree', _qty: Math.abs(Number(l.quantity)), _unit_cost: undefined,
+      _is_reservation: false, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Avoir / réintégration',
     });
     if (error) throw error;
   }
