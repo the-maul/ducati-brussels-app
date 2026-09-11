@@ -39,6 +39,26 @@ function readMeta(meta: unknown): MutationFeedbackMeta {
   return (meta ?? {}) as MutationFeedbackMeta;
 }
 
+/**
+ * Extrait un message lisible d'une exception, quelle que soit sa forme.
+ *
+ * supabase-js ne leve PAS des instances d'Error : PostgrestError est un objet
+ * simple { message, details, hint, code }. Un test `err instanceof Error` le
+ * rate donc et l'utilisateur recoit « L'enregistrement a echoue » a la place du
+ * vrai motif — par exemple une colonne absente du schema, qui dit exactement
+ * quelle migration manque.
+ */
+export function errorMessage(err: unknown): string {
+  if (typeof err === 'string' && err.trim()) return err;
+  if (err && typeof err === 'object') {
+    const o = err as { message?: unknown; details?: unknown; hint?: unknown };
+    const parts = [o.message, o.details, o.hint]
+      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+    if (parts.length) return parts.join(' — ');
+  }
+  return t('feedback.error');
+}
+
 export function createMutationCache() {
   return new MutationCache({
     // Signature react-query : (data, variables, onMutateResult, mutation, context).
@@ -50,10 +70,7 @@ export function createMutationCache() {
     onError: (err, _variables, _onMutateResult, mutation) => {
       const { error } = readMeta(mutation.options.meta);
       if (error === false) return;
-      // Le message de l'exception est plus utile que « ça a échoué » : les
-      // fonctions Postgres renvoient des messages métier (CONTACT_HAS_DEPENDENCIES…).
-      const fallback = err instanceof Error && err.message ? err.message : t('feedback.error');
-      toast.error(error ?? fallback);
+      toast.error(error ?? errorMessage(err));
     },
   });
 }
