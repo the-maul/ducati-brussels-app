@@ -17,6 +17,7 @@ import { addToReorderProposal } from '@/modules/purchases/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/parts/$articleId')({
   head: () => ({ meta: [{ title: 'Article — Ducati Bruxelles' }] }),
@@ -43,17 +44,21 @@ function EditArticle() {
     enabled: !!article?.superseded_by_id,
   });
 
-  const m = useMutation({
+  const m = useSaveMutation({
     mutationFn: (payload: ArticleInsert) => updateArticle(articleId, payload),
+    success: t('feedback.saved'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['articles'] });
       qc.invalidateQueries({ queryKey: ['article', articleId] });
-      navigate({ to: '/parts' });
     },
+    // Différé de SETTLE_MS : laisse voir la coche du bouton avant de quitter l'écran.
+    onDone: () => navigate({ to: '/parts' }),
     onError: (e) => setError(e instanceof Error ? e.message : t('articles.errSave')),
   });
 
   const duplicate = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => duplicateArticle(articleId),
     onSuccess: (newId) => {
       qc.invalidateQueries({ queryKey: ['articles'] });
@@ -136,7 +141,7 @@ function EditArticle() {
           <ArticleForm
             initial={article}
             companyId={activeCompanyId}
-            submitting={m.isPending}
+            status={m.status}
             error={error}
             onSubmit={(p) => { setError(null); m.mutate(p); }}
             onCancel={() => navigate({ to: '/parts' })}

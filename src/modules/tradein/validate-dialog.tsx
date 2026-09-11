@@ -110,6 +110,8 @@ export function ValidateRepriseDialog({ open, onOpenChange, companyId, oro, oroR
   const attestationNeeded = needsAttestation(sellerStatus);
 
   const signAttestation = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: async () => {
       const blob = await buildMarginAttestationPdf({
         lastName: clientForm.last_name || clientForm.company_name,
@@ -176,6 +178,8 @@ export function ValidateRepriseDialog({ open, onOpenChange, companyId, oro, oroR
   });
 
   const finish = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: async () => {
       const data = buildData();
       // Mise à jour des coordonnées client vérifiées (étape 2)

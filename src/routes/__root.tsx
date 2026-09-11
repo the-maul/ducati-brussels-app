@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ConfirmProvider } from "@/components/confirm-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,8 @@ function RootComponent() {
         <ConfirmProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          {/* Hôte des toasts : sans lui, tous les toast() de l'app sont muets. */}
+          <Toaster />
         </ConfirmProvider>
       </AuthProvider>
     </QueryClientProvider>

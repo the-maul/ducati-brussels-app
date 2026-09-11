@@ -189,10 +189,14 @@ function SalesList() {
   }, [data, search, f, contactById, availByDoc]);
 
   const printMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: async (id: string) => printDocument(await getDocumentFull(id), activeCompany?.name ?? ''),
     onError: () => toast.error(t('sales.errPrint')),
   });
   const duplicateMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (id: string) => duplicateDocument(id),
     onSuccess: (newId) => {
       toast.success(t('sales.duplicated'));
@@ -202,6 +206,8 @@ function SalesList() {
     onError: () => toast.error(t('sales.errDuplicate')),
   });
   const deleteMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (id: string) => deleteDocument(id),
     onSuccess: () => {
       toast.success(t('sales.deleted'));
@@ -370,6 +376,8 @@ function PurgeQuotesDialog({ companyId, documents, onClose, onDone }: { companyI
     [documents, date],
   );
   const purge = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => purgeQuotesBefore(companyId, date),
     onSuccess: (n) => {
       toast.success(t('sales.purgeQuotesDone').replace('{n}', String(n)));

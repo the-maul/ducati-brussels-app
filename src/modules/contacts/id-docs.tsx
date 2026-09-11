@@ -91,6 +91,8 @@ export function IdDocsSection({ companyId, contactId, current, onApply, only }: 
   };
 
   const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: (att: Attachment) => deleteAttachment(att),
     onSuccess: refresh,
     onError: () => toast.error(t('contacts.uploadError')),
@@ -98,6 +100,8 @@ export function IdDocsSection({ companyId, contactId, current, onApply, only }: 
 
   // Lecture automatique : envoie les scans présents à la fonction serveur
   const read = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: async (): Promise<ExtractedIdData> => {
       const paths = allFolders.map((fo) => scans[fo]?.att.storage_path).filter(Boolean) as string[];
       const { data, error } = await (supabase as any).functions.invoke('read-id-doc', { body: { paths } });

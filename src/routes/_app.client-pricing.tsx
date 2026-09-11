@@ -53,6 +53,8 @@ function PricingPage() {
   });
   const del = useMutation({ mutationFn: (id: string) => deletePriceRule(id), onSuccess: () => rules.refetch() });
   const sim = useMutation({
+    // Simulation de prix : une lecture, pas une écriture — pas de toast.
+    meta: { success: false },
     mutationFn: () => resolveCustomerPrice(activeCompanyId!, client, simArt, Number(simQty) || 1),
     onSuccess: (r) => setResolved(r ? { ht: r.unit_price_ht, ttc: r.unit_price_ttc, kind: r.rule_kind, pct: r.discount_pct } : null),
   });

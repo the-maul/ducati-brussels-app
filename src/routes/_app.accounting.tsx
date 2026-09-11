@@ -29,9 +29,10 @@ function AccountingPage() {
   const entries = useQuery({ queryKey: ['acct-entries', activeCompanyId, from, to], queryFn: () => listEntries(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const vo = useQuery({ queryKey: ['vo-register', activeCompanyId, from, to], queryFn: () => getVoMarginRegister(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const voSum = useQuery({ queryKey: ['vo-summary', activeCompanyId, from, to], queryFn: () => getVoMarginSummary(activeCompanyId!, from, to), enabled: !!activeCompanyId });
-  const voCsv = useMutation({ mutationFn: () => exportVoRegister(activeCompanyId!, from, to) });
-  const attest = useMutation({ mutationFn: (r: VoMarginRow) => printVoMarginAttestation(activeCompanyId!, r) });
-  const wb = useMutation({ mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
+  // Export et impression : le fichier produit EST le retour, pas de toast.
+  const voCsv = useMutation({ meta: { success: false }, mutationFn: () => exportVoRegister(activeCompanyId!, from, to) });
+  const attest = useMutation({ meta: { success: false }, mutationFn: (r: VoMarginRow) => printVoMarginAttestation(activeCompanyId!, r) });
+  const wb = useMutation({ meta: { success: false }, mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
   const gen = useMutation({ mutationFn: () => generateEntries(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
   const cutover = useQuery({ queryKey: ['acct-cutover', activeCompanyId], queryFn: () => getAccountingCutover(activeCompanyId!), enabled: !!activeCompanyId });
   const setCut = useMutation({ mutationFn: (d: string) => setAccountingCutover(activeCompanyId!, d), onSuccess: () => { cutover.refetch(); vat.refetch(); entries.refetch(); } });

@@ -212,6 +212,8 @@ function SendMailDialog({ companyId, document, contact, onClose }: { companyId: 
   const send = useMutation({
     mutationFn: () => enqueueDocumentEmail({ companyId, document, contact, subject, body }),
     onSuccess: () => { toast.success(t('sales.mailQueued')); onClose(); },
+      // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+      meta: { success: false, error: false },
     onError: () => toast.error(t('sales.errSend')),
   });
   return (
@@ -255,6 +257,8 @@ function SendSmsDialog({ companyId, document, contact, onClose }: { companyId: s
   const send = useMutation({
     mutationFn: () => enqueueDocumentSms({ companyId, document, contact, body }),
     onSuccess: () => { toast.success(t('sales.smsQueued')); onClose(); },
+      // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+      meta: { success: false, error: false },
     onError: () => toast.error(t('sales.errSend')),
   });
   return (

@@ -76,12 +76,16 @@ function DepreciationPage() {
   };
 
   const apply = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (p: { articleId: string; rate: number; reason: string; baseValue: number }) =>
       createDepreciation({ companyId: activeCompanyId!, articleId: p.articleId, rate: p.rate, reason: p.reason, baseValue: p.baseValue }),
     onSuccess: () => { invalidate(); toast.success(t('stock.deprecApplied')); },
     onError: () => toast.error(t('stock.deprecErr')),
   });
   const cancel = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (id: string) => cancelDepreciation(id),
     onSuccess: () => { invalidate(); toast.success(t('stock.deprecCancelled')); },
     onError: () => toast.error(t('stock.deprecErr')),

@@ -40,6 +40,8 @@ export function AcceptOfferDialog({ open, onOpenChange, oroId, vehicleId, best, 
   const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
   const save = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => acceptRepriseOffer(oroId, vehicleId, {
       accepted_amount: num(accepted),
       best_offer_amount: num(bestAmount),

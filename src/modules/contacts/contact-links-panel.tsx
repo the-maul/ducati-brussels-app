@@ -44,11 +44,15 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
   const confirm = useConfirm();
   const { isAdmin } = useAuth();
   const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (id: string) => deleteContact(id),
     onSuccess: () => { toast.success(t('contacts.deleted')); refresh(); },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
   const archive = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (id: string) => archiveContact(id),
     onSuccess: () => { toast.success(t('contacts.archived')); refresh(); },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
@@ -81,6 +85,8 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
     if (ok) del.mutate(id);
   };
   const create = useMutation({
+    // Création de la fiche liée : message explicite plutôt que le libellé générique.
+    meta: { success: t('feedback.created') },
     mutationFn: (opts: { inheritContact: boolean; inheritAddress: boolean }) => createLinkedContact(companyId, contact, targetType, opts),
     onSuccess: (id) => { setInheritDialogOpen(false); refresh(); navigate({ to: '/clients/$contactId', params: { contactId: id } }); },
   });

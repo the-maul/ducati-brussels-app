@@ -112,6 +112,8 @@ function ImportPage() {
   });
   const settings = settingsQ.data ?? DEFAULT_IMPORT_SETTINGS;
   const saveSettings = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: (s: ImportSettings) => saveImportSettings(activeCompanyId!, s),
     // MAJ optimiste : la case bascule tout de suite, même en repli local.
     onMutate: async (s) => {
@@ -511,6 +513,8 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['ppc-rules', companyId] });
 
   const add = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: () => addPpcRule(companyId!, {
       pct: Number(pct.replace(',', '.')) || 0,
       supplier_name: supplier.trim() || null,
@@ -521,11 +525,15 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
     onError: () => toast.error(t('articles.errSave')),
   });
   const upd = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: (v: { id: string; patch: Partial<PpcRule> }) => updatePpcRule(companyId!, v.id, v.patch),
     onSuccess: invalidate,
     onError: () => toast.error(t('articles.errSave')),
   });
   const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: (id: string) => deletePpcRule(companyId!, id),
     onSuccess: invalidate,
     onError: () => toast.error(t('articles.errSave')),

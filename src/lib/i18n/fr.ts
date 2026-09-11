@@ -84,6 +84,18 @@ export const fr = {
     cash: 'Encaisser',
     validate: 'Valider',
     back: 'Retour',
+    saving: 'Enregistrement…',
+    saved: 'Enregistré',
+  },
+
+  // Retour visuel après une écriture réussie (toast + état du bouton).
+  // Messages génériques : chaque appelant peut passer le sien.
+  feedback: {
+    saved: 'Modifications enregistrées',
+    created: 'Création enregistrée',
+    deleted: 'Suppression effectuée',
+    archived: 'Archivage effectué',
+    error: 'L’enregistrement a échoué',
   },
 
   // Dialogue de confirmation générique (useConfirm)

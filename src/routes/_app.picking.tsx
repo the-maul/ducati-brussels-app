@@ -132,6 +132,8 @@ function NewPickingDialog({ companyId, onClose, onCreated }: { companyId: string
   const resolvedLocation = location === OTHER_SENTINEL ? otherLocation : location;
 
   const createMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => source === 'document'
       ? createPickingFromDocument(companyId, documentId, resolvedLocation)
       : createEmptyPicking(companyId, resolvedLocation),
@@ -215,16 +217,22 @@ function PickingDetailDialog({ id, onClose, onChanged }: { id: string; onClose: 
   };
 
   const locationMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (loc: string) => setPickingLocation(id, loc),
     onSuccess: () => { toast.success(t('picking.updated')); refresh(); },
     onError: () => toast.error(t('picking.errUpdate')),
   });
   const statusMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (s: PickingStatus) => setPickingStatus(id, s),
     onSuccess: () => { toast.success(t('picking.updated')); refresh(); },
     onError: () => toast.error(t('picking.errUpdate')),
   });
   const qtyMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
     mutationFn: ({ itemId, qty }: { itemId: string; qty: number }) => updatePickedQty(itemId, qty),
     onSuccess: () => refresh(),
     onError: () => toast.error(t('picking.errQty')),
@@ -335,6 +343,8 @@ function AddItemDialog({ pickingId, companyId, onClose, onAdded }: { pickingId: 
   const [qty, setQty] = useState('1');
 
   const addMut = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => addPickingItem(pickingId, companyId, { designation, reference, qtyOrdered: Number(qty) || 0 }),
     onSuccess: () => { toast.success(t('picking.itemAdded')); onAdded(); },
     onError: () => toast.error(t('picking.errAddItem')),

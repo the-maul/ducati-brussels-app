@@ -24,6 +24,7 @@ import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { useSaveMutation } from '@/lib/use-save-mutation';
 
 const eurFormat = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
@@ -61,13 +62,15 @@ function EditClient() {
     }
   }, [debtorRow]);
 
-  const m = useMutation({
+  const m = useSaveMutation({
     mutationFn: (payload: ContactInsert) => updateContact(contactId, payload),
+    success: t('feedback.saved'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contacts'] });
       qc.invalidateQueries({ queryKey: ['contact', contactId] });
-      navigate({ to: '/clients' });
     },
+    // Différé de SETTLE_MS : laisse voir la coche du bouton avant de quitter l'écran.
+    onDone: () => navigate({ to: '/clients' }),
     onError: (e) => setError(e instanceof Error ? e.message : t('contacts.errSave')),
   });
 
@@ -83,6 +86,8 @@ function EditClient() {
   const [mergeOpen, setMergeOpen] = useState(false);
 
   const archive = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => archiveContact(contactId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contacts'] });
@@ -93,6 +98,8 @@ function EditClient() {
   });
 
   const unarchive = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => unarchiveContact(contactId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contacts'] });
@@ -107,6 +114,8 @@ function EditClient() {
   // est rattachee, auquel cas on propose l'archivage (regle 4, audit preserve).
   const confirm = useConfirm();
   const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => deleteContact(contactId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contacts'] });
@@ -264,7 +273,7 @@ function EditClient() {
             key={`${contact.my_ducati_synced_at ?? contact.id}|${getModelInterests(contact).join(',')}`}
             initial={contact}
             companyId={activeCompanyId}
-            submitting={m.isPending}
+            status={m.status}
             error={error}
             onSubmit={(p) => { setError(null); m.mutate(p); }}
             onCancel={() => navigate({ to: '/clients' })}
@@ -306,6 +315,8 @@ function MergeContactDialog({ open, onOpenChange, companyId, keepContact, onMerg
   const reset = () => { setTerm(''); setDeb(''); setCandidate(null); };
 
   const merge = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => mergeContacts(keepContact.id, candidate!.id),
     onSuccess: (result) => {
       onMerged();

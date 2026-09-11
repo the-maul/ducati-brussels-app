@@ -82,6 +82,8 @@ function ArticlesList() {
   const active = countActive(f);
 
   const duplicate = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: (articleId: string) => duplicateArticle(articleId),
     onSuccess: (newId) => {
       qc.invalidateQueries({ queryKey: ['articles'] });

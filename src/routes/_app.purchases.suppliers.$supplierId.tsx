@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { getContact, updateContact, contactDisplayName, type ContactInsert } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/purchases/suppliers/$supplierId')({
   head: () => ({ meta: [{ title: 'Fiche fournisseur — Ducati Bruxelles' }] }),
@@ -22,13 +23,15 @@ function EditSupplier() {
 
   const { data: contact, isLoading } = useQuery({ queryKey: ['contact', supplierId], queryFn: () => getContact(supplierId) });
 
-  const m = useMutation({
+  const m = useSaveMutation({
     mutationFn: (payload: ContactInsert) => updateContact(supplierId, payload),
+    success: t('feedback.saved'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['suppliers'] });
       qc.invalidateQueries({ queryKey: ['contact', supplierId] });
-      navigate({ to: '/purchases/suppliers' });
     },
+    // Différé de SETTLE_MS : laisse voir la coche du bouton avant de quitter l'écran.
+    onDone: () => navigate({ to: '/purchases/suppliers' }),
     onError: (e) => setError(e instanceof Error ? e.message : t('contacts.errSave')),
   });
 
@@ -42,7 +45,7 @@ function EditSupplier() {
         initial={contact}
         companyId={activeCompanyId}
         lockType="fournisseur"
-        submitting={m.isPending}
+        status={m.status}
         error={error}
         onSubmit={(p) => { setError(null); m.mutate(p); }}
         onCancel={() => navigate({ to: '/purchases/suppliers' })}

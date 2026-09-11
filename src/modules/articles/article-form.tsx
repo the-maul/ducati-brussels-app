@@ -4,12 +4,12 @@
  */
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Save } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -246,11 +246,11 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
 }
 
 export function ArticleForm({
-  initial, companyId, submitting, error, onSubmit, onCancel,
+  initial, companyId, status, error, onSubmit, onCancel,
 }: {
   initial: Article | null;
   companyId: string;
-  submitting: boolean;
+  status: SaveStatus;
   error?: string | null;
   onSubmit: (payload: ArticleInsert) => void;
   onCancel: () => void;
@@ -513,10 +513,9 @@ export function ArticleForm({
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? <Loader2 className="animate-spin" /> : <Save />}
-          {submitting ? t('articles.saving') : initial ? t('articles.save') : t('articles.create')}
-        </Button>
+        <SaveButton type="submit" status={status}>
+          {initial ? t('articles.save') : t('articles.create')}
+        </SaveButton>
       </div>
     </form>
   );

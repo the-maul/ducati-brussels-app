@@ -5,7 +5,7 @@
  */
 import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, Save, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
+import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -387,7 +388,7 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
 export function ContactForm({
   initial,
   companyId,
-  submitting,
+  status,
   error,
   onSubmit,
   onCancel,
@@ -395,7 +396,7 @@ export function ContactForm({
 }: {
   initial: Contact | null;
   companyId: string;
-  submitting: boolean;
+  status: SaveStatus;
   error?: string | null;
   onSubmit: (payload: ContactInsert) => void;
   onCancel: () => void;
@@ -879,10 +880,14 @@ export function ContactForm({
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <Button type="submit" disabled={submitting || checkingDupes}>
-          {submitting || checkingDupes ? <Loader2 className="animate-spin" /> : <Save />}
-          {checkingDupes ? t('contacts.dupChecking') : submitting ? t('contacts.saving') : initial ? t('contacts.save') : t('contacts.create')}
-        </Button>
+        <SaveButton
+          type="submit"
+          // La recherche de doublons précède l'enregistrement : même rendu « en cours ».
+          status={checkingDupes ? 'saving' : status}
+          savingLabel={checkingDupes ? t('contacts.dupChecking') : undefined}
+        >
+          {initial ? t('contacts.save') : t('contacts.create')}
+        </SaveButton>
       </div>
     </form>
   );
@@ -894,6 +899,8 @@ function VatField({ f, set }: {
   set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
 }) {
   const verify = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => checkVat(f.vat_number),
     onSuccess: (r) => {
       if (!r) return;

@@ -83,6 +83,8 @@ function LabelEditorPage() {
     setCfg((p) => ({ ...p, custom: (p.custom ?? []).filter((c) => c.id !== id) }));
 
   const save = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => saveTemplate(activeCompanyId!, {
       id: mode === 'new' ? null : selectedId,
       name: name.trim() || 'Format',
@@ -98,6 +100,8 @@ function LabelEditorPage() {
     onError: () => toast.error(t('articles.errSave')),
   });
   const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { success: false, error: false },
     mutationFn: () => deleteTemplate(activeCompanyId!, selectedId!),
     onSuccess: () => {
       setMode('view');

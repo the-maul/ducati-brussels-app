@@ -63,8 +63,9 @@ function OroView() {
   const close = useMutation({ mutationFn: () => closeOro(oroId), onSuccess: refresh });
 
   // Fiche de reprise : PDF téléchargé (transmissible) ou impression papier
-  const download = useMutation({ mutationFn: () => downloadSheetForOro(oroId) });
-  const print = useMutation({ mutationFn: () => printSheetForOro(oroId) });
+  // Téléchargement et impression : le fichier produit EST le retour, pas de toast.
+  const download = useMutation({ meta: { success: false }, mutationFn: () => downloadSheetForOro(oroId) });
+  const print = useMutation({ meta: { success: false }, mutationFn: () => printSheetForOro(oroId) });
 
   // Validation / annulation / offre acceptée / modification du dossier
   const [editOpen, setEditOpen] = useState(false);

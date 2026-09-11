@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ExternalLink, Mail, MessageSquare, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -14,6 +14,7 @@ import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/vehicles/$vehicleId')({
   head: () => ({ meta: [{ title: 'Véhicule — Ducati Bruxelles' }] }),
@@ -31,13 +32,15 @@ function EditVehicle() {
   const { data: owners } = useQuery({ queryKey: ['vehicle-owners', vehicleId], queryFn: () => listOwners(vehicleId) });
   const { data: docs } = useQuery({ queryKey: ['vehicle-docs', vehicleId], queryFn: () => listVehicleDocuments(vehicleId) });
 
-  const m = useMutation({
+  const m = useSaveMutation({
     mutationFn: (p: VehicleInsert) => updateVehicle(vehicleId, p),
+    success: t('feedback.saved'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
       qc.invalidateQueries({ queryKey: ['vehicle', vehicleId] });
-      navigate({ to: '/vehicles' });
     },
+    // Différé de SETTLE_MS : laisse voir la coche du bouton avant de quitter l'écran.
+    onDone: () => navigate({ to: '/vehicles' }),
     onError: (e) => setError(e instanceof Error ? e.message : t('vehicles.errSave')),
   });
 
@@ -128,7 +131,7 @@ function EditVehicle() {
         key={vehicle.my_ducati_synced_at ?? vehicle.id}
         initial={vehicle}
         companyId={activeCompanyId}
-        submitting={m.isPending}
+        status={m.status}
         error={error}
         onSubmit={(p) => { setError(null); m.mutate(p); }}
         onCancel={() => navigate({ to: '/vehicles' })}

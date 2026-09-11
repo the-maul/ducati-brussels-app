@@ -3,13 +3,14 @@
  * Sections : identification (carte grise), caractéristiques, infos compl., commercial.
  */
 import { useState, type ReactNode } from 'react';
-import { Loader2, Save, Wand2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import { decodeDucatiVin } from '@/lib/ducati-vin';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { VEHICLE_STATUSES, type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif } from './api';
@@ -75,11 +76,11 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
 }
 
 export function VehicleForm({
-  initial, companyId, submitting, error, onSubmit, onCancel,
+  initial, companyId, status, error, onSubmit, onCancel,
 }: {
   initial: Vehicle | null;
   companyId: string;
-  submitting: boolean;
+  status: SaveStatus;
   error?: string | null;
   onSubmit: (p: VehicleInsert) => void;
   onCancel: () => void;
@@ -247,10 +248,9 @@ export function VehicleForm({
       )}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? <Loader2 className="animate-spin" /> : <Save />}
-          {submitting ? t('vehicles.saving') : initial ? t('vehicles.save') : t('vehicles.create')}
-        </Button>
+        <SaveButton type="submit" status={status}>
+          {initial ? t('vehicles.save') : t('vehicles.create')}
+        </SaveButton>
       </div>
     </form>
   );
