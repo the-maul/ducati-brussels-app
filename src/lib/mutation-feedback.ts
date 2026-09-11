@@ -41,12 +41,13 @@ function readMeta(meta: unknown): MutationFeedbackMeta {
 
 export function createMutationCache() {
   return new MutationCache({
-    onSuccess: (_data, _variables, _context, mutation) => {
+    // Signature react-query : (data, variables, onMutateResult, mutation, context).
+    onSuccess: (_data, _variables, _onMutateResult, mutation) => {
       const { success } = readMeta(mutation.options.meta);
       if (success === false) return;
       toast.success(success ?? t('feedback.saved'));
     },
-    onError: (err, _variables, _context, mutation) => {
+    onError: (err, _variables, _onMutateResult, mutation) => {
       const { error } = readMeta(mutation.options.meta);
       if (error === false) return;
       // Le message de l'exception est plus utile que « ça a échoué » : les

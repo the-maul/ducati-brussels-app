@@ -73,10 +73,10 @@ export function useSaveMutation<TData = unknown, TVars = void>({
     ...options,
     // Le toast est émis par le MutationCache global à partir de ce meta.
     meta: { success, error, ...options.meta },
-    onMutate: (variables) => {
+    onMutate: (variables, context) => {
       clearTimers();
       setStatus('saving');
-      return options.onMutate?.(variables);
+      return options.onMutate?.(variables, context);
     },
     onSuccess: (data, variables) => {
       setStatus('saved');
