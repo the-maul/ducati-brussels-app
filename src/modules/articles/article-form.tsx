@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
+import { useIsDirty } from '@/lib/use-dirty';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -256,6 +257,8 @@ export function ArticleForm({
   onCancel: () => void;
 }) {
   const [f, setF] = useState<FormState>(() => fromArticle(initial));
+  // Rien de modifié = rien à enregistrer : le bouton reste grisé.
+  const dirty = useIsDirty(f);
   const [localError, setLocalError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
   // Table d'arrondis (appliquée au PV calculé).
@@ -513,7 +516,7 @@ export function ArticleForm({
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <SaveButton type="submit" status={status}>
+        <SaveButton type="submit" status={status} disabled={!dirty}>
           {initial ? t('articles.save') : t('articles.create')}
         </SaveButton>
       </div>

@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
+import { useIsDirty } from '@/lib/use-dirty';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { VEHICLE_STATUSES, type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif } from './api';
@@ -86,6 +87,8 @@ export function VehicleForm({
   onCancel: () => void;
 }) {
   const [f, setF] = useState<F>(() => fromVehicle(initial));
+  // Rien de modifié = rien à enregistrer : le bouton reste grisé.
+  const dirty = useIsDirty(f);
   const [localError, setLocalError] = useState<string | null>(null);
   const set = (k: string, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
 
@@ -248,7 +251,7 @@ export function VehicleForm({
       )}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <SaveButton type="submit" status={status}>
+        <SaveButton type="submit" status={status} disabled={!dirty}>
           {initial ? t('vehicles.save') : t('vehicles.create')}
         </SaveButton>
       </div>
