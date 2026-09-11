@@ -432,7 +432,8 @@ function FilterSelect({ value, onChange, options, disabled }: {
   );
 }
 
-function Th({ children, className = '' }: { children: ReactNode; className?: string }) {
+// children optionnel : certaines colonnes n'ont pas d'en-tete (colonne d'actions).
+function Th({ children, className = '' }: { children?: ReactNode; className?: string }) {
   return (
     <th className={`px-3 py-2 text-left font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>
       {children}

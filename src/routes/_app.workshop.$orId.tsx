@@ -8,7 +8,12 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
-import { updateRepairOrder, transformToInvoice, type OrPayload } from '@/modules/workshop/write-api';
+import { updateRepairOrder, transformToInvoice, type RoInput } from '@/modules/workshop/write-api';
+
+// L'editeur ne connait pas la societe : elle est ajoutee ici au moment d'ecrire.
+// Le type s'appelait OrPayload et n'a jamais existe dans write-api — l'import
+// etait casse depuis le depart.
+type OrPayload = Omit<RoInput, 'companyId'>;
 import { OrEditor } from '@/modules/workshop/or-editor';
 import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';

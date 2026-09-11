@@ -217,8 +217,18 @@ function ClientsList() {
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex items-center gap-1.5">
                     {contactDisplayName(c)}
-                    {c.is_vip && <Star className="size-3.5 shrink-0 fill-current text-warning" title={t('contacts.flagVip')} />}
-                    {c.is_watch && <AlertTriangle className="size-3.5 shrink-0 text-danger" title={getWatchNote(c) ?? t('contacts.flagWatch')} />}
+                    {/* title sur un <span> : les icones lucide ne l'acceptent pas,
+                        l'infobulle ne s'affichait donc pas. */}
+                    {c.is_vip && (
+                      <span title={t('contacts.flagVip')} className="inline-flex">
+                        <Star className="size-3.5 shrink-0 fill-current text-warning" />
+                      </span>
+                    )}
+                    {c.is_watch && (
+                      <span title={getWatchNote(c) ?? t('contacts.flagWatch')} className="inline-flex">
+                        <AlertTriangle className="size-3.5 shrink-0 text-danger" />
+                      </span>
+                    )}
                   </span>
                 </td>
                 {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}

@@ -228,7 +228,9 @@ function SalesList() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setPurgeOpen(true)}><Trash2 /> {t('sales.purgeQuotes')}</Button>
-            <Button onClick={() => navigate({ to: '/sales/new' })}><Plus /> {t('sales.newDoc')}</Button>
+            {/* search explicite : la route declare un parametre facultatif, mais
+                TanStack exige quand meme l'objet. */}
+            <Button onClick={() => navigate({ to: '/sales/new', search: { contactId: undefined } })}><Plus /> {t('sales.newDoc')}</Button>
           </div>
         }
       />

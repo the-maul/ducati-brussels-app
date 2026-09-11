@@ -31,7 +31,8 @@ function PurchasesList() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/suppliers' })}><Users /> {t('purchases.tabSuppliers')}</Button>
-            <Button variant="outline" onClick={() => navigate({ to: '/purchases/reorder' })}><ShoppingCart /> {t('purchases.reorderTitle')}</Button>
+            {/* search explicite : `highlight` est facultatif mais l'objet est exige. */}
+            <Button variant="outline" onClick={() => navigate({ to: '/purchases/reorder', search: { highlight: undefined } })}><ShoppingCart /> {t('purchases.reorderTitle')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</Button>
             <Button onClick={() => navigate({ to: '/purchases/new', search: { docType: 'REC' } })}><Truck /> {t('purchases.newReception')}</Button>
           </div>

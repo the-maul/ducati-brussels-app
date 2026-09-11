@@ -172,8 +172,18 @@ function EditClient() {
         title={
           <span className="inline-flex items-center gap-2">
             {contactDisplayName(contact)}
-            {contact.is_vip && <Star className="size-4 shrink-0 fill-current text-warning" title={t('contacts.flagVip')} />}
-            {contact.is_watch && <AlertTriangle className="size-4 shrink-0 text-danger" title={getWatchNote(contact) ?? t('contacts.flagWatch')} />}
+            {/* title sur un <span> : les icones lucide ne l'acceptent pas,
+                l'infobulle ne s'affichait donc pas. */}
+            {contact.is_vip && (
+              <span title={t('contacts.flagVip')} className="inline-flex">
+                <Star className="size-4 shrink-0 fill-current text-warning" />
+              </span>
+            )}
+            {contact.is_watch && (
+              <span title={getWatchNote(contact) ?? t('contacts.flagWatch')} className="inline-flex">
+                <AlertTriangle className="size-4 shrink-0 text-danger" />
+              </span>
+            )}
             {!contact.is_active && <StatusBadge tone="neutral" icon={Archive} label={t('contacts.archivedBadge')} />}
           </span>
         }

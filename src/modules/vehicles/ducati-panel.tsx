@@ -25,7 +25,9 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
     window.open(data.signedUrl, '_blank', 'noopener');
   };
 
-  const hasWarranty = v.warranty_start || v.warranty_end || v.warranty_state || v.warranty_activated_by;
+  // Boolean() : les champs de `v` sont typés unknown, et `{unknown && …}` en JSX
+  // n'est pas un ReactNode valide.
+  const hasWarranty = Boolean(v.warranty_start || v.warranty_end || v.warranty_state || v.warranty_activated_by);
   const hasAny = v.my_ducati_synced_at || hasWarranty || (maint.data?.length ?? 0) > 0 || (bull.data?.length ?? 0) > 0;
 
   // Demande à l'extension d'ouvrir l'URL VIN sur My Ducati, scraper et réimporter (par VIN).

@@ -154,6 +154,7 @@ function ExtraCell({ col, value, onChange }: { col: RefTableDef['extraColumns'][
   return <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} className="h-8" />;
 }
 
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+// children optionnel : certaines colonnes n'ont pas d'en-tete (colonne d'actions).
+function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return <th className={`px-2 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
 }

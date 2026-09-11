@@ -35,9 +35,11 @@ function WorkshopList() {
         description={t('workshop.subtitle')}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning' })}><CalendarDays /> {t('workshop.planning')}</Button>
+            {/* search explicite : ces routes declarent un parametre facultatif,
+                mais TanStack exige quand meme l'objet. */}
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning', search: { week: undefined } })}><CalendarDays /> {t('workshop.planning')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
-            <Button onClick={() => navigate({ to: '/workshop/new' })}><Plus /> {t('workshop.newOr')}</Button>
+            <Button onClick={() => navigate({ to: '/workshop/new', search: { contactId: undefined } })}><Plus /> {t('workshop.newOr')}</Button>
           </div>
         }
       />
