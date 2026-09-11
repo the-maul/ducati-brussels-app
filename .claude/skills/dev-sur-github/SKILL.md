@@ -57,7 +57,22 @@ branche `backup/20260725-224552` côté `origin`. La conserver.
    git diff --cached -U0 | grep -n "^+" | grep "[‘’“”]"
    ```
    (Les `.md` de documentation ne sont pas concernés, ils ne sont pas compilés.)
-2. **Référence d'exigence dans le message** : `type(scope): description CODE` (règle §5 du CLAUDE.md).
+2. **Titre lisible par le client, PUIS la référence technique.** Le CRM du client publie la
+   ligne de sujet des commits telle quelle : un client non technicien doit comprendre ce qui a
+   changé dans l'application. Format :
+
+   ```
+   <Ce que ça change pour l'utilisateur> — type(scope): description CODE
+   ```
+
+   Exemples :
+   - `Fiches clients : on voit maintenant que l'enregistrement a fonctionné — feat(ux): toast global + bouton a coche`
+   - `Liste clients : cocher plusieurs fiches et agir dessus d'un coup — feat(contacts): actions groupees CON002`
+   - `Fiches clients : le bouton Enregistrer reste grise tant que rien n'a change — feat(ux): useIsDirty`
+
+   La première moitié parle métier, sans jargon, sans nom de fichier ni de fonction.
+   La seconde garde la convention et la **référence d'exigence** exigée par la règle §5 du
+   CLAUDE.md. Le corps du message reste technique, il n'est pas publié.
 3. **Aucun secret commité** — les clés vivent côté Supabase. `.env` ne contient que l'URL et la clé
    *publishable* (anon), c'est normal.
 

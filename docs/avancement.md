@@ -13,7 +13,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | Epic | Périmètre | Statut |
 |---|---|---|
 | **E0 — Socle + design system** (M0) | socle/auth/RLS/multi-société/events/design ✅ · **fonctionnalités G8 en cours** (séquences UI, recherche DB, tables de params) → [backlog-e0-e1.md](backlog-e0-e1.md) | 🟦 fonctionnalités |
-| E1 — Contacts + Articles (M1, M2) | fiches **parité champs** + import tarifs ✅ · **fonctionnalités G8 en cours** (M1 : onglets/encours calculé/tarifs paliers ; M2 : prix interactif/cascade/remplacement réf/équivalences) → [backlog-e0-e1.md](backlog-e0-e1.md) | 🟦 fonctionnalités |
+| E1 — Contacts + Articles (M1, M2) | fiches **parité champs** + import tarifs ✅ · **code client auto** (trigger `trg_contacts_code`), détection de doublons, suppression sûre (`contact_delete_safe`) ✅ · **actions groupées sur la liste clients** (archiver/réactiver, statut, drapeaux VIP/surveillance/bloqué/opt-out, lier, fusionner ; sélection limitée à la page affichée) ✅ · **fonctionnalités G8 en cours** (M1 : onglets/encours calculé/tarifs paliers ; M2 : prix interactif/cascade/remplacement réf/équivalences) → [backlog-e0-e1.md](backlog-e0-e1.md) | 🟦 fonctionnalités |
 | E2 — Véhicules (M3) | Fiche VIN **parité G8** (carte grise A/B/D.1/E, bridé A2, TPMS, trackers, garantie, n° police), parc + filtre statut, historique propriétaires, jointure article↔véhicule, CRUD ✅ · reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois | 🟦 cœur fait |
 | E3 — Achats & réceptions (M4) | Module `/purchases` : fiches **fournisseurs** (n° client, code interne, RFA, franco/mini) · éditeur **réception/commande** · **réception → entrées de stock + PAMP** (B5) · **réception châssis → fiche véhicule** (type V, B9) · échéancier fournisseur · régimes TVA (avec/CEE/hors-CEE) · **proposition de commande** (réappro stock mini, groupée par frs) · **export DCS** CSV (STANDARD/URGENTE) ✅ · reste : rapprochement cmd↔réception, import code-barre/microfiches, gabarit DCS exact | 🟦 cœur fait |
 | E4 — Stock & inventaire (M5) | Fondation (stock_moves append-only, triple stock, PAMP testé) · écran **Stock** `/stock` (réel/réservé/disponible + **valeur PAMP** + filtres + **historique mouvements**) · **Inventaire** : 8 méthodes G8 **recomposées en 3 toggles** (ouvert/fermé × effacement × écarts), **arrêté daté**, comptage/réajustement **3 modes** (annule-remplace/cumul/casier), **remise à zéro** (conserve V/O/P), **écarts** réel vs arrêté (qté+valeur), **réintégration** unique — tout en append-only (B4/B6/B7) ✅ · reste : étiquetage différé (B12), inventaire tournant, dépréciation PAMP, copies auto 15/fin de mois | 🟦 cœur fait |
@@ -41,6 +41,9 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | Recherche globale Ctrl+K (reco VIN/TVA) | ✅ | topbar |
 | i18n FR (dictionnaire, structure prête NL) | ✅ | toute l'UI |
 | Navigation complète des 10 modules (placeholders) | ✅ | sidebar |
+| **Retour visuel d'enregistrement** — `<Toaster/>` monté à la racine + `MutationCache` global : toute écriture produit un toast, y compris les écrans à venir | ✅ | toute l'UI |
+| **Bouton à trois états** (`SaveButton` : disquette → spinner → coche verte) + navigation différée de 800 ms pour que la coche soit vue | ✅ | fiches contact/article/véhicule |
+| **Bouton grisé tant que rien n'a changé** (`useIsDirty`) | ✅ | fiches contact/article/véhicule |
 | Contraste AA vérifié | ⬜ | à valider |
 
 ### Socle M0 (Supabase) — migration `20260610090000_m0_socle.sql` **appliquée en live**
@@ -58,6 +61,23 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | B7 | `stock_moves` / `price_changes` append-only (stock = somme) | ⬜ (M5) |
 | — | Recherche globale branchée sur la base (VIN/client/réf/doc) | ⬜ |
 | — | Seed : 2 sociétés ✅, 20 clients, 300 articles, 12 véhicules, 5 OR | ⬜ |
+
+### Migrations Supabase — état d'application
+
+Une migration versionnée dans `supabase/migrations/` **n'est pas appliquée par le déploiement**.
+C'est une étape distincte du push. Tant qu'elle n'est pas passée, le code parti en production
+référence des colonnes inexistantes et **PostgREST rejette tout l'INSERT/UPDATE**, pas seulement
+le champ nouveau.
+
+| Migration | Appliquée | Conséquence si oubliée |
+|---|---|---|
+| `20260629100000_m1_contacts_enhancements` | ✅ 11/09/2026 | Diagnostiquée non appliquée dès juin, restée en l'état jusqu'au 11/09 : `model_interests`, `vehicle_preference`, `notify_model_stock`, `license_scan_path`, `national_id_scan_path` et l'énum `employe` manquaient → **aucune fiche client n'était enregistrable** (400 `PGRST204`). |
+| `20260911120000_m1_contact_code_dedup_delete` | ✅ 11/09/2026 | Code client auto, détection de doublons, suppression sûre, civilités nettoyées. |
+| `20260911170000_contact_links_unique_pair` | ✅ 11/09/2026 | Sans l'index unique, `linkContact` créait des liens en double en silence (sa garde `duplicate/unique` ne se déclenchait jamais). |
+
+**À vérifier avant chaque mise en production** : les colonnes utilisées par les formulaires
+existent bien en base. Un `PATCH` en 400 sans erreur Postgres associée dans `edge_logs` est la
+signature d'une colonne inconnue rejetée par PostgREST.
 
 ---
 
