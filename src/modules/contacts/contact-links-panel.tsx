@@ -10,14 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { listLinkedContacts, linkContact, unlinkContact, createLinkedContact, searchContactsToLink } from './subobjects-api';
+import { listLinkedContacts, linkContact, unlinkContact, createLinkedContact, searchContactsToLink, LINK_LIMIT } from './subobjects-api';
 import { contactDisplayName, contactDependencies, deleteContact, archiveContact, type Contact } from './api';
 import { useConfirm } from '@/components/confirm-provider';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
-
-const LINK_LIMIT = 2;
 
 export function ContactLinksPanel({ companyId, contact }: { companyId: string; contact: Contact }) {
   const qc = useQueryClient();

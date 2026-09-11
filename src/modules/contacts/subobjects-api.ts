@@ -74,6 +74,13 @@ export async function listOwnedVehicles(contactIds: string | string[]): Promise<
 /* ---------------- Liaison entre fiches (pro ↔ privé, M:N) ---------------- */
 export type ContactLink = { linkId: string; contact: Contact };
 
+/**
+ * Nombre maximal de fiches liées à une même fiche (règle métier, pas une contrainte
+ * de base). Défini ici et non dans un écran : la fiche ET les actions groupées de la
+ * liste doivent appliquer la même limite, sinon l'une contourne l'autre.
+ */
+export const LINK_LIMIT = 2;
+
 /** Fiches liées à ce contact (l'autre extrémité du lien). */
 export async function listLinkedContacts(contactId: string): Promise<ContactLink[]> {
   const { data: links, error } = await supabase

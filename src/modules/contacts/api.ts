@@ -2,6 +2,7 @@
  * M1 — Accès données Contacts (RLS : filtré par société côté serveur).
  */
 import { supabase } from '@/integrations/supabase/client';
+import { errorMessage } from '@/lib/mutation-feedback';
 import type { Database } from '@/integrations/supabase/types';
 
 export type Contact = Database['public']['Tables']['contacts']['Row'];
@@ -183,7 +184,13 @@ export async function deleteContact(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Vrai si l'erreur remontee est le refus de suppression pour cause de dependances. */
+/**
+ * Vrai si l'erreur remontee est le refus de suppression pour cause de dependances.
+ *
+ * Passe par errorMessage() : supabase-js ne leve PAS des instances d'Error mais des
+ * objets { message, details, hint, code }. Le test `e instanceof Error` employe ici
+ * auparavant etait donc toujours faux, et l'UI ne basculait jamais sur l'archivage.
+ */
 export function isDependencyError(e: unknown): boolean {
-  return e instanceof Error && e.message.includes('CONTACT_HAS_DEPENDENCIES');
+  return errorMessage(e).includes('CONTACT_HAS_DEPENDENCIES');
 }

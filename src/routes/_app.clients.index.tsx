@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact } from '@/modules/contacts/api';
+import { BulkActionsBar } from '@/modules/contacts/bulk-actions-bar';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { t } from '@/lib/i18n';
 
@@ -42,6 +43,16 @@ function ClientsList() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(['type', 'city', 'contact', 'flags']));
+  // Sélection limitée à la page affichée : on ne coche jamais 8 000 fiches d'un clic.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  function toggleRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   function toggleCol(key: ColKey) {
     setVisibleCols((prev) => {
@@ -50,7 +61,7 @@ function ClientsList() {
       return next;
     });
   }
-  const colCount = 2 + visibleCols.size;
+  const colCount = 3 + visibleCols.size;
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -58,6 +69,9 @@ function ClientsList() {
   }, [search]);
   // Revenir à la 1re page quand le filtre/recherche/taille change
   useEffect(() => { setPage(0); }, [debounced, typeFilter, pageSize]);
+  // La sélection ne porte que sur les lignes visibles : dès que le jeu de lignes
+  // change, on la vide plutôt que de garder des fiches devenues invisibles.
+  useEffect(() => { setSelectedIds(new Set()); }, [debounced, typeFilter, pageSize, page, showArchived]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize],
@@ -69,6 +83,10 @@ function ClientsList() {
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : page * pageSize + 1;
   const to = Math.min(total, (page + 1) * pageSize);
+
+  const selected = rows.filter((c) => selectedIds.has(c.id));
+  const allOnPage = rows.length > 0 && rows.every((c) => selectedIds.has(c.id));
+  const someOnPage = selected.length > 0 && !allOnPage;
 
   return (
     <>
@@ -142,10 +160,25 @@ function ClientsList() {
         </div>
       )}
 
+      {activeCompanyId && selected.length > 0 && (
+        <BulkActionsBar
+          companyId={activeCompanyId}
+          selected={selected}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      )}
+
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
             <tr>
+              <th className="w-10 px-3 py-2">
+                <Checkbox
+                  checked={allOnPage ? true : someOnPage ? 'indeterminate' : false}
+                  onCheckedChange={() => setSelectedIds(allOnPage ? new Set() : new Set(rows.map((c) => c.id)))}
+                  aria-label={t('contacts.bulkClear')}
+                />
+              </th>
               <Th>{t('contacts.colCode')}</Th>
               <Th>{t('contacts.colName')}</Th>
               {visibleCols.has('type')    && <Th>{t('contacts.colType')}</Th>}
@@ -172,6 +205,14 @@ function ClientsList() {
                 onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })}
                 className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
               >
+                {/* stopPropagation : cocher une ligne ne doit pas ouvrir la fiche. */}
+                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedIds.has(c.id)}
+                    onCheckedChange={() => toggleRow(c.id)}
+                    aria-label={contactDisplayName(c)}
+                  />
+                </td>
                 <td className="px-3 py-2 font-mono text-muted-foreground">{c.code ?? '—'}</td>
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex items-center gap-1.5">
