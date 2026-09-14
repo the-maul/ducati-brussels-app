@@ -165,9 +165,11 @@ le tableau de `docs/avancement.md` (voir le risque n°1 au §8).
       boîte, et traite l'expéditeur inconnu au lieu de l'ignorer. Les réponses automatiques et
       nos propres adresses sont écartées sans appel à l'analyse, pour ne pas payer pour rien.
 - [x] **Déployé le 14/09** : `classify-prospect-email` et `outlook-poll` sont en production.
-- [x] **Boîtes configurées** : `domenico@`, `info@` et `shop@ducatibxl.be`, toutes sur
-      ITALBIKE STORE. Les curseurs ont été mis à l'heure de l'activation pour éviter que la
+- [x] **Boîtes configurées** : `domenico@`, `info@`, `shop@` et `occasions@ducatibxl.be`, toutes
+      sur ITALBIKE STORE. Les curseurs ont été mis à l'heure de l'activation pour éviter que la
       première relève ne rattrape plusieurs jours de courrier d'un coup.
+      Pour en ajouter une autre plus tard, il suffit d'une ligne dans `company_mailboxes` :
+      la relève boucle sur la table, il n'y a pas de code à toucher.
 - [x] **Relève vérifiée en production** : exécutée deux fois à la main, sans erreur, les trois
       boîtes sont lisibles par Microsoft Graph. Un premier 503 sur `info@` était passager.
 - [x] **Clé `ANTHROPIC_API_KEY` posée le 14/09.** Elle manquait depuis le début du projet. Cela
