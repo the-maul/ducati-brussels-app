@@ -17,7 +17,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
-import { countLeadsDue } from '@/modules/crm/api';
+import { listLeadsDue, dueState } from '@/modules/crm/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -29,40 +29,72 @@ import { t } from '@/lib/i18n';
  */
 function NotificationsBell() {
   const { activeCompanyId } = useAuth();
+  // On charge la LISTE, pas seulement le compte : la cloche s'ouvre et chaque
+  // demande est cliquable. Un simple badge ne disait pas de quoi il s'agissait.
   const { data } = useQuery({
     queryKey: ['leads-due', activeCompanyId],
-    queryFn: () => countLeadsDue(activeCompanyId!),
+    queryFn: () => listLeadsDue(activeCompanyId!),
     enabled: !!activeCompanyId,
     refetchInterval: 120_000,
   });
-  const overdue = data?.overdue ?? 0;
-  const today = data?.today ?? 0;
-  const total = overdue + today;
-  const label = total === 0
-    ? t('crm.notifNone')
-    : [
-        overdue > 0 ? `${overdue} ${t('crm.notifOverdue')}` : '',
-        today > 0 ? `${today} ${t('crm.notifDueToday')}` : '',
-      ].filter(Boolean).join(' · ');
+  const rows = data ?? [];
+  const overdue = rows.filter((l) => dueState(l.due_at) === 'overdue').length;
+  const total = rows.length;
 
   return (
-    <Link
-      to="/crm"
-      className="relative hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
-      aria-label={`${t('crm.notifTitle')} — ${label}`}
-      title={label}
-    >
-      <Bell className="size-5" />
-      {total > 0 && (
-        <span
-          className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
-            overdue > 0 ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'
-          }`}
-        >
-          {total > 99 ? '99+' : total}
-        </span>
-      )}
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="relative hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
+        aria-label={t('crm.notifTitle')}
+      >
+        <Bell className="size-5" />
+        {total > 0 && (
+          <span
+            className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
+              overdue > 0 ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'
+            }`}
+          >
+            {total > 99 ? '99+' : total}
+          </span>
+        )}
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>{t('crm.notifTitle')}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        {total === 0 && (
+          <div className="px-2 py-3 text-[12px] text-muted-foreground">{t('crm.notifNone')}</div>
+        )}
+
+        {rows.slice(0, 8).map((l) => {
+          const late = dueState(l.due_at) === 'overdue';
+          return (
+            <DropdownMenuItem key={l.id} asChild className="cursor-pointer">
+              <Link to="/crm" className="flex flex-col items-start gap-0.5">
+                <span className="w-full truncate text-[13px] font-medium">{l.name}</span>
+                {l.vehicle_interest && (
+                  <span className="w-full truncate text-[11px] text-muted-foreground">{l.vehicle_interest}</span>
+                )}
+                <span className={`text-[11px] font-medium ${late ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
+                  {late ? t('crm.dueOverdue') : t('crm.dueToday')}
+                  {l.due_at && ` · ${new Date(l.due_at).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' })}`}
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
+
+        {total > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/crm" className="text-[12px]">{t('crm.notifSeeAll')}</Link>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
