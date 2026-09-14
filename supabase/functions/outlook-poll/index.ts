@@ -124,13 +124,22 @@ Deno.serve(async () => {
     const res = await G(tok!, q);
     if (!res.ok) { errors.push(`${folder} ${mailbox}: ${res.status}`); return since; }
     const msgs = (await res.json()).value ?? [];
+    // Comparaison en millisecondes, JAMAIS en texte. Graph renvoie « 2026-09-14T13:45:29.1Z »
+    // et PostgREST relit le curseur en « 2026-09-14T13:45:29.1+00:00 » : en comparaison de
+    // chaînes, 'Z' (0x5A) est supérieur à '+' (0x2B), donc `ts <= since` était toujours faux
+    // et chaque passage rescannait les mêmes messages. Sans conséquence sur les données (les
+    // RPC sont idempotentes) mais un appel d'analyse était relancé à chaque tour.
+    const sinceMs = Date.parse(since);
     let maxTs = since;
+    let maxMs = Number.isFinite(sinceMs) ? sinceMs : 0;
     for (const m of msgs as Array<Record<string, unknown>>) {
       try {
         const ts = (direction === 'in' ? m.receivedDateTime : (m.sentDateTime || m.receivedDateTime)) as string;
-        if (ts <= since) continue;
+        const tsMs = Date.parse(ts);
+        if (!Number.isFinite(tsMs) || tsMs <= maxMs) continue;
         scanned++;
-        if (ts > maxTs) maxTs = ts;
+        maxMs = tsMs;
+        maxTs = ts;
         const sender = addr(m.from);
         const recips = (m.toRecipients as unknown[] | undefined) ?? [];
         const matchEmail = direction === 'in' ? sender : (recips.length ? addr(recips[0]) : '');
@@ -144,6 +153,11 @@ Deno.serve(async () => {
         const row = Array.isArray(ing) ? ing[0] : ing;
 
         let contactId: string | null = row?.matched ? (row.contact_id as string) : null;
+
+        // Déjà vu et délibérément écarté : `ingest_email` retrouve bien la communication par
+        // son identifiant de message, mais sans fiche rattachée, donc il répond matched=false
+        // comme pour un inconnu. Sans ce garde, un mail écarté serait réanalysé à chaque tour.
+        if (!contactId && row?.communication_id) { ignored++; continue; }
 
         // --- Expéditeur inconnu : c'est ici que se jouait la perte du prospect. ---
         if (!contactId && direction === 'in' && matchEmail) {
