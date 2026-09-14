@@ -118,9 +118,34 @@ export async function addLeadActivity(p: { companyId: string; leadId: string; co
   if (error) throw error;
 }
 
+/**
+ * Suivi d'une demande : qui a fait quoi et quand.
+ * Passe par une fonction serveur car `profiles` n'est lisible que pour soi-même :
+ * une jointure côté client renverrait un suivi anonyme (migration 20260914210000).
+ */
+export type LeadAuditRow = { occurred_at: string; action: string; actor: string; changes: string | null };
+export async function listLeadAudit(leadId: string): Promise<LeadAuditRow[]> {
+  const { data, error } = await supabase.rpc('lead_audit', { _lead: leadId });
+  if (error) throw error;
+  return (data as LeadAuditRow[]) ?? [];
+}
+
+/** Boîtes d'expédition de la société, pour choisir depuis quelle adresse on répond. */
+export type CompanyMailbox = { id: string; address: string; purpose: string };
+export async function listCompanyMailboxes(companyId: string): Promise<CompanyMailbox[]> {
+  const { data, error } = await supabase
+    .from('company_mailboxes')
+    .select('id,address,purpose')
+    .eq('company_id', companyId)
+    .eq('is_active', true)
+    .order('address');
+  if (error) throw error;
+  return (data as CompanyMailbox[]) ?? [];
+}
+
 export type MailAttachment = { name: string; contentType: string; contentBytes: string };
 /** Envoie un e-mail (corps HTML + pièces jointes) depuis la boîte Outlook (Graph). */
-export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string; attachments?: MailAttachment[] }): Promise<{ ok?: boolean; error?: string }> {
+export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string; attachments?: MailAttachment[]; from?: string }): Promise<{ ok?: boolean; error?: string }> {
   const { data, error } = await supabase.functions.invoke('graph-send-email', { body: p });
   if (error) {
     // l'Edge Function renvoie un JSON d'erreur (ex. graph_not_configured) → le remonter

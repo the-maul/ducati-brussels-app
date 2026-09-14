@@ -1195,6 +1195,20 @@ export const fr = {
     details: 'Détails', edit: 'Éditer', save: 'Enregistrer', saved: 'Enregistré', del: 'Supprimer', confirmDel: 'Supprimer ce lead ?',
     activity: 'Activité', addNote: 'Ajouter', notePlaceholder: 'Note, appel, e-mail…', documents: 'Documents', noActivity: 'Aucune activité.',
     stage: 'Étape', value: 'Valeur estimée', openCard: 'Ouvrir la fiche', deleted: 'Lead supprimé.', notes: 'Notes',
+    // Suivi de la demande (qui a fait quoi, quand)
+    followup: 'Suivi de la demande', noFollowup: 'Aucune modification enregistrée.',
+    act_insert: 'Demande créée', act_update: 'Modifiée', act_delete: 'Supprimée',
+    // Échanges et réponse
+    thread: 'Échanges avec le client', replyFrom: 'Répondre depuis', noThread: 'Aucun échange pour l\'instant.',
+    replyFromDefault: 'Boîte par défaut',
+    // Sortie de la carte : on force une décision
+    closeTitle: 'Avant de fermer',
+    closeQuestion: 'Où en est cette demande ?',
+    closeDone: 'Traitée, clôturer',
+    closeDoneWon: 'Clôturer en « gagné »', closeDoneLost: 'Clôturer en « perdu »',
+    closeSnooze: 'Reporter, nouvelle échéance',
+    closeSkip: 'Pas encore traitée, laisser telle quelle',
+    closeHint: 'Une demande laissée telle quelle réapparaîtra dans les demandes en retard.',
   },
 
   // Matching client intéressé ↔ moto en stock (M10 × M3)

@@ -5510,6 +5510,15 @@ export type Database = {
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
       is_member: { Args: { _company: string }; Returns: boolean }
+      lead_audit: {
+        Args: { _lead: string }
+        Returns: {
+          action: string
+          actor: string
+          changes: string
+          occurred_at: string
+        }[]
+      }
       lead_sla_hours: { Args: { _company: string }; Returns: number }
       learn_ducati_vds: {
         Args: {

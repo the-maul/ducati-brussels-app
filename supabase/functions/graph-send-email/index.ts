@@ -27,15 +27,28 @@ async function db(path: string, init: RequestInit = {}) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
-  const { companyId, to, subject, body, attachments } = await req.json();
+  const { companyId, to, subject, body, attachments, from } = await req.json();
   if (!companyId || !to || !subject) return J({ error: 'missing_params' }, 400);
   // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
   const atts = Array.isArray(attachments) ? attachments.map((a: Record<string, string>) => ({
     '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
   })) : [];
 
-  const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
-  const mailbox = co?.[0]?.inbound_mailbox;
+  // Boîte d'expédition. Si l'appelant en demande une, elle doit appartenir à la société
+  // et être active : on ne part JAMAIS d'une adresse arbitraire fournie par le client.
+  // Sans demande explicite, on garde la boîte d'écoute historique de la société.
+  let mailbox: string | undefined;
+  if (typeof from === 'string' && from.trim()) {
+    const mb = await (await db(
+      `company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true&address=eq.${encodeURIComponent(from.trim())}`,
+    )).json();
+    mailbox = mb?.[0]?.address;
+    if (!mailbox) return J({ error: 'unknown_mailbox' }, 400);
+  }
+  if (!mailbox) {
+    const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
+    mailbox = co?.[0]?.inbound_mailbox;
+  }
   if (!mailbox) return J({ error: 'no_mailbox' }, 400);
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);

@@ -234,6 +234,33 @@ cinq manques, tous corrigés :
       d'arrivée. Sans cela, une fiche créée automatiquement se range à sa place alphabétique parmi
       8 000 autres et personne ne la voit. Colonne « Créé le » ajoutée aux colonnes affichables.
 
+#### Refonte de la carte d'une demande
+
+- [x] **Suivi : qui a fait quoi et quand.** Tout était déjà tracé, `leads` porte un déclencheur
+      d'audit qui écrit dans `events`. Il ne manquait que la lecture. Elle passe par une fonction
+      serveur `lead_audit`, et non par une requête directe : `profiles` n'est lisible que pour
+      soi-même (`profiles_select_own`), donc une jointure côté application aurait renvoyé un suivi
+      anonyme. Plutôt que d'ouvrir les profils de tout le personnel, la fonction renvoie le suivi
+      déjà nominatif. Chaque ligne indique l'action, l'auteur, la date et le détail du changement.
+- [x] **Fil des échanges et réponse depuis la carte.** Le panneau de communications de la fiche
+      client est réutilisé tel quel : éditeur enrichi, pièces jointes, envoi réel par Outlook.
+      Il lit les échanges du **client**, ce qui corrige un défaut de fond : les mails captés par la
+      relève portent l'identifiant du client et non celui de la demande, alors que la chronologie
+      de la carte ne lisait que ce dernier.
+
+Une seule communication sur 276 portait un identifiant de demande
+
+- [x] **Choix de la boîte d'expédition.** L'envoi partait toujours de la boîte d'écoute historique
+      de la société. On peut désormais choisir parmi les boîtes actives. Le serveur revérifie que
+      l'adresse demandée appartient bien à la société : on ne part jamais d'une adresse arbitraire
+      fournie par le navigateur.
+- [x] **Carte plus lisible.** E-mail et téléphone passent sur toute la largeur. Côte à côte, le
+      sélecteur d'indicatif rognait le numéro au point de le rendre illisible. Les trois panneaux
+      de droite (échanges, suivi, documents) sont en onglets plutôt qu'empilés.
+- [x] **Sortie de la carte.** On ne quitte plus sans se prononcer : clôturer en gagné ou en perdu,
+      reporter avec une nouvelle échéance, ou laisser telle quelle. Le dernier choix est explicite
+      et rappelle que la demande réapparaîtra dans les retards.
+
 ### Lot 2 — Invitation et compte client
 
 - [ ] Génération du jeton et du lien d'invitation.

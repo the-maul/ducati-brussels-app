@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RichEditor } from '@/components/rich-editor';
-import { listCommunications, addCommunication, sendEmailViaOutlook, type MailAttachment } from './api';
+import { listCommunications, addCommunication, sendEmailViaOutlook, listCompanyMailboxes, type MailAttachment } from './api';
 import { getContact } from '@/modules/contacts/api';
 import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +36,10 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   const [sendMsg, setSendMsg] = useState<string | null>(null);
   const [atts, setAtts] = useState<MailAttachment[]>([]);
   const [editorKey, setEditorKey] = useState(0);
+  // Boîte d'expédition. Vide = la boîte d'écoute historique de la société.
+  // Le serveur revérifie que l'adresse appartient bien à la société.
+  const [fromBox, setFromBox] = useState('');
+  const mailboxesQ = useQuery({ queryKey: ['company-mailboxes', companyId], queryFn: () => listCompanyMailboxes(companyId) });
 
   const contactQ = useQuery({ queryKey: ['comm-contact', contactId], queryFn: () => getContact(contactId) });
   useEffect(() => { if (contactQ.data?.email && !to) setTo(contactQ.data.email); }, [contactQ.data]); // eslint-disable-line
@@ -47,7 +51,7 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   // Envoi réel depuis Outlook (journalisé côté serveur) — visible quand le canal = e-mail.
   const send = useMutation({
     mutationFn: async () => {
-      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts });
+      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts, from: fromBox || undefined });
       if (r.error) return r;
       // déclenche la relève pour journaliser le mail envoyé tout de suite (best-effort)
       await new Promise((res) => setTimeout(res, 2500));
@@ -90,6 +94,17 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
           <Select value={direction} onValueChange={setDirection}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="out">{t('crm.dir_out')}</SelectItem><SelectItem value="in">{t('crm.dir_in')}</SelectItem></SelectContent></Select>
         </div>
+        {channel === 'email' && (mailboxesQ.data?.length ?? 0) > 1 && (
+          <div className="space-y-1"><Lbl>{t('crm.replyFrom')}</Lbl>
+            <Select value={fromBox || '__default__'} onValueChange={(v) => setFromBox(v === '__default__' ? '' : v)}>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">{t('crm.replyFromDefault')}</SelectItem>
+                {mailboxesQ.data?.map((m) => <SelectItem key={m.id} value={m.address}>{m.address}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {channel === 'email' && <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl><Input type="email" value={to} onChange={(e) => setTo(e.target.value)} className="w-56" placeholder="email@client" /></div>}
         <div className="flex-1 space-y-1"><Lbl>{t('crm.subject')}</Lbl><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
         <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
