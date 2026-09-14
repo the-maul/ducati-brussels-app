@@ -228,3 +228,4 @@ l'enregistrement, puis le module de reprises.
 | IBAN de la concession | QR code de virement au comptoir |
 | Marque et modèle du terminal Bancontact | Encaissement au comptoir |
 | Décision sur le site public | Shopify ou la vitrine intégrée au DMS |
+| **Clé API Anthropic** (`ANTHROPIC_API_KEY`) | **Bloquant.** Vérifié absent des secrets Supabase le 14/09. Rend inertes la lecture automatique des permis et cartes d'identité (construite en juillet, n'a jamais fonctionné en production) et la création de prospects depuis les mails. |

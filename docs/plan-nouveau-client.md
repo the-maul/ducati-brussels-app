@@ -164,10 +164,17 @@ le tableau de `docs/avancement.md` (voir le risque n°1 au §8).
       (avant : 255 caractères d'aperçu), boucle sur **plusieurs boîtes** avec un curseur par
       boîte, et traite l'expéditeur inconnu au lieu de l'ignorer. Les réponses automatiques et
       nos propres adresses sont écartées sans appel à l'analyse, pour ne pas payer pour rien.
-- [ ] **Déploiement des deux fonctions serveur**, avec l'accord du client : la relève tourne
-      toutes les 5 minutes sur la vraie boîte.
-- [ ] **Configuration des boîtes** : `company_mailboxes` ne contient aujourd'hui que
-      `domenico@ducatibxl.be`, repris de l'ancien réglage unique. Ajouter les vraies adresses.
+- [x] **Déployé le 14/09** : `classify-prospect-email` et `outlook-poll` sont en production.
+- [x] **Boîtes configurées** : `domenico@`, `info@` et `shop@ducatibxl.be`, toutes sur
+      ITALBIKE STORE. Les curseurs ont été mis à l'heure de l'activation pour éviter que la
+      première relève ne rattrape plusieurs jours de courrier d'un coup.
+- [x] **Relève vérifiée en production** : exécutée deux fois à la main, sans erreur, les trois
+      boîtes sont lisibles par Microsoft Graph. Un premier 503 sur `info@` était passager.
+- [ ] 🔴 **BLOQUANT — clé `ANTHROPIC_API_KEY` absente des secrets Supabase.** L'analyse répond
+      `not_configured` et la relève laisse alors le mail intact pour le repasser plus tard, donc
+      rien n'est perdu, mais aucun prospect ne sera créé tant que la clé n'est pas posée.
+      Même cause pour `read-id-doc`, qui n'a donc jamais fonctionné depuis juillet.
+      Pose : `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`, sans redéploiement.
 - [ ] **Écran de revue** des rapprochements proposés (`contact_merge_candidates`).
 
 **Fait quand** : un mail de test envoyé depuis une adresse inconnue produit une fiche et une tâche ;
