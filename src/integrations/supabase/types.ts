@@ -1088,6 +1088,50 @@ export type Database = {
         }
         Relationships: []
       }
+      company_mailboxes: {
+        Row: {
+          address: string
+          company_id: string
+          created_at: string
+          id: string
+          inbound_last_check: string | null
+          is_active: boolean
+          purpose: string
+          sent_last_check: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          company_id: string
+          created_at?: string
+          id?: string
+          inbound_last_check?: string | null
+          is_active?: boolean
+          purpose?: string
+          sent_last_check?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          inbound_last_check?: string | null
+          is_active?: boolean
+          purpose?: string
+          sent_last_check?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_mailboxes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consignments: {
         Row: {
           agreed_price: number
@@ -1177,6 +1221,57 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_invitations: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          token: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_invitations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -1343,6 +1438,7 @@ export type Database = {
           notes: string | null
           notify_model_stock: boolean | null
           opening_balance: number
+          origin: string | null
           payment_terms: string | null
           phone: string | null
           phone_pro: string | null
@@ -1443,6 +1539,7 @@ export type Database = {
           notes?: string | null
           notify_model_stock?: boolean | null
           opening_balance?: number
+          origin?: string | null
           payment_terms?: string | null
           phone?: string | null
           phone_pro?: string | null
@@ -1543,6 +1640,7 @@ export type Database = {
           notes?: string | null
           notify_model_stock?: boolean | null
           opening_balance?: number
+          origin?: string | null
           payment_terms?: string | null
           phone?: string | null
           phone_pro?: string | null
@@ -5015,6 +5113,7 @@ export type Database = {
           notes: string | null
           notify_model_stock: boolean | null
           opening_balance: number
+          origin: string | null
           payment_terms: string | null
           phone: string | null
           phone_pro: string | null
@@ -5130,6 +5229,7 @@ export type Database = {
           notes: string | null
           notify_model_stock: boolean | null
           opening_balance: number
+          origin: string | null
           payment_terms: string | null
           phone: string | null
           phone_pro: string | null
@@ -5533,6 +5633,10 @@ export type Database = {
       }
       set_mail_cursors: {
         Args: { _company: string; _in: string; _sent: string }
+        Returns: undefined
+      }
+      set_mailbox_cursors: {
+        Args: { _in: string; _mailbox: string; _sent: string }
         Returns: undefined
       }
       settle_consignment: {

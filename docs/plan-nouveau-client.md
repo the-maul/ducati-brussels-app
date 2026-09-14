@@ -52,10 +52,14 @@ Objectif : qu'une demande d'information devienne **une fiche client, une tâche 
 | Avec au moins une facture → **client** | 4 165 |
 | Restants → **prospect** | ~3 828 |
 | Contacts avec un e-mail renseigné | 6 134 |
-| Adresses e-mail en double | 115 |
+| Adresses e-mail portées par plusieurs fiches | 112 (hors fournisseurs) |
+| dont **mêmes nom et prénom** → vrais doublons à fusionner | 28 |
+| dont **noms différents** → adresse partagée, à conserver | 84 |
 
-> Les 115 doublons d'e-mail doivent être traités **avant** de brancher la reconnaissance par e-mail,
-> sinon le rattachement d'un mail entrant est ambigu.
+> **La reconnaissance par e-mail n'est pas suffisante à elle seule.** 84 adresses sont partagées par
+> des personnes différentes : un couple, une famille, ou l'adresse générale d'une société. Un mail
+> venant d'une de ces adresses est **ambigu** et ne doit pas être rattaché au hasard : il faut
+> demander à qui le rattacher dans la tâche CRM. Seuls les 28 cas à nom identique relèvent de la fusion.
 
 ---
 
@@ -136,12 +140,14 @@ le tableau de `docs/avancement.md` (voir le risque n°1 au §8).
 **But** : lever les inconnues et poser le socle de données.
 
 - [ ] Trancher les questions ouvertes du §7.
-- [ ] Migration : plusieurs boîtes d'écoute par société.
-- [ ] Migration : colonne d'origine sur `contacts` (`mail`, `web`, `comptoir`, `manuel`, `import_g8`).
-- [ ] Migration : table des jetons d'invitation (jeton, contact, expiration, usage unique).
-- [ ] Nettoyage des 115 adresses e-mail en double.
+- [x] Migration : plusieurs boîtes d'écoute par société, **avec un curseur de relève par boîte**
+      (un curseur unique ferait sauter des mails sur la seconde boîte relevée).
+- [x] Migration : colonne `contacts.origin` (`mail`, `web`, `comptoir`, `manuel`, `import_g8`),
+      rétro-remplie à `import_g8` pour les fiches reprises de G8.
+- [x] Migration : table `contact_invitations` (jeton, contact, expiration, usage unique).
+- [ ] Revue des **28 vrais doublons** d'e-mail, fusion validée à la main.
 
-**Fait quand** : les migrations sont appliquées en base et vérifiées, les doublons d'e-mail sont à zéro.
+**Fait quand** : les migrations sont appliquées **et vérifiées en base**, les 28 doublons sont traités.
 
 ### Lot 1 — Capture des mails
 

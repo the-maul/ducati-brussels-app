@@ -74,10 +74,19 @@ le champ nouveau.
 | `20260629100000_m1_contacts_enhancements` | ✅ 11/09/2026 | Diagnostiquée non appliquée dès juin, restée en l'état jusqu'au 11/09 : `model_interests`, `vehicle_preference`, `notify_model_stock`, `license_scan_path`, `national_id_scan_path` et l'énum `employe` manquaient → **aucune fiche client n'était enregistrable** (400 `PGRST204`). |
 | `20260911120000_m1_contact_code_dedup_delete` | ✅ 11/09/2026 | Code client auto, détection de doublons, suppression sûre, civilités nettoyées. |
 | `20260911170000_contact_links_unique_pair` | ✅ 11/09/2026 | Sans l'index unique, `linkContact` créait des liens en double en silence (sa garde `duplicate/unique` ne se déclenchait jamais). |
+| `20260914150000_m1_new_client_foundations` | ✅ 14/09/2026 | Lot 0 du chantier « nouveau client » : `company_mailboxes` (boîtes multiples, un curseur de relève par boîte), `contacts.origin` (rétro-rempli à `import_g8` sur 8 084 fiches), `contact_invitations` (jetons à usage unique). Appliquée **et vérifiée objet par objet** le jour même. |
+
+> ⚠️ **Sept migrations du dépôt ne sont toujours PAS appliquées**, dont trois qui cassent la
+> production en silence (fiche véhicule et fiche article non enregistrables, module reprises
+> inopérant). Liste complète et méthode de vérification : [`etat-projet.md`](etat-projet.md) §2.
 
 **À vérifier avant chaque mise en production** : les colonnes utilisées par les formulaires
 existent bien en base. Un `PATCH` en 400 sans erreur Postgres associée dans `edge_logs` est la
 signature d'une colonne inconnue rejetée par PostgREST.
+
+**Ne pas se fier à `supabase_migrations.schema_migrations`** : une migration passée à la main dans
+l'éditeur SQL n'y figure pas. Seule la présence réelle des objets fait foi (`to_regclass`,
+`information_schema.columns`).
 
 ---
 
