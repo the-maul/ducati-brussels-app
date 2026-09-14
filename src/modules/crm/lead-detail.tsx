@@ -103,7 +103,16 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
               ))}
             </div>
             <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.documents')}</p>
-            <AttachmentsPanel companyId={companyId} entityType="lead" entityId={lead.id} />
+            {/* Les pièces jointes des mails entrants sont déposées par la relève sur la FICHE
+                CLIENT (entity_type 'contact'). Rattacher le panneau au lead les rendait
+                invisibles ici, et un document ajouté depuis la tâche ne se retrouvait pas sur
+                la fiche. On vise donc le contact dès qu'il y en a un ; une tâche créée à la
+                main sans client garde son propre dossier. */}
+            <AttachmentsPanel
+              companyId={companyId}
+              entityType={lead.contact_id ? 'contact' : 'lead'}
+              entityId={lead.contact_id ?? lead.id}
+            />
           </div>
         </div>
       </DialogContent>
