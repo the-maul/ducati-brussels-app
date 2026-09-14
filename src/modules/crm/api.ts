@@ -10,7 +10,9 @@ export type Communication = Database['public']['Tables']['communications']['Row'
 export const LEAD_STAGES = ['nouveau', 'contacte', 'qualifie', 'proposition', 'gagne', 'perdu'] as const;
 
 export async function listLeads(companyId: string): Promise<Lead[]> {
-  const { data, error } = await supabase.from('leads').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(300);
+  const { data, error } = await supabase.from('leads').select('*').eq('company_id', companyId)
+    .is('archived_at', null)
+    .order('created_at', { ascending: false }).limit(300);
   if (error) throw error;
   return data ?? [];
 }
@@ -78,6 +80,7 @@ export async function countLeadsDue(companyId: string): Promise<LeadDueSummary> 
     .from('leads')
     .select('due_at')
     .eq('company_id', companyId)
+    .is('archived_at', null)
     .in('stage', OPEN_STAGES as unknown as string[])
     .not('due_at', 'is', null);
   if (error) throw error;
@@ -109,6 +112,7 @@ export async function listLeadsDue(companyId: string): Promise<Lead[]> {
     .from('leads')
     .select('*')
     .eq('company_id', companyId)
+    .is('archived_at', null)
     .in('stage', OPEN_STAGES as unknown as string[])
     .not('due_at', 'is', null)
     .order('due_at', { ascending: true })
@@ -185,6 +189,21 @@ export async function updateLeadTask(
 export type LeadPatch = Partial<Pick<Lead, 'name' | 'email' | 'phone' | 'vehicle_interest' | 'source' | 'estimated_value' | 'stage' | 'notes' | 'contact_id' | 'assigned_to' | 'due_at'>>;
 export async function updateLead(id: string, patch: LeadPatch): Promise<void> {
   const { error } = await supabase.from('leads').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * ARCHIVER une demande (migration 20260914260000).
+ *
+ * Troisième et dernière sortie possible d'une carte : il n'y a plus rien à
+ * faire pour ce client. La carte quitte le pipeline et les rappels, mais elle
+ * n'est pas supprimée — on ne dit ni « gagné » ni « perdu ».
+ */
+export async function archiveLead(id: string, reason?: string | null): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('leads').update({
+    archived_at: new Date().toISOString(), archived_by: user?.id ?? null, archived_reason: reason || null,
+  }).eq('id', id);
   if (error) throw error;
 }
 

@@ -1,10 +1,16 @@
 /**
- * M10 — Journal des communications (histo e-mail / SMS / appels / notes) d'un contact.
- * Réutilisable : <CommunicationsPanel companyId contactId />
+ * M10 — Les échanges avec le client (e-mails, appels, SMS, notes).
+ *
+ * On choisit d'abord CE QU'ON FAIT, en toutes lettres :
+ *   · « Répondre par e-mail » → le client reçoit le message (via Outlook), et
+ *     on choisit depuis laquelle des boîtes de la concession il part ;
+ *   · « Noter un appel / un SMS / une note » → rien n'est envoyé, on garde
+ *     seulement la trace de ce qui s'est dit.
+ *
+ * Réutilisable : <CommunicationsPanel companyId contactId defaultChannel />
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X, Folder } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,20 +21,28 @@ import { listCommunications, addCommunication, sendEmailViaOutlook, listCompanyM
 import { getContact } from '@/modules/contacts/api';
 import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
 import { supabase } from '@/integrations/supabase/client';
+import { t } from '@/lib/i18n';
 
 const readBase64 = (file: File) => new Promise<string>((resolve, reject) => {
   const r = new FileReader();
   r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
   r.onerror = reject; r.readAsDataURL(file);
 });
-import { t } from '@/lib/i18n';
 
 const ICON: Record<string, typeof Mail> = { email: Mail, sms: MessageSquare, call: Phone, note: StickyNote };
 
-export function CommunicationsPanel({ companyId, contactId }: { companyId: string; contactId: string }) {
+/** Les quatre gestes possibles, dits en français. */
+const ACTIONS = [
+  { key: 'email', labelKey: 'crm.replyByEmail', Icon: Mail },
+  { key: 'call', labelKey: 'crm.noteACall', Icon: Phone },
+  { key: 'sms', labelKey: 'crm.noteASms', Icon: MessageSquare },
+  { key: 'note', labelKey: 'crm.noteInternal', Icon: StickyNote },
+] as const;
+
+export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'email' }: { companyId: string; contactId: string; defaultChannel?: string }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['comms', contactId], queryFn: () => listCommunications(contactId) });
-  const [channel, setChannel] = useState('call');
+  const [channel, setChannel] = useState(defaultChannel);
   const [direction, setDirection] = useState('out');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -44,16 +58,20 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
   const contactQ = useQuery({ queryKey: ['comm-contact', contactId], queryFn: () => getContact(contactId) });
   useEffect(() => { if (contactQ.data?.email && !to) setTo(contactQ.data.email); }, [contactQ.data]); // eslint-disable-line
 
+  const isEmail = channel === 'email';
+  const isPhoneish = channel === 'call' || channel === 'sms';
+
   const add = useMutation({
     mutationFn: () => addCommunication({ companyId, contactId, channel, direction, subject, body }),
     onSuccess: () => { setSubject(''); setBody(''); qc.invalidateQueries({ queryKey: ['comms', contactId] }); },
   });
-  // Envoi réel depuis Outlook (journalisé côté serveur) — visible quand le canal = e-mail.
+
+  // Envoi réel depuis Outlook (journalisé côté serveur).
   const send = useMutation({
     mutationFn: async () => {
       const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts, from: fromBox || undefined });
       if (r.error) return r;
-      // déclenche la relève pour journaliser le mail envoyé tout de suite (best-effort)
+      // déclenche la relève pour enregistrer le mail envoyé tout de suite (best-effort)
       await new Promise((res) => setTimeout(res, 2500));
       try { await supabase.functions.invoke('outlook-poll', { body: {} }); } catch { /* le cron le fera */ }
       return r;
@@ -65,12 +83,14 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
     },
     onError: (e) => setSendMsg(e instanceof Error ? e.message : 'Erreur'),
   });
+
   const onPickFiles = async (files: FileList | null) => {
     if (!files) return;
     const added: MailAttachment[] = [];
     for (const f of Array.from(files)) added.push({ name: f.name, contentType: f.type || 'application/octet-stream', contentBytes: await readBase64(f) });
     setAtts((a) => [...a, ...added]);
   };
+
   // Choisir une pièce parmi les documents du client (GED)
   const [showDocs, setShowDocs] = useState(false);
   const docsQ = useQuery({ queryKey: ['ged-pick', contactId], queryFn: () => listAttachments('contact', contactId), enabled: showDocs });
@@ -85,42 +105,62 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
-        <div className="space-y-1"><Lbl>{t('crm.channel')}</Lbl>
-          <Select value={channel} onValueChange={setChannel}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>{['call', 'email', 'sms', 'note'].map((c) => <SelectItem key={c} value={c}>{t(`crm.channel_${c}`)}</SelectItem>)}</SelectContent></Select>
+      <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+        {/* 1. QU'EST-CE QU'ON FAIT ? */}
+        <div className="flex flex-wrap gap-1.5">
+          {ACTIONS.map(({ key, labelKey, Icon }) => (
+            <Button
+              key={key}
+              type="button"
+              size="sm"
+              variant={channel === key ? 'default' : 'outline'}
+              onClick={() => { setChannel(key); setDirection(key === 'email' ? 'out' : direction); setSendMsg(null); }}
+            >
+              <Icon className="size-3.5" /> {t(labelKey)}
+            </Button>
+          ))}
         </div>
-        <div className="space-y-1"><Lbl>{t('crm.direction')}</Lbl>
-          <Select value={direction} onValueChange={setDirection}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="out">{t('crm.dir_out')}</SelectItem><SelectItem value="in">{t('crm.dir_in')}</SelectItem></SelectContent></Select>
-        </div>
-        {channel === 'email' && (mailboxesQ.data?.length ?? 0) > 1 && (
-          <div className="space-y-1"><Lbl>{t('crm.replyFrom')}</Lbl>
-            <Select value={fromBox || '__default__'} onValueChange={(v) => setFromBox(v === '__default__' ? '' : v)}>
-              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__default__">{t('crm.replyFromDefault')}</SelectItem>
-                {mailboxesQ.data?.map((m) => <SelectItem key={m.id} value={m.address}>{m.address}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <p className="text-[12px] text-muted-foreground">{isEmail ? t('crm.emailIntro') : t('crm.noteIntro')}</p>
+
+        {/* 2. LES CHAMPS DU GESTE CHOISI */}
+        {isEmail && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="space-y-1"><Lbl>{t('crm.replyFrom')}</Lbl>
+              <Select value={fromBox || '__default__'} onValueChange={(v) => setFromBox(v === '__default__' ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">{t('crm.replyFromDefault')}</SelectItem>
+                  {mailboxesQ.data?.map((m) => <SelectItem key={m.id} value={m.address}>{m.address}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl>
+              <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="email@client" />
+            </div>
           </div>
         )}
-        {channel === 'email' && <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl><Input type="email" value={to} onChange={(e) => setTo(e.target.value)} className="w-56" placeholder="email@client" /></div>}
-        <div className="flex-1 space-y-1"><Lbl>{t('crm.subject')}</Lbl><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
-        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('crm.logComm')}</Button>
-        {channel === 'email' && <Button onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}</Button>}
 
-        {/* Corps : éditeur enrichi pour l'e-mail, zone simple sinon */}
-        <div className="w-full space-y-1">
-          <Lbl>{t('crm.body')}</Lbl>
-          {channel === 'email'
-            ? <RichEditor html={body} onChange={setBody} resetKey={editorKey} placeholder={t('crm.bodyPlaceholder')} />
-            : <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} />}
+        {isPhoneish && (
+          <div className="flex flex-wrap gap-1.5">
+            <Button type="button" size="sm" variant={direction === 'in' ? 'default' : 'outline'} onClick={() => setDirection('in')}>{t('crm.callIn')}</Button>
+            <Button type="button" size="sm" variant={direction === 'out' ? 'default' : 'outline'} onClick={() => setDirection('out')}>{t('crm.callOut')}</Button>
+          </div>
+        )}
+
+        <div className="space-y-1"><Lbl>{t('crm.subject')}</Lbl>
+          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>
 
-        {/* Pièces jointes (e-mail) */}
-        {channel === 'email' && (
-          <div className="w-full space-y-1">
+        <div className="space-y-1">
+          <Lbl>{t('crm.body')}</Lbl>
+          {isEmail
+            ? <RichEditor html={body} onChange={setBody} resetKey={editorKey} placeholder={t('crm.bodyPlaceholder')} />
+            : <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} />}
+        </div>
+
+        {/* Pièces jointes (e-mail seulement) */}
+        {isEmail && (
+          <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] hover:bg-accent">
                 <Paperclip className="size-3.5" /> {t('crm.attach')}
@@ -155,7 +195,18 @@ export function CommunicationsPanel({ companyId, contactId }: { companyId: strin
             )}
           </div>
         )}
-        {sendMsg && <p className="w-full text-[12px] text-info">{sendMsg}</p>}
+
+        {/* 3. LE BOUTON QUI FAIT LE GESTE */}
+        {isEmail ? (
+          <Button className="w-full" onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>
+            {send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}
+          </Button>
+        ) : (
+          <Button variant="outline" className="w-full" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>
+            {add.isPending ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />} {t('crm.logComm')}
+          </Button>
+        )}
+        {sendMsg && <p className="text-[12px] text-info">{sendMsg}</p>}
       </div>
 
       {isLoading ? <div className="grid place-items-center py-6"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div> : (

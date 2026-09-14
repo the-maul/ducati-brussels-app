@@ -1,23 +1,22 @@
 /**
- * M10 — Fiche d'une demande.
+ * M10 — Fiche d'une demande (la « carte »).
  *
- * LE MODÈLE : une demande = une carte = un client. Elle porte
- *   · UNE SEULE tâche en cours (ce qu'il faut faire, pour quand, par qui) ;
- *   · l'historique des tâches faites, en liste chronologique ;
- *   · les échanges avec le client, où l'on répond par mail ;
- *   · les documents liés.
+ * LE FLUX, EN TROIS SORTIES ET TROIS SEULEMENT :
+ *   1. la tâche reste à faire  → on ferme, rien ne bouge ;
+ *   2. la tâche est faite      → on dit tout de suite la suivante (même carte) ;
+ *   3. plus rien à faire       → on archive la carte.
  *
- * On ne crée JAMAIS une deuxième carte pour le même client : on termine la tâche
- * en cours et on en ouvre une nouvelle sur la même carte. La version précédente
- * créait une nouvelle demande à chaque relance, ce qui dupliquait les cartes.
- * Un index unique en base interdit deux tâches ouvertes sur une même demande.
+ * Une carte ne reste JAMAIS sans tâche : si elle se retrouve sans tâche et sans
+ * archivage, une boîte de dialogue le rappelle avant de fermer. Tant qu'une
+ * tâche est en cours, fermer la carte ne pose aucune question.
  *
- * À la fermeture on ne parle pas de gagné ni de perdu : on dit si la tâche est
- * toujours à faire, ou si elle est faite, auquel cas on ouvre la suivante.
+ * On ne crée jamais une deuxième carte pour le même client : « c'est fait » +
+ * la tâche suivante se font sur la même carte (index unique en base : une seule
+ * tâche ouverte par demande).
  */
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Trash2, Save, Clock, History, CheckCircle2 } from 'lucide-react';
+import { Loader2, Trash2, Save, Clock, History, CheckCircle2, Archive, Pencil, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from './communications-panel';
 import {
-  updateLead, deleteLead, listLeadAudit, listCompanyMembers,
+  updateLead, deleteLead, archiveLead, listLeadAudit, listCompanyMembers,
   listLeadTasks, createLeadTask, completeLeadTask, updateLeadTask, openTask,
   LEAD_STAGES, dueState, type Lead,
 } from './api';
@@ -47,6 +46,9 @@ const plusDays = (n: number) => toLocalInput(new Date(Date.now() + n * 864e5).to
 const stamp = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
+/** Ce que l'utilisateur est en train de faire dans l'en-tête de la carte. */
+type Mode = 'view' | 'edit' | 'next' | 'archive';
+
 export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead; companyId: string; onClose: () => void; onChanged: () => void }) {
   const qc = useQueryClient();
   const [f, setF] = useState({
@@ -58,6 +60,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('view');
   const [exiting, setExiting] = useState(false);
 
   const tasks = useQuery({ queryKey: ['lead-tasks', lead.id], queryFn: () => listLeadTasks(lead.id) });
@@ -69,22 +72,22 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
   const done = (tasks.data ?? []).filter((x) => x.done_at);
   const late = dueState(current?.due_at) === 'overdue';
 
-  // Champs de la tâche en cours, modifiables directement.
+  // Champs de la tâche en cours (mode « Modifier la tâche »).
   const [tt, setTt] = useState('');
   const [td, setTd] = useState('');
   const [tw, setTw] = useState('');
   const loaded = useState(() => ({ id: '' }))[0];
   if (current && loaded.id !== current.id) {
     loaded.id = current.id;
-    setTt(current.title);
-    setTd(toLocalInput(current.due_at));
-    setTw(current.assigned_to);
+    setTt(current.title); setTd(toLocalInput(current.due_at)); setTw(current.assigned_to);
   }
 
-  // Champs de la tâche suivante (boîte de sortie, ou carte sans tâche).
+  // Champs de la tâche SUIVANTE.
   const [nt, setNt] = useState('');
   const [nd, setNd] = useState(plusDays(2));
   const [nw, setNw] = useState('');
+  const who = nw || current?.assigned_to || '';
+  const [reason, setReason] = useState('');
 
   const refresh = () => {
     onChanged();
@@ -107,38 +110,83 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
     mutationFn: () => updateLeadTask(current!.id, {
       title: tt, due_at: td ? new Date(td).toISOString() : current!.due_at, assigned_to: tw,
     }),
-    onSuccess: () => { setMsg(t('crm.saved')); refresh(); },
+    onSuccess: () => { setMsg(t('crm.saved')); setMode('view'); refresh(); },
   });
 
   const del = useMutation({ mutationFn: () => deleteLead(lead.id), onSuccess: () => { onChanged(); onClose(); } });
 
-  /** Terminer la tâche en cours et ouvrir la suivante, sur la MÊME carte. */
+  /** « C'est fait » + la suivante, en un seul geste, sur la MÊME carte. */
   const finishAndNext = useMutation({
     mutationFn: async () => {
       if (current) await completeLeadTask(current.id);
       await createLeadTask({
-        companyId, leadId: lead.id, title: nt,
+        companyId, leadId: lead.id, title: nt.trim(),
         dueAt: nd ? new Date(nd).toISOString() : new Date(Date.now() + 2 * 864e5).toISOString(),
-        assignedTo: nw,
+        assignedTo: who,
       });
     },
-    onSuccess: () => { refresh(); setExiting(false); onClose(); },
+    onSuccess: () => {
+      setNt(''); setNd(plusDays(2)); setMode('view'); refresh();
+      if (exiting) { setExiting(false); onClose(); }
+    },
     onError: (e) => setErr(e instanceof Error && e.message === 'TASK_ALREADY_OPEN' ? t('crm.taskAlreadyOpen') : String(e)),
   });
 
-  /** Toujours à faire : on se contente éventuellement de repousser la date. */
-  const keepTask = useMutation({
-    mutationFn: async () => {
-      if (current && late && nd) await updateLeadTask(current.id, { due_at: new Date(nd).toISOString() });
-    },
-    onSuccess: () => { refresh(); setExiting(false); onClose(); },
+  /** Plus rien à faire : la carte quitte le pipeline (elle n'est pas supprimée). */
+  const archive = useMutation({
+    mutationFn: () => archiveLead(lead.id, reason || null),
+    onSuccess: () => { onChanged(); setExiting(false); onClose(); },
+    onError: (e) => setErr(String(e)),
   });
 
-  const nextReady = nt.trim().length > 0 && nw.length > 0;
+  const nextReady = nt.trim().length > 0 && who.length > 0 && !!nd;
+
+  /** Le formulaire de la tâche suivante — identique partout, pour qu'on le reconnaisse. */
+  const nextTaskForm = (label: string) => (
+    <div className="space-y-2">
+      <p className="text-[13px] font-medium">{t('crm.nextAsk')}</p>
+      <p className="text-[12px] text-muted-foreground">{t('crm.nextHelp')}</p>
+      <Field label={t('crm.taskTitle')}>
+        <Input value={nt} onChange={(e) => setNt(e.target.value)} placeholder={t('crm.taskTitlePlaceholder')} />
+      </Field>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Field label={t('crm.taskDue')}><Input type="datetime-local" value={nd} onChange={(e) => setNd(e.target.value)} /></Field>
+        <Field label={t('crm.taskWho')}>
+          <Select value={who} onValueChange={setNw}>
+            <SelectTrigger><SelectValue placeholder={t('crm.taskWho')} /></SelectTrigger>
+            <SelectContent>{members.data?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <Button className="w-full" onClick={() => { setErr(null); finishAndNext.mutate(); }} disabled={finishAndNext.isPending || !nextReady}>
+        {finishAndNext.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="size-4" />} {label}
+      </Button>
+      {err && <p className="text-[12px] text-[var(--danger)]">{err}</p>}
+    </div>
+  );
+
+  /** Le bloc d'archivage — identique partout lui aussi. */
+  const archiveForm = () => (
+    <div className="space-y-2">
+      <p className="text-[13px] font-medium">{t('crm.archiveAsk')}</p>
+      <p className="text-[12px] text-muted-foreground">{t('crm.archiveHelp')}</p>
+      <Field label={t('crm.archiveReason')}>
+        <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('crm.archiveReasonPlaceholder')} />
+      </Field>
+      <Button variant="outline" className="w-full" onClick={() => archive.mutate()} disabled={archive.isPending}>
+        {archive.isPending ? <Loader2 className="animate-spin" /> : <Archive className="size-4" />} {t('crm.archiveYes')}
+      </Button>
+    </div>
+  );
 
   return (
     <>
-      <Dialog open={!exiting} onOpenChange={(o) => { if (!o) { setErr(null); setNt(''); setNd(plusDays(2)); setNw(current?.assigned_to ?? ''); setExiting(true); } }}>
+      <Dialog open={!exiting} onOpenChange={(o) => {
+        if (o) return;
+        // On ne bloque QUE si la carte se retrouve sans tâche et sans archivage.
+        if (current) { onClose(); return; }
+        setErr(null); setNt(''); setNd(plusDays(2)); setExiting(true);
+      }}>
         <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
           <DialogHeader><DialogTitle className="flex flex-wrap items-center gap-3 pr-6">
             <span>{f.name || lead.name}</span>
@@ -147,14 +195,60 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
             </Button>
           </DialogTitle></DialogHeader>
 
-          {/* ---------- LA TÂCHE EN COURS, en tête ---------- */}
-          <div className={`rounded-md border p-3 ${late ? 'border-[var(--danger)]' : 'border-border'}`}>
+          {/* ---------- EN-TÊTE : ce qu'il faut faire, et les trois sorties ---------- */}
+          <div className={`rounded-md border p-3 ${late || !current ? 'border-[var(--danger)]' : 'border-border'}`}>
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
-              <Clock className="size-3.5" /> {t('crm.currentTask')}
+              <Clock className="size-3.5" /> {t('crm.nowTodo')}
               {late && <span className="text-[var(--danger)]">· {t('crm.dueOverdue')}</span>}
             </p>
-            {!current && <p className="text-[13px] text-muted-foreground">{t('crm.noOpenTask')}</p>}
-            {current && (
+
+            {/* Pas de tâche : on le dit en clair, et on demande la suivante tout de suite. */}
+            {!current && mode !== 'archive' && (
+              <>
+                <p className="mb-2 flex items-center gap-1.5 text-[13px] text-[var(--danger)]">
+                  <AlertTriangle className="size-4" /> {t('crm.noTaskWarn')}
+                </p>
+                {nextTaskForm(t('crm.nextSaveOnly'))}
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setMode('archive')}>
+                  <Archive className="size-4" /> {t('crm.btnArchive')}
+                </Button>
+              </>
+            )}
+
+            {/* Tâche en cours : une phrase, puis trois boutons qui disent ce qu'ils font. */}
+            {current && mode === 'view' && (
+              <>
+                <p className="text-[15px] font-medium">{current.title}</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
+                  {t('crm.forWhen')} {stamp(current.due_at)} · {t('crm.byWho')} {memberName(current.assigned_to) ?? '—'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button onClick={() => { setErr(null); setNw(current.assigned_to); setMode('next'); }}>
+                    <CheckCircle2 className="size-4" /> {t('crm.btnTaskDone')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setMode('edit')}>
+                    <Pencil className="size-4" /> {t('crm.btnTaskEdit')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setMode('archive')}>
+                    <Archive className="size-4" /> {t('crm.btnArchive')}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* « C'est fait » → on enchaîne immédiatement sur la suivante. */}
+            {current && mode === 'next' && (
+              <>
+                <p className="mb-2 text-[13px] text-muted-foreground">
+                  <CheckCircle2 className="mr-1 inline size-4 text-success" />
+                  <span className="line-through">{current.title}</span>
+                </p>
+                {nextTaskForm(t('crm.nextSaveDone'))}
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setErr(null); setMode('view'); }}>{t('crm.cancel')}</Button>
+              </>
+            )}
+
+            {current && mode === 'edit' && (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
                 <Field label={t('crm.taskTitle')}><Input value={tt} onChange={(e) => setTt(e.target.value)} placeholder={t('crm.taskTitlePlaceholder')} /></Field>
                 <Field label={t('crm.taskDue')}><Input type="datetime-local" value={td} onChange={(e) => setTd(e.target.value)} /></Field>
@@ -165,11 +259,19 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
                   </Select>
                 </Field>
                 <div className="flex items-end gap-2">
-                  <Button variant="outline" onClick={() => saveTask.mutate()} disabled={saveTask.isPending || !tt.trim() || !tw}>
-                    {saveTask.isPending ? <Loader2 className="animate-spin" /> : <Save className="size-4" />}
+                  <Button onClick={() => saveTask.mutate()} disabled={saveTask.isPending || !tt.trim() || !tw}>
+                    {saveTask.isPending ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} {t('crm.save')}
                   </Button>
+                  <Button variant="ghost" onClick={() => setMode('view')}>{t('crm.cancel')}</Button>
                 </div>
               </div>
+            )}
+
+            {mode === 'archive' && (
+              <>
+                {archiveForm()}
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setMode('view')}>{t('crm.cancel')}</Button>
+              </>
             )}
           </div>
 
@@ -199,7 +301,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
               </div>
             </div>
 
-            {/* ---------- Échanges · Tâches faites · Documents ---------- */}
+            {/* ---------- Échanges · Tâches faites · Documents · Suivi ---------- */}
             <div className="min-w-0">
               <Tabs defaultValue={lead.contact_id ? 'thread' : 'history'}>
                 <TabsList>
@@ -211,7 +313,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
 
                 {lead.contact_id && (
                   <TabsContent value="thread" className="mt-3">
-                    <CommunicationsPanel companyId={companyId} contactId={lead.contact_id} />
+                    <CommunicationsPanel companyId={companyId} contactId={lead.contact_id} defaultChannel="email" />
                   </TabsContent>
                 )}
 
@@ -263,44 +365,13 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
         </DialogContent>
       </Dialog>
 
-      {/* ---------- Sortie : la tâche est-elle faite ? ---------- */}
+      {/* ---------- Sortie : uniquement si la carte n'a plus de tâche ---------- */}
       <Dialog open={exiting} onOpenChange={(o) => { if (!o) setExiting(false); }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t('crm.closeTitle')}</DialogTitle></DialogHeader>
-
-          {current && (
-            <>
-              <p className="text-[13px]"><span className="font-medium">{current.title}</span> · {stamp(current.due_at)} · {memberName(current.assigned_to) ?? '—'}</p>
-
-              <div className="space-y-2 rounded-md border border-border p-2.5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.exitStillToDo')}</p>
-                {late && <p className="text-[12px] text-[var(--danger)]">{t('crm.exitOverdueHint')}</p>}
-                {late && <Input type="datetime-local" value={nd} onChange={(e) => setNd(e.target.value)} />}
-                <Button variant="outline" className="w-full" onClick={() => keepTask.mutate()} disabled={keepTask.isPending || (late && !nd)}>
-                  {keepTask.isPending ? <Loader2 className="animate-spin" /> : <Clock className="size-4" />} {t('crm.exitStillToDo')}
-                </Button>
-              </div>
-            </>
-          )}
-
-          <div className="space-y-2 rounded-md border border-border p-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
-              {current ? t('crm.exitDoneAndNext') : t('crm.noOpenTask')}
-            </p>
-            <Input value={nt} onChange={(e) => setNt(e.target.value)} placeholder={t('crm.taskTitlePlaceholder')} />
-            <div className="grid grid-cols-2 gap-2">
-              <Input type="datetime-local" value={nd} onChange={(e) => setNd(e.target.value)} />
-              <Select value={nw} onValueChange={setNw}>
-                <SelectTrigger><SelectValue placeholder={t('crm.taskWho')} /></SelectTrigger>
-                <SelectContent>{members.data?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <Button className="w-full" onClick={() => { setErr(null); finishAndNext.mutate(); }} disabled={finishAndNext.isPending || !nextReady}>
-              {finishAndNext.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="size-4" />}
-              {current ? t('crm.exitDoneCreate') : t('crm.exitNoTaskCreate')}
-            </Button>
-            {err && <p className="text-[12px] text-[var(--danger)]">{err}</p>}
-          </div>
+          <DialogHeader><DialogTitle>{t('crm.exitNoTaskTitle')}</DialogTitle></DialogHeader>
+          <p className="text-[13px] text-muted-foreground">{t('crm.exitNoTaskHelp')}</p>
+          <div className="rounded-md border border-border p-2.5">{nextTaskForm(t('crm.nextSaveOnly'))}</div>
+          <div className="rounded-md border border-border p-2.5">{archiveForm()}</div>
         </DialogContent>
       </Dialog>
     </>

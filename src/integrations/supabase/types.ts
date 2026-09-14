@@ -2884,6 +2884,9 @@ export type Database = {
       }
       leads: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
+          archived_reason: string | null
           assigned_to: string | null
           company_id: string
           contact_id: string | null
@@ -2902,6 +2905,9 @@ export type Database = {
           vehicle_interest: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          archived_reason?: string | null
           assigned_to?: string | null
           company_id: string
           contact_id?: string | null
@@ -2920,6 +2926,9 @@ export type Database = {
           vehicle_interest?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          archived_reason?: string | null
           assigned_to?: string | null
           company_id?: string
           contact_id?: string | null

@@ -326,6 +326,40 @@ pour que la cloche, la pastille du pipeline et la liste des retards continuent d
 « PCB CONSTRUCT » viennent du module Reprises en juillet et ne sont pas de ce fait : elles restent
 à arbitrer avec le client.
 
+#### Le flux de la carte, rendu lisible (retour client du 14/09 au soir)
+
+Retour mot pour mot : « on comprend pas tes boutons on comprend pas le flow »,
+« journaliser veut rien dire », et « je ne sais pas dire que la tache est faite
+et en remettre une directement dans la carte ».
+
+**La regle, desormais : une carte a trois sorties, et trois seulement.**
+
+| Sortie | Ce que fait l'utilisateur | Ce qui se passe |
+|---|---|---|
+| 1. La tache reste a faire | il ferme la carte | rien ne bouge, **aucune question posee** |
+| 2. La tache est faite | bouton « C'est fait » | le formulaire de la tache suivante s'ouvre dans la carte ; un seul bouton termine l'ancienne **et** ouvre la nouvelle |
+| 3. Plus rien a faire | bouton « Archiver la carte » | la carte quitte le pipeline et les rappels ; elle n'est pas supprimee |
+
+La boite de dialogue de sortie ne s'affiche plus qu'a une seule condition : **la
+carte se retrouve sans tache et sans archivage**. Tant qu'une tache est en cours,
+fermer la carte ne pose aucune question. C'est la demande explicite du client.
+
+Consequences dans l'interface :
+
+- l'en-tete de la carte affiche la tache en une phrase (quoi, pour quand, par qui)
+  puis trois boutons qui disent ce qu'ils font : **C'est fait**, **Modifier la
+  tache**, **Archiver la carte** ;
+- une carte sans tache l'annonce en rouge — « cette carte n'a plus de tache :
+  personne ne va la reprendre » — avec le formulaire de la suivante juste en dessous ;
+- terminer et ouvrir la suivante reste **un seul geste** : la carte ne peut jamais
+  se retrouver terminee sans successeur, donc pas de doublon de carte ;
+- dans les echanges, on ne choisit plus un « canal » : on choisit ce qu'on fait,
+  **Repondre par e-mail** / **Noter un appel** / **Noter un SMS** / **Note interne**.
+  Le mot « journaliser » a disparu, remplace par « Enregistrer dans l'historique » ;
+- dans une carte, la reponse par e-mail est le mode **par defaut** : le choix de
+  l'adresse d'expedition (une des quatre boites) est visible immediatement, plus
+  cache derriere un selecteur de canal.
+
 ### Lot 2 — Invitation et compte client
 
 - [ ] Génération du jeton et du lien d'invitation.
