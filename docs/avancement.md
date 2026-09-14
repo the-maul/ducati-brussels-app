@@ -75,6 +75,7 @@ le champ nouveau.
 | `20260911120000_m1_contact_code_dedup_delete` | ✅ 11/09/2026 | Code client auto, détection de doublons, suppression sûre, civilités nettoyées. |
 | `20260911170000_contact_links_unique_pair` | ✅ 11/09/2026 | Sans l'index unique, `linkContact` créait des liens en double en silence (sa garde `duplicate/unique` ne se déclenchait jamais). |
 | `20260914150000_m1_new_client_foundations` | ✅ 14/09/2026 | Lot 0 du chantier « nouveau client » : `company_mailboxes` (boîtes multiples, un curseur de relève par boîte), `contacts.origin` (rétro-rempli à `import_g8` sur 8 084 fiches), `contact_invitations` (jetons à usage unique). Appliquée **et vérifiée objet par objet** le jour même. |
+| `20260914160000_m1_prospect_from_email` | ✅ 14/09/2026 | Lot 1 : `create_prospect_from_email` (fiche + lead + journal, idempotent sur l'identifiant du message Graph), `log_ignored_email` (trace d'un mail écarté, sans fiche), `contacts_match_candidates` (recherche souple : `contacts_find_duplicates` exige nom + ville + téléphone + e-mail identiques, inutilisable sur un mail entrant), table `contact_merge_candidates`. Appliquée, **testée de bout en bout sur la vraie base** puis données de test supprimées. |
 
 > ⚠️ **Sept migrations du dépôt ne sont toujours PAS appliquées**, dont trois qui cassent la
 > production en silence (fiche véhicule et fiche article non enregistrables, module reprises

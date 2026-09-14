@@ -1325,6 +1325,67 @@ export type Database = {
           },
         ]
       }
+      contact_merge_candidates: {
+        Row: {
+          candidate_id: string
+          company_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          reason: string
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          company_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          reason: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_merge_candidates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_merge_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_merge_candidates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_subcontacts: {
         Row: {
           contact_id: string
@@ -5147,6 +5208,21 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      contacts_match_candidates: {
+        Args: {
+          _company: string
+          _company_name?: string
+          _email: string
+          _exclude?: string
+          _name?: string
+          _phone?: string
+        }
+        Returns: {
+          contact_id: string
+          display: string
+          reason: string
+        }[]
+      }
       contacts_search: {
         Args: {
           _company: string
@@ -5278,6 +5354,23 @@ export type Database = {
           _zip?: string
         }
         Returns: string
+      }
+      create_prospect_from_email: {
+        Args: {
+          _body: string
+          _company: string
+          _email: string
+          _external_id: string
+          _extract: Json
+          _received: string
+          _subject: string
+        }
+        Returns: {
+          communication_id: string
+          contact_id: string
+          created: boolean
+          lead_id: string
+        }[]
       }
       cycle_count_candidates: {
         Args: { _category?: string; _company: string; _limit?: number }
@@ -5419,6 +5512,17 @@ export type Database = {
           _vin: string
         }
         Returns: undefined
+      }
+      log_ignored_email: {
+        Args: {
+          _company: string
+          _email: string
+          _external_id: string
+          _received: string
+          _subject: string
+          _verdict: string
+        }
+        Returns: string
       }
       monthly_revenue: {
         Args: { _company: string }
