@@ -1,250 +1,230 @@
 # État du projet — DMS Ducati Bruxelles (document de reprise)
 
-> **À LIRE EN PREMIER dans une nouvelle conversation.** Ce document permet de reprendre le travail
-> sans rien perdre : où on en est, comment travailler, les pièges, ce qui reste.
-> Dernière mise à jour : **2026-06-10**. Branche `main`, dernier commit poussé : voir `git log`.
-> Voir aussi : [CLAUDE.md](../CLAUDE.md) (règles), [avancement.md](avancement.md) (checklist 140 refs),
-> [g8-reference-extract.md](g8-reference-extract.md) (champs G8 par module), [decisions/](decisions/) (ADR),
-> et les **docs de FONCTIONNALITÉS/parcours G8** (à consulter avant de coder un module) :
-> [g8-fonctions-m1-m4-fichiers-reception.md](g8-fonctions-m1-m4-fichiers-reception.md),
-> [g8-fonctions-m5-stock-inventaire.md](g8-fonctions-m5-stock-inventaire.md),
-> [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md),
-> [g8-fonctions-m8-atelier.md](g8-fonctions-m8-atelier.md),
-> [g8-fonctions-m0-m12-m13-compta-stats-params.md](g8-fonctions-m0-m12-m13-compta-stats-params.md).
-
-> 🟢 **AVANCEMENT (2026-06-11, passe 3)** : E0/E1 — **tous les P1 faits** + large part des P2 (voir
-> [backlog-e0-e1.md](backlog-e0-e1.md)). **Fondations anticipées** : **M5 stock** (`stock_moves` append-only,
-> triple stock, PAMP testé, transfert au remplacement).
-> **M6 Ventes/POS — partie A bouclée** (`/sales` + `/pos`, parité G8 du POS, cf.
-> [g8-fonctions-m6-ventes-pos.md](g8-fonctions-m6-ventes-pos.md)) :
-> éditeur FAC/DEV/RES/BL/TIK/AVO · **pied de facture** (remise globale %/€, mode HT/TTC, **détaxe export**,
-> port taxé/non, net TTC forcé) · **encaissement** multi-modes / à échéance / rendu de monnaie (modes depuis
-> `reference_values`) · **réservation + acomptes** (stock *disponible*, B4) · **conversions** DEV/RES/BL→FAC/BL
-> (acompte auto-déduit, filiation) · **avoirs** (réintégration stock + remboursement) · **clôture Z** (`/pos` :
-> fond de caisse, mouvements de fond, journal Z par mode + ventilation TVA, calcul monnaie) · **impression PDF**.
-> 23 tests verts (PAMP + 8 sur le pied/TVA).
-> **M4 Achats FAIT** (`/purchases`) : fournisseurs (RFA/code interne), réception→**entrées stock + PAMP**,
-> **châssis→fiche véhicule** (B9), échéancier, régimes TVA, **proposition de commande**, **export DCS** CSV.
-> **M5 Stock & inventaire FAIT** (`/stock`) : vues triple stock + valeur PAMP + historique ; **inventaire**
-> (8 méthodes G8 → 3 toggles ouvert/fermé × effacement × écarts), arrêté daté, comptage 3 modes, remise à zéro,
-> écarts, réintégration — **tout append-only** (B4/B6/B7). Hub **Contacts** (`/clients`) avec filtre par type.
-> **M7 Reprise/Occasion FAIT** (`/tradein`) : **reprise (B3)** crée article occasion (O/P) + fiche véhicule
-> + entrée stock + **ORO** (pièces/MO/frais → coût de revient, marge par VIN) ; **cessions internes** typées.
-> Reste M7 : dépôt-vente + commission, reprise depuis le POS (réf REP).
-> **M8 Atelier FAIT** (`/workshop`) : **OR cycle B8** (en-tête VIN/client/km/travaux/observations, lignes
-> pièces/MO/texte, statuts, transformation en facture via M6), **garantie B10** (accept/refus total/refus
-> partiel ligne par ligne, pièce garantie prix 0, facturation bloquée si en attente), **chronos B11**
-> (`/workshop/chrono` présence + temps travail par OR), **planning/RDV** (`/workshop/planning` vue semaine,
-> création d'OR depuis le RDV), OR accident (expert). Reste M8 : association temps facturé, devis réparation PDF.
-> 🎉 **JALON (2026-06-11, passe 4) : les 14 modules ont un CŒUR FONCTIONNEL.** M9 GED · M10 CRM
-> (leads + communications) · M12 compta (journal ventes, registre TVA, **export UBL Peppol→Falco**, **export
-> Winbooks**) · M13 dashboard (KPIs réels) · M14 migration (**import contacts CSV** dry-run).
-> **Reste = finitions / tails (pas de module vierge)** :
-> - **M12** : connecteur **Falco live** (clé API à fournir), validation Peppol fine, **format Winbooks exact**
->   (gabarit du comptable), écritures détaillées par compte.
-> - **M14** : import articles/véhicules (même patron que contacts), rapports d'écarts, mapping G8 spécifique.
-> - **M7** dépôt-vente + commission ; **M8** association temps facturé + devis réparation PDF ; **M9**
->   signatures/portails ; **M10** campagnes/mailings + notifications SMS/mail (Resend/Edge) ; **M2** moteur
->   de prix interactif/arrondis/cascade (P1 backlog) ; **M3** création auto véhicule depuis article V/O/P/D.
-> - Recette : passer en revue chaque module avec le client, brancher les **vraies listes de contacts** (import M14),
->   les clés API (Stripe/Resend/Falco/Microsoft Graph), et durcir les invariants par des tests supplémentaires.
-
-> ⚠️ **PRINCIPE (rappel client, 2026-06-10)** : on ne reproduit pas l'UI de G8 (la nôtre est meilleure),
-> mais le client doit **retrouver TOUTES les fonctionnalités et parcours** qu'il utilisait. Jusqu'ici on a
-> surtout posé les **données et les fiches** ; il faut maintenant **construire les FONCTIONNALITÉS et user
-> journeys** (les `g8-fonctions-*.md` ci-dessus les décrivent en détail). Avant de coder/compléter un
-> module, lire son doc de fonctions et viser la **parité fonctionnelle**, pas seulement le schéma.
+> **À LIRE EN PREMIER dans une nouvelle conversation.** Où on en est, comment travailler,
+> les pièges, ce qui reste.
+> **Dernière mise à jour : 2026-09-14.** Branche `main`, dernier commit poussé : voir `git log`.
+>
+> Voir aussi : [`../CLAUDE.md`](../CLAUDE.md) (règles, invariants, glossaire) ·
+> [`avancement.md`](avancement.md) (checklist des 140 exigences) ·
+> [`plan-nouveau-client.md`](plan-nouveau-client.md) (**chantier en cours**) ·
+> [`process-commandes-pieces.md`](process-commandes-pieces.md) (chantier spécifié, non commencé) ·
+> [`deploiement-netlify.md`](deploiement-netlify.md) · [`integrations-cles-api.md`](integrations-cles-api.md) ·
+> [`../.claude/skills/dev-sur-github/SKILL.md`](../.claude/skills/dev-sur-github/SKILL.md) (protocole Git).
 
 ---
 
-## 1. Où on en est (résumé)
+## 1. Résumé en dix lignes
 
-| Epic | Module(s) | État |
+Les **14 modules ont un cœur fonctionnel réel** et tournent sur la vraie base, avec les données
+reprises de G8 : 8 094 contacts, 3 299 véhicules, 17 700 factures historiques, 101 fournisseurs.
+L'application est déployée automatiquement sur **Netlify** à chaque push sur `main`.
+Lovable a été abandonné et toute mention retirée du code le 10/08.
+
+Le gros du travail de juillet a porté sur le **backlog client Italobike** (37 demandes, 8 lots fusionnés)
+et sur les **reprises de motos**. Le 11/09 a été consacré aux **fiches clients** (code automatique,
+doublons, actions groupées), au **retour visuel d'enregistrement** et à la **vérification TVA**.
+
+⚠️ **Le point le plus important de ce document est le §2.** Une partie du code parti en production
+s'appuie sur des colonnes qui n'existent pas en base. Trois écrans sont cassés sans que ça se voie.
+
+---
+
+## 2. ⚠️ Dérive entre le dépôt et la base — à traiter en priorité
+
+**Une migration versionnée dans `supabase/migrations/` n'est PAS appliquée par le déploiement.**
+C'est une étape distincte, manuelle, sur Supabase. Quand elle est oubliée, PostgREST rejette
+**tout** l'INSERT ou l'UPDATE en 400 (`PGRST204`), pas seulement le champ nouveau : l'écran entier
+devient non enregistrable, sans message clair.
+
+Ce défaut s'est déjà produit trois fois : fiches clients (de juin au 11/09), commandes fournisseur
+(jusqu'au 11/09), et vérification TVA. **Il reste actif ailleurs.**
+
+### Vérifié en base le 2026-09-14 — objets absents alors que le code les utilise
+
+| Migration non appliquée | Objets manquants | Conséquence |
 |---|---|---|
-| **E0 — Socle + design** | M0 | ✅ **validé** (login, multi-société, RLS, audit, séquences, design system, gestion utilisateurs) |
-| **E1 — Contacts + Articles** | M1, M2 | ✅ **clôturé** (fiches **parité G8** + **moteur d'import tarifs** + 10 tests) |
-| **E2 — Véhicules** | M3 | 🟦 **cœur fait** (fiche VIN parité G8, parc, historique propriétaires, jointure article) ; reste : création auto véhicule depuis article V/O/P/D, GED, alerte 4 mois |
-| **E5 — Ventes & POS** | M6 | 🟦 **partie A (POS) faite** (pied, encaissement multi-modes, réservation/acomptes, conversions, avoirs, clôture Z, impression) ; reste tail dépendant M3/M7/M8/M12 |
-| **E3 — Achats & réceptions** | M4 | 🟦 **cœur fait** (fournisseurs, réception→stock+PAMP, châssis→véhicule, échéancier, proposition cmd, export DCS) |
-| **E4 — Stock & inventaire** | M5 | 🟦 **cœur fait** (vues stock+valeur, inventaire 3-toggles, arrêté, comptage 3 modes, remise à zéro, écarts, réintégration) |
-| **E6 — Reprise/Occasion/Dépôt** | M7 | 🟦 **cœur fait** (reprise B3 → occasion+véhicule+ORO, marge par VIN, cessions internes) ; reste dépôt-vente |
-| **E7 — Atelier** | M8 | 🟦 **cœur fait** (OR B8, garantie B10 refus partiel, chronos B11, planning/RDV, OR accident) |
-| **E8 — Documents/GED** | M9 | 🟦 **GED faite** (pièces jointes Storage sur véhicule/contact/OR) ; reste signatures/portails |
-| **E9 — CRM** | M10 | 🟦 **cœur fait** (pipeline leads + journal communications) ; reste campagnes/notifications |
-| **E10 — Reporting** | M13 | 🟦 **dashboard fait** (KPIs réels) ; reste ventilations/productivité/rotation |
-| **E11 — Compta/UBL** | M12 | 🟦 **cœur fait** (journal ventes, registre TVA, export UBL Peppol→Falco, export Winbooks) ; reste Falco live + format Winbooks exact |
-| **E12 — Migration** | M14 | 🟦 **amorcé** (import contacts CSV dry-run) ; reste articles/véhicules + rapports d'écarts |
+| `20260716090000_m3_vehicles_papers_100hp` | `vehicles.papers_100hp` | **Aucune fiche véhicule enregistrable** : le formulaire envoie ce champ à chaque écriture |
+| `20260720130000_m2_article_year_facets` | `articles.year_from`, `year_to`, fonction `article_facets` | **Aucune fiche article enregistrable** : même cause |
+| `20260716090000_m7_tradein_partners` | tables `tradein_partners`, `tradein_offers`, `companies.tradein_dispatch_mode` | Partenaires et offres de reprise inopérants |
+| `20260719120000_m7_tradein_validation` | `oro.tradein_status`, `checklist`, et le bloc de validation | Validation de reprise inopérante |
+| `20260720090000_m7_reprise_workflow` | `oro.dispatched_at`, `accepted_amount`, `best_offer_amount`, `leads.oro_id`, `leads.reprise_status` | Workflow de reprise inopérant |
+| `20260714090000_m2_import_settings_ppc_rules` | tables `article_import_settings`, `ppc_price_rules`, `companies.price_floor_min/threshold` | Réglages d'import tarifaire repliés sur un stockage local par poste |
+| `20260613300000_m1_contacts_private_block` | bloc d'adresse privée sur `contacts` | Sans effet : **aucun code ne s'en sert**, migration morte |
 
-**App fonctionnelle en local** sur http://localhost:8080, branchée sur la **vraie base Supabase**.
+> **Tout le chantier « reprises » de juillet** (assistant mobile, statuts, envoi aux marchands,
+> acceptation d'offre) est **complet dans le code et mort en production** pour cette seule raison.
 
----
+### Comment vérifier (ne pas se fier à l'historique Supabase)
 
-## 2. Comment travailler (WORKFLOW — important)
+La table `supabase_migrations.schema_migrations` **n'est pas fiable** : une migration passée à la main
+dans l'éditeur SQL n'y est pas enregistrée. Seule la **présence réelle des objets** fait foi :
 
-**On développe et teste EN LOCAL**, on **déploie sur Lovable à la fin**. Lovable = cible de prod ;
-sa preview est trop capricieuse pour le dev quotidien (cf. §4).
-
-Cycle pour chaque fonctionnalité :
-1. Écrire le code dans `src/...` (+ migration SQL dans `supabase/migrations/` si schéma).
-2. **Appliquer les migrations** : `& $sb db push --linked --yes` puis régénérer les types.
-3. **Builder en local pour vérifier** : `& $bun run build` (doit finir par `✓ built`, exit 0).
-   *Discipline : ne JAMAIS pousser du code qui ne build pas.*
-4. **Tester** : sur http://localhost:8080 (le serveur dev tourne en continu, HMR), ou via Chrome MCP.
-   Tests unitaires des règles critiques : `& $bun test`.
-5. **Commit + push** : `git add` ciblé, commit avec réf. d'exigence, `git fetch` + `git rebase origin/main`
-   (Lovable co-commit !), puis `git push`.
-6. Mettre à jour `docs/avancement.md`.
-
-### Commandes exactes (PowerShell)
-```powershell
-$sb  = "C:\Users\simon\.supabase-cli\supabase.exe"
-$bun = "C:\Users\simon\.bun-cli\bun-windows-x64\bun.exe"
-# Lire les secrets (variables d'env User) au début de chaque commande qui en a besoin :
-$env:SUPABASE_ACCESS_TOKEN = [Environment]::GetEnvironmentVariable("SUPABASE_ACCESS_TOKEN","User")
-$env:SUPABASE_DB_PASSWORD  = [Environment]::GetEnvironmentVariable("SUPABASE_DB_PASSWORD","User")
-$env:GITHUB_TOKEN          = [Environment]::GetEnvironmentVariable("GITHUB_TOKEN","User")
-
-# Migrations + types
-& $sb db push --linked --yes
-& $sb gen types typescript --linked | Out-File -FilePath "src\integrations\supabase\types.ts" -Encoding utf8
-
-# Build / tests / dev
-& $bun run build
-& $bun test
-& $bun run dev   # serveur sur le port 8080 (lancer en background, PATH bun + env SUPABASE_SERVICE_ROLE_KEY)
+```sql
+select to_regclass('public.tradein_partners') is not null as table_presente;
+select exists(select 1 from information_schema.columns
+              where table_schema='public' and table_name='vehicles' and column_name='papers_100hp');
 ```
 
-### Démarrer/relancer le serveur dev (s'il est tombé)
-```powershell
-# arrêter
-Get-Process bun -ErrorAction SilentlyContinue | Stop-Process -Force
-# relancer (background) — hérite des secrets User
-$env:SUPABASE_SERVICE_ROLE_KEY = [Environment]::GetEnvironmentVariable('SUPABASE_SERVICE_ROLE_KEY','User')
-$env:PATH = "C:\Users\simon\.bun-cli\bun-windows-x64;$env:PATH"
-& "C:\Users\simon\.bun-cli\bun-windows-x64\bun.exe" run dev *> ".dev-server.log" 2>&1
+### Règle à appliquer désormais
+
+1. Toute migration écrite est **appliquée et vérifiée** avant de clore le lot.
+2. Le tableau « Migrations Supabase — état d'application » de [`avancement.md`](avancement.md) est tenu à jour.
+3. Un `PATCH` en 400 sans erreur Postgres associée dans `edge_logs` = signature d'une colonne inconnue.
+
+---
+
+## 3. Où on en est, par module
+
+| Module | État | Ce qui est démontrable |
+|---|---|---|
+| **M0 Socle** | ✅ | Login, multi-société, rôles + RLS, audit append-only, séquences de numérotation, gestion des utilisateurs, tables de paramètres |
+| **M1 Contacts** | ✅ | Fiche parité G8, **code client automatique**, **détection de doublons**, **suppression sûre**, **actions groupées** (archiver, statut, drapeaux, lier, fusionner), VIP et surveillance, liaison pro/privé, **vérification TVA VIES** |
+| **M2 Articles & tarifs** | 🟦 | Référentiel A–R/T, PAMP, casiers, code-barres, familles en cascade, import tarifs, applicabilités, étiquettes · **bloqué** : enregistrement d'un article (§2) |
+| **M3 Véhicules** | 🟦 | Fiche VIN parité G8, parc, historique propriétaires, extension My Ducati (moto, garantie, entretiens, bulletins) · **bloqué** : enregistrement d'un véhicule (§2) |
+| **M4 Achats & réceptions** | ✅ | Fournisseurs, réception → stock + PAMP, châssis → véhicule, échéancier, proposition de commande, export DCS |
+| **M5 Stock & inventaire** | ✅ | Triple stock, mouvements append-only, 3 modes d'inventaire, tournant, copies datées, dépréciation, étiquetage différé |
+| **M6 Ventes & POS** | ✅ | Devis → facture, avoirs, encaissement multi-modes, clôture Z, picking list, facture PDF au format de la concession |
+| **M7 Reprise / Occasion** | 🔴 | Code complet : assistant mobile, photos, PDF, statuts, marchands, dépôt-vente, TVA marge · **inopérant en production** (§2) |
+| **M8 Atelier** | ✅ | OR cycle complet, garantie avec refus partiel, chronos, planning, moto accidentée et aide Ducati 15 % |
+| **M9 Documents / GED** | 🟦 | Pièces jointes, dossiers, glisser-déposer, 716 factures d'origine attachées, CGV · reste : signature électronique |
+| **M10 CRM** | 🟦 | Pipeline de leads, journal des communications, **mails Outlook entrants et sortants**, matching client ↔ moto en stock · reste : campagnes, SMS |
+| **M11 Site & e-shop** | 🟡 | Constructeur de site, vitrine publique, panier, Stripe bouclé en test · **à trancher** : le vrai site est-il Shopify ? |
+| **M12 Compta** | 🟡 | PCMN, écritures équilibrées, registre TVA, TVA marge VO, SEPA, clôture, export Winbooks · reste : Falco live, gabarit du comptable |
+| **M13 Reporting** | ✅ | Tableau de bord, CA 12 mois, top articles, productivité atelier, comparaison N-1 |
+| **M14 Migration G8** | ✅ | Imports clients, fournisseurs, véhicules, factures, avec détail des lignes et PDF d'origine |
+
+Légende : ✅ utilisable · 🟦 cœur fait, finitions en cours · 🟡 en attente d'une clé ou d'une décision · 🔴 cassé en production.
+
+### Qualité du code
+
+21 erreurs TypeScript subsistent au 11/09, contre 78 avant. Trois d'entre elles viennent
+directement des migrations non appliquées du §2.
+
+---
+
+## 4. Comment travailler
+
+### Cycle pour une fonctionnalité
+
+1. **Demander un backup** si le changement est conséquent. Règle absolue, voir
+   [`../CLAUDE.md`](../CLAUDE.md) §5.0 et le skill `dev-sur-github`.
+2. Écrire le code dans `src/`, la migration dans `supabase/migrations/`.
+3. **Appliquer la migration à la main sur Supabase**, puis régénérer `src/integrations/supabase/types.ts`.
+4. **Vérifier la présence réelle des objets en base** (§2).
+5. Builder : le build doit passer avant tout push.
+6. Tester, y compris les tests automatisés.
+7. Commit au format imposé (voir ci-dessous), `git fetch` + `git rebase origin/main`, puis push.
+8. Mettre à jour [`avancement.md`](avancement.md).
+
+### Format des messages de commit — imposé
+
+Le CRM du client publie **la ligne de sujet telle quelle** comme intitulé de tâche. Elle doit donc
+commencer par ce que le changement fait dans l'application, en français courant :
+
 ```
-Si le serveur déconne après beaucoup de HMR : vider le cache puis relancer —
-`Remove-Item -Recurse -Force node_modules\.vite, dist, .nitro, .output, .tanstack`.
+<Ce que ça change pour l'utilisateur> — type(scope): description CODE
+```
+
+Exemple : `Fiches clients : le bouton Enregistrer reste grisé tant que rien n'a changé — feat(ux): useIsDirty`
+
+Le corps du message reste technique, il n'est pas publié.
+
+### Commandes
+
+```bash
+npm install          # ou bun install
+npm run build        # juge de paix, doit passer avant tout push
+npm run dev          # serveur de développement
+npm run lint
+bun test             # 26 fichiers de tests ; il n'y a pas de script npm "test"
+npx tsc --noEmit     # 21 erreurs connues au 14/09
+```
+
+Stack : **TanStack Start** en rendu serveur, React 19, Vite 7, Tailwind 4, shadcn/ui,
+Supabase, Bun. Les routes sont fichier par fichier dans `src/routes/` ; `routeTree.gen.ts` est
+**généré, ne pas l'éditer**. La logique métier vit dans `src/modules/<module>/`.
 
 ---
 
-## 3. Outillage, secrets, accès
+## 5. Déploiement et intégrations
 
-- **Repo GitHub** : https://github.com/the-maul/ducati-brussels-app (dossier local = clone, remote `origin`).
-- **Supabase** : projet **Lovable Cloud**, project ref **`ujmrosbgkvgvwfnuryna`**, lié via CLI.
-- **Outils installés en standalone** (sans Node) :
-  - Supabase CLI : `C:\Users\simon\.supabase-cli\supabase.exe`
-  - Bun : `C:\Users\simon\.bun-cli\bun-windows-x64\bun.exe`
-- **Secrets en variables d'env User** (`setx`, jamais commités, jamais affichés) :
-  `SUPABASE_ACCESS_TOKEN` (PAT Supabase), `SUPABASE_DB_PASSWORD`, `SUPABASE_SERVICE_ROLE_KEY`
-  (clé admin, nécessaire aux server functions), `GITHUB_TOKEN` (PAT classic, push non-interactif).
-- **Push GitHub non-interactif** : helper credential dans `.git/config` (ligne `helper =` vide qui
-  neutralise GCM, puis helper qui lit `$GITHUB_TOKEN`). Plus de pop-up.
-- **Compte de test (admin)** : **`simon@themaul.be`** (admin auto sur les 2 sociétés via trigger
-  `grant_bootstrap_admin`). Créé dans le dashboard Supabase (Auth → Users). Les comptes du personnel
-  se créent dans l'app : **Paramètres → Utilisateurs** (server function + service role).
+- **Netlify**, branché sur `main` : chaque push reconstruit le site. Commande `bun run build`,
+  publication depuis `dist/`. Configuration dans [`../netlify.toml`](../netlify.toml).
+  Netlify ne renvoie **aucun statut à GitHub** : un build cassé ne se voit pas depuis le dépôt.
+  Le compte est un compte privé détenu par l'intégrateur. **L'adresse publique du site n'est
+  documentée nulle part, à renseigner ici.**
+- **Supabase** : base, authentification, stockage, fonctions serveur, `pg_cron`.
+- **Fonctions serveur déployées** : `outlook-poll` (relève des mails), `graph-send-email` (envoi réel),
+  `dispatch-notifications` (file d'attente, pointe vers Resend sans clé donc inactive),
+  `read-id-doc` (lecture de pièces d'identité par Claude), `vies-check` (TVA),
+  `stripe-checkout`, `stripe-webhook`.
+- **CRM du client** : un webhook envoie chaque push au CRM, qui crée une tâche « à valider ».
+  Fonctionne depuis le 11/09. C'est la raison du format de commit imposé.
 
----
+### ⚠️ Authentification Supabase mal configurée
 
-## 4. Pièges à connaître (durement appris)
+L'URL du site est encore `http://localhost:3000` et la liste des redirections autorisées pointe
+vers d'anciennes adresses Lovable. Conséquence : **les liens de réinitialisation de mot de passe
+et les invitations envoient les utilisateurs au mauvais endroit.** À corriger avant toute mise en
+service pour de vrais utilisateurs.
 
-1. **supabase-js — deadlock `onAuthStateChange`** : NE JAMAIS appeler une méthode Supabase (requête DB/
-   auth) **dans** le callback `onAuthStateChange` → deadlock du verrou (spinner infini au reload).
-   Solution en place dans `src/lib/auth/auth-context.tsx` : différer avec `setTimeout(0)` + filet de
-   sécurité. (corrigé commit 101c5c7)
-2. **Lovable est CO-AUTEUR** du repo : il commite et pousse sur `main` tout seul (régénère
-   `routeTree.gen.ts` = câblage des routes, `types.ts`, parfois "auto-fix" du code). ⇒ **toujours
-   `git fetch` + `git rebase origin/main` avant de pousser**. Lovable garde la main sur
-   `routeTree.gen.ts`/`types.ts`. **Ne pas lui demander de "corriger" le code** (il refork) — corriger à
-   la source et pousser.
-3. **`routeTree.gen.ts`** est en **`git update-index --skip-worktree`** (le dev server le régénère sans
-   cesse) — ne pas le committer, le dev server/Lovable s'en occupent.
-4. **Tailwind v4 / Lightning CSS** : pas de `@import` relatif d'un fichier CSS local (resterait brut →
-   "@import must precede all rules"). `tokens.css` est chargé via `<link>` séparé dans
-   `src/routes/__root.tsx` (PAS en @import). Couleurs en **oklch** uniquement.
-5. **Enums Postgres** : `ALTER TYPE ... ADD VALUE` dans sa propre migration ; ne pas réutiliser la
-   nouvelle valeur dans la même transaction.
-6. **`git add -A`** balaie tout : le dossier **`infos app/`** (captures G8 fournies par le client) et
-   `docs/reference-g8/` sont **gitignorés** (références binaires, gardées en local). Attention à ne pas
-   re-committer de gros binaires.
-7. **PowerShell 5.1** : chaîne vide droppée pour les exécutables natifs ; pas de `&&`/`||` ; here-strings
-   `@'...'@` fragiles avec caractères spéciaux (préférer messages de commit simples).
-8. **Stack réelle** = TanStack Start (SSR) + Bun + Vite + Tailwind v4 + shadcn (kit déjà présent dans
-   `src/components/ui/`) + Supabase. Déploiement Cloudflare/Wrangler via Lovable. Routes file-based dans
-   `src/routes/` (layout `_app` = garde d'auth + shell). Réutiliser les composants shadcn existants.
+### Sécurité — signalé par l'audit Supabase
+
+- 90 fonctions `SECURITY DEFINER` appelables sans être connecté, et autant par un utilisateur connecté.
+- Protection contre les mots de passe compromis désactivée.
+- Extension `pg_net` installée dans le schéma public.
+
+À revoir avant l'ouverture d'un portail client.
 
 ---
 
-## 5. Architecture & conventions du code
+## 6. Pièges connus
 
-- **Modules métier** : `src/modules/<module>/` (api.ts = accès Supabase typé ; `*-form.tsx` = formulaires ;
-  sous-dossiers ex. `articles/import/`). Routes `src/routes/_app.<module>...tsx` ne font que câbler.
-- **Patron CRUD** (suivi pour M1/M2/M3) : `api.ts` (list/get/create/update, recherche `.or()` sanitizée,
-  filtre `company_id`) → `_app.<m>.tsx` (layout Outlet) + `.index.tsx` (liste+recherche) + `.new.tsx` +
-  `.$id.tsx` (édition). Formulaire à état contrôlé `Record`, `buildPayload` mappe → Insert.
-- **i18n** : tout libellé via `t('clé')` (`src/lib/i18n/fr.ts`). Aucune chaîne en dur. Prêt pour le NL.
-- **Auth/contexte** : `useAuth()` (`src/lib/auth/auth-context.tsx`) → `activeCompanyId`, `companies`,
-  `roles`, `isAdmin()`, `signOut`. Filtrer les requêtes par `activeCompanyId` ; RLS double la sécurité.
-- **Design** : `src/styles/tokens.css` (charte, oklch) ; classes utilitaires `font-data` (tableaux Cond),
-  `tabular-nums` (montants), `bg-success/warning/danger/info`, `StatusBadge` (couleur+icône+libellé).
-- **Server functions** (admin) : `createServerFn` + middleware `requireSupabaseAuth` + `supabaseAdmin`
-  (service role). Exemple : `src/lib/auth/admin.functions.ts` (gestion utilisateurs).
-- **Append-only / B7** : trigger `audit_row()` sur les tables métier → table `events`. Stock/prix :
-  à venir via `stock_moves`/`price_changes` (M5) — JAMAIS d'UPDATE direct du stock.
-
----
-
-## 6. État détaillé par module
-
-### M0 — Socle ✅ (migration 20260610090000)
-`companies` (ITALBIKE STORE + NL INVEST), `profiles` (+ trigger création), `user_roles` (enum
-`app_role`), helpers RLS `has_role/is_member/is_admin`, `events` (audit append-only), `document_sequences`
-+ `next_document_number()`. UI : login `/login`, garde `_app`, bascule société, Paramètres → Utilisateurs.
-
-> ⚠️ **Pour M1/M2/M3, le SCHÉMA et les fiches sont faits, mais PAS toutes les FONCTIONNALITÉS G8.**
-> Voir les `g8-fonctions-*.md` pour la liste exhaustive des features/parcours à construire (parité fonctionnelle).
-
-### M1 — Contacts ✅ schéma/fiche, 🟦 fonctionnalités (migrations 110000, 130000, 150000, 160000)
-Table `contacts` complète (parité G8). UI `/clients` (liste/recherche/fiche). **Fonctions G8 à construire** :
-onglets fiche client (**Parc** véhicules, **Relances**, **Histo Email/SMS**, **Échéances**, Documents/GED),
-**encours actuel calculé** (vs autorisé), tarifs client à paliers, adresses de livraison, sous-contacts,
-table civilités paramétrable. (cf. g8-fonctions-m1-m4)
-
-### M2 — Articles ✅ schéma/fiche + import, 🟦 fonctionnalités (migrations 120000, 135000, 140000, 160000)
-Tables `articles` (+ `article_barcodes`, `article_suppliers`, `article_kit_items`, `article_bins`,
-`article_categories`). Type A–R **+ T** (ADR-002). UI `/parts`. **Import tarifs** :
-`src/modules/articles/import/` (rules.ts = 12 règles testées, parse.ts = CSV, apply.ts) + route
-`/parts/import` + `tests/import-rules.test.ts` (10 verts). **Fonctions G8 à construire** :
-**moteurs de prix interactifs** (PA↔coef↔PVHT↔PVTTC↔marge + table d'arrondis tranche sup),
-**remplacement de référence** (transfert stock + recalcul PAMP, historique anciennes réf),
-**équivalences** (groupe + référence d'origine multifournisseur), **librairie** (export/import + réimport
-auto), **modification en cascade** (sélection à jokers + actions de masse + verrous), statistiques article,
-édition d'étiquettes, kits en UI, import Excel natif (xlsx). (cf. g8-fonctions-m1-m4 et m6-ventes)
-
-### M3 — Véhicules 🟦 (migration 170000)
-Tables `vehicles` (fiche VIN exhaustive G8) + `vehicle_owners` (historique). UI `/vehicles` (parc +
-filtre statut + fiche). Reste : **création auto du véhicule à la réception d'un article V/O/P/D**
-(jointure B9 à automatiser), GED véhicule (photos/COC), alerte stock > 4 mois (pg_cron + M13),
-rentabilité par VIN (dépend de M7 ORO), ajout/changement de propriétaire depuis un OR.
-
-### M4–M14 ⬜
-Pas commencés. **Toute la référence G8 est déjà extraite** dans `g8-reference-extract.md` (fournisseurs,
-réceptions, DCS, stock/inventaire 8 méthodes, POS/documents, OR/planning/garanties, journaux compta).
-Captures sources dans `infos app/` (local, gitignoré).
+1. **Migrations non appliquées** : le piège n°1, voir §2.
+2. **Apostrophes et guillemets courbes** : il n'y a pas de build local systématique ; un guillemet
+   courbe dans du code source casse le build Netlify sans prévenir. Vérifier le diff avant de commiter.
+   Les fichiers `.md` ne sont pas concernés.
+3. **`routeTree.gen.ts`** est régénéré en continu : ne pas le modifier à la main.
+4. **Tailwind 4** : pas d'import relatif d'un CSS local ; `tokens.css` est chargé par un lien séparé.
+   Couleurs en `oklch` uniquement.
+5. **Énumérations Postgres** : `ALTER TYPE ... ADD VALUE` doit être dans sa propre migration.
+6. **Plusieurs personnes poussent sur `main`** : toujours `git fetch` puis `git rebase origin/main`
+   avant de pousser. Jamais de push forcé.
+7. **Verrou Supabase** : ne jamais appeler une méthode Supabase à l'intérieur de `onAuthStateChange`,
+   cela bloque l'application au rechargement.
+8. **Statut « prospect »** : les 8 094 contacts repris de G8 le portent tous. Le tri est prévu au
+   chantier en cours, voir [`plan-nouveau-client.md`](plan-nouveau-client.md).
 
 ---
 
-## 7. Pour tester maintenant (localhost:8080)
-1. Ouvrir http://localhost:8080 → login `simon@themaul.be`.
-2. **Clients** : créer/éditer une fiche (le client de test "Simon Moreau" existe déjà).
-3. **Pièces** : créer un article ; **Pièces → Importer un tarif** : coller un CSV
-   (`Reference;Designation;PA;PV TTC;Marque` puis des lignes) → Analyser → Appliquer.
-4. **Véhicules** : créer une fiche VIN ; filtrer le parc par statut.
-5. **Paramètres → Utilisateurs** (admin) : créer un compte du personnel + rôles.
+## 7. Chantiers
 
-## 8. Prochaines étapes proposées
-1. **Finir Epic 2** : automatiser création véhicule ↔ article V/O/P/D ; GED ; alerte 4 mois.
-2. **Epic 3 (M4 Achats/réceptions)** : réception pièces (scan/OCR), routage CLIENT/OR/STOCK, réception
-   châssis → fiche véhicule auto, **export DCS Excel** (standard/urgente), fournisseurs (franco, mini cde).
-3. Puis M5 (stock/inventaire, le plus dense), M6 (POS), M7 (reprise/ORO), M8 (atelier)…
-   suivre l'ordre des epics du [dossier-projet.md](dossier-projet.md) §4.3.
+### En cours — Nouveau client
+
+Acquisition des prospects par mail, site, comptoir et téléphone, puis compte client et portail.
+Plan détaillé, décisions et découpage en lots : [`plan-nouveau-client.md`](plan-nouveau-client.md).
+
+### Spécifié, non commencé — Commandes de pièces
+
+Nouveau classement des commandes en `urgente / standard / excel / accident`, écrans de proposition,
+agrégation par fournisseur, paiement par QR, terminal Bancontact, signature électronique,
+classeur Excel Ducati. Spécification complète : [`process-commandes-pieces.md`](process-commandes-pieces.md).
+
+### À reprendre — Réparations
+
+Appliquer les migrations du §2, en commençant par les véhicules et les articles qui bloquent
+l'enregistrement, puis le module de reprises.
+
+---
+
+## 8. En attente du client
+
+| Élément | Pour quoi |
+|---|---|
+| Clé Stripe de production | Paiement réel sur la boutique |
+| Identifiants Falco | Envoi réel des factures au format Peppol |
+| Fournisseur SMS et clé | Rappels de rendez-vous, notifications de fin de travaux |
+| Fichier d'exemple du comptable | Calage exact de l'export Winbooks |
+| IBAN de la concession | QR code de virement au comptoir |
+| Marque et modèle du terminal Bancontact | Encaissement au comptoir |
+| Décision sur le site public | Shopify ou la vitrine intégrée au DMS |
