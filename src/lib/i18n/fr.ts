@@ -1221,6 +1221,21 @@ export const fr = {
     toDo: 'À faire', toDoNone: 'Rien de précisé. Ajoutez ce qu\'il faut faire dans les notes.',
     // Cloche
     notifOpen: 'Ouvrir la demande', notifSeeAll: 'Voir toutes les demandes',
+    // Tâches d'une demande : une seule ouverte à la fois
+    currentTask: 'Tâche en cours', noOpenTask: 'Aucune tâche en cours.',
+    taskTitle: 'Ce qu\'il faut faire', taskDue: 'Pour quand', taskWho: 'Qui s\'en charge',
+    taskTitlePlaceholder: 'Ex. rappeler le client',
+    taskSave: 'Enregistrer la tâche', taskDone: 'Marquer faite',
+    taskHistory: 'Tâches faites', noTaskHistory: 'Aucune tâche terminée pour l\'instant.',
+    taskDoneBy: 'faite par', taskDueWas: 'échéance',
+    taskAlreadyOpen: 'Une tâche est déjà en cours sur cette demande. Terminez-la avant d\'en ouvrir une autre.',
+    // Sortie de la carte
+    exitStillToDo: 'Toujours à faire',
+    exitOverdueHint: 'Cette tâche est dépassée. Donnez-lui une nouvelle date avant de fermer.',
+    exitDoneAndNext: 'Faite. Voici la suivante :',
+    exitDoneCreate: 'Terminer et ouvrir la suivante',
+    exitNoTaskCreate: 'Créer la tâche et fermer',
+    exitJustClose: 'Fermer',
   },
 
   // Matching client intéressé ↔ moto en stock (M10 × M3)

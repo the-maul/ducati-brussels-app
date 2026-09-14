@@ -121,22 +121,64 @@ export async function listLeadsDue(companyId: string): Promise<Lead[]> {
 }
 
 /**
- * Clôture une demande ET ouvre la suivante, confiée à quelqu'un.
- * Le client garde ainsi un fil continu : la demande traitée est fermée, mais ce
- * qu'il reste à faire ne disparaît pas avec elle.
+ * TÂCHES D'UNE DEMANDE (migration 20260914240000).
+ *
+ * Une demande = une carte = un client. Elle porte UNE SEULE tâche ouverte à la
+ * fois. On ne crée jamais une deuxième carte pour le même fil : on termine la
+ * tâche courante et on en ouvre une nouvelle sur la même carte.
+ *
+ * La version précédente créait une nouvelle DEMANDE à chaque relance, ce qui
+ * dupliquait la carte du client dans le pipeline. Un index unique partiel
+ * (`uq_lead_tasks_open`) interdit désormais deux tâches ouvertes sur une même
+ * demande : la garantie est en base, pas seulement à l'écran.
  */
-export async function closeAndCreateFollowUp(p: {
-  companyId: string; lead: Lead; stage: string;
-  what: string; assignedTo: string | null; dueAt: string | null;
+export type LeadTask = Database['public']['Tables']['lead_tasks']['Row'];
+
+export async function listLeadTasks(leadId: string): Promise<LeadTask[]> {
+  const { data, error } = await supabase
+    .from('lead_tasks')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** La tâche en cours, s'il y en a une. */
+export const openTask = (tasks: LeadTask[] | undefined): LeadTask | null =>
+  tasks?.find((t) => !t.done_at) ?? null;
+
+/** Ouvre une tâche. Échoue si une autre est déjà ouverte sur cette demande. */
+export async function createLeadTask(p: {
+  companyId: string; leadId: string; title: string; dueAt: string; assignedTo: string;
 }): Promise<void> {
-  await updateLead(p.lead.id, { stage: p.stage });
-  const { error } = await supabase.from('leads').insert({
-    company_id: p.companyId, contact_id: p.lead.contact_id,
-    name: p.lead.name, email: p.lead.email, phone: p.lead.phone,
-    vehicle_interest: p.lead.vehicle_interest, source: p.lead.source,
-    stage: 'nouveau', notes: p.what || null,
-    assigned_to: p.assignedTo, due_at: p.dueAt,
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('lead_tasks').insert({
+    company_id: p.companyId, lead_id: p.leadId, title: p.title,
+    due_at: p.dueAt, assigned_to: p.assignedTo, created_by: user?.id ?? null,
   });
+  if (error) {
+    // 23505 = l'index unique partiel a fait son travail.
+    if ((error as { code?: string }).code === '23505') throw new Error('TASK_ALREADY_OPEN');
+    throw error;
+  }
+}
+
+/** Marque la tâche en cours comme faite. Elle rejoint l'historique de la carte. */
+export async function completeLeadTask(taskId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from('lead_tasks')
+    .update({ done_at: new Date().toISOString(), done_by: user?.id ?? null })
+    .eq('id', taskId);
+  if (error) throw error;
+}
+
+export async function updateLeadTask(
+  taskId: string,
+  patch: Partial<Pick<LeadTask, 'title' | 'due_at' | 'assigned_to'>>,
+): Promise<void> {
+  const { error } = await supabase.from('lead_tasks').update(patch).eq('id', taskId);
   if (error) throw error;
 }
 

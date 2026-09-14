@@ -294,6 +294,38 @@ bien dans la boîte de réception, et que la relève l'avait consommé sans rien
 > considéré le message comme relayé, donc la fiche porte l'adresse de l'expéditeur. À affiner si
 > les transferts deviennent courants.
 
+#### Correction structurelle : la tâche devient un objet à part
+
+**Ce qui n'allait pas.** « Créer une tâche de suivi » créait une **nouvelle demande**. Chaque relance
+dupliquait donc la carte du client, et le pipeline se remplissait de doublons. Le client l'a dit
+sans détour : « ne crée pas de doublon, sinon on est foutu ».
+
+**Le modèle retenu.** Une demande = une carte = un client. Elle porte :
+
+- **une seule tâche ouverte à la fois** : ce qu'il faut faire, pour quand, et par qui, jamais vide ;
+- l'**historique des tâches faites**, en liste chronologique, avec qui l'a faite et quand ;
+- les **échanges** avec le client, où l'on répond par mail depuis la boîte de son choix ;
+- les **documents** liés.
+
+On ne crée jamais une deuxième carte pour le même fil : on termine la tâche en cours et on en ouvre
+une nouvelle **sur la même carte**.
+
+**La garantie est en base, pas à l'écran.** Un index unique partiel (`uq_lead_tasks_open`) interdit
+deux tâches ouvertes sur une même demande. Même un appel direct est refusé.
+
+**La sortie de carte ne parle plus de gagné ni de perdu.** On dit si la tâche est toujours à faire,
+auquel cas une échéance dépassée doit être repoussée, ou si elle est faite, auquel cas on ouvre la
+suivante dans le même geste.
+
+**L'échéance appartient désormais à la tâche**, plus à la demande. Les deux déclencheurs posés plus
+tôt dans la journée sont retirés : un échange avec le client ne doit pas déplacer en silence une
+date décidée par un humain. La demande recopie l'échéance et le responsable de sa tâche ouverte,
+pour que la cloche, la pastille du pipeline et la liste des retards continuent de fonctionner.
+
+**Nettoyage.** La carte en double créée par l'ancienne fonction a été supprimée. Les six cartes
+« PCB CONSTRUCT » viennent du module Reprises en juillet et ne sont pas de ce fait : elles restent
+à arbitrer avec le client.
+
 ### Lot 2 — Invitation et compte client
 
 - [ ] Génération du jeton et du lien d'invitation.

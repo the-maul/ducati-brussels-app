@@ -2825,6 +2825,63 @@ export type Database = {
           },
         ]
       }
+      lead_tasks: {
+        Row: {
+          assigned_to: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          done_by: string | null
+          due_at: string
+          id: string
+          lead_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at: string
+          id?: string
+          lead_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at?: string
+          id?: string
+          lead_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -5408,6 +5465,7 @@ export type Database = {
           total_due: number
         }[]
       }
+      default_assignee: { Args: { _company: string }; Returns: string }
       dormant_stock: {
         Args: { _company: string; _months?: number }
         Returns: {
