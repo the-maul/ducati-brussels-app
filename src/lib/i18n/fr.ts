@@ -1173,6 +1173,7 @@ export const fr = {
     filterAll: 'Tous les leads',
     src_REP: 'Clients REP', src_VN: 'Clients VN', src_VO: 'Clients VO',
     src_ATELIER: 'Client Atelier', src_PIECE: 'Client Pièce/Accessoire', src_FINANCEMENT: 'Client Financement',
+    src_MAIL: 'Demandes par e-mail', src_WEB: 'Demandes via le site',
     srcRepTitle: 'Demande de reprise',
     create: 'Créer le lead',
     // communications

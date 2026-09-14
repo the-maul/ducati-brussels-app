@@ -62,6 +62,15 @@ const VERDICT_SCHEMA = {
         "corps du message (champ E-mail d'un formulaire, signature). C'est l'adresse a laquelle on " +
         "pourra lui repondre. null si le corps n'en contient aucune.",
     },
+    city: { type: ["string", "null"], description: "Ville ou localite de la personne, si elle apparait." },
+    zip: { type: ["string", "null"], description: "Code postal, si il apparait." },
+    country: { type: ["string", "null"], description: "Pays en 2 lettres si il apparait, ex. BE, FR, NL." },
+    vehicle_ref: {
+      type: ["string", "null"],
+      description:
+        "Reference de la moto concernee si elle est citee : numero de chassis (VIN, 17 caracteres), " +
+        "plaque d'immatriculation, ou modele precis avec son millesime. null si rien de tel.",
+    },
     interest: {
       type: ["string", "null"],
       description: "Objet de l'interet en quelques mots, ex. 'Panigale V2 occasion', 'plaquettes Monster 937'.",
@@ -74,7 +83,7 @@ const VERDICT_SCHEMA = {
   required: [
     "is_prospect", "reason", "is_professional", "first_name", "last_name",
     "company_name", "vat_number", "phone", "sender_is_relay", "contact_email",
-    "interest", "request_summary",
+    "city", "zip", "country", "vehicle_ref", "interest", "request_summary",
   ],
   additionalProperties: false,
 } as const;
@@ -108,6 +117,10 @@ const INSTRUCTIONS = [
   "et NON celle de l'expediteur, et mets son adresse dans contact_email.",
   "Une notification automatique qui ne relaie aucune demande de client (versement, commande expediee,",
   "statistiques) n'est pas un prospect : is_prospect a false.",
+  "",
+  "Extrais TOUT ce que le message contient, pour que le vendeur n'ait pas a rouvrir le mail :",
+  "ville, code postal, pays, et la moto concernee si elle est citee (numero de chassis, plaque, ou",
+  "modele precis). Les formulaires de site listent souvent ces champs les uns sous les autres.",
 ].join("\n");
 
 Deno.serve(async (req) => {
