@@ -85,7 +85,7 @@ async function classify(from: string, to: string, subject: string, body: string)
       is_prospect: boolean; reason: string; is_professional: boolean;
       first_name: string | null; last_name: string | null; company_name: string | null;
       vat_number: string | null; phone: string | null; interest: string | null;
-      request_summary: string | null;
+      request_summary: string | null; sender_is_relay: boolean; contact_email: string | null;
     };
   } catch { return null; }
 }
@@ -185,6 +185,9 @@ Deno.serve(async () => {
               company_name: verdict.company_name, vat_number: verdict.vat_number,
               phone: verdict.phone, is_professional: verdict.is_professional,
               interest: verdict.interest, request_summary: verdict.request_summary,
+              // Message relayé (formulaire du site, Shopify) : l'expéditeur technique n'est pas
+              // le prospect. La fiche doit porter l'adresse trouvée dans le corps du message.
+              sender_is_relay: verdict.sender_is_relay, contact_email: verdict.contact_email,
             },
           });
           const crow = Array.isArray(created) ? created[0] : created;

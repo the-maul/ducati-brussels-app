@@ -48,6 +48,20 @@ const VERDICT_SCHEMA = {
     company_name: { type: ["string", "null"], description: "Raison sociale si professionnel. null sinon." },
     vat_number: { type: ["string", "null"], description: "Numero de TVA, ex. BE0123456789. null si absent." },
     phone: { type: ["string", "null"], description: "Numero de telephone trouve dans le message ou la signature." },
+    sender_is_relay: {
+      type: "boolean",
+      description:
+        "true si le mail est une NOTIFICATION qui relaie le message de quelqu'un d'autre : " +
+        "formulaire de contact d'un site, Shopify, une place de marche, un transfert automatique. " +
+        "Dans ce cas l'expediteur technique n'est PAS le prospect.",
+    },
+    contact_email: {
+      type: ["string", "null"],
+      description:
+        "Adresse e-mail REELLE de la personne qui fait la demande, telle qu'elle apparait dans le " +
+        "corps du message (champ E-mail d'un formulaire, signature). C'est l'adresse a laquelle on " +
+        "pourra lui repondre. null si le corps n'en contient aucune.",
+    },
     interest: {
       type: ["string", "null"],
       description: "Objet de l'interet en quelques mots, ex. 'Panigale V2 occasion', 'plaquettes Monster 937'.",
@@ -59,7 +73,8 @@ const VERDICT_SCHEMA = {
   },
   required: [
     "is_prospect", "reason", "is_professional", "first_name", "last_name",
-    "company_name", "vat_number", "phone", "interest", "request_summary",
+    "company_name", "vat_number", "phone", "sender_is_relay", "contact_email",
+    "interest", "request_summary",
   ],
   additionalProperties: false,
 } as const;
@@ -84,6 +99,15 @@ const INSTRUCTIONS = [
   "",
   "is_professional vaut true si l'expediteur ecrit au nom d'une entreprise (numero de TVA, raison",
   "sociale, signature professionnelle). Une adresse gmail ou hotmail seule ne suffit pas a conclure.",
+  "",
+  "ATTENTION AUX MESSAGES RELAYES. Beaucoup de demandes n'arrivent pas directement : elles passent",
+  "par le formulaire de contact du site, par Shopify, ou par un transfert. L'expediteur technique",
+  "est alors mailer@..., noreply@... ou une adresse de service, et la vraie personne est DANS le",
+  "corps du message, souvent sous forme de champs (Last Name, First Name, Phone, E-mail, Message).",
+  "Dans ce cas : mets sender_is_relay a true, extrais l'identite de la personne citee dans le corps",
+  "et NON celle de l'expediteur, et mets son adresse dans contact_email.",
+  "Une notification automatique qui ne relaie aucune demande de client (versement, commande expediee,",
+  "statistiques) n'est pas un prospect : is_prospect a false.",
 ].join("\n");
 
 Deno.serve(async (req) => {
