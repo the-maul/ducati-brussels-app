@@ -148,6 +148,27 @@ export async function listLeadTasks(leadId: string): Promise<LeadTask[]> {
   return data ?? [];
 }
 
+/**
+ * La tâche ouverte de CHAQUE carte, en une seule requête.
+ *
+ * Le pipeline doit montrer ce qu'il faut faire et qui s'en charge, sur chaque
+ * carte. Une requête par carte serait intenable : on ramène toutes les tâches
+ * ouvertes de la société et on les range par demande. L'index unique partiel
+ * garantit qu'il y en a au plus une par carte.
+ */
+export type OpenTaskLite = { lead_id: string; title: string; due_at: string; assigned_to: string };
+export async function listOpenTasksByLead(companyId: string): Promise<Record<string, OpenTaskLite>> {
+  const { data, error } = await supabase
+    .from('lead_tasks')
+    .select('lead_id,title,due_at,assigned_to')
+    .eq('company_id', companyId)
+    .is('done_at', null);
+  if (error) throw error;
+  const byLead: Record<string, OpenTaskLite> = {};
+  for (const r of (data ?? []) as OpenTaskLite[]) byLead[r.lead_id] = r;
+  return byLead;
+}
+
 /** La tâche en cours, s'il y en a une. */
 export const openTask = (tasks: LeadTask[] | undefined): LeadTask | null =>
   tasks?.find((t) => !t.done_at) ?? null;

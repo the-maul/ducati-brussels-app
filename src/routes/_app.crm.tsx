@@ -1,14 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Recycle, Clock } from 'lucide-react';
+import { Loader2, Plus, Recycle, Clock, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listLeads, createLead, setLeadStage, LEAD_STAGES, dueState, type Lead } from '@/modules/crm/api';
+import { listLeads, createLead, setLeadStage, listOpenTasksByLead, listCompanyMembers, LEAD_STAGES, dueState, type Lead } from '@/modules/crm/api';
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
@@ -32,10 +32,22 @@ function CrmPage() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [sourceFilter, setSourceFilter] = useState('all');
   const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId], queryFn: () => listLeads(activeCompanyId!), enabled: !!activeCompanyId });
+  // Ce qu'il faut faire sur chaque carte, et qui s'en charge : une seule requête.
+  const openTasks = useQuery({ queryKey: ['lead-open-tasks', activeCompanyId], queryFn: () => listOpenTasksByLead(activeCompanyId!), enabled: !!activeCompanyId });
+  const members = useQuery({ queryKey: ['company-members', activeCompanyId], queryFn: () => listCompanyMembers(activeCompanyId!), enabled: !!activeCompanyId });
+  const memberName = (id: string | null | undefined) => members.data?.find((m) => m.user_id === id)?.name ?? null;
   const move = useMutation({ mutationFn: ({ id, stage }: { id: string; stage: string }) => setLeadStage(id, stage), onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] }) });
+
+  const refreshBoard = () => {
+    qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['lead-open-tasks', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['leads-due', activeCompanyId] });
+  };
 
   const filtered = (data ?? []).filter((l) => sourceFilter === 'all' || (l.source ?? '').toUpperCase() === sourceFilter);
   const byStage = (s: string) => filtered.filter((l) => l.stage === s);
+  /** Les étapes où une carte doit porter une tâche. Gagné/perdu n'attendent plus rien. */
+  const OPEN = ['nouveau', 'contacte', 'qualifie', 'proposition'];
 
   return (
     <>
@@ -57,40 +69,59 @@ function CrmPage() {
           <div key={s} className="rounded-md border border-border bg-card p-2">
             <p className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t(`crm.stage_${s}`)}<span className="rounded bg-muted px-1.5 tabular-nums">{byStage(s).length}</span></p>
             <div className="space-y-2">
-              {byStage(s).map((l) => (
-                <div key={l.id} className="cursor-pointer rounded-md border border-border p-2 text-[12px] transition hover:border-[var(--ducati-red)] hover:shadow-sm" onClick={() => setSelected(l)} title={(l.source ?? '').toUpperCase() === 'REP' ? t('crm.srcRepTitle') : t('crm.openCard')}>
-                  <p className="flex items-center gap-1.5 font-medium">
-                    {(l.source ?? '').toUpperCase() === 'REP' && <Recycle className="size-3.5 shrink-0 text-[var(--ducati-red)]" aria-label={t('crm.src_REP')} />}
-                    <span className="truncate">{l.name}</span>
-                  </p>
-                  {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
-                  {/* Échéance de traitement : signalée seulement quand elle presse.
-                      Rouge si dépassée, orange si c'est pour aujourd'hui. */}
-                  {dueState(l.due_at) !== 'later' && dueState(l.due_at) !== 'none' && (
-                    <p className={`mt-0.5 flex items-center gap-1 font-medium ${dueState(l.due_at) === 'overdue' ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
-                      <Clock className="size-3 shrink-0" />
-                      {dueState(l.due_at) === 'overdue' ? t('crm.dueOverdue') : t('crm.dueToday')}
+              {byStage(s).map((l) => {
+                const task = openTasks.data?.[l.id];
+                const state = dueState(task?.due_at ?? l.due_at);
+                return (
+                  <div key={l.id} className="cursor-pointer rounded-md border border-border p-2 text-[12px] transition hover:border-[var(--ducati-red)] hover:shadow-sm" onClick={() => setSelected(l)} title={(l.source ?? '').toUpperCase() === 'REP' ? t('crm.srcRepTitle') : t('crm.openCard')}>
+                    <p className="flex items-center gap-1.5 font-medium">
+                      {(l.source ?? '').toUpperCase() === 'REP' && <Recycle className="size-3.5 shrink-0 text-[var(--ducati-red)]" aria-label={t('crm.src_REP')} />}
+                      <span className="truncate">{l.name}</span>
                     </p>
-                  )}
-                  {/* Tag de statut de reprise synchronisé depuis le module Reprises */}
-                  {(l as { reprise_status?: string | null }).reprise_status && (
-                    <div className="mt-1"><RepriseStatusBadge status={normalizeRepriseStatus((l as { reprise_status?: string | null }).reprise_status)} /></div>
-                  )}
-                  {l.estimated_value != null && <p className="tabular-nums text-muted-foreground">{eur(Number(l.estimated_value))}</p>}
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Select value={l.stage} onValueChange={(v) => move.mutate({ id: l.id, stage: v })}>
-                      <SelectTrigger className="mt-1 h-7 text-[12px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>{LEAD_STAGES.map((x) => <SelectItem key={x} value={x}>{t(`crm.stage_${x}`)}</SelectItem>)}</SelectContent>
-                    </Select>
+                    {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
+
+                    {/* CE QU'IL FAUT FAIRE, ET QUI S'EN CHARGE — le cœur de la carte.
+                        Rouge si l'échéance est dépassée, orange si c'est pour aujourd'hui. */}
+                    {task && (
+                      <div className={`mt-1 rounded border px-1.5 py-1 ${state === 'overdue' ? 'border-[var(--danger)]' : 'border-border'}`}>
+                        <p className="flex items-start gap-1 font-medium">
+                          <Clock className={`mt-0.5 size-3 shrink-0 ${state === 'overdue' ? 'text-[var(--danger)]' : state === 'today' ? 'text-[var(--warning)]' : 'text-muted-foreground'}`} />
+                          <span className="line-clamp-2">{task.title}</span>
+                        </p>
+                        <p className="truncate text-muted-foreground">
+                          {t('crm.byWho')} {memberName(task.assigned_to) ?? '—'}
+                          {state === 'overdue' && <span className="text-[var(--danger)]"> · {t('crm.dueOverdue')}</span>}
+                          {state === 'today' && <span className="text-[var(--warning)]"> · {t('crm.dueToday')}</span>}
+                        </p>
+                      </div>
+                    )}
+                    {/* Une carte ouverte sans tâche, c'est un client que personne ne rappellera. */}
+                    {!task && openTasks.data && OPEN.includes(l.stage) && (
+                      <p className="mt-1 flex items-center gap-1 font-medium text-[var(--danger)]">
+                        <AlertTriangle className="size-3 shrink-0" /> {t('crm.noOpenTask')}
+                      </p>
+                    )}
+
+                    {/* Tag de statut de reprise synchronisé depuis le module Reprises */}
+                    {(l as { reprise_status?: string | null }).reprise_status && (
+                      <div className="mt-1"><RepriseStatusBadge status={normalizeRepriseStatus((l as { reprise_status?: string | null }).reprise_status)} /></div>
+                    )}
+                    {l.estimated_value != null && <p className="tabular-nums text-muted-foreground">{eur(Number(l.estimated_value))}</p>}
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select value={l.stage} onValueChange={(v) => move.mutate({ id: l.id, stage: v })}>
+                        <SelectTrigger className="mt-1 h-7 text-[12px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>{LEAD_STAGES.map((x) => <SelectItem key={x} value={x}>{t(`crm.stage_${x}`)}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
-      {showNew && <NewLeadDialog companyId={activeCompanyId!} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] }); }} />}
-      {selected && <LeadDetail lead={selected} companyId={activeCompanyId!} onClose={() => setSelected(null)} onChanged={() => qc.invalidateQueries({ queryKey: ['leads', activeCompanyId] })} />}
+      {showNew && <NewLeadDialog companyId={activeCompanyId!} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refreshBoard(); }} />}
+      {selected && <LeadDetail lead={selected} companyId={activeCompanyId!} onClose={() => setSelected(null)} onChanged={refreshBoard} />}
     </>
   );
 }
