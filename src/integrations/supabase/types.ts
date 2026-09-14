@@ -2831,9 +2831,11 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          due_at: string | null
           email: string | null
           estimated_value: number | null
           id: string
+          last_activity_at: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -2847,9 +2849,11 @@ export type Database = {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          due_at?: string | null
           email?: string | null
           estimated_value?: number | null
           id?: string
+          last_activity_at?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -2863,9 +2867,11 @@ export type Database = {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          due_at?: string | null
           email?: string | null
           estimated_value?: number | null
           id?: string
+          last_activity_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -5229,6 +5235,7 @@ export type Database = {
           _limit: number
           _offset: number
           _q: string
+          _sort?: string
           _type: string
         }
         Returns: {
@@ -5503,6 +5510,7 @@ export type Database = {
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
       is_member: { Args: { _company: string }; Returns: boolean }
+      lead_sla_hours: { Args: { _company: string }; Returns: number }
       learn_ducati_vds: {
         Args: {
           _cc: number

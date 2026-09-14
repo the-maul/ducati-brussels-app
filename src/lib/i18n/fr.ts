@@ -803,6 +803,9 @@ export const fr = {
     colEmail: 'E-mail',
     colFlags: 'Drapeaux',
     colModels: "Modèles d'intérêt",
+    colCreated: 'Créé le',
+    sortName: 'Trier par nom',
+    sortRecent: 'Derniers arrivés',
     colsBtn: 'Colonnes',
     colsBtnTitle: 'Colonnes visibles',
     page: 'Page',
@@ -1174,6 +1177,12 @@ export const fr = {
     src_REP: 'Clients REP', src_VN: 'Clients VN', src_VO: 'Clients VO',
     src_ATELIER: 'Client Atelier', src_PIECE: 'Client Pièce/Accessoire', src_FINANCEMENT: 'Client Financement',
     src_MAIL: 'Demandes par e-mail', src_WEB: 'Demandes via le site',
+    // Échéance de traitement
+    dueAt: 'À traiter avant', dueOverdue: 'En retard', dueToday: 'À traiter aujourd\'hui',
+    dueNone: 'Sans échéance', dueIn: 'Dans %s',
+    dueHint: 'Le délai se règle dans Paramètres → Tables → lead_sla. Il repart à chaque échange avec le client.',
+    notifOverdue: 'demande(s) en retard', notifDueToday: 'demande(s) à traiter aujourd\'hui',
+    notifNone: 'Aucune demande en attente.', notifTitle: 'Demandes à traiter',
     srcRepTitle: 'Demande de reprise',
     create: 'Créer le lead',
     // communications

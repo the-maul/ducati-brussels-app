@@ -14,9 +14,57 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Link } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
+import { countLeadsDue } from '@/modules/crm/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+
+/**
+ * Cloche — demandes CRM à traiter. Rouge dès qu'une échéance est dépassée,
+ * orange s'il en reste à traiter aujourd'hui. Mène au pipeline CRM.
+ * L'échéance est posée à la création d'une demande et repoussée à chaque
+ * échange avec le client (migration 20260914190000).
+ */
+function NotificationsBell() {
+  const { activeCompanyId } = useAuth();
+  const { data } = useQuery({
+    queryKey: ['leads-due', activeCompanyId],
+    queryFn: () => countLeadsDue(activeCompanyId!),
+    enabled: !!activeCompanyId,
+    refetchInterval: 120_000,
+  });
+  const overdue = data?.overdue ?? 0;
+  const today = data?.today ?? 0;
+  const total = overdue + today;
+  const label = total === 0
+    ? t('crm.notifNone')
+    : [
+        overdue > 0 ? `${overdue} ${t('crm.notifOverdue')}` : '',
+        today > 0 ? `${today} ${t('crm.notifDueToday')}` : '',
+      ].filter(Boolean).join(' · ');
+
+  return (
+    <Link
+      to="/crm"
+      className="relative hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
+      aria-label={`${t('crm.notifTitle')} — ${label}`}
+      title={label}
+    >
+      <Bell className="size-5" />
+      {total > 0 && (
+        <span
+          className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
+            overdue > 0 ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'
+          }`}
+        >
+          {total > 99 ? '99+' : total}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 function CompanySwitcher() {
   const { companies, activeCompany, setActiveCompany } = useAuth();
@@ -91,13 +139,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
 
       <CompanySwitcher />
 
-      <button
-        type="button"
-        className="hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
-        aria-label="Notifications"
-      >
-        <Bell className="size-5" />
-      </button>
+      <NotificationsBell />
 
       <UserMenu />
     </header>

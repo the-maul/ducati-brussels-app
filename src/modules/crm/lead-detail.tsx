@@ -12,11 +12,19 @@ import { PhoneInput } from '@/components/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
-import { updateLead, deleteLead, listLeadActivities, addLeadActivity, LEAD_STAGES, type Lead } from './api';
+import { updateLead, deleteLead, listLeadActivities, addLeadActivity, LEAD_STAGES, dueState, type Lead } from './api';
 import { t } from '@/lib/i18n';
 
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : null; };
 const chanIcon: Record<string, ReactNode> = { note: <StickyNote className="size-3.5" />, call: <Phone className="size-3.5" />, email: <Mail className="size-3.5" />, sms: <MessageSquare className="size-3.5" /> };
+
+/** timestamptz → valeur d'un <input type="datetime-local"> (heure locale, sans fuseau). */
+const toLocalInput = (iso: string | null | undefined): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead; companyId: string; onClose: () => void; onChanged: () => void }) {
   const qc = useQueryClient();
@@ -24,6 +32,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
     name: lead.name ?? '', email: lead.email ?? '', phone: lead.phone ?? '',
     vehicle_interest: lead.vehicle_interest ?? '', source: lead.source ?? '',
     estimated_value: lead.estimated_value != null ? String(lead.estimated_value) : '', stage: lead.stage, notes: lead.notes ?? '',
+    due_at: toLocalInput(lead.due_at),
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [note, setNote] = useState(''); const [chan, setChan] = useState('note'); const [msg, setMsg] = useState<string | null>(null);
@@ -33,6 +42,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
     mutationFn: () => updateLead(lead.id, {
       name: f.name, email: f.email || null, phone: f.phone || null, vehicle_interest: f.vehicle_interest || null,
       source: f.source || null, estimated_value: f.estimated_value ? num(f.estimated_value) : null, stage: f.stage, notes: f.notes || null,
+      due_at: f.due_at ? new Date(f.due_at).toISOString() : null,
     }),
     onSuccess: () => { setMsg(t('crm.saved')); onChanged(); qc.invalidateQueries({ queryKey: ['leads', companyId] }); },
   });
@@ -69,6 +79,20 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{LEAD_STAGES.map((x) => <SelectItem key={x} value={x}>{t(`crm.stage_${x}`)}</SelectItem>)}</SelectContent>
               </Select>
+            </Field>
+            {/* Échéance de traitement : posée à la création, repoussée à chaque échange
+                avec le client par un trigger. Modifiable à la main si besoin. */}
+            <Field label={t('crm.dueAt')}>
+              <div className="flex items-center gap-2">
+                <Input type="datetime-local" value={f.due_at} onChange={(e) => set('due_at', e.target.value)} />
+                {dueState(lead.due_at) === 'overdue' && (
+                  <span className="shrink-0 text-[12px] font-medium text-[var(--danger)]">{t('crm.dueOverdue')}</span>
+                )}
+                {dueState(lead.due_at) === 'today' && (
+                  <span className="shrink-0 text-[12px] font-medium text-[var(--warning)]">{t('crm.dueToday')}</span>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">{t('crm.dueHint')}</p>
             </Field>
             <Field label={t('crm.notes')}><Textarea rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
             <div className="flex items-center gap-2">

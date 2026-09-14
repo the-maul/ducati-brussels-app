@@ -39,7 +39,9 @@ export function getWatchNote(c: Contact): string | null {
 /** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
 export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
   const { data, error } = await supabase.rpc('contacts_search', {
-    _company: companyId, _q: search ?? '', _type: type ?? null, _limit: 500, _offset: 0,
+    // `_type` vide plutôt que null : la fonction SQL traite les deux pareil
+    // (`_type is null or _type = '' or ...`) et la signature générée attend une chaîne.
+    _company: companyId, _q: search ?? '', _type: type ?? '', _limit: 500, _offset: 0,
   });
   if (error) throw error;
   return (data as Contact[]) ?? [];
@@ -47,15 +49,19 @@ export async function listContacts(companyId: string, search?: string, type?: st
 
 export type ContactPage = { rows: Contact[]; total: number };
 /** Liste paginée des contacts (range + count exact) — pour l'écran liste. */
+/** Tri de la liste : par nom (défaut) ou par date d'arrivée, les plus récents d'abord. */
+export type ContactSort = 'name' | 'recent';
+
 export async function listContactsPaged(
   companyId: string,
-  opts: { search?: string; type?: string; page?: number; pageSize?: number } = {},
+  opts: { search?: string; type?: string; page?: number; pageSize?: number; sort?: ContactSort } = {},
 ): Promise<ContactPage> {
   const page = opts.page ?? 0;
   const pageSize = opts.pageSize ?? 50;
-  const args = { _company: companyId, _q: opts.search ?? '', _type: opts.type ?? null };
+  const args = { _company: companyId, _q: opts.search ?? '', _type: opts.type ?? '' };
   const [{ data, error }, { data: total, error: ce }] = await Promise.all([
-    supabase.rpc('contacts_search', { ...args, _limit: pageSize, _offset: page * pageSize }),
+    // `_sort` n'existe que sur la recherche : le comptage ne dépend pas de l'ordre.
+    supabase.rpc('contacts_search', { ...args, _limit: pageSize, _offset: page * pageSize, _sort: opts.sort ?? 'name' }),
     supabase.rpc('contacts_search_count', args),
   ]);
   if (error) throw error;

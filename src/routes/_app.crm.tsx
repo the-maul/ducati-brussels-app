@@ -1,14 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Recycle } from 'lucide-react';
+import { Loader2, Plus, Recycle, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listLeads, createLead, setLeadStage, LEAD_STAGES, type Lead } from '@/modules/crm/api';
+import { listLeads, createLead, setLeadStage, LEAD_STAGES, dueState, type Lead } from '@/modules/crm/api';
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
@@ -64,6 +64,14 @@ function CrmPage() {
                     <span className="truncate">{l.name}</span>
                   </p>
                   {l.vehicle_interest && <p className="truncate text-muted-foreground">{l.vehicle_interest}</p>}
+                  {/* Échéance de traitement : signalée seulement quand elle presse.
+                      Rouge si dépassée, orange si c'est pour aujourd'hui. */}
+                  {dueState(l.due_at) !== 'later' && dueState(l.due_at) !== 'none' && (
+                    <p className={`mt-0.5 flex items-center gap-1 font-medium ${dueState(l.due_at) === 'overdue' ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
+                      <Clock className="size-3 shrink-0" />
+                      {dueState(l.due_at) === 'overdue' ? t('crm.dueOverdue') : t('crm.dueToday')}
+                    </p>
+                  )}
                   {/* Tag de statut de reprise synchronisé depuis le module Reprises */}
                   {(l as { reprise_status?: string | null }).reprise_status && (
                     <div className="mt-1"><RepriseStatusBadge status={normalizeRepriseStatus((l as { reprise_status?: string | null }).reprise_status)} /></div>

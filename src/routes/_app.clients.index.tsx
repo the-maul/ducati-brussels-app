@@ -10,12 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact } from '@/modules/contacts/api';
+import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact, type ContactSort } from '@/modules/contacts/api';
 import { BulkActionsBar } from '@/modules/contacts/bulk-actions-bar';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { t } from '@/lib/i18n';
 
-type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models';
+type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
   { key: 'type',    label: () => t('contacts.colType') },
   { key: 'city',    label: () => t('contacts.colCity') },
@@ -24,6 +24,7 @@ const ALL_COLS: { key: ColKey; label: () => string }[] = [
   { key: 'email',   label: () => t('contacts.colEmail') },
   { key: 'flags',   label: () => t('contacts.colFlags') },
   { key: 'models',  label: () => t('contacts.colModels') },
+  { key: 'created', label: () => t('contacts.colCreated') },
 ];
 
 const PAGE_SIZES = [25, 50, 100, 200];
@@ -42,6 +43,10 @@ function ClientsList() {
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
+  // Tri : par nom par défaut, ou par date d'arrivée. Sans ce second mode, une fiche
+  // créée automatiquement depuis un mail se range à sa place alphabétique parmi
+  // 8 000 autres et personne ne la voit passer.
+  const [sort, setSort] = useState<ContactSort>('name');
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(['type', 'city', 'contact', 'flags']));
   // Sélection limitée à la page affichée : on ne coche jamais 8 000 fiches d'un clic.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -74,8 +79,8 @@ function ClientsList() {
   useEffect(() => { setSelectedIds(new Set()); }, [debounced, typeFilter, pageSize, page, showArchived]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize],
-    queryFn: () => listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize }),
+    queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize, sort],
+    queryFn: () => listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize, sort }),
     enabled: !!activeCompanyId,
   });
   const rows = showArchived ? (data?.rows ?? []) : (data?.rows ?? []).filter((c) => c.is_active);
@@ -121,6 +126,13 @@ function ClientsList() {
             <SelectItem value="professionnel">{t('contacts.type_professionnel')}</SelectItem>
             <SelectItem value="fournisseur">{t('contacts.type_fournisseur')}</SelectItem>
             <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(v) => { setSort(v as ContactSort); setPage(0); }}>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">{t('contacts.sortName')}</SelectItem>
+            <SelectItem value="recent">{t('contacts.sortRecent')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
@@ -188,6 +200,7 @@ function ClientsList() {
               {visibleCols.has('email')   && <Th>{t('contacts.colEmail')}</Th>}
               {visibleCols.has('flags')   && <Th>{t('contacts.colFlags')}</Th>}
               {visibleCols.has('models')  && <Th>{t('contacts.colModels')}</Th>}
+              {visibleCols.has('created') && <Th>{t('contacts.colCreated')}</Th>}
             </tr>
           </thead>
           <tbody>
@@ -238,6 +251,7 @@ function ClientsList() {
                 {visibleCols.has('email')   && <td className="px-3 py-2">{c.email ?? '—'}</td>}
                 {visibleCols.has('flags')   && <td className="px-3 py-2"><Flags c={c} /></td>}
                 {visibleCols.has('models')  && <td className="px-3 py-2">{getModelInterests(c).length ? <ModelInterestBadges models={getModelInterests(c)} max={3} /> : '—'}</td>}
+                {visibleCols.has('created') && <td className="px-3 py-2 tabular-nums">{c.created_at ? new Date(c.created_at).toLocaleDateString('fr-BE') : '—'}</td>}
               </tr>
             ))}
           </tbody>

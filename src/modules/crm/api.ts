@@ -52,7 +52,46 @@ export async function setLeadStage(id: string, stage: string): Promise<void> {
   if (error) throw error;
 }
 
-export type LeadPatch = Partial<Pick<Lead, 'name' | 'email' | 'phone' | 'vehicle_interest' | 'source' | 'estimated_value' | 'stage' | 'notes' | 'contact_id' | 'assigned_to'>>;
+/**
+ * Échéance de traitement d'une demande (migration 20260914190000).
+ * Posée à la création, repoussée à chaque échange avec le client par un trigger.
+ * Le délai se règle dans Paramètres → Tables → `lead_sla`.
+ */
+export type DueState = 'none' | 'overdue' | 'today' | 'later';
+export function dueState(due: string | null | undefined): DueState {
+  if (!due) return 'none';
+  const t = Date.parse(due);
+  if (!Number.isFinite(t)) return 'none';
+  if (t < Date.now()) return 'overdue';
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  return t <= endOfDay.getTime() ? 'today' : 'later';
+}
+
+/** Étapes considérées comme ouvertes : une demande gagnée ou perdue n'a plus d'échéance. */
+export const OPEN_STAGES = ['nouveau', 'contacte', 'qualifie', 'proposition'] as const;
+
+export type LeadDueSummary = { overdue: number; today: number };
+/** Compteur pour la cloche de la barre du haut. */
+export async function countLeadsDue(companyId: string): Promise<LeadDueSummary> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('due_at')
+    .eq('company_id', companyId)
+    .in('stage', OPEN_STAGES as unknown as string[])
+    .not('due_at', 'is', null);
+  if (error) throw error;
+  let overdue = 0;
+  let today = 0;
+  for (const row of data ?? []) {
+    const s = dueState((row as { due_at: string | null }).due_at);
+    if (s === 'overdue') overdue++;
+    else if (s === 'today') today++;
+  }
+  return { overdue, today };
+}
+
+export type LeadPatch = Partial<Pick<Lead, 'name' | 'email' | 'phone' | 'vehicle_interest' | 'source' | 'estimated_value' | 'stage' | 'notes' | 'contact_id' | 'assigned_to' | 'due_at'>>;
 export async function updateLead(id: string, patch: LeadPatch): Promise<void> {
   const { error } = await supabase.from('leads').update(patch).eq('id', id);
   if (error) throw error;

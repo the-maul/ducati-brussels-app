@@ -192,6 +192,48 @@ Un défaut a été trouvé et corrigé au passage : `contact_id` est à la fois 
 la fonction et une colonne de table, ce qui rendait la clause de conflit ambiguë. Données de test
 supprimées après contrôle.
 
+#### Retours client du 14/09, traités le jour même
+
+Le premier vrai prospect créé en production venait du **formulaire de contact Shopify**. Il a révélé
+cinq manques, tous corrigés :
+
+1. **Expéditeur relayé.** La fiche portait `mailer@shopify.com` au lieu de l'adresse du client, et la
+   notification Shopify suivante s'était déjà rattachée à cette fiche. À terme tous les clients venus
+   du formulaire s'y seraient empilés. L'analyse reconnaît maintenant un message relayé et extrait
+   l'adresse réelle du corps. Quand aucune adresse n'est trouvable, la fiche est créée **sans**
+   adresse plutôt qu'avec celle du relais.
+2. **Canal d'arrivée.** Une demande passée par le site arrive techniquement par mail, mais ce n'est
+   pas le même canal. Relayé donne `origin = web` et `source = WEB`, direct donne `mail` et `MAIL`.
+3. **Cartes invisibles dans le CRM.** Le filtre comparait la source à une liste figée (REP, VN, VO,
+   ATELIER, PIECE, FINANCEMENT). Une demande arrivée par mail n'appartenait à aucune colonne et
+   n'était visible que sous « Tous les leads ». Deux entrées ajoutées.
+4. **Capture incomplète.** On ne retenait que nom, téléphone et intérêt. L'analyse rend désormais
+   aussi ville, code postal, pays et la référence de moto ou de châssis citée. La tâche CRM porte un
+   résumé complet : demande, moto citée, TVA, localité, date et canal de réception.
+5. **Documents invisibles.** Le panneau Documents de la tâche visait l'entité `lead`, alors que la
+   relève dépose les pièces jointes sur l'entité `contact`. Les deux dossiers ne se voyaient pas.
+
+#### Échéance de traitement et notification
+
+- [x] `leads.due_at` et `last_activity_at`, avec un délai **paramétrable** dans
+      Paramètres → Tables → `lead_sla` (48 h par défaut, par société).
+- [x] Échéance posée à la création de **toute** tâche, quelle qu'en soit l'origine, et **repoussée à
+      chaque échange** avec le client, entrant comme sortant (déclencheur sur `communications`).
+- [x] Échéance visible sur la carte du pipeline, en rouge si dépassée, en orange si c'est pour
+      aujourd'hui. Modifiable à la main depuis la fiche de la tâche.
+- [x] **Cloche** dans la barre du haut : nombre de demandes en retard ou à traiter aujourd'hui,
+      menant au pipeline.
+
+> Les 22 tâches existantes ont reçu une échéance calculée depuis leur dernière modification.
+> 21 sont donc immédiatement en retard : ce sont d'anciennes demandes de reprise jamais traitées.
+> À arbitrer avec le client : les traiter, ou repartir d'une échéance neuve.
+
+#### Tri de la liste des contacts
+
+- [x] `contacts_search` accepte un paramètre de tri : par nom (inchangé par défaut) ou par date
+      d'arrivée. Sans cela, une fiche créée automatiquement se range à sa place alphabétique parmi
+      8 000 autres et personne ne la voit. Colonne « Créé le » ajoutée aux colonnes affichables.
+
 ### Lot 2 — Invitation et compte client
 
 - [ ] Génération du jeton et du lien d'invitation.
