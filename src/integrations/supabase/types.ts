@@ -5079,6 +5079,14 @@ export type Database = {
         Args: { _company: string; _from: string; _label?: string; _to: string }
         Returns: string
       }
+      company_members: {
+        Args: { _company: string }
+        Returns: {
+          name: string
+          roles: string
+          user_id: string
+        }[]
+      }
       contact_delete_safe: { Args: { _id: string }; Returns: undefined }
       contact_dependencies: {
         Args: { _id: string }

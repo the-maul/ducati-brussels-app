@@ -151,8 +151,8 @@ Supabase, Bun. Les routes sont fichier par fichier dans `src/routes/` ; `routeTr
 - **Netlify**, branché sur `main` : chaque push reconstruit le site. Commande `bun run build`,
   publication depuis `dist/`. Configuration dans [`../netlify.toml`](../netlify.toml).
   Netlify ne renvoie **aucun statut à GitHub** : un build cassé ne se voit pas depuis le dépôt.
-  Le compte est un compte privé détenu par l'intégrateur. **L'adresse publique du site n'est
-  documentée nulle part, à renseigner ici.**
+  Le compte est un compte privé détenu par l'intégrateur.
+  **Adresse publique de l'application : https://ducatilive.netlify.app**
 - **Supabase** : base, authentification, stockage, fonctions serveur, `pg_cron`.
 - **Fonctions serveur déployées** : `outlook-poll` (relève des mails, plusieurs boîtes),
   `classify-prospect-email` (analyse d'un mail inconnu par Claude), `graph-send-email` (envoi réel),

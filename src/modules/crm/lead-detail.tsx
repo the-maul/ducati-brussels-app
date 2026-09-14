@@ -27,7 +27,8 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from './communications-panel';
 import {
   updateLead, deleteLead, listLeadActivities, addLeadActivity,
-  listLeadAudit, LEAD_STAGES, dueState, type Lead,
+  listLeadAudit, listCompanyMembers, closeAndCreateFollowUp,
+  LEAD_STAGES, dueState, type Lead,
 } from './api';
 import { t } from '@/lib/i18n';
 
@@ -51,15 +52,22 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
     vehicle_interest: lead.vehicle_interest ?? '', source: lead.source ?? '',
     estimated_value: lead.estimated_value != null ? String(lead.estimated_value) : '', stage: lead.stage, notes: lead.notes ?? '',
     due_at: toLocalInput(lead.due_at),
+    assigned_to: lead.assigned_to ?? '',
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [note, setNote] = useState(''); const [chan, setChan] = useState('note'); const [msg, setMsg] = useState<string | null>(null);
   // Sortie de la carte : tant qu'on ne s'est pas prononcé, on demande.
   const [closing, setClosing] = useState(false);
   const [snoozeAt, setSnoozeAt] = useState(plusHours(48));
+  // Passer le relais : clôturer celle-ci et ouvrir la suivante, confiée à quelqu'un.
+  const [nextWhat, setNextWhat] = useState('');
+  const [nextWho, setNextWho] = useState('');
+  const [nextWhen, setNextWhen] = useState(plusHours(48));
 
   const acts = useQuery({ queryKey: ['lead-acts', lead.id], queryFn: () => listLeadActivities(lead.id) });
   const audit = useQuery({ queryKey: ['lead-audit', lead.id], queryFn: () => listLeadAudit(lead.id) });
+  const members = useQuery({ queryKey: ['company-members', companyId], queryFn: () => listCompanyMembers(companyId) });
+  const memberName = (id: string | null | undefined) => members.data?.find((m) => m.user_id === id)?.name ?? null;
 
   const refresh = () => { onChanged(); qc.invalidateQueries({ queryKey: ['leads', companyId] }); qc.invalidateQueries({ queryKey: ['leads-due', companyId] }); audit.refetch(); };
 
@@ -68,6 +76,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
       name: f.name, email: f.email || null, phone: f.phone || null, vehicle_interest: f.vehicle_interest || null,
       source: f.source || null, estimated_value: f.estimated_value ? num(f.estimated_value) : null, stage: f.stage, notes: f.notes || null,
       due_at: f.due_at ? new Date(f.due_at).toISOString() : null,
+      assigned_to: f.assigned_to || null,
     }),
     onSuccess: () => { setMsg(t('crm.saved')); refresh(); },
   });
@@ -75,6 +84,15 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
   const addAct = useMutation({
     mutationFn: () => addLeadActivity({ companyId, leadId: lead.id, contactId: lead.contact_id, channel: chan, body: note }),
     onSuccess: () => { setNote(''); acts.refetch(); audit.refetch(); },
+  });
+  /** Clôture celle-ci et ouvre la suivante, confiée à quelqu'un. */
+  const relay = useMutation({
+    mutationFn: () => closeAndCreateFollowUp({
+      companyId, lead, stage: 'gagne',
+      what: nextWhat, assignedTo: nextWho || null,
+      dueAt: nextWhen ? new Date(nextWhen).toISOString() : null,
+    }),
+    onSuccess: () => { refresh(); setClosing(false); onClose(); },
   });
   /** Clôture ou report depuis la boîte de sortie. */
   const closeWith = useMutation({
@@ -87,7 +105,9 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
   return (
     <>
       <Dialog open={!closing} onOpenChange={(o) => { if (!o) setClosing(true); }}>
-        <DialogContent className="max-w-5xl">
+        {/* La carte dépasse la hauteur de l'écran dès que le fil de mails est long :
+            sans hauteur bornée ni défilement, le bas devenait inatteignable. */}
+        <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
           <DialogHeader><DialogTitle className="flex flex-wrap items-center gap-3 pr-6">
             <span>{f.name || lead.name}</span>
             {due === 'overdue' && <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-medium text-[var(--danger)]"><Clock className="size-3.5" />{t('crm.dueOverdue')}</span>}
@@ -98,6 +118,18 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
           <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
             {/* ---------- Détails éditables ---------- */}
             <div className="space-y-2">
+              {/* Ce qu'il y a à faire, en tête et en évidence : c'est la première
+                  question que se pose celui qui ouvre la carte. */}
+              <div className={`rounded-md border p-3 ${due === 'overdue' ? 'border-[var(--danger)]' : due === 'today' ? 'border-[var(--warning)]' : 'border-border'}`}>
+                <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                  <Clock className="size-3.5" /> {t('crm.toDo')}
+                </p>
+                <p className="text-[13px]">{lead.notes?.split('\n')[0] || t('crm.toDoNone')}</p>
+                <p className="mt-1.5 text-[12px] text-muted-foreground">
+                  {t('crm.assignedTo')} : <span className="font-medium text-foreground">{memberName(lead.assigned_to) ?? t('crm.assigneeNone')}</span>
+                  {lead.due_at && <> · {t('crm.dueAt')} {new Date(lead.due_at).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' })}</>}
+                </p>
+              </div>
               <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.details')}</p>
               <Field label={t('crm.leadName')}><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
               {/* E-mail et téléphone sur toute la largeur : côte à côte, le sélecteur
@@ -121,6 +153,15 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
                 </Field>
               </div>
               <p className="text-[11px] text-muted-foreground">{t('crm.dueHint')}</p>
+              <Field label={t('crm.assignee')}>
+                <Select value={f.assigned_to || '__none__'} onValueChange={(v) => set('assigned_to', v === '__none__' ? '' : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t('crm.assigneeNone')}</SelectItem>
+                    {members.data?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
               <Field label={t('crm.notes')}><Textarea rows={3} value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
               <div className="flex items-center gap-2">
                 <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} {t('crm.save')}</Button>
@@ -223,6 +264,33 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
                 <Input type="datetime-local" value={snoozeAt} onChange={(e) => setSnoozeAt(e.target.value)} />
                 <Button variant="outline" onClick={() => closeWith.mutate({ due_at: snoozeAt ? new Date(snoozeAt).toISOString() : null })} disabled={closeWith.isPending || !snoozeAt}>
                   {closeWith.isPending ? <Loader2 className="animate-spin" /> : <Clock className="size-4" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* Passer le relais : on clôture celle-ci et on ouvre la suivante, confiée
+                à quelqu'un. Sans ça, clôturer faisait disparaître ce qui restait à faire. */}
+            <div className="rounded-md border border-border p-2.5">
+              <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.closeAndNew')}</label>
+              <div className="space-y-2">
+                <Input value={nextWhat} onChange={(e) => setNextWhat(e.target.value)} placeholder={t('crm.newTaskPlaceholder')} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={nextWho || '__none__'} onValueChange={(v) => setNextWho(v === '__none__' ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder={t('crm.assignee')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t('crm.assigneeNone')}</SelectItem>
+                      {members.data?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input type="datetime-local" value={nextWhen} onChange={(e) => setNextWhen(e.target.value)} />
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={relay.isPending || !nextWhat.trim()}
+                  onClick={() => relay.mutate()}
+                >
+                  {relay.isPending ? <Loader2 className="animate-spin" /> : null} {t('crm.createAndClose')}
                 </Button>
               </div>
             </div>

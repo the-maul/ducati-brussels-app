@@ -31,9 +31,16 @@ const MAX_BODY = 12000;
 async function db(path: string, init: RequestInit = {}) {
   return fetch(`${URL}/rest/v1/${path}`, { ...init, headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 }
+// Détail de la dernière erreur d'appel SQL. Sans ça, un refus de PostgREST se
+// résumait à « rien créé » et la cause restait invisible.
+let lastRpcError = '';
 async function rpc(fn: string, body: unknown) {
   const r = await db(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(body) });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    lastRpcError = `${fn} ${r.status}: ${(await r.text()).slice(0, 300)}`;
+    return null;
+  }
+  lastRpcError = '';
   const txt = await r.text();            // certaines RPC renvoient void (corps vide)
   return txt ? JSON.parse(txt) : null;
 }
@@ -128,19 +135,23 @@ Deno.serve(async () => {
     // Comparaison en millisecondes, JAMAIS en texte. Graph renvoie « 2026-09-14T13:45:29.1Z »
     // et PostgREST relit le curseur en « 2026-09-14T13:45:29.1+00:00 » : en comparaison de
     // chaînes, 'Z' (0x5A) est supérieur à '+' (0x2B), donc `ts <= since` était toujours faux
-    // et chaque passage rescannait les mêmes messages. Sans conséquence sur les données (les
-    // RPC sont idempotentes) mais un appel d'analyse était relancé à chaque tour.
-    const sinceMs = Date.parse(since);
+    // et chaque passage rescannait les mêmes messages.
+    const sinceMs = Number.isFinite(Date.parse(since)) ? Date.parse(since) : 0;
+
+    // Du PLUS ANCIEN au plus récent, et le curseur n'avance qu'APRÈS traitement réussi.
+    // Auparavant il avançait dès qu'on décidait de traiter un message : une analyse en
+    // échec consommait donc le mail définitivement, sans fiche, sans tâche et sans trace.
+    // C'est exactement ce qui est arrivé le 14/09 à un mail reçu sur occasions@.
+    // Désormais le premier échec arrête le dossier : le message repasse au tour suivant.
+    const fresh = (msgs as Array<Record<string, unknown>>)
+      .map((m) => ({ m, ts: (direction === 'in' ? m.receivedDateTime : (m.sentDateTime || m.receivedDateTime)) as string }))
+      .filter((x) => { const n = Date.parse(x.ts); return Number.isFinite(n) && n > sinceMs; })
+      .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+
     let maxTs = since;
-    let maxMs = Number.isFinite(sinceMs) ? sinceMs : 0;
-    for (const m of msgs as Array<Record<string, unknown>>) {
+    for (const { m, ts } of fresh) {
       try {
-        const ts = (direction === 'in' ? m.receivedDateTime : (m.sentDateTime || m.receivedDateTime)) as string;
-        const tsMs = Date.parse(ts);
-        if (!Number.isFinite(tsMs) || tsMs <= maxMs) continue;
         scanned++;
-        maxMs = tsMs;
-        maxTs = ts;
         const sender = addr(m.from);
         const recips = (m.toRecipients as unknown[] | undefined) ?? [];
         const matchEmail = direction === 'in' ? sender : (recips.length ? addr(recips[0]) : '');
@@ -158,24 +169,27 @@ Deno.serve(async () => {
         // Déjà vu et délibérément écarté : `ingest_email` retrouve bien la communication par
         // son identifiant de message, mais sans fiche rattachée, donc il répond matched=false
         // comme pour un inconnu. Sans ce garde, un mail écarté serait réanalysé à chaque tour.
-        if (!contactId && row?.communication_id) { ignored++; continue; }
+        if (!contactId && row?.communication_id) { ignored++; maxTs = ts; continue; }
 
         // --- Expéditeur inconnu : c'est ici que se jouait la perte du prospect. ---
         if (!contactId && direction === 'in' && matchEmail) {
           if (ownAddresses.has(matchEmail.toLowerCase()) || isAutomatic(subject, matchEmail)) {
             await rpc('log_ignored_email', { _company: coId, _email: matchEmail, _subject: subject, _received: ts, _external_id: m.id, _verdict: 'message automatique ou interne' });
             ignored++;
+            maxTs = ts;
             continue;
           }
           const verdict = await classify(matchEmail, mailbox, subject, body);
           if (!verdict) {
-            // Analyse indisponible : on ne tranche pas et on ne consomme pas le mail.
-            errors.push(`classify indisponible: ${String(m.id).slice(0, 24)}`);
-            continue;
+            // Analyse indisponible : on NE consomme PAS le mail et on arrête ici. Le curseur
+            // reste en arrière, le message repassera au prochain tour.
+            errors.push(`analyse indisponible, message non consomme: ${String(m.id).slice(0, 24)}`);
+            return maxTs;
           }
           if (!verdict.is_prospect) {
             await rpc('log_ignored_email', { _company: coId, _email: matchEmail, _subject: subject, _received: ts, _external_id: m.id, _verdict: verdict.reason });
             ignored++;
+            maxTs = ts;
             continue;
           }
           const created = await rpc('create_prospect_from_email', {
@@ -195,12 +209,16 @@ Deno.serve(async () => {
             },
           });
           const crow = Array.isArray(created) ? created[0] : created;
-          if (!crow?.contact_id) { errors.push(`prospect non cree: ${String(m.id).slice(0, 24)}`); continue; }
+          if (!crow?.contact_id) {
+            // Création refusée : on ne consomme pas non plus, sinon le prospect est perdu.
+            errors.push(`prospect non cree, message non consomme: ${String(m.id).slice(0, 24)} — ${lastRpcError || 'cause inconnue'}`);
+            return maxTs;
+          }
           contactId = crow.contact_id as string;
           if (crow.created) prospects++;
         }
 
-        if (!contactId) continue;
+        if (!contactId) { maxTs = ts; continue; }
         logged++;
 
         const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
@@ -213,7 +231,14 @@ Deno.serve(async () => {
           if (ctype.startsWith('image/') && a.isInline === true && bin.length < 30000) continue;
           if (await gedUpload(coId, contactId, String(a.name || 'fichier'), ctype, bin)) photos++;
         }
-      } catch (e) { errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`); }
+
+        // Message entièrement traité : c'est seulement ici que le curseur avance.
+        maxTs = ts;
+      } catch (e) {
+        // On n'avance pas le curseur : le message repassera plutôt que d'être perdu.
+        errors.push(`msg ${m.id}: ${String(e).slice(0, 120)}`);
+        return maxTs;
+      }
     }
     return maxTs;
   }

@@ -1209,6 +1209,18 @@ export const fr = {
     closeSnooze: 'Reporter, nouvelle échéance',
     closeSkip: 'Pas encore traitée, laisser telle quelle',
     closeHint: 'Une demande laissée telle quelle réapparaîtra dans les demandes en retard.',
+    // Assignation
+    assignee: 'Qui s\'en charge', assigneeNone: 'Personne pour l\'instant', assignedTo: 'Confiée à',
+    // Clôturer en passant le relais
+    closeAndNew: 'Clôturer et créer une nouvelle tâche',
+    newTaskWhat: 'Ce qu\'il faut faire ensuite', newTaskWhen: 'Pour quand',
+    newTaskPlaceholder: 'Ex. rappeler le client pour fixer un essai',
+    createAndClose: 'Créer la tâche et clôturer celle-ci',
+    fromTask: 'Suite de : {name}',
+    // Ce qu'il y a à faire, mis en avant
+    toDo: 'À faire', toDoNone: 'Rien de précisé. Ajoutez ce qu\'il faut faire dans les notes.',
+    // Cloche
+    notifOpen: 'Ouvrir la demande', notifSeeAll: 'Voir toutes les demandes',
   },
 
   // Matching client intéressé ↔ moto en stock (M10 × M3)

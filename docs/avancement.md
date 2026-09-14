@@ -81,6 +81,8 @@ le champ nouveau.
 | `20260914190000_m10_lead_due_date` | ✅ 14/09/2026 | `leads.due_at` + `last_activity_at`. Échéance posée à la création de toute tâche et **repoussée à chaque échange** avec le client. Délai paramétrable dans `reference_values` / `lead_sla` (48 h par défaut). |
 | `20260914200000_m1_contacts_sort_recent` | ✅ 14/09/2026 | `contacts_search` accepte un tri par date d'arrivée. L'ancienne signature à 5 arguments est **supprimée** : sans ça PostgREST aurait eu deux fonctions homonymes. |
 | `20260914210000_m10_lead_followup` | ✅ 14/09/2026 | `lead_audit` : suivi nominatif d'une demande (qui, quoi, quand, détail du changement). Passe par une fonction serveur car `profiles` n'est lisible que pour soi-même : une jointure côté application aurait renvoyé un suivi anonyme, et ouvrir les profils de tout le personnel n'était pas souhaitable. |
+| `20260914220000_m10_company_members` | ✅ 14/09/2026 | `company_members` : membres d'une société, pour confier une tâche à quelqu'un. Ni `user_roles` ni `profiles` ne sont lisibles au-delà de soi-même, et `listOrgUsers` exige d'être administrateur. |
+| `20260914230000_m1_prospect_country_not_null` | ✅ 14/09/2026 | **Correctif de production.** `contacts.country` est NOT NULL **avec un défaut** ; lui passer explicitement `null` écrasait ce défaut et faisait échouer toute la création d'un prospect sans pays (erreur 23502). Vérifié en rattrapant le vrai mail qui avait été perdu. |
 
 > ⚠️ **Sept migrations du dépôt ne sont toujours PAS appliquées**, dont trois qui cassent la
 > production en silence (fiche véhicule et fiche article non enregistrables, module reprises

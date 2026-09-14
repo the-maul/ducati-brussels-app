@@ -91,6 +91,55 @@ export async function countLeadsDue(companyId: string): Promise<LeadDueSummary> 
   return { overdue, today };
 }
 
+/**
+ * Membres de la société, pour confier une tâche à quelqu'un.
+ * Fonction serveur car ni `user_roles` ni `profiles` ne sont lisibles au-delà de
+ * soi-même, et `listOrgUsers` refuse l'accès à qui n'est pas admin.
+ */
+export type CompanyMember = { user_id: string; name: string; roles: string };
+export async function listCompanyMembers(companyId: string): Promise<CompanyMember[]> {
+  const { data, error } = await supabase.rpc('company_members', { _company: companyId });
+  if (error) throw error;
+  return (data as CompanyMember[]) ?? [];
+}
+
+/** Demandes à traiter (en retard ou pour aujourd'hui) — liste de la cloche. */
+export async function listLeadsDue(companyId: string): Promise<Lead[]> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('company_id', companyId)
+    .in('stage', OPEN_STAGES as unknown as string[])
+    .not('due_at', 'is', null)
+    .order('due_at', { ascending: true })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).filter((l) => {
+    const s = dueState(l.due_at);
+    return s === 'overdue' || s === 'today';
+  });
+}
+
+/**
+ * Clôture une demande ET ouvre la suivante, confiée à quelqu'un.
+ * Le client garde ainsi un fil continu : la demande traitée est fermée, mais ce
+ * qu'il reste à faire ne disparaît pas avec elle.
+ */
+export async function closeAndCreateFollowUp(p: {
+  companyId: string; lead: Lead; stage: string;
+  what: string; assignedTo: string | null; dueAt: string | null;
+}): Promise<void> {
+  await updateLead(p.lead.id, { stage: p.stage });
+  const { error } = await supabase.from('leads').insert({
+    company_id: p.companyId, contact_id: p.lead.contact_id,
+    name: p.lead.name, email: p.lead.email, phone: p.lead.phone,
+    vehicle_interest: p.lead.vehicle_interest, source: p.lead.source,
+    stage: 'nouveau', notes: p.what || null,
+    assigned_to: p.assignedTo, due_at: p.dueAt,
+  });
+  if (error) throw error;
+}
+
 export type LeadPatch = Partial<Pick<Lead, 'name' | 'email' | 'phone' | 'vehicle_interest' | 'source' | 'estimated_value' | 'stage' | 'notes' | 'contact_id' | 'assigned_to' | 'due_at'>>;
 export async function updateLead(id: string, patch: LeadPatch): Promise<void> {
   const { error } = await supabase.from('leads').update(patch).eq('id', id);

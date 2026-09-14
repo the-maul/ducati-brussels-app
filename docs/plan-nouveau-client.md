@@ -260,6 +260,39 @@ Une seule communication sur 276 portait un identifiant de demande
 - [x] **Sortie de la carte.** On ne quitte plus sans se prononcer : clôturer en gagné ou en perdu,
       reporter avec une nouvelle échéance, ou laisser telle quelle. Le dernier choix est explicite
       et rappelle que la demande réapparaîtra dans les retards.
+- [x] **Assignation.** `leads.assigned_to` existait sans moyen de choisir une personne : ni
+      `user_roles` ni `profiles` ne sont lisibles au-delà de soi-même, et la fonction serveur
+      `listOrgUsers` refuse l'accès à qui n'est pas administrateur. Nouvelle fonction
+      `company_members`, limitée à la société. La carte affiche en tête ce qu'il y a à faire, à
+      qui c'est confié et pour quand.
+- [x] **Clôturer en passant le relais.** Depuis la sortie de carte, on peut clôturer celle-ci
+      **et** ouvrir la suivante, en désignant qui s'en charge et pour quand. Sans cela, clôturer
+      faisait disparaître ce qu'il restait à faire.
+- [x] **Défilement.** La carte dépassait la hauteur de l'écran dès que le fil de mails était long,
+      et le bas devenait inatteignable.
+
+#### Deux défauts de production trouvés le 14/09 sur un vrai mail
+
+Un message reçu sur `occasions@` n'arrivait pas dans le CRM. Le diagnostic a montré qu'il était
+bien dans la boîte de réception, et que la relève l'avait consommé sans rien créer.
+
+1. **Le curseur avançait avant la réussite du traitement.** Dès qu'un message était retenu, la
+   relève notait son horodatage. Si l'analyse ou la création échouait ensuite, le message était
+   sauté définitivement : ni fiche, ni tâche, ni trace, et l'erreur partait dans la réponse du
+   passage automatique que personne ne lit. La relève traite désormais du plus ancien au plus
+   récent, n'avance le curseur qu'après traitement complet, et **s'arrête au premier échec** pour
+   que le message repasse au tour suivant. Le détail de l'erreur SQL est aussi remonté, au lieu
+   d'un simple « rien créé ».
+2. **Un prospect sans pays faisait échouer toute la création.** `contacts.country` est NOT NULL
+   avec une valeur par défaut. La fonction lui passait explicitement la valeur extraite, nulle
+   quand le message ne mentionne aucun pays, ce qui **écrase le défaut** et viole la contrainte.
+   Le test manuel passait parce qu'on y fournissait « BE » à la main. Règle à retenir : ne jamais
+   passer `null` à une colonne NOT NULL qui a un défaut.
+
+> **Point à surveiller.** Le message rattrapé était un transfert : expéditeur `sylvielicausi@`,
+> demandeur réel Patrick Levrette. L'analyse a bien extrait la bonne personne, mais n'a pas
+> considéré le message comme relayé, donc la fiche porte l'adresse de l'expéditeur. À affiner si
+> les transferts deviennent courants.
 
 ### Lot 2 — Invitation et compte client
 
