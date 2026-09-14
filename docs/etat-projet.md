@@ -154,10 +154,14 @@ Supabase, Bun. Les routes sont fichier par fichier dans `src/routes/` ; `routeTr
   Le compte est un compte privé détenu par l'intégrateur. **L'adresse publique du site n'est
   documentée nulle part, à renseigner ici.**
 - **Supabase** : base, authentification, stockage, fonctions serveur, `pg_cron`.
-- **Fonctions serveur déployées** : `outlook-poll` (relève des mails), `graph-send-email` (envoi réel),
+- **Fonctions serveur déployées** : `outlook-poll` (relève des mails, plusieurs boîtes),
+  `classify-prospect-email` (analyse d'un mail inconnu par Claude), `graph-send-email` (envoi réel),
   `dispatch-notifications` (file d'attente, pointe vers Resend sans clé donc inactive),
   `read-id-doc` (lecture de pièces d'identité par Claude), `vies-check` (TVA),
   `stripe-checkout`, `stripe-webhook`.
+- **Clé `ANTHROPIC_API_KEY` posée le 14/09/2026.** Elle avait toujours manqué : `read-id-doc`,
+  construite en juillet, répondait « non configurée » depuis le premier jour et n'a jamais
+  fonctionné en production. Les deux fonctions qui appellent Claude marchent désormais.
 - **CRM du client** : un webhook envoie chaque push au CRM, qui crée une tâche « à valider ».
   Fonctionne depuis le 11/09. C'est la raison du format de commit imposé.
 
@@ -228,4 +232,3 @@ l'enregistrement, puis le module de reprises.
 | IBAN de la concession | QR code de virement au comptoir |
 | Marque et modèle du terminal Bancontact | Encaissement au comptoir |
 | Décision sur le site public | Shopify ou la vitrine intégrée au DMS |
-| **Clé API Anthropic** (`ANTHROPIC_API_KEY`) | **Bloquant.** Vérifié absent des secrets Supabase le 14/09. Rend inertes la lecture automatique des permis et cartes d'identité (construite en juillet, n'a jamais fonctionné en production) et la création de prospects depuis les mails. |

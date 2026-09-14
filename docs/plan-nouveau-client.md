@@ -170,11 +170,13 @@ le tableau de `docs/avancement.md` (voir le risque n°1 au §8).
       première relève ne rattrape plusieurs jours de courrier d'un coup.
 - [x] **Relève vérifiée en production** : exécutée deux fois à la main, sans erreur, les trois
       boîtes sont lisibles par Microsoft Graph. Un premier 503 sur `info@` était passager.
-- [ ] 🔴 **BLOQUANT — clé `ANTHROPIC_API_KEY` absente des secrets Supabase.** L'analyse répond
-      `not_configured` et la relève laisse alors le mail intact pour le repasser plus tard, donc
-      rien n'est perdu, mais aucun prospect ne sera créé tant que la clé n'est pas posée.
-      Même cause pour `read-id-doc`, qui n'a donc jamais fonctionné depuis juillet.
-      Pose : `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`, sans redéploiement.
+- [x] **Clé `ANTHROPIC_API_KEY` posée le 14/09.** Elle manquait depuis le début du projet. Cela
+      débloque aussi `read-id-doc`, la lecture automatique des permis et cartes d'identité
+      construite en juillet, qui n'avait donc jamais fonctionné en production.
+- [x] **Analyse vérifiée sur trois cas réels** : une particulière demandant une Monster 937
+      (reconnue prospect, téléphone et intérêt extraits, non professionnelle), une newsletter de
+      fournisseur (écartée), et une société demandant un devis d'entretien de flotte (reconnue
+      prospect et professionnelle, raison sociale et numéro de TVA extraits).
 - [ ] **Écran de revue** des rapprochements proposés (`contact_merge_candidates`).
 
 **Fait quand** : un mail de test envoyé depuis une adresse inconnue produit une fiche et une tâche ;

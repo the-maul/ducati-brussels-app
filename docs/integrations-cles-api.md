@@ -17,7 +17,7 @@
 | 8 | **Microsoft Graph** | Mail/agenda Microsoft 365 (si intégration) (M10) | `MS_GRAPH_CLIENT_ID`, `MS_GRAPH_CLIENT_SECRET`, `MS_GRAPH_TENANT_ID` | Supabase secrets | ⚪ |
 | 9 | **OVH — domaine & DNS** | Rattacher un **nom de domaine** à la vitrine publique `/shop/{slug}` (M11) | accès OVH (manager) ; API OVH si automatisation (`OVH_APP_KEY/SECRET/CONSUMER`) | déploiement / OVH | 🟡 |
 | 10 | **VIES** (Commission UE) | Validation n° TVA intracom (M1) | aucune clé (service public) | — | ✅ |
-| 12 | **Anthropic — Claude API** | Lecture automatique des permis et cartes d'identité (M1, fonction `read-id-doc`) · **analyse des mails entrants** pour créer un prospect (M10, fonction `classify-prospect-email`) | `ANTHROPIC_API_KEY` | Supabase secrets | 🟡 **manquante — vérifié le 14/09/2026** |
+| 12 | **Anthropic — Claude API** | Lecture automatique des permis et cartes d'identité (M1, fonction `read-id-doc`) · **analyse des mails entrants** pour créer un prospect (M10, fonction `classify-prospect-email`) | `ANTHROPIC_API_KEY` | Supabase secrets | ✅ **posée le 14/09/2026** |
 | 11 | **Ducati DCS** | Commandes fournisseur Ducati (M4) | **pas d'API** (export Excel imposé STANDARD/URGENTE) | — | ✅ (export fait) |
 
 ---
@@ -63,8 +63,8 @@
 4. **SMS** : fournisseur choisi + clé API + n° expéditeur.
 5. **Winbooks** : un fichier d'import exemple du comptable.
 6. **OVH** : le(s) nom(s) de domaine à rattacher (config DNS faite ensemble).
-7. **Anthropic** : `ANTHROPIC_API_KEY` (clé créée sur console.anthropic.com).
-   **Deux fonctionnalités déjà construites sont inertes sans elle** : la lecture automatique des
-   permis et cartes d'identité (depuis juillet) et la création de prospects à partir des mails.
-   Pose : `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...` ou via le tableau de bord Supabase
-   (Edge Functions → Secrets). Aucun redéploiement des fonctions n'est nécessaire ensuite.
+7. ~~**Anthropic** : `ANTHROPIC_API_KEY`~~ — **posée le 14/09/2026.** Elle avait toujours manqué,
+   ce qui rendait inertes deux fonctionnalités déjà construites : la lecture automatique des permis
+   et cartes d'identité (depuis juillet, jamais fonctionnelle en production) et la création de
+   prospects à partir des mails. La facturation de l'API est distincte de l'abonnement Claude :
+   il faut du crédit sur le compte Anthropic, sinon la clé existe mais les appels échouent.
