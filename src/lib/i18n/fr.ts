@@ -976,6 +976,12 @@ export const fr = {
     needLine: 'Ajoutez au moins une ligne.',
     errSave: 'Erreur',
     draft: 'Brouillon', validate: 'Valider',
+    // devis atelier : frais de devis (mission 02)
+    workshopQuote: 'Devis atelier', feeKind: 'Frais de devis', fee_accident: 'Accident', fee_diagnostic: 'Diagnostic',
+    feeHours: 'Heures de diagnostic', feeAdd: 'Ajouter les frais', feeReplace: 'Remplacer les frais',
+    feeHoursHint: 'Plafonné : on peut seulement réduire le nombre d’heures.',
+    feeRule: 'Accident : {accident} HTVA fixe · Diagnostic : {rate} HTVA / h, {max} h maximum sans nouveau devis.',
+    feeNoRate: 'Tarif horaire de l’atelier non renseigné : Paramètres → Tables → Frais de devis atelier (ou prix de l’article MO).',
     // pied de facture
     pied: 'Pied de facture',
     priceMode: 'Mode de saisie', mode_ht: 'Hors taxes (HT)', mode_ttc: 'Toutes taxes (TTC)',
@@ -1445,7 +1451,7 @@ export const fr = {
     articlePlaceholder: 'Article ou texte…', addLine: 'Ajouter une ligne', needSomething: 'Renseignez au moins les travaux ou une ligne.',
     totalHt: 'HT', totalVat: 'TVA', totalTtc: 'TTC',
     save: 'Enregistrer', errSave: 'Erreur', toInvoice: 'Transformer en facture', viewInvoice: 'Voir la facture',
-    print: 'Imprimer',
+    print: 'Imprimer', quoteParts: 'Devis de pièces',
     // chronos (B11)
     chrono: 'Pointeuse', chronoTitle: 'Chronos atelier', chronoSubtitle: 'Présence et temps de travail par OR (productivité B11).',
     mechanicName: 'Mécanicien', presenceIn: 'Pointer l\'arrivée', presenceOut: 'Pointer le départ', presentSince: 'Présent depuis',

@@ -68,6 +68,14 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   { key: 'repair_type', label: 'Types de réparation', group: 'atelier', extraColumns: [] },
   { key: 'workshop_operation', label: 'Opérations atelier', group: 'atelier', extraColumns: [] },
   { key: 'workshop_task', label: 'Tâches hors facturation', group: 'atelier', extraColumns: [] },
+  // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
+  { key: 'workshop_quote_fee', label: 'Frais de devis atelier', group: 'atelier',
+    extraColumns: [
+      { key: 'amount_ht', label: 'Montant fixe HTVA (accident)', type: 'number' },
+      { key: 'hourly_rate_ht', label: 'Tarif horaire HTVA (0 = prix article MO)', type: 'number' },
+      { key: 'max_hours', label: 'Heures max (diagnostic)', type: 'number' },
+      { key: 'vat_rate', label: 'TVA %', type: 'number' },
+    ] },
 ];
 
 export const REFERENCE_GROUPS: { key: RefTableDef['group']; label: string }[] = [

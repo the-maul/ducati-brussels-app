@@ -24,7 +24,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 |---|---|
 | Atelier & SAV → liste (`/workshop`) | Les 100 derniers OR de la société, filtre par statut (à faire, en cours, prêt, facturé, annulé), accès planning et pointeuse |
 | Atelier → Nouvel OR (`/workshop/new`) | En-tête : client, véhicule (recherche VIN / plaque / modèle), kilométrage, opérateur, type de réparation, travaux demandés, observations à la réception, statut, garantie, expert et date d'expertise (accident) ; lignes pièce / main-d'œuvre / texte avec case « garantie » (prix forcé à 0) ; totaux HT/TVA/TTC ; numéro `OR-` attribué à la création |
-| Atelier → fiche OR (`/workshop/$orId`) | Modifier l'OR, **temps passé** (somme des pointages), **transformer en facture** (bloqué tant que la garantie est « en attente »), voir la facture, **aide à la réparation Ducati** pour moto accidentée (remise 15 % si pièces > 1 500 € HT, fichier Excel de commande, e-mail préparé), pièces jointes / photos (GED) |
+| Atelier → fiche OR (`/workshop/$orId`) | Modifier l'OR, **temps passé** (somme des pointages), **transformer en facture** (bloqué tant que la garantie est « en attente »), voir la facture, **aide à la réparation Ducati** pour moto accidentée (remise 15 % si pièces > 1 500 € HT, fichier Excel de commande, e-mail préparé), pièces jointes / photos (GED), **Devis de pièces** (ouvre un devis rattaché à l'OR, case « Devis atelier » cochée, voir M6) |
 | Atelier → Planning (`/workshop/planning`) | Vue semaine des rendez-vous, création d'un RDV (client, véhicule, mécanicien, atelier, date, durée, travaux, observations, véhicule de prêt, case « SMS de rappel »), changement de statut (prévu, arrivé, en cours, terminé, annulé), **création de l'OR depuis le RDV** |
 | Atelier → Pointeuse (`/workshop/chrono`) | Pointer l'arrivée / le départ, démarrer / arrêter le travail sur un OR ouvert, pointages du jour |
 | Rapports (M13) → Productivité atelier | Présence et travail par mécanicien sur la période |
@@ -39,6 +39,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Éditeur d'OR | `src/modules/workshop/or-editor.tsx` |
 | Chronos | `src/modules/workshop/chrono-api.ts` |
 | Planning / RDV | `src/modules/workshop/planning-api.ts` |
+| Frais de devis atelier (accident / diagnostic) | `src/modules/workshop/quote-fees.ts` (calcul pur), `src/modules/workshop/quote-fees-api.ts` (lecture des paramètres) ; utilisés par `src/modules/sales/document-editor.tsx` |
 | Moto accidentée (aide Ducati 15 %) | `src/modules/workshop/accident-form.ts`, `src/modules/workshop/accident-help-dialog.tsx` |
 | Tables | `repair_orders` (en-tête OR, statut, `warranty_status`, expert, totaux, `invoice_document_id`), `repair_order_lines` (lignes `kind` piece/mo/texte, `is_warranty`), `workshop_time_entries` (pointages `presence` / `travail`, `minutes`), `workshop_appointments` (RDV, `loaner_vehicle`, `notify_sms`, `or_id`) ; **en base mais sans écran** : `workshop_operations` (40 opérations types), `repair_order_operations` (checklist cochée sur un OR), `workshop_tasks` (tâches hors facturation) |
 | Fonctions SQL (RPC) | `next_document_number` (type `OR`), `or_worked_minutes`, `workshop_productivity` (M13) ; **sans appelant** : `workshop_load` (taux de charge du planning) |
@@ -46,7 +47,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Tâches planifiées | `appointment-reminders` (17:00, `_cron_appointment_reminders`), `dispatch-notifications` (toutes les 10 min) |
 | Migrations clés | `supabase/migrations/20260610340000_m8_repair_orders.sql`, `…20260610350000_m8_chrono.sql`, `…20260610360000_m8_appointments.sql`, `…20260612250000_m8_workshop_extra.sql`, `…20260612240000_m10_notifications.sql` (rappels) |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `workshop`, `accident` |
-| Tests | `tests/workshop-totals.test.ts` (2 cas : totaux, ligne garantie à 0) |
+| Tests | `tests/workshop-totals.test.ts` (2 cas : totaux, ligne garantie à 0), `tests/workshop-quote-fees.test.ts` (frais de devis : 125 €, plafond 4 h, pas de doublon) |
 
 ## 4. Règles métier et décisions
 - **Cycle OR (B8)** : réception (observations, photos en GED) → OR → réparation → transformation en facture via M6. Statuts `a_faire`, `en_cours`, `pret`, `facture`, `annule`. Un OR facturé ne peut plus être re-facturé.
@@ -55,6 +56,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 - **Chronos (B11)** : un pointage `presence` (arrivée/départ) et des pointages `travail` rattachés à un OR ; démarrer un nouveau travail clôt le précédent ; minutes calculées à la clôture.
 - **Main-d'œuvre = article de type T** (ADR-002, `docs/decisions/ADR-002-type-gestion-T-main-oeuvre.md`) : sur l'OR, la ligne « main-d'œuvre » est un `kind = 'mo'` ; le rapprochement temps passé / temps facturé devait s'appuyer sur ces lignes (non fait, §7).
 - **Aide à la réparation Ducati** (note réseau Ducati, backlog DOC-02, commit `9504e36`) : remise supplémentaire de 15 % sur les pièces si le devis pièces dépasse 1 500 € HT (`ACCIDENT_HELP_THRESHOLD_HT`, `ACCIDENT_HELP_DISCOUNT_RATE`). Le dossier est préparé (Excel + `mailto:`), l'envoi reste manuel depuis la messagerie de l'utilisateur.
+- **Frais de devis atelier** (mission 02, process-commandes-pieces §1.4, décision M-5) : quand un devis de pièces vient de l'atelier, on ajoute les frais du devis — **accident = 125 € HTVA fixe** ; **diagnostic = tarif horaire de l'atelier × heures, 4 h maximum, sans nouveau devis** (heures modifiables vers le bas seulement). Paramètres par société : Paramètres → Tables → **Frais de devis atelier** (`reference_values`, `table_key = 'workshop_quote_fee'`, codes `accident` : `amount_ht`, `vat_rate` ; `diagnostic` : `hourly_rate_ht`, `max_hours`, `vat_rate`). Aucun tarif horaire n'existait : `hourly_rate_ht = 0` reprend le prix de vente de l'article `MO` (type T), lui-même à 0 en production le 19/09 → **tarif horaire à saisir**. La ligne est une ligne dédiée sans article (pas de mouvement de stock à la facturation).
 - **OR créé depuis un RDV** : l'OR hérite du client, du véhicule, du mécanicien, des travaux et des observations ; le RDV passe `en_cours` et garde le lien `or_id`.
 
 ## 5. État en production
@@ -127,3 +129,4 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-07-26 | Moto accidentée + programme d'aide Ducati 15 % | `9504e36` |
 | 2026-07-26 | Fil d'Ariane et boutons collants | `8f59518` |
 | 2026-09-11 | Correction du type `OrPayload` (import cassé depuis l'origine) et typage | `c1dd2b7` |
+| 2026-09-19 | Frais de devis atelier : accident 125 €, diagnostic au tarif horaire (4 h max), bouton « Devis de pièces » sur l'OR (mission 02) | `20260919230000_m8_frais_devis_atelier.sql` |

@@ -3,11 +3,13 @@
  * En-tête (type, client, dates) + lignes (article ou texte libre) + pied de facture
  * (mode HT/TTC, détaxe export, remise globale, frais de port, net TTC forcé) + totaux
  * + brouillon/validation. Tout libellé via i18n (CLAUDE.md règle 10).
+ * Devis atelier (mission 02) : frais de devis accident (fixe) ou diagnostic (tarif horaire,
+ * plafonné) posés en ligne dédiée, sans doublon — voir modules/workshop/quote-fees.ts.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,20 +17,24 @@ import { listContacts, contactDisplayName, type Contact } from '@/modules/contac
 import { createDocument, computeTotals, searchSaleArticles, type LineInput, type SaleArticle, type PiedInput } from './write-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
+import { loadQuoteFeeParams } from '@/modules/workshop/quote-fees-api';
 
 const DOC_TYPES = ['FAC', 'DEV', 'RES', 'BL', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type EditLine = LineInput & { _key: string };
+type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null };
 let counter = 0;
 const blankLine = (): EditLine => ({ _key: `l${counter++}`, article_id: null, designation: '', quantity: 1, unit_price_ht: 0, vat_rate: 21, discount_pct: 0 });
 
-export function DocumentEditor({ companyId, initialContactId }: { companyId: string; initialContactId?: string }) {
+export function DocumentEditor({ companyId, initialContactId, initialVehicleId, workshopOrNumber, workshop }: {
+  companyId: string; initialContactId?: string; initialVehicleId?: string; workshopOrNumber?: string; workshop?: boolean;
+}) {
   const navigate = useNavigate();
   const roundUp = useRoundSalePrices(companyId);
-  const [docType, setDocType] = useState<string>('FAC');
+  const [docType, setDocType] = useState<string>(workshop ? 'DEV' : 'FAC');
   const [contact, setContact] = useState<Contact | null>(null);
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState('');
@@ -44,6 +50,30 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
   const [shippingHt, setShippingHt] = useState('');
   const [shippingTaxed, setShippingTaxed] = useState(true);
   const [forcedTtc, setForcedTtc] = useState('');
+
+  // Devis atelier : frais de devis (accident fixe / diagnostic au tarif horaire plafonné)
+  const [workshopQuote, setWorkshopQuote] = useState(!!workshop);
+  const [feeKind, setFeeKind] = useState<QuoteFeeKind>('diagnostic');
+  const [feeHours, setFeeHours] = useState('');
+  const { data: feeParams } = useQuery({ queryKey: ['quote-fee-params', companyId], queryFn: () => loadQuoteFeeParams(companyId), enabled: workshopQuote });
+  const addQuoteFee = () => {
+    if (!feeParams) return;
+    const hours = feeHours.trim() ? num(feeHours) : feeParams.diagnosticMaxHours;
+    const fee: EditLine = { ...buildQuoteFeeLine(feeKind, feeParams, hours), _key: `l${counter++}`, _fee: feeKind };
+    setLines((ls) => applyQuoteFee(ls, fee));
+    if (feeKind === 'diagnostic') setFeeHours(String(fee.quantity));
+  };
+  const toggleWorkshopQuote = (on: boolean) => {
+    setWorkshopQuote(on);
+    if (!on) setLines((ls) => { const kept = ls.filter((l) => !l._fee); return kept.length ? kept : [blankLine()]; });
+  };
+  // Quantité d'une ligne de frais : accident figé à 1 ; diagnostic modifiable vers le bas seulement.
+  const setFeeQty = (l: EditLine, v: number) => {
+    if (l._fee !== 'diagnostic' || !feeParams) return;
+    const h = clampDiagnosticHours(v, feeParams.diagnosticMaxHours);
+    setLine(l._key, { quantity: h, designation: quoteFeeDesignation('diagnostic', h) });
+    setFeeHours(String(h));
+  };
 
   // La détaxe n'est valable qu'en mode HT (G8 p.54) : on la coupe si on repasse en TTC.
   useEffect(() => { if (priceMode !== 'ht' && taxExempt) setTaxExempt(false); }, [priceMode, taxExempt]);
@@ -65,15 +95,17 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
     shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
     forcedTtc: forcedTtc.trim() ? num(forcedTtc) : null,
   };
-  const totals = computeTotals(lines.map(({ _key, ...l }) => l), pied);
+  const totals = computeTotals(lines.map(({ _key, _fee, ...l }) => l), pied);
 
   const save = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
-      const payload = lines.filter((l) => l.designation.trim()).map(({ _key, ...l }) => l);
+      const payload = lines.filter((l) => l.designation.trim()).map(({ _key, _fee, ...l }) => l);
       if (payload.length === 0) { setError(t('sales.needLine')); setBusy(false); return; }
+      const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
       const id = await createDocument({
-        companyId, docType, contactId: contact?.id ?? null, issueDate, dueDate: dueDate || null, status, lines: payload, pied,
+        companyId, docType, contactId: contact?.id ?? null, vehicleId: initialVehicleId ?? null, issueDate, dueDate: dueDate || null,
+        status, notes, lines: payload, pied,
       });
       navigate({ to: '/sales/$documentId', params: { documentId: id } });
     } catch (e) { setError(e instanceof Error ? e.message : t('sales.errSave')); setBusy(false); }
@@ -124,7 +156,11 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
               return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-2 py-1">
-                    {l.article_id ? (
+                    {l._fee ? (
+                      <div className="flex h-8 items-center gap-2 rounded-md border border-input bg-muted px-3 text-sm">
+                        <Wrench className="size-3.5 text-muted-foreground" /><span className="truncate font-medium">{l.designation}</span>
+                      </div>
+                    ) : l.article_id ? (
                       <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
                     ) : (
                       <LinePicker companyId={companyId} value={l.designation}
@@ -132,8 +168,15 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
                         onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate })} />
                     )}
                   </td>
-                  <td className="px-2 py-1"><Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(shownPrice)} onChange={(e) => onPrice(num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1">
+                    {l._fee ? (
+                      <Input type="number" step="0.25" min={0} max={feeParams?.diagnosticMaxHours} value={String(l.quantity)} disabled={l._fee === 'accident'}
+                        onChange={(e) => setFeeQty(l, num(e.target.value))} title={l._fee === 'diagnostic' ? t('sales.feeHoursHint') : undefined} className="h-8 text-right tabular-nums" />
+                    ) : (
+                      <Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" />
+                    )}
+                  </td>
+                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(shownPrice)} onChange={(e) => onPrice(num(e.target.value))} disabled={!!l._fee} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={taxExempt} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
@@ -146,6 +189,55 @@ export function DocumentEditor({ companyId, initialContactId }: { companyId: str
       </div>
 
       <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('sales.addLine')}</Button>
+
+      {/* Devis atelier : frais de devis */}
+      {(docType === 'DEV' || workshopQuote) && (
+        <div className="space-y-3 rounded-md border border-border bg-card p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={workshopQuote} onChange={(e) => toggleWorkshopQuote(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
+            {t('sales.workshopQuote')}
+            {workshopOrNumber && <span className="text-muted-foreground">· OR {workshopOrNumber}</span>}
+          </label>
+          {workshopQuote && (
+            <>
+              <div className="flex flex-wrap items-end gap-3">
+                <Field label={t('sales.feeKind')}>
+                  <Select value={feeKind} onValueChange={(v) => setFeeKind(v as QuoteFeeKind)}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="accident">{t('sales.fee_accident')}</SelectItem>
+                      <SelectItem value="diagnostic">{t('sales.fee_diagnostic')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {feeKind === 'diagnostic' && (
+                  <Field label={t('sales.feeHours')}>
+                    <Input type="number" step="0.25" min={0} max={feeParams?.diagnosticMaxHours} value={feeHours}
+                      placeholder={feeParams ? String(feeParams.diagnosticMaxHours) : ''}
+                      onChange={(e) => setFeeHours(e.target.value)}
+                      onBlur={() => { if (feeParams && feeHours.trim()) setFeeHours(String(clampDiagnosticHours(num(feeHours), feeParams.diagnosticMaxHours))); }}
+                      className="w-28 text-right tabular-nums" />
+                  </Field>
+                )}
+                <Button type="button" variant="outline" onClick={addQuoteFee} disabled={!feeParams}>
+                  <Wrench /> {lines.some((l) => l._fee) ? t('sales.feeReplace') : t('sales.feeAdd')}
+                </Button>
+              </div>
+              {feeParams && (
+                <p className="text-[12px] text-muted-foreground">
+                  {t('sales.feeRule')
+                    .replace('{accident}', eur(feeParams.accidentAmountHt))
+                    .replace('{rate}', eur(feeParams.hourlyRateHt))
+                    .replace('{max}', String(feeParams.diagnosticMaxHours).replace('.', ','))}
+                </p>
+              )}
+              {feeParams && feeKind === 'diagnostic' && feeParams.hourlyRateHt <= 0 && (
+                <p className="rounded-md bg-warning-bg px-3 py-2 text-[12px] text-warning">{t('sales.feeNoRate')}</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Pied de facture + totaux */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
