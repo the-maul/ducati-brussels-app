@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -2265,6 +2290,7 @@ export type Database = {
           notes: string | null
           number: string | null
           operator: string | null
+          operator_user_id: string | null
           paid_amount: number
           price_mode: string
           remise_ttc: number | null
@@ -2302,6 +2328,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -2339,6 +2366,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -4331,6 +4359,131 @@ export type Database = {
           },
         ]
       }
+      shopify_links: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          id: string
+          match_via: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_products: {
+        Row: {
+          barcode: string | null
+          company_id: string
+          first_seen_at: string
+          handle: string | null
+          id: string
+          image_url: string | null
+          inventory_quantity: number | null
+          price: number | null
+          product_title: string | null
+          product_type: string | null
+          removed_at: string | null
+          shopify_product_id: string
+          shopify_updated_at: string | null
+          shopify_variant_id: string
+          sku: string | null
+          status: string | null
+          synced_at: string
+          variant_title: string | null
+          vendor: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          company_id: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id: string
+          shopify_updated_at?: string | null
+          shopify_variant_id: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          company_id?: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id?: string
+          shopify_updated_at?: string | null
+          shopify_variant_id?: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signup_settings: {
         Row: {
           client_app_open: boolean
@@ -5341,6 +5494,25 @@ export type Database = {
           rule_kind: string
           unit_price_ht: number
           unit_price_ttc: number
+        }[]
+      }
+      _shopify_apply_auto_links: {
+        Args: {
+          _actor: string
+          _company: string
+          _links: Json
+          _run_started_at: string
+          _stats: Json
+        }
+        Returns: Json
+      }
+      _shopify_auto_candidates: {
+        Args: { _company: string }
+        Returns: {
+          barcode: string
+          candidates: Json
+          sku: string
+          variant_id: string
         }[]
       }
       append_lead_exchange_note: {
@@ -6368,6 +6540,49 @@ export type Database = {
           reversal: number
         }[]
       }
+      shopify_link_suggestions: {
+        Args: { _company: string; _variant: string }
+        Returns: {
+          article_id: string
+          designation: string
+          reason: string
+          reference: string
+          score: number
+        }[]
+      }
+      shopify_link_variant: {
+        Args: { _article: string; _company: string; _variant: string }
+        Returns: undefined
+      }
+      shopify_products_overview: {
+        Args: { _company: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          barcode: string
+          decided_at: string
+          handle: string
+          image_url: string
+          inventory_quantity: number
+          link_status: string
+          match_via: string
+          price: number
+          product_status: string
+          product_title: string
+          product_type: string
+          shopify_product_id: string
+          shopify_variant_id: string
+          sku: string
+          synced_at: string
+          variant_title: string
+          vendor: string
+        }[]
+      }
+      shopify_set_variant_decision: {
+        Args: { _company: string; _decision: string; _variant: string }
+        Returns: undefined
+      }
       signup_precheck: {
         Args: { _company: string; _email: string }
         Returns: string
@@ -6646,6 +6861,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

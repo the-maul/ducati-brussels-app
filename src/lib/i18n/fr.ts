@@ -939,7 +939,7 @@ export const fr = {
   // Ventes & Facturation (M6 — POS)
   sales: {
     title: 'Ventes & Facturation',
-    subtitle: 'Factures, devis, tickets et bons de livraison.',
+    subtitle: 'Factures, devis / proformas, bons de commande, réservations, tickets et bons de livraison.',
     newDoc: 'Nouveau document',
     backToList: 'Ventes',
     empty: 'Aucun document.',
@@ -966,8 +966,9 @@ export const fr = {
     // en-tête éditeur
     type: 'Type', client: 'Client', clientPlaceholder: 'Client…', legacyClient: 'Client G8', vehicle: 'Véhicule',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
-    type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
-    type_RES: 'Réservation', type_AVO: 'Avoir',
+    type_FAC: 'Facture', type_DEV: 'Devis / proforma', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
+    type_RES: 'Réservation', type_AVO: 'Avoir', type_BC: 'Bon de commande',
+    operator: 'Opérateur', operatorAuto: 'Utilisateur connecté, enregistré automatiquement sur le document.',
     // lignes
     colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colPuTtc: 'PU TTC',
     colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
@@ -998,7 +999,7 @@ export const fr = {
     payMethod: 'Mode', payAmount: 'Montant', pay: 'Encaisser',
     payments: 'Règlements', addPayment: 'Ajouter un règlement', recordPayments: 'Encaisser',
     deposits: 'Acomptes', addDeposit: 'Ajouter un acompte', recordDeposits: 'Verser l\'acompte',
-    depositInfo: 'Acompte sur réservation — déduit automatiquement à la facturation.',
+    depositInfo: 'Acompte sur réservation ou bon de commande — reporté à la conversion et déduit automatiquement à la facturation.',
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',

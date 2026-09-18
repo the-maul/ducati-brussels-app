@@ -14,11 +14,10 @@ export type AvailabilityLine = { article_id: string | null; quantity: number };
 
 export type DocAvailability = { pct: number; status: AvailabilityStatus };
 
-// Types de documents où la pastille dispo a du sens : devis / réservation (≈ bon de
-// commande) / bon de livraison. Le schéma `documents` n'a pas de type BC ni OR (l'OR
-// est un objet atelier M8, hors table `documents`) — FAC/TIK/AVO facturent un stock déjà
-// mouvementé, la dispo n'y est plus pertinente ('na').
-export const AVAILABILITY_DOC_TYPES = ['DEV', 'RES', 'BL'] as const;
+// Types de documents où la pastille dispo a du sens : devis / proforma, bon de commande,
+// réservation, bon de livraison. L'OR est un objet atelier M8, hors table `documents` —
+// FAC/TIK/AVO facturent un stock déjà mouvementé, la dispo n'y est plus pertinente ('na').
+export const AVAILABILITY_DOC_TYPES = ['DEV', 'BC', 'RES', 'BL'] as const;
 
 export const AVAILABILITY_META: Record<AvailabilityStatus, { tone: StatusTone; icon: LucideIcon }> = {
   disponible: { tone: 'success', icon: PackageCheck },

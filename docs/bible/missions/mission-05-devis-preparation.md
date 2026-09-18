@@ -73,7 +73,19 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 
 ## 5. Ce qui a changé dans l'application
 
-(rempli à chaque lot livré)
+### Carte 1 — Créer un proforma, une réservation, un bon de commande ou une facture (19/09, à valider)
+- Le type DEV s'affiche **« Devis / proforma »** (écran, liste, impression, séquence).
+- Nouveau type **« Bon de commande »** (`BC`, préfixe `BC-`, séquence par société visible dans
+  Paramètres → Numérotation). Chaîne : DEV → BC → RES / BL / FAC (DEV peut toujours aller directement
+  en RES / BL / FAC). Un BC ne bouge pas le stock ; il accepte un **acompte**, reporté à la conversion
+  comme sur une réservation. Pastille de disponibilité affichée sur le BC.
+- **Opérateur = utilisateur connecté** : écrit par le serveur à la création (`documents.operator_user_id`
+  + nom dans `documents.operator`), affiché dans l'éditeur (lecture seule), sur la fiche du document et
+  imprimé dans le bandeau « OPERATEUR ». Les documents repris de G8 gardent leur texte d'origine.
+  L'opérateur ne peut plus être changé après la création.
+- Migration `20260919280000_m6_bon_de_commande_operateur.sql` ; code `src/modules/sales/write-api.ts`
+  (`CONVERSIONS`, `DEPOSIT_DOC_TYPES`), `document-editor.tsx`, `availability.ts`,
+  `src/routes/_app.sales.$documentId.tsx`, `_app.sales.index.tsx` ; test `tests/sales-doc-chain.test.ts`.
 
 ## 6. Risques
 

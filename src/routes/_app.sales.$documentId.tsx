@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
 import { enqueueDocumentEmail, enqueueDocumentSms } from '@/modules/sales/notify-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
@@ -85,7 +85,7 @@ function DocumentView() {
     <>
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
-        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
+        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}${doc.operator ? ` · ${t('sales.operator')} ${doc.operator}` : ''}`}
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ function DocumentView() {
 
       {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
         <div className="mt-4">
-          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={doc.doc_type === 'RES'} />
+          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)} />
         </div>
       )}
 

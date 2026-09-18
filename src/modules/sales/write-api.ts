@@ -21,10 +21,13 @@ export type LineInput = {
 //  - FAC/TIK débitent le stock RÉEL ;
 //  - RES (réservation/commande) et BL débitent le DISPONIBLE (réservé), le réel ne bouge
 //    qu'à la facturation ;
-//  - DEV (devis) : aucun mouvement de stock.
+//  - DEV (devis / proforma) et BC (bon de commande, commande ferme signée) : aucun
+//    mouvement de stock — la réservation se fait en convertissant en RES ou BL.
 export const REAL_OUT_DOC_TYPES = ['FAC', 'TIK'] as const;
 export const RESERVE_DOC_TYPES = ['RES', 'BL'] as const;
 export const SALE_DOC_TYPES = [...REAL_OUT_DOC_TYPES, ...RESERVE_DOC_TYPES] as const; // tout document qui touche le stock
+/** Documents sur lesquels on verse un acompte (reporté à la conversion, G8 p.96). */
+export const DEPOSIT_DOC_TYPES = ['RES', 'BC'] as const;
 
 /** Paramètres du pied de facture (remise globale, mode HT/TTC, détaxe, port, net forcé). */
 export type PiedInput = {
@@ -136,8 +139,8 @@ export async function createDocument(p: {
         if (!l.article_id || l.quantity <= 0) continue;
         const qty = Math.abs(l.quantity);
         const args = realOut
-          ? { _type: 'sortie', _qty: -qty, _is_reservation: false }      // débite le réel
-          : { _type: 'reservation', _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
+          ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
+          : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
         const { error: se } = await supabase.rpc('record_stock_move', {
           // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
           _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
@@ -177,9 +180,14 @@ export async function searchSaleArticles(companyId: string, term: string): Promi
   return (data ?? []).map((a) => ({ id: a.id, reference: a.reference, designation: a.designation, sale_price_ht: Number(a.sale_price_ht), vat_rate: Number(a.vat_rate) }));
 }
 
-/** Conversions autorisées (G8 p.96, p.101-109). DEV→tout ; RES→FAC/BL ; BL→FAC. */
+/**
+ * Conversions autorisées (G8 p.96, p.101-109). Chaîne mission 05 : DEV (devis / proforma)
+ * → BC (bon de commande) → RES/BL/FAC ; DEV peut aussi aller directement en RES/BL/FAC.
+ * RES→FAC/BL ; BL→FAC. Les acomptes perçus suivent le document (convertDocument).
+ */
 export const CONVERSIONS: Record<string, readonly string[]> = {
-  DEV: ['FAC', 'RES', 'BL'],
+  DEV: ['BC', 'RES', 'BL', 'FAC'],
+  BC: ['RES', 'BL', 'FAC'],
   RES: ['FAC', 'BL'],
   BL: ['FAC'],
 };

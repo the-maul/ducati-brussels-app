@@ -33,7 +33,7 @@ export const Route = createFileRoute('/_app/sales/')({
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
 
-const DOC_TYPES = ['FAC', 'DEV', 'TIK', 'BL', 'RES', 'AVO'] as const;
+const DOC_TYPES = ['FAC', 'DEV', 'BC', 'TIK', 'BL', 'RES', 'AVO'] as const;
 
 // Département E-shop vs magasin : la table `documents` n'a pas de colonne canal dédiée.
 // Heuristique best-effort sur `imported_from` (texte libre alimenté par les imports/le web).

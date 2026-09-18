@@ -1,5 +1,6 @@
 /**
- * M6 — Éditeur de document de vente (FAC/DEV/TIK/BL).
+ * M6 — Éditeur de document de vente (FAC / DEV devis-proforma / BC bon de commande / RES / BL / TIK).
+ * Opérateur = utilisateur connecté, écrit par le serveur à la création (trg_documents_operator).
  * En-tête (type, client, dates) + lignes (article ou texte libre) + pied de facture
  * (mode HT/TTC, détaxe export, remise globale, frais de port, net TTC forcé) + totaux
  * + brouillon/validation. Tout libellé via i18n (CLAUDE.md règle 10).
@@ -17,10 +18,11 @@ import { listContacts, contactDisplayName, type Contact } from '@/modules/contac
 import { createDocument, computeTotals, searchSaleArticles, type LineInput, type SaleArticle, type PiedInput } from './write-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth/auth-context';
 import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
 import { loadQuoteFeeParams } from '@/modules/workshop/quote-fees-api';
 
-const DOC_TYPES = ['FAC', 'DEV', 'RES', 'BL', 'TIK'] as const;
+const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -33,6 +35,8 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   companyId: string; initialContactId?: string; initialVehicleId?: string; workshopOrNumber?: string; workshop?: boolean;
 }) {
   const navigate = useNavigate();
+  const { profile, user } = useAuth();
+  const operatorName = profile?.full_name?.trim() || profile?.email || user?.email || '';
   const roundUp = useRoundSalePrices(companyId);
   const [docType, setDocType] = useState<string>(workshop ? 'DEV' : 'FAC');
   const [contact, setContact] = useState<Contact | null>(null);
@@ -114,7 +118,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   return (
     <div className="space-y-4">
       {/* En-tête */}
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-5">
         <Field label={t('sales.type')}>
           <Select value={docType} onValueChange={setDocType}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -131,6 +135,9 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         </Field>
         <Field label={t('sales.date')}><Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></Field>
         <Field label={t('sales.dueDate')}><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
+        <Field label={t('sales.operator')}>
+          <Input value={operatorName} readOnly disabled title={t('sales.operatorAuto')} />
+        </Field>
       </div>
 
       {/* Lignes */}
