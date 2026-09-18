@@ -193,6 +193,50 @@ export type Database = {
           },
         ]
       }
+      app_client_waitlist: {
+        Row: {
+          client_hash: string | null
+          company_id: string
+          consent_at: string
+          consent_text: string
+          created_at: string
+          email: string
+          id: string
+          notified_at: string | null
+          source: string
+        }
+        Insert: {
+          client_hash?: string | null
+          company_id: string
+          consent_at?: string
+          consent_text: string
+          created_at?: string
+          email: string
+          id?: string
+          notified_at?: string | null
+          source?: string
+        }
+        Update: {
+          client_hash?: string | null
+          company_id?: string
+          consent_at?: string
+          consent_text?: string
+          created_at?: string
+          email?: string
+          id?: string
+          notified_at?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_client_waitlist_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_applicabilities: {
         Row: {
           article_id: string | null
@@ -4229,6 +4273,7 @@ export type Database = {
       }
       signup_settings: {
         Row: {
+          client_app_open: boolean
           company_id: string
           id: boolean
           is_open: boolean
@@ -4236,6 +4281,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          client_app_open?: boolean
           company_id: string
           id?: boolean
           is_open?: boolean
@@ -4243,6 +4289,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          client_app_open?: boolean
           company_id?: string
           id?: boolean
           is_open?: boolean
