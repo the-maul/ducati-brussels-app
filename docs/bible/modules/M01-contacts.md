@@ -68,7 +68,12 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 ## 4. Règles métier et décisions
 
 - **Statuts** : `prospect / client / client_piece / client_atelier` (énum `contact_status`). Tout nouvel arrivant entre en **prospect** (décision D2 du 14/09).
-- **Tri du fichier G8 (D2)** : un contact avec au moins une facture devient client, les autres restent prospects. **Pas encore appliqué** : les 8 108 fiches sont toutes `prospect` en base.
+- **Tri du fichier G8 (D2)** : un contact avec au moins une facture devient client, les autres restent prospects, fournisseurs exclus. **Appliqué le 18/09/2026** (migration `20260919160000_d2_contacts_client_status.sql`) : **4 165 fiches** passées de `prospect` à `client`.
+  - **Définition de « facture »** : une ligne de `documents` avec `doc_type = 'FAC'`, hors `brouillon` et `annulee`, de la même société que la fiche — factures reprises de G8 (`imported_from = 'G8'`) comme factures créées dans le DMS. Les avoirs (`AVO`) et tickets (`TIK`) ne comptent pas (aucune fiche n'a un avoir sans facture ; 1 seul ticket, sans client). Les factures à 0 € comptent.
+  - Détail : 4 164 fiches facturées par G8 + 1 fiche de démonstration (« SIMON MOREAU », code 9206, factures `FAC-DEMO-001/002` du DMS). Aucun fournisseur, aucune fiche archivée parmi elles.
+  - **Résultat** (8 110 fiches) : `client` 4 165 (3 065 particuliers, 1 100 professionnels) ; `prospect` 3 945 (3 124 particuliers, 720 professionnels, 101 fournisseurs).
+  - **Pas de mise à jour automatique** : une fiche `prospect` qui reçoit sa première facture dans le DMS **reste** `prospect` tant qu'on ne change pas son statut (à décider : déclencheur à la validation d'une facture ?).
+  - Retour arrière : ancien statut archivé dans `archive_d2_20260918.contacts_status` (schéma non exposé) ; script `supabase/rollbacks/20260919160000_d2_contacts_client_status_ROLLBACK.sql` (non appliqué). Trace : une ligne `events` par fiche (audit) + une ligne de synthèse `d2_client_status`.
 - **Doublons (D3)** : c'est l'adresse e-mail qui décide si un contact est nouveau ; en cas de ressemblance on **propose** une fusion, validée à la main, jamais automatique. 84 adresses sont partagées légitimement (couple, famille, société).
 - **Code client** : attribué par la base à l'insertion (`trg_contacts_code`), jamais saisi.
 - **Suppression** : physique seulement si la fiche n'a aucune dépendance (`contact_dependencies` suit les vraies clés étrangères) et seulement pour un admin (`contact_delete_safe`). Sinon on archive (`is_active = false`). Règle 4 de `CLAUDE.md`.
@@ -92,7 +97,8 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 
 - ✅ Toutes les colonnes envoyées par le formulaire (`buildPayload`) existent dans `contacts`. Les fiches sont enregistrables depuis le 11/09 (migration `20260629100000` appliquée ce jour-là).
 - ✅ Tables et fonctions utilisées par le code : toutes présentes (`contacts`, `contact_links`, `contact_subcontacts`, `delivery_addresses`, `customer_price_rules`, `client_price_rules`, `vehicle_owners`, et les RPC listées en §3).
-- ✅ Chiffres : 8 108 fiches (6 187 particuliers, 1 820 professionnels, 101 fournisseurs) ; origine `import_g8` 8 084, `mail` 13, `web` 1, vide 10 (fiches saisies à la main : le formulaire ne pose pas `origin = manuel`).
+- ✅ Statuts (18/09, après D2) : 4 165 `client`, 3 945 `prospect` (dont les 101 fournisseurs), aucun `client_piece` / `client_atelier`.
+- ✅ Chiffres : 8 108 fiches au scan du 18/09, 8 110 à l'application de D2 (6 189 particuliers, 1 820 professionnels, 101 fournisseurs) ; origine `import_g8` 8 084, `mail` 13, `web` 1, vide 10 (fiches saisies à la main : le formulaire ne pose pas `origin = manuel`).
 - ✅ `read-id-doc` fonctionne depuis la pose de `ANTHROPIC_API_KEY` le 14/09.
 - 🔴 **`contacts_search` est exécutable sans être connecté** (droit `anon`) et sa garde laisse passer un appel anonyme (`auth.uid() is null or is_member(...)`). Quiconque connaît le `company_id` peut lire **tout le fichier client** (y compris registre national et n° de carte d'identité). Le `company_id` devient public dès qu'une boutique est publiée (voir M11). Même défaut, sans garde du tout, pour `contact_encours` (limite de crédit et encours d'un client).
 - 🔴 **`read-id-doc` est déployée sans vérification de jeton** (`verify_jwt = false`) et ne contrôle pas l'appelant : elle télécharge avec la clé service role n'importe quel chemin de la GED qu'on lui donne et en renvoie les données d'identité extraites.
@@ -102,7 +108,8 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 
 Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 - écran de revue des rapprochements proposés (`contact_merge_candidates`) et traitement des 28 vrais doublons d'e-mail (lots 0 et 1) ;
-- tri du fichier G8 : passage en « client » des contacts facturés (lot 5, décision D2) ;
+- ~~tri du fichier G8 : passage en « client » des contacts facturés (lot 5, décision D2)~~ fait le 18/09 ;
+- passage automatique en « client » à la première facture validée dans le DMS (non décidé) ;
 - inscription autonome en mode borne sur tablette (lot 4, CON001) ;
 - portail client (lot 3).
 
@@ -151,4 +158,5 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 | 2026-09-11 | Fiches à nouveau enregistrables (migration `20260629100000` appliquée) | migration `20260629100000` |
 | 2026-09-11 | Code client automatique, anti-doublons, suppression sûre ; actions groupées ; VIES via Edge Function | `78d074d`, `183f35b`, `9ace512`, migrations `20260911120000`, `20260911170000` |
 | 2026-09-14 | Origine des fiches, prospects créés depuis un mail, tri par date d'arrivée | `b9022cb`, `a271cf4`, migrations `20260914150000` à `20260914230000` |
+| 2026-09-18 | **Décision D2 appliquée** : 4 165 fiches ayant au moins une facture (`FAC`, G8 ou DMS) passées de `prospect` à `client` ; ancien statut archivé, retour arrière prêt | branche `lot-notif-tri`, migration `20260919160000_d2_contacts_client_status.sql` (appliquée le 18/09), rollback `supabase/rollbacks/20260919160000_d2_contacts_client_status_ROLLBACK.sql` |
 | 2026-09-19 | **Fusion de fiches réécrite** : une fonction SQL transactionnelle réservée aux admins, qui rapatrie toutes les références (27 tables et colonnes), gère les doublons, complète les champs vides, trace dans `events` ; récapitulatif avant fusion | migration `20260919140000_m1_contact_merge.sql` (appliquée en base le 18/09) |
