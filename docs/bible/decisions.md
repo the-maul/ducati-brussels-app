@@ -8,6 +8,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-19 — Mission 04, cartes 1 à 5 (choix de réalisation)
+
+- **M-8** — **Civilité** : valeurs enregistrées `Monsieur` / `Madame` / `Mx` (celles des ~6 000 fiches
+  existantes ne changent pas), affichées **M. / Mme / Mx**. La **forme juridique** vit dans
+  `contacts.legal_form` ; pour les 1 210 fiches G8 concernées, elle a été **copiée** depuis `civility`,
+  sans rien effacer. *Équipe · 19/09.* [M01](modules/M01-contacts.md)
+- **M-9** — **E-mail en minuscules garanti en base**, mais seulement pour les nouvelles saisies (insertion
+  ou e-mail modifié) : les e-mails existants ne sont pas réécrits (une paire ne diffère que par la casse,
+  fiches 231 / 8293, à fusionner à la main — D3). *Équipe · 19/09.* [M01](modules/M01-contacts.md)
+- **M-10** — **Codes postaux** : liste bpost reprise par le jeu public `jief/zipcode-belgium` (2020), le
+  site bpost n'étant pas joignable le 19/09 ; province déduite des tranches officielles. À rafraîchir
+  depuis bpost si une localité manque. *Équipe · 19/09.* [M01](modules/M01-contacts.md)
+- **M-11** — **Mobiles G8 rangés dans « téléphone »** : jamais recopiés en masse ; liste « Mobiles à
+  compléter » et un clic par fiche, tracé (`phone_to_mobile`). *Équipe · 19/09, conforme au risque noté
+  dans la mission 04.* [M01](modules/M01-contacts.md)
+
 ## 2026-09-19 — Missions 04 et 05 (vidéos)
 
 - **M-6** — Missions 04 « Fiche client et moto au comptoir » et 05 « Devis moto, options et
