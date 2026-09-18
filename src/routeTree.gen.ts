@@ -22,8 +22,6 @@ import { Route as AppConsignmentRouteImport } from './routes/_app.consignment'
 import { Route as AppCrmRouteImport } from './routes/_app.crm'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDemoRouteImport } from './routes/_app.demo'
-import { Route as AppEshopRouteImport } from './routes/_app.eshop'
-import { Route as AppImprovementsRouteImport } from './routes/_app.improvements'
 import { Route as AppOrdersRouteImport } from './routes/_app.orders'
 import { Route as AppPartsRouteImport } from './routes/_app.parts'
 import { Route as AppPickingRouteImport } from './routes/_app.picking'
@@ -36,7 +34,6 @@ import { Route as AppStockRouteImport } from './routes/_app.stock'
 import { Route as AppTradeinRouteImport } from './routes/_app.tradein'
 import { Route as AppVehiclesRouteImport } from './routes/_app.vehicles'
 import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
-import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
@@ -152,16 +149,6 @@ const AppDemoRoute = AppDemoRouteImport.update({
   path: '/demo',
   getParentRoute: () => AppRoute,
 } as any)
-const AppEshopRoute = AppEshopRouteImport.update({
-  id: '/eshop',
-  path: '/eshop',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImprovementsRoute = AppImprovementsRouteImport.update({
-  id: '/improvements',
-  path: '/improvements',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppOrdersRoute = AppOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -221,11 +208,6 @@ const AppWorkshopRoute = AppWorkshopRouteImport.update({
   id: '/workshop',
   path: '/workshop',
   getParentRoute: () => AppRoute,
-} as any)
-const ShopSlugRoute = ShopSlugRouteImport.update({
-  id: '/shop/$slug',
-  path: '/shop/$slug',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/',
@@ -495,8 +477,6 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
-  '/eshop': typeof AppEshopRoute
-  '/improvements': typeof AppImprovementsRoute
   '/orders': typeof AppOrdersRouteWithChildren
   '/parts': typeof AppPartsRouteWithChildren
   '/picking': typeof AppPickingRoute
@@ -509,7 +489,6 @@ export interface FileRoutesByFullPath {
   '/tradein': typeof AppTradeinRouteWithChildren
   '/vehicles': typeof AppVehiclesRouteWithChildren
   '/workshop': typeof AppWorkshopRouteWithChildren
-  '/shop/$slug': typeof ShopSlugRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -573,12 +552,9 @@ export interface FileRoutesByTo {
   '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
-  '/eshop': typeof AppEshopRoute
-  '/improvements': typeof AppImprovementsRoute
   '/picking': typeof AppPickingRoute
   '/pos': typeof AppPosRoute
   '/reports': typeof AppReportsRoute
-  '/shop/$slug': typeof ShopSlugRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -643,8 +619,6 @@ export interface FileRoutesById {
   '/_app/crm': typeof AppCrmRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/demo': typeof AppDemoRoute
-  '/_app/eshop': typeof AppEshopRoute
-  '/_app/improvements': typeof AppImprovementsRoute
   '/_app/orders': typeof AppOrdersRouteWithChildren
   '/_app/parts': typeof AppPartsRouteWithChildren
   '/_app/picking': typeof AppPickingRoute
@@ -657,7 +631,6 @@ export interface FileRoutesById {
   '/_app/tradein': typeof AppTradeinRouteWithChildren
   '/_app/vehicles': typeof AppVehiclesRouteWithChildren
   '/_app/workshop': typeof AppWorkshopRouteWithChildren
-  '/shop/$slug': typeof ShopSlugRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -724,8 +697,6 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/demo'
-    | '/eshop'
-    | '/improvements'
     | '/orders'
     | '/parts'
     | '/picking'
@@ -738,7 +709,6 @@ export interface FileRouteTypes {
     | '/tradein'
     | '/vehicles'
     | '/workshop'
-    | '/shop/$slug'
     | '/clients/$contactId'
     | '/clients/new'
     | '/orders/$orderId'
@@ -802,12 +772,9 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/demo'
-    | '/eshop'
-    | '/improvements'
     | '/picking'
     | '/pos'
     | '/reports'
-    | '/shop/$slug'
     | '/clients/$contactId'
     | '/clients/new'
     | '/orders/$orderId'
@@ -871,8 +838,6 @@ export interface FileRouteTypes {
     | '/_app/crm'
     | '/_app/dashboard'
     | '/_app/demo'
-    | '/_app/eshop'
-    | '/_app/improvements'
     | '/_app/orders'
     | '/_app/parts'
     | '/_app/picking'
@@ -885,7 +850,6 @@ export interface FileRouteTypes {
     | '/_app/tradein'
     | '/_app/vehicles'
     | '/_app/workshop'
-    | '/shop/$slug'
     | '/_app/clients/$contactId'
     | '/_app/clients/new'
     | '/_app/orders/$orderId'
@@ -943,7 +907,6 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ShopSlugRoute: typeof ShopSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1039,20 +1002,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDemoRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/eshop': {
-      id: '/_app/eshop'
-      path: '/eshop'
-      fullPath: '/eshop'
-      preLoaderRoute: typeof AppEshopRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/improvements': {
-      id: '/_app/improvements'
-      path: '/improvements'
-      fullPath: '/improvements'
-      preLoaderRoute: typeof AppImprovementsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/orders': {
       id: '/_app/orders'
       path: '/orders'
@@ -1136,13 +1085,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/workshop'
       preLoaderRoute: typeof AppWorkshopRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/shop/$slug': {
-      id: '/shop/$slug'
-      path: '/shop/$slug'
-      fullPath: '/shop/$slug'
-      preLoaderRoute: typeof ShopSlugRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_app/clients/': {
       id: '/_app/clients/'
@@ -1727,8 +1669,6 @@ interface AppRouteChildren {
   AppCrmRoute: typeof AppCrmRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDemoRoute: typeof AppDemoRoute
-  AppEshopRoute: typeof AppEshopRoute
-  AppImprovementsRoute: typeof AppImprovementsRoute
   AppOrdersRoute: typeof AppOrdersRouteWithChildren
   AppPartsRoute: typeof AppPartsRouteWithChildren
   AppPickingRoute: typeof AppPickingRoute
@@ -1753,8 +1693,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmRoute: AppCrmRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDemoRoute: AppDemoRoute,
-  AppEshopRoute: AppEshopRoute,
-  AppImprovementsRoute: AppImprovementsRoute,
   AppOrdersRoute: AppOrdersRouteWithChildren,
   AppPartsRoute: AppPartsRouteWithChildren,
   AppPickingRoute: AppPickingRoute,
@@ -1776,7 +1714,6 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ShopSlugRoute: ShopSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

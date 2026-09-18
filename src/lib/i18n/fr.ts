@@ -31,41 +31,11 @@ export const fr = {
     clients: 'Contacts',
     crm: 'CRM',
     pos: 'Caisse',
-    eshop: 'E-shop',
     reports: 'Rapports',
     accounting: 'Comptabilité',
-    improvements: 'Améliorations',
     settings: 'Paramètres',
     demo: 'Charte (démo)',
     more: 'Menu',
-  },
-  improvements: {
-    title: 'Améliorations',
-    subtitle: 'Demandes de modification partagées entre administrateurs — ajout, suivi, validation.',
-    notAdmin: 'Réservé aux administrateurs de la société.',
-    newTask: 'Nouvelle tâche',
-    editTask: 'Modifier la tâche',
-    create: 'Créer',
-    close: 'Fermer',
-    delete: 'Supprimer',
-    createHint: 'Crée la tâche pour pouvoir ajouter des points et des documents.',
-    fTitle: 'Titre',
-    titlePlaceholder: 'Ex. Corriger le total TVA sur la facture',
-    fStatus: 'Statut',
-    fDescription: 'Description',
-    descPlaceholder: 'Détaille la demande, le contexte, le résultat attendu…',
-    fPoints: 'Points & sous-points',
-    noPoints: 'Aucun point pour le moment.',
-    addPoint: 'Ajouter',
-    addSubPoint: 'Ajouter un sous-point',
-    pointPlaceholder: 'Nouveau point…',
-    subPointPlaceholder: 'Nouveau sous-point…',
-    fDocuments: 'Documents',
-    st_pending: 'En attente',
-    st_todo: 'À faire',
-    st_in_progress: 'En cours',
-    st_to_validate: 'À valider',
-    st_done: 'Fait',
   },
 
   // Actions courantes
@@ -1083,34 +1053,6 @@ export const fr = {
     salesBy: 'Ventes par', dimBrand: 'Marque', dimCategory: 'Rayon', dimArticle: 'Article', dimClient: 'Client', dimOperator: 'Opérateur', dimMonth: 'Mois',
     label: 'Libellé', colMargin: 'Marge', compareN1: 'Comparaison N / N-1', period: 'Exercice',
     transfoRate: 'Taux de transformation', docType: 'Type', created: 'Créés', converted: 'Transformés',
-  },
-
-  // E-shop (M11)
-  eshop: {
-    title: 'E-shop', subtitle: 'Catalogue en ligne — stock unifié avec le magasin, photos et publication.',
-    search: 'Rechercher (référence, désignation…)', publishedOnly: 'Vitrine (publiés)', empty: 'Aucun produit.',
-    published: 'Publié', publish: 'Publier', unpublish: 'Retirer de la vitrine', inStock: 'En stock', outStock: 'Rupture',
-    noPhoto: 'Pas de photo', addPhotoHint: 'Ajoutez des photos depuis la fiche article.', count: '{n} produit(s)',
-    // onglets
-    tabSite: 'Site', tabProducts: 'Produits', tabCatalog: 'Catalogue', tabSettings: 'Réglages boutique', tabOrders: 'Commandes web',
-    // constructeur de site
-    domainSection: 'Domaine & publication', dnsHelp: 'Chez OVH, créez un enregistrement CNAME pointant le domaine vers l\'application :',
-    pages: 'Pages', addPage: 'Ajouter une page', chooseIcon: 'Choisir une icône', iconUpload: 'Charger une image',
-    theme: 'Thème', primary: 'Principale', bg: 'Fond', textColor: 'Texte', blocks: 'Blocs', addBlock: 'Ajouter un bloc',
-    preview: 'Aperçu en direct (= ce que verront les visiteurs)', saveDraft: 'Enregistrer le brouillon', publishSite: 'Publier le site',
-    draftSaved: 'Brouillon enregistré.', published2: 'Site publié et en ligne ✅',
-    // panier / commande
-    addToCart: 'Ajouter', cart: 'Panier', cartEmpty: 'Panier vide.', placeOrder: 'Créer la commande',
-    customer: 'Client', custName: 'Nom', custEmail: 'E-mail', custPhone: 'Téléphone', custAddress: 'Adresse de livraison',
-    orderCreated: 'Commande créée (en attente de paiement).', cartTotal: 'Total',
-    // réglages
-    shopName: 'Nom de la boutique', slug: 'Adresse (slug)', customDomain: 'Domaine personnalisé (OVH)', publicUrl: 'URL publique', urlHint: 'Vitrine publique sans connexion. Rattache un domaine OVH à cette page (voir docs/integrations).',
-    description: 'Description', hero: 'Texte d\'accueil (hero)', themeColor: 'Couleur du thème',
-    contactPhone: 'Téléphone', contactEmail: 'E-mail', contactAddress: 'Adresse', publishedShop: 'Boutique en ligne',
-    save: 'Enregistrer', saved: 'Réglages enregistrés', stripeHint: 'Le paiement en ligne (Stripe) et l\'exposition publique seront activés avec tes clés API.',
-    // commandes
-    colNumber: 'N°', colCustomer: 'Client', colStatus: 'Statut', colTotal: 'Total', noOrders: 'Aucune commande web.',
-    os_panier: 'Panier', os_en_attente_paiement: 'Attente paiement', os_payee: 'Payée', os_preparee: 'Préparée', os_expediee: 'Expédiée', os_annulee: 'Annulée',
   },
 
   // Comptabilité & exports (M12)
