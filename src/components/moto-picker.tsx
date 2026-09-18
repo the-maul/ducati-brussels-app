@@ -144,7 +144,7 @@ export function MotoPicker({ value, onChange, size = 'default', autoComplete }: 
                 value={value.brand}
                 placeholder={t('signup.moto.brandOtherPlaceholder')}
                 onChange={(e) => onChange({ ...value, brand: e.target.value })}
-                className={size === 'kiosk' ? 'h-12 text-[16px]' : undefined}
+                className={size === 'kiosk' ? 'h-12 text-[16px]' : 'h-11 lg:h-10'}
               />
             )}
           </div>
@@ -157,7 +157,7 @@ export function MotoPicker({ value, onChange, size = 'default', autoComplete }: 
                 value={value.model}
                 placeholder={t('signup.moto.modelPlaceholder')}
                 onChange={(e) => onChange({ ...value, model: e.target.value })}
-                className={size === 'kiosk' ? 'h-12 text-[16px]' : undefined}
+                className={size === 'kiosk' ? 'h-12 text-[16px]' : 'h-11 lg:h-10'}
               />
             </div>
             <div className="space-y-1.5">
@@ -168,7 +168,7 @@ export function MotoPicker({ value, onChange, size = 'default', autoComplete }: 
                 onChange={(e) => onChange({ ...value, year: e.target.value ? Number(e.target.value) : null })}
                 className={cn(
                   'w-full rounded-md border border-input bg-background px-3 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  size === 'kiosk' ? 'h-12 text-[16px]' : 'h-9 text-[14px]',
+                  size === 'kiosk' ? 'h-12 text-[16px]' : 'h-11 text-[16px] md:text-[14px] lg:h-10',
                 )}
               >
                 <option value="">{t('signup.moto.yearUnknown')}</option>
@@ -231,7 +231,7 @@ function DucatiPath({ value, onChange, size, gridCols, browseFamilies, setBrowse
           <button
             type="button"
             onClick={() => setBrowseFamilies(true)}
-            className="inline-flex items-center gap-1 rounded-md px-1 py-1 text-[14px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center gap-1 rounded-md px-1 py-1 text-[14px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ChevronLeft className="size-4" aria-hidden />
             {t('signup.moto.families')}

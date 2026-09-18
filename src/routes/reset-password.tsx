@@ -9,6 +9,10 @@
  *   2. déjà connecté, depuis le menu utilisateur (« Changer mon mot de passe ») :
  *      utile pour quitter le mot de passe commun provisoire.
  * Après validation : le personnel va sur /dashboard, un client sur /mon-espace.
+ *
+ * Règles du mot de passe : src/lib/password-policy.ts (décision U-4), avec l'indicateur
+ * des règles remplies. Après tout changement réussi, un e-mail « Votre mot de passe a
+ * été modifié » part par Outlook (décision U-5), sans jamais contenir le mot de passe.
  */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
@@ -17,8 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { resolveHomePath } from '@/lib/auth/home-path';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput, PasswordRules } from '@/components/password-field';
+import { isStrongPassword } from '@/lib/password-policy';
+import { notifyPasswordChanged } from '@/lib/auth/password-notify';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/reset-password')({
@@ -46,7 +52,7 @@ function ResetPasswordPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 8) { setError(t('pwd.tooShort')); return; }
+    if (!isStrongPassword(password)) { setError(t('pwd.tooShort')); return; }
     if (password !== confirm) { setError(t('pwd.mismatch')); return; }
     setSubmitting(true);
     try {
@@ -56,6 +62,10 @@ function ResetPasswordPage() {
       }
       const { error: uErr } = await supabase.auth.updateUser({ password });
       if (uErr) { setError(uErr.message); return; }
+
+      // Mail de sécurité « Votre mot de passe a été modifié » (sans le mot de passe).
+      // Un échec d'envoi ne bloque pas la personne.
+      await notifyPasswordChanged();
 
       // Membre de l'équipe → l'application. Client → son espace (/mon-espace).
       const { data: { user } } = await supabase.auth.getUser();
@@ -89,15 +99,15 @@ function ResetPasswordPage() {
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="pwd1" className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pwd.new')}</Label>
-                <Input id="pwd1" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                <p className="text-[11px] text-muted-foreground">{t('pwd.rule')}</p>
+                <PasswordInput id="pwd1" required value={password} onChange={(e) => setPassword(e.target.value)} inputClassName="h-11 lg:h-10" />
+                <PasswordRules value={password} className="pt-1 sm:grid-cols-1" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pwd2" className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pwd.confirm')}</Label>
-                <Input id="pwd2" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                <PasswordInput id="pwd2" required value={confirm} onChange={(e) => setConfirm(e.target.value)} inputClassName="h-11 lg:h-10" />
               </div>
               {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger" role="alert">{error}</p>}
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <Button type="submit" className="h-11 w-full" disabled={submitting}>
                 {submitting && <Loader2 className="animate-spin" />} {t('pwd.save')}
               </Button>
             </form>

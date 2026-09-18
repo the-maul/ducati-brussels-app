@@ -11,8 +11,12 @@
  *     seulement quand personne n'utilise la borne ;
  *   - bandeau clair si la connexion internet tombe ; le formulaire réessaie seul ;
  *   - rien du client précédent ne reste : le formulaire est détruit puis recréé
- *     (état React), aucune donnée dans l'adresse ni dans l'historique, et pas
- *     d'auto-complétion (autocomplete="off").
+ *     (état React) à chaque retour à l'accueil — mot de passe compris —, aucune
+ *     donnée dans l'adresse ni dans l'historique, pas d'auto-complétion
+ *     (autocomplete="off", et "new-password" sur les deux champs mot de passe :
+ *     le navigateur ne propose ni n'enregistre de mot de passe).
+ * Mot de passe choisi à la borne comme en ligne : décision K-5 du 18/09.
+ * Lancement depuis Paramètres → Borne d'inscription : décision K-6.
  * Verrouillage de la tablette : docs/bible/guides/borne-kiosque.md.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -139,19 +143,19 @@ export function KioskSignup() {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-8">
-        <header className="mb-8 flex items-center gap-3">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-8 sm:py-8">
+        <header className="mb-6 flex items-center gap-3 sm:mb-8">
           <span className="grid size-12 shrink-0 place-items-center rounded-md bg-primary font-display text-xl font-bold text-primary-foreground">D</span>
-          <span className="font-display text-[22px] font-bold uppercase leading-7 text-foreground">{t('signup.brand')}</span>
+          <span className="min-w-0 font-display text-[20px] font-bold uppercase leading-7 text-foreground sm:text-[22px]">{t('signup.brand')}</span>
           {canFullscreen && !isFullscreen && (
-            <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={goFullscreen}>
+            <Button type="button" variant="ghost" className="ml-auto h-11" onClick={goFullscreen}>
               <Maximize className="size-4" aria-hidden />
               {t('signup.kiosk.fullscreen')}
             </Button>
           )}
         </header>
 
-        <div className="rounded-md border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:p-8">
+        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-8">
           {result ? (
             <SignupWelcome
               result={result}

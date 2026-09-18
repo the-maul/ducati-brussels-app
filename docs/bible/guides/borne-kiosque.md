@@ -3,7 +3,19 @@
 > Pour : la personne qui installe la tablette au comptoir (décisions K-1 à K-4 du 18/09).
 > La tablette n'est pas encore achetée : ce guide vaut pour un iPad comme pour une tablette Android.
 
-## 1. L'adresse à ouvrir
+## 1. Lancer la borne depuis Paramètres (le plus simple)
+
+Dans le DMS, un administrateur ouvre **Paramètres → Borne d'inscription** (décision K-6). On y trouve :
+
+- le bouton **« Lancer le mode borne sur cet appareil »** : la borne s'ouvre en plein écran sur
+  l'appareil utilisé. La case « Me déconnecter avant de lancer la borne » est cochée par défaut :
+  à laisser cochée sur la tablette du comptoir, pour que personne ne puisse revenir dans le DMS ;
+- l'**adresse** de la borne, à copier ;
+- un **QR code** de cette adresse : on le scanne avec l'appareil photo de la tablette pour ouvrir
+  la borne sans rien taper, puis on l'ajoute à l'écran d'accueil (étapes ci-dessous) ;
+- ce guide, lisible directement dans l'application.
+
+## 1 bis. L'adresse à ouvrir
 
 ```
 <adresse de l'application>/borne
@@ -19,7 +31,13 @@ La page `/borne` est faite pour une tablette partagée :
 - le bouton « retour » ne quitte pas la borne, il remet le formulaire à zéro ;
 - le formulaire se vide 15 secondes après le message de bienvenue, et après 90 secondes sans que
   personne ne touche l'écran, même au milieu d'une saisie ;
-- aucun mot de passe n'est saisi sur la tablette : le client le choisit depuis l'e-mail qu'il reçoit ;
+- le client **choisit son mot de passe à la borne**, comme en ligne (décision K-5) : au moins 8 caractères,
+  une majuscule, une minuscule, un chiffre et un caractère spécial, avec un bouton « Afficher » ; rien
+  n'est mémorisé (le navigateur ne propose ni n'enregistre de mot de passe, et le formulaire est
+  détruit à chaque retour à l'accueil) ;
+- si l'adresse e-mail correspond à un client **déjà connu**, le mot de passe tapé n'ouvre pas le compte
+  (sécurité) : le client reçoit un e-mail pour choisir son mot de passe, et l'écran le lui dit ;
+- après chaque inscription, un e-mail « Bienvenue chez Ducati Bruxelles » part par Outlook ;
 - la page se recharge seule, discrètement, vers 3 h du matin (pour prendre les nouvelles versions) ;
 - si internet tombe, un bandeau le dit et l'envoi est retenté automatiquement.
 
@@ -82,9 +100,10 @@ Recommandé si la tablette reste allumée toute la journée sans surveillance.
 
 ## 5. Vérifier après l'installation
 
-1. Remplir le formulaire avec une adresse de test, cocher « être recontacté » : le message de bienvenue
-   s'affiche, l'e-mail « Choisir mon mot de passe » arrive, une carte apparaît dans le CRM commercial
-   avec la tâche « Recontacter le client » à J+2.
+1. Remplir le formulaire avec une adresse de test **nouvelle** et un mot de passe, cocher « être
+   recontacté » : le message de bienvenue s'affiche, l'e-mail « Bienvenue chez Ducati Bruxelles »
+   arrive, une carte apparaît dans le CRM commercial avec la tâche « Recontacter le client » à J+2.
+   Avec l'adresse d'un client déjà connu, c'est l'e-mail « Choisir mon mot de passe » qui arrive.
 2. Attendre 15 s : le formulaire revient vide.
 3. Commencer une saisie puis ne plus toucher l'écran 90 s : le formulaire revient vide.
 4. Couper le Wi-Fi : le bandeau « Pas de connexion internet » s'affiche ; le remettre : il disparaît.
@@ -92,3 +111,10 @@ Recommandé si la tablette reste allumée toute la journée sans surveillance.
 
 Pour retirer la fiche de test : la faire supprimer par un administrateur (Contacts), et le compte
 correspondant dans Paramètres → Utilisateurs.
+
+## Historique
+
+| Date | Changement |
+|---|---|
+| 2026-09-18 | Création du guide (décisions K-1 à K-4). |
+| 2026-09-18 | Retours de test : mot de passe choisi à la borne (K-5), e-mail de bienvenue (U-5), lancement depuis Paramètres → Borne d'inscription avec adresse et QR code (K-6). |

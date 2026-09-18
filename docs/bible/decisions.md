@@ -59,6 +59,25 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   après chaque client. Tablette pas encore achetée. *Client · 18/09.*
 - **K-4** — Adresse affichée dans le message de bienvenue : **`app.ducatibruxelles.be`** à terme,
   l'adresse Netlify en attendant. *Client · 18/09.*
+- **K-5** — **Le mot de passe est demandé à la borne**, comme en ligne (champ + confirmation, bouton
+  « Afficher ») : pas d'étape de plus pour le client. Remplace « aucun mot de passe sur la tablette ».
+  Garde-fou maintenu : si l'e-mail correspond à une fiche **déjà connue**, le mot de passe tapé
+  **n'ouvre pas** le compte ; le client reçoit l'invitation par e-mail et l'écran le lui dit. Rien ne
+  reste sur la tablette (`autocomplete="new-password"`, formulaire détruit à chaque retour à l'accueil).
+  *Client (retour de test) · 18/09.* [M00](modules/M00-socle.md), [guide borne](guides/borne-kiosque.md)
+- **K-6** — **Le mode borne se lance depuis Paramètres → Borne d'inscription** (administrateurs) :
+  explication, bouton « Lancer le mode borne sur cet appareil » (plein écran), adresse à copier,
+  QR code, guide de verrouillage de la tablette. *Client (retour de test) · 18/09.* [M00](modules/M00-socle.md)
+- **U-4** — **Règles de mot de passe** partout (inscription en ligne, borne, `/reset-password`,
+  création d'un compte avec mot de passe dans Paramètres → Utilisateurs) : au moins 8 caractères, une
+  majuscule, une minuscule, un chiffre, un caractère spécial ; indicateur des règles remplies pendant la
+  saisie ; une seule fonction de contrôle (`src/lib/password-policy.ts`), revérifiée côté serveur.
+  *Client (retour de test) · 18/09.* [M00](modules/M00-socle.md)
+- **U-5** — **Mails de compte** par Outlook : après toute inscription réussie, un mail « Bienvenue chez
+  Ducati Bruxelles » (identifiant, lien vers l'espace client, message de bienvenue K) — ou, pour une
+  fiche déjà connue, l'invitation « choisir mon mot de passe » qui reprend ce message ; après tout
+  changement de mot de passe, un mail « Votre mot de passe a été modifié », sans jamais le mot de passe.
+  *Client (retour de test) · 18/09.* [M00](modules/M00-socle.md)
 - **F-9** — Fusions de fiches validées par les **administrateurs** ; on garde la fiche qui a des
   factures, sinon la plus ancienne, complétée par l'autre ; l'historique des deux est conservé.
   *Client · 18/09.* [M01](modules/M01-contacts.md)

@@ -65,6 +65,7 @@ import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
 import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
 import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
+import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
 import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
 import { Route as AppSettingsNumberingRouteImport } from './routes/_app.settings.numbering'
 import { Route as AppSettingsTablesRouteImport } from './routes/_app.settings.tables'
@@ -374,6 +375,11 @@ const AppSettingsExtensionRoute = AppSettingsExtensionRouteImport.update({
   path: '/extension',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsKioskRoute = AppSettingsKioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsMigrationRoute = AppSettingsMigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
@@ -575,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/sales/new': typeof AppSalesNewRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
+  '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
   '/settings/tables': typeof AppSettingsTablesRouteWithChildren
@@ -649,6 +656,7 @@ export interface FileRoutesByTo {
   '/sales/new': typeof AppSalesNewRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
+  '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
   '/settings/users': typeof AppSettingsUsersRoute
@@ -736,6 +744,7 @@ export interface FileRoutesById {
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
   '/_app/settings/extension': typeof AppSettingsExtensionRoute
+  '/_app/settings/kiosk': typeof AppSettingsKioskRoute
   '/_app/settings/migration': typeof AppSettingsMigrationRoute
   '/_app/settings/numbering': typeof AppSettingsNumberingRoute
   '/_app/settings/tables': typeof AppSettingsTablesRouteWithChildren
@@ -824,6 +833,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/settings/companies'
     | '/settings/extension'
+    | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
     | '/settings/tables'
@@ -898,6 +908,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/settings/companies'
     | '/settings/extension'
+    | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
     | '/settings/users'
@@ -984,6 +995,7 @@ export interface FileRouteTypes {
     | '/_app/sales/new'
     | '/_app/settings/companies'
     | '/_app/settings/extension'
+    | '/_app/settings/kiosk'
     | '/_app/settings/migration'
     | '/_app/settings/numbering'
     | '/_app/settings/tables'
@@ -1425,6 +1437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsExtensionRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/kiosk': {
+      id: '/_app/settings/kiosk'
+      path: '/kiosk'
+      fullPath: '/settings/kiosk'
+      preLoaderRoute: typeof AppSettingsKioskRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/migration': {
       id: '/_app/settings/migration'
       path: '/migration'
@@ -1758,6 +1777,7 @@ const AppSettingsTablesRouteWithChildren =
 interface AppSettingsRouteChildren {
   AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
   AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
+  AppSettingsKioskRoute: typeof AppSettingsKioskRoute
   AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
   AppSettingsNumberingRoute: typeof AppSettingsNumberingRoute
   AppSettingsTablesRoute: typeof AppSettingsTablesRouteWithChildren
@@ -1768,6 +1788,7 @@ interface AppSettingsRouteChildren {
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
   AppSettingsExtensionRoute: AppSettingsExtensionRoute,
+  AppSettingsKioskRoute: AppSettingsKioskRoute,
   AppSettingsMigrationRoute: AppSettingsMigrationRoute,
   AppSettingsNumberingRoute: AppSettingsNumberingRoute,
   AppSettingsTablesRoute: AppSettingsTablesRouteWithChildren,

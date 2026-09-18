@@ -27,6 +27,8 @@ import { listOrgUsers, createOrgUser, setUserRoles, setUserActive } from '@/lib/
 import { listCompanyMembers, getDefaultAssignee, setDefaultAssignee, countOpenTasksOf } from '@/modules/crm/api';
 import { sendAccountInvitation, searchContactsForAccount, type ContactHit } from '@/modules/settings/users-api';
 import { t } from '@/lib/i18n';
+import { PasswordInput, PasswordRules } from '@/components/password-field';
+import { isStrongPassword } from '@/lib/password-policy';
 
 export const Route = createFileRoute('/_app/settings/users')({
   head: () => ({ meta: [{ title: 'Utilisateurs — Ducati Bruxelles' }] }),
@@ -365,7 +367,7 @@ function CreateUserDialog({
 
   const submit = () => {
     setErr(null);
-    if (access === 'password' && password.length < 8) { setErr(t('users.passwordTooShort')); return; }
+    if (access === 'password' && !isStrongPassword(password)) { setErr(t('users.passwordTooShort')); return; }
     if (kind === 'staff') {
       if (!fullName.trim() || !email.trim()) { setErr(t('users.nameEmailRequired')); return; }
       if (flatRoles.length === 0) { setErr(t('users.atLeastOneRole')); return; }
@@ -484,7 +486,8 @@ function CreateUserDialog({
                 </label>
                 {access === 'password' && (
                   <Field label={t('users.password')} hint={t('users.passwordHint')}>
-                    <Input type="text" data-case="preserve" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <PasswordRules value={password} className="pt-1.5" />
                   </Field>
                 )}
               </div>
