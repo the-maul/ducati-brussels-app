@@ -15,6 +15,7 @@ import { NEXT_STATUSES } from '@/modules/orders/status-flow';
 import { ruleFor } from '@/modules/orders/thresholds';
 import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel, ruleSentences } from '@/modules/orders/order-ui';
 import { listRef } from '@/modules/settings/reference-api';
+import { OrderLinesEditor } from '@/modules/orders/order-lines';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/$orderId')({
@@ -89,7 +90,7 @@ function OrderDetail() {
   if (isLoading) return <div className="py-10 text-center"><Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return <p className="py-10 text-center text-muted-foreground">{t('orders.notFound')}</p>;
 
-  const { order, lines } = data;
+  const { order } = data;
   const rule = rules ? ruleFor(rules, order.order_kind) : undefined;
   const KindIcon = kindIcon(order.order_kind);
   const fallbackRule = rule?.fallback && rules ? ruleFor(rules, rule.fallback) : undefined;
@@ -220,49 +221,26 @@ function OrderDetail() {
         </div>
       )}
 
-      <div className="mb-6 overflow-hidden rounded-md border border-border">
-        <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted">
-            <tr>
-              <Th>{t('orders.lineRef')}</Th>
-              <Th>{t('orders.lineDesignation')}</Th>
-              <Th className="text-right">{t('orders.lineQtyClient')}</Th>
-              <Th className="text-right">{t('orders.lineQtyShop')}</Th>
-              <Th className="text-right">{t('orders.lineHt')}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('orders.noLines')}</td></tr>}
-            {lines.map((l) => (
-              <tr key={l.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 font-mono text-[12px]">{l.reference ?? '—'}</td>
-                <td className="px-3 py-2">{l.designation}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{Number(l.qty_client)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{Number(l.qty_shop)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-border font-bold">
-              <td colSpan={4} className="px-3 py-2 text-right">{t('orders.totalHt')}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{eur(Number(isDraft && check ? check.total_ht : order.total_ht))}</td>
-            </tr>
-            {Number(order.surcharge_pct) > 0 && (
-              <tr>
-                <td colSpan={4} className="px-3 py-1 text-right text-muted-foreground">{t('orders.surchargeApplied')}</td>
-                <td className="px-3 py-1 text-right tabular-nums text-muted-foreground">+{String(Number(order.surcharge_pct)).replace('.', ',')} %</td>
-              </tr>
-            )}
-            {!isDraft && (
-              <tr>
-                <td colSpan={4} className="px-3 py-1 text-right">{t('orders.totalTtcClient')}</td>
-                <td className="px-3 py-1 text-right tabular-nums">{eur(Number(order.total_ttc))}</td>
-              </tr>
-            )}
-          </tfoot>
-        </table>
-      </div>
+      <OrderLinesEditor
+        order={order}
+        rules={rules}
+        companyId={order.company_id}
+        onChanged={() => {
+          for (const k of ['part-order', 'part-order-check']) qc.invalidateQueries({ queryKey: [k, orderId] });
+          qc.invalidateQueries({ queryKey: ['part-orders'] });
+        }}
+      />
+
+      {/* Après validation : supplément du type et total client fixés par le serveur */}
+      {!isDraft && (
+        <div className="mb-6 flex flex-wrap justify-end gap-x-8 gap-y-1 rounded-md border border-border bg-card px-4 py-3 text-[13px]">
+          <span>{t('orders.totalHt')} <b className="tabular-nums">{eur(Number(order.total_ht))}</b></span>
+          {Number(order.surcharge_pct) > 0 && (
+            <span className="text-muted-foreground">{t('orders.surchargeApplied')} <b className="tabular-nums">+{String(Number(order.surcharge_pct)).replace('.', ',')} %</b></span>
+          )}
+          <span>{t('orders.totalTtcClient')} <b className="tabular-nums">{eur(Number(order.total_ttc))}</b></span>
+        </div>
+      )}
 
       {/* Historique des états : qui, quand, ancien → nouveau */}
       <h2 className="mb-2 flex items-center gap-2 font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">

@@ -83,7 +83,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 
 ## 6. Prévu / en cours
 - Écrans manquants pour des fonctions SQL déjà livrées : comptage **par casier**, **inventaire tournant**, **file d'étiquettes différée**, **consultation des copies datées** (voir §7).
-- Brancher « en commande » dans le disponible (B4) avec le chantier Commandes de pièces ([`../../process-commandes-pieces.md`](../../process-commandes-pieces.md)).
+- Brancher « en commande » dans le disponible (B4) avec le chantier Commandes de pièces ([`../../process-commandes-pieces.md`](../../process-commandes-pieces.md)). **Premier branchement le 19/09** (mission 02, carte 2) : l'écran d'une commande de pièces affiche disponible = réel − réservé + en commande, « en commande » = commandes fournisseur CMD validées sans réception reçue liée (fonction `_article_on_order_qty`, M04). La liste Stock et `article_stock` restent à réel − réservé.
 - Tests automatisés exigés par la règle 7 (arrêté / réintégration, PAMP côté SQL) : non écrits.
 - Pas de dossier `docs/missions/` à ce jour.
 
@@ -131,3 +131,4 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | 2026-06-12 | Mode casier, inventaire tournant, file d'étiquettes (SQL + API, sans écran) | `6ab5091`, `20260612220000_m5_inventory_b12` |
 | 2026-07-26 | Filtres multicritères, export CSV, vue réappro ; dépréciation de stock | `c5a2c7a`, `24ea053`, `20260726110000_m5_stock_depreciations` |
 | 2026-09-11 | Paramètres SQL facultatifs passés en `undefined` (appels `record_stock_move` etc.) | `7d31b6d` |
+| 2026-09-19 | Disponible avec « en commande » (CMD validées sans réception liée) sur l'écran des commandes de pièces (mission 02, carte 2) | `20260919250000_orders_lines` |
