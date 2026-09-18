@@ -8,6 +8,45 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
+
+- **S-1** — **NL INVEST n'a rien à faire dans le DMS** : c'est la holding propriétaire d'Italbike.
+  Elle ne contient que les données de démonstration (12 motos, 305 articles, 5 OR, aucun client).
+  À retirer. *Client · 18/09.* [M00](modules/M00-socle.md)
+- **S-2** — **Une société = une gestion complète et protégée de ses clients.** D'autres concessions
+  pourront être ajoutées plus tard, chacune autonome et étanche. *Client · 18/09.* [M00](modules/M00-socle.md)
+- **W-1** — **Le site public est Shopify.** Le constructeur de site et l'e-shop du DMS sont **à
+  supprimer**. *Client · 18/09.* [M11](modules/M11-site-eshop.md)
+- **W-2** — Piste validée à approfondir : **synchroniser Shopify avec le stock du DMS** par API —
+  voir les produits en ligne, les lier au stock en direct, en ajouter ou en retirer ; un produit
+  publié est toujours lié à un article du stock. *Client · 18/09.* Future mission.
+- **W-3** — La page **« Améliorations »** est à supprimer : la planification se fait ici et dans
+  l'ERP Mauluctive. *Client · 18/09.* [M00](modules/M00-socle.md)
+- **P-1** — Portail client à l'adresse **`/mon-espace`** de l'application pour commencer ; plus tard
+  un sous-domaine du type `app.ducatibruxelles.be` (nom exact à confirmer). *Client · 18/09.*
+- **P-2** — Contenu du portail : véhicules, entretiens et réparations, factures PDF, coordonnées
+  modifiables, **et la prise de rendez-vous atelier** dès la première version. *Client · 18/09.*
+- **P-3** — Photos de profil et de moto dès la première version. *Client · 18/09.*
+- **P-4** — Inscription en étapes : **étape 1 « Créer mon compte »** = infos personnelles, e-mail,
+  **choisir sa moto** ; puis des étapes pour compléter (documents du véhicule, infos société…),
+  pour enrichir au maximum la fiche client et la fiche véhicule. *Client · 18/09.*
+- **P-5** — **Chaque e-mail envoyé depuis la plateforme** (vendeur, admin, technicien) porte sous la
+  réponse une invitation à rejoindre l'application : « Retrouvez facilement la vie de votre moto
+  (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre
+  communauté de clients sur l'application Ducati Bruxelles. » *Client · 18/09.*
+- **K-1** — Borne : prénom, nom, e-mail, téléphone, moto actuelle (**choix soigné de la moto**),
+  intérêt, consentement marketing. *Client · 18/09.*
+- **K-2** — Le client peut demander **à être recontacté**, ou passer. **S'il passe, pas de carte CRM.**
+  S'il le demande, carte + tâche au responsable par défaut. Valable aussi pour l'inscription en ligne.
+  *Client · 18/09.*
+- **K-3** — Tablette **verrouillée en mode kiosque** sur la page d'inscription, retour à l'accueil
+  après chaque client. Tablette pas encore achetée. *Client · 18/09.*
+- **K-4** — Adresse affichée dans le message de bienvenue : **`app.ducatibruxelles.be`** à terme,
+  l'adresse Netlify en attendant. *Client · 18/09.*
+- **F-9** — Fusions de fiches validées par les **administrateurs** ; on garde la fiche qui a des
+  factures, sinon la plus ancienne, complétée par l'autre ; l'historique des deux est conservé.
+  *Client · 18/09.* [M01](modules/M01-contacts.md)
+
 ## 2026-09-18 — Méthode de travail
 
 - **M-1** — Une **bible** de l'application : un chapitre par module (ce qu'on a, où le trouver,
