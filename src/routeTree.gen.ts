@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as BorneRouteImport } from './routes/borne'
 import { Route as InscriptionRouteImport } from './routes/inscription'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MonEspaceRouteImport } from './routes/mon-espace'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
 import { Route as AppAccountingClosureRouteImport } from './routes/_app.accounting-closure'
@@ -36,6 +37,9 @@ import { Route as AppStockRouteImport } from './routes/_app.stock'
 import { Route as AppTradeinRouteImport } from './routes/_app.tradein'
 import { Route as AppVehiclesRouteImport } from './routes/_app.vehicles'
 import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
+import { Route as MonEspaceIndexRouteImport } from './routes/mon-espace.index'
+import { Route as MonEspaceProfilRouteImport } from './routes/mon-espace.profil'
+import { Route as MonEspaceRendezVousRouteImport } from './routes/mon-espace.rendez-vous'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
@@ -81,6 +85,10 @@ import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orI
 import { Route as AppWorkshopChronoRouteImport } from './routes/_app.workshop.chrono'
 import { Route as AppWorkshopNewRouteImport } from './routes/_app.workshop.new'
 import { Route as AppWorkshopPlanningRouteImport } from './routes/_app.workshop.planning'
+import { Route as MonEspaceFacturesIndexRouteImport } from './routes/mon-espace.factures.index'
+import { Route as MonEspaceFacturesDocumentIdRouteImport } from './routes/mon-espace.factures.$documentId'
+import { Route as MonEspaceMotosIndexRouteImport } from './routes/mon-espace.motos.index'
+import { Route as MonEspaceMotosVehicleIdRouteImport } from './routes/mon-espace.motos.$vehicleId'
 import { Route as AppPurchasesSuppliersIndexRouteImport } from './routes/_app.purchases.suppliers.index'
 import { Route as AppPurchasesSuppliersSupplierIdRouteImport } from './routes/_app.purchases.suppliers.$supplierId'
 import { Route as AppPurchasesSuppliersNewRouteImport } from './routes/_app.purchases.suppliers.new'
@@ -109,6 +117,11 @@ const InscriptionRoute = InscriptionRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonEspaceRoute = MonEspaceRouteImport.update({
+  id: '/mon-espace',
+  path: '/mon-espace',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -220,6 +233,21 @@ const AppWorkshopRoute = AppWorkshopRouteImport.update({
   id: '/workshop',
   path: '/workshop',
   getParentRoute: () => AppRoute,
+} as any)
+const MonEspaceIndexRoute = MonEspaceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MonEspaceRoute,
+} as any)
+const MonEspaceProfilRoute = MonEspaceProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => MonEspaceRoute,
+} as any)
+const MonEspaceRendezVousRoute = MonEspaceRendezVousRouteImport.update({
+  id: '/rendez-vous',
+  path: '/rendez-vous',
+  getParentRoute: () => MonEspaceRoute,
 } as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/',
@@ -446,6 +474,27 @@ const AppWorkshopPlanningRoute = AppWorkshopPlanningRouteImport.update({
   path: '/planning',
   getParentRoute: () => AppWorkshopRoute,
 } as any)
+const MonEspaceFacturesIndexRoute = MonEspaceFacturesIndexRouteImport.update({
+  id: '/factures/',
+  path: '/factures/',
+  getParentRoute: () => MonEspaceRoute,
+} as any)
+const MonEspaceFacturesDocumentIdRoute =
+  MonEspaceFacturesDocumentIdRouteImport.update({
+    id: '/factures/$documentId',
+    path: '/factures/$documentId',
+    getParentRoute: () => MonEspaceRoute,
+  } as any)
+const MonEspaceMotosIndexRoute = MonEspaceMotosIndexRouteImport.update({
+  id: '/motos/',
+  path: '/motos/',
+  getParentRoute: () => MonEspaceRoute,
+} as any)
+const MonEspaceMotosVehicleIdRoute = MonEspaceMotosVehicleIdRouteImport.update({
+  id: '/motos/$vehicleId',
+  path: '/motos/$vehicleId',
+  getParentRoute: () => MonEspaceRoute,
+} as any)
 const AppPurchasesSuppliersIndexRoute =
   AppPurchasesSuppliersIndexRouteImport.update({
     id: '/',
@@ -481,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/borne': typeof BorneRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
+  '/mon-espace': typeof MonEspaceRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
@@ -503,6 +553,9 @@ export interface FileRoutesByFullPath {
   '/tradein': typeof AppTradeinRouteWithChildren
   '/vehicles': typeof AppVehiclesRouteWithChildren
   '/workshop': typeof AppWorkshopRouteWithChildren
+  '/mon-espace/profil': typeof MonEspaceProfilRoute
+  '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -538,6 +591,8 @@ export interface FileRoutesByFullPath {
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
+  '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/clients/': typeof AppClientsIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/parts/': typeof AppPartsIndexRoute
@@ -548,6 +603,8 @@ export interface FileRoutesByFullPath {
   '/tradein/': typeof AppTradeinIndexRoute
   '/vehicles/': typeof AppVehiclesIndexRoute
   '/workshop/': typeof AppWorkshopIndexRoute
+  '/mon-espace/factures/': typeof MonEspaceFacturesIndexRoute
+  '/mon-espace/motos/': typeof MonEspaceMotosIndexRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
@@ -571,6 +628,9 @@ export interface FileRoutesByTo {
   '/picking': typeof AppPickingRoute
   '/pos': typeof AppPosRoute
   '/reports': typeof AppReportsRoute
+  '/mon-espace/profil': typeof MonEspaceProfilRoute
+  '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -604,6 +664,8 @@ export interface FileRoutesByTo {
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
+  '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/clients': typeof AppClientsIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/parts': typeof AppPartsIndexRoute
@@ -614,6 +676,8 @@ export interface FileRoutesByTo {
   '/tradein': typeof AppTradeinIndexRoute
   '/vehicles': typeof AppVehiclesIndexRoute
   '/workshop': typeof AppWorkshopIndexRoute
+  '/mon-espace/factures': typeof MonEspaceFacturesIndexRoute
+  '/mon-espace/motos': typeof MonEspaceMotosIndexRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
@@ -627,6 +691,7 @@ export interface FileRoutesById {
   '/borne': typeof BorneRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
+  '/mon-espace': typeof MonEspaceRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/_app/accounting': typeof AppAccountingRoute
   '/_app/accounting-closure': typeof AppAccountingClosureRoute
@@ -649,6 +714,9 @@ export interface FileRoutesById {
   '/_app/tradein': typeof AppTradeinRouteWithChildren
   '/_app/vehicles': typeof AppVehiclesRouteWithChildren
   '/_app/workshop': typeof AppWorkshopRouteWithChildren
+  '/mon-espace/profil': typeof MonEspaceProfilRoute
+  '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -684,6 +752,8 @@ export interface FileRoutesById {
   '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
   '/_app/workshop/new': typeof AppWorkshopNewRoute
   '/_app/workshop/planning': typeof AppWorkshopPlanningRoute
+  '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
+  '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/_app/clients/': typeof AppClientsIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/parts/': typeof AppPartsIndexRoute
@@ -694,6 +764,8 @@ export interface FileRoutesById {
   '/_app/tradein/': typeof AppTradeinIndexRoute
   '/_app/vehicles/': typeof AppVehiclesIndexRoute
   '/_app/workshop/': typeof AppWorkshopIndexRoute
+  '/mon-espace/factures/': typeof MonEspaceFacturesIndexRoute
+  '/mon-espace/motos/': typeof MonEspaceMotosIndexRoute
   '/_app/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/_app/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
@@ -707,6 +779,7 @@ export interface FileRouteTypes {
     | '/borne'
     | '/inscription'
     | '/login'
+    | '/mon-espace'
     | '/reset-password'
     | '/accounting'
     | '/accounting-closure'
@@ -729,6 +802,9 @@ export interface FileRouteTypes {
     | '/tradein'
     | '/vehicles'
     | '/workshop'
+    | '/mon-espace/profil'
+    | '/mon-espace/rendez-vous'
+    | '/mon-espace/'
     | '/clients/$contactId'
     | '/clients/new'
     | '/orders/$orderId'
@@ -764,6 +840,8 @@ export interface FileRouteTypes {
     | '/workshop/chrono'
     | '/workshop/new'
     | '/workshop/planning'
+    | '/mon-espace/factures/$documentId'
+    | '/mon-espace/motos/$vehicleId'
     | '/clients/'
     | '/orders/'
     | '/parts/'
@@ -774,6 +852,8 @@ export interface FileRouteTypes {
     | '/tradein/'
     | '/vehicles/'
     | '/workshop/'
+    | '/mon-espace/factures/'
+    | '/mon-espace/motos/'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
@@ -797,6 +877,9 @@ export interface FileRouteTypes {
     | '/picking'
     | '/pos'
     | '/reports'
+    | '/mon-espace/profil'
+    | '/mon-espace/rendez-vous'
+    | '/mon-espace'
     | '/clients/$contactId'
     | '/clients/new'
     | '/orders/$orderId'
@@ -830,6 +913,8 @@ export interface FileRouteTypes {
     | '/workshop/chrono'
     | '/workshop/new'
     | '/workshop/planning'
+    | '/mon-espace/factures/$documentId'
+    | '/mon-espace/motos/$vehicleId'
     | '/clients'
     | '/orders'
     | '/parts'
@@ -840,6 +925,8 @@ export interface FileRouteTypes {
     | '/tradein'
     | '/vehicles'
     | '/workshop'
+    | '/mon-espace/factures'
+    | '/mon-espace/motos'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
@@ -852,6 +939,7 @@ export interface FileRouteTypes {
     | '/borne'
     | '/inscription'
     | '/login'
+    | '/mon-espace'
     | '/reset-password'
     | '/_app/accounting'
     | '/_app/accounting-closure'
@@ -874,6 +962,9 @@ export interface FileRouteTypes {
     | '/_app/tradein'
     | '/_app/vehicles'
     | '/_app/workshop'
+    | '/mon-espace/profil'
+    | '/mon-espace/rendez-vous'
+    | '/mon-espace/'
     | '/_app/clients/$contactId'
     | '/_app/clients/new'
     | '/_app/orders/$orderId'
@@ -909,6 +1000,8 @@ export interface FileRouteTypes {
     | '/_app/workshop/chrono'
     | '/_app/workshop/new'
     | '/_app/workshop/planning'
+    | '/mon-espace/factures/$documentId'
+    | '/mon-espace/motos/$vehicleId'
     | '/_app/clients/'
     | '/_app/orders/'
     | '/_app/parts/'
@@ -919,6 +1012,8 @@ export interface FileRouteTypes {
     | '/_app/tradein/'
     | '/_app/vehicles/'
     | '/_app/workshop/'
+    | '/mon-espace/factures/'
+    | '/mon-espace/motos/'
     | '/_app/purchases/suppliers/$supplierId'
     | '/_app/purchases/suppliers/new'
     | '/_app/settings/tables/$tableKey'
@@ -932,6 +1027,7 @@ export interface RootRouteChildren {
   BorneRoute: typeof BorneRoute
   InscriptionRoute: typeof InscriptionRoute
   LoginRoute: typeof LoginRoute
+  MonEspaceRoute: typeof MonEspaceRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
@@ -970,6 +1066,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mon-espace': {
+      id: '/mon-espace'
+      path: '/mon-espace'
+      fullPath: '/mon-espace'
+      preLoaderRoute: typeof MonEspaceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -1125,6 +1228,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/workshop'
       preLoaderRoute: typeof AppWorkshopRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/mon-espace/': {
+      id: '/mon-espace/'
+      path: '/'
+      fullPath: '/mon-espace/'
+      preLoaderRoute: typeof MonEspaceIndexRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
+    '/mon-espace/profil': {
+      id: '/mon-espace/profil'
+      path: '/profil'
+      fullPath: '/mon-espace/profil'
+      preLoaderRoute: typeof MonEspaceProfilRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
+    '/mon-espace/rendez-vous': {
+      id: '/mon-espace/rendez-vous'
+      path: '/rendez-vous'
+      fullPath: '/mon-espace/rendez-vous'
+      preLoaderRoute: typeof MonEspaceRendezVousRouteImport
+      parentRoute: typeof MonEspaceRoute
     }
     '/_app/clients/': {
       id: '/_app/clients/'
@@ -1441,6 +1565,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkshopPlanningRouteImport
       parentRoute: typeof AppWorkshopRoute
     }
+    '/mon-espace/factures/': {
+      id: '/mon-espace/factures/'
+      path: '/factures'
+      fullPath: '/mon-espace/factures/'
+      preLoaderRoute: typeof MonEspaceFacturesIndexRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
+    '/mon-espace/factures/$documentId': {
+      id: '/mon-espace/factures/$documentId'
+      path: '/factures/$documentId'
+      fullPath: '/mon-espace/factures/$documentId'
+      preLoaderRoute: typeof MonEspaceFacturesDocumentIdRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
+    '/mon-espace/motos/': {
+      id: '/mon-espace/motos/'
+      path: '/motos'
+      fullPath: '/mon-espace/motos/'
+      preLoaderRoute: typeof MonEspaceMotosIndexRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
+    '/mon-espace/motos/$vehicleId': {
+      id: '/mon-espace/motos/$vehicleId'
+      path: '/motos/$vehicleId'
+      fullPath: '/mon-espace/motos/$vehicleId'
+      preLoaderRoute: typeof MonEspaceMotosVehicleIdRouteImport
+      parentRoute: typeof MonEspaceRoute
+    }
     '/_app/purchases/suppliers/': {
       id: '/_app/purchases/suppliers/'
       path: '/'
@@ -1749,12 +1901,37 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface MonEspaceRouteChildren {
+  MonEspaceProfilRoute: typeof MonEspaceProfilRoute
+  MonEspaceRendezVousRoute: typeof MonEspaceRendezVousRoute
+  MonEspaceIndexRoute: typeof MonEspaceIndexRoute
+  MonEspaceFacturesDocumentIdRoute: typeof MonEspaceFacturesDocumentIdRoute
+  MonEspaceMotosVehicleIdRoute: typeof MonEspaceMotosVehicleIdRoute
+  MonEspaceFacturesIndexRoute: typeof MonEspaceFacturesIndexRoute
+  MonEspaceMotosIndexRoute: typeof MonEspaceMotosIndexRoute
+}
+
+const MonEspaceRouteChildren: MonEspaceRouteChildren = {
+  MonEspaceProfilRoute: MonEspaceProfilRoute,
+  MonEspaceRendezVousRoute: MonEspaceRendezVousRoute,
+  MonEspaceIndexRoute: MonEspaceIndexRoute,
+  MonEspaceFacturesDocumentIdRoute: MonEspaceFacturesDocumentIdRoute,
+  MonEspaceMotosVehicleIdRoute: MonEspaceMotosVehicleIdRoute,
+  MonEspaceFacturesIndexRoute: MonEspaceFacturesIndexRoute,
+  MonEspaceMotosIndexRoute: MonEspaceMotosIndexRoute,
+}
+
+const MonEspaceRouteWithChildren = MonEspaceRoute._addFileChildren(
+  MonEspaceRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   BorneRoute: BorneRoute,
   InscriptionRoute: InscriptionRoute,
   LoginRoute: LoginRoute,
+  MonEspaceRoute: MonEspaceRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport

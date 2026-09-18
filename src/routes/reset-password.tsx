@@ -8,12 +8,14 @@
  *      Un antivirus qui ouvre les liens des e-mails ne peut donc pas le griller.
  *   2. déjà connecté, depuis le menu utilisateur (« Changer mon mot de passe ») :
  *      utile pour quitter le mot de passe commun provisoire.
+ * Après validation : le personnel va sur /dashboard, un client sur /mon-espace.
  */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { resolveHomePath } from '@/lib/auth/home-path';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,7 +39,6 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<null | 'staff' | 'client'>(null);
 
   const viaLink = !!token_hash;
   const canUse = viaLink || !!session;
@@ -56,11 +57,9 @@ function ResetPasswordPage() {
       const { error: uErr } = await supabase.auth.updateUser({ password });
       if (uErr) { setError(uErr.message); return; }
 
-      // Membre de l'équipe → l'application. Client → son espace arrive (lot 3).
+      // Membre de l'équipe → l'application. Client → son espace (/mon-espace).
       const { data: { user } } = await supabase.auth.getUser();
-      const { count } = await supabase.from('user_roles').select('role', { count: 'exact', head: true }).eq('user_id', user?.id ?? '');
-      if ((count ?? 0) > 0) { navigate({ to: '/dashboard' }); return; }
-      setDone('client');
+      navigate({ to: await resolveHomePath(user?.id) });
     } catch (e2) {
       setError(e2 instanceof Error ? e2.message : t('auth.genericError'));
     } finally {
@@ -79,9 +78,7 @@ function ResetPasswordPage() {
         <div className="space-y-4 rounded-md border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <h2 className="text-[16px] font-medium">{viaLink ? t('pwd.titleChoose') : t('pwd.titleChange')}</h2>
 
-          {done === 'client' ? (
-            <p className="text-[13px]">{t('pwd.doneClient')}</p>
-          ) : loading && !viaLink ? (
+          {loading && !viaLink ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : !canUse ? (
             <>
