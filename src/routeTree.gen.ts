@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
 import { Route as AppAccountingClosureRouteImport } from './routes/_app.accounting-closure'
 import { Route as AppAccountingSepaRouteImport } from './routes/_app.accounting-sepa'
@@ -99,6 +100,11 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAccountingRoute = AppAccountingRouteImport.update({
@@ -479,6 +485,7 @@ const AppSettingsTablesTableKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
@@ -557,6 +564,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
@@ -625,6 +633,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_app/accounting': typeof AppAccountingRoute
   '/_app/accounting-closure': typeof AppAccountingClosureRoute
   '/_app/accounting-sepa': typeof AppAccountingSepaRoute
@@ -705,6 +714,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/accounting'
     | '/accounting-closure'
     | '/accounting-sepa'
@@ -783,6 +793,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/accounting'
     | '/accounting-closure'
     | '/accounting-sepa'
@@ -850,6 +861,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/reset-password'
     | '/_app/accounting'
     | '/_app/accounting-closure'
     | '/_app/accounting-sepa'
@@ -930,6 +942,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ShopSlugRoute: typeof ShopSlugRoute
 }
 
@@ -954,6 +967,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/accounting': {
@@ -1755,6 +1775,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ShopSlugRoute: ShopSlugRoute,
 }
 export const routeTree = rootRouteImport

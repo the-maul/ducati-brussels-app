@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut } from 'lucide-react';
+import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut, KeyRound } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -144,6 +144,12 @@ function UserMenu() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link to="/reset-password">
+            <KeyRound className="size-4" />
+            {t('pwd.menu')}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut className="size-4" />
           {t('auth.signOut')}
