@@ -43,8 +43,13 @@ export async function createLead(p: { companyId: string; name: string; email?: s
   return res.data.id as string;
 }
 
-/** Fonctions SQL récentes, pas encore dans `types.ts` généré. */
-const rpcUntyped = supabase.rpc as unknown as (
+/**
+ * Fonctions SQL récentes, pas encore dans `types.ts` généré.
+ * `.bind(supabase)` est OBLIGATOIRE : `rpc` lit `this.rest` ; sortie du client sans bind,
+ * l'appel plante dans le navigateur (« Cannot read properties of undefined (reading 'rest') »)
+ * avant même d'atteindre la base (incident du 19/09, test `tests/rpc-bound.test.ts`).
+ */
+const rpcUntyped = supabase.rpc.bind(supabase) as unknown as (
   fn: string, args?: Record<string, unknown>,
 ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
 
