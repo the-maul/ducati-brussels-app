@@ -5,7 +5,8 @@
  */
 import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
+import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
@@ -28,8 +29,9 @@ import {
 } from '@/components/ui/dialog';
 import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
-import { findDuplicateContacts, contactDisplayName } from './api';
+import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
@@ -415,6 +417,8 @@ export function ContactForm({
     return lockType ? { ...s, type: lockType } : s;
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  // Mission 04, carte 1 : à la création, seul l'essentiel est ouvert ; le reste est replié.
+  const [moreOpen, setMoreOpen] = useState<boolean>(initial !== null || !!lockType);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
   // Rien de modifié = rien à enregistrer : le bouton reste grisé.
   const dirty = useIsDirty(f);
@@ -442,23 +446,28 @@ export function ContactForm({
     const payload = buildPayload(f, companyId);
 
     // Uniquement a la creation : en edition, la fiche serait son propre doublon.
+    // Mission 04, carte 1 : même e-mail OU même numéro → on propose d'ouvrir la fiche
+    // existante (règle D3 : jamais de fusion automatique), en plus du doublon strict.
     if (!initial) {
       setCheckingDupes(true);
       try {
-        const found = await findDuplicateContacts(companyId, {
-          name: f.company_name.trim() || [f.first_name, f.last_name].filter(Boolean).join(' ').trim(),
-          city: f.city,
-          phone: f.mobile || f.gsm,
-          email: f.email,
-        });
+        const [strict, sameContact] = await Promise.all([
+          findDuplicateContacts(companyId, {
+            name: f.company_name.trim() || [f.first_name, f.last_name].filter(Boolean).join(' ').trim(),
+            city: f.city,
+            phone: f.mobile || f.gsm,
+            email: f.email,
+          }).catch(() => [] as Contact[]),
+          findContactsByEmailOrMobile(companyId, { email: f.email, mobile: f.mobile }).catch(() => [] as Contact[]),
+        ]);
+        const found = [...sameContact, ...strict.filter((c) => !sameContact.some((s) => s.id === c.id))];
         if (found.length > 0) {
           pendingPayload.current = payload;
           setDupes(found);
           return;
         }
-      } catch {
-        // Un controle indisponible ne doit jamais empecher de creer une fiche.
       } finally {
+        // Un controle indisponible ne doit jamais empecher de creer une fiche.
         setCheckingDupes(false);
       }
     }
@@ -482,25 +491,37 @@ export function ContactForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      {/* Fiche deja existante : on previent, on propose de creer quand meme. */}
+      {/* Fiche deja existante (même e-mail ou même numéro) : on propose de l'ouvrir. */}
       <Dialog open={dupes !== null} onOpenChange={(o) => { if (!o) closeDupes(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('contacts.dupTitle')}</DialogTitle>
+            <DialogTitle>{t('contacts.dupFoundTitle')}</DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-muted-foreground">{t('contacts.dupMessage')}</p>
-          <div className="max-h-48 space-y-1.5 overflow-auto">
-            {(dupes ?? []).map((c) => (
-              <div key={c.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px]">
-                <span className="flex-1 truncate font-medium">{contactDisplayName(c)}</span>
-                {c.city && <span className="truncate text-muted-foreground">{c.city}</span>}
-                {c.code && <span className="font-mono text-[11px] text-muted-foreground">{c.code}</span>}
-              </div>
-            ))}
+          <p className="text-[13px] text-muted-foreground">{t('contacts.dupFoundMessage')}</p>
+          <div className="max-h-64 space-y-1.5 overflow-auto">
+            {(dupes ?? []).map((c) => {
+              const sameEmail = !!f.email.trim() && (c.email ?? '').trim().toLowerCase() === f.email.trim().toLowerCase();
+              return (
+                <div key={c.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px]">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {contactDisplayName(c)}
+                      {!c.is_active && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">({t('contacts.dupArchived')})</span>}
+                    </p>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {[sameEmail ? t('contacts.dupMatchEmail') : t('contacts.dupMatchPhone'), c.city, c.code].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <Link to="/clients/$contactId" params={{ contactId: c.id }}>{t('contacts.dupOpen')}</Link>
+                  </Button>
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeDupes}>{t('contacts.dupCancel')}</Button>
-            <Button type="button" onClick={confirmDuplicate}>{t('contacts.dupCreateAnyway')}</Button>
+            <Button type="button" variant="ghost" onClick={confirmDuplicate}>{t('contacts.dupCreateAnyway')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -524,7 +545,7 @@ export function ContactForm({
         <TabsContent value="self" className="mt-4 space-y-6">
 
           {/* ── Identité ───────────────────────────────────────────────────── */}
-          <Section title={t('contacts.secIdentity')}>
+          <Section title={t('contacts.secEssentials')}>
             {!lockType && (
               <Field label={t('contacts.type')}>
                 <Select value={f.type} onValueChange={(v) => set('type', v as ContactType)}>
@@ -539,22 +560,6 @@ export function ContactForm({
                 </Select>
               </Field>
             )}
-            {isClient && (
-              <Field label={t('contacts.status')}>
-                <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
-                    <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
-                    <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
-                    <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-            <Field label={isClient ? t('contacts.code') : t('contacts.codeGeneric')}>
-              <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
-            </Field>
             {isPro && (
               <Field label={t('contacts.companyName')}>
                 <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
@@ -596,16 +601,12 @@ export function ContactForm({
             <Field label={t('contacts.lastName')}>
               <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
             </Field>
-            <Field label={t('contacts.email')}>
-              <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
-            </Field>
             {/* Mobile avec préfixe +32 par défaut */}
             <Field label={t('contacts.mobile')}>
               <PhoneInput value={f.mobile} onChange={(v) => set('mobile', v)} />
             </Field>
-            {/* Mobile 2 (ex-GSM) avec préfixe */}
-            <Field label={t('contacts.mobile2')}>
-              <PhoneInput value={f.gsm} onChange={(v) => set('gsm', v)} />
+            <Field label={t('contacts.email')}>
+              <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
             </Field>
           </Section>
 
@@ -640,6 +641,45 @@ export function ContactForm({
             <div className="col-span-full">
               <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
             </div>
+          </Section>
+
+          {/* ── Mission 04, carte 1 : le reste de la fiche, replié à la création ── */}
+          <Collapsible open={moreOpen} onOpenChange={setMoreOpen} className="space-y-6">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-left shadow-[var(--shadow-card)] hover:bg-accent"
+              >
+                <span>
+                  <span className="block font-ui text-[15px] font-bold text-foreground">{t('contacts.secComplete')}</span>
+                  <span className="block text-[12px] text-muted-foreground">{t('contacts.secCompleteHint')}</span>
+                </span>
+                <ChevronDown className={`size-5 shrink-0 text-muted-foreground transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-6">
+          {/* ── Suivi de la fiche (statut, code, second mobile) ─────────────── */}
+          <Section title={t('contacts.secFollowUp')}>
+            {isClient && (
+              <Field label={t('contacts.status')}>
+                <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
+                    <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
+                    <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
+                    <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <Field label={isClient ? t('contacts.code') : t('contacts.codeGeneric')}>
+              <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
+            </Field>
+            {/* Mobile 2 (ex-GSM) avec préfixe */}
+            <Field label={t('contacts.mobile2')}>
+              <PhoneInput value={f.gsm} onChange={(v) => set('gsm', v)} />
+            </Field>
           </Section>
 
           {/* ── Professionnel (B2B) — juste après l'adresse, uniquement pour pro ── */}
@@ -873,6 +913,8 @@ export function ContactForm({
               <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
             </Field>
           </Section>
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         {/* Onglet « Info chez Ducati » */}

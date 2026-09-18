@@ -928,6 +928,19 @@ export const fr = {
     dupCreateAnyway: 'Créer quand même',
     dupCancel: 'Annuler',
     dupChecking: 'Recherche de doublons…',
+    // Mission 04, carte 1 : même e-mail ou même numéro → ouvrir la fiche existante (D3)
+    dupFoundTitle: 'Ce client existe peut-être déjà',
+    dupFoundMessage: 'Une fiche avec le même e-mail ou le même numéro est déjà enregistrée. Ouvrez-la plutôt que d’en créer une deuxième :',
+    dupMatchEmail: 'même e-mail',
+    dupMatchPhone: 'même numéro',
+    dupArchived: 'archivée',
+    dupOpen: 'Ouvrir la fiche',
+
+    // Mission 04, carte 1 : fiche en deux temps
+    secEssentials: 'L’essentiel',
+    secComplete: 'Compléter la fiche',
+    secCompleteHint: 'Naissance, permis, IBAN, TVA, catégories, notes… maintenant ou plus tard.',
+    secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
     civilityMr: 'Monsieur',
