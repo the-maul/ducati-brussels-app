@@ -58,7 +58,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 |---|---|
 | Donner au DMS l'accès à la boutique Shopify | ✅ 19/09 — vérifié : 1 595 produits, 1 emplacement, droits OK |
 | Questions Shopify à trancher avant de coder | ⬜ en attente de réponses |
-| Voir les produits Shopify et les rapprocher des articles du stock | ⬜ |
+| Voir les produits Shopify et les rapprocher des articles du stock | 🟦 19/09 — fait, à valider : écran Pièces & Accessoires → Produits Shopify, 300 liaisons automatiques exactes |
 | Reprendre une fois les photos et textes de Shopify dans le DMS | ⬜ |
 | Le stock et le prix du DMS s'affichent en direct sur le site | ⬜ |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
@@ -66,7 +66,22 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 
 ## 4. Questions en attente
 
-1. Les produits Shopify portent-ils la référence de l'article (SKU = référence Ducati / code DMS) ?
+1. ~~Les produits Shopify portent-ils la référence de l'article (SKU = référence Ducati / code DMS) ?~~
+   **Oui pour la plupart, mais peu existent dans le DMS** (lecture réelle du 19/09) :
+   - 1 595 produits, **3 105 variantes** (1 102 en ligne, 2 002 brouillons, 1 archivée) ;
+   - **2 806 variantes ont un SKU** (1 335 produits), 299 n'en ont pas ; 616 ont un code-barres ;
+   - 2 650 SKU ont la forme d'une référence Ducati (chiffres + lettres, ex. `82411461A`, `8291F721AA`,
+     `46410541B`, `981090260`) ; 155 ont une autre forme (lettres au milieu comme `969A05208B`, ou texte
+     libre comme `DESERTX`, `SUPPORT GOPRO SBK`) ;
+     12 SKU sont portés par plusieurs variantes ;
+   - **300 variantes ont un SKU identique à une référence du DMS** et ont été reliées automatiquement
+     (toutes uniques ; 258 sur des produits en ligne ; toutes vers des articles de type A) ;
+     aucune par code-barres (le DMS n'a que 2 codes-barres enregistrés) ;
+   - les **2 506 autres SKU ne correspondent à aucune référence**, même sans tirets ni espaces :
+     **1 994 commencent par 98** (vêtements et accessoires Ducati, ex. `981090260`) alors que le DMS n'a
+     qu'**un seul** article en `981…`. Le catalogue vêtements n'est donc pas encore dans le DMS : c'est la
+     vraie question à trancher (reprise G8 ou import catalogue Ducati), liée à la question 5 ;
+   - 9 SKU sont d'anciennes références remplacées dans le DMS (proposées en suggestion).
 2. ~~Combien d'emplacements de stock dans Shopify ?~~ **Un seul** : « Chaussée de Bruxelles 688 » (vérifié le 19/09).
 3. Vente en magasin avec la caisse Shopify, ou seulement en ligne ?
 4. Prix Shopify TVA comprise ?
@@ -77,7 +92,20 @@ Décidé le 19/09 : **W-5** l'inscription du site Shopify renvoie vers `/app-cli
 
 ## 5. Ce qui a changé dans l'application
 
-Rien encore. Point de départ gardé lors du nettoyage du 18/09 : la case « publiable » de la fiche article.
+Point de départ gardé lors du nettoyage du 18/09 : la case « publiable » de la fiche article.
+
+**19/09 — « Voir les produits Shopify et les rapprocher des articles du stock »** (branche
+`lot-shopify-rappro`, à valider) :
+
+- Nouvel écran **Pièces & Accessoires → Produits Shopify** (`/parts/shopify`) : image, titre, SKU, prix,
+  stock Shopify et article du DMS relié ; compteurs (variantes, liées automatiquement, liées à la main,
+  à valider, ignorées, sans SKU) ; filtres. Administrateurs : **Relire Shopify**, **Lier** (suggestions +
+  recherche), **Délier**, **Ignorer**. Vendeurs : lecture seule.
+- Fonction serveur `shopify-sync-products` : lit toute la boutique en lecture seule (pages de 50 variantes,
+  pause si Shopify limite), écrit l'instantané `shopify_products`, puis applique la règle W-6.
+- Tables `shopify_products` et `shopify_links`, décisions tracées dans `events`
+  (migration `20260919270000_m2_shopify_products.sql`, appliquée le 19/09).
+- Détail et pièges : [M02 Articles](../modules/M02-articles.md) §2, §3, §4, §7.
 
 ## 6. Risques
 

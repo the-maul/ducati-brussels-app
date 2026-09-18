@@ -40,3 +40,6 @@ verify_jwt = true
 # Mission 03 — vérification de la connexion Shopify (contrôle d’accès dans le code).
 [functions.shopify-ping]
 verify_jwt = false
+
+[functions.shopify-sync-products]
+verify_jwt = false
