@@ -1,7 +1,7 @@
 /**
  * Topbar — barre supérieure 56px (charte §4.1).
  * Toggle sidebar · recherche globale (Ctrl+K) · bascule de société (COM005)
- * · notifications · menu utilisateur.
+ * · alerte verte Commande Excel (seuil atteint) · notifications · menu utilisateur.
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
@@ -24,6 +24,7 @@ import {
 } from '@/modules/crm/api';
 import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/workshop/planning-api';
 import { useAuth } from '@/lib/auth/auth-context';
+import { ExcelThresholdAlert } from '@/modules/orders/excel-alert';
 import { t } from '@/lib/i18n';
 
 /**
@@ -331,6 +332,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       <div className="flex min-w-0 flex-1 justify-start">
         <GlobalSearch />
       </div>
+
+      <ExcelThresholdAlert />
 
       <CompanySwitcher />
 
