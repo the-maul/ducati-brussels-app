@@ -5205,6 +5205,10 @@ export type Database = {
         }[]
       }
       bin_stock: { Args: { _article: string; _bin: string }; Returns: number }
+      can_see_team_notification: {
+        Args: { _company: string; _kind: string }
+        Returns: boolean
+      }
       cash_z_report: {
         Args: { _company: string; _from: string; _to: string }
         Returns: Json
@@ -5531,6 +5535,32 @@ export type Database = {
           contact_id: string
           created: boolean
           lead_id: string
+        }[]
+      }
+      crm_create_manual_lead: {
+        Args: {
+          _company: string
+          _email?: string
+          _estimated_value?: number
+          _name: string
+          _phone?: string
+          _pipeline: string
+          _source?: string
+          _vehicle_interest?: string
+        }
+        Returns: {
+          contact_created: boolean
+          contact_id: string
+          existing: boolean
+          lead_id: string
+        }[]
+      }
+      crm_link_lead_contact: {
+        Args: { _contact?: string; _lead: string }
+        Returns: {
+          contact_created: boolean
+          contact_id: string
+          other_open_lead: string
         }[]
       }
       cycle_count_candidates: {
