@@ -14,13 +14,8 @@ disparaît d'ici.
   le range sur la fiche la plus ancienne. Proposition : la carte affiche « Cette adresse appartient à
   2 fiches : Marc Dupont, Julie Dupont — à qui rattacher ce mail ? » et le vendeur choisit.
   *Reco : OK.*
-- **Q15 — Nom de domaine.** `app.ducatibxl.be` ou `app.ducatibruxelles.be` ? (Les deux ont été cités.)
-  Rien ne bloque d'ici là : l'adresse est un réglage.
 
 ## Futur — Shopify
 
-- **Q16 — Qui fait foi pour quoi ?**
-  *Reco : le DMS fait foi pour le **stock** et le **prix** ; Shopify pour les **photos et textes**
-  de la fiche produit. Une vente Shopify crée la vente et la sortie de stock dans le DMS.*
 - **Q17 — Accès Shopify.** Il faudra une « application personnalisée » dans l'administration
   Shopify et sa clé d'accès, posée par vous dans les secrets.

@@ -10,6 +10,18 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
 
+- **S-3** — **Domaines** : `ducatibruxelles.be` = site Shopify ; **`dms.ducatibruxelles.be`** = DMS du
+  personnel ; **`app.ducatibruxelles.be`** = application des clients. Pas encore en ligne : Netlify en
+  attendant. *Client · 18/09.*
+- **W-4** — **Shopify : le DMS fait foi pour le stock, le prix, les photos et les textes**, après une
+  reprise initiale des photos et textes depuis Shopify. Une vente sur Shopify crée la vente et la sortie
+  de stock dans le DMS. Faisabilité à vérifier dans l'API Shopify. *Client · 18/09.* Future mission.
+- **F-10** — **Pas de fusion automatique des doublons** : la liste des 12 doublons est envoyée à
+  Italbike, qui fusionne lui-même dans le DMS (après correctif de la fusion). *Client · 18/09.*
+- **S-4** — Nouvelle méthode : chaque mission est une **liste de cartes dans l'ERP Mauluctive** (client
+  Ducati Waterloo, mission « Updates »). Claude traite les cartes et les passe « À valider » ; Simon
+  teste et remet « À faire » avec ses notes, ou « Terminé ». *Client · 18/09.*
+
 - **S-1** — **NL INVEST n'a rien à faire dans le DMS** : c'est la holding propriétaire d'Italbike.
   Elle ne contient que les données de démonstration (12 motos, 305 articles, 5 OR, aucun client).
   À retirer. *Client · 18/09.* [M00](modules/M00-socle.md)
