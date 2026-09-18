@@ -360,14 +360,42 @@ Consequences dans l'interface :
   l'adresse d'expedition (une des quatre boites) est visible immediatement, plus
   cache derriere un selecteur de canal.
 
+#### Retours client du 18/09 : utilisateurs, plusieurs CRM, boîte de réponse, note vivante
+
+Demandes, mot pour mot en substance :
+
+1. « On doit créer des utilisateurs de la plateforme » : un espace d'administration pour créer des
+   comptes **client** (lié à sa fiche, créée au besoin) ou **équipe** (commercial, technicien,
+   manager), avec une invitation par mail pour générer un mot de passe. Deux comptes créés sans
+   invitation, avec un mot de passe commun à changer : domenico@ducatibxl.be (manager, existait
+   déjà avec tous les rôles) et simon@ducatibxl.be (commercial = vendeur). **Pas de nouveaux
+   rôles** : les rôles existants suffisent.
+2. La tâche commerciale revient par défaut à Simon, réattribuable à la main à Domenico.
+3. Plusieurs CRM en onglets. Un CRM atelier viendra, **à ne pas créer maintenant**.
+4. La boîte de réponse par défaut est celle qui a reçu le mail (shop@, occasions@…), mais chacun
+   peut choisir sa propre adresse.
+5. La note de la carte reprend la demande : l'enrichir d'un petit paragraphe par échange.
+
+Réalisé le 18/09 :
+
+| Demande | Réalisation |
+|---|---|
+| 1 | Écran Utilisateurs : « Membre de l'équipe » ou « Client ». Client : fiche existante (recherche) ou nouvelle fiche, refus d'un doublon d'e-mail (décision D3). Mot de passe fixé ou invitation Outlook. Table `contact_accounts`. Un client n'a aucun rôle, donc aucun accès aux données de la concession. |
+| 1 bis | Page `/reset-password` : choisir son mot de passe depuis l'invitation, ou le changer une fois connecté (menu utilisateur). |
+| 2 | Réglage « Nouvelles demandes du CRM commercial » dans l'écran Utilisateurs, fonction `set_default_assignee`, reprise optionnelle des tâches ouvertes de l'ancien responsable. **Le compte simon@ducatibxl.be est à créer par l'administrateur**, puis à choisir dans ce réglage. |
+| 3 | Colonne `leads.pipeline`, onglet « CRM commercial ». Ajouter l'atelier = une valeur dans `PIPELINES`. |
+| 4 | Colonne `communications.mailbox`, remplie par la relève et rattrapée pour les mails déjà enregistrés. La carte propose d'abord la boîte qui a reçu le mail, puis sa propre adresse. L'envoi vérifie désormais que l'appelant est membre de la société. |
+| 5 | Fonction `summarize-exchange`, appelée à chaque relève : un paragraphe daté par mail, appel ou SMS, ajouté une seule fois (`append_lead_exchange_note`), copies d'un même envoi ignorées, réponses d'agenda écartées. |
+
 ### Lot 2 — Invitation et compte client
 
-- [ ] Génération du jeton et du lien d'invitation.
-- [ ] File de notifications rebranchée sur Outlook au lieu de Resend.
-- [ ] Modèle d'e-mail d'invitation, avec lien de désinscription.
-- [ ] Page d'inscription publique qui consomme le jeton.
-- [ ] Rattachement du compte de connexion à la fiche contact existante.
-- [ ] Règles d'accès : un client ne voit **que** ses propres données.
+- [x] Génération du jeton et du lien d'invitation (18/09).
+- [x] Invitation envoyée par Outlook, pas par Resend (18/09). La file `dispatch-notifications` reste à rebrancher.
+- [x] Modèle d'e-mail d'invitation (18/09). Lien de désinscription : sans objet pour un mail de compte.
+- [x] Page qui consomme le jeton : `/reset-password` (18/09).
+- [x] Rattachement du compte de connexion à la fiche contact existante (18/09).
+- [ ] Règles d'accès : un client ne voit **que** ses propres données. Aujourd'hui il ne voit rien
+      (aucun rôle) ; les règles de lecture de ses propres données viendront avec le portail.
 
 **Fait quand** : le lien reçu par mail mène à un compte rattaché à la bonne fiche, sans créer de doublon,
 et un client connecté ne peut lire aucune donnée d'un autre client.

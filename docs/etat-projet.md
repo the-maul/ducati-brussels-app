@@ -77,7 +77,7 @@ select exists(select 1 from information_schema.columns
 
 | Module | État | Ce qui est démontrable |
 |---|---|---|
-| **M0 Socle** | ✅ | Login, multi-société, rôles + RLS, audit append-only, séquences de numérotation, gestion des utilisateurs, tables de paramètres |
+| **M0 Socle** | ✅ | Login, multi-société, rôles + RLS, audit append-only, séquences de numérotation, tables de paramètres, **utilisateurs équipe et clients**, **invitation par e-mail**, **choisir / changer son mot de passe** |
 | **M1 Contacts** | ✅ | Fiche parité G8, **code client automatique**, **détection de doublons**, **suppression sûre**, **actions groupées** (archiver, statut, drapeaux, lier, fusionner), VIP et surveillance, liaison pro/privé, **vérification TVA VIES** |
 | **M2 Articles & tarifs** | 🟦 | Référentiel A–R/T, PAMP, casiers, code-barres, familles en cascade, import tarifs, applicabilités, étiquettes · **bloqué** : enregistrement d'un article (§2) |
 | **M3 Véhicules** | 🟦 | Fiche VIN parité G8, parc, historique propriétaires, extension My Ducati (moto, garantie, entretiens, bulletins) · **bloqué** : enregistrement d'un véhicule (§2) |
@@ -87,7 +87,7 @@ select exists(select 1 from information_schema.columns
 | **M7 Reprise / Occasion** | 🔴 | Code complet : assistant mobile, photos, PDF, statuts, marchands, dépôt-vente, TVA marge · **inopérant en production** (§2) |
 | **M8 Atelier** | ✅ | OR cycle complet, garantie avec refus partiel, chronos, planning, moto accidentée et aide Ducati 15 % |
 | **M9 Documents / GED** | 🟦 | Pièces jointes, dossiers, glisser-déposer, 716 factures d'origine attachées, CGV · reste : signature électronique |
-| **M10 CRM** | 🟦 | Pipeline de leads, journal des communications, **mails Outlook entrants et sortants**, matching client ↔ moto en stock · reste : campagnes, SMS |
+| **M10 CRM** | 🟦 | **CRM commercial** en onglet (atelier prévu), cartes avec une seule tâche à la fois, échanges et réponse par mail depuis la carte, **note résumée automatiquement à chaque échange**, mails Outlook entrants et sortants, matching client ↔ moto en stock · reste : CRM atelier, campagnes, SMS |
 | **M11 Site & e-shop** | 🟡 | Constructeur de site, vitrine publique, panier, Stripe bouclé en test · **à trancher** : le vrai site est-il Shopify ? |
 | **M12 Compta** | 🟡 | PCMN, écritures équilibrées, registre TVA, TVA marge VO, SEPA, clôture, export Winbooks · reste : Falco live, gabarit du comptable |
 | **M13 Reporting** | ✅ | Tableau de bord, CA 12 mois, top articles, productivité atelier, comparaison N-1 |
@@ -156,6 +156,9 @@ Supabase, Bun. Les routes sont fichier par fichier dans `src/routes/` ; `routeTr
 - **Supabase** : base, authentification, stockage, fonctions serveur, `pg_cron`.
 - **Fonctions serveur déployées** : `outlook-poll` (relève des mails, plusieurs boîtes),
   `classify-prospect-email` (analyse d'un mail inconnu par Claude), `graph-send-email` (envoi réel),
+  `summarize-exchange` (un paragraphe par échange dans la note de la demande, par Claude),
+  `send-account-invitation` (invitation à choisir son mot de passe, envoyée par Outlook),
+  `mailbox-diag` (diagnostic en lecture d'une boîte Outlook),
   `dispatch-notifications` (file d'attente, pointe vers Resend sans clé donc inactive),
   `read-id-doc` (lecture de pièces d'identité par Claude), `vies-check` (TVA),
   `stripe-checkout`, `stripe-webhook`.
@@ -168,9 +171,13 @@ Supabase, Bun. Les routes sont fichier par fichier dans `src/routes/` ; `routeTr
 ### ⚠️ Authentification Supabase mal configurée
 
 L'URL du site est encore `http://localhost:3000` et la liste des redirections autorisées pointe
-vers d'anciennes adresses Lovable. Conséquence : **les liens de réinitialisation de mot de passe
-et les invitations envoient les utilisateurs au mauvais endroit.** À corriger avant toute mise en
-service pour de vrais utilisateurs.
+vers d'anciennes adresses Lovable. Conséquence : les e-mails de réinitialisation **envoyés par
+Supabase lui-même** envoient les utilisateurs au mauvais endroit. À corriger dans le tableau de
+bord Supabase (Authentication → URL Configuration) : URL du site `https://ducatilive.netlify.app`.
+
+**Les invitations de l'écran Utilisateurs ne sont pas concernées** (18/09) : elles sont envoyées
+par Outlook et leur lien mène directement à `/reset-password` de l'application, avec un jeton à
+usage unique consommé seulement à la validation du formulaire.
 
 ### Sécurité — signalé par l'audit Supabase
 
@@ -207,6 +214,32 @@ service pour de vrais utilisateurs.
 
 Acquisition des prospects par mail, site, comptoir et téléphone, puis compte client et portail.
 Plan détaillé, décisions et découpage en lots : [`plan-nouveau-client.md`](plan-nouveau-client.md).
+
+**Fait et en production (au 18/09/2026)** :
+
+- **Capture des mails** sur quatre boîtes (domenico@, info@, shop@, occasions@). Un expéditeur
+  inconnu qui fait une demande devient une fiche **prospect** avec une carte CRM ; les formulaires
+  du site relayés par Shopify sont reconnus. Un mail ne peut plus se perdre en cas d'erreur.
+- **Carte CRM** : une seule tâche ouverte à la fois (garanti en base, jamais de carte en double),
+  trois sorties « C'est fait » / « Modifier la tâche » / « Archiver la carte », historique des
+  tâches, documents, suivi nominatif, cloche des demandes en retard.
+- **Échanges** : réponse par mail depuis la carte. La boîte proposée par défaut est **celle qui a
+  reçu le mail du client** ; on peut choisir une autre boîte partagée ou **sa propre adresse**.
+  Un envoi depuis une adresse personnelle est enregistré dans la carte au moment de l'envoi.
+- **Note de la demande** : chaque nouvel échange (mail, appel, SMS) y ajoute automatiquement un
+  paragraphe daté qui résume où en est la demande. Jamais deux fois le même.
+- **Plusieurs CRM** : chaque demande appartient à un CRM. Seul le **CRM commercial** existe ; le
+  CRM atelier s'ajoutera sans refonte.
+- **Utilisateurs** (Paramètres → Utilisateurs) : comptes **équipe** (rôles existants : commercial =
+  vendeur, technicien = mécanicien / chef d'atelier, manager = administrateur) et comptes
+  **client** rattachés à leur fiche, créée au besoin. Mot de passe fixé par l'administrateur, ou
+  **invitation par e-mail** pour que la personne choisisse le sien. Chacun peut changer son mot
+  de passe depuis le menu utilisateur.
+- **Responsable par défaut** des nouvelles demandes du CRM commercial, réglable dans le même écran,
+  avec reprise optionnelle des tâches en cours de l'ancien responsable.
+
+**Reste** : écran de fusion des doublons de clients, portail client (lot 3), borne comptoir et
+questionnaire du site (lot 4), CRM atelier.
 
 ### Spécifié, non commencé — Commandes de pièces
 

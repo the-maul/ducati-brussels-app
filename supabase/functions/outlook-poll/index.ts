@@ -112,7 +112,7 @@ Deno.serve(async () => {
   const tok = await graphToken();
   if (!tok) return new Response(JSON.stringify({ error: 'graph_auth_failed' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
 
-  let logged = 0, photos = 0, scanned = 0, prospects = 0, ignored = 0;
+  let logged = 0, photos = 0, scanned = 0, prospects = 0, ignored = 0, mailboxRepaired = 0;
   const errors: string[] = [];
   try {
   // Toutes les boîtes actives, toutes sociétés confondues.
@@ -221,6 +221,12 @@ Deno.serve(async () => {
         if (!contactId) { maxTs = ts; continue; }
         logged++;
 
+        // La boîte qui a reçu (ou envoyé) ce mail : c'est elle que la carte propose par
+        // défaut pour répondre. Idempotent : on ne l'écrit que si elle manque.
+        await db(`communications?company_id=eq.${coId}&external_id=eq.${encodeURIComponent(String(m.id))}&mailbox=is.null`, {
+          method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ mailbox }),
+        });
+
         const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
         if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
           if (a['@odata.type'] !== '#microsoft.graph.fileAttachment' || !a.contentBytes) continue;
@@ -253,8 +259,37 @@ Deno.serve(async () => {
     const maxSent = await processFolder(mb.company_id, mailbox, 'sentitems', 'out', sentSince);
     await rpc('set_mailbox_cursors', { _mailbox: mb.id, _in: maxIn !== inSince ? maxIn : null, _sent: maxSent !== sentSince ? maxSent : null });
   }
+
+  // Rattrapage : les mails enregistrés avant qu'on retienne leur boîte. Un identifiant
+  // de message Graph n'existe que dans la boîte qui le contient : on demande à chaque
+  // boîte de la société, la bonne répond 200. Borné pour ne pas alourdir la relève.
+  const orphans = await (await db(`communications?select=id,company_id,external_id&channel=eq.email&mailbox=is.null&external_id=not.is.null&occurred_at=gte.${new Date(Date.now() - 30 * 864e5).toISOString()}&order=occurred_at.desc&limit=15`)).json();
+  if (Array.isArray(orphans)) for (const o of orphans as Array<Record<string, string>>) {
+    for (const mb of (mailboxes as Array<Record<string, string>>).filter((x) => x.company_id === o.company_id)) {
+      const r = await G(tok!, `/users/${encodeURIComponent(mb.address)}/messages/${encodeURIComponent(o.external_id)}?$select=id`);
+      if (r.ok) {
+        await db(`communications?id=eq.${o.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ mailbox: mb.address }) });
+        mailboxRepaired++;
+        break;
+      }
+    }
+  }
   } catch (e) {
     return new Response(JSON.stringify({ error: 'unhandled', detail: String(e).slice(0, 300), scanned, logged, photos, prospects, ignored, errors }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
-  return new Response(JSON.stringify({ scanned, logged, photos, prospects, ignored, errors }), { headers: { 'Content-Type': 'application/json' } });
+
+  // Un paragraphe par échange dans la note de la demande (summarize-exchange).
+  // Au mieux : un échec ici ne remet pas en cause la relève, et l'échange sera
+  // repris au passage suivant puisqu'il n'est marqué qu'une fois résumé.
+  let summaries: unknown = null;
+  try {
+    const s = await fetch(`${URL}/functions/v1/summarize-exchange`, {
+      method: 'POST',
+      headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 5 }),
+    });
+    summaries = await s.json();
+  } catch (e) { summaries = { error: String(e).slice(0, 120) }; }
+
+  return new Response(JSON.stringify({ scanned, logged, photos, prospects, ignored, mailboxRepaired, summaries, errors }), { headers: { 'Content-Type': 'application/json' } });
 });

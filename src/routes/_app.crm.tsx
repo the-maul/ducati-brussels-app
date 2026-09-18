@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listLeads, createLead, setLeadStage, listOpenTasksByLead, listCompanyMembers, LEAD_STAGES, dueState, type Lead } from '@/modules/crm/api';
+import { listLeads, createLead, createLeadTask, getDefaultAssignee, setLeadStage, listOpenTasksByLead, listCompanyMembers, LEAD_STAGES, PIPELINES, dueState, type Lead, type Pipeline } from '@/modules/crm/api';
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
@@ -31,7 +31,9 @@ function CrmPage() {
   const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [sourceFilter, setSourceFilter] = useState('all');
-  const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId], queryFn: () => listLeads(activeCompanyId!), enabled: !!activeCompanyId });
+  // Le CRM affiché. Un seul aujourd'hui (commercial) ; l'atelier s'ajoutera à PIPELINES.
+  const [pipeline, setPipeline] = useState<Pipeline>('commercial');
+  const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId, pipeline], queryFn: () => listLeads(activeCompanyId!, pipeline), enabled: !!activeCompanyId });
   // Ce qu'il faut faire sur chaque carte, et qui s'en charge : une seule requête.
   const openTasks = useQuery({ queryKey: ['lead-open-tasks', activeCompanyId], queryFn: () => listOpenTasksByLead(activeCompanyId!), enabled: !!activeCompanyId });
   const members = useQuery({ queryKey: ['company-members', activeCompanyId], queryFn: () => listCompanyMembers(activeCompanyId!), enabled: !!activeCompanyId });
@@ -63,6 +65,19 @@ function CrmPage() {
           <Button onClick={() => setShowNew(true)}><Plus /> {t('crm.newLead')}</Button>
         </div>
       } />
+      {/* Onglets des CRM : commercial aujourd'hui, atelier plus tard. */}
+      <div className="mb-3 flex gap-1 border-b border-border">
+        {PIPELINES.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPipeline(p)}
+            className={`-mb-px border-b-2 px-3 py-1.5 text-[13px] font-medium ${pipeline === p ? 'border-[var(--ducati-red)] text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+          >
+            {t(`crm.pipeline_${p}`)}
+          </button>
+        ))}
+      </div>
       {isLoading && <div className="grid place-items-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-6">
         {LEAD_STAGES.map((s) => (
@@ -120,17 +135,28 @@ function CrmPage() {
           </div>
         ))}
       </div>
-      {showNew && <NewLeadDialog companyId={activeCompanyId!} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refreshBoard(); }} />}
+      {showNew && <NewLeadDialog companyId={activeCompanyId!} pipeline={pipeline} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refreshBoard(); }} />}
       {selected && <LeadDetail lead={selected} companyId={activeCompanyId!} onClose={() => setSelected(null)} onChanged={refreshBoard} />}
     </>
   );
 }
 
-function NewLeadDialog({ companyId, onClose, onCreated }: { companyId: string; onClose: () => void; onCreated: () => void }) {
+function NewLeadDialog({ companyId, pipeline, onClose, onCreated }: { companyId: string; pipeline: Pipeline; onClose: () => void; onCreated: () => void }) {
   const [f, setF] = useState({ name: '', email: '', phone: '', vehicle: '', source: '', value: '' });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const create = useMutation({
-    mutationFn: () => createLead({ companyId, name: f.name, email: f.email, phone: f.phone, vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null }),
+    // Une carte entre TOUJOURS avec une tâche : « Recontacter le client » à 2 jours,
+    // confiée au responsable par défaut — comme les demandes arrivées par mail.
+    mutationFn: async () => {
+      const leadId = await createLead({ companyId, pipeline, name: f.name, email: f.email, phone: f.phone, vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null });
+      const owner = await getDefaultAssignee(companyId);
+      if (owner) {
+        await createLeadTask({
+          companyId, leadId, title: t('crm.initialTaskTitle'),
+          dueAt: new Date(Date.now() + 2 * 864e5).toISOString(), assignedTo: owner,
+        });
+      }
+    },
     onSuccess: onCreated,
   });
   return (

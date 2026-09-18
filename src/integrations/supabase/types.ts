@@ -941,8 +941,10 @@ export type Database = {
           from_address: string | null
           id: string
           lead_id: string | null
+          mailbox: string | null
           occurred_at: string
           subject: string | null
+          summarized_at: string | null
         }
         Insert: {
           body?: string | null
@@ -956,8 +958,10 @@ export type Database = {
           from_address?: string | null
           id?: string
           lead_id?: string | null
+          mailbox?: string | null
           occurred_at?: string
           subject?: string | null
+          summarized_at?: string | null
         }
         Update: {
           body?: string | null
@@ -971,8 +975,10 @@ export type Database = {
           from_address?: string | null
           id?: string
           lead_id?: string | null
+          mailbox?: string | null
           occurred_at?: string
           subject?: string | null
+          summarized_at?: string | null
         }
         Relationships: [
           {
@@ -1221,6 +1227,45 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_accounts: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_accounts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -2899,6 +2944,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          pipeline: string
           source: string | null
           stage: string
           updated_at: string
@@ -2920,6 +2966,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          pipeline?: string
           source?: string | null
           stage?: string
           updated_at?: string
@@ -2941,6 +2988,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          pipeline?: string
           source?: string | null
           stage?: string
           updated_at?: string
@@ -5086,6 +5134,10 @@ export type Database = {
         Args: { _document: string }
         Returns: undefined
       }
+      append_lead_exchange_note: {
+        Args: { _comm: string; _lead: string; _text: string }
+        Returns: boolean
+      }
       article_stock: {
         Args: { _article: string }
         Returns: {
@@ -5650,6 +5702,22 @@ export type Database = {
           payment_id: string
         }[]
       }
+      pending_exchange_summaries: {
+        Args: { _limit?: number }
+        Returns: {
+          body: string
+          channel: string
+          communication_id: string
+          direction: string
+          from_address: string
+          lead_id: string
+          lead_name: string
+          lead_notes: string
+          mailbox: string
+          occurred_at: string
+          subject: string
+        }[]
+      }
       place_web_order: {
         Args: {
           _address: string
@@ -5822,6 +5890,10 @@ export type Database = {
       set_accounting_cutover: {
         Args: { _company: string; _date: string }
         Returns: undefined
+      }
+      set_default_assignee: {
+        Args: { _company: string; _transfer?: boolean; _user: string }
+        Returns: number
       }
       set_inbound_cursor: {
         Args: { _company: string; _ts: string }

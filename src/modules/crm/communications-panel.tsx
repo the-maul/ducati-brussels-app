@@ -21,6 +21,7 @@ import { listCommunications, addCommunication, sendEmailViaOutlook, listCompanyM
 import { getContact } from '@/modules/contacts/api';
 import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
 const readBase64 = (file: File) => new Promise<string>((resolve, reject) => {
@@ -50,10 +51,24 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
   const [sendMsg, setSendMsg] = useState<string | null>(null);
   const [atts, setAtts] = useState<MailAttachment[]>([]);
   const [editorKey, setEditorKey] = useState(0);
-  // Boîte d'expédition. Vide = la boîte d'écoute historique de la société.
-  // Le serveur revérifie que l'adresse appartient bien à la société.
+  // Boîte d'expédition (retour client du 18/09) :
+  //   - par défaut, la boîte qui a REÇU le dernier mail du client (shop@, occasions@…) ;
+  //   - au choix : une autre boîte partagée, ou sa propre adresse (simon@, domenico@…).
+  // Le serveur revérifie tout : boîte de la société, ou adresse de la personne connectée.
+  const { session } = useAuth();
+  const myEmail = (session?.user?.email ?? '').toLowerCase();
   const [fromBox, setFromBox] = useState('');
+  const [fromTouched, setFromTouched] = useState(false);
   const mailboxesQ = useQuery({ queryKey: ['company-mailboxes', companyId], queryFn: () => listCompanyMailboxes(companyId) });
+  const shared = (mailboxesQ.data ?? []).map((m) => m.address.toLowerCase());
+  const sameDomain = shared.some((a) => a.split('@')[1] === myEmail.split('@')[1]);
+  const senders = [...shared, ...(myEmail && sameDomain && !shared.includes(myEmail) ? [myEmail] : [])];
+  const lastInboundBox = (data ?? []).find((c) => c.channel === 'email' && c.direction === 'in' && c.mailbox)?.mailbox?.toLowerCase() ?? '';
+  useEffect(() => {
+    if (fromTouched) return;
+    const pick = senders.includes(lastInboundBox) ? lastInboundBox : (senders.includes(myEmail) ? myEmail : senders[0] ?? '');
+    if (pick && pick !== fromBox) setFromBox(pick);
+  }, [lastInboundBox, senders.join('|'), myEmail, fromTouched]); // eslint-disable-line
 
   const contactQ = useQuery({ queryKey: ['comm-contact', contactId], queryFn: () => getContact(contactId) });
   useEffect(() => { if (contactQ.data?.email && !to) setTo(contactQ.data.email); }, [contactQ.data]); // eslint-disable-line
@@ -126,11 +141,15 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
         {isEmail && (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1"><Lbl>{t('crm.replyFrom')}</Lbl>
-              <Select value={fromBox || '__default__'} onValueChange={(v) => setFromBox(v === '__default__' ? '' : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={fromBox} onValueChange={(v) => { setFromTouched(true); setFromBox(v); }}>
+                <SelectTrigger><SelectValue placeholder={t('crm.replyFrom')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__default__">{t('crm.replyFromDefault')}</SelectItem>
-                  {mailboxesQ.data?.map((m) => <SelectItem key={m.id} value={m.address}>{m.address}</SelectItem>)}
+                  {senders.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {a}
+                      {a === lastInboundBox ? ` · ${t('crm.fromReceivedHere')}` : a === myEmail ? ` · ${t('crm.fromMyAddress')}` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -212,7 +231,10 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
       {isLoading ? <div className="grid place-items-center py-6"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div> : (
         <div className="space-y-2">
           {data && data.length === 0 && <p className="text-sm text-muted-foreground">{t('crm.noComm')}</p>}
-          {data?.map((c) => {
+          {/* Un même envoi relevé dans deux boîtes donne deux lignes identiques : on n'en montre qu'une. */}
+          {data?.filter((c, i, all) => all.findIndex((x) =>
+            x.channel === c.channel && x.direction === c.direction && (x.subject ?? '') === (c.subject ?? '')
+            && x.occurred_at.slice(0, 19) === c.occurred_at.slice(0, 19)) === i).map((c) => {
             const Icon = ICON[c.channel] ?? StickyNote;
             return (
               <div key={c.id} className="flex gap-3 rounded-md border border-border p-3 text-sm">
@@ -220,7 +242,7 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{c.subject || t(`crm.channel_${c.channel}`)}</span>
-                    <span className="text-[11px] text-muted-foreground">{t(`crm.dir_${c.direction}`)}</span>
+                    <span className="text-[11px] text-muted-foreground">{t(`crm.dir_${c.direction}`)}{c.mailbox ? ` · ${c.mailbox}` : ''}</span>
                     <span className="ml-auto font-mono text-[12px] text-muted-foreground">{new Date(c.occurred_at).toLocaleString('fr-BE')}</span>
                   </div>
                   {c.body && <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{c.body}</p>}

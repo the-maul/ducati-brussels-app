@@ -9,17 +9,26 @@ export type Communication = Database['public']['Tables']['communications']['Row'
 
 export const LEAD_STAGES = ['nouveau', 'contacte', 'qualifie', 'proposition', 'gagne', 'perdu'] as const;
 
-export async function listLeads(companyId: string): Promise<Lead[]> {
+/**
+ * Les CRM de la concession (migration 20260918140000). Chaque demande appartient à
+ * un pipeline. Seul le CRM commercial existe aujourd'hui ; le CRM atelier sera
+ * ajouté ici quand on y travaillera — rien d'autre à changer dans l'écran.
+ */
+export const PIPELINES = ['commercial'] as const;
+export type Pipeline = (typeof PIPELINES)[number];
+
+export async function listLeads(companyId: string, pipeline: Pipeline = 'commercial'): Promise<Lead[]> {
   const { data, error } = await supabase.from('leads').select('*').eq('company_id', companyId)
+    .eq('pipeline', pipeline)
     .is('archived_at', null)
     .order('created_at', { ascending: false }).limit(300);
   if (error) throw error;
   return data ?? [];
 }
 
-export async function createLead(p: { companyId: string; name: string; email?: string; phone?: string; vehicleInterest?: string; source?: string; estimatedValue?: number | null; contactId?: string | null; oroId?: string | null; repriseStatus?: string | null }): Promise<string> {
+export async function createLead(p: { companyId: string; name: string; email?: string; phone?: string; vehicleInterest?: string; source?: string; estimatedValue?: number | null; contactId?: string | null; oroId?: string | null; repriseStatus?: string | null; pipeline?: Pipeline }): Promise<string> {
   const base = {
-    company_id: p.companyId, name: p.name, email: p.email || null, phone: p.phone || null,
+    company_id: p.companyId, pipeline: p.pipeline ?? 'commercial', name: p.name, email: p.email || null, phone: p.phone || null,
     vehicle_interest: p.vehicleInterest || null, source: p.source || null, estimated_value: p.estimatedValue ?? null, contact_id: p.contactId ?? null,
   };
   // Lien reprise + tag de statut : colonnes récentes (migration 20260720).
@@ -100,6 +109,29 @@ export async function countLeadsDue(companyId: string): Promise<LeadDueSummary> 
  * soi-même, et `listOrgUsers` refuse l'accès à qui n'est pas admin.
  */
 export type CompanyMember = { user_id: string; name: string; roles: string };
+/**
+ * Responsable par défaut des nouvelles demandes du CRM commercial : c'est à lui
+ * que la tâche « Recontacter le client » est confiée à l'arrivée d'une demande.
+ */
+export async function getDefaultAssignee(companyId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('default_assignee', { _company: companyId });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+/** Change le responsable par défaut. `transfer` : reprend aussi les tâches ouvertes de l'ancien. Renvoie le nombre repris. */
+export async function setDefaultAssignee(companyId: string, userId: string, transfer: boolean): Promise<number> {
+  const { data, error } = await supabase.rpc('set_default_assignee', { _company: companyId, _user: userId, _transfer: transfer });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+/** Nombre de tâches ouvertes confiées à quelqu'un (pour annoncer ce qu'un transfert reprendrait). */
+export async function countOpenTasksOf(companyId: string, userId: string): Promise<number> {
+  const { count, error } = await supabase.from('lead_tasks').select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId).eq('assigned_to', userId).is('done_at', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function listCompanyMembers(companyId: string): Promise<CompanyMember[]> {
   const { data, error } = await supabase.rpc('company_members', { _company: companyId });
   if (error) throw error;

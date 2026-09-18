@@ -1,9 +1,23 @@
-// M10 — Edge Function : envoyer un e-mail DEPUIS la boîte Outlook de la société
-// (Microsoft Graph /sendMail). Le mail est sauvé dans "Éléments envoyés" ; la relève
-// (outlook-poll) le journalise ensuite sur la fiche du contact (sortant), sans doublon.
+// M10 — Edge Function : envoyer un e-mail depuis une boîte Outlook de la concession
+// (Microsoft Graph /sendMail). Le mail est sauvé dans « Éléments envoyés ».
+//
+// QUI PEUT ENVOYER : un utilisateur connecté, membre de la société. Auparavant la
+// fonction ne vérifiait que la présence d'un jeton, et la clé publique du site en
+// est un : n'importe qui pouvait envoyer au nom de la concession.
+//
+// DEPUIS QUELLE ADRESSE (retour client du 18/09) :
+//   - une des boîtes partagées de la société (shop@, occasions@, info@…) ;
+//   - OU l'adresse personnelle de l'utilisateur connecté (simon@, domenico@…),
+//     à condition qu'elle soit du même domaine que les boîtes de la société.
+//   On ne part JAMAIS d'une adresse arbitraire fournie par le navigateur.
+//
+// TRACE DANS LA CARTE : un envoi depuis une boîte partagée est retrouvé par la
+// relève (outlook-poll), qui lit ses « Éléments envoyés ». Une adresse personnelle
+// n'est pas relevée : on enregistre donc l'échange ici même, sinon il n'apparaîtrait
+// jamais dans la carte.
 //
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
-//   (app Azure, permission APPLICATION **Mail.Send** uniquement — pas d'écriture).
+//   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
@@ -24,36 +38,61 @@ async function db(path: string, init: RequestInit = {}) {
   return fetch(`${URL}/rest/v1/${path}`, { ...init, headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 }
 
+/** L'utilisateur derrière le jeton, ou null (clé publique, jeton expiré…). */
+async function caller(req: Request): Promise<{ id: string; email: string } | null> {
+  const auth = req.headers.get('Authorization') ?? '';
+  if (!auth.startsWith('Bearer ')) return null;
+  const r = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: SVC!, Authorization: auth } });
+  if (!r.ok) return null;
+  const u = await r.json();
+  return u?.id ? { id: u.id, email: String(u.email ?? '').toLowerCase() } : null;
+}
+
+const domainOf = (a: string) => a.split('@')[1]?.toLowerCase() ?? '';
+const toText = (html: string) => html
+  .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n')
+  .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim();
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
-  const { companyId, to, subject, body, attachments, from } = await req.json();
+
+  const user = await caller(req);
+  if (!user) return J({ error: 'not_signed_in' }, 401);
+
+  const { companyId, contactId, to, subject, body, attachments, from } = await req.json();
   if (!companyId || !to || !subject) return J({ error: 'missing_params' }, 400);
+
+  const member = await (await db(`user_roles?select=role&user_id=eq.${user.id}&company_id=eq.${companyId}&limit=1`)).json();
+  if (!Array.isArray(member) || member.length === 0) return J({ error: 'not_a_member' }, 403);
+
+  const boxes = await (await db(`company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true`)).json();
+  const shared = new Set((Array.isArray(boxes) ? boxes : []).map((b: { address: string }) => b.address.toLowerCase()));
+  const domains = new Set([...shared].map(domainOf));
+
+  // Boîte d'expédition, vérifiée côté serveur.
+  let mailbox: string | undefined;
+  const wanted = typeof from === 'string' ? from.trim().toLowerCase() : '';
+  if (wanted) {
+    const isShared = shared.has(wanted);
+    const isOwn = wanted === user.email && domains.has(domainOf(wanted));
+    if (!isShared && !isOwn) return J({ error: 'unknown_mailbox' }, 400);
+    mailbox = wanted;
+  } else {
+    const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
+    mailbox = co?.[0]?.inbound_mailbox?.toLowerCase();
+  }
+  if (!mailbox) return J({ error: 'no_mailbox' }, 400);
+
   // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
   const atts = Array.isArray(attachments) ? attachments.map((a: Record<string, string>) => ({
     '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
   })) : [];
 
-  // Boîte d'expédition. Si l'appelant en demande une, elle doit appartenir à la société
-  // et être active : on ne part JAMAIS d'une adresse arbitraire fournie par le client.
-  // Sans demande explicite, on garde la boîte d'écoute historique de la société.
-  let mailbox: string | undefined;
-  if (typeof from === 'string' && from.trim()) {
-    const mb = await (await db(
-      `company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true&address=eq.${encodeURIComponent(from.trim())}`,
-    )).json();
-    mailbox = mb?.[0]?.address;
-    if (!mailbox) return J({ error: 'unknown_mailbox' }, 400);
-  }
-  if (!mailbox) {
-    const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
-    mailbox = co?.[0]?.inbound_mailbox;
-  }
-  if (!mailbox) return J({ error: 'no_mailbox' }, 400);
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);
 
-  // Envoi simple (Mail.Send) — sauvegardé dans Éléments envoyés ; la relève le journalisera.
   const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
     method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -67,5 +106,17 @@ Deno.serve(async (req) => {
     }),
   });
   if (!sendRes.ok) return J({ error: 'send_failed', detail: (await sendRes.text()).slice(0, 200) }, 502);
-  return J({ ok: true });
+
+  // Adresse personnelle : la relève ne la lit pas, on enregistre l'échange nous-mêmes.
+  if (!shared.has(mailbox) && contactId) {
+    await db('communications', {
+      method: 'POST', headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        company_id: companyId, contact_id: contactId, channel: 'email', direction: 'out',
+        subject, body: toText(String(body || '')).slice(0, 12000), occurred_at: new Date().toISOString(),
+        from_address: mailbox, mailbox, created_by: user.id,
+      }),
+    });
+  }
+  return J({ ok: true, from: mailbox });
 });
