@@ -16,10 +16,11 @@ import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItems
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
-  getContact, updateContact, archiveContact, unarchiveContact, mergeContacts, listContacts,
+  getContact, updateContact, archiveContact, unarchiveContact, mergeContacts, mergeErrorMessage, listContacts,
   contactDisplayName, getModelInterests, getWatchNote, contactDependencies, deleteContact,
   type ContactInsert, type Contact,
 } from '@/modules/contacts/api';
+import { MergeSummary, useMergePreviews } from '@/modules/contacts/merge-summary';
 import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -202,7 +203,10 @@ function EditClient() {
             )}
             <Button variant="outline" onClick={() => setLabelOpen(true)}><Tags /> {t('contacts.labelBtn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>
-            <Button variant="outline" onClick={() => setMergeOpen(true)}><Merge /> {t('contacts.merge')}</Button>
+            {/* Fusion reservee aux admins (decision F-9, controle aussi par contact_merge). */}
+            {isAdmin(activeCompanyId) && (
+              <Button variant="outline" onClick={() => setMergeOpen(true)}><Merge /> {t('contacts.merge')}</Button>
+            )}
             {contact.is_active ? (
               <Button
                 variant="outline"
@@ -324,21 +328,21 @@ function MergeContactDialog({ open, onOpenChange, companyId, keepContact, onMerg
 
   const reset = () => { setTerm(''); setDeb(''); setCandidate(null); };
 
+  const absorbed = candidate ? [candidate] : [];
+  const preview = useMergePreviews(keepContact, absorbed, open && !!candidate);
+
   const merge = useMutation({
     // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
     meta: { success: false, error: false },
     mutationFn: () => mergeContacts(keepContact.id, candidate!.id),
-    onSuccess: (result) => {
+    onSuccess: () => {
       onMerged();
-      if (result.failed.length > 0) {
-        toast.warning(t('contacts.mergePartialError').replace('{n}', String(result.failed.length)));
-      } else {
-        toast.success(t('contacts.merged'));
-      }
+      toast.success(t('contacts.merged'));
       reset();
       onOpenChange(false);
     },
-    onError: () => toast.error(t('contacts.errSave')),
+    // Transaction SQL : un refus n'a rien modifié. On dit pourquoi.
+    onError: (e) => toast.error(mergeErrorMessage(e)),
   });
 
   return (
@@ -350,9 +354,12 @@ function MergeContactDialog({ open, onOpenChange, companyId, keepContact, onMerg
         <p className="text-[13px] text-muted-foreground">{t('contacts.mergeHint')}</p>
         {candidate ? (
           <div className="space-y-3">
-            <div className="rounded-md border border-border bg-card p-3 text-sm">
-              {t('contacts.mergeConfirmQuestion').replace('{name}', contactDisplayName(candidate))}
-            </div>
+            <p className="text-sm">
+              {t('contacts.mergeConfirmQuestion')
+                .replace('{name}', contactDisplayName(candidate))
+                .replace('{kept}', contactDisplayName(keepContact))}
+            </p>
+            <MergeSummary keep={keepContact} absorbed={absorbed} preview={preview} />
             <Button variant="outline" size="sm" onClick={() => setCandidate(null)}>{t('contacts.mergeBack')}</Button>
           </div>
         ) : (
@@ -385,7 +392,10 @@ function MergeContactDialog({ open, onOpenChange, companyId, keepContact, onMerg
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('contacts.mergeCancel')}</Button>
-          <Button disabled={!candidate || merge.isPending} onClick={() => merge.mutate()}>
+          <Button
+            disabled={!candidate || merge.isPending || !preview.ready || preview.blocked}
+            onClick={() => merge.mutate()}
+          >
             {merge.isPending ? <Loader2 className="animate-spin" /> : <Merge />} {t('contacts.mergeConfirm')}
           </Button>
         </DialogFooter>

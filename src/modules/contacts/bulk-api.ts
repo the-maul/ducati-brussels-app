@@ -7,9 +7,11 @@
  * (règle 4 : l'audit prime, on archive plutôt qu'on efface).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { errorMessage } from '@/lib/mutation-feedback';
 
-import { mergeContacts, type ContactStatus, type ContactUpdate, type MergeContactsResult } from './api';
+import {
+  mergeContacts, mergeErrorMessage,
+  type ContactStatus, type ContactUpdate, type MergeContactsResult,
+} from './api';
 import { LINK_LIMIT, linkContact } from './subobjects-api';
 
 /** Drapeaux modifiables en masse. Tous facultatifs : on n'écrit que ce qui est fourni. */
@@ -119,34 +121,27 @@ export async function bulkLink(
 /* ---------------------------------- Fusion ----------------------------------- */
 
 export type BulkMergeResult = {
-  merged: string[];
+  merged: MergeContactsResult[];
+  /** Fiches refusées ; `error` est déjà traduit (codes MERGE_* de la base). */
   failed: { id: string; error: string }[];
-  /** Tables qu'aucune fusion n'a pu réassigner (schéma en retard, colonne absente). */
-  tableIssues: string[];
 };
 
 /**
  * Fusionne chaque fiche de `mergeIds` dans `keepId`, séquentiellement.
  *
- * `mergeContacts` réassigne les lignes métier table par table puis archive la fiche
- * absorbée (jamais de suppression). Séquentiel à dessein : deux fusions parallèles
- * sur les mêmes tables se marcheraient dessus, et l'ordre rend le rapport lisible.
- * Une fiche en échec n'interrompt pas les suivantes.
+ * Chaque fusion est une transaction SQL (`contact_merge`) : réussie en entier ou
+ * annulée en entier. Séquentiel à dessein : les fusions verrouillent la fiche gardée,
+ * et l'ordre rend le rapport lisible. Une fiche refusée n'interrompt pas les suivantes.
  */
 export async function bulkMerge(keepId: string, mergeIds: string[]): Promise<BulkMergeResult> {
-  const result: BulkMergeResult = { merged: [], failed: [], tableIssues: [] };
-  const issues = new Set<string>();
+  const result: BulkMergeResult = { merged: [], failed: [] };
 
   for (const id of mergeIds.filter((x) => x !== keepId)) {
     try {
-      const r: MergeContactsResult = await mergeContacts(keepId, id);
-      r.failed.forEach((f) => issues.add(f.table));
-      result.merged.push(id);
+      result.merged.push(await mergeContacts(keepId, id));
     } catch (e) {
-      // errorMessage : les erreurs supabase-js ne sont pas des instances d'Error.
-      result.failed.push({ id, error: errorMessage(e) });
+      result.failed.push({ id, error: mergeErrorMessage(e) });
     }
   }
-  result.tableIssues = [...issues];
   return result;
 }
