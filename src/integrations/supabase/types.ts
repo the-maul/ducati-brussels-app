@@ -2539,6 +2539,7 @@ export type Database = {
       }
       excel_order_lines: {
         Row: {
+          catalog_id: string | null
           contact_id: string | null
           created_at: string
           description: string | null
@@ -2547,6 +2548,8 @@ export type Database = {
           id: string
           moto_label: string | null
           moto_vin: string | null
+          part_order_id: string | null
+          part_order_line_id: string | null
           price_dealer: number
           qty: number
           reference: string
@@ -2554,6 +2557,7 @@ export type Database = {
           tab: string
         }
         Insert: {
+          catalog_id?: string | null
           contact_id?: string | null
           created_at?: string
           description?: string | null
@@ -2562,6 +2566,8 @@ export type Database = {
           id?: string
           moto_label?: string | null
           moto_vin?: string | null
+          part_order_id?: string | null
+          part_order_line_id?: string | null
           price_dealer?: number
           qty?: number
           reference: string
@@ -2569,6 +2575,7 @@ export type Database = {
           tab?: string
         }
         Update: {
+          catalog_id?: string | null
           contact_id?: string | null
           created_at?: string
           description?: string | null
@@ -2577,6 +2584,8 @@ export type Database = {
           id?: string
           moto_label?: string | null
           moto_vin?: string | null
+          part_order_id?: string | null
+          part_order_line_id?: string | null
           price_dealer?: number
           qty?: number
           reference?: string
@@ -2584,6 +2593,13 @@ export type Database = {
           tab?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "excel_order_lines_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "excel_catalog"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "excel_order_lines_contact_id_fkey"
             columns: ["contact_id"]
@@ -2598,55 +2614,91 @@ export type Database = {
             referencedRelation: "excel_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "excel_order_lines_part_order_id_fkey"
+            columns: ["part_order_id"]
+            isOneToOne: false
+            referencedRelation: "part_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "excel_order_lines_part_order_line_id_fkey"
+            columns: ["part_order_line_id"]
+            isOneToOne: false
+            referencedRelation: "part_order_lines"
+            referencedColumns: ["id"]
+          },
         ]
       }
       excel_orders: {
         Row: {
+          archive_attachment_id: string | null
           archive_path: string | null
           archived_at: string | null
+          closed_at: string | null
+          closed_by: string | null
           company_id: string
           created_at: string
           dealer_code: string | null
           dealer_name: string | null
+          download_count: number
           downloaded_at: string | null
           id: string
           notes: string | null
           number: string | null
           part_order_id: string | null
           status: string
+          tab_totals: Json | null
           updated_at: string
         }
         Insert: {
+          archive_attachment_id?: string | null
           archive_path?: string | null
           archived_at?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           company_id: string
           created_at?: string
           dealer_code?: string | null
           dealer_name?: string | null
+          download_count?: number
           downloaded_at?: string | null
           id?: string
           notes?: string | null
           number?: string | null
           part_order_id?: string | null
           status?: string
+          tab_totals?: Json | null
           updated_at?: string
         }
         Update: {
+          archive_attachment_id?: string | null
           archive_path?: string | null
           archived_at?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           company_id?: string
           created_at?: string
           dealer_code?: string | null
           dealer_name?: string | null
+          download_count?: number
           downloaded_at?: string | null
           id?: string
           notes?: string | null
           number?: string | null
           part_order_id?: string | null
           status?: string
+          tab_totals?: Json | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "excel_orders_archive_attachment_id_fkey"
+            columns: ["archive_attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "excel_orders_company_id_fkey"
             columns: ["company_id"]
@@ -3243,6 +3295,8 @@ export type Database = {
           total_ht: number
           total_ttc: number
           updated_at: string
+          validated_at: string | null
+          validated_by: string | null
           vehicle_id: string | null
         }
         Insert: {
@@ -3265,6 +3319,8 @@ export type Database = {
           total_ht?: number
           total_ttc?: number
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           vehicle_id?: string | null
         }
         Update: {
@@ -3287,6 +3343,8 @@ export type Database = {
           total_ht?: number
           total_ttc?: number
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           vehicle_id?: string | null
         }
         Relationships: [
@@ -5135,6 +5193,8 @@ export type Database = {
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_stock_copies: { Args: never; Returns: number }
       _doc_margin: { Args: { _doc: string }; Returns: number }
+      _eur_fr: { Args: { _n: number }; Returns: string }
+      _jnum: { Args: { _j: Json; _k: string }; Returns: number }
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -5639,6 +5699,78 @@ export type Database = {
         }
         Returns: number
       }
+      excel_order_assign_number: { Args: { _order: string }; Returns: string }
+      excel_order_close: {
+        Args: { _archive_path: string; _attachment: string; _order: string }
+        Returns: {
+          archive_attachment_id: string | null
+          archive_path: string | null
+          archived_at: string | null
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          dealer_code: string | null
+          dealer_name: string | null
+          download_count: number
+          downloaded_at: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          part_order_id: string | null
+          status: string
+          tab_totals: Json | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "excel_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      excel_order_current: {
+        Args: { _company: string; _dealer_code?: string; _dealer_name?: string }
+        Returns: {
+          archive_attachment_id: string | null
+          archive_path: string | null
+          archived_at: string | null
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          dealer_code: string | null
+          dealer_name: string | null
+          download_count: number
+          downloaded_at: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          part_order_id: string | null
+          status: string
+          tab_totals: Json | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "excel_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      excel_order_tab_totals: {
+        Args: { _company: string }
+        Returns: {
+          excel_order_id: string
+          line_count: number
+          reached: boolean
+          tab: string
+          threshold: number
+          total_final: number
+          total_value: number
+        }[]
+      }
+      excel_order_threshold: { Args: { _company: string }; Returns: number }
       generate_accounting_entries: {
         Args: { _company: string; _from: string; _to: string }
         Returns: number
@@ -5757,6 +5889,23 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
+      part_order_rules: {
+        Args: { _company: string }
+        Returns: {
+          code: string
+          configured: boolean
+          fallback: string
+          is_active: boolean
+          label: string
+          max_per_day: number
+          min_ht: number
+          min_ht_per_tab: number
+          sort_order: number
+          surcharge_pct: number
+        }[]
+      }
+      part_order_validate: { Args: { _order_id: string }; Returns: Json }
       password_reset_allow: {
         Args: { _email_hash: string; _ip_hash?: string }
         Returns: boolean
