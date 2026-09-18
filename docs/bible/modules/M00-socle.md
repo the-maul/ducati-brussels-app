@@ -30,7 +30,7 @@ Il est utilisé par tout le monde ; les écrans d'administration sont réservés
 | Barre du haut → menu utilisateur | Voir ses rôles, « Changer mon mot de passe », se déconnecter. |
 | Barre du haut → sélecteur de société | Basculer entre ITALBIKE STORE et NL INVEST (mémorisé dans le navigateur). |
 | Barre du haut → recherche (Ctrl/⌘+K) | Rechercher clients, véhicules, articles (6 résultats par groupe). Reconnaît un VIN (17 caractères) ou un n° de TVA belge. |
-| Barre du haut → cloche | Nombre de demandes CRM en retard ou pour aujourd'hui, liste cliquable (voir M10). |
+| Barre du haut → cloche | Deux listes : les **demandes CRM** en retard ou pour aujourd'hui (voir M10), et les **nouvelles inscriptions de clients** des 7 derniers jours, « Nouvelle inscription : Prénom Nom (borne / en ligne) », cliquables vers la fiche client. « Lu » propre à chaque utilisateur (au clic, ou « Tout marquer comme lu »). Le badge compte les demandes à traiter + les inscriptions non lues. Aucun e-mail ni SMS. |
 | Barre latérale | 17 entrées (`src/lib/navigation.ts`). Seules Comptabilité (admin, comptable) et Paramètres (admin) sont filtrées par rôle. |
 | Paramètres (admin) → Sociétés | Modifier nom, TVA, adresse, IBAN, Peppol, comptes par défaut, boîte mail historique, arrondi des prix, plancher de prix ; créer une société (RPC `create_company`). Les CGV (`cgv_text`), le pied de facture et le logo n'ont **pas** d'écran : ils se modifient en base. ⚠️ **enregistrement cassé en production**, voir §5. |
 | Paramètres → Utilisateurs | Créer un compte **équipe** (rôles par société) ou **client** (rattaché à une fiche, existante ou créée ; refus d'un doublon d'e-mail). Mot de passe fixé par l'admin ou **invitation par e-mail** (Outlook). Modifier les rôles, activer/désactiver, renvoyer l'invitation. Choisir le **responsable par défaut** des nouvelles demandes CRM, avec reprise optionnelle de ses tâches ouvertes. |
@@ -134,4 +134,5 @@ Vérifié le 18/09/2026 dans le code et dans la base (projet `ujmrosbgkvgvwfnury
 | 2026-09-11 | Toast global, bouton à trois états, bouton grisé si rien n'a changé | `7f6ce22`, `d24c84f` |
 | 2026-09-14 | Cloche des demandes en retard | `a271cf4`, `2d82f34` |
 | 2026-09-18 | Comptes équipe et client, invitation par e-mail, changement de mot de passe | `4b1ac81`, migration `20260918140000` |
+| 2026-09-18 | **Cloche : nouvelles inscriptions de clients** (borne et en ligne), lu par utilisateur (mission 01, lot 5) | branche `lot-notif-tri`, migration `20260919170000_m1_signup_team_notifications.sql` (appliquée le 18/09) |
 | 2026-09-18 | **Page Améliorations retirée** (décision W-3) : écran, module, entrée de menu, libellés ; tables supprimées par une migration non appliquée | branche `lot-nettoyage`, migration `20260919130000` (non appliquée) |

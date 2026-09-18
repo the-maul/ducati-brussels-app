@@ -158,6 +158,59 @@ export async function listLeadsDue(companyId: string): Promise<Lead[]> {
 }
 
 /**
+ * INSCRIPTIONS DE CLIENTS (mission 01, lot 5 — migration 20260919170000).
+ *
+ * Quand un client crée son compte (page /inscription ou borne /borne), un
+ * déclencheur en base ajoute une ligne à `team_notifications`. La cloche montre
+ * celles des 7 derniers jours ; « lu » est propre à chaque utilisateur
+ * (`team_notification_reads`). Aucun e-mail ni SMS.
+ */
+export const SIGNUP_NOTIF_DAYS = 7;
+
+export type SignupNotification = {
+  id: string;
+  contact_id: string | null;
+  title: string;
+  origin: 'web' | 'comptoir' | null;
+  created_at: string;
+  read: boolean;
+};
+
+export async function listSignupNotifications(companyId: string, userId: string): Promise<SignupNotification[]> {
+  const since = new Date(Date.now() - SIGNUP_NOTIF_DAYS * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('team_notifications')
+    .select('id, contact_id, title, origin, created_at, team_notification_reads(user_id)')
+    .eq('company_id', companyId)
+    .eq('kind', 'signup')
+    .gte('created_at', since)
+    .eq('team_notification_reads.user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []).map((n) => ({
+    id: n.id,
+    contact_id: n.contact_id,
+    title: n.title,
+    origin: n.origin === 'web' || n.origin === 'comptoir' ? n.origin : null,
+    created_at: n.created_at,
+    read: (n.team_notification_reads ?? []).length > 0,
+  }));
+}
+
+/** Marque des notifications comme lues pour l'utilisateur connecté (idempotent). */
+export async function markSignupNotificationsRead(ids: string[], userId: string): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase
+    .from('team_notification_reads')
+    .upsert(ids.map((notification_id) => ({ notification_id, user_id: userId })), {
+      onConflict: 'notification_id,user_id',
+      ignoreDuplicates: true,
+    });
+  if (error) throw error;
+}
+
+/**
  * TÂCHES D'UNE DEMANDE (migration 20260914240000).
  *
  * Une demande = une carte = un client. Elle porte UNE SEULE tâche ouverte à la

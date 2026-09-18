@@ -30,7 +30,7 @@ sociaux) n'est **pas** construit.
 | CRM → carte d'une demande | En tête : la tâche en une phrase + trois boutons **C'est fait** (termine et ouvre la suivante dans le même geste), **Modifier la tâche**, **Archiver la carte**. Modifier nom, e-mail, téléphone, intérêt, valeur, note. Onglets **Échanges** (si la carte est liée à une fiche client), **Tâches faites**, **Documents** (GED du client), **Suivi** (qui a fait quoi et quand). Supprimer la demande. |
 | CRM → carte → Échanges | Choisir ce qu'on fait : Répondre par e-mail / Noter un appel / Noter un SMS / Note interne. E-mail : éditeur enrichi, pièces jointes (y compris depuis la GED du client), choix de la boîte d'envoi — par défaut celle qui a reçu le dernier mail du client, sinon une autre boîte partagée ou sa propre adresse. |
 | Clients → fiche → onglet Historique | Même panneau d'échanges, sur la fiche client. |
-| Barre du haut → cloche | Nombre de demandes en retard ou à traiter aujourd'hui, liste cliquable. |
+| Barre du haut → cloche | Nombre de demandes en retard ou à traiter aujourd'hui, liste cliquable. En dessous, les **inscriptions de clients** des 7 derniers jours (borne / en ligne), cliquables vers la fiche, « lu » par utilisateur (mission 01, lot 5). |
 | Véhicules → fiche → « Clients intéressés » | Liste des contacts dont les modèles suivis ou les usages (Route/Sport/Off-road/Piste) correspondent à la moto ; bouton pour les prévenir par mail (Outlook) ou SMS. |
 | Paramètres → Utilisateurs → responsable par défaut | Choisir à qui reviennent les nouvelles demandes du CRM commercial ; reprendre ou non ses tâches ouvertes. |
 | (automatique) Relève des mails | Toutes les 5 min : mails entrants et envoyés des boîtes actives ; pièces jointes en GED ; prospects créés ; résumés ajoutés aux notes. |
@@ -41,12 +41,12 @@ sociaux) n'est **pas** construit.
 |---|---|
 | Écrans (routes) | `src/routes/_app.crm.tsx` ; cloche dans `src/components/layout/topbar.tsx` ; matching dans `src/routes/_app.vehicles.$vehicleId.tsx` ; responsable par défaut dans `src/routes/_app.settings.users.tsx` |
 | Logique métier | `src/modules/crm/api.ts` (demandes, tâches, échéances, boîtes, envoi), `lead-detail.tsx` (la carte), `communications-panel.tsx` (échanges), `matching-api.ts` (client ↔ moto) |
-| Tables | `leads` (la demande : étape, source, pipeline, échéance, responsable, archivage), `lead_tasks` (tâches, **une seule ouverte par demande**), `communications` (échanges, boîte, date de résumé), `company_mailboxes` (4 boîtes relevées, un curseur par boîte), `notifications` (file d'envoi mail/SMS), `contact_merge_candidates` (rapprochements proposés), `reference_values` clés `lead_sla` et `lead_task/default_assignee` |
-| Fonctions SQL (RPC) | `lead_audit` (suivi nominatif), `company_members` (qui peut recevoir une tâche), `default_assignee`, `set_default_assignee` (admin), `lead_sla_hours`, `create_prospect_from_email`, `log_ignored_email`, `contacts_match_candidates`, `ingest_email`, `ingest_inbound_email`, `set_mailbox_cursors`, `append_lead_exchange_note`, `pending_exchange_summaries`, `enqueue_notification` ; déclencheurs `sync_lead_from_task` (`trg_lead_tasks_sync`, recopie échéance et responsable de la tâche sur la demande) |
+| Tables | `leads` (la demande : étape, source, pipeline, échéance, responsable, archivage), `lead_tasks` (tâches, **une seule ouverte par demande**), `communications` (échanges, boîte, date de résumé), `company_mailboxes` (4 boîtes relevées, un curseur par boîte), `notifications` (file d'envoi mail/SMS), `team_notifications` (alertes internes de la cloche, **jamais envoyées** ; aujourd'hui : `kind = signup`), `team_notification_reads` (lu, par utilisateur), `contact_merge_candidates` (rapprochements proposés), `reference_values` clés `lead_sla` et `lead_task/default_assignee` |
+| Fonctions SQL (RPC) | `lead_audit` (suivi nominatif), `company_members` (qui peut recevoir une tâche), `default_assignee`, `set_default_assignee` (admin), `lead_sla_hours`, `create_prospect_from_email`, `log_ignored_email`, `contacts_match_candidates`, `ingest_email`, `ingest_inbound_email`, `set_mailbox_cursors`, `append_lead_exchange_note`, `pending_exchange_summaries`, `enqueue_notification` ; déclencheurs `sync_lead_from_task` (`trg_lead_tasks_sync`, recopie échéance et responsable de la tâche sur la demande), `trg_notify_team_signup` (`trg_contact_accounts_notify_signup` sur `contact_accounts` : une alerte de cloche quand le compte vient de l'inscription publique, métadonnée `signup_origin` = `web` / `comptoir` ; un compte client créé par un admin ne notifie pas) |
 | Fonctions serveur (Edge) | `supabase/functions/outlook-poll` (relève), `classify-prospect-email` (tri d'un mail inconnu par Claude), `summarize-exchange` (paragraphe de note par Claude), `graph-send-email` (envoi réel), `mailbox-diag` (diagnostic d'une boîte, lecture seule), `dispatch-notifications` (file d'envoi, inactive) |
 | Tâches planifiées | `outlook-poll` (`*/5 * * * *`), `dispatch-notifications` (`*/10 * * * *`), `invoice-reminders` et `appointment-reminders` (alimentent la file `notifications`) |
-| Migrations clés | `20260610390000_m10_crm.sql`, `20260612240000_m10_notifications.sql`, `20260612350000_m10_email_ingest.sql`, `20260612360000_m10_email_outbound.sql`, `20260914160000_m1_prospect_from_email.sql` à `20260914260000_m10_lead_archive.sql`, `20260918140000_m10_users_pipelines_mailbox_summary.sql`, `20260918141000_m10_pending_exchange_summaries.sql` |
-| Libellés | `src/lib/i18n/fr.ts`, blocs `crm`, `matching` |
+| Migrations clés | `20260610390000_m10_crm.sql`, `20260612240000_m10_notifications.sql`, `20260612350000_m10_email_ingest.sql`, `20260612360000_m10_email_outbound.sql`, `20260914160000_m1_prospect_from_email.sql` à `20260914260000_m10_lead_archive.sql`, `20260918140000_m10_users_pipelines_mailbox_summary.sql`, `20260918141000_m10_pending_exchange_summaries.sql`, `20260919170000_m1_signup_team_notifications.sql` (cloche des inscriptions) |
+| Libellés | `src/lib/i18n/fr.ts`, blocs `crm`, `matching`, `notif` (cloche) |
 
 ## 4. Règles métier et décisions
 
@@ -86,7 +86,7 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 - CRM atelier (à ne pas créer avant la demande client).
 - Écran de revue des rapprochements (`contact_merge_candidates`).
 - Questionnaire du site dans le même tuyau que les mails (lot 5) ; borne comptoir (lot 4).
-- Notification interne quand un prospect s'inscrit (lot 5).
+- ~~Notification interne quand un prospect s'inscrit (lot 5).~~ Fait le 18/09 (cloche).
 - SMS : en attente du fournisseur et de sa clé (`etat-projet.md` §8).
 - Transferts de mail (demandeur ≠ expéditeur) mal reconnus : « point à surveiller » du plan.
 
@@ -99,6 +99,8 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 - Le passage d'étape n'est pas un glisser-déposer mais un menu déroulant.
 - `deleteLead` supprime physiquement une demande (tracé dans `events`).
 - Les étapes gagné / perdu restent au tableau ; seule l'archive les en retire.
+- **Deux tables de « notifications »** : `notifications` = file d'**envoi** e-mail/SMS (vidée par `dispatch-notifications`) ; `team_notifications` = alertes **internes** de la cloche, jamais envoyées. Ne jamais mettre une alerte interne dans `notifications`.
+- `team_notifications.contact_id` n'a **volontairement pas** de clé étrangère (sinon `contact_merge` refuserait la fusion d'une fiche inscrite) : après une fusion, l'alerte mène à la fiche archivée.
 - Modèle Claude en dur : `claude-opus-5` dans `classify-prospect-email` et `summarize-exchange` (et `claude-opus-4-8` dans `read-id-doc`).
 
 ## 8. Exigences du cahier couvertes
@@ -132,3 +134,4 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 | 2026-09-14 | Lot 1 : un mail d'inconnu crée fiche prospect + carte ; relais Shopify ; canal d'arrivée ; échéance et cloche ; suivi nominatif ; assignation ; diagnostic de boîte | `b9022cb`, `1a813fa`, `0df1673`, `a271cf4`, `145f766`, `d10bc49`, `d38bef9` |
 | 2026-09-14 | La tâche devient un objet, une seule ouverte par carte ; trois sorties ; archivage | `8b66784`, `d5ae557`, `403e268`, migrations `20260914240000`, `20260914260000` |
 | 2026-09-18 | Onglets de CRM (commercial), boîte de réponse par défaut, note résumée à chaque échange, responsable par défaut | `872fa30`, migrations `20260918140000`, `20260918141000` |
+| 2026-09-18 | **Cloche : nouvelles inscriptions de clients** (borne / en ligne), cliquables vers la fiche, lu par utilisateur ; les 2 inscriptions de test du 18/09 reprises | branche `lot-notif-tri`, migration `20260919170000` (appliquée le 18/09) |
