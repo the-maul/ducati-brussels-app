@@ -45,6 +45,6 @@ service « Updates & Modifs »). Chaque changement est une **carte** (activité)
 |---|---|---|---|
 | 01 | Nouveau client — prospects, comptes, portail | 🟦 en cours | [`mission-01-nouveau-client.md`](mission-01-nouveau-client.md) |
 | 02 | Commandes de pièces | ⬜ spécifiée, non commencée | spécification : [`../../process-commandes-pieces.md`](../../process-commandes-pieces.md) |
-| 03 | Shopify relié au stock du DMS | ⬜ en attente de l'accès Shopify et de 6 réponses | liste ERP « Mission 03 » ; décisions W-1 à W-4 |
+| 03 | Shopify relié au stock du DMS | 🟦 accès en cours de création | [`mission-03-shopify.md`](mission-03-shopify.md) — accès et secrets au §2 |
 
 Légende : ⬜ pas commencée · 🟦 en cours · ✅ terminée et validée par le client.
