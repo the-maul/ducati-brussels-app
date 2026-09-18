@@ -8,6 +8,13 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-19 — Mission 02
+
+- **M-5** — **Mission 02 « Commandes de pièces » validée par Simon** (19/09), sur la base de la
+  spécification du 30/07 ([`../process-commandes-pieces.md`](../process-commandes-pieces.md)) et des
+  cartes ERP de la liste « Mission 02 ». Leçon retenue : ne jamais lancer une mission tirée d'un ancien
+  document sans la faire confirmer par Simon. *Client · 19/09.*
+
 ## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
 
 - **S-5** — **Chaque échange sur une carte met la bible à jour** (chapitre, mission, décisions).
