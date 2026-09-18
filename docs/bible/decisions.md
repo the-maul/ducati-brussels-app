@@ -112,6 +112,7 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   prospect. Fournisseur, newsletter, Ducati, indésirable → rien. *Client · 14/09.*
 - **D2** — Tri du fichier G8 : **avec au moins une facture → client**, sans facture → prospect.
   Tout nouvel arrivant entre en prospect. *Client · 14/09.* [M01](modules/M01-contacts.md)
+  **Appliquée le 18/09** : 4 165 fiches (facture `FAC` G8 ou DMS, hors brouillon/annulée, fournisseurs exclus).
 - **D3** — **L'adresse e-mail** détermine si le contact est nouveau. En cas de ressemblance, on
   **propose** une fusion, **validée à la main**. Jamais de fusion automatique. *Client · 14/09.*
 - **D4** — Les e-mails partent par **Outlook / Microsoft Graph**. Pas de Resend. *Client · 14/09.*

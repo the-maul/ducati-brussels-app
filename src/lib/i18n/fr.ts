@@ -2111,6 +2111,18 @@ export const fr = {
     },
   },
 
+  // Cloche de la barre du haut : alertes internes (mission 01, lot 5).
+  notif: {
+    bellLabel: 'Notifications',
+    signupsTitle: 'Nouvelles inscriptions (7 derniers jours)',
+    signupPrefix: 'Nouvelle inscription : ',
+    originKiosk: 'borne',
+    originWeb: 'en ligne',
+    unread: 'Non lue',
+    markAllRead: 'Tout marquer comme lu',
+    empty: 'Rien de nouveau.',
+  },
+
   users: {
     title: 'Utilisateurs',
     subtitle: 'Créer des comptes et gérer les rôles par société.',

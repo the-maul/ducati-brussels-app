@@ -4365,6 +4365,70 @@ export type Database = {
           },
         ]
       }
+      team_notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id?: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "team_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_notifications: {
+        Row: {
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          origin: string | null
+          title: string
+        }
+        Insert: {
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          origin?: string | null
+          title: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          origin?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string
