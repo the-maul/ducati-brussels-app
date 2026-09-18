@@ -23,6 +23,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SaveButton } from '@/components/ui/save-button';
 import { useConfirm } from '@/components/confirm-provider';
+import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
@@ -31,6 +32,7 @@ import {
   bulkLink, bulkMerge, bulkSetActive, bulkSetFlags, bulkSetStatus,
   type ContactFlags,
 } from './bulk-api';
+import { MergeSummary, useMergePreviews } from './merge-summary';
 import { LINK_LIMIT } from './subobjects-api';
 
 const STATUSES: ContactStatus[] = ['prospect', 'client', 'client_piece', 'client_atelier'];
@@ -50,6 +52,7 @@ export function BulkActionsBar({ companyId, selected, onClear }: {
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const { isAdmin } = useAuth();
   const [mainDialog, setMainDialog] = useState<'link' | 'merge' | null>(null);
   const [mainId, setMainId] = useState<string | null>(null);
 
@@ -112,16 +115,23 @@ export function BulkActionsBar({ companyId, selected, onClear }: {
     success: false,
     onSuccess: (r) => {
       const parts = [n('contacts.bulkMergeDone', r.merged.length)];
-      if (r.failed.length) parts.push(n('contacts.bulkMergeFailed', r.failed.length));
-      if (r.tableIssues.length) {
-        parts.push(t('contacts.bulkMergeTableIssues').replace('{tables}', r.tableIssues.join(', ')));
+      if (r.failed.length) {
+        const reasons = [...new Set(r.failed.map((f) => f.error))].join(' ; ');
+        parts.push(`${n('contacts.bulkMergeFailed', r.failed.length)} ${reasons}`);
       }
       const msg = parts.join(' · ');
-      if (r.failed.length || r.tableIssues.length) toast.warning(msg); else toast.success(msg);
+      if (r.failed.length) toast.warning(msg); else toast.success(msg);
       setMainDialog(null);
+      qc.invalidateQueries();
       done();
     },
   });
+
+  // Fusion : réservée aux administrateurs (décision F-9, contrôlé aussi par la base).
+  const canMerge = isAdmin(companyId);
+  const mainContact = selected.find((c) => c.id === mainId) ?? null;
+  const absorbed = selected.filter((c) => c.id !== mainId);
+  const mergePreview = useMergePreviews(mainContact, absorbed, mainDialog === 'merge');
 
   async function askArchive() {
     const ok = await confirm({
@@ -211,9 +221,11 @@ export function BulkActionsBar({ companyId, selected, onClear }: {
         <Button variant="outline" size="sm" onClick={() => openMain('link')} disabled={busy}>
           <Link2 className="size-4" /> {t('contacts.bulkLink')}
         </Button>
-        <Button variant="outline" size="sm" onClick={() => openMain('merge')} disabled={busy}>
-          <Merge className="size-4" /> {t('contacts.bulkMerge')}
-        </Button>
+        {canMerge && (
+          <Button variant="outline" size="sm" onClick={() => openMain('merge')} disabled={busy}>
+            <Merge className="size-4" /> {t('contacts.bulkMerge')}
+          </Button>
+        )}
       </div>
 
       <Dialog open={mainDialog !== null} onOpenChange={(o) => !o && setMainDialog(null)}>
@@ -239,11 +251,14 @@ export function BulkActionsBar({ companyId, selected, onClear }: {
               </label>
             ))}
           </RadioGroup>
+          {mainDialog === 'merge' && mainContact && (
+            <MergeSummary keep={mainContact} absorbed={absorbed} preview={mergePreview} />
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setMainDialog(null)}>{t('action.cancel')}</Button>
             <SaveButton
               status={mainDialog === 'merge' ? merge.status : link.status}
-              disabled={!mainId}
+              disabled={!mainId || (mainDialog === 'merge' && (!mergePreview.ready || mergePreview.blocked))}
               onClick={() => {
                 if (!mainId) { toast.warning(t('contacts.bulkMainRequired')); return; }
                 if (mainDialog === 'merge') merge.mutate(); else link.mutate();

@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { errorMessage } from '@/lib/mutation-feedback';
+import { t } from '@/lib/i18n';
 import type { Database } from '@/integrations/supabase/types';
 
 export type Contact = Database['public']['Tables']['contacts']['Row'];
@@ -106,41 +107,72 @@ export async function unarchiveContact(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/**
- * Tables métier portant contact_id, réassignées lors d'une fusion. Liste tenue à jour
- * manuellement (pas d'introspection de schéma côté client) : client_price_rules,
- * communications, contact_subcontacts, customer_price_rules, delivery_addresses,
- * documents, leads, repair_orders, sepa_mandates, vehicle_owners, workshop_appointments.
- */
-const MERGE_TABLES = [
-  'client_price_rules', 'communications', 'contact_subcontacts', 'customer_price_rules',
-  'delivery_addresses', 'documents', 'leads', 'repair_orders', 'sepa_mandates',
-  'vehicle_owners', 'workshop_appointments',
+// ── Fusion de fiches ──────────────────────────────────────────────────
+//
+// Tout se passe dans la base : fonction SQL `contact_merge` (migration
+// 20260919140000_m1_contact_merge.sql), transactionnelle, réservée aux admins (F-9).
+// Elle déplace TOUTES les références de la fiche absorbée (documents, motos, échanges,
+// pièces jointes GED, cartes CRM, fiches liées, compte client, commandes...), complète
+// les champs vides de la fiche gardée, trace dans `events` et archive l'absorbée.
+// Tout ou rien : la moindre erreur annule l'ensemble.
+
+/** Nombre de lignes rattachées à la fiche absorbée, par table (clés de contact_merge_refs). */
+export type MergeCounts = Record<string, number>;
+
+export type MergePreview = {
+  kept_id: string;
+  absorbed_id: string;
+  counts: MergeCounts;
+  /** Codes MERGE_* qui empêcheraient la fusion (ex. deux comptes client). */
+  blockers: string[];
+};
+
+export type MergeContactsResult = {
+  kept_id: string;
+  absorbed_id: string;
+  moved: MergeCounts;
+  removed_duplicates: number;
+  archived_leads: number;
+};
+
+// Fonctions ajoutées après la dernière génération de types.ts : appel non typé localisé.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rpcUntyped = supabase.rpc as any;
+
+/** Ce qui sera rapatrié de `absorbId` vers `keepId`, et ce qui bloquerait. Lecture seule. */
+export async function getMergePreview(keepId: string, absorbId: string): Promise<MergePreview> {
+  const { data, error } = await rpcUntyped('contact_merge_preview', { _keep: keepId, _absorb: absorbId });
+  if (error) throw error;
+  return data as MergePreview;
+}
+
+/** Fusionne `absorbId` dans `keepId` (fonction SQL transactionnelle). */
+export async function mergeContacts(keepId: string, absorbId: string): Promise<MergeContactsResult> {
+  const { data, error } = await rpcUntyped('contact_merge', { _keep: keepId, _absorb: absorbId });
+  if (error) throw error;
+  return data as MergeContactsResult;
+}
+
+const MERGE_ERROR_CODES = [
+  'MERGE_SAME_CONTACT', 'MERGE_NOT_FOUND', 'MERGE_FORBIDDEN', 'MERGE_OTHER_COMPANY',
+  'MERGE_BOTH_ACCOUNTS', 'MERGE_BOTH_OPENING_BALANCE', 'MERGE_UNHANDLED_REFERENCE',
 ] as const;
 
-export type MergeContactsResult = { reassigned: string[]; failed: { table: string; error: string }[] };
+/** Libellé FR d'un code MERGE_* renvoyé par la base (bloquant d'aperçu ou erreur). */
+export function mergeCodeLabel(code: string): string {
+  return t(`contacts.mergeErr_${code}`);
+}
 
-/**
- * Fusionne mergeId dans keepId : réassigne contact_id vers keepId sur chaque table de
- * MERGE_TABLES (défensif, une table par une table — un schéma pas encore migré ou une
- * colonne absente ne doit pas bloquer la fusion des autres), puis archive mergeId
- * (is_active=false) plutôt que de le supprimer, pour préserver l'audit (règle 4).
- */
-export async function mergeContacts(keepId: string, mergeId: string): Promise<MergeContactsResult> {
-  const reassigned: string[] = [];
-  const failed: { table: string; error: string }[] = [];
-  for (const table of MERGE_TABLES) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from(table) as any).update({ contact_id: keepId }).eq('contact_id', mergeId);
-      if (error) throw error;
-      reassigned.push(table);
-    } catch (e) {
-      failed.push({ table, error: e instanceof Error ? e.message : String(e) });
-    }
+/** Message lisible d'une erreur de fusion : code MERGE_* traduit, sinon message brut. */
+export function mergeErrorMessage(e: unknown): string {
+  const raw = errorMessage(e);
+  const code = MERGE_ERROR_CODES.find((c) => raw.includes(c));
+  if (!code) return raw;
+  if (code === 'MERGE_UNHANDLED_REFERENCE') {
+    const detail = raw.split('MERGE_UNHANDLED_REFERENCE:')[1]?.split(' — ')[0]?.trim() ?? '';
+    return mergeCodeLabel(code).replace('{tables}', detail);
   }
-  await archiveContact(mergeId);
-  return { reassigned, failed };
+  return mergeCodeLabel(code);
 }
 
 // ── Doublons, dependances, suppression ────────────────────────────────
