@@ -5130,6 +5130,20 @@ export type Database = {
         Args: { _document: string }
         Returns: undefined
       }
+      _resolve_customer_price_unchecked: {
+        Args: {
+          _article: string
+          _company: string
+          _contact: string
+          _qty?: number
+        }
+        Returns: {
+          discount_pct: number
+          rule_kind: string
+          unit_price_ht: number
+          unit_price_ttc: number
+        }[]
+      }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
