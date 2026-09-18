@@ -31,6 +31,9 @@ ou des règles ci-dessous justifie le refus d'une PR.
     les tokens de la charte dans `src/styles/tokens.css` (importé par `styles.css`), seul lieu des
     couleurs/typos (règle 9).
 - **Sources de vérité** (lire avant de coder un module) :
+  - 📖 [`docs/bible/README.md`](docs/bible/README.md) — **LA BIBLE, À LIRE EN TOUT PREMIER** : un chapitre
+    par module (ce qu'on a, où le trouver, règles, état en prod, pièges), les missions, le journal des
+    décisions, les questions en attente. Mise à jour à chaque lot livré.
   - 👉 [`docs/etat-projet.md`](docs/etat-projet.md) — **À LIRE EN PREMIER** : où on en est, workflow,
     outillage/secrets, pièges, état par module, prochaines étapes (document de reprise).
   - [`docs/dossier-projet.md`](docs/dossier-projet.md) — architecture, 14 modules, plan des epics.

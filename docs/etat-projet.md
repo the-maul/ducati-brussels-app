@@ -13,6 +13,10 @@
 
 ---
 
+
+> 📖 **Depuis le 18/09/2026, la référence complète est la [bible](bible/README.md)** : un chapitre par
+> module, les missions, le journal des décisions. Ce document-ci reste le résumé de reprise.
+
 ## 1. Résumé en dix lignes
 
 Les **14 modules ont un cœur fonctionnel réel** et tournent sur la vraie base, avec les données
