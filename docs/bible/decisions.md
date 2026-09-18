@@ -10,6 +10,10 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
 
+- **S-5** — **Chaque échange sur une carte met la bible à jour** (chapitre, mission, décisions).
+  Les nouvelles missions naissent d'une **vidéo** de Simon : Claude propose sa compréhension et la
+  liste de cartes dans le chat, Simon valide, puis Claude crée la liste dans l'ERP et réalise.
+  *Client · 18/09.* Voir [`missions/README.md`](missions/README.md).
 - **S-3** — **Domaines** : `ducatibruxelles.be` = site Shopify ; **`dms.ducatibruxelles.be`** = DMS du
   personnel ; **`app.ducatibruxelles.be`** = application des clients. Pas encore en ligne : Netlify en
   attendant. *Client · 18/09.*
