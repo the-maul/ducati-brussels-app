@@ -79,6 +79,10 @@ export type PortalProfile = {
   city: string | null;
   country: string | null;
   birth_date: string | null;
+  /** Mission 04, carte 5. */
+  birth_place: string | null;
+  iban: string | null;
+  bic: string | null;
   is_pro: boolean;
   company_name: string | null;
   vat_number: string | null;
@@ -98,7 +102,8 @@ export const CONTACT_PREFERENCES: ContactPreference[] = ['email', 'telephone', '
 export type ProfilePatch = Partial<Pick<PortalProfile,
   'civility' | 'first_name' | 'last_name' | 'mobile' | 'phone' | 'address' | 'street_number'
   | 'address_complement' | 'zip' | 'city' | 'country' | 'birth_date' | 'company_name'
-  | 'vat_number' | 'contact_preference' | 'marketing_opt_out' | 'license_number'>>;
+  | 'vat_number' | 'contact_preference' | 'marketing_opt_out' | 'license_number'
+  | 'birth_place' | 'iban' | 'bic'>>;
 
 export type PortalVehicleSummary = {
   id: string;
@@ -219,6 +224,8 @@ export function portalErrorMessage(err: unknown): string {
     ['invalid phone', 'portal.errors.invalidPhone'],
     ['invalid country', 'portal.errors.invalidCountry'],
     ['invalid vat_number', 'portal.errors.invalidVat'],
+    ['invalid iban', 'portal.errors.invalidIban'],
+    ['invalid bic', 'portal.errors.invalidBic'],
     ['not found', 'portal.errors.notFound'],
     ['no client account', 'portal.errors.noAccount'],
   ];

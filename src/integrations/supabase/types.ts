@@ -1611,6 +1611,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -1716,6 +1717,7 @@ export type Database = {
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
+          birth_place?: string | null
           category?: string | null
           city?: string | null
           civility?: string | null
@@ -1821,6 +1823,7 @@ export type Database = {
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
+          birth_place?: string | null
           category?: string | null
           city?: string | null
           civility?: string | null
@@ -5676,6 +5679,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -5797,6 +5801,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -5948,6 +5953,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -6264,6 +6270,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      iban_is_valid: { Args: { _iban: string }; Returns: boolean }
       ingest_email: {
         Args: {
           _body: string

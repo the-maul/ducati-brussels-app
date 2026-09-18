@@ -305,13 +305,29 @@ export type SignupNotification = {
   read: boolean;
 };
 
+/**
+ * IBAN MODIFIÉ PAR UN CLIENT dans son espace (mission 04, carte 5 — migration
+ * 20260919265000). Lisible par admin, comptable et vendeur (filtré aussi en base,
+ * can_see_team_notification). Même « lu » par utilisateur que les inscriptions.
+ */
+export const IBAN_NOTIF_ROLES = ['admin', 'comptable', 'vendeur'] as const;
+
+export type TeamNotificationKind = 'signup' | 'client_iban_changed';
+
 export async function listSignupNotifications(companyId: string, userId: string): Promise<SignupNotification[]> {
+  return listTeamNotifications(companyId, userId, 'signup');
+}
+
+/** Alertes internes d'un type donné (7 derniers jours), avec l'état « lu » de l'utilisateur. */
+export async function listTeamNotifications(
+  companyId: string, userId: string, kind: TeamNotificationKind,
+): Promise<SignupNotification[]> {
   const since = new Date(Date.now() - SIGNUP_NOTIF_DAYS * 24 * 3600 * 1000).toISOString();
   const { data, error } = await supabase
     .from('team_notifications')
     .select('id, contact_id, title, origin, created_at, team_notification_reads(user_id)')
     .eq('company_id', companyId)
-    .eq('kind', 'signup')
+    .eq('kind', kind)
     .gte('created_at', since)
     .eq('team_notification_reads.user_id', userId)
     .order('created_at', { ascending: false })

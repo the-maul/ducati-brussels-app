@@ -32,7 +32,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
-import { normalizeEmail, normalizeMobile } from '@/lib/contact-normalize';
+import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/lib/contact-normalize';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
@@ -180,6 +180,8 @@ type FormState = {
   country: string;
   address_mismatch: boolean;
   birth_date: string;
+  /** Mission 04, carte 5 : lieu de naissance. */
+  birth_place: string;
   national_id: string;
   national_register: string;
   license_number: string;
@@ -237,7 +239,7 @@ function fromContact(c: Contact | null): FormState {
     // Écritures G8 (MR, MME…) ramenées à Monsieur / Madame ; une forme juridique
     // restée dans `civility` est conservée telle quelle (non affichée, jamais effacée).
     civility: personCivility(c?.civility) ?? c?.civility ?? '',
-    legal_form: ext?.legal_form ?? '',
+    legal_form: c?.legal_form ?? '',
     first_name: c?.first_name ?? '',
     last_name: c?.last_name ?? '',
     company_name: c?.company_name ?? '',
@@ -254,6 +256,7 @@ function fromContact(c: Contact | null): FormState {
     country: c?.country ?? 'BE',
     address_mismatch: c?.address_mismatch ?? false,
     birth_date: c?.birth_date ?? '',
+    birth_place: c?.birth_place ?? '',
     national_id: c?.national_id ?? '',
     national_register: c?.national_register ?? '',
     license_number: c?.license_number ?? '',
@@ -330,6 +333,7 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     country: nn(f.country) ?? 'BE',
     address_mismatch: f.address_mismatch,
     birth_date: nn(f.birth_date),
+    birth_place: nn(f.birth_place),
     national_id: nn(f.national_id),
     national_register: nn(f.national_register),
     license_number: nn(f.license_number),
@@ -341,7 +345,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     vies_checked_at: f.vies_checked_at,
     sale_vat_type: f.sale_vat_type,
     payment_terms: nn(f.payment_terms),
-    iban: nn(f.iban),
+    // Mission 04, carte 5 : IBAN enregistré sans espaces, en majuscules.
+    iban: nn(normalizeIban(f.iban)),
     bic: nn(f.bic),
     domiciliation: nn(f.domiciliation),
     factoring_code: nn(f.factoring_code),
@@ -364,6 +369,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     is_blocked: f.is_blocked,
     mode_ht: f.mode_ht,
     marketing_opt_out: f.marketing_opt_out,
+    // Mission 04, carte 2 (migration 20260919261000)
+    legal_form: nn(f.legal_form),
     interests: f.interests,
     notes: nn(f.notes),
     supplier_customer_no: nn(f.supplier_customer_no),
@@ -380,8 +387,6 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     notify_model_stock: f.notify_model_stock,
     // Colonne ajoutée par migration 20260726 — pas encore dans types.ts auto-généré
     watch_note: nn(f.watch_note),
-    // Mission 04, carte 2 (migration 20260919261000)
-    legal_form: nn(f.legal_form),
   });
 }
 
@@ -441,6 +446,13 @@ export function ContactForm({
     setLocalError(null);
     if (!f.last_name.trim() && !f.company_name.trim()) {
       setLocalError(t('contacts.requiredName'));
+      return;
+    }
+    // Mission 04, carte 5 : IBAN contrôlé (modulo 97) s'il a été saisi ou modifié ;
+    // un IBAN repris de G8 non modifié ne bloque pas l'enregistrement du reste.
+    if (f.iban.trim() && normalizeIban(f.iban) !== normalizeIban(initial?.iban) && !isValidIban(f.iban)) {
+      setMoreOpen(true);
+      setLocalError(t('contacts.ibanInvalid'));
       return;
     }
     const payload = buildPayload(f, companyId);
@@ -712,7 +724,7 @@ export function ContactForm({
                 </Select>
               </Field>
               <Field label={t('contacts.iban')}>
-                <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
+                <IbanInput value={f.iban} onChange={(v) => set('iban', v)} />
               </Field>
               <Field label={t('contacts.bic')}>
                 <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
@@ -733,11 +745,29 @@ export function ContactForm({
             </Section>
           )}
 
+          {/* ── Banque et TVA des particuliers (mission 04, carte 5) ──────── */}
+          {isClient && !showB2B && (
+            <Section title={t('contacts.secBankVat')}>
+              <Field label={t('contacts.vatNumber')} wide>
+                <VatField f={f} set={set} />
+              </Field>
+              <Field label={t('contacts.iban')}>
+                <IbanInput value={f.iban} onChange={(v) => set('iban', v)} />
+              </Field>
+              <Field label={t('contacts.bic')}>
+                <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
+              </Field>
+            </Section>
+          )}
+
           {/* ── Permis & ID (clients uniquement) ──────────────────────────── */}
           {isClient && (
           <Section title={t('contacts.secMoto')}>
             <Field label={t('contacts.birthDate')}>
               <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.birthPlace')}>
+              <Input value={f.birth_place} onChange={(e) => set('birth_place', e.target.value)} />
             </Field>
             <Field label={t('contacts.nationalId')}>
               <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
@@ -952,6 +982,29 @@ export function ContactForm({
         </SaveButton>
       </div>
     </form>
+  );
+}
+
+// ─── Composant : IBAN avec contrôle modulo 97 (mission 04, carte 5) ──────────
+function IbanInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const filled = value.trim() !== '';
+  const ok = filled && isValidIban(value);
+  return (
+    <div className="space-y-1">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="font-mono"
+        placeholder="BE68 5390 0754 7034"
+        aria-invalid={filled && !ok}
+      />
+      {filled && !ok && (
+        <p className="flex items-center gap-1 text-[11px] text-danger"><ShieldX className="size-3" /> {t('contacts.ibanInvalid')}</p>
+      )}
+      {ok && (
+        <p className="flex items-center gap-1 text-[11px] text-success"><ShieldCheck className="size-3" /> {t('contacts.ibanValid')}</p>
+      )}
+    </div>
   );
 }
 

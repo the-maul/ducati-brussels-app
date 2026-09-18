@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock } from 'lucide-react';
+import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import {
   DropdownMenu,
@@ -19,8 +19,8 @@ import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
 import {
-  dueState, listBellTasks, listCompanyMembers, listSignupNotifications, markSignupNotificationsRead,
-  SIGNUP_NOTIF_ROLES, type BellScope,
+  dueState, listBellTasks, listCompanyMembers, listSignupNotifications, listTeamNotifications, markSignupNotificationsRead,
+  SIGNUP_NOTIF_ROLES, IBAN_NOTIF_ROLES, type BellScope,
 } from '@/modules/crm/api';
 import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/workshop/planning-api';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -38,6 +38,9 @@ import { t } from '@/lib/i18n';
  *      mécanicien ne peut pas les lire. « Lu » propre à chaque utilisateur.
  *   3. DEMANDES DE RENDEZ-VOUS ATELIER envoyées depuis le portail client (statut
  *      « demande ») : rôles mecanicien, chef_atelier, admin. Mène au planning.
+ *   4. IBAN MODIFIÉ PAR UN CLIENT dans son espace (mission 04, carte 5, 7 derniers
+ *      jours) : rôles admin, comptable, vendeur (filtré aussi en base). Mène à la fiche.
+ *      « Lu » propre à chaque utilisateur, comme les inscriptions.
  * Le badge compte uniquement ce que la personne voit : tâches + inscriptions non
  * lues + demandes de rendez-vous. Aucun e-mail ni SMS.
  */
@@ -58,6 +61,7 @@ function NotificationsBell() {
   const admin = rolesForActiveCompany.includes('admin');
   const seesSignups = has(SIGNUP_NOTIF_ROLES);
   const seesAppts = has(APPT_REQUEST_ROLES);
+  const seesIban = has(IBAN_NOTIF_ROLES);
 
   const [scope, setScopeState] = useState<BellScope>(readScope);
   const setScope = (s: BellScope) => {
@@ -90,6 +94,13 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid && seesSignups,
     refetchInterval: 120_000,
   });
+  const ibanKey = ['iban-notifications', activeCompanyId, uid];
+  const { data: ibanData } = useQuery({
+    queryKey: ibanKey,
+    queryFn: () => listTeamNotifications(activeCompanyId!, uid!, 'client_iban_changed'),
+    enabled: !!activeCompanyId && !!uid && seesIban,
+    refetchInterval: 120_000,
+  });
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -98,15 +109,20 @@ function NotificationsBell() {
   });
   const markRead = useMutation({
     mutationFn: (ids: string[]) => markSignupNotificationsRead(ids, uid!),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: signupsKey }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: signupsKey });
+      queryClient.invalidateQueries({ queryKey: ibanKey });
+    },
   });
 
   const tasks = taskData ?? [];
   const signups = seesSignups ? signupData ?? [] : [];
   const appts = seesAppts ? apptData ?? [] : [];
   const unreadSignups = signups.filter((n) => !n.read);
+  const ibans = seesIban ? ibanData ?? [] : [];
+  const unreadIbans = ibans.filter((n) => !n.read);
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length;
-  const total = tasks.length + unreadSignups.length + appts.length;
+  const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -119,7 +135,7 @@ function NotificationsBell() {
         {total > 0 && (
           <span
             className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
-              overdue > 0 ? 'bg-[var(--danger)]' : tasks.length > 0 || appts.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
+              overdue > 0 ? 'bg-[var(--danger)]' : tasks.length > 0 || appts.length > 0 || unreadIbans.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
             }`}
           >
             {total > 99 ? '99+' : total}
@@ -205,6 +221,41 @@ function NotificationsBell() {
             <DropdownMenuItem asChild className="cursor-pointer">
               <Link to="/workshop/planning" search={{ week: undefined }} className="text-[12px]">{t('notif.apptSeeAll')}</Link>
             </DropdownMenuItem>
+          </>
+        )}
+
+        {ibans.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('notif.ibanTitle')}</DropdownMenuLabel>
+            {ibans.slice(0, 8).map((n) => {
+              const body = (
+                <>
+                  <span className="flex w-full items-center gap-1.5">
+                    <Landmark className={`size-3.5 shrink-0 ${n.read ? 'text-muted-foreground' : 'text-[var(--warning)]'}`} />
+                    <span className={`truncate text-[13px] ${n.read ? 'text-muted-foreground' : 'font-medium'}`}>
+                      {t('notif.ibanPrefix')}{n.title}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {!n.read && <span className="font-medium text-[var(--warning)]">{t('notif.ibanToCheck')} · </span>}
+                    {fmt(n.created_at)}
+                  </span>
+                </>
+              );
+              const onSelect = () => { if (!n.read) markRead.mutate([n.id]); };
+              return (
+                <DropdownMenuItem key={n.id} asChild className="cursor-pointer" onSelect={onSelect}>
+                  {n.contact_id ? (
+                    <Link to="/clients/$contactId" params={{ contactId: n.contact_id }} className="flex flex-col items-start gap-0.5">
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className="flex flex-col items-start gap-0.5">{body}</div>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
           </>
         )}
 
