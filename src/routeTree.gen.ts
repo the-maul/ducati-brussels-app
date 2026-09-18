@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppClientRouteImport } from './routes/app-client'
 import { Route as BorneRouteImport } from './routes/borne'
 import { Route as InscriptionRouteImport } from './routes/inscription'
 import { Route as LoginRouteImport } from './routes/login'
@@ -63,6 +64,7 @@ import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
+import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
 import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
 import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
@@ -103,6 +105,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppClientRoute = AppClientRouteImport.update({
+  id: '/app-client',
+  path: '/app-client',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BorneRoute = BorneRouteImport.update({
@@ -365,6 +372,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsAppClientRoute = AppSettingsAppClientRouteImport.update({
+  id: '/app-client',
+  path: '/app-client',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsCompaniesRoute = AppSettingsCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -533,6 +545,7 @@ const AppSettingsTablesTableKeyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
@@ -579,6 +592,7 @@ export interface FileRoutesByFullPath {
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -620,6 +634,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
@@ -654,6 +669,7 @@ export interface FileRoutesByTo {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -696,6 +712,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
@@ -742,6 +759,7 @@ export interface FileRoutesById {
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/new': typeof AppSalesNewRoute
+  '/_app/settings/app-client': typeof AppSettingsAppClientRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
   '/_app/settings/extension': typeof AppSettingsExtensionRoute
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
@@ -785,6 +803,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/app-client'
     | '/borne'
     | '/inscription'
     | '/login'
@@ -831,6 +850,7 @@ export interface FileRouteTypes {
     | '/purchases/suppliers'
     | '/sales/$documentId'
     | '/sales/new'
+    | '/settings/app-client'
     | '/settings/companies'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -872,6 +892,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app-client'
     | '/borne'
     | '/inscription'
     | '/login'
@@ -906,6 +927,7 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/sales/$documentId'
     | '/sales/new'
+    | '/settings/app-client'
     | '/settings/companies'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -947,6 +969,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/app-client'
     | '/borne'
     | '/inscription'
     | '/login'
@@ -993,6 +1016,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
     | '/_app/sales/new'
+    | '/_app/settings/app-client'
     | '/_app/settings/companies'
     | '/_app/settings/extension'
     | '/_app/settings/kiosk'
@@ -1036,6 +1060,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  AppClientRoute: typeof AppClientRoute
   BorneRoute: typeof BorneRoute
   InscriptionRoute: typeof InscriptionRoute
   LoginRoute: typeof LoginRoute
@@ -1057,6 +1082,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app-client': {
+      id: '/app-client'
+      path: '/app-client'
+      fullPath: '/app-client'
+      preLoaderRoute: typeof AppClientRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/borne': {
@@ -1423,6 +1455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/app-client': {
+      id: '/_app/settings/app-client'
+      path: '/app-client'
+      fullPath: '/settings/app-client'
+      preLoaderRoute: typeof AppSettingsAppClientRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/companies': {
       id: '/_app/settings/companies'
       path: '/companies'
@@ -1775,6 +1814,7 @@ const AppSettingsTablesRouteWithChildren =
   AppSettingsTablesRoute._addFileChildren(AppSettingsTablesRouteChildren)
 
 interface AppSettingsRouteChildren {
+  AppSettingsAppClientRoute: typeof AppSettingsAppClientRoute
   AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
   AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
@@ -1786,6 +1826,7 @@ interface AppSettingsRouteChildren {
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAppClientRoute: AppSettingsAppClientRoute,
   AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
   AppSettingsExtensionRoute: AppSettingsExtensionRoute,
   AppSettingsKioskRoute: AppSettingsKioskRoute,
@@ -1949,6 +1990,7 @@ const MonEspaceRouteWithChildren = MonEspaceRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  AppClientRoute: AppClientRoute,
   BorneRoute: BorneRoute,
   InscriptionRoute: InscriptionRoute,
   LoginRoute: LoginRoute,

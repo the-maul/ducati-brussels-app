@@ -45,6 +45,11 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 - **W-4** — **Shopify : le DMS fait foi pour le stock, le prix, les photos et les textes**, après une
   reprise initiale des photos et textes depuis Shopify. Une vente sur Shopify crée la vente et la sortie
   de stock dans le DMS. Faisabilité à vérifier dans l'API Shopify. *Client · 18/09.* Future mission.
+- **W-5** — **Le site Shopify pointe vers `/app-client`** : page « bientôt disponible » tant que l'app
+  client n'est pas ouverte ; bascule vers l'inscription par un réglage. Lien « Espace client » dans le menu
+  principal et le pied de page du site, distinct des « Comptes clients » de Shopify ; formulaire facultatif
+  « Prévenez-moi à l'ouverture ». *Client (carte « Proposer l'inscription à l'espace client sur le site
+  Shopify ») · 19/09.* [M00](modules/M00-socle.md), [guide](guides/lien-site-shopify.md)
 - **F-10** — **Pas de fusion automatique des doublons** : la liste des 12 doublons est envoyée à
   Italbike, qui fusionne lui-même dans le DMS (après correctif de la fusion). *Client · 18/09.*
 - **S-4** — Nouvelle méthode : chaque mission est une **liste de cartes dans l'ERP Mauluctive** (client
