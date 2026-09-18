@@ -1778,6 +1778,17 @@ export const fr = {
     surchargeApplied: 'Supplément client',
     totalTtcClient: 'Total TTC client',
     errGeneric: 'Une erreur est survenue.',
+    // suivi de l’état (carte « Suivre l’état d’une commande »)
+    filterKind: 'Type', filterStatus: 'État',
+    colDate: 'Date', colStatusSince: 'Depuis le',
+    actPay: 'Marquer payée', actToSend: 'Passer à envoyer', actSend: 'Marquer envoyée', actCancel: 'Annuler la commande',
+    paymentMethod: 'Moyen de paiement', paymentPlaceholder: 'Choisir…',
+    note: 'Note (facultative)', cancelReason: 'Motif de l’annulation (facultatif)', back: 'Retour',
+    checkOkSend: 'Les règles du type sont toujours respectées : la commande peut être envoyée.',
+    historyTitle: 'Historique des états',
+    flowHint: 'L’état change uniquement par les boutons en haut de l’écran : chaque passage est contrôlé par le serveur et tracé (qui, quand).',
+    historyWhen: 'Quand', historyChange: 'Changement', historyWho: 'Par', historyNote: 'Note',
+    historyCreated: 'Commande créée', unknownUser: 'Utilisateur inconnu',
     openExcel: 'Ouvrir le classeur Excel',
     // Commande Excel
     excelTitle: 'Commande Excel',

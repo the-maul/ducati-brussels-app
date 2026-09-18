@@ -39,7 +39,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 | 2 | Ajouter et modifier les pièces d'une commande | On ajoute, modifie, supprime des lignes (article, qté client / magasin, fournisseur, prix) tant que la commande est en brouillon | ⬜ à faire | — |
 | 3 | Créer une commande depuis un devis ou une facture | Bouton « Proposition de commande » ligne / totale sur un document de vente, avec choix du type | ⬜ à faire | — |
 | 4 | Regrouper par fournisseur et envoyer | Écran « Rappel proposition » groupé par fournisseur avec minimum / franco, génération de la commande fournisseur | ⬜ à faire | — |
-| 5 | Suivre l'état d'une commande : en attente de paiement, payée, à envoyer, envoyée | Transitions par boutons, contrôlées par le serveur, historique (qui, quand) ; liste filtrable par état et par type avec compteurs | ⬜ à faire | — |
+| 5 | Suivre l'état d'une commande : en attente de paiement, payée, à envoyer, envoyée | Transitions par boutons, contrôlées par le serveur, historique (qui, quand) ; liste filtrable par état et par type avec compteurs | 🟦 à valider | 19/09 |
 | 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | ⬜ à faire | — |
 | 7 | Commande Excel Ducati : alerte 2 000 €, clôture, archivage | Saisie enregistrée en base, alerte verte dans la barre du haut, n° interne au 1er téléchargement, clôture et archivage du classeur | ⬜ à faire (écran brouillon en mémoire existant) | — |
 | 8 | Frais atelier sur devis | Accident 125 € fixe, diagnostic au taux horaire (max 4 h) ajoutés automatiquement, réglables | ⬜ à faire | — |
@@ -63,6 +63,21 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   types de commande », fonctions `part_order_rules` / `part_order_check_rules` / `part_order_validate`,
   rappel des règles et contrôle en direct sur l'écran de la commande, bouton « Valider la commande »,
   n° `CDP-`. Migration `20260919210000_orders_rules`.
+- [M04 Achats](../modules/M04-achats.md) : cycle de vie brouillon → en attente de paiement → payée →
+  à envoyer → envoyée (+ annulée) par `part_order_transition` uniquement (garde sur la table),
+  historique `part_order_status_history` + `events`, boutons d'état et historique sur l'écran de la
+  commande, liste filtrable par type et par état avec compteurs. Migration `20260919211000_orders_status_flow`.
+
+### À tester (cartes 1 et 5)
+
+1. Paramètres → Tables → « Règles des types de commande » : les 4 lignes et leurs valeurs ; changer
+   le minimum standard (ex. 300), enregistrer.
+2. Commandes de pièces → Nouvelle commande : les types affichent leur règle (valeurs de Paramètres).
+3. Écran d'une commande : rappel des règles ; en brouillon sans pièce, message rouge « aucune pièce »
+   et bouton Valider grisé (les lignes arriveront avec la carte 2).
+4. Avec des lignes : Valider → n° `CDP-…`, état « En attente de paiement » ; Marquer payée (choisir le
+   moyen) → Passer à envoyer → Marquer envoyée ; l'historique montre chaque passage, l'auteur et l'heure.
+5. Liste : filtres Type et État combinés, compteurs qui se mettent à jour.
 
 ## 6. Risques et points d'attention
 

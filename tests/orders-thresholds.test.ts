@@ -11,6 +11,7 @@ import {
   excelLineValue, excelLineFinal, excelTabTotal, excelTabReached, excelTabRemaining, excelTabsStatus,
   type ExcelLine, type OrderRule,
 } from '../src/modules/orders/thresholds';
+import { canTransition, countOrders, NEXT_STATUSES } from '../src/modules/orders/status-flow';
 
 const base = { isActive: true, configured: true, minHt: null, surchargePct: 0, maxPerDay: null, fallback: null, minHtPerTab: null };
 // Réglage initial de Paramètres → Tables → Règles des types de commande
@@ -142,4 +143,42 @@ test('Excel : statut par onglet (3 onglets)', () => {
   expect(Object.keys(s).sort()).toEqual(['courtoisie', 'demo', 'showroom']);
   expect(s.demo.reached).toBe(false);
   expect(s.courtoisie.total).toBe(500);
+});
+
+// ---- Cycle de vie (même table de passages que part_order_transition) ----
+
+test('cycle : en attente de paiement → payée → à envoyer → envoyée, pas de retour ni de saut', () => {
+  expect(canTransition('brouillon', 'en_attente_paiement')).toBe(true);
+  expect(canTransition('en_attente_paiement', 'payee')).toBe(true);
+  expect(canTransition('payee', 'a_envoyer')).toBe(true);
+  expect(canTransition('a_envoyer', 'envoyee')).toBe(true);
+  expect(canTransition('brouillon', 'envoyee')).toBe(false);
+  expect(canTransition('en_attente_paiement', 'a_envoyer')).toBe(false);
+  expect(canTransition('envoyee', 'payee')).toBe(false);
+});
+
+test('cycle : annulation possible jusqu’à l’envoi, états terminaux figés', () => {
+  for (const s of ['brouillon', 'en_attente_paiement', 'payee', 'a_envoyer'] as const) expect(canTransition(s, 'annulee')).toBe(true);
+  expect(NEXT_STATUSES.envoyee).toEqual([]);
+  expect(NEXT_STATUSES.annulee).toEqual([]);
+});
+
+test('liste : compteurs croisés par type et par état', () => {
+  const rows = [
+    { order_kind: 'urgente', dispatch_status: 'payee' },
+    { order_kind: 'urgente', dispatch_status: 'envoyee' },
+    { order_kind: 'standard', dispatch_status: 'payee' },
+    { order_kind: 'accident', dispatch_status: 'en_attente_paiement' },
+  ] as const;
+  const all = countOrders([...rows]);
+  expect(all.totalKind).toBe(4);
+  expect(all.byKind).toEqual({ urgente: 2, standard: 1, accident: 1 });
+  expect(all.byStatus).toEqual({ payee: 2, envoyee: 1, en_attente_paiement: 1 });
+  // Filtre « Payée » : les compteurs de type ne comptent que les payées
+  const paid = countOrders([...rows], { status: 'payee' });
+  expect(paid.byKind).toEqual({ urgente: 1, standard: 1 });
+  expect(paid.totalStatus).toBe(4);
+  // Filtre « Urgente » : les compteurs d'état ne comptent que les urgentes
+  const urg = countOrders([...rows], { kind: 'urgente' });
+  expect(urg.byStatus).toEqual({ payee: 1, envoyee: 1 });
 });

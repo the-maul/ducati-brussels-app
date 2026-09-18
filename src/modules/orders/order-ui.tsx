@@ -2,9 +2,13 @@
  * Commandes de pièces — éléments d'interface partagés (libellés de type, icônes, rappel des règles).
  * Les valeurs des règles viennent de Paramètres (getOrderRules), jamais du code.
  */
-import { Zap, CalendarDays, FileSpreadsheet, AlertTriangle, Package, type LucideIcon } from 'lucide-react';
+import {
+  Zap, CalendarDays, FileSpreadsheet, AlertTriangle, Package, FilePen, Clock, Wallet, PackageCheck, Truck, Ban,
+  type LucideIcon,
+} from 'lucide-react';
+import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
-import type { OrderKind } from './api';
+import type { OrderKind, OrderDispatchStatus } from './api';
 import { ruleFor, type OrderRule } from './thresholds';
 
 export const eur = (n: number) =>
@@ -42,4 +46,23 @@ export function ruleSentences(rule: OrderRule | undefined, rules: OrderRule[]): 
   if (rule.maxPerDay != null && rule.maxPerDay > 0) out.push(t('orders.ruleMaxPerDay').replace('{n}', String(rule.maxPerDay)));
   if (rule.minHtPerTab != null && rule.minHtPerTab > 0) out.push(t('orders.ruleMinPerTab').replace('{min}', eur(rule.minHtPerTab)));
   return out;
+}
+
+/** État d'une commande : couleur + icône + libellé (charte §5.4). Jamais le rouge Ducati. */
+export const DISPATCH_META: Record<OrderDispatchStatus, { tone: StatusTone; icon: LucideIcon }> = {
+  brouillon: { tone: 'neutral', icon: FilePen },
+  en_attente_paiement: { tone: 'warning', icon: Clock },
+  payee: { tone: 'info', icon: Wallet },
+  a_envoyer: { tone: 'info', icon: PackageCheck },
+  envoyee: { tone: 'success', icon: Truck },
+  annulee: { tone: 'neutral', icon: Ban },
+};
+
+export function dispatchIcon(status: OrderDispatchStatus): LucideIcon {
+  return DISPATCH_META[status]?.icon ?? FilePen;
+}
+
+export function DispatchBadge({ status }: { status: OrderDispatchStatus }) {
+  const meta = DISPATCH_META[status] ?? DISPATCH_META.brouillon;
+  return <StatusBadge tone={meta.tone} icon={meta.icon} label={t(`orders.dispatch_${status}`)} />;
 }
