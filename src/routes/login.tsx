@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { resolveHomePath } from '@/lib/auth/home-path';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,9 +22,12 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Déjà connecté → dashboard
+  // Déjà connecté → tableau de bord (personnel) ou espace client (client).
   useEffect(() => {
-    if (!loading && session) navigate({ to: '/dashboard' });
+    if (loading || !session) return;
+    let cancelled = false;
+    resolveHomePath(session.user.id).then((to) => { if (!cancelled) navigate({ to }); });
+    return () => { cancelled = true; };
   }, [loading, session, navigate]);
 
   const onSubmit = async (e: FormEvent) => {
@@ -31,7 +35,7 @@ function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signed, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
         // On affiche le message réel (en plus du libellé convivial) pour pouvoir diagnostiquer.
         setError(
@@ -41,7 +45,7 @@ function LoginPage() {
         );
         return;
       }
-      navigate({ to: '/dashboard' });
+      navigate({ to: await resolveHomePath(signed.user?.id) });
     } catch (e2) {
       // Erreur réseau / client mal configuré : on ne laisse JAMAIS le spinner tourner.
       setError(e2 instanceof Error ? e2.message : t('auth.genericError'));

@@ -20,8 +20,11 @@ export const Route = createFileRoute('/_app/workshop/planning')({
   component: PlanningPage,
 });
 
-const APPT_STATUS = ['prevu', 'arrive', 'en_cours', 'termine', 'annule'] as const;
-const tone = (s: string) => (s === 'termine' ? 'success' : s === 'annule' ? 'neutral' : s === 'en_cours' ? 'info' : s === 'arrive' ? 'warning' : 'info');
+// « demande » = demande de rendez-vous envoyée par un client depuis son espace (/mon-espace),
+// à confirmer par l'atelier (passer à « prévu ») ou à annuler.
+const APPT_STATUS = ['demande', 'prevu', 'arrive', 'en_cours', 'termine', 'annule'] as const;
+const tone = (s: string) => (s === 'termine' ? 'success' : s === 'annule' ? 'neutral' : s === 'en_cours' ? 'info' : s === 'arrive' || s === 'demande' ? 'warning' : 'info');
+const apptLabel = (s: string) => (s === 'demande' ? t('portal.staff.requestStatus') : t(`workshop.apptStatus_${s}`));
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 function mondayOf(d: Date) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; }
@@ -79,14 +82,19 @@ function PlanningPage() {
                 <div key={a.id} className="rounded-md border border-border p-2 text-[12px]">
                   <div className="flex items-center justify-between">
                     <span className="font-data tabular-nums">{new Date(a.starts_at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
-                    <StatusBadge tone={tone(a.status)} label={t(`workshop.apptStatus_${a.status}`)} />
+                    <StatusBadge tone={tone(a.status)} label={apptLabel(a.status)} />
                   </div>
+                  {a.source === 'portail' && (
+                    <p className="mt-1 font-medium text-warning">
+                      {t('portal.staff.fromPortal')}{a.requested_slot ? ` · ${t(`portal.slots.${a.requested_slot}`)}` : ''}
+                    </p>
+                  )}
                   {a.work_description && <p className="mt-1 truncate text-muted-foreground">{a.work_description}</p>}
                   {a.mechanic_name && <p className="text-muted-foreground">{a.mechanic_name}</p>}
                   <div className="mt-2 flex flex-wrap items-center gap-1">
                     <Select value={a.status} onValueChange={(v) => setStatus.mutate({ id: a.id, status: v })}>
                       <SelectTrigger className="h-7 w-28 text-[12px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>{APPT_STATUS.map((s) => <SelectItem key={s} value={s}>{t(`workshop.apptStatus_${s}`)}</SelectItem>)}</SelectContent>
+                      <SelectContent>{APPT_STATUS.filter((s) => s !== 'demande' || a.status === 'demande').map((s) => <SelectItem key={s} value={s}>{apptLabel(s)}</SelectItem>)}</SelectContent>
                     </Select>
                     {a.or_id
                       ? <Button size="sm" variant="ghost" className="h-7" onClick={() => navigate({ to: '/workshop/$orId', params: { orId: a.or_id! } })}><FileText className="size-3.5" /> {t('workshop.viewOr')}</Button>
