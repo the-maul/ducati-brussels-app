@@ -59,7 +59,7 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
    seule clé publique du site ; une trentaine laissent passer un visiteur non connecté (lecture du
    fichier client, du registre TVA ; écritures de stock, de paiement, de clôture comptable). Trois
    fonctions serveur (`read-id-doc`, `classify-prospect-email`, `mailbox-diag`) n'ont aucun contrôle.
-   Correctif proposé : [`00-architecture.md`](00-architecture.md) §9. **Lot préparé, non appliqué :**
+   Correctif proposé : [`00-architecture.md`](00-architecture.md) §9. **✅ Lot appliqué le 19/09** (vérifié : 6 fonctions seulement ouvertes sans connexion) :
    [`securite-lot-S.md`](securite-lot-S.md) (couvre aussi l'alerte 6). *M00, M12, architecture.*
 2. **Dérive entre le code et la base.** 30 objets utilisés par le code n'existent pas en base
    (vérifié le 18/09) : reprises (M07, cassé), années d'applicabilité et réglages d'import (M02),

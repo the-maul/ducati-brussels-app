@@ -1,8 +1,9 @@
 # Lot sécurité S — fermer l'accès sans connexion
 
-> Préparé le 19/09/2026 sur la branche `lot-securite`. **Rien n'est appliqué** : ni migration,
-> ni fonction serveur, ni secret. Ce document dit quoi appliquer, dans quel ordre, comment
-> vérifier et comment revenir en arrière.
+> **APPLIQUÉ le 19/09/2026** (S1 à S5, après que Simon a posé le secret des tâches planifiées). Vérifié
+> le 19/09 à 01:20 : un visiteur non connecté ne peut plus exécuter que 6 fonctions de la base
+> (is_member, is_admin et 4 fonctions unaccent). Ce document garde l'ordre d'application, les
+> vérifications et le retour arrière.
 > Répond à l'alerte n°1 et à l'alerte n°6 du [README](README.md), à [`00-architecture.md`](00-architecture.md) §9
 > et à l'alerte 🔴 « boîtes Outlook » de [M10](modules/M10-crm.md).
 
