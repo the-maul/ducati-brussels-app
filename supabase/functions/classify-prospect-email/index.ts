@@ -11,11 +11,17 @@
  * Déploiement : `supabase functions deploy classify-prospect-email`
  * Secret requis : ANTHROPIC_API_KEY (déjà posé, utilisé par read-id-doc)
  *
- * Entrée : POST { from, subject, body, to? }
+ * Entrée : POST { from, subject, body, to?, companyId? }
+ *
+ * ACCÈS (lot sécurité S, 19/09) : clé de service (appel normal, depuis outlook-poll), ou
+ * utilisateur connecté membre actif de la société `companyId` (usage manuel éventuel).
+ * Avant : aucun contrôle — n'importe qui pouvait faire des appels Claude aux frais de la
+ * concession.
  * Sortie : { data: { is_prospect, reason, is_professional, first_name, last_name,
  *                    company_name, vat_number, phone, interest, request_summary } }
  */
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { identify, isActiveMember } from "../_shared/acces.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,9 +138,15 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) return json({ error: "not_configured" }, 500);
 
-    const { from, subject, body, to } = await req.json() as {
-      from?: string; subject?: string; body?: string; to?: string;
+    const caller = await identify(req);
+    if (!caller || caller.kind === "cron") return json({ error: "not_signed_in" }, 401);
+
+    const { from, subject, body, to, companyId } = await req.json() as {
+      from?: string; subject?: string; body?: string; to?: string; companyId?: string;
     };
+    if (caller.kind === "user" && !(await isActiveMember(caller.id, String(companyId ?? "")))) {
+      return json({ error: "forbidden" }, 403);
+    }
     if (!from || typeof from !== "string") return json({ error: "no_sender" }, 400);
 
     // Le corps peut etre tres long (fils de discussion, signatures HTML converties).

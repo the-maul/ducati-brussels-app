@@ -15,8 +15,14 @@
 //   ANTHROPIC_API_KEY est consommé par classify-prospect-email, pas ici.
 // Config : table `company_mailboxes` (Paramètres → Sociétés).
 //
+// ACCÈS (lot sécurité S, 19/09) : pg_cron (en-tête x-cron-secret = secret CRON_SECRET), clé de
+// service, ou utilisateur connecté membre actif d'au moins une société (bouton « relever » de
+// la fiche contact, src/modules/crm/communications-panel.tsx). Avant : déclenchable par
+// n'importe qui avec la clé publique.
+//
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
+import { activeCompaniesOf, identify } from '../_shared/acces.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -107,7 +113,11 @@ function isAutomatic(subject: string, from: string): boolean {
     || /^(mailer-daemon|postmaster|no-?reply|ne-?pas-?repondre|donotreply)@/.test(f);
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  const caller = await identify(req);
+  if (!caller || (caller.kind === 'user' && (await activeCompaniesOf(caller.id)).length === 0)) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
   if (!TENANT || !CID || !CSECRET) return new Response(JSON.stringify({ error: 'graph_not_configured' }), { status: 501, headers: { 'Content-Type': 'application/json' } });
   const tok = await graphToken();
   if (!tok) return new Response(JSON.stringify({ error: 'graph_auth_failed' }), { status: 502, headers: { 'Content-Type': 'application/json' } });

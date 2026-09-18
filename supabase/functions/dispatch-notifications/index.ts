@@ -6,8 +6,12 @@
 //                        SMS_API_URL, SMS_API_KEY, SMS_FROM.
 // Appelée par pg_cron (toutes les 10 min) via pg_net. verify_jwt=false.
 //
+// ACCÈS (lot sécurité S, 19/09) : pg_cron (en-tête x-cron-secret = secret CRON_SECRET) ou clé
+// de service. Avant : déclenchable par n'importe qui avec la clé publique.
+//
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
+import { identify } from '../_shared/acces.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -41,7 +45,11 @@ async function sendSms(to: string, body: string): Promise<{ ok: boolean; error?:
   return { ok: false, error: `sms_${res.status}` };
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  const caller = await identify(req);
+  if (!caller || caller.kind === 'user') {
+    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
   // Récupère un lot de notifications en attente.
   const res = await db('notifications?status=eq.pending&order=scheduled_at&limit=50', { method: 'GET' });
   const pending = await res.json();
