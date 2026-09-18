@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from './communications-panel';
+import { LinkContactPanel } from './link-contact-panel';
 import {
   updateLead, deleteLead, archiveLead, listLeadAudit, listCompanyMembers,
   listLeadTasks, createLeadTask, completeLeadTask, updateLeadTask, openTask,
@@ -49,7 +50,7 @@ const stamp = (iso: string | null | undefined) =>
 /** Ce que l'utilisateur est en train de faire dans l'en-tête de la carte. */
 type Mode = 'view' | 'edit' | 'next' | 'archive';
 
-export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead; companyId: string; onClose: () => void; onChanged: () => void }) {
+export function LeadDetail({ lead, companyId, onClose, onChanged, notice }: { lead: Lead; companyId: string; onClose: () => void; onChanged: () => void; notice?: string | null }) {
   const qc = useQueryClient();
   const [f, setF] = useState({
     name: lead.name ?? '', email: lead.email ?? '', phone: lead.phone ?? '',
@@ -62,6 +63,10 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
   const [err, setErr] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('view');
   const [exiting, setExiting] = useState(false);
+  // Fiche client de la carte : peut être reliée depuis la carte, sans recharger.
+  const [contactId, setContactId] = useState<string | null>(lead.contact_id);
+  const [tab, setTab] = useState(lead.contact_id ? 'thread' : 'history');
+  const [linkMsg, setLinkMsg] = useState<string | null>(null);
 
   const tasks = useQuery({ queryKey: ['lead-tasks', lead.id], queryFn: () => listLeadTasks(lead.id) });
   const audit = useQuery({ queryKey: ['lead-audit', lead.id], queryFn: () => listLeadAudit(lead.id) });
@@ -195,6 +200,8 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
             </Button>
           </DialogTitle></DialogHeader>
 
+          {notice && <p className="rounded-md border border-[var(--warning)] px-3 py-2 text-[13px]">{notice}</p>}
+
           {/* ---------- EN-TÊTE : ce qu'il faut faire, et les trois sorties ---------- */}
           <div className={`rounded-md border p-3 ${late || !current ? 'border-[var(--danger)]' : 'border-border'}`}>
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
@@ -303,17 +310,29 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
 
             {/* ---------- Échanges · Tâches faites · Documents · Suivi ---------- */}
             <div className="min-w-0">
-              <Tabs defaultValue={lead.contact_id ? 'thread' : 'history'}>
+              {/* Carte sans fiche : pas d'échanges par mail tant qu'elle n'est pas reliée. */}
+              {!contactId && (
+                <div className="mb-3">
+                  <LinkContactPanel lead={lead} companyId={companyId} onLinked={(r) => {
+                    setContactId(r.contact_id);
+                    setTab('thread');
+                    setLinkMsg(r.other_open_lead ? t('crm.linkedOtherOpen') : r.contact_created ? t('crm.linkedCreated') : t('crm.linkedExisting'));
+                    refresh();
+                  }} />
+                </div>
+              )}
+              {linkMsg && <p className="mb-2 text-[12px] text-muted-foreground">{linkMsg}</p>}
+              <Tabs value={tab} onValueChange={setTab}>
                 <TabsList>
-                  {lead.contact_id && <TabsTrigger value="thread">{t('crm.thread')}</TabsTrigger>}
+                  {contactId && <TabsTrigger value="thread">{t('crm.thread')}</TabsTrigger>}
                   <TabsTrigger value="history">{t('crm.taskHistory')}</TabsTrigger>
                   <TabsTrigger value="docs">{t('crm.documents')}</TabsTrigger>
                   <TabsTrigger value="followup">{t('crm.followup')}</TabsTrigger>
                 </TabsList>
 
-                {lead.contact_id && (
+                {contactId && (
                   <TabsContent value="thread" className="mt-3">
-                    <CommunicationsPanel companyId={companyId} contactId={lead.contact_id} defaultChannel="email" />
+                    <CommunicationsPanel companyId={companyId} contactId={contactId} defaultChannel="email" />
                   </TabsContent>
                 )}
 
@@ -338,8 +357,8 @@ export function LeadDetail({ lead, companyId, onClose, onChanged }: { lead: Lead
                 <TabsContent value="docs" className="mt-3">
                   <AttachmentsPanel
                     companyId={companyId}
-                    entityType={lead.contact_id ? 'contact' : 'lead'}
-                    entityId={lead.contact_id ?? lead.id}
+                    entityType={contactId ? 'contact' : 'lead'}
+                    entityId={contactId ?? lead.id}
                   />
                 </TabsContent>
 

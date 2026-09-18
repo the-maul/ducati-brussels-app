@@ -43,6 +43,64 @@ export async function createLead(p: { companyId: string; name: string; email?: s
   return res.data.id as string;
 }
 
+/** Fonctions SQL récentes, pas encore dans `types.ts` généré. */
+const rpcUntyped = supabase.rpc as unknown as (
+  fn: string, args?: Record<string, unknown>,
+) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
+
+/**
+ * CRÉATION MANUELLE D'UNE CARTE (migration 20260919180000) — une seule transaction en base.
+ *
+ * L'e-mail décide (D3) : une fiche de la société porte cet e-mail → la carte y est reliée,
+ * et si ce client a déjà une carte ouverte dans ce CRM on ne crée pas de doublon
+ * (`existing = true`, on renvoie la carte existante) ; aucune fiche → fiche prospect créée
+ * (origine « manuel ») ; pas d'e-mail → carte sans fiche. La tâche « Recontacter le client »
+ * à J+2 est confiée au responsable par défaut dans la même transaction.
+ */
+export type ManualLeadResult = { lead_id: string; contact_id: string | null; contact_created: boolean; existing: boolean };
+export async function createManualLead(p: {
+  companyId: string; pipeline: Pipeline; name: string; email?: string; phone?: string;
+  vehicleInterest?: string; source?: string; estimatedValue?: number | null;
+}): Promise<ManualLeadResult> {
+  const { data, error } = await rpcUntyped('crm_create_manual_lead', {
+    _company: p.companyId, _pipeline: p.pipeline, _name: p.name,
+    _email: p.email || null, _phone: p.phone || null, _vehicle_interest: p.vehicleInterest || null,
+    _source: p.source || null, _estimated_value: p.estimatedValue ?? null,
+  });
+  if (error) throw error;
+  const row = (data as ManualLeadResult[] | null)?.[0];
+  if (!row) throw new Error('crm_create_manual_lead: empty result');
+  return row;
+}
+
+/**
+ * Relie une carte sans fiche à une fiche client : celle choisie (`contactId`), ou à défaut
+ * celle qui porte l'e-mail de la carte, ou une fiche prospect créée avec les infos de la carte.
+ * `other_open_lead` : une autre carte ouverte du même client, à signaler.
+ */
+export type LinkLeadResult = { contact_id: string; contact_created: boolean; other_open_lead: string | null };
+export async function linkLeadContact(leadId: string, contactId?: string | null): Promise<LinkLeadResult> {
+  const { data, error } = await rpcUntyped('crm_link_lead_contact', { _lead: leadId, _contact: contactId ?? null });
+  if (error) throw error;
+  const row = (data as LinkLeadResult[] | null)?.[0];
+  if (!row) throw new Error('crm_link_lead_contact: empty result');
+  return row;
+}
+
+/** Quelques fiches pour relier une carte (nom, e-mail, téléphone — recherche accent-insensible). */
+export type ContactBrief = { id: string; first_name: string | null; last_name: string | null; company_name: string | null; email: string | null; mobile: string | null; phone: string | null; status: string; is_active: boolean };
+export async function searchContactsForLead(companyId: string, q: string): Promise<ContactBrief[]> {
+  const { data, error } = await supabase.rpc('contacts_search', { _company: companyId, _q: q, _type: '', _limit: 10, _offset: 0 });
+  if (error) throw error;
+  return ((data ?? []) as ContactBrief[]);
+}
+
+export async function getLead(id: string): Promise<Lead | null> {
+  const { data, error } = await supabase.from('leads').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 const isMissingSchema = (e: unknown): boolean => {
   const code = (e as { code?: string })?.code ?? '';
   return code === 'PGRST205' || code === '42P01' || code === '42703' || code === 'PGRST204';
