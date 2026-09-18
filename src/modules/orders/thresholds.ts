@@ -88,3 +88,23 @@ export function excelTabsStatus(lines: ExcelLine[]): Record<ExcelTab, { total: n
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/**
+ * Récapitulatif par onglet utilisé par l'écran et l'alerte de la barre du haut
+ * (carte mission 02) : total = Σ prix dealer × qté (col M), seuil paramétré
+ * (reference_values order_threshold / excel, 2 000 € HTVA par défaut). Le total
+ * remisé (col O) est donné pour information.
+ */
+export type ExcelTabSummary = { total: number; totalFinal: number; reached: boolean; remaining: number; lines: number };
+
+export function excelTabsSummary(lines: ExcelLine[], minPerTab: number = DEFAULT_THRESHOLDS.excel.minHtPerTab): Record<ExcelTab, ExcelTabSummary> {
+  const out = {} as Record<ExcelTab, ExcelTabSummary>;
+  for (const t of ['demo', 'courtoisie', 'showroom'] as ExcelTab[]) {
+    const tl = lines.filter((l) => l.tab === t);
+    const total = round2(tl.reduce((s, l) => s + l.priceDealer * l.qty, 0));
+    const totalFinal = round2(tl.reduce((s, l) => s + excelLineFinal(l), 0));
+    const reached = total >= minPerTab;
+    out[t] = { total, totalFinal, reached, remaining: reached ? 0 : round2(minPerTab - total), lines: tl.length };
+  }
+  return out;
+}

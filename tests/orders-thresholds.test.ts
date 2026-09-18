@@ -6,7 +6,7 @@
 import { test, expect } from 'bun:test';
 import {
   surchargeForKind, resolveKind, clientLinePrice,
-  excelLineValue, excelLineFinal, excelTabTotal, excelTabReached, excelTabRemaining, excelTabsStatus,
+  excelLineValue, excelLineFinal, excelTabTotal, excelTabReached, excelTabRemaining, excelTabsStatus, excelTabsSummary,
   type ExcelLine,
 } from '../src/modules/orders/thresholds';
 
@@ -77,4 +77,15 @@ test('Excel : statut par onglet (3 onglets)', () => {
   expect(Object.keys(s).sort()).toEqual(['courtoisie', 'demo', 'showroom']);
   expect(s.demo.reached).toBe(false);
   expect(s.courtoisie.total).toBe(500);
+});
+
+test('Excel : récapitulatif par onglet sur prix dealer × qté, seuil paramétrable', () => {
+  const s = excelTabsSummary(lines);
+  expect(s.demo.total).toBe(2106.75);        // 1620.8 + 485.95
+  expect(s.demo.totalFinal).toBe(1727.54);
+  expect(s.demo.reached).toBe(true);
+  expect(s.courtoisie.remaining).toBe(1500);
+  const custom = excelTabsSummary(lines, 2500);
+  expect(custom.demo.reached).toBe(false);
+  expect(custom.demo.remaining).toBe(393.25);
 });
