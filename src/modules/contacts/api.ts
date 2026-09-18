@@ -153,8 +153,9 @@ export type MergeContactsResult = {
 };
 
 // Fonctions ajoutées après la dernière génération de types.ts : appel non typé localisé.
+// `.bind(supabase)` obligatoire : `rpc` lit `this.rest` (voir tests/rpc-bound.test.ts).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rpcUntyped = supabase.rpc as any;
+const rpcUntyped = supabase.rpc.bind(supabase) as any;
 
 /** Ce qui sera rapatrié de `absorbId` vers `keepId`, et ce qui bloquerait. Lecture seule. */
 export async function getMergePreview(keepId: string, absorbId: string): Promise<MergePreview> {
