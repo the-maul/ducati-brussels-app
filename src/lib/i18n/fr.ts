@@ -2151,6 +2151,20 @@ export const fr = {
     unread: 'Non lue',
     markAllRead: 'Tout marquer comme lu',
     empty: 'Rien de nouveau.',
+    // Décision N-1 : chacun voit ce qui le concerne.
+    tasksMine: 'Mes tâches CRM',
+    tasksTeam: 'Tâches CRM de l’équipe',
+    tasksNone: 'Aucune tâche en retard ni pour aujourd’hui.',
+    tasksSeeAll: 'Ouvrir le CRM',
+    orphan: 'Sans responsable',
+    assignedTo: 'Pour ',
+    scopeLabel: 'Afficher',
+    scopeMine: 'Les miennes',
+    scopeTeam: 'Toute l’équipe',
+    apptTitle: 'Demandes de rendez-vous atelier',
+    apptSlotMorning: 'matin',
+    apptSlotAfternoon: 'après-midi',
+    apptSeeAll: 'Ouvrir le planning atelier',
   },
 
   users: {

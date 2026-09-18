@@ -5,7 +5,8 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus } from 'lucide-react';
+import { PanelLeft, Bell, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock } from 'lucide-react';
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,49 +18,95 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
-import { listLeadsDue, dueState, listSignupNotifications, markSignupNotificationsRead } from '@/modules/crm/api';
+import {
+  dueState, listBellTasks, listCompanyMembers, listSignupNotifications, markSignupNotificationsRead,
+  SIGNUP_NOTIF_ROLES, type BellScope,
+} from '@/modules/crm/api';
+import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/workshop/planning-api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
 /**
- * Cloche — deux listes :
- *   1. demandes CRM à traiter. Rouge dès qu'une échéance est dépassée, orange
- *      s'il en reste à traiter aujourd'hui. Mène au pipeline CRM. L'échéance est
- *      posée à la création d'une demande et repoussée à chaque échange avec le
- *      client (migration 20260914190000) ;
- *   2. inscriptions de clients des 7 derniers jours (page en ligne ou borne),
- *      cliquables vers la fiche client ; « lu » propre à chaque utilisateur
- *      (migration 20260919170000). Aucun e-mail ni SMS.
- * Le badge compte les demandes à traiter + les inscriptions non lues.
+ * Cloche — chacun voit ce qui le concerne (décision N-1 du 19/09) :
+ *   1. TÂCHES CRM ouvertes qui lui sont confiées, en retard ou pour aujourd'hui.
+ *      Un administrateur voit aussi celles « sans responsable » (confiées à quelqu'un
+ *      qui n'est plus membre actif) et peut basculer « Les miennes / Toute l'équipe »
+ *      (mémorisé dans le navigateur). Mène au CRM.
+ *   2. NOUVELLES INSCRIPTIONS de clients (7 derniers jours) : rôles vendeur,
+ *      marketing, admin. Filtré aussi en base (migration 20260919190000) : un
+ *      mécanicien ne peut pas les lire. « Lu » propre à chaque utilisateur.
+ *   3. DEMANDES DE RENDEZ-VOUS ATELIER envoyées depuis le portail client (statut
+ *      « demande ») : rôles mecanicien, chef_atelier, admin. Mène au planning.
+ * Le badge compte uniquement ce que la personne voit : tâches + inscriptions non
+ * lues + demandes de rendez-vous. Aucun e-mail ni SMS.
  */
+const BELL_SCOPE_KEY = 'ducati.bell.scope';
+function readScope(): BellScope {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(BELL_SCOPE_KEY) === 'team' ? 'team' : 'mine';
+  } catch {
+    return 'mine';
+  }
+}
+
 function NotificationsBell() {
-  const { activeCompanyId, user } = useAuth();
+  const { activeCompanyId, user, rolesForActiveCompany } = useAuth();
   const queryClient = useQueryClient();
-  // On charge la LISTE, pas seulement le compte : la cloche s'ouvre et chaque
-  // demande est cliquable. Un simple badge ne disait pas de quoi il s'agissait.
-  const { data } = useQuery({
-    queryKey: ['leads-due', activeCompanyId],
-    queryFn: () => listLeadsDue(activeCompanyId!),
-    enabled: !!activeCompanyId,
+  const uid = user?.id;
+  const has = (list: readonly string[]) => rolesForActiveCompany.some((r) => list.includes(r));
+  const admin = rolesForActiveCompany.includes('admin');
+  const seesSignups = has(SIGNUP_NOTIF_ROLES);
+  const seesAppts = has(APPT_REQUEST_ROLES);
+
+  const [scope, setScopeState] = useState<BellScope>(readScope);
+  const setScope = (s: BellScope) => {
+    setScopeState(s);
+    try { localStorage.setItem(BELL_SCOPE_KEY, s); } catch { /* navigateur sans stockage : on garde en mémoire */ }
+  };
+  const effectiveScope: BellScope = admin ? scope : 'mine';
+
+  // Membres actifs : seulement pour un administrateur (repérer les tâches sans responsable
+  // et afficher le nom du responsable en mode « Toute l'équipe »).
+  const { data: members, isFetched: membersReady } = useQuery({
+    queryKey: ['company-members', activeCompanyId],
+    queryFn: () => listCompanyMembers(activeCompanyId!),
+    enabled: !!activeCompanyId && admin,
+    staleTime: 300_000,
+  });
+  const memberIds = (members ?? []).map((m) => m.user_id);
+  const memberName = (id: string) => members?.find((m) => m.user_id === id)?.name ?? '—';
+
+  const { data: taskData } = useQuery({
+    queryKey: ['bell-tasks', activeCompanyId, uid, admin, effectiveScope, memberIds.join(',')],
+    queryFn: () => listBellTasks(activeCompanyId!, uid!, { isAdmin: admin, scope: effectiveScope, activeMemberIds: memberIds }),
+    enabled: !!activeCompanyId && !!uid && (!admin || membersReady),
     refetchInterval: 120_000,
   });
-  const signupsKey = ['signup-notifications', activeCompanyId, user?.id];
+  const signupsKey = ['signup-notifications', activeCompanyId, uid];
   const { data: signupData } = useQuery({
     queryKey: signupsKey,
-    queryFn: () => listSignupNotifications(activeCompanyId!, user!.id),
-    enabled: !!activeCompanyId && !!user?.id,
+    queryFn: () => listSignupNotifications(activeCompanyId!, uid!),
+    enabled: !!activeCompanyId && !!uid && seesSignups,
+    refetchInterval: 120_000,
+  });
+  const { data: apptData } = useQuery({
+    queryKey: ['bell-appointment-requests', activeCompanyId],
+    queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
+    enabled: !!activeCompanyId && seesAppts,
     refetchInterval: 120_000,
   });
   const markRead = useMutation({
-    mutationFn: (ids: string[]) => markSignupNotificationsRead(ids, user!.id),
+    mutationFn: (ids: string[]) => markSignupNotificationsRead(ids, uid!),
     onSettled: () => queryClient.invalidateQueries({ queryKey: signupsKey }),
   });
 
-  const rows = data ?? [];
-  const signups = signupData ?? [];
+  const tasks = taskData ?? [];
+  const signups = seesSignups ? signupData ?? [] : [];
+  const appts = seesAppts ? apptData ?? [] : [];
   const unreadSignups = signups.filter((n) => !n.read);
-  const overdue = rows.filter((l) => dueState(l.due_at) === 'overdue').length;
-  const total = rows.length + unreadSignups.length;
+  const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length;
+  const total = tasks.length + unreadSignups.length + appts.length;
+  const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <DropdownMenu>
@@ -71,7 +118,7 @@ function NotificationsBell() {
         {total > 0 && (
           <span
             className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
-              overdue > 0 ? 'bg-[var(--danger)]' : rows.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
+              overdue > 0 ? 'bg-[var(--danger)]' : tasks.length > 0 || appts.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
             }`}
           >
             {total > 99 ? '99+' : total}
@@ -80,35 +127,84 @@ function NotificationsBell() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="max-h-[80vh] w-80 overflow-y-auto">
-        <DropdownMenuLabel>{t('crm.notifTitle')}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        {rows.length === 0 && (
-          <div className="px-2 py-3 text-[12px] text-muted-foreground">{t('crm.notifNone')}</div>
+        {admin && (
+          <div className="flex items-center gap-1 px-2 pb-1 pt-1.5" role="group" aria-label={t('notif.scopeLabel')}>
+            {(['mine', 'team'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={(e) => { e.preventDefault(); setScope(s); }}
+                aria-pressed={scope === s}
+                className={`h-7 flex-1 rounded-md text-[12px] font-medium ${
+                  scope === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {s === 'mine' ? t('notif.scopeMine') : t('notif.scopeTeam')}
+              </button>
+            ))}
+          </div>
         )}
 
-        {rows.slice(0, 8).map((l) => {
-          const late = dueState(l.due_at) === 'overdue';
+        <DropdownMenuLabel>{effectiveScope === 'team' ? t('notif.tasksTeam') : t('notif.tasksMine')}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        {tasks.length === 0 && (
+          <div className="px-2 py-3 text-[12px] text-muted-foreground">{t('notif.tasksNone')}</div>
+        )}
+
+        {tasks.slice(0, 8).map((task) => {
+          const late = dueState(task.due_at) === 'overdue';
+          const who = task.orphan
+            ? t('notif.orphan')
+            : admin && task.assigned_to !== uid ? `${t('notif.assignedTo')}${memberName(task.assigned_to)}` : null;
           return (
-            <DropdownMenuItem key={l.id} asChild className="cursor-pointer">
+            <DropdownMenuItem key={task.id} asChild className="cursor-pointer">
               <Link to="/crm" className="flex flex-col items-start gap-0.5">
-                <span className="w-full truncate text-[13px] font-medium">{l.name}</span>
-                {l.vehicle_interest && (
-                  <span className="w-full truncate text-[11px] text-muted-foreground">{l.vehicle_interest}</span>
-                )}
+                <span className="w-full truncate text-[13px] font-medium">{task.lead_name}</span>
+                <span className="w-full truncate text-[11px] text-muted-foreground">
+                  {task.title}{task.vehicle_interest ? ` · ${task.vehicle_interest}` : ''}
+                </span>
                 <span className={`text-[11px] font-medium ${late ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>
-                  {late ? t('crm.dueOverdue') : t('crm.dueToday')}
-                  {l.due_at && ` · ${new Date(l.due_at).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' })}`}
+                  {late ? t('crm.dueOverdue') : t('crm.dueToday')} · {fmt(task.due_at)}
+                  {who && <span className="font-normal text-muted-foreground"> · {who}</span>}
                 </span>
               </Link>
             </DropdownMenuItem>
           );
         })}
 
-        {rows.length > 0 && (
+        {tasks.length > 0 && (
           <DropdownMenuItem asChild className="cursor-pointer">
-            <Link to="/crm" className="text-[12px]">{t('crm.notifSeeAll')}</Link>
+            <Link to="/crm" className="text-[12px]">{t('notif.tasksSeeAll')}</Link>
           </DropdownMenuItem>
+        )}
+
+        {appts.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('notif.apptTitle')}</DropdownMenuLabel>
+            {appts.slice(0, 8).map((a) => {
+              const day = new Date(a.starts_at).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+              const slot = a.requested_slot === 'matin' ? t('notif.apptSlotMorning') : a.requested_slot === 'apres_midi' ? t('notif.apptSlotAfternoon') : null;
+              return (
+                <DropdownMenuItem key={a.id} asChild className="cursor-pointer">
+                  <Link to="/workshop/planning" search={{ week: undefined }} className="flex flex-col items-start gap-0.5">
+                    <span className="flex w-full items-center gap-1.5">
+                      <CalendarClock className="size-3.5 shrink-0 text-[var(--warning)]" />
+                      <span className="truncate text-[13px] font-medium">{a.client_name}</span>
+                    </span>
+                    {a.work_description && (
+                      <span className="w-full truncate text-[11px] text-muted-foreground">{a.work_description}</span>
+                    )}
+                    <span className="text-[11px] text-muted-foreground">{day}{slot ? ` · ${slot}` : ''}</span>
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/workshop/planning" search={{ week: undefined }} className="text-[12px]">{t('notif.apptSeeAll')}</Link>
+            </DropdownMenuItem>
+          </>
         )}
 
         {signups.length > 0 && (
@@ -119,7 +215,6 @@ function NotificationsBell() {
               const label = `${t('notif.signupPrefix')}${n.title}${
                 n.origin ? ` (${n.origin === 'comptoir' ? t('notif.originKiosk') : t('notif.originWeb')})` : ''
               }`;
-              const when = new Date(n.created_at).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
               const body = (
                 <>
                   <span className="flex w-full items-center gap-1.5">
@@ -128,7 +223,7 @@ function NotificationsBell() {
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {!n.read && <span className="font-medium text-[var(--info)]">{t('notif.unread')} · </span>}
-                    {when}
+                    {fmt(n.created_at)}
                   </span>
                 </>
               );

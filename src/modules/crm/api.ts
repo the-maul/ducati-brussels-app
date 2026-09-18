@@ -158,13 +158,78 @@ export async function listLeadsDue(companyId: string): Promise<Lead[]> {
 }
 
 /**
+ * CLOCHE — TÂCHES CRM (décision N-1 du 19/09).
+ *
+ * La cloche montre à chacun les tâches ouvertes (`lead_tasks`, non faites) qui LUI
+ * sont confiées, en retard ou à faire aujourd'hui. Un administrateur voit aussi les
+ * tâches « sans responsable » : `assigned_to` est obligatoire en base, donc ce sont
+ * celles confiées à quelqu'un qui n'est plus membre actif de la société (compte
+ * désactivé ou retiré). En mode « Toute l'équipe », l'administrateur voit tout.
+ * Demandes archivées, gagnées ou perdues : exclues.
+ */
+export type BellScope = 'mine' | 'team';
+export type BellTask = {
+  id: string;
+  lead_id: string;
+  title: string;
+  due_at: string;
+  assigned_to: string;
+  lead_name: string;
+  vehicle_interest: string | null;
+  /** Responsable absent des membres actifs de la société. */
+  orphan: boolean;
+};
+
+export async function listBellTasks(
+  companyId: string,
+  userId: string,
+  opts: { isAdmin: boolean; scope: BellScope; activeMemberIds: string[] },
+): Promise<BellTask[]> {
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  let q = supabase
+    .from('lead_tasks')
+    .select('id, lead_id, title, due_at, assigned_to, leads!inner(name, vehicle_interest, stage, archived_at)')
+    .eq('company_id', companyId)
+    .is('done_at', null)
+    .lte('due_at', endOfDay.toISOString())
+    .is('leads.archived_at', null)
+    .in('leads.stage', OPEN_STAGES as unknown as string[])
+    .order('due_at', { ascending: true })
+    .limit(200);
+  // Non-administrateur (ou « Les miennes » sans membres chargés) : filtre en base.
+  if (!opts.isAdmin) q = q.eq('assigned_to', userId);
+  const { data, error } = await q;
+  if (error) throw error;
+  const members = new Set(opts.activeMemberIds);
+  const rows = (data ?? []).map((r) => {
+    const lead = (Array.isArray(r.leads) ? r.leads[0] : r.leads) as { name: string; vehicle_interest: string | null } | null;
+    return {
+      id: r.id,
+      lead_id: r.lead_id,
+      title: r.title,
+      due_at: r.due_at,
+      assigned_to: r.assigned_to,
+      lead_name: lead?.name ?? '—',
+      vehicle_interest: lead?.vehicle_interest ?? null,
+      orphan: members.size > 0 && !members.has(r.assigned_to),
+    };
+  });
+  if (!opts.isAdmin || opts.scope === 'team') return rows;
+  return rows.filter((r) => r.assigned_to === userId || r.orphan);
+}
+
+/**
  * INSCRIPTIONS DE CLIENTS (mission 01, lot 5 — migration 20260919170000).
  *
  * Quand un client crée son compte (page /inscription ou borne /borne), un
  * déclencheur en base ajoute une ligne à `team_notifications`. La cloche montre
  * celles des 7 derniers jours ; « lu » est propre à chaque utilisateur
  * (`team_notification_reads`). Aucun e-mail ni SMS.
+ * Décision N-1 (migration 20260919190000) : lisibles seulement par les rôles
+ * admin, vendeur et marketing — la base renvoie zéro ligne aux autres.
  */
+export const SIGNUP_NOTIF_ROLES = ['admin', 'vendeur', 'marketing'] as const;
 export const SIGNUP_NOTIF_DAYS = 7;
 
 export type SignupNotification = {
