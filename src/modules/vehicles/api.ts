@@ -2,7 +2,7 @@
  * M3 — Accès données Véhicules (RLS : filtré par société).
  */
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database, Json } from '@/integrations/supabase/types';
 
 export type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 export type VehicleInsert = Database['public']['Tables']['vehicles']['Insert'];
@@ -165,4 +165,55 @@ export async function listVehicleDocuments(vehicleId: string): Promise<VehicleDo
     .eq('vehicle_id', vehicleId).order('issue_date', { ascending: false }).limit(300);
   if (error) throw error;
   return (data ?? []).map((d) => ({ ...d, total_ttc: Number(d.total_ttc) }));
+}
+
+/* ------------------------------------------------------------------------
+ * Mission 04, carte 6 — moto d'un client créée depuis sa fiche.
+ * Migration : supabase/migrations/20260919300000_m3_moto_client_depuis_fiche.sql.
+ * ---------------------------------------------------------------------- */
+
+/** Moto de la société qui porte déjà un VIN (doublon), avec son propriétaire actuel. */
+export type VinMatch = {
+  id: string; brand: string | null; model: string | null; plate: string | null; vin: string | null;
+  status: VehicleStatus; owner_id: string | null; owner_name: string | null;
+};
+
+export async function findVehiclesByVin(companyId: string, vin: string, excludeId?: string | null): Promise<VinMatch[]> {
+  const { data, error } = await supabase.rpc('vehicles_find_by_vin', {
+    _company: companyId, _vin: vin, ...(excludeId ? { _exclude: excludeId } : {}),
+  });
+  if (error) throw error;
+  return (data ?? []) as VinMatch[];
+}
+
+/** Erreur « ce VIN existe déjà » renvoyée par la base (la moto existante est dans `vehicleId`). */
+export class VinExistsError extends Error {
+  constructor(public vehicleId: string | null) { super('VIN_EXISTS'); }
+}
+
+/**
+ * Crée la moto d'un client ET son lien propriétaire (vehicle_owners, propriétaire
+ * courant) en une transaction, tracée dans events. Jamais d'article V/O/P/D : une
+ * moto de client est un véhicule de réparation. Refuse un VIN déjà présent.
+ */
+export async function createVehicleForContact(
+  companyId: string, contactId: string, input: VehicleInsert, fromDate?: string | null,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('vehicle_create_for_contact', {
+    _company: companyId, _contact: contactId, _vehicle: input as unknown as Json,
+    ...(fromDate ? { _from_date: fromDate } : {}),
+  });
+  if (error) {
+    if (error.message?.includes('VIN_EXISTS')) throw new VinExistsError(error.details ?? null);
+    throw error;
+  }
+  return data as string;
+}
+
+/** Rattache une moto existante à un client (le propriétaire courant précédent est clôturé). */
+export async function attachVehicleOwner(vehicleId: string, contactId: string, fromDate?: string | null): Promise<void> {
+  const { error } = await supabase.rpc('vehicle_attach_owner', {
+    _vehicle: vehicleId, _contact: contactId, ...(fromDate ? { _from_date: fromDate } : {}),
+  });
+  if (error) throw error;
 }

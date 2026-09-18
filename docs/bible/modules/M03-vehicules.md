@@ -3,7 +3,7 @@ chapitre: M03
 titre: Véhicules & parc
 etat: 🟦
 verifie_le: 2026-09-18
-missions: []
+missions: [04]
 mots_cles: [véhicule, moto, VIN, châssis, parc, statut parc, propriétaire, historique propriétaires, plaque, carte grise, bridage, A2, garantie, My Ducati, extension, bulletin technique, maintenance, coût de revient, prix affiché, jours en stock, décodage VIN]
 ---
 
@@ -30,6 +30,7 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 | Véhicules → fiche (`/vehicles/$vehicleId`) | Même formulaire + sections : **Propriétaires** (historique daté, propriétaire actuel — lecture seule), **Factures & documents** (documents de vente liés au VIN), **Infos Ducati (My Ducati)** (garantie, entretiens, bulletins techniques avec PDF FR rapatrié), **GED** (photos, COC…), **Clients intéressés** (matching client ↔ moto en stock avec notification, M10), bouton vers le dossier de reprise si la moto vient d'une reprise. |
 | Paramètres → Extension My Ducati (`/settings/extension`) | Téléchargement de l'extension (`public/myducati-extension.zip`) et mode d'emploi. |
 | (fiche client) Onglet véhicules | Parc d'un client, via `vehicle_owners` (M1). Bouton My Ducati sur la fiche contact. |
+| (fiche client) Parc → **Ajouter une moto** (`/vehicles/new?contact=<id>`) | Mission 04 carte 6 : moto du client créée avec son lien propriétaire (date de début), sans article ni suivi commercial ; si le VIN existe déjà, **« Rattacher cette moto existante au client »**. |
 
 ## 3. Où trouver quoi
 
@@ -40,16 +41,18 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 | My Ducati | `src/lib/myducati.ts` (réception des données de l'extension, écriture véhicule/maintenance/bulletins/contact), `src/components/myducati-listener.tsx`, extension source `tools/myducati-extension/` (`manifest.json`, `ducati.js`, `background.js`, `dms-bridge.js`, `README.md`), spécification `docs/extension-myducati.md` |
 | Décodage VIN | `src/lib/ducati-vin.ts` (VIN connu → `ducati_vin_facts`, sinon code VDS → `ducati_vds`) |
 | Tables | `vehicles` (fiche VIN, statut, prix), `vehicle_owners` (historique propriétaires daté), `vehicle_maintenance` (entretiens My Ducati), `vehicle_bulletins` (bulletins techniques + PDF), `ducati_vds` (table de référence modèle par code VDS, lisible par tous les connectés), `ducati_vin_facts` (VIN connus des factures) |
-| Fonctions SQL (RPC) | `learn_ducati_vds` + trigger `trg_learn_ducati_vds` (chaque moto Ducati enregistrée enrichit la table VDS), `recompute_oro_and_vehicle` (coût de revient, voir M07), `contacts_search` (recherche par propriétaire) |
+| Fonctions SQL (RPC) | Mission 04 : `vin_normalize`, `vehicles_find_by_vin` (doublon de VIN + propriétaire actuel), `vehicle_create_for_contact` (moto + propriétaire en une transaction, refuse `VIN_EXISTS`), `vehicle_attach_owner` (changement de propriétaire tracé) ; `learn_ducati_vds` + trigger `trg_learn_ducati_vds` (chaque moto Ducati enregistrée enrichit la table VDS), `recompute_oro_and_vehicle` (coût de revient, voir M07), `contacts_search` (recherche par propriétaire) |
 | Fonctions serveur (Edge) | aucune |
 | Tâches planifiées | aucune pour les véhicules (l'alerte `dormant-stock-alert` ne porte que sur les articles de type A, voir §7) |
 | Migrations clés | `supabase/migrations/20260610170000_m3_vehicles.sql` (schéma, statuts, RLS), `20260612270000_m14_g8_legacy_fields.sql` (`entry_date`, `sold_date`…), `20260612600000_ducati_vds_decoder.sql`, `20260612700000_ducati_vin_facts.sql`, `20260613500000_m3_ducati_vehicle_data.sql` (My Ducati), `20260613600000_m3_bulletin_url.sql`, `20260613700000_m3_bulletin_pdf.sql`, `20260629140000_m3_vehicle_marking_to_origin.sql`, `20260716090000_m3_vehicles_papers_100hp.sql` |
-| Tests | `tests/myducati.test.ts`, `tests/model-abbrev.test.ts` |
+| Tests | `tests/myducati.test.ts`, `tests/model-abbrev.test.ts`, `tests/vin.test.ts` (contrôle du VIN) |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `vehicles`, `matching`, `settings` (clés `ext*`) |
 
 ## 4. Règles métier et décisions
 
 - **Le VIN est l'objet pivot** (glossaire, B9) : 17 caractères, reconnu par la recherche globale Ctrl+K. Les motos Ducati (`ZDM…`) peuvent être décodées automatiquement.
+- **Contrôle du VIN (mission 04)** : majuscules sans séparateurs (`src/lib/vin.ts` = `vin_normalize` en base) ; 17 caractères et pas de I/O/Q = **avertissement** seulement ; un VIN déjà présent dans la société est **refusé** à la création (écran + base) et l'écran propose de rattacher la moto existante (décision M-13).
+- **Moto d'un client** (mission 04, décision M-12) : véhicule de réparation, **jamais un article** ; statut « Vendu » ; créée avec son propriétaire courant par `vehicle_create_for_contact`. Libellés du formulaire avec les **codes de la carte grise** (E, A, B, D.1, D.3, P.1, P.2, P.3, V.9, R).
 - **Jointure article ↔ véhicule** (B1, B9, « cœur du custom ») : `vehicles.article_id` pointe vers l'article V/O/P/D qui porte le stock et le PAMP. Ne jamais les dissocier. Création de ce lien : réception châssis (M4, type V) et validation de reprise (M7, type O/P). Le dépôt-vente (type D) n'a **pas** de création automatique de véhicule (voir M07).
 - **Statuts parc** (VEH007) — énumération `vehicle_status` : `en_commande`, `stock_vn`, `stock_vo`, `depot_vente`, `reserve`, `vendu`, `livre`, `courtoisie`, `demo`, `depot_agent`, `repris` (affiché « Demande de reprise »).
 - **Coût de revient** (glossaire, B3) : `PA ou prix de reprise + ORO + frais`, recalculé par `recompute_oro_and_vehicle` à chaque ligne d'ORO (M07). Le champ est **aussi saisissable** dans le formulaire (voir §7).
@@ -93,9 +96,9 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 
 ## 7. Limites connues, dettes, pièges
 - **Une vente ne met pas à jour la moto** : aucun code (ni trigger SQL) ne passe le véhicule en `vendu`/`livre` ni ne crée le nouveau propriétaire à la facturation (M6). Le statut et `sold_date` restent manuels. Recherché : aucune écriture sur `vehicles` dans `src/modules/sales/`, aucune `update public.vehicles` dans les migrations hors ORO.
-- **Changement de propriétaire non saisissable** : la section Propriétaires de la fiche est en lecture seule ; aucune écriture de `vehicle_owners` hors reprise (M7) et import G8.
+- **Changement de propriétaire** : la section Propriétaires de la fiche reste en lecture seule ; depuis la mission 04, `vehicle_owners` est aussi écrit par « Ajouter une moto » / « Rattacher cette moto existante au client » (fiche client) et par la validation des motos déclarées (tracé `events`). Toujours rien à la vente (M6).
 - **`cost_price` modifiable à la main** alors qu'il est censé être calculé (PA + ORO). Une saisie manuelle est écrasée au prochain recalcul ORO, et inversement une saisie après ORO fausse la marge.
-- **Pas d'unicité du VIN** (simple index `idx_vehicles_vin`) : doublons possibles. L'import My Ducati lit la moto par VIN avec `maybeSingle()` et échoue en cas de doublon.
+- **Pas d'unicité du VIN en base** (simple index `idx_vehicles_vin`) : les nouvelles saisies par l'écran et `vehicle_create_for_contact` refusent un doublon, mais la réception châssis, la reprise et l'import ne passent pas par ce contrôle. 4 VIN en double au 19/09 (liste : mission 04 §5). L'import My Ducati lit la moto par VIN avec `maybeSingle()` et échoue en cas de doublon.
 - **Écriture « résiliente » = perte silencieuse** d'un champ non migré (voir §5).
 - L'historique des OR atelier (`repair_orders`, M8) n'est pas affiché sur la fiche véhicule : seule la table `documents` l'est. À vérifier si l'OR apparaît ailleurs (recherche globale, M8).
 - L'extension dépend des **libellés français** du portail Ducati (Salesforce) : un libellé renommé par Ducati = champ ignoré. Le domaine de l'application doit figurer dans `manifest.json` (`*.netlify.app` couvert).
@@ -108,7 +111,7 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | VEH000 | Paramétrage standard | ✅ fait | statuts, référentiels de listes |
 | VEH001 | Fiche véhicule complète | ✅ fait | `vehicle-form.tsx`, migration `m3_vehicles` |
 | VEH002 | Suivi commercial prix/marge/statut | 🟦 partiel | PA, coût de revient, prix affiché, jours en stock ; **pas de marge réalisée** sur la fiche (la marge potentielle est dans l'écran Reprise, M7) |
-| VEH003 | Propriétaire actuel + historique | 🟦 partiel | lecture `vehicle_owners` ; pas de saisie de changement de propriétaire, pas de mise à jour à la vente |
+| VEH003 | Propriétaire actuel + historique | 🟦 partiel | lecture `vehicle_owners` ; création/rattachement depuis la fiche client (mission 04) ; pas de mise à jour à la vente |
 | VEH004 | Historique réparations/entretiens | 🟦 partiel | documents liés (`listVehicleDocuments`) + entretiens My Ducati ; OR atelier non affichés (à vérifier) |
 | VEH005 | Gestion documentaire par véhicule | ✅ fait | GED sur la fiche, facture d'achat (`purchase-invoice-field.tsx`) |
 | VEH006 | Rentabilité par véhicule | 🟦 partiel | uniquement pour les reprises, écran `/tradein/$oroId` (voir M07) ; pas de vue de synthèse par VIN |
@@ -131,3 +134,4 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-07-18 | Case « Papiers 100 CH » + repli sur colonne inconnue | `f01ee2c`, `20260716090000` (non appliquée au 14/09) |
 | 2026-07-26 | Matching client intéressé ↔ moto en stock | `6954757` |
 | 2026-09-11 | Retour visuel d'enregistrement, bouton grisé tant que rien ne change | `7f6ce22`, `d24c84f` |
+| 2026-09-19 | **Mission 04 carte 6** : « Ajouter une moto » depuis la fiche client (propriétaire en une transaction, sans article), codes carte grise sur les libellés, contrôle du VIN, refus d'un doublon + rattachement de la moto existante | branche `lot-m4-moto`, migration `20260919300000_m3_moto_client_depuis_fiche` (appliquée le 19/09) |

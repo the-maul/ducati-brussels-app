@@ -8,6 +8,17 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-19 — Mission 04, cartes 6 à 8 (choix de réalisation)
+
+- **M-12** — **Moto d'un client = véhicule de réparation** : créée depuis la fiche client avec son lien
+  propriétaire, **sans article** (pas de type V/O/P/D, pas de stock), statut parc **« Vendu »** comme les
+  2 418 motos « RÉPARÉ » reprises de G8 (l'énumération `vehicle_status` n'a pas de statut « client » ;
+  pas de nouveau statut ajouté). *Équipe · 19/09.* [M03](modules/M03-vehicules.md)
+- **M-13** — **Un VIN = une fiche par société** pour toute nouvelle saisie : refus en base
+  (`VIN_EXISTS`) et proposition de rattacher la moto existante. Pas d'index unique : 4 VIN sont déjà en
+  double (reprise + fiche G8), à fusionner à la main. Le contrôle 17 caractères / I-O-Q n'est qu'un
+  avertissement (vieux cadres). *Équipe · 19/09.* [M03](modules/M03-vehicules.md)
+
 ## 2026-09-19 — Mission 04, cartes 1 à 5 (choix de réalisation)
 
 - **M-8** — **Civilité** : valeurs enregistrées `Monsieur` / `Madame` / `Mx` (celles des ~6 000 fiches

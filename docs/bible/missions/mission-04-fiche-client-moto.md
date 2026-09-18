@@ -134,6 +134,36 @@ Migrations appliquées en base le 19/09 (testées d'abord dans une transaction a
 juridique) ; code postal 5000 ; « Mobiles à compléter » sur une fiche ; changer l'IBAN depuis
 `/mon-espace/profil` puis regarder la cloche avec un compte vendeur ou comptable.
 
+### Lot du 19/09 — cartes 6 à 8 (branche `lot-m4-moto`, à valider)
+
+Migrations appliquées en base le 19/09 (testées d'abord dans une transaction annulée) :
+`20260919300000` et suivantes (voir chaque carte). `types.ts` régénéré.
+
+**Carte 6 — Créer la moto du client depuis sa fiche**
+- Fiche client → onglet **Parc** → **« Ajouter une moto »** → formulaire véhicule
+  (`/vehicles/new?contact=<id>`) : bandeau « Propriétaire » (nom du client) + **« Propriétaire depuis
+  le »** (aujourd'hui par défaut). Pas de « Suivi commercial » (prix, stock) : c'est une moto de client.
+- Enregistrer = **une seule transaction** en base (`vehicle_create_for_contact`) : fiche véhicule +
+  lien propriétaire courant (`vehicle_owners`, date de début) + ligne `events`
+  (`vehicle_created_for_contact`). **Aucun article** V/O/P/D n'est créé (`article_id` vide) ; statut
+  « Vendu », comme les 2 418 motos « RÉPARÉ » reprises de G8 (décision M-12).
+- Codes officiels de la carte grise à côté des libellés : **E** VIN, **A** plaque, **B** mise en
+  circulation, **D.1** marque, **D.3** modèle, **P.1** cylindrée, **P.2** kW, **P.3** énergie,
+  **V.9** norme, **R** couleur (directive 1999/37/CE, reprise telle quelle par la carte grise belge ;
+  pas de case européenne pour les CV, le n° moteur ni l'année modèle). Aussi en création/modification
+  « normales ».
+- **VIN** : mis en majuscules sans espaces ni tirets (écran et base, `vin_normalize`) ; avertissement
+  (jamais bloquant, pour les vieux cadres) s'il ne fait pas 17 caractères ou contient I, O ou Q.
+- **VIN déjà en base** (même société) : encadré « Ce VIN existe déjà dans le parc » avec la moto, son
+  propriétaire actuel, **« Ouvrir la fiche »** et, depuis une fiche client, **« Rattacher cette moto
+  existante au client »** (`vehicle_attach_owner` : l'ancien propriétaire courant est clôturé à la date
+  choisie, historique gardé, `events` `vehicle_owner_attached`). L'enregistrement d'une 2e fiche est
+  refusé à l'écran **et** en base (`VIN_EXISTS`).
+- **VIN en double déjà présents** (19/09, rien modifié) : 4 VIN, chaque fois une fiche « vendu » (G8)
+  et une fiche « Demande de reprise » : `ZDM1A02BGMB009261` (Multistrada V4 S), `ZDM1V00AANB003184`
+  (Supersport 950 S), `ZDM3K00AANB005633` (Scrambler 800 Nightshift), `ZDMB200AAFB011445`
+  (Hypermotard). À fusionner à la main (aucun écran de fusion de motos).
+
 ## 6. Risques
 
 - Reprise G8 : mobiles rangés dans « téléphone » et formes juridiques dans la civilité → proposer, ne pas corriger en masse sans accord.

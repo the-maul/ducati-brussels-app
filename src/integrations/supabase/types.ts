@@ -6938,6 +6938,38 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      vehicle_attach_owner: {
+        Args: {
+          _contact: string
+          _from_date?: string
+          _reason?: string
+          _vehicle: string
+        }
+        Returns: Json
+      }
+      vehicle_create_for_contact: {
+        Args: {
+          _company: string
+          _contact: string
+          _from_date?: string
+          _vehicle: Json
+        }
+        Returns: string
+      }
+      vehicles_find_by_vin: {
+        Args: { _company: string; _exclude?: string; _vin: string }
+        Returns: {
+          brand: string
+          id: string
+          model: string
+          owner_id: string
+          owner_name: string
+          plate: string
+          status: Database["public"]["Enums"]["vehicle_status"]
+          vin: string
+        }[]
+      }
+      vin_normalize: { Args: { _vin: string }; Returns: string }
       vo_margin_register: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {

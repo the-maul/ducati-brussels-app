@@ -48,7 +48,7 @@ function VehiclesList() {
         title={t('vehicles.title')}
         description={t('vehicles.subtitle')}
         actions={
-          <Button onClick={() => navigate({ to: '/vehicles/new' })}>
+          <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined } })}>
             <Plus /> {t('vehicles.new')}
           </Button>
         }

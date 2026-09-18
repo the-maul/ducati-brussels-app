@@ -2450,6 +2450,30 @@ export const fr = {
     ibanToCheck: 'À vérifier',
   },
 
+  // Mission 04, cartes 6 à 8 : moto du client (fiche client, carte grise, déclaration par le client)
+  motoClient: {
+    addForClient: 'Ajouter une moto',
+    newForClient: 'Nouvelle moto du client',
+    owner: 'Propriétaire',
+    ownerFrom: 'Propriétaire depuis le',
+    clientModeHint: 'Moto de client (réparation) : elle rejoint le parc du client, pas le stock à vendre. Aucun article n’est créé.',
+    cgCode: 'Case de la carte grise',
+    identityRequired: 'Renseignez au moins le VIN, la plaque ou le modèle.',
+    vinWarnLength: 'Un VIN compte normalement 17 caractères (ici {n}). Vérifiez-le ; accepté pour un cadre ancien.',
+    vinWarnLetters: 'Un VIN ne contient normalement ni I, ni O, ni Q (ici : {l}). Vérifiez s’il s’agit d’un 1 ou d’un 0 ; accepté pour un cadre ancien.',
+    vinExistsTitle: 'Ce VIN existe déjà dans le parc',
+    vinExistsHintClient: 'Pour ne pas créer de doublon, rattachez la moto existante au client.',
+    vinExistsHint: 'Pour ne pas créer de doublon, ouvrez la fiche existante.',
+    vinExistsBlock: 'Ce VIN existe déjà : la moto n’a pas été créée (pas de doublon).',
+    attachExisting: 'Rattacher cette moto existante au client',
+    currentOwner: 'Au nom de : ',
+    noOwner: 'Sans propriétaire',
+    attachReplaces: 'Le rattachement clôture le propriétaire actuel (l’historique est conservé).',
+    openExisting: 'Ouvrir la fiche',
+    attached: 'Moto rattachée au client.',
+    created: 'Moto créée et rattachée au client.',
+  },
+
   users: {
     title: 'Utilisateurs',
     subtitle: 'Créer des comptes et gérer les rôles par société.',
