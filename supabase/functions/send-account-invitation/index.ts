@@ -10,6 +10,19 @@
 //     connexion, lien vers l'espace client, texte du message de bienvenue K.
 //   - 'password_changed' (décision U-5) : « Votre mot de passe a été modifié », mail de
 //     sécurité, jamais le mot de passe lui-même.
+//   - 'reset' (19/09, « Mot de passe oublié ? » sur /login) : APPEL PUBLIC, sans être
+//     connecté (clé publique du site). Entrée { kind: 'reset', email, origin }. Même
+//     lien que l'invitation (/reset-password?token_hash=…&type=recovery), jamais
+//     supabase.auth.resetPasswordForEmail (l'adresse de retour de Supabase Auth pointe
+//     encore vers localhost). Protections :
+//       · réponse IDENTIQUE ({ ok: true }, 200, immédiate) que le compte existe ou non,
+//         que la demande soit limitée ou non ; le travail se fait après la réponse ;
+//       · 1 envoi par adresse / 5 min, 5 / heure, 20 demandes / heure par IP
+//         (password_reset_allow, table password_reset_requests : empreintes SHA-256) ;
+//       · `origin` limité à une liste d'adresses connues (secret APP_ORIGINS, sinon
+//         liste par défaut) : un lien valable ne peut pas partir vers un autre site ;
+//       · aucune adresse e-mail ni détail dans les journaux ;
+//       · compte désactivé, banni ou sans société : rien n'est envoyé.
 //
 // Le lien d'invitation ne passe PAS par la page de vérification de Supabase : il mène
 // directement à /reset-password de l'application, avec un jeton à usage unique. La page
@@ -26,13 +39,15 @@
 //     destinataire est toujours le compte de l'appelant, `userId` est ignoré) ; ou le
 //     serveur avec la clé de service pour un `userId` donné.
 // Entrée : POST { kind?, companyId?, userId?, origin, purpose? }   Sortie : { ok, to, from }
-// Secrets : MS_GRAPH_* (envoi), clé de service injectée.
+//          ('reset' : POST { kind: 'reset', email, origin }   Sortie : { ok: true } toujours)
+// Secrets : MS_GRAPH_* (envoi), clé de service injectée, APP_ORIGINS (facultatif).
 //
 // Rappel (18/09) : l'invitation de la borne testée à 13:36 UTC a reçu un 401
 // `not_signed_in` : c'était encore l'ancienne version de cette fonction (réservée aux
 // administrateurs), la version acceptant la clé de service a été déployée 40 s après.
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -46,6 +61,27 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Kind = 'invite' | 'welcome' | 'password_changed';
 
+// Adresses de l'application autorisées dans un lien de réinitialisation (appel public).
+// Réglage : secret APP_ORIGINS = liste séparée par des virgules. localhost reste permis
+// (le lien ne mène alors qu'à la machine de la personne elle-même).
+const DEFAULT_APP_ORIGINS = [
+  'https://ducatilive.netlify.app',
+  'https://app.ducatibruxelles.be',
+  'https://dms.ducatibruxelles.be',
+];
+const APP_ORIGINS = (Deno.env.get('APP_ORIGINS') ?? '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
+const resetOriginOk = (o: string) =>
+  /^http:\/\/localhost(:\d+)?$/.test(o) || (APP_ORIGINS.length ? APP_ORIGINS : DEFAULT_APP_ORIGINS).includes(o);
+const EMAIL_RE = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
+
+async function sha256(s: string): Promise<string> {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function rpc(fn: string, args: Record<string, unknown>) {
+  return db(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
+}
+
 async function db(path: string, init: RequestInit = {}) {
   return fetch(`${URL}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init.headers || {}) } });
 }
@@ -55,6 +91,72 @@ async function graphToken(): Promise<string | null> {
   return r.ok ? (await r.json()).access_token : null;
 }
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+/** Boîte d'envoi Outlook : info@ de la société si elle l'a, sinon sa boîte principale. */
+async function senderFor(companyId: string): Promise<string | null> {
+  const boxes = await (await db(`company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true`)).json();
+  const list = (Array.isArray(boxes) ? boxes : []).map((b: { address: string }) => b.address);
+  const co = await (await db(`companies?select=name,inbound_mailbox&id=eq.${companyId}`)).json();
+  return list.find((a: string) => a.toLowerCase().startsWith('info@')) ?? co?.[0]?.inbound_mailbox ?? list[0] ?? null;
+}
+
+/**
+ * « Mot de passe oublié ? » : travail fait APRÈS la réponse (même réponse, même durée,
+ * que le compte existe ou non). Ne journalise jamais l'adresse ni un détail d'erreur.
+ */
+async function processReset(email: string, o: string, ipHash: string | null): Promise<void> {
+  try {
+    const allowed = await rpc('password_reset_allow', { _email_hash: await sha256(email), _ip_hash: ipHash });
+    if (!allowed.ok || (await allowed.json()) !== true) return;
+
+    const tr = await rpc('password_reset_target', { _email: email });
+    const rows = tr.ok ? await tr.json() : [];
+    const target = Array.isArray(rows) ? rows[0] : null;
+    if (!target?.user_id || !target?.company_id) return;
+
+    const ur = await fetch(`${URL}/auth/v1/admin/users/${target.user_id}`, { headers: H });
+    if (!ur.ok) return;
+    const u = await ur.json();
+    const to = String(u.email ?? '');
+    const name = String(u.user_metadata?.full_name ?? '').trim();
+    if (!to) return;
+
+    const sender = await senderFor(target.company_id);
+    if (!sender) { console.warn('reset: no_mailbox'); return; }
+
+    const gl = await fetch(`${URL}/auth/v1/admin/generate_link`, { method: 'POST', headers: H, body: JSON.stringify({ type: 'recovery', email: to }) });
+    if (!gl.ok) { console.warn('reset: link_failed'); return; }
+    const g = await gl.json();
+    const hashed = g.hashed_token ?? g.properties?.hashed_token;
+    if (!hashed) { console.warn('reset: link_failed'); return; }
+    const link = `${o}/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery`;
+
+    const html = `
+    <p>${name ? `Bonjour ${esc(name)},` : 'Bonjour,'}</p>
+    <p>Vous avez demandé à choisir un nouveau mot de passe pour votre compte Ducati Bruxelles (identifiant <b>${esc(to)}</b>).</p>
+    <p><a href="${esc(link)}">Choisir un nouveau mot de passe</a></p>
+    <p>Ce lien ne sert qu'une fois et n'est valable que peu de temps. S'il a expiré, refaites simplement la demande depuis « Mot de passe oublié ? » sur la page de connexion.</p>
+    <p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable.</p>
+    <p>Pour votre sécurité, ce message ne contient jamais votre mot de passe.</p>
+    <p>Ducati Bruxelles</p>`;
+    const tok = await graphToken();
+    if (!tok) { console.warn('reset: graph_auth_failed'); return; }
+    const send = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
+      method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          subject: 'Choisir un nouveau mot de passe',
+          body: { contentType: 'HTML', content: html },
+          toRecipients: [{ emailAddress: { address: to } }],
+        },
+        saveToSentItems: true,
+      }),
+    });
+    if (!send.ok) console.warn('reset: send_failed', send.status);
+  } catch {
+    console.warn('reset: error');
+  }
+}
 
 /** Message de bienvenue K (écran de fin d'inscription, src/lib/i18n/fr.ts `signup.welcome*`). */
 function welcomeBlock(o: string): string {
@@ -72,6 +174,19 @@ Deno.serve(async (req) => {
   const internal = !!SVC && auth === `Bearer ${SVC}`;
 
   const body = await req.json().catch(() => ({}));
+
+  // 0. « Mot de passe oublié ? » : appel public, réponse toujours identique.
+  if (body.kind === 'reset') {
+    const o = String(body.origin ?? '').replace(/\/+$/, '');
+    if (!resetOriginOk(o)) return J({ error: 'bad_origin' }, 400);
+    const email = String(body.email ?? '').trim().toLowerCase();
+    if (!email || email.length > 254 || !EMAIL_RE.test(email)) return J({ error: 'bad_email' }, 400);
+    const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
+    const work = (async () => processReset(email, o, ip ? await sha256(`ip:${ip}`) : null))();
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+    else await work;
+    return J({ ok: true });
+  }
   const kind: Kind = body.kind === 'welcome' || body.kind === 'password_changed' ? body.kind : 'invite';
   const purpose = body.purpose;
   let companyId: string | null = typeof body.companyId === 'string' && UUID.test(body.companyId) ? body.companyId : null;
@@ -132,10 +247,7 @@ Deno.serve(async (req) => {
   if (!email) return J({ error: 'no_email' }, 400);
 
   // 3. Expéditeur : Outlook, depuis info@ si la société l'a, sinon sa boîte principale.
-  const boxes = await (await db(`company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true`)).json();
-  const list = (Array.isArray(boxes) ? boxes : []).map((b: { address: string }) => b.address);
-  const co = await (await db(`companies?select=name,inbound_mailbox&id=eq.${companyId}`)).json();
-  const sender = list.find((a: string) => a.toLowerCase().startsWith('info@')) ?? co?.[0]?.inbound_mailbox ?? list[0];
+  const sender = await senderFor(companyId);
   if (!sender) return J({ error: 'no_mailbox' }, 400);
 
   // 4. Contenu.

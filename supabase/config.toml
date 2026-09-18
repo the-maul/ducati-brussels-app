@@ -32,5 +32,7 @@ verify_jwt = false
 # Déployées avec vérification du jeton, plus contrôle dans le code.
 [functions.summarize-exchange]
 verify_jwt = true
+# send-account-invitation : kind = reset est PUBLIC (page /login), mais passe avec la clé
+# publique du site (jeton anon) : la vérification du jeton peut rester active.
 [functions.send-account-invitation]
 verify_jwt = true

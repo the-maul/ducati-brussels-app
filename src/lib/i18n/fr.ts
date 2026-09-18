@@ -139,6 +139,17 @@ export const fr = {
     genericError: 'Connexion impossible. Réessayez.',
     noAccess: 'Votre compte n’est rattaché à aucune société. Contactez un administrateur.',
     redirecting: 'Redirection…',
+    // Page de connexion : inscription et mot de passe oublié (19/09).
+    noAccount: 'Pas encore de compte ?',
+    createAccount: 'Créer mon compte',
+    forgot: 'Mot de passe oublié ?',
+    forgotIntro: 'Indiquez l’adresse e-mail de votre compte : nous vous enverrons un lien pour choisir un nouveau mot de passe.',
+    forgotSend: 'Envoyer le lien',
+    forgotSending: 'Envoi…',
+    forgotSent: 'Si un compte existe pour cette adresse, un e-mail vient de partir.',
+    forgotHint: 'Pensez à regarder dans les courriers indésirables. Le lien ne sert qu’une fois et n’est valable que peu de temps.',
+    forgotError: 'La demande n’a pas pu être envoyée. Réessayez dans un instant.',
+    backToLogin: 'Retour à la connexion',
   },
 
   // Véhicules (M3)
@@ -2261,7 +2272,7 @@ export const fr = {
       special: 'Un caractère spécial (! ? @ # …)',
     },
     mismatch: 'Les deux mots de passe ne sont pas identiques.',
-    linkInvalid: 'Ce lien n’est plus valable. Demandez un nouveau lien à la concession.',
+    linkInvalid: 'Ce lien n’est plus valable. Demandez-en un nouveau avec « Mot de passe oublié ? » sur la page de connexion.',
     noLink: 'Pour choisir un mot de passe, utilisez le lien reçu par e-mail, ou connectez-vous d’abord.',
     toLogin: 'Se connecter',
     doneClient: 'Votre mot de passe est enregistré. Votre espace client Ducati Bruxelles sera bientôt disponible.',
