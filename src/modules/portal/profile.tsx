@@ -19,6 +19,8 @@ import { Switch } from '@/components/ui/switch';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { checkVat, parseViesAddress, type ViesResult } from '@/modules/contacts/vies-api';
+import { isValidIban, normalizeMobile } from '@/lib/contact-normalize';
+import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import {
   CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch,
 } from './api';
@@ -31,7 +33,8 @@ function toForm(p: PortalProfile): FormState {
     civility: p.civility ?? '', first_name: p.first_name ?? '', last_name: p.last_name ?? '',
     mobile: p.mobile ?? '', phone: p.phone ?? '', address: p.address ?? '', street_number: p.street_number ?? '',
     address_complement: p.address_complement ?? '', zip: p.zip ?? '', city: p.city ?? '', country: p.country ?? 'BE',
-    birth_date: p.birth_date ?? '', company_name: p.company_name ?? '', vat_number: p.vat_number ?? '',
+    birth_date: p.birth_date ?? '', birth_place: p.birth_place ?? '', iban: p.iban ?? '', bic: p.bic ?? '',
+    company_name: p.company_name ?? '', vat_number: p.vat_number ?? '',
     contact_preference: p.contact_preference ?? ('' as never), marketing_opt_out: !!p.marketing_opt_out,
     license_number: p.license_number ?? '',
   };
@@ -92,16 +95,21 @@ export function ProfileView() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm({ ...form, [k]: v });
   const changed = (Object.keys(form) as (keyof FormState)[]).filter((k) => form[k] !== initial[k]);
+  const ibanInvalid = !!form.iban.trim() && form.iban !== initial.iban && !isValidIban(form.iban);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const patch: Record<string, unknown> = {};
     for (const k of changed) {
-      if (!data.is_pro && (k === 'company_name' || k === 'vat_number')) continue;
+      // Mission 04, carte 5 : le n° de TVA est ouvert aux particuliers, pas la raison sociale.
+      if (!data.is_pro && k === 'company_name') continue;
       const v = form[k];
       if (k === 'country' && !String(v).trim()) continue; // pays obligatoire en base
-      patch[k] = typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : v;
+      // Mission 04, carte 3 : mobile au format international (+32…), comme au comptoir.
+      const clean = k === 'mobile' && typeof v === 'string' ? normalizeMobile(v) : v;
+      patch[k] = typeof clean === 'string' ? (clean.trim() === '' ? null : clean.trim()) : clean;
     }
+    if (patch.iban && !isValidIban(String(patch.iban))) return; // message affiché sous le champ
     if (Object.keys(patch).length) save.mutate(patch as ProfilePatch);
   };
 
@@ -139,10 +147,34 @@ export function ProfileView() {
             <Field id="pf-street_number" label={t('portal.profile.number')}>{input('street_number')}</Field>
             <Field id="pf-address_complement" label={t('portal.profile.complement')}>{input('address_complement', { autoComplete: 'address-line2' })}</Field>
             <Field id="pf-zip" label={t('portal.profile.zip')}>{input('zip', { inputMode: 'numeric', autoComplete: 'postal-code' })}</Field>
-            <Field id="pf-city" label={t('portal.profile.city')}>{input('city', { autoComplete: 'address-level2' })}</Field>
+            <Field id="pf-city" label={t('portal.profile.city')}>
+              {input('city', { autoComplete: 'address-level2' })}
+              {/* Mission 04, carte 4 : le code postal propose la localité. */}
+              <ZipCitySuggest zip={form.zip} country={form.country} city={form.city} onPick={(c) => set('city', c)} large />
+            </Field>
             <Field id="pf-country" label={t('portal.profile.country')}>{input('country', { maxLength: 2, autoComplete: 'country' })}</Field>
             <Field id="pf-birth_date" label={t('portal.profile.birthDate')}>{input('birth_date', { type: 'date', autoComplete: 'bday' })}</Field>
+            <Field id="pf-birth_place" label={t('portal.profile.birthPlace')}>{input('birth_place')}</Field>
           </div>
+        </Card>
+
+        {/* Mission 04, carte 5 : coordonnées bancaires (et TVA pour un particulier) */}
+        <Card>
+          <div id="banque" />
+          <SectionTitle>{t('portal.profile.bank')}</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="pf-iban" label={t('portal.profile.iban')} className="sm:col-span-2">
+              {input('iban', { placeholder: 'BE68 5390 0754 7034', className: 'h-11 font-mono', 'aria-invalid': ibanInvalid })}
+              {ibanInvalid && <p className="text-[13px] text-danger">{t('portal.errors.invalidIban')}</p>}
+            </Field>
+            <Field id="pf-bic" label={t('portal.profile.bic')}>{input('bic', { className: 'h-11 font-mono' })}</Field>
+            {!data.is_pro && (
+              <Field id="pf-vat_number" label={t('portal.profile.vatNumberPrivate')}>
+                {input('vat_number', { placeholder: t('portal.profile.vatPlaceholder') })}
+              </Field>
+            )}
+          </div>
+          <p className="mt-2 text-[12px] text-muted-foreground">{t('portal.profile.ibanHint')}</p>
         </Card>
 
         {/* Société (comptes professionnels) */}
@@ -217,7 +249,7 @@ export function ProfileView() {
         </Card>
 
         <div className="sticky bottom-20 z-20 md:bottom-4">
-          <Button type="submit" className="h-11 w-full shadow-[var(--shadow-card)]" disabled={changed.length === 0 || save.isPending}>
+          <Button type="submit" className="h-11 w-full shadow-[var(--shadow-card)]" disabled={changed.length === 0 || save.isPending || ibanInvalid}>
             {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('portal.profile.save')}
           </Button>
         </div>

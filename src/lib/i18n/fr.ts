@@ -928,8 +928,55 @@ export const fr = {
     dupCreateAnyway: 'Créer quand même',
     dupCancel: 'Annuler',
     dupChecking: 'Recherche de doublons…',
+    // Mission 04, carte 1 : même e-mail ou même numéro → ouvrir la fiche existante (D3)
+    dupFoundTitle: 'Ce client existe peut-être déjà',
+    dupFoundMessage: 'Une fiche avec le même e-mail ou le même numéro est déjà enregistrée. Ouvrez-la plutôt que d’en créer une deuxième :',
+    dupMatchEmail: 'même e-mail',
+    dupMatchPhone: 'même numéro',
+    dupArchived: 'archivée',
+    dupOpen: 'Ouvrir la fiche',
+
+    // Mission 04, carte 1 : fiche en deux temps
+    secEssentials: 'L’essentiel',
+    secComplete: 'Compléter la fiche',
+    secCompleteHint: 'Naissance, permis, IBAN, TVA, catégories, notes… maintenant ou plus tard.',
+    secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
+    // Mission 04, carte 5 : naissance, IBAN et TVA (particuliers aussi)
+    birthPlace: 'Lieu de naissance',
+    secBankVat: 'Banque et TVA',
+    ibanInvalid: 'IBAN invalide : vérifiez les caractères (contrôle bancaire modulo 97).',
+    ibanValid: 'IBAN valide',
+
+    // Mission 04, carte 4 : code postal → localité
+    zipPick: 'Plusieurs localités pour ce code postal : choisissez',
+
+    // Mission 04, carte 3 : un seul mobile, format international, utilisé pour les SMS
+    mobileSmsHint: 'Ce numéro reçoit les SMS. Mis au format international (+32…) à l’enregistrement.',
+    mobileFix: {
+      link: 'Mobiles à compléter',
+      title: 'Mobiles à compléter',
+      subtitle: 'Fiches reprises de G8 dont le GSM est rangé dans « téléphone » et le mobile vide.',
+      intro: 'Ces fiches ne peuvent pas recevoir de SMS : leur GSM belge est dans le champ « téléphone ». Vérifiez la ligne puis cliquez « Utiliser comme mobile ». Rien n’est corrigé automatiquement ; chaque clic est tracé.',
+      total: '{n} fiches à vérifier',
+      colPhone: 'Téléphone (G8)',
+      colProposed: 'Mobile proposé',
+      use: 'Utiliser comme mobile',
+      saved: 'Mobile enregistré',
+      done: 'Mobile enregistré sur la fiche.',
+      refresh: 'Actualiser la liste',
+      empty: 'Aucune fiche à compléter.',
+      errAlreadySet: 'Cette fiche a déjà un mobile : ouvrez-la pour vérifier.',
+      errNotGsm: 'Ce téléphone n’est pas un GSM belge.',
+    },
+
+    // Mission 04, carte 2 : civilité de la personne (valeurs Monsieur / Madame / Mx)
+    civilityM: 'M.',
+    civilityMme: 'Mme',
+    civilityMx: 'Mx',
+    civilityContact: 'Civilité de la personne de contact',
+    legalForm: 'Forme juridique',
     civilityMr: 'Monsieur',
     civilityMrs: 'Madame',
     civilityOther: 'Autre',
@@ -2283,6 +2330,12 @@ export const fr = {
       city: 'Localité',
       country: 'Pays (code à 2 lettres)',
       birthDate: 'Date de naissance',
+      birthPlace: 'Lieu de naissance',
+      bank: 'Coordonnées bancaires',
+      iban: 'IBAN (numéro de compte)',
+      bic: 'BIC',
+      vatNumberPrivate: 'Numéro de TVA (si vous en avez un)',
+      ibanHint: 'Utilisé pour vos remboursements et domiciliations. Toute modification est signalée à nos services, qui la vérifient.',
       company: 'Ma société',
       companyName: 'Raison sociale',
       vatNumber: 'Numéro de TVA',
@@ -2329,6 +2382,8 @@ export const fr = {
       invalidPhone: 'Numéro de téléphone invalide (chiffres, espaces, + uniquement).',
       invalidCountry: 'Pays invalide : utilisez le code à 2 lettres (BE, FR, NL…).',
       invalidVat: 'Numéro de TVA invalide.',
+      invalidIban: 'IBAN invalide : vérifiez les caractères.',
+      invalidBic: 'BIC invalide (8 ou 11 caractères).',
       fileUnavailable: 'Fichier indisponible pour le moment.',
     },
     // Côté atelier : repérer les demandes venues du portail dans le planning.
@@ -2362,6 +2417,10 @@ export const fr = {
     apptSlotMorning: 'matin',
     apptSlotAfternoon: 'après-midi',
     apptSeeAll: 'Ouvrir le planning atelier',
+    // Mission 04, carte 5 : IBAN modifié par un client dans son espace
+    ibanTitle: 'IBAN modifiés par des clients (7 derniers jours)',
+    ibanPrefix: 'IBAN modifié : ',
+    ibanToCheck: 'À vérifier',
   },
 
   users: {

@@ -761,6 +761,24 @@ export type Database = {
           },
         ]
       }
+      be_postal_codes: {
+        Row: {
+          city: string
+          code: string
+          province: string | null
+        }
+        Insert: {
+          city: string
+          code: string
+          province?: string | null
+        }
+        Update: {
+          city?: string
+          code?: string
+          province?: string | null
+        }
+        Relationships: []
+      }
       cash_movements: {
         Row: {
           amount: number
@@ -1593,6 +1611,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -1629,6 +1648,7 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1697,6 +1717,7 @@ export type Database = {
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
+          birth_place?: string | null
           category?: string | null
           city?: string | null
           civility?: string | null
@@ -1733,6 +1754,7 @@ export type Database = {
           is_watch?: boolean
           last_name?: string | null
           legacy_code?: string | null
+          legal_form?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1801,6 +1823,7 @@ export type Database = {
           address_mismatch?: boolean
           bic?: string | null
           birth_date?: string | null
+          birth_place?: string | null
           category?: string | null
           city?: string | null
           civility?: string | null
@@ -1837,6 +1860,7 @@ export type Database = {
           is_watch?: boolean
           last_name?: string | null
           legacy_code?: string | null
+          legal_form?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -2027,6 +2051,50 @@ export type Database = {
           },
         ]
       }
+      document_comment_templates: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_comment_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_lines: {
         Row: {
           article_id: string | null
@@ -2037,6 +2105,7 @@ export type Database = {
           id: string
           line_ht: number
           line_ttc: number
+          line_type: string
           quantity: number
           reference: string | null
           sort_order: number
@@ -2052,6 +2121,7 @@ export type Database = {
           id?: string
           line_ht?: number
           line_ttc?: number
+          line_type?: string
           quantity?: number
           reference?: string | null
           sort_order?: number
@@ -2067,6 +2137,7 @@ export type Database = {
           id?: string
           line_ht?: number
           line_ttc?: number
+          line_type?: string
           quantity?: number
           reference?: string | null
           sort_order?: number
@@ -5565,6 +5636,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      contact_be_gsm: { Args: { _p: string }; Returns: string }
       contact_delete_safe: { Args: { _id: string }; Returns: undefined }
       contact_dependencies: {
         Args: { _id: string }
@@ -5589,14 +5661,14 @@ export type Database = {
       contact_merge_refs: { Args: { _id: string }; Returns: Json }
       contact_norm_phone: { Args: { _v: string }; Returns: string }
       contact_norm_txt: { Args: { _v: string }; Returns: string }
-      contacts_find_duplicates: {
+      contact_phone_key: { Args: { _p: string }; Returns: string }
+      contact_use_phone_as_mobile: { Args: { _id: string }; Returns: string }
+      contacts_find_by_email_or_mobile: {
         Args: {
-          _city: string
           _company: string
           _email: string
           _exclude?: string
-          _name: string
-          _phone: string
+          _mobile: string
         }
         Returns: {
           account_code: string | null
@@ -5607,6 +5679,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -5643,6 +5716,129 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
+          license_category:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date: string | null
+          license_number: string | null
+          license_place: string | null
+          license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
+          marketing_opt_out: boolean
+          mobile: string | null
+          mobile_pro: string | null
+          mode_ht: boolean
+          model_interests: string[] | null
+          my_ducati_city: string | null
+          my_ducati_country: string | null
+          my_ducati_data: Json | null
+          my_ducati_email: string | null
+          my_ducati_first_name: string | null
+          my_ducati_is_current_owner: boolean | null
+          my_ducati_last_name: string | null
+          my_ducati_marketing: boolean | null
+          my_ducati_phone: string | null
+          my_ducati_profiling: boolean | null
+          my_ducati_score: number | null
+          my_ducati_synced_at: string | null
+          national_id: string | null
+          national_id_scan_path: string | null
+          national_register: string | null
+          notes: string | null
+          notify_model_stock: boolean | null
+          opening_balance: number
+          origin: string | null
+          payment_terms: string | null
+          phone: string | null
+          phone_pro: string | null
+          po_box: string | null
+          price_list: string | null
+          receipt_copies: number
+          sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
+          segment: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos: boolean
+          status: Database["public"]["Enums"]["contact_status"]
+          street_number: string | null
+          supplier_customer_no: string | null
+          supplier_franco_min: number | null
+          supplier_is_internal: boolean
+          supplier_order_min: number | null
+          supplier_order_min_qty: number | null
+          supplier_rfa_rate: number | null
+          type: Database["public"]["Enums"]["contact_type"]
+          updated_at: string
+          vat_number: string | null
+          vehicle_preference: string | null
+          vies_checked_at: string | null
+          vies_valid: boolean | null
+          watch_note: string | null
+          zip: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "contacts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      contacts_find_duplicates: {
+        Args: {
+          _city: string
+          _company: string
+          _email: string
+          _exclude?: string
+          _name: string
+          _phone: string
+        }
+        Returns: {
+          account_code: string | null
+          accounting_account: string | null
+          address: string | null
+          address_complement: string | null
+          address_complement2: string | null
+          address_mismatch: boolean
+          bic: string | null
+          birth_date: string | null
+          birth_place: string | null
+          category: string | null
+          city: string | null
+          civility: string | null
+          code: string | null
+          company_id: string
+          company_name: string | null
+          contact_name: string | null
+          contact_preference: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          delivery_address: string | null
+          domiciliation: string | null
+          dou: string | null
+          ducati_code: string | null
+          ducati_url: string | null
+          email: string | null
+          email_pro: string | null
+          external_ref: string | null
+          factoring_code: string | null
+          fax: string | null
+          first_name: string | null
+          gsm: string | null
+          iban: string | null
+          id: string
+          imported_from: string | null
+          interests: string[]
+          is_account: boolean
+          is_active: boolean
+          is_blocked: boolean
+          is_detaxe: boolean
+          is_vip: boolean
+          is_watch: boolean
+          last_name: string | null
+          legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -5724,6 +5920,21 @@ export type Database = {
           reason: string
         }[]
       }
+      contacts_phone_gsm_candidates: {
+        Args: { _company: string; _limit?: number; _offset?: number }
+        Returns: {
+          city: string
+          code: string
+          company_name: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          proposed_mobile: string
+          total: number
+          type: Database["public"]["Enums"]["contact_type"]
+        }[]
+      }
       contacts_search: {
         Args: {
           _company: string
@@ -5742,6 +5953,7 @@ export type Database = {
           address_mismatch: boolean
           bic: string | null
           birth_date: string | null
+          birth_place: string | null
           category: string | null
           city: string | null
           civility: string | null
@@ -5778,6 +5990,7 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -6057,6 +6270,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      iban_is_valid: { Args: { _iban: string }; Returns: boolean }
       ingest_email: {
         Args: {
           _body: string
