@@ -132,3 +132,4 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | 2026-07-26 | Filtres multicritères, export CSV, vue réappro ; dépréciation de stock | `c5a2c7a`, `24ea053`, `20260726110000_m5_stock_depreciations` |
 | 2026-09-11 | Paramètres SQL facultatifs passés en `undefined` (appels `record_stock_move` etc.) | `7d31b6d` |
 | 2026-09-19 | Disponible avec « en commande » (CMD validées sans réception liée) sur l'écran des commandes de pièces (mission 02, carte 2) | `20260919250000_orders_lines` |
+| 2026-09-19 | « En commande » affiché aussi dans la recherche d'article des ventes (mission 05, carte 2), même calcul `_article_on_order_qty` | code seul |

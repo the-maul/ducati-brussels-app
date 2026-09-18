@@ -77,7 +77,62 @@ on les garde à côté des libellés, l'employé recopie case par case.
 
 ## 5. Ce qui a changé dans l'application
 
-(rempli à chaque lot livré)
+### Lot du 19/09 — cartes 1 à 5 (branche `lot-m4-client`, à valider)
+
+Migrations appliquées en base le 19/09 (testées d'abord dans une transaction annulée) :
+`20260919260000` à `20260919265000`. `types.ts` régénéré.
+
+**Carte 1 — Créer une fiche client rapide au comptoir** (commit `f8dfa48`)
+- Clients → Nouveau : **l'essentiel** ouvert (type, forme juridique et raison sociale pour un pro,
+  civilité, prénom, nom, mobile, e-mail, adresse) ; tout le reste (statut, code, mobile 2, TVA, IBAN,
+  naissance, permis, compta, catégories, notes) dans **« Compléter la fiche »**, replié à la création,
+  ouvert en modification.
+- Avant de créer : si l'**e-mail** (sans casse ni espaces) ou le **numéro** (comparé au mobile, au
+  mobile 2 et au téléphone, tous formats) existe déjà, fenêtre « Ce client existe peut-être déjà »
+  avec **« Ouvrir la fiche »** par ligne, « Annuler » ou « Créer quand même ». Jamais de fusion (D3).
+- Base : `contact_phone_key(text)`, `contacts_find_by_email_or_mobile(...)` (sous RLS).
+
+**Carte 2 — Moderniser la liste des civilités** (commit `b040ac1`)
+- Civilité de la personne : **M. / Mme / Mx** (valeurs enregistrées `Monsieur`, `Madame`, `Mx` : les
+  ~6 000 fiches existantes ne changent pas ; MR / MME de G8 reconnus à la lecture).
+- **Forme juridique** : champ séparé pour les pros, nouvelle colonne `contacts.legal_form`, liste lue
+  dans Paramètres → Tables → Civilités (lignes « Professionnel »). Plus de liste codée en dur.
+- Reprise G8 : 22 formes juridiques absentes ajoutées à la table de référence (SCS, SCOM, SARL, CS,
+  SNC, SPRLU, SAS, LDA, SC (VOF)…) ; **1 210 fiches** dont la civilité était une forme juridique :
+  valeur **copiée** dans `legal_form` (la civilité n'est pas effacée).
+
+**Carte 3 — Un seul numéro mobile, utilisé pour les SMS** (commit `35eaa5d`)
+- Mobile (et mobile 2) enregistré au **format international** : `0471 12 34 56` → `+32471123456` ;
+  un numéro en `+` est gardé (espaces retirés). Même règle dans l'espace client.
+- **Correctif** : enregistrer une fiche effaçait son « téléphone » repris de G8 (`phone: null`) ; ce
+  n'est plus le cas.
+- Clients → **« Mobiles à compléter »** (`/clients/mobiles`) : fiches actives sans mobile dont le
+  téléphone est un GSM belge (**2 934** au 19/09), bouton **« Utiliser comme mobile »** par ligne,
+  tracé dans `events` (`phone_to_mobile`). Pas de correction en masse.
+
+**Carte 4 — E-mail en minuscules et code postal qui remplit la ville** (commit `2749626`)
+- E-mail sans espaces et en minuscules à la saisie (fiche, CRM) **et en base** (déclencheur
+  `trg_contacts_normalize_email`, à l'insertion et quand l'e-mail change). Les 7 e-mails existants
+  avec majuscules ne sont pas réécrits ; **une paire ne diffère que par la casse** : fiches **231**
+  et **8293** (GILSON, `fredgilson_1@msn.com`) → à fusionner à la main.
+- Table **`be_postal_codes`** (2 757 localités, 1 145 codes, province). Code postal → ville remplie
+  (une localité) ou boutons de choix (plusieurs, ex. 4000 Glain / Liège / Rocourt). Au comptoir et
+  dans « Mon profil ». L'inscription et la borne n'ont pas de champ code postal.
+- Source : liste bpost reprise par `github.com/jief/zipcode-belgium` (mise à jour 2020) — le site
+  bpost n'était pas joignable. À rafraîchir un jour depuis bpost (aucun écran d'import).
+
+**Carte 5 — Naissance, IBAN et n° TVA complétés par le client dans son espace** (commit `8966f82`)
+- **Lieu de naissance** (`contacts.birth_place`) au comptoir et dans l'espace client.
+- IBAN, BIC et TVA **ouverts aux particuliers** (section « Banque et TVA ») ; IBAN contrôlé
+  (modulo 97) dès qu'il est saisi ou modifié.
+- « Mon profil » : lieu de naissance + carte **« Coordonnées bancaires »** (IBAN, BIC, TVA pour un
+  particulier). `portal_update_profile` : liste blanche élargie, IBAN contrôlé en base.
+- Changement d'IBAN par le client : ligne `events` (`portal_iban_changed`) + **cloche** « IBAN
+  modifiés par des clients » pour **admin, comptable, vendeur**.
+
+**À tester (Simon / Domenico)** : créer une fiche avec un e-mail existant ; une fiche pro (forme
+juridique) ; code postal 5000 ; « Mobiles à compléter » sur une fiche ; changer l'IBAN depuis
+`/mon-espace/profil` puis regarder la cloche avec un compte vendeur ou comptable.
 
 ## 6. Risques
 

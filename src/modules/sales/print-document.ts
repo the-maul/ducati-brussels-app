@@ -1,9 +1,11 @@
 /**
- * M6 — Impression d'un document de vente (FAC/DEV/TIK/BL/AVO) au format attendu par
+ * M6 — Impression d'un document de vente (FAC / DEV devis-proforma / BC bon de commande / RES /
+ * TIK / BL / AVO) au format attendu par
  * le client (cf. FACTURE 26xxxxxx.pdf, docs/migration-g8-formats.md §5) : en-tête
  * société + bloc client encadré + code-barres, bandeau (date/heure/n° client/condition/
  * échéance/opérateur/page), lignes, bloc détail véhicule, encadré totaux (BRUT/NET HT/
  * TVA/NET TTC/RESTE À PAYER), règlements datés, mention TVA marge, CGV au verso.
+ * Opérateur : documents.operator (utilisateur connecté à la création, ou texte G8 repris).
  * HTML imprimable, sans dépendance externe.
  */
 import { supabase } from '@/integrations/supabase/client';
@@ -53,17 +55,24 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     c.vat_number ? `Identification T.V.A. : ${esc(c.vat_number)}` : '',
   ].filter(Boolean).join('<br>') : '';
 
-  const rows = lines.map((l) => `
+  // Lignes selon leur type (mission 05, carte 5) : ligne vide = séparation, texte = commentaire
+  // multi-lignes sans montant, main-d'œuvre = quantité en heures.
+  const rows = lines.map((l) => {
+    if (l.line_type === 'vide') return `<tr class="blank"><td colspan="8">&nbsp;</td></tr>`;
+    if (l.line_type === 'texte') return `<tr class="text"><td></td><td colspan="7">${esc(l.designation)}</td></tr>`;
+    const qty = Number(l.quantity).toFixed(2).replace('.', ',') + (l.line_type === 'main_oeuvre' ? ` ${esc(t('sales.hoursUnit'))}` : '');
+    return `
     <tr>
-      <td>${esc((l as Record<string, unknown>).reference ?? '')}</td>
+      <td>${esc(l.reference ?? '')}</td>
       <td>${esc(l.designation)}</td>
-      <td class="r">${esc(Number(l.quantity).toFixed(2))}</td>
+      <td class="r">${qty}</td>
       <td class="r">${eur(Number(l.unit_price_ht))}</td>
-      <td class="r">${eur(Number((l as Record<string, unknown>).unit_price_ttc ?? Number(l.unit_price_ht) * (1 + Number(l.vat_rate) / 100)))}</td>
+      <td class="r">${eur(Number(l.unit_price_ht) * (1 + (doc.tax_exempt ? 0 : Number(l.vat_rate)) / 100))}</td>
       <td class="r">${esc(Number(l.discount_pct || 0))}</td>
       <td class="r">${eur(Number(l.line_ttc))}</td>
       <td class="r">${doc.tax_exempt ? '0' : esc(Number(l.vat_rate))}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   // Bloc détail véhicule (3 colonnes) sous les lignes, pour une vente V/O/P.
   const vehBlock = v ? `
@@ -129,6 +138,8 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   .lines thead th{text-align:left;padding:6px;font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:#555;border-bottom:1px solid #999}
   .lines tbody td{padding:6px;border-bottom:1px solid #eee;font-size:11px;font-variant-numeric:tabular-nums}
   .lines tbody tr:nth-child(even){background:#fafafa}
+  .lines tbody tr.text td{white-space:pre-wrap;font-style:italic;border-bottom:none}
+  .lines tbody tr.blank td{border-bottom:none;background:transparent}
   .r{text-align:right;font-variant-numeric:tabular-nums}
   .vehblock{display:flex;gap:24px;font-size:10px;color:#333;padding:8px 6px;border-bottom:1px solid #eee}
   .vehblock>div{flex:1}

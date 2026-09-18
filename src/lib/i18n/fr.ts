@@ -936,8 +936,55 @@ export const fr = {
     dupCreateAnyway: 'Créer quand même',
     dupCancel: 'Annuler',
     dupChecking: 'Recherche de doublons…',
+    // Mission 04, carte 1 : même e-mail ou même numéro → ouvrir la fiche existante (D3)
+    dupFoundTitle: 'Ce client existe peut-être déjà',
+    dupFoundMessage: 'Une fiche avec le même e-mail ou le même numéro est déjà enregistrée. Ouvrez-la plutôt que d’en créer une deuxième :',
+    dupMatchEmail: 'même e-mail',
+    dupMatchPhone: 'même numéro',
+    dupArchived: 'archivée',
+    dupOpen: 'Ouvrir la fiche',
+
+    // Mission 04, carte 1 : fiche en deux temps
+    secEssentials: 'L’essentiel',
+    secComplete: 'Compléter la fiche',
+    secCompleteHint: 'Naissance, permis, IBAN, TVA, catégories, notes… maintenant ou plus tard.',
+    secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
+    // Mission 04, carte 5 : naissance, IBAN et TVA (particuliers aussi)
+    birthPlace: 'Lieu de naissance',
+    secBankVat: 'Banque et TVA',
+    ibanInvalid: 'IBAN invalide : vérifiez les caractères (contrôle bancaire modulo 97).',
+    ibanValid: 'IBAN valide',
+
+    // Mission 04, carte 4 : code postal → localité
+    zipPick: 'Plusieurs localités pour ce code postal : choisissez',
+
+    // Mission 04, carte 3 : un seul mobile, format international, utilisé pour les SMS
+    mobileSmsHint: 'Ce numéro reçoit les SMS. Mis au format international (+32…) à l’enregistrement.',
+    mobileFix: {
+      link: 'Mobiles à compléter',
+      title: 'Mobiles à compléter',
+      subtitle: 'Fiches reprises de G8 dont le GSM est rangé dans « téléphone » et le mobile vide.',
+      intro: 'Ces fiches ne peuvent pas recevoir de SMS : leur GSM belge est dans le champ « téléphone ». Vérifiez la ligne puis cliquez « Utiliser comme mobile ». Rien n’est corrigé automatiquement ; chaque clic est tracé.',
+      total: '{n} fiches à vérifier',
+      colPhone: 'Téléphone (G8)',
+      colProposed: 'Mobile proposé',
+      use: 'Utiliser comme mobile',
+      saved: 'Mobile enregistré',
+      done: 'Mobile enregistré sur la fiche.',
+      refresh: 'Actualiser la liste',
+      empty: 'Aucune fiche à compléter.',
+      errAlreadySet: 'Cette fiche a déjà un mobile : ouvrez-la pour vérifier.',
+      errNotGsm: 'Ce téléphone n’est pas un GSM belge.',
+    },
+
+    // Mission 04, carte 2 : civilité de la personne (valeurs Monsieur / Madame / Mx)
+    civilityM: 'M.',
+    civilityMme: 'Mme',
+    civilityMx: 'Mx',
+    civilityContact: 'Civilité de la personne de contact',
+    legalForm: 'Forme juridique',
     civilityMr: 'Monsieur',
     civilityMrs: 'Madame',
     civilityOther: 'Autre',
@@ -947,7 +994,7 @@ export const fr = {
   // Ventes & Facturation (M6 — POS)
   sales: {
     title: 'Ventes & Facturation',
-    subtitle: 'Factures, devis, tickets et bons de livraison.',
+    subtitle: 'Factures, devis / proformas, bons de commande, réservations, tickets et bons de livraison.',
     newDoc: 'Nouveau document',
     backToList: 'Ventes',
     empty: 'Aucun document.',
@@ -974,13 +1021,27 @@ export const fr = {
     // en-tête éditeur
     type: 'Type', client: 'Client', clientPlaceholder: 'Client…', legacyClient: 'Client G8', vehicle: 'Véhicule',
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
-    type_FAC: 'Facture', type_DEV: 'Devis', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
-    type_RES: 'Réservation', type_AVO: 'Avoir',
+    type_FAC: 'Facture', type_DEV: 'Devis / proforma', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
+    type_RES: 'Réservation', type_AVO: 'Avoir', type_BC: 'Bon de commande',
+    replacedBadge: 'Remplacée', replacedBy: 'Remplacée par {ref}',
+    replacedLatest: 'dernière référence de la chaîne : {ref} ({n} remplacements)',
+    replaceWithLatest: 'Prendre {ref}',
+    replacementLoop: 'Chaîne de remplacement en boucle : vérifiez les fiches articles (onglet Remplacement / équivalences).',
+    equivalents: 'Équivalents :',
+    operator: 'Opérateur', operatorAuto: 'Utilisateur connecté, enregistré automatiquement sur le document.',
     // lignes
     colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colPuTtc: 'PU TTC',
     colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
     lineArticleOrText: 'Article ou texte libre…',
     addLine: 'Ajouter une ligne',
+    // types de ligne (mission 05, carte 5)
+    addLabour: 'Main d’œuvre', addText: 'Texte', addBlank: 'Ligne vide', recallComment: 'Rappeler un commentaire',
+    lineType_article: 'Article', lineType_main_oeuvre: 'Main d’œuvre', lineType_texte: 'Texte', lineType_vide: 'Ligne vide',
+    labourPlaceholder: 'Main d’œuvre (article de type T)…', labourNone: 'Aucun article de main d’œuvre (type T) trouvé.',
+    textPlaceholder: 'Commentaire (plusieurs lignes possibles)…', blankLine: 'Ligne vide', hoursUnit: 'h',
+    recallTitle: 'Rappeler un commentaire', recallHint: 'Le texte est inséré en ligne texte : vous pouvez ensuite le modifier.',
+    recallEmpty: 'Aucun commentaire type enregistré. Ajoutez-en dans Paramètres → Commentaires types.',
+    recallManage: 'Gérer les commentaires types',
     needLine: 'Ajoutez au moins une ligne.',
     errSave: 'Erreur',
     draft: 'Brouillon', validate: 'Valider',
@@ -1006,7 +1067,7 @@ export const fr = {
     payMethod: 'Mode', payAmount: 'Montant', pay: 'Encaisser',
     payments: 'Règlements', addPayment: 'Ajouter un règlement', recordPayments: 'Encaisser',
     deposits: 'Acomptes', addDeposit: 'Ajouter un acompte', recordDeposits: 'Verser l\'acompte',
-    depositInfo: 'Acompte sur réservation — déduit automatiquement à la facturation.',
+    depositInfo: 'Acompte sur réservation ou bon de commande — reporté à la conversion et déduit automatiquement à la facturation.',
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
@@ -1030,6 +1091,18 @@ export const fr = {
     purgeQuotesNone: 'Aucun devis à purger avant cette date.',
     purgeQuotesDone: '{n} devis supprimé(s).',
     errPurge: 'Erreur à la purge.',
+  },
+
+  // Commentaires types (mission 05, carte 5)
+  commentTemplates: {
+    title: 'Commentaires types',
+    subtitle: 'Textes enregistrés, rappelés dans un document de vente puis modifiables.',
+    intro: 'Chaque commentaire a un nom court (visible dans la liste « Rappeler un commentaire ») et un texte. Un commentaire inactif n’est plus proposé.',
+    empty: 'Aucun commentaire type pour l’instant.',
+    new: 'Nouveau commentaire', add: 'Ajouter le commentaire',
+    name: 'Nom court', namePlaceholder: 'ex. Premier entretien offert', body: 'Texte', order: 'Ordre', active: 'Actif',
+    delete: 'Supprimer', deleteConfirm: 'Supprimer ce commentaire type ? Les documents déjà établis ne changent pas.',
+    errDuplicate: 'Un commentaire porte déjà ce nom.',
   },
 
   // Picking list digitale (M6 — Ventes & Facturation, item 11)
@@ -2060,6 +2133,7 @@ export const fr = {
     usersDesc: 'Comptes du personnel et attribution des rôles par société.',
     numbering: 'Numérotation des documents',
     numberingDesc: 'Préfixes et formats des séquences (factures, OR, devis…).',
+    commentsTitle: 'Commentaires types', commentsDesc: 'Textes enregistrés à rappeler dans un devis, un bon de commande ou une facture.',
     companies: 'Sociétés', companiesDesc: 'Entités juridiques (TVA, adresse, IBAN, Peppol, comptes) — multi-société.',
     kioskTitle: 'Borne d’inscription',
     kioskDesc: 'Lancer la borne du comptoir sur une tablette, son adresse et son QR code, le guide de verrouillage.',
@@ -2291,6 +2365,12 @@ export const fr = {
       city: 'Localité',
       country: 'Pays (code à 2 lettres)',
       birthDate: 'Date de naissance',
+      birthPlace: 'Lieu de naissance',
+      bank: 'Coordonnées bancaires',
+      iban: 'IBAN (numéro de compte)',
+      bic: 'BIC',
+      vatNumberPrivate: 'Numéro de TVA (si vous en avez un)',
+      ibanHint: 'Utilisé pour vos remboursements et domiciliations. Toute modification est signalée à nos services, qui la vérifient.',
       company: 'Ma société',
       companyName: 'Raison sociale',
       vatNumber: 'Numéro de TVA',
@@ -2337,6 +2417,8 @@ export const fr = {
       invalidPhone: 'Numéro de téléphone invalide (chiffres, espaces, + uniquement).',
       invalidCountry: 'Pays invalide : utilisez le code à 2 lettres (BE, FR, NL…).',
       invalidVat: 'Numéro de TVA invalide.',
+      invalidIban: 'IBAN invalide : vérifiez les caractères.',
+      invalidBic: 'BIC invalide (8 ou 11 caractères).',
       fileUnavailable: 'Fichier indisponible pour le moment.',
     },
     // Côté atelier : repérer les demandes venues du portail dans le planning.
@@ -2370,6 +2452,10 @@ export const fr = {
     apptSlotMorning: 'matin',
     apptSlotAfternoon: 'après-midi',
     apptSeeAll: 'Ouvrir le planning atelier',
+    // Mission 04, carte 5 : IBAN modifié par un client dans son espace
+    ibanTitle: 'IBAN modifiés par des clients (7 derniers jours)',
+    ibanPrefix: 'IBAN modifié : ',
+    ibanToCheck: 'À vérifier',
   },
 
   users: {
@@ -2546,6 +2632,9 @@ export const fr = {
     filterPartial: 'Partiellement disponible',
     filterOrder: 'En commande',
     filterNone: 'Indisponible',
+    // recherche d'article d'une ligne de vente (mission 05, carte 2)
+    stockDisponible: 'Disponible', stockEnCommande: 'En commande', stockACommander: 'À commander',
+    stockHint: 'Libre {free} (réel {real} − réservé {reserved}) · en commande {order}',
   },
 
   // Mission 03 — Produits Shopify rapprochés des articles du stock (M2)

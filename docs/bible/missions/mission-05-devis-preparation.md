@@ -73,7 +73,68 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 
 ## 5. Ce qui a changé dans l'application
 
-(rempli à chaque lot livré)
+### Carte 1 — Créer un proforma, une réservation, un bon de commande ou une facture (19/09, à valider)
+- Le type DEV s'affiche **« Devis / proforma »** (écran, liste, impression, séquence).
+- Nouveau type **« Bon de commande »** (`BC`, préfixe `BC-`, séquence par société visible dans
+  Paramètres → Numérotation). Chaîne : DEV → BC → RES / BL / FAC (DEV peut toujours aller directement
+  en RES / BL / FAC). Un BC ne bouge pas le stock ; il accepte un **acompte**, reporté à la conversion
+  comme sur une réservation. Pastille de disponibilité affichée sur le BC.
+- **Opérateur = utilisateur connecté** : écrit par le serveur à la création (`documents.operator_user_id`
+  + nom dans `documents.operator`), affiché dans l'éditeur (lecture seule), sur la fiche du document et
+  imprimé dans le bandeau « OPERATEUR ». Les documents repris de G8 gardent leur texte d'origine.
+  L'opérateur ne peut plus être changé après la création.
+- Migration `20260919280000_m6_bon_de_commande_operateur.sql` ; code `src/modules/sales/write-api.ts`
+  (`CONVERSIONS`, `DEPOSIT_DOC_TYPES`), `document-editor.tsx`, `availability.ts`,
+  `src/routes/_app.sales.$documentId.tsx`, `_app.sales.index.tsx` ; test `tests/sales-doc-chain.test.ts`.
+
+### Carte 2 — Chercher un article et voir sa disponibilité en couleur (19/09, à valider)
+- La recherche d'article d'une ligne (devis, bon de commande, facture… mais aussi caisse, OR et tarifs
+  clients, qui partagent `searchSaleArticles`) cherche désormais aussi par **réf. fournisseur et
+  code-barres** et affiche pour chaque article une pastille **Disponible** (vert, libre = réel − réservé),
+  **En commande** (bleu, commande fournisseur CMD validée sans réception) ou **À commander** (orange),
+  couleur + icône + libellé ; survol = détail réel / réservé / en commande.
+- Sur la ligne choisie, colonne « Dispo » recalculée selon la quantité saisie.
+- Pas de nouveau calcul : réutilise la fonction SQL `part_order_article_search` de la mission 02
+  (`article_stock` + `_article_on_order_qty`). Articles M / F / T : pas de pastille.
+- Code : `src/modules/sales/write-api.ts` (`searchSaleArticles`), `availability.ts` (`saleStockStatus`),
+  `availability-badge.tsx` (`SaleStockBadge`), `document-editor.tsx` ; test `tests/sales-stock-status.test.ts`.
+- Limite : « en commande » ne distingue pas encore pour quel client la pièce est commandée (carte 7).
+
+### Carte 3 — Référence remplacée : proposer automatiquement la dernière (19/09, à valider)
+- Dans la recherche d'article, une référence remplacée porte le repère **« Remplacée »**.
+- Une fois posée sur la ligne : bandeau **« Remplacée par … »** (et « dernière référence de la chaîne »
+  quand il y a plusieurs remplacements), pastille de disponibilité de la dernière référence et bouton
+  **« Prendre … »** qui remplace la ligne par la **dernière** référence (quantité et remise conservées,
+  prix et TVA de la nouvelle référence).
+- La chaîne `superseded_by_id` est suivie jusqu'au bout, avec protection contre les boucles
+  (A → B → A : arrêt + message) et une borne de 30 maillons. En base au 19/09 : 16 331 références
+  remplacées, dont 4 969 dont le remplaçant est lui-même remplacé ; aucune boucle.
+- **Équivalents** (`equivalence_group`) listés sous la ligne, cliquables (aucun groupe rempli en base au 19/09).
+- Code : `src/modules/sales/replacement.ts` (`followReplacementChain`, `getReplacementInfo`),
+  `replacement-hint.tsx`, `document-editor.tsx`, `write-api.ts` ; test `tests/sales-replacement-chain.test.ts`.
+
+### Carte 5 — Lignes de main d'œuvre, lignes vides et commentaires types (19/09, à valider)
+- Sous les lignes du document : boutons **Ajouter une ligne** (article), **Main d'œuvre**, **Texte**,
+  **Ligne vide** et **Rappeler un commentaire**.
+- **Main d'œuvre** : choix parmi les articles de type **T** (liste à l'ouverture, filtre à la frappe),
+  quantité en **heures décimales** (pas de 0,25 h), prix = taux horaire ; jamais de mouvement de stock.
+  Un article T choisi dans une ligne normale devient aussi une ligne main-d'œuvre.
+- **Texte** : commentaire sur plusieurs lignes, sans montant. **Ligne vide** : séparation, sans montant.
+  Les deux sont exclus des totaux et contrôlés en base (contrainte : aucun montant).
+- **Commentaires types** : Paramètres → **Commentaires types** (nom court + texte, actif, ordre ;
+  suppression réservée à l'administrateur, les autres désactivent). Dans le document, « Rappeler un
+  commentaire » insère le texte en ligne texte, **modifiable ensuite**. Table livrée **vide** : aucun
+  commentaire pré-rempli (pas d'IBAN), l'équipe les saisit.
+- Le type de ligne suit les conversions (DEV → BC → RES/BL/FAC), les duplications et les avoirs ;
+  fiche du document et impression affichent le texte multi-lignes, la ligne vide et « 5,50 h ».
+- **Traçabilité** : chaque ligne de document écrite, modifiée ou supprimée laisse désormais une trace
+  dans `events` (jusqu'ici seul l'en-tête l'était).
+- Migration `20260919290000_m6_lignes_types_commentaires.sql` (colonne `document_lines.line_type`,
+  défaut `article` pour toutes les lignes existantes ; table `document_comment_templates` avec RLS ;
+  audit des lignes). Code : `write-api.ts` (`LineType`, `lineHasAmount`, `lineMovesStock`,
+  `rowToLineInput`, `searchLabourArticles`), `document-editor.tsx`, `comment-templates-api.ts`,
+  `comment-templates-editor.tsx`, route `src/routes/_app.settings.comments.tsx`, `print-document.ts`,
+  `_app.sales.$documentId.tsx` ; test `tests/sales-line-types.test.ts`.
 
 ## 6. Risques
 

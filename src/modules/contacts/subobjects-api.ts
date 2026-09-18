@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import type { Vehicle } from '@/modules/vehicles/api';
 import type { Contact, ContactInsert } from './api';
+import { personCivility } from './civility';
 
 export type DeliveryAddress = Database['public']['Tables']['delivery_addresses']['Row'];
 export type DeliveryAddressInsert = Database['public']['Tables']['delivery_addresses']['Insert'];
@@ -123,9 +124,9 @@ export async function createLinkedContact(
     last_name: targetType === 'particulier' ? (source.last_name ?? source.company_name ?? null) : null,
     company_name: targetType === 'professionnel' ? (source.company_name ?? source.last_name ?? null) : null,
     first_name: source.first_name ?? null,
-    // La civilite d'une fiche pro porte la forme juridique (SPRL, SA...), celle d'un
-    // particulier porte M./Mme : ne jamais la recopier d'un type vers l'autre.
-    civility: source.type === targetType ? (source.civility ?? null) : null,
+    // Civilité de la personne seulement (mission 04, carte 2) : une forme juridique
+    // héritée de G8 (SPRL, SA...) n'est jamais recopiée ; elle vit dans legal_form.
+    civility: personCivility(source.civility),
     email: inheritContact ? (source.email ?? null) : null,
     phone: inheritContact ? (source.phone ?? null) : null,
     mobile: inheritContact ? (source.mobile ?? null) : null,

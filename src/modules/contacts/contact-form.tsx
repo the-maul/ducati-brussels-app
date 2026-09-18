@@ -5,7 +5,8 @@
  */
 import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX } from 'lucide-react';
+import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
@@ -28,8 +29,13 @@ import {
 } from '@/components/ui/dialog';
 import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
-import { findDuplicateContacts, contactDisplayName } from './api';
+import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
+import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/lib/contact-normalize';
+import { ZipCitySuggest } from '@/components/zip-city-suggest';
+import { listRef } from '@/modules/settings/reference-api';
+import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
@@ -148,37 +154,16 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'evenements', labelKey: 'signup.interest.evenements' },
 ];
 
-// Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
 /** Valeur sentinelle : Radix Select interdit un SelectItem de valeur vide. */
 const CIVILITY_NONE = '__none__';
-/** Liste fermee de la civilite (fiche privee). Une valeur hors liste heritee d'une
- *  reprise reste affichee telle quelle plutot que d'etre perdue silencieusement. */
-const CIVILITY_OPTIONS = ['Monsieur', 'Madame', 'Autre'];
-
-const COMPANY_TYPES: { value: string; label: string }[] = [
-  { value: 'SRL', label: 'Société à resp. limitée' },
-  { value: 'BV', label: 'Besloten vennootschap' },
-  { value: 'SA', label: 'Société anonyme' },
-  { value: 'NV', label: 'Naamloze vennootschap' },
-  { value: 'SC', label: 'Société coopérative' },
-  { value: 'CV', label: 'Coöperatieve vennootschap' },
-  { value: 'SCRL', label: 'Société coop. à resp. limitée' },
-  { value: 'SNC', label: 'Société en nom collectif' },
-  { value: 'VOF', label: 'Vennootschap onder firma' },
-  { value: 'SComm', label: 'Société en commandite' },
-  { value: 'SCS', label: 'Société en commandite simple' },
-  { value: 'ASBL', label: 'Association sans but lucratif' },
-  { value: 'VZW', label: 'Vereniging zonder winstoogmerk' },
-  { value: 'SPRL', label: 'SPRL (ancienne forme)' },
-  { value: 'BVBA', label: 'BVBA (oude vorm)' },
-  { value: 'Indépendant', label: 'Personne physique / Eenmanszaak' },
-];
 
 type FormState = {
   type: ContactType;
   status: ContactStatus;
   code: string;
   civility: string;
+  /** Mission 04, carte 2 : forme juridique d'un pro (colonne legal_form). */
+  legal_form: string;
   first_name: string;
   last_name: string;
   company_name: string;
@@ -195,6 +180,8 @@ type FormState = {
   country: string;
   address_mismatch: boolean;
   birth_date: string;
+  /** Mission 04, carte 5 : lieu de naissance. */
+  birth_place: string;
   national_id: string;
   national_register: string;
   license_number: string;
@@ -249,7 +236,10 @@ function fromContact(c: Contact | null): FormState {
     type: c?.type ?? 'particulier',
     status: c?.status ?? 'prospect',
     code: c?.code ?? '',
-    civility: c?.civility ?? '',
+    // Écritures G8 (MR, MME…) ramenées à Monsieur / Madame ; une forme juridique
+    // restée dans `civility` est conservée telle quelle (non affichée, jamais effacée).
+    civility: personCivility(c?.civility) ?? c?.civility ?? '',
+    legal_form: c?.legal_form ?? '',
     first_name: c?.first_name ?? '',
     last_name: c?.last_name ?? '',
     company_name: c?.company_name ?? '',
@@ -266,6 +256,7 @@ function fromContact(c: Contact | null): FormState {
     country: c?.country ?? 'BE',
     address_mismatch: c?.address_mismatch ?? false,
     birth_date: c?.birth_date ?? '',
+    birth_place: c?.birth_place ?? '',
     national_id: c?.national_id ?? '',
     national_register: c?.national_register ?? '',
     license_number: c?.license_number ?? '',
@@ -326,10 +317,13 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     first_name: nn(f.first_name),
     last_name: nn(f.last_name),
     company_name: nn(f.company_name),
-    email: nn(f.email),
-    phone: null, // champ supprimé de l'UI, on ne le met plus à jour
-    mobile: nn(f.mobile),
-    gsm: nn(f.gsm),
+    // Mission 04, carte 4 : e-mail sans espaces, en minuscules (aussi garanti en base).
+    email: nn(normalizeEmail(f.email)),
+    // `phone` (téléphone repris de G8) n'est plus dans l'écran : on ne l'envoie plus du
+    // tout (avant : `phone: null` l'effaçait à chaque enregistrement de la fiche).
+    // Mission 04, carte 3 : mobiles au format international (+32…), utilisés pour les SMS.
+    mobile: nn(normalizeMobile(f.mobile)),
+    gsm: nn(normalizeMobile(f.gsm)),
     address: nn(f.address),
     address_complement: nn(f.address_complement),
     address_complement2: nn(f.address_complement2),
@@ -339,6 +333,7 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     country: nn(f.country) ?? 'BE',
     address_mismatch: f.address_mismatch,
     birth_date: nn(f.birth_date),
+    birth_place: nn(f.birth_place),
     national_id: nn(f.national_id),
     national_register: nn(f.national_register),
     license_number: nn(f.license_number),
@@ -350,7 +345,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     vies_checked_at: f.vies_checked_at,
     sale_vat_type: f.sale_vat_type,
     payment_terms: nn(f.payment_terms),
-    iban: nn(f.iban),
+    // Mission 04, carte 5 : IBAN enregistré sans espaces, en majuscules.
+    iban: nn(normalizeIban(f.iban)),
     bic: nn(f.bic),
     domiciliation: nn(f.domiciliation),
     factoring_code: nn(f.factoring_code),
@@ -373,6 +369,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     is_blocked: f.is_blocked,
     mode_ht: f.mode_ht,
     marketing_opt_out: f.marketing_opt_out,
+    // Mission 04, carte 2 (migration 20260919261000)
+    legal_form: nn(f.legal_form),
     interests: f.interests,
     notes: nn(f.notes),
     supplier_customer_no: nn(f.supplier_customer_no),
@@ -415,6 +413,8 @@ export function ContactForm({
     return lockType ? { ...s, type: lockType } : s;
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  // Mission 04, carte 1 : à la création, seul l'essentiel est ouvert ; le reste est replié.
+  const [moreOpen, setMoreOpen] = useState<boolean>(initial !== null || !!lockType);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
   // Rien de modifié = rien à enregistrer : le bouton reste grisé.
   const dirty = useIsDirty(f);
@@ -422,6 +422,15 @@ export function ContactForm({
   const isPro = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
   const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
+
+  // Formes juridiques : table de référence `civility` de Paramètres (lignes « Professionnel »).
+  const civilityRefQ = useQuery({
+    queryKey: ['ref', companyId, 'civility'],
+    queryFn: () => listRef(companyId, 'civility'),
+    enabled: isPro,
+    staleTime: 300_000,
+  });
+  const legalForms = legalFormOptions(civilityRefQ.data ?? []);
 
   const addressTitle = isPro ? t('contacts.secAddressPro') : t('contacts.secAddressPrivate');
 
@@ -439,26 +448,38 @@ export function ContactForm({
       setLocalError(t('contacts.requiredName'));
       return;
     }
+    // Mission 04, carte 5 : IBAN contrôlé (modulo 97) s'il a été saisi ou modifié ;
+    // un IBAN repris de G8 non modifié ne bloque pas l'enregistrement du reste.
+    if (f.iban.trim() && normalizeIban(f.iban) !== normalizeIban(initial?.iban) && !isValidIban(f.iban)) {
+      setMoreOpen(true);
+      setLocalError(t('contacts.ibanInvalid'));
+      return;
+    }
     const payload = buildPayload(f, companyId);
 
     // Uniquement a la creation : en edition, la fiche serait son propre doublon.
+    // Mission 04, carte 1 : même e-mail OU même numéro → on propose d'ouvrir la fiche
+    // existante (règle D3 : jamais de fusion automatique), en plus du doublon strict.
     if (!initial) {
       setCheckingDupes(true);
       try {
-        const found = await findDuplicateContacts(companyId, {
-          name: f.company_name.trim() || [f.first_name, f.last_name].filter(Boolean).join(' ').trim(),
-          city: f.city,
-          phone: f.mobile || f.gsm,
-          email: f.email,
-        });
+        const [strict, sameContact] = await Promise.all([
+          findDuplicateContacts(companyId, {
+            name: f.company_name.trim() || [f.first_name, f.last_name].filter(Boolean).join(' ').trim(),
+            city: f.city,
+            phone: f.mobile || f.gsm,
+            email: f.email,
+          }).catch(() => [] as Contact[]),
+          findContactsByEmailOrMobile(companyId, { email: f.email, mobile: f.mobile }).catch(() => [] as Contact[]),
+        ]);
+        const found = [...sameContact, ...strict.filter((c) => !sameContact.some((s) => s.id === c.id))];
         if (found.length > 0) {
           pendingPayload.current = payload;
           setDupes(found);
           return;
         }
-      } catch {
-        // Un controle indisponible ne doit jamais empecher de creer une fiche.
       } finally {
+        // Un controle indisponible ne doit jamais empecher de creer une fiche.
         setCheckingDupes(false);
       }
     }
@@ -482,25 +503,37 @@ export function ContactForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      {/* Fiche deja existante : on previent, on propose de creer quand meme. */}
+      {/* Fiche deja existante (même e-mail ou même numéro) : on propose de l'ouvrir. */}
       <Dialog open={dupes !== null} onOpenChange={(o) => { if (!o) closeDupes(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('contacts.dupTitle')}</DialogTitle>
+            <DialogTitle>{t('contacts.dupFoundTitle')}</DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-muted-foreground">{t('contacts.dupMessage')}</p>
-          <div className="max-h-48 space-y-1.5 overflow-auto">
-            {(dupes ?? []).map((c) => (
-              <div key={c.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px]">
-                <span className="flex-1 truncate font-medium">{contactDisplayName(c)}</span>
-                {c.city && <span className="truncate text-muted-foreground">{c.city}</span>}
-                {c.code && <span className="font-mono text-[11px] text-muted-foreground">{c.code}</span>}
-              </div>
-            ))}
+          <p className="text-[13px] text-muted-foreground">{t('contacts.dupFoundMessage')}</p>
+          <div className="max-h-64 space-y-1.5 overflow-auto">
+            {(dupes ?? []).map((c) => {
+              const sameEmail = !!f.email.trim() && (c.email ?? '').trim().toLowerCase() === f.email.trim().toLowerCase();
+              return (
+                <div key={c.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px]">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {contactDisplayName(c)}
+                      {!c.is_active && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">({t('contacts.dupArchived')})</span>}
+                    </p>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {[sameEmail ? t('contacts.dupMatchEmail') : t('contacts.dupMatchPhone'), c.city, c.code].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <Link to="/clients/$contactId" params={{ contactId: c.id }}>{t('contacts.dupOpen')}</Link>
+                  </Button>
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeDupes}>{t('contacts.dupCancel')}</Button>
-            <Button type="button" onClick={confirmDuplicate}>{t('contacts.dupCreateAnyway')}</Button>
+            <Button type="button" variant="ghost" onClick={confirmDuplicate}>{t('contacts.dupCreateAnyway')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -524,7 +557,7 @@ export function ContactForm({
         <TabsContent value="self" className="mt-4 space-y-6">
 
           {/* ── Identité ───────────────────────────────────────────────────── */}
-          <Section title={t('contacts.secIdentity')}>
+          <Section title={t('contacts.secEssentials')}>
             {!lockType && (
               <Field label={t('contacts.type')}>
                 <Select value={f.type} onValueChange={(v) => set('type', v as ContactType)}>
@@ -539,73 +572,61 @@ export function ContactForm({
                 </Select>
               </Field>
             )}
-            {isClient && (
-              <Field label={t('contacts.status')}>
-                <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
-                    <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
-                    <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
-                    <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-            <Field label={isClient ? t('contacts.code') : t('contacts.codeGeneric')}>
-              <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
-            </Field>
             {isPro && (
               <Field label={t('contacts.companyName')}>
                 <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
               </Field>
             )}
-            {isPro ? (
-              <Field label={t('contacts.companyType')}>
-                <Input list="company-types" value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder={t('contacts.companyTypePlaceholder')} />
-                <datalist id="company-types">
-                  {COMPANY_TYPES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </datalist>
-              </Field>
-            ) : (
-              <Field label={t('contacts.civility')}>
-                {/* Liste fermee : la saisie libre laissait passer des formes juridiques
-                    (SPRL, SA...) heritees a tort de la fiche pro liee. */}
+            {isPro && (
+              <Field label={t('contacts.legalForm')}>
+                {/* Mission 04, carte 2 : liste lue dans Paramètres → Tables → Civilités
+                    (lignes « Professionnel »), plus de liste codée en dur. */}
                 <Select
-                  value={f.civility || CIVILITY_NONE}
-                  onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
+                  value={f.legal_form || CIVILITY_NONE}
+                  onValueChange={(v) => set('legal_form', v === CIVILITY_NONE ? '' : v)}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
-                    <SelectItem value="Monsieur">{t('contacts.civilityMr')}</SelectItem>
-                    <SelectItem value="Madame">{t('contacts.civilityMrs')}</SelectItem>
-                    <SelectItem value="Autre">{t('contacts.civilityOther')}</SelectItem>
-                    {f.civility && !CIVILITY_OPTIONS.includes(f.civility) && (
-                      <SelectItem value={f.civility}>{f.civility}</SelectItem>
+                    {legalForms.map((o) => (
+                      <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>
+                    ))}
+                    {f.legal_form && !legalForms.some((o) => o.code === f.legal_form) && (
+                      <SelectItem value={f.legal_form}>{f.legal_form}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               </Field>
             )}
+            <Field label={isPro ? t('contacts.civilityContact') : t('contacts.civility')}>
+              {/* Civilité de la PERSONNE : M. / Mme / Mx. Une forme juridique héritée de G8
+                  dans ce champ n'est pas proposée ici (voir « Forme juridique »). */}
+              <Select
+                value={personCivility(f.civility) ?? CIVILITY_NONE}
+                onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
+                  {PERSON_CIVILITIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label={t('contacts.firstName')}>
               <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
             </Field>
             <Field label={t('contacts.lastName')}>
               <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
             </Field>
-            <Field label={t('contacts.email')}>
-              <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
-            </Field>
             {/* Mobile avec préfixe +32 par défaut */}
             <Field label={t('contacts.mobile')}>
               <PhoneInput value={f.mobile} onChange={(v) => set('mobile', v)} />
+              <p className="text-[11px] text-muted-foreground">{t('contacts.mobileSmsHint')}</p>
             </Field>
-            {/* Mobile 2 (ex-GSM) avec préfixe */}
-            <Field label={t('contacts.mobile2')}>
-              <PhoneInput value={f.gsm} onChange={(v) => set('gsm', v)} />
+            <Field label={t('contacts.email')}>
+              <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
             </Field>
           </Section>
 
@@ -629,10 +650,12 @@ export function ContactForm({
               <Input value={f.po_box} onChange={(e) => set('po_box', e.target.value)} />
             </Field>
             <Field label={t('contacts.zip')}>
-              <Input value={f.zip} onChange={(e) => set('zip', e.target.value)} />
+              <Input value={f.zip} inputMode="numeric" onChange={(e) => set('zip', e.target.value)} />
             </Field>
             <Field label={t('contacts.city')}>
               <Input value={f.city} onChange={(e) => set('city', e.target.value)} />
+              {/* Mission 04, carte 4 : le code postal propose la localité. */}
+              <ZipCitySuggest zip={f.zip} country={f.country} city={f.city} onPick={(c) => set('city', c)} />
             </Field>
             <Field label={t('contacts.country')}>
               <Input value={f.country} onChange={(e) => set('country', e.target.value)} />
@@ -640,6 +663,45 @@ export function ContactForm({
             <div className="col-span-full">
               <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
             </div>
+          </Section>
+
+          {/* ── Mission 04, carte 1 : le reste de la fiche, replié à la création ── */}
+          <Collapsible open={moreOpen} onOpenChange={setMoreOpen} className="space-y-6">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-left shadow-[var(--shadow-card)] hover:bg-accent"
+              >
+                <span>
+                  <span className="block font-ui text-[15px] font-bold text-foreground">{t('contacts.secComplete')}</span>
+                  <span className="block text-[12px] text-muted-foreground">{t('contacts.secCompleteHint')}</span>
+                </span>
+                <ChevronDown className={`size-5 shrink-0 text-muted-foreground transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-6">
+          {/* ── Suivi de la fiche (statut, code, second mobile) ─────────────── */}
+          <Section title={t('contacts.secFollowUp')}>
+            {isClient && (
+              <Field label={t('contacts.status')}>
+                <Select value={f.status} onValueChange={(v) => set('status', v as ContactStatus)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">{t('contacts.status_prospect')}</SelectItem>
+                    <SelectItem value="client">{t('contacts.status_client')}</SelectItem>
+                    <SelectItem value="client_piece">{t('contacts.status_client_piece')}</SelectItem>
+                    <SelectItem value="client_atelier">{t('contacts.status_client_atelier')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <Field label={isClient ? t('contacts.code') : t('contacts.codeGeneric')}>
+              <Input value={f.code} onChange={(e) => set('code', e.target.value)} className="font-mono" />
+            </Field>
+            {/* Mobile 2 (ex-GSM) avec préfixe */}
+            <Field label={t('contacts.mobile2')}>
+              <PhoneInput value={f.gsm} onChange={(v) => set('gsm', v)} />
+            </Field>
           </Section>
 
           {/* ── Professionnel (B2B) — juste après l'adresse, uniquement pour pro ── */}
@@ -662,7 +724,7 @@ export function ContactForm({
                 </Select>
               </Field>
               <Field label={t('contacts.iban')}>
-                <Input value={f.iban} onChange={(e) => set('iban', e.target.value)} className="font-mono" />
+                <IbanInput value={f.iban} onChange={(v) => set('iban', v)} />
               </Field>
               <Field label={t('contacts.bic')}>
                 <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
@@ -683,11 +745,29 @@ export function ContactForm({
             </Section>
           )}
 
+          {/* ── Banque et TVA des particuliers (mission 04, carte 5) ──────── */}
+          {isClient && !showB2B && (
+            <Section title={t('contacts.secBankVat')}>
+              <Field label={t('contacts.vatNumber')} wide>
+                <VatField f={f} set={set} />
+              </Field>
+              <Field label={t('contacts.iban')}>
+                <IbanInput value={f.iban} onChange={(v) => set('iban', v)} />
+              </Field>
+              <Field label={t('contacts.bic')}>
+                <Input value={f.bic} onChange={(e) => set('bic', e.target.value)} className="font-mono" />
+              </Field>
+            </Section>
+          )}
+
           {/* ── Permis & ID (clients uniquement) ──────────────────────────── */}
           {isClient && (
           <Section title={t('contacts.secMoto')}>
             <Field label={t('contacts.birthDate')}>
               <Input type="date" value={f.birth_date} onChange={(e) => set('birth_date', e.target.value)} />
+            </Field>
+            <Field label={t('contacts.birthPlace')}>
+              <Input value={f.birth_place} onChange={(e) => set('birth_place', e.target.value)} />
             </Field>
             <Field label={t('contacts.nationalId')}>
               <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
@@ -873,6 +953,8 @@ export function ContactForm({
               <Textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />
             </Field>
           </Section>
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         {/* Onglet « Info chez Ducati » */}
@@ -900,6 +982,29 @@ export function ContactForm({
         </SaveButton>
       </div>
     </form>
+  );
+}
+
+// ─── Composant : IBAN avec contrôle modulo 97 (mission 04, carte 5) ──────────
+function IbanInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const filled = value.trim() !== '';
+  const ok = filled && isValidIban(value);
+  return (
+    <div className="space-y-1">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="font-mono"
+        placeholder="BE68 5390 0754 7034"
+        aria-invalid={filled && !ok}
+      />
+      {filled && !ok && (
+        <p className="flex items-center gap-1 text-[11px] text-danger"><ShieldX className="size-3" /> {t('contacts.ibanInvalid')}</p>
+      )}
+      {ok && (
+        <p className="flex items-center gap-1 text-[11px] text-success"><ShieldCheck className="size-3" /> {t('contacts.ibanValid')}</p>
+      )}
+    </div>
   );
 }
 

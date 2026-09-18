@@ -3,8 +3,8 @@ chapitre: M1
 titre: Contacts / clients
 etat: ✅
 verifie_le: 2026-09-18
-missions: []
-mots_cles: [client, prospect, fournisseur, fiche client, code client, doublon, fusion, archiver, VIP, surveillance, bloqué, permis, carte d'identité, registre national, TVA, VIES, encours, limite de crédit, tarifs client, fiche liée, pro, privé, parc, étiquette client, My Ducati]
+missions: [04]
+mots_cles: [client, civilité, forme juridique, code postal, localité, mobile, SMS, IBAN, lieu de naissance, mobiles à compléter, prospect, fournisseur, fiche client, code client, doublon, fusion, archiver, VIP, surveillance, bloqué, permis, carte d'identité, registre national, TVA, VIES, encours, limite de crédit, tarifs client, fiche liée, pro, privé, parc, étiquette client, My Ducati]
 ---
 
 # M1 — Contacts / clients
@@ -27,7 +27,8 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 | Clients → liste (`/clients`) | Rechercher (insensible aux accents, par mots), filtrer par type (particulier, professionnel, banque/leasing, fournisseur, employé), trier par nom ou par **date d'arrivée**, choisir les colonnes affichées, paginer. Accès à « Tarifs client ». |
 | Clients → liste → cases à cocher | **Actions groupées** sur la page affichée : archiver / réactiver, changer le statut, poser ou retirer VIP / surveillance / bloqué / opt-out marketing, lier des fiches, fusionner (**admins seulement**). |
 | Fusion (liste ou fiche) | On coche la fiche **gardée** ; avant de valider, un récapitulatif dit quelle fiche est gardée, lesquelles sont archivées, et ce qui sera rapatrié (documents, motos, échanges, pièces jointes, OR, rendez-vous, cartes CRM, autres). Les blocages (deux comptes client, deux soldes d'ouverture G8) sont affichés et le bouton reste grisé. Tout ou rien : un refus ne modifie rien. |
-| Clients → Nouveau (`/clients/new`) | Créer une fiche. Alerte non bloquante si une fiche strictement identique existe (nom + ville + téléphone + e-mail). Code client attribué automatiquement par la base. |
+| Clients → Nouveau (`/clients/new`) | Créer une fiche **en deux temps** (mission 04) : l'essentiel (type, forme juridique, civilité, nom, prénom, mobile, e-mail, adresse) puis « Compléter la fiche », replié. Avant création : si l'**e-mail ou le numéro** existe déjà (ou une fiche strictement identique), fenêtre avec « Ouvrir la fiche » par ligne ou « Créer quand même » (D3). Code postal belge → localité proposée. Code client attribué automatiquement par la base. |
+| Clients → Mobiles à compléter (`/clients/mobiles`) | (mission 04) Fiches actives sans mobile dont le téléphone G8 est un GSM belge ; bouton « Utiliser comme mobile » par ligne, tracé. |
 | Clients → fiche (`/clients/$contactId`) → onglet Fiche | Trois sous-onglets Info privée / Info pro / Info chez Ducati. Identité, permis (n°, date, lieu, catégorie A/A2…), carte d'identité, registre national, adresse, téléphones avec indicatif pays, e-mails, conditions de paiement, IBAN/BIC, limite de crédit, TVA (**bouton de vérification VIES** qui préremplit la raison sociale et l'adresse, liens KBO et Companyweb), régime TVA de vente, drapeaux (VIP, détaxé, à surveiller avec motif, en compte, bloqué, mode HT), intérêts (Route/Sport/Off-road/Piste), **modèles Ducati suivis**, préférence neuf/occasion, lien My Ducati. |
 | Fiche → section Permis & ID | Photos recto/verso (caméra, galerie, glisser-déposer), **lecture automatique par Claude** (`read-id-doc`) qui remplit les champs. |
 | Fiche → barre d'actions | Étiquette client (impression), Nouveau document de vente, Fusionner une autre fiche dans celle-ci (admin), Archiver / Réactiver, Supprimer (seulement une fiche vierge et seulement pour un admin ; sinon proposition d'archiver). Pop-up à l'ouverture si le client est débiteur. |
@@ -48,7 +49,9 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 | Écrans (routes) | `src/routes/_app.clients.tsx` (layout), `_app.clients.index.tsx`, `_app.clients.new.tsx`, `_app.clients.$contactId.tsx`, `_app.client-pricing.tsx` |
 | Accès aux données, fusion, doublons, suppression | `src/modules/contacts/api.ts` (`mergeContacts`, `getMergePreview`, `mergeErrorMessage` appellent les RPC de fusion) |
 | Récapitulatif avant fusion | `src/modules/contacts/merge-summary.tsx` (`useMergePreviews`, `MergeSummary`), utilisé par `bulk-actions-bar.tsx` et `_app.clients.$contactId.tsx` |
-| Formulaire de fiche | `src/modules/contacts/contact-form.tsx` (`buildPayload` l. 313) |
+| Formulaire de fiche | `src/modules/contacts/contact-form.tsx` (`buildPayload`) ; civilité / forme juridique : `civility.ts` ; mobiles à compléter : `mobile-fix.tsx` + route `_app.clients.mobiles.tsx` |
+| Normalisation mobile, e-mail, IBAN | `src/lib/contact-normalize.ts` (`normalizeMobile`, `normalizeEmail`, `belgianGsmFromPhone`, `isValidIban`) |
+| Code postal → localité | `src/components/zip-city-suggest.tsx` (fiche client et « Mon profil »), table `be_postal_codes` |
 | Onglets de la fiche | `src/modules/contacts/client-tabs.tsx`, `contact-links-panel.tsx`, `subobjects-api.ts` |
 | Actions groupées | `src/modules/contacts/bulk-actions-bar.tsx`, `bulk-api.ts` |
 | Permis & carte d'identité | `src/modules/contacts/id-docs.tsx`, `id-docs-data.ts` |
@@ -58,12 +61,12 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 | Badges de modèles suivis | `src/modules/contacts/model-interest-badges.tsx` |
 | Téléphone avec indicatif | `src/components/phone-input.tsx`, `src/lib/dial-codes.ts` |
 | Tables | `contacts` (la fiche, ~120 colonnes), `contact_links` (paire pro ↔ privé), `contact_subcontacts` (interlocuteurs), `delivery_addresses` (adresses de livraison), `customer_price_rules` (remises utilisées par le simulateur), `client_price_rules` (onglet Tarifs, non exploité), `contact_merge_candidates` (rapprochements proposés par la relève mail, 2 lignes), `contact_accounts` (compte de connexion du client, voir M0), `vehicle_owners` (lien client ↔ moto, M3) |
-| Fonctions SQL (RPC) | `contacts_search`, `contacts_search_count` (liste + recherche), `contacts_find_duplicates` (doublon strict), `contacts_match_candidates` (rapprochement souple, relève mail), `contact_dependencies`, `contact_delete_safe`, `contact_encours`, `next_contact_code` + déclencheur `set_contact_code` (`trg_contacts_code`), `resolve_customer_price`, `create_prospect_from_email` (voir M10), **`contact_merge`** (la fusion), `contact_merge_preview` (récapitulatif et blocages), `contact_merge_refs` (inventaire interne des références, non exécutable par les utilisateurs) |
+| Fonctions SQL (RPC) | `contacts_search`, `contacts_search_count` (liste + recherche), `contacts_find_duplicates` (doublon strict), `contacts_match_candidates` (rapprochement souple, relève mail), `contact_dependencies`, `contact_delete_safe`, `contact_encours`, `next_contact_code` + déclencheur `set_contact_code` (`trg_contacts_code`), `resolve_customer_price`, `create_prospect_from_email` (voir M10), `contacts_find_by_email_or_mobile` + `contact_phone_key` (doublon e-mail/numéro), `contacts_phone_gsm_candidates` + `contact_use_phone_as_mobile` + `contact_be_gsm` (mobiles à compléter), `iban_is_valid`, déclencheur `trg_contacts_normalize_email`, **`contact_merge`** (la fusion), `contact_merge_preview` (récapitulatif et blocages), `contact_merge_refs` (inventaire interne des références, non exécutable par les utilisateurs) |
 | Fonctions serveur (Edge) | `supabase/functions/vies-check` (TVA), `supabase/functions/read-id-doc` (lecture du permis / de la carte par Claude) |
 | Tâches planifiées | aucune |
-| Migrations clés | `20260610110000_m1_contacts.sql`, `20260610130000_m1_contacts_complete.sql`, `20260610190000_m1_client_subobjects.sql`, `20260612200000_m1_customer_pricing.sql`, `20260612340000_m1_contacts_search.sql`, `20260613400000_m1_contact_links.sql`, `20260629100000_m1_contacts_enhancements.sql`, `20260911120000_m1_contact_code_dedup_delete.sql`, `20260911170000_contact_links_unique_pair.sql`, `20260914150000_m1_new_client_foundations.sql`, `20260914200000_m1_contacts_sort_recent.sql`, `20260919140000_m1_contact_merge.sql` (fusion) |
+| Migrations clés | `20260610110000_m1_contacts.sql`, `20260610130000_m1_contacts_complete.sql`, `20260610190000_m1_client_subobjects.sql`, `20260612200000_m1_customer_pricing.sql`, `20260612340000_m1_contacts_search.sql`, `20260613400000_m1_contact_links.sql`, `20260629100000_m1_contacts_enhancements.sql`, `20260911120000_m1_contact_code_dedup_delete.sql`, `20260911170000_contact_links_unique_pair.sql`, `20260914150000_m1_new_client_foundations.sql`, `20260914200000_m1_contacts_sort_recent.sql`, `20260919140000_m1_contact_merge.sql` (fusion), mission 04 : `20260919260000_m1_doublon_email_mobile.sql`, `20260919261000_m1_forme_juridique.sql`, `20260919262000_m1_mobile_depuis_telephone.sql`, `20260919263000_m1_email_minuscules.sql`, `20260919264000_ref_codes_postaux_be.sql`, `20260919265000_m1_portail_iban_naissance.sql` |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `contacts`, `pricing`, `labels` |
-| Tests | `tests/vies.test.ts`, `tests/id-docs.test.ts`, `tests/contact-label.test.ts`, `tests/dial-codes.test.ts` |
+| Tests | `tests/vies.test.ts`, `tests/id-docs.test.ts`, `tests/contact-label.test.ts`, `tests/dial-codes.test.ts`, `tests/contact-normalize.test.ts`, `tests/civility.test.ts` |
 
 ## 4. Règles métier et décisions
 
@@ -75,6 +78,10 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
   - **Pas de mise à jour automatique** : une fiche `prospect` qui reçoit sa première facture dans le DMS **reste** `prospect` tant qu'on ne change pas son statut (à décider : déclencheur à la validation d'une facture ?).
   - Retour arrière : ancien statut archivé dans `archive_d2_20260918.contacts_status` (schéma non exposé) ; script `supabase/rollbacks/20260919160000_d2_contacts_client_status_ROLLBACK.sql` (non appliqué). Trace : une ligne `events` par fiche (audit) + une ligne de synthèse `d2_client_status`.
 - **Doublons (D3)** : c'est l'adresse e-mail qui décide si un contact est nouveau ; en cas de ressemblance on **propose** une fusion, validée à la main, jamais automatique. 84 adresses sont partagées légitimement (couple, famille, société).
+- **Civilité / forme juridique (mission 04, carte 2)** : `civility` = civilité de la **personne** (valeurs `Monsieur`, `Madame`, `Mx`, affichées M. / Mme / Mx) ; `legal_form` = forme juridique d'un pro, choisie dans la table de référence `civility` (lignes `professional = true`). Les 1 210 fiches G8 dont la civilité était une forme juridique ont été copiées dans `legal_form` le 19/09 ; leur `civility` garde l'ancienne valeur (non affichée, jamais effacée par le formulaire).
+- **Mobile (carte 3)** : un seul mobile, celui des SMS, enregistré au format international (`+32…`). Le « téléphone » G8 n'est plus modifié par le formulaire. Les GSM rangés dans « téléphone » se reprennent fiche par fiche (« Mobiles à compléter »), jamais en masse.
+- **E-mail (carte 4)** : minuscules et sans espaces, garanti par la base (déclencheur à l'insertion et quand l'e-mail change) ; les anciens e-mails ne sont pas réécrits.
+- **IBAN (carte 5)** : contrôle modulo 97 à la saisie (fiche) et en base (espace client) ; ouvert aux particuliers. Un changement d'IBAN par le client est tracé (`events.action = 'portal_iban_changed'`) et signalé dans la cloche (admin, comptable, vendeur).
 - **Code client** : attribué par la base à l'insertion (`trg_contacts_code`), jamais saisi.
 - **Suppression** : physique seulement si la fiche n'a aucune dépendance (`contact_dependencies` suit les vraies clés étrangères) et seulement pour un admin (`contact_delete_safe`). Sinon on archive (`is_active = false`). Règle 4 de `CLAUDE.md`.
 - **Fusion (F-9, F-10, D3)** : fonction SQL `contact_merge(_keep, _absorb)`, **une transaction** (tout ou rien), réservée aux **administrateurs**, les deux fiches de la **même société**, jamais une fiche avec elle-même. Italbike fusionne lui-même ses doublons (F-10) ; jamais de fusion automatique (D3).
@@ -126,6 +133,9 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 - `contact-form.tsx` (1 154 lignes) lit certaines colonnes via `as any` : `types.ts` n'est pas régénéré pour toutes les colonnes récentes.
 - Onglets de la fiche libellés en dur (« Fiche », « Parc », « Documents »…) dans `_app.clients.$contactId.tsx`, contraire à la règle i18n.
 - Saisie forcée en MAJUSCULES sur tous les champs sauf e-mails (décision du 17/07, commit `5bcb9ff`).
+- **Codes postaux** : jeu de 2020 (jief/zipcode-belgium, d'après bpost), sans écran d'import ; un code créé depuis n'est pas proposé (la ville reste saisissable à la main).
+- **Doublon d'e-mail ne différant que par la casse** : fiches 231 et 8293 (GILSON) — à fusionner à la main.
+- `civility` des fiches pro reprises de G8 contient encore la forme juridique (copiée dans `legal_form`) : ne pas s'en servir pour une formule de politesse sans passer par `personCivility()`.
 
 ## 8. Exigences du cahier couvertes
 
@@ -159,4 +169,5 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 | 2026-09-11 | Code client automatique, anti-doublons, suppression sûre ; actions groupées ; VIES via Edge Function | `78d074d`, `183f35b`, `9ace512`, migrations `20260911120000`, `20260911170000` |
 | 2026-09-14 | Origine des fiches, prospects créés depuis un mail, tri par date d'arrivée | `b9022cb`, `a271cf4`, migrations `20260914150000` à `20260914230000` |
 | 2026-09-18 | **Décision D2 appliquée** : 4 165 fiches ayant au moins une facture (`FAC`, G8 ou DMS) passées de `prospect` à `client` ; ancien statut archivé, retour arrière prêt | branche `lot-notif-tri`, migration `20260919160000_d2_contacts_client_status.sql` (appliquée le 18/09), rollback `supabase/rollbacks/20260919160000_d2_contacts_client_status_ROLLBACK.sql` |
+| 2026-09-19 | **Mission 04, cartes 1 à 5** : fiche en deux temps + doublon e-mail/numéro ; civilité M./Mme/Mx et forme juridique séparée (1 210 fiches copiées) ; mobile au format international, « Mobiles à compléter », téléphone G8 plus effacé ; e-mail en minuscules (déclencheur) ; codes postaux belges → localité ; lieu de naissance, IBAN/BIC/TVA pour les particuliers, IBAN modifiable dans l'espace client avec alerte | branche `lot-m4-client`, commits `f8dfa48` à `8966f82`, migrations `20260919260000` à `20260919265000` (appliquées le 19/09) |
 | 2026-09-19 | **Fusion de fiches réécrite** : une fonction SQL transactionnelle réservée aux admins, qui rapatrie toutes les références (27 tables et colonnes), gère les doublons, complète les champs vides, trace dans `events` ; récapitulatif avant fusion | migration `20260919140000_m1_contact_merge.sql` (appliquée en base le 18/09) |

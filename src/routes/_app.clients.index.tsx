@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -99,8 +99,12 @@ function ClientsList() {
         title={t('contacts.title')}
         description={t('contacts.subtitle')}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate({ to: '/client-pricing' })}>{t('pricing.title')}</Button>
+            {/* Mission 04, carte 3 : GSM de la reprise G8 rangés dans « téléphone ». */}
+            <Button variant="outline" onClick={() => navigate({ to: '/clients/mobiles' })}>
+              <Smartphone /> {t('contacts.mobileFix.link')}
+            </Button>
             <Button onClick={() => navigate({ to: '/clients/new' })}>
               <UserPlus /> {t('contacts.new')}
             </Button>

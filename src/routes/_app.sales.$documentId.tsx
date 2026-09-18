@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
 import { enqueueDocumentEmail, enqueueDocumentSms } from '@/modules/sales/notify-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
@@ -85,7 +85,7 @@ function DocumentView() {
     <>
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
-        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}`}
+        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}${doc.operator ? ` · ${t('sales.operator')} ${doc.operator}` : ''}`}
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
@@ -154,11 +154,18 @@ function DocumentView() {
           </thead>
           <tbody>
             {lines.map((l) => {
+              // Lignes texte (commentaire multi-lignes) et vides : sans montant (mission 05, carte 5).
+              if (l.line_type === 'vide') return <tr key={l.id} className="border-b border-border last:border-0"><td colSpan={showAvailability ? 6 : 5} className="px-3 py-2">&nbsp;</td></tr>;
+              if (l.line_type === 'texte') return (
+                <tr key={l.id} className="border-b border-border last:border-0">
+                  <td colSpan={showAvailability ? 6 : 5} className="whitespace-pre-wrap px-3 py-2 italic">{l.designation}</td>
+                </tr>
+              );
               const lineAvail = showAvailability ? computeDocAvailability([l], stockMap) : null;
               return (
                 <tr key={l.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">{l.designation}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
+                  <td className="px-3 py-2">{l.reference ? <span className="mr-2 font-mono text-[12px] text-muted-foreground">{l.reference}</span> : null}{l.designation}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{l.quantity}{l.line_type === 'main_oeuvre' ? ` ${t('sales.hoursUnit')}` : ''}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_price_ht))}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{l.vat_rate}%</td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
@@ -186,7 +193,7 @@ function DocumentView() {
 
       {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
         <div className="mt-4">
-          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={doc.doc_type === 'RES'} />
+          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)} />
         </div>
       )}
 

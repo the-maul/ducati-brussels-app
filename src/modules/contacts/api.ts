@@ -222,6 +222,25 @@ export async function findDuplicateContacts(companyId: string, probe: DuplicateP
   return (data as Contact[]) ?? [];
 }
 
+/**
+ * Mission 04, carte 1 — fiches existantes ayant le même e-mail (sans casse ni espaces)
+ * OU le même numéro (mobile, mobile 2 ou téléphone, quel que soit le format).
+ * Fonction SQL `contacts_find_by_email_or_mobile` (migration 20260919260000), sous RLS.
+ * Sert à proposer d'ouvrir la fiche existante avant d'en créer une deuxième (règle D3).
+ */
+export async function findContactsByEmailOrMobile(
+  companyId: string, probe: { email?: string | null; mobile?: string | null; excludeId?: string | null },
+): Promise<Contact[]> {
+  const email = (probe.email ?? '').trim();
+  const mobile = (probe.mobile ?? '').trim();
+  if (!email && mobile.replace(/\D/g, '').length < 8) return [];
+  const { data, error } = await rpcUntyped('contacts_find_by_email_or_mobile', {
+    _company: companyId, _email: email, _mobile: mobile, _exclude: probe.excludeId ?? null,
+  });
+  if (error) throw error;
+  return (data as Contact[]) ?? [];
+}
+
 export type ContactDependency = { table_name: string; n: number };
 
 /** Lignes metier rattachees a une fiche. Vide => suppression physique possible. */

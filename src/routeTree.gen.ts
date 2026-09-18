@@ -43,6 +43,7 @@ import { Route as MonEspaceProfilRouteImport } from './routes/mon-espace.profil'
 import { Route as MonEspaceRendezVousRouteImport } from './routes/mon-espace.rendez-vous'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
+import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app.orders.index'
 import { Route as AppOrdersOrderIdRouteImport } from './routes/_app.orders.$orderId'
@@ -66,6 +67,7 @@ import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$doc
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
 import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
+import { Route as AppSettingsCommentsRouteImport } from './routes/_app.settings.comments'
 import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
 import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
@@ -268,6 +270,11 @@ const AppClientsContactIdRoute = AppClientsContactIdRouteImport.update({
   path: '/$contactId',
   getParentRoute: () => AppClientsRoute,
 } as any)
+const AppClientsMobilesRoute = AppClientsMobilesRouteImport.update({
+  id: '/mobiles',
+  path: '/mobiles',
+  getParentRoute: () => AppClientsRoute,
+} as any)
 const AppClientsNewRoute = AppClientsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -381,6 +388,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
 const AppSettingsAppClientRoute = AppSettingsAppClientRouteImport.update({
   id: '/app-client',
   path: '/app-client',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsCommentsRoute = AppSettingsCommentsRouteImport.update({
+  id: '/comments',
+  path: '/comments',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsCompaniesRoute = AppSettingsCompaniesRouteImport.update({
@@ -582,6 +594,7 @@ export interface FileRoutesByFullPath {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -600,6 +613,7 @@ export interface FileRoutesByFullPath {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/new': typeof AppSalesNewRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
+  '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -661,6 +675,7 @@ export interface FileRoutesByTo {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -678,6 +693,7 @@ export interface FileRoutesByTo {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/new': typeof AppSalesNewRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
+  '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -751,6 +767,7 @@ export interface FileRoutesById {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
+  '/_app/clients/mobiles': typeof AppClientsMobilesRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/excel': typeof AppOrdersExcelRoute
@@ -769,6 +786,7 @@ export interface FileRoutesById {
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
+  '/_app/settings/comments': typeof AppSettingsCommentsRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
   '/_app/settings/extension': typeof AppSettingsExtensionRoute
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
@@ -843,6 +861,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace/'
     | '/clients/$contactId'
+    | '/clients/mobiles'
     | '/clients/new'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -861,6 +880,7 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/new'
     | '/settings/app-client'
+    | '/settings/comments'
     | '/settings/companies'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -922,6 +942,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace'
     | '/clients/$contactId'
+    | '/clients/mobiles'
     | '/clients/new'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -939,6 +960,7 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/new'
     | '/settings/app-client'
+    | '/settings/comments'
     | '/settings/companies'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -1011,6 +1033,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace/'
     | '/_app/clients/$contactId'
+    | '/_app/clients/mobiles'
     | '/_app/clients/new'
     | '/_app/orders/$orderId'
     | '/_app/orders/excel'
@@ -1029,6 +1052,7 @@ export interface FileRouteTypes {
     | '/_app/sales/$documentId'
     | '/_app/sales/new'
     | '/_app/settings/app-client'
+    | '/_app/settings/comments'
     | '/_app/settings/companies'
     | '/_app/settings/extension'
     | '/_app/settings/kiosk'
@@ -1320,6 +1344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsContactIdRouteImport
       parentRoute: typeof AppClientsRoute
     }
+    '/_app/clients/mobiles': {
+      id: '/_app/clients/mobiles'
+      path: '/mobiles'
+      fullPath: '/clients/mobiles'
+      preLoaderRoute: typeof AppClientsMobilesRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
     '/_app/clients/new': {
       id: '/_app/clients/new'
       path: '/new'
@@ -1479,6 +1510,13 @@ declare module '@tanstack/react-router' {
       path: '/app-client'
       fullPath: '/settings/app-client'
       preLoaderRoute: typeof AppSettingsAppClientRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/comments': {
+      id: '/_app/settings/comments'
+      path: '/comments'
+      fullPath: '/settings/comments'
+      preLoaderRoute: typeof AppSettingsCommentsRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/companies': {
@@ -1710,12 +1748,14 @@ declare module '@tanstack/react-router' {
 
 interface AppClientsRouteChildren {
   AppClientsContactIdRoute: typeof AppClientsContactIdRoute
+  AppClientsMobilesRoute: typeof AppClientsMobilesRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
 
 const AppClientsRouteChildren: AppClientsRouteChildren = {
   AppClientsContactIdRoute: AppClientsContactIdRoute,
+  AppClientsMobilesRoute: AppClientsMobilesRoute,
   AppClientsNewRoute: AppClientsNewRoute,
   AppClientsIndexRoute: AppClientsIndexRoute,
 }
@@ -1836,6 +1876,7 @@ const AppSettingsTablesRouteWithChildren =
 
 interface AppSettingsRouteChildren {
   AppSettingsAppClientRoute: typeof AppSettingsAppClientRoute
+  AppSettingsCommentsRoute: typeof AppSettingsCommentsRoute
   AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
   AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
@@ -1848,6 +1889,7 @@ interface AppSettingsRouteChildren {
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAppClientRoute: AppSettingsAppClientRoute,
+  AppSettingsCommentsRoute: AppSettingsCommentsRoute,
   AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
   AppSettingsExtensionRoute: AppSettingsExtensionRoute,
   AppSettingsKioskRoute: AppSettingsKioskRoute,
