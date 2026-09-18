@@ -32,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
+import { normalizeMobile } from '@/lib/contact-normalize';
 import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
 import type {
@@ -313,9 +314,11 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     last_name: nn(f.last_name),
     company_name: nn(f.company_name),
     email: nn(f.email),
-    phone: null, // champ supprimé de l'UI, on ne le met plus à jour
-    mobile: nn(f.mobile),
-    gsm: nn(f.gsm),
+    // `phone` (téléphone repris de G8) n'est plus dans l'écran : on ne l'envoie plus du
+    // tout (avant : `phone: null` l'effaçait à chaque enregistrement de la fiche).
+    // Mission 04, carte 3 : mobiles au format international (+32…), utilisés pour les SMS.
+    mobile: nn(normalizeMobile(f.mobile)),
+    gsm: nn(normalizeMobile(f.gsm)),
     address: nn(f.address),
     address_complement: nn(f.address_complement),
     address_complement2: nn(f.address_complement2),
@@ -606,6 +609,7 @@ export function ContactForm({
             {/* Mobile avec préfixe +32 par défaut */}
             <Field label={t('contacts.mobile')}>
               <PhoneInput value={f.mobile} onChange={(v) => set('mobile', v)} />
+              <p className="text-[11px] text-muted-foreground">{t('contacts.mobileSmsHint')}</p>
             </Field>
             <Field label={t('contacts.email')}>
               <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />

@@ -943,6 +943,25 @@ export const fr = {
     secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
+    // Mission 04, carte 3 : un seul mobile, format international, utilisé pour les SMS
+    mobileSmsHint: 'Ce numéro reçoit les SMS. Mis au format international (+32…) à l’enregistrement.',
+    mobileFix: {
+      link: 'Mobiles à compléter',
+      title: 'Mobiles à compléter',
+      subtitle: 'Fiches reprises de G8 dont le GSM est rangé dans « téléphone » et le mobile vide.',
+      intro: 'Ces fiches ne peuvent pas recevoir de SMS : leur GSM belge est dans le champ « téléphone ». Vérifiez la ligne puis cliquez « Utiliser comme mobile ». Rien n’est corrigé automatiquement ; chaque clic est tracé.',
+      total: '{n} fiches à vérifier',
+      colPhone: 'Téléphone (G8)',
+      colProposed: 'Mobile proposé',
+      use: 'Utiliser comme mobile',
+      saved: 'Mobile enregistré',
+      done: 'Mobile enregistré sur la fiche.',
+      refresh: 'Actualiser la liste',
+      empty: 'Aucune fiche à compléter.',
+      errAlreadySet: 'Cette fiche a déjà un mobile : ouvrez-la pour vérifier.',
+      errNotGsm: 'Ce téléphone n’est pas un GSM belge.',
+    },
+
     // Mission 04, carte 2 : civilité de la personne (valeurs Monsieur / Madame / Mx)
     civilityM: 'M.',
     civilityMme: 'Mme',

@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { checkVat, parseViesAddress, type ViesResult } from '@/modules/contacts/vies-api';
+import { normalizeMobile } from '@/lib/contact-normalize';
 import {
   CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch,
 } from './api';
@@ -100,7 +101,9 @@ export function ProfileView() {
       if (!data.is_pro && (k === 'company_name' || k === 'vat_number')) continue;
       const v = form[k];
       if (k === 'country' && !String(v).trim()) continue; // pays obligatoire en base
-      patch[k] = typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : v;
+      // Mission 04, carte 3 : mobile au format international (+32…), comme au comptoir.
+      const clean = k === 'mobile' && typeof v === 'string' ? normalizeMobile(v) : v;
+      patch[k] = typeof clean === 'string' ? (clean.trim() === '' ? null : clean.trim()) : clean;
     }
     if (Object.keys(patch).length) save.mutate(patch as ProfilePatch);
   };

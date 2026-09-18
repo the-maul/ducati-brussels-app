@@ -43,6 +43,7 @@ import { Route as MonEspaceProfilRouteImport } from './routes/mon-espace.profil'
 import { Route as MonEspaceRendezVousRouteImport } from './routes/mon-espace.rendez-vous'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
+import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app.orders.index'
 import { Route as AppOrdersOrderIdRouteImport } from './routes/_app.orders.$orderId'
@@ -265,6 +266,11 @@ const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
 const AppClientsContactIdRoute = AppClientsContactIdRouteImport.update({
   id: '/$contactId',
   path: '/$contactId',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsMobilesRoute = AppClientsMobilesRouteImport.update({
+  id: '/mobiles',
+  path: '/mobiles',
   getParentRoute: () => AppClientsRoute,
 } as any)
 const AppClientsNewRoute = AppClientsNewRouteImport.update({
@@ -576,6 +582,7 @@ export interface FileRoutesByFullPath {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -654,6 +661,7 @@ export interface FileRoutesByTo {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -743,6 +751,7 @@ export interface FileRoutesById {
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
+  '/_app/clients/mobiles': typeof AppClientsMobilesRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/excel': typeof AppOrdersExcelRoute
@@ -834,6 +843,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace/'
     | '/clients/$contactId'
+    | '/clients/mobiles'
     | '/clients/new'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -912,6 +922,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace'
     | '/clients/$contactId'
+    | '/clients/mobiles'
     | '/clients/new'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -1000,6 +1011,7 @@ export interface FileRouteTypes {
     | '/mon-espace/rendez-vous'
     | '/mon-espace/'
     | '/_app/clients/$contactId'
+    | '/_app/clients/mobiles'
     | '/_app/clients/new'
     | '/_app/orders/$orderId'
     | '/_app/orders/excel'
@@ -1306,6 +1318,13 @@ declare module '@tanstack/react-router' {
       path: '/$contactId'
       fullPath: '/clients/$contactId'
       preLoaderRoute: typeof AppClientsContactIdRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/mobiles': {
+      id: '/_app/clients/mobiles'
+      path: '/mobiles'
+      fullPath: '/clients/mobiles'
+      preLoaderRoute: typeof AppClientsMobilesRouteImport
       parentRoute: typeof AppClientsRoute
     }
     '/_app/clients/new': {
@@ -1691,12 +1710,14 @@ declare module '@tanstack/react-router' {
 
 interface AppClientsRouteChildren {
   AppClientsContactIdRoute: typeof AppClientsContactIdRoute
+  AppClientsMobilesRoute: typeof AppClientsMobilesRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
 
 const AppClientsRouteChildren: AppClientsRouteChildren = {
   AppClientsContactIdRoute: AppClientsContactIdRoute,
+  AppClientsMobilesRoute: AppClientsMobilesRoute,
   AppClientsNewRoute: AppClientsNewRoute,
   AppClientsIndexRoute: AppClientsIndexRoute,
 }
