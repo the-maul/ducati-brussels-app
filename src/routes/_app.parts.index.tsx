@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -69,7 +69,7 @@ function countActive(f: FiltersState): number {
 }
 
 function ArticlesList() {
-  const { activeCompanyId } = useAuth();
+  const { activeCompanyId, isAdmin, hasRole } = useAuth();
   const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -175,6 +175,11 @@ function ArticlesList() {
             <Button variant="outline" onClick={() => navigate({ to: '/parts/cascade' })}>
               <Wand2 /> Cascade
             </Button>
+            {(isAdmin() || hasRole('vendeur')) && (
+              <Button variant="outline" onClick={() => navigate({ to: '/parts/shopify' })}>
+                <Store /> {t('shopify.openBtn')}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
               <Upload /> {t('articles.import')}
             </Button>

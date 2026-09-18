@@ -26,6 +26,11 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 - **W-6** — **Liaison des clients Shopify** : seules les correspondances **exactes** sont liées
   automatiquement ; toutes les autres sont proposées et **validées à la main**. *Client · 19/09.*
   [mission 03](missions/mission-03-shopify.md)
+- **W-6 (produits)** — La même règle vaut pour les **produits** : un produit Shopify n'est relié d'office à
+  un article du DMS que si l'on retrouve **exactement et uniquement** le bon article (SKU = référence après
+  trim/majuscules, ou code-barres = code-barres de l'article) ; les autres sont présentés pour validation
+  (lier, créer plus tard, ignorer), jamais de liaison devinée. **Rien n'est écrit dans Shopify** à ce stade.
+  *Simon · 19/09.* [mission 03](missions/mission-03-shopify.md), [M02](modules/M02-articles.md)
 
 ## 2026-09-19 — Mission 02
 

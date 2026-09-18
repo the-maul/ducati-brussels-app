@@ -2265,6 +2265,7 @@ export type Database = {
           notes: string | null
           number: string | null
           operator: string | null
+          operator_user_id: string | null
           paid_amount: number
           price_mode: string
           remise_ttc: number | null
@@ -2302,6 +2303,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -2339,6 +2341,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -4331,6 +4334,131 @@ export type Database = {
           },
         ]
       }
+      shopify_links: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          id: string
+          match_via: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_products: {
+        Row: {
+          barcode: string | null
+          company_id: string
+          first_seen_at: string
+          handle: string | null
+          id: string
+          image_url: string | null
+          inventory_quantity: number | null
+          price: number | null
+          product_title: string | null
+          product_type: string | null
+          removed_at: string | null
+          shopify_product_id: string
+          shopify_updated_at: string | null
+          shopify_variant_id: string
+          sku: string | null
+          status: string | null
+          synced_at: string
+          variant_title: string | null
+          vendor: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          company_id: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id: string
+          shopify_updated_at?: string | null
+          shopify_variant_id: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          company_id?: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id?: string
+          shopify_updated_at?: string | null
+          shopify_variant_id?: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signup_settings: {
         Row: {
           client_app_open: boolean
@@ -5290,6 +5418,7 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _article_on_order_qty: { Args: { _article: string }; Returns: number }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -5305,6 +5434,10 @@ export type Database = {
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      _part_order_refresh_totals: {
+        Args: { _order_id: string }
+        Returns: undefined
       }
       _portal_ctx: { Args: never; Returns: Record<string, unknown> }
       _portal_invoice_pdf: {
@@ -5336,6 +5469,25 @@ export type Database = {
           rule_kind: string
           unit_price_ht: number
           unit_price_ttc: number
+        }[]
+      }
+      _shopify_apply_auto_links: {
+        Args: {
+          _actor: string
+          _company: string
+          _links: Json
+          _run_started_at: string
+          _stats: Json
+        }
+        Returns: Json
+      }
+      _shopify_auto_candidates: {
+        Args: { _company: string }
+        Returns: {
+          barcode: string
+          candidates: Json
+          sku: string
+          variant_id: string
         }[]
       }
       append_lead_exchange_note: {
@@ -5996,6 +6148,28 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      part_order_article_search: {
+        Args: { _company: string; _limit?: number; _term: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          is_library: boolean
+          matched_barcode: string
+          mgmt_type: string
+          on_order_qty: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sale_price_ht: number
+          supplier_id: string
+          supplier_name: string
+          supplier_ref: string
+          vat_rate: number
+        }[]
+      }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
       part_order_history: {
         Args: { _order_id: string }
@@ -6006,6 +6180,45 @@ export type Database = {
           from_status: string
           note: string
           to_status: string
+        }[]
+      }
+      part_order_line_delete: { Args: { _line_id: string }; Returns: undefined }
+      part_order_line_save: {
+        Args: {
+          _article_id?: string
+          _designation?: string
+          _line_id?: string
+          _order_id: string
+          _qty_client?: number
+          _qty_shop?: number
+          _supplier_id?: string
+          _unit_price_ht?: number
+          _vat_rate?: number
+        }
+        Returns: Json
+      }
+      part_order_lines_detail: {
+        Args: { _order_id: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          id: string
+          line_ht: number
+          on_order_qty: number
+          order_id: string
+          qty_client: number
+          qty_shop: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
         }[]
       }
       part_order_rules: {
@@ -6301,6 +6514,49 @@ export type Database = {
           commission: number
           reversal: number
         }[]
+      }
+      shopify_link_suggestions: {
+        Args: { _company: string; _variant: string }
+        Returns: {
+          article_id: string
+          designation: string
+          reason: string
+          reference: string
+          score: number
+        }[]
+      }
+      shopify_link_variant: {
+        Args: { _article: string; _company: string; _variant: string }
+        Returns: undefined
+      }
+      shopify_products_overview: {
+        Args: { _company: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          barcode: string
+          decided_at: string
+          handle: string
+          image_url: string
+          inventory_quantity: number
+          link_status: string
+          match_via: string
+          price: number
+          product_status: string
+          product_title: string
+          product_type: string
+          shopify_product_id: string
+          shopify_variant_id: string
+          sku: string
+          synced_at: string
+          variant_title: string
+          vendor: string
+        }[]
+      }
+      shopify_set_variant_decision: {
+        Args: { _company: string; _decision: string; _variant: string }
+        Returns: undefined
       }
       signup_precheck: {
         Args: { _company: string; _email: string }

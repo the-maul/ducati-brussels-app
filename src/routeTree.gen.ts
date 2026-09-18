@@ -55,6 +55,7 @@ import { Route as AppPartsFamiliesRouteImport } from './routes/_app.parts.famili
 import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
 import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
+import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
@@ -327,6 +328,11 @@ const AppPartsNewRoute = AppPartsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AppPartsRoute,
 } as any)
+const AppPartsShopifyRoute = AppPartsShopifyRouteImport.update({
+  id: '/shopify',
+  path: '/shopify',
+  getParentRoute: () => AppPartsRoute,
+} as any)
 const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -586,6 +592,7 @@ export interface FileRoutesByFullPath {
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/new': typeof AppPartsNewRoute
+  '/parts/shopify': typeof AppPartsShopifyRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -664,6 +671,7 @@ export interface FileRoutesByTo {
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/new': typeof AppPartsNewRoute
+  '/parts/shopify': typeof AppPartsShopifyRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -753,6 +761,7 @@ export interface FileRoutesById {
   '/_app/parts/import': typeof AppPartsImportRoute
   '/_app/parts/labels': typeof AppPartsLabelsRoute
   '/_app/parts/new': typeof AppPartsNewRoute
+  '/_app/parts/shopify': typeof AppPartsShopifyRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -844,6 +853,7 @@ export interface FileRouteTypes {
     | '/parts/import'
     | '/parts/labels'
     | '/parts/new'
+    | '/parts/shopify'
     | '/purchases/$orderId'
     | '/purchases/new'
     | '/purchases/reorder'
@@ -922,6 +932,7 @@ export interface FileRouteTypes {
     | '/parts/import'
     | '/parts/labels'
     | '/parts/new'
+    | '/parts/shopify'
     | '/purchases/$orderId'
     | '/purchases/new'
     | '/purchases/reorder'
@@ -1010,6 +1021,7 @@ export interface FileRouteTypes {
     | '/_app/parts/import'
     | '/_app/parts/labels'
     | '/_app/parts/new'
+    | '/_app/parts/shopify'
     | '/_app/purchases/$orderId'
     | '/_app/purchases/new'
     | '/_app/purchases/reorder'
@@ -1392,6 +1404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPartsNewRouteImport
       parentRoute: typeof AppPartsRoute
     }
+    '/_app/parts/shopify': {
+      id: '/_app/parts/shopify'
+      path: '/shopify'
+      fullPath: '/parts/shopify'
+      preLoaderRoute: typeof AppPartsShopifyRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
     '/_app/purchases/': {
       id: '/_app/purchases/'
       path: '/'
@@ -1730,6 +1749,7 @@ interface AppPartsRouteChildren {
   AppPartsImportRoute: typeof AppPartsImportRoute
   AppPartsLabelsRoute: typeof AppPartsLabelsRoute
   AppPartsNewRoute: typeof AppPartsNewRoute
+  AppPartsShopifyRoute: typeof AppPartsShopifyRoute
   AppPartsIndexRoute: typeof AppPartsIndexRoute
 }
 
@@ -1740,6 +1760,7 @@ const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsImportRoute: AppPartsImportRoute,
   AppPartsLabelsRoute: AppPartsLabelsRoute,
   AppPartsNewRoute: AppPartsNewRoute,
+  AppPartsShopifyRoute: AppPartsShopifyRoute,
   AppPartsIndexRoute: AppPartsIndexRoute,
 }
 
