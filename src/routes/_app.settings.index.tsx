@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone } from 'lucide-react';
+import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { t } from '@/lib/i18n';
 
@@ -47,6 +47,15 @@ function SettingsIndex() {
           <Hash className="size-6 text-primary" />
           <span className="font-ui text-[15px] font-bold">{t('settings.numbering')}</span>
           <span className="text-sm text-muted-foreground">{t('settings.numberingDesc')}</span>
+        </Link>
+
+        <Link
+          to="/settings/comments"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <MessageSquareText className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">{t('settings.commentsTitle')}</span>
+          <span className="text-sm text-muted-foreground">{t('settings.commentsDesc')}</span>
         </Link>
 
         <Link

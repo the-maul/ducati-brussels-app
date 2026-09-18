@@ -8,6 +8,16 @@ import type { Database } from '@/integrations/supabase/types';
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
 
+/**
+ * Type de ligne (mission 05, carte 5) :
+ *  - article     : article ou texte libre avec montant (défaut, toutes les lignes historiques) ;
+ *  - main_oeuvre : article de type T, quantité = heures décimales, jamais de mouvement de stock ;
+ *  - texte       : commentaire (multi-lignes), aucun montant ;
+ *  - vide        : ligne blanche de séparation, aucun montant.
+ */
+export type LineType = 'article' | 'main_oeuvre' | 'texte' | 'vide';
+export const LINE_TYPES: readonly LineType[] = ['article', 'main_oeuvre', 'texte', 'vide'];
+
 export type LineInput = {
   article_id?: string | null;
   designation: string;
@@ -15,16 +25,42 @@ export type LineInput = {
   unit_price_ht: number;
   vat_rate: number;
   discount_pct: number;
+  line_type?: LineType;
+  reference?: string | null;
 };
+
+/** Une ligne texte ou vide ne porte jamais de montant (contrôlé aussi en base). */
+export function lineHasAmount(l: Pick<LineInput, 'line_type'>): boolean {
+  return l.line_type !== 'texte' && l.line_type !== 'vide';
+}
+
+/** Seules les lignes « article » rattachées à un article bougent le stock (pas la main-d'œuvre). */
+export function lineMovesStock(l: { line_type?: string | null; article_id?: string | null; quantity: number | string }): boolean {
+  return (l.line_type ?? 'article') === 'article' && !!l.article_id && Number(l.quantity) > 0;
+}
+
+/** Ligne enregistrée → ligne à recopier (conversion, duplication, avoir). */
+export function rowToLineInput(l: DocumentLine, sign: 1 | -1 = 1): LineInput {
+  const lt = (LINE_TYPES as readonly string[]).includes(l.line_type) ? (l.line_type as LineType) : 'article';
+  const q = Number(l.quantity);
+  return {
+    article_id: l.article_id, designation: l.designation, reference: l.reference ?? null, line_type: lt,
+    quantity: lineHasAmount({ line_type: lt }) ? (sign === -1 ? -Math.abs(q) : q) : 0,
+    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
+  };
+}
 
 // Stock par type de document (triple stock B4, G8 p.74/p.81) :
 //  - FAC/TIK débitent le stock RÉEL ;
 //  - RES (réservation/commande) et BL débitent le DISPONIBLE (réservé), le réel ne bouge
 //    qu'à la facturation ;
-//  - DEV (devis) : aucun mouvement de stock.
+//  - DEV (devis / proforma) et BC (bon de commande, commande ferme signée) : aucun
+//    mouvement de stock — la réservation se fait en convertissant en RES ou BL.
 export const REAL_OUT_DOC_TYPES = ['FAC', 'TIK'] as const;
 export const RESERVE_DOC_TYPES = ['RES', 'BL'] as const;
 export const SALE_DOC_TYPES = [...REAL_OUT_DOC_TYPES, ...RESERVE_DOC_TYPES] as const; // tout document qui touche le stock
+/** Documents sur lesquels on verse un acompte (reporté à la conversion, G8 p.96). */
+export const DEPOSIT_DOC_TYPES = ['RES', 'BC'] as const;
 
 /** Paramètres du pied de facture (remise globale, mode HT/TTC, détaxe, port, net forcé). */
 export type PiedInput = {
@@ -41,6 +77,7 @@ export type PiedInput = {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function lineHtRaw(l: LineInput) {
+  if (!lineHasAmount(l)) return 0;
   return l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100);
 }
 function lineTotals(l: LineInput, taxExempt = false) {
@@ -117,10 +154,12 @@ export async function createDocument(p: {
   if (p.lines.length) {
     const rows = p.lines.map((l, i) => {
       const t = lineTotals(l, pied.taxExempt);
+      const amount = lineHasAmount(l);
       return {
-        document_id: docId, article_id: l.article_id ?? null, designation: l.designation,
-        quantity: l.quantity, unit_price_ht: l.unit_price_ht, vat_rate: l.vat_rate,
-        discount_pct: l.discount_pct || 0, line_ht: t.ht, line_ttc: t.ttc, sort_order: i,
+        document_id: docId, article_id: amount ? l.article_id ?? null : null, designation: l.designation,
+        reference: l.reference ?? null, line_type: l.line_type ?? 'article',
+        quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0, vat_rate: l.vat_rate,
+        discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: t.ht, line_ttc: t.ttc, sort_order: i,
       };
     });
     const { error: le } = await supabase.from('document_lines').insert(rows);
@@ -133,11 +172,11 @@ export async function createDocument(p: {
     const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(p.docType);
     if (realOut || reserve) {
       for (const l of p.lines) {
-        if (!l.article_id || l.quantity <= 0) continue;
+        if (!lineMovesStock(l) || !l.article_id) continue;
         const qty = Math.abs(l.quantity);
         const args = realOut
-          ? { _type: 'sortie', _qty: -qty, _is_reservation: false }      // débite le réel
-          : { _type: 'reservation', _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
+          ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
+          : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
         const { error: se } = await supabase.rpc('record_stock_move', {
           // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
           _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
@@ -158,7 +197,7 @@ export async function liberateReservation(docId: string): Promise<void> {
   const { doc, lines } = await getDocumentFull(docId);
   if (!(RESERVE_DOC_TYPES as readonly string[]).includes(doc.doc_type)) return;
   for (const l of lines) {
-    if (!l.article_id || Number(l.quantity) <= 0) continue;
+    if (!lineMovesStock(l) || !l.article_id) continue;
     const { error } = await supabase.rpc('record_stock_move', {
       _article: l.article_id, _type: 'liberation', _qty: -Math.abs(Number(l.quantity)), _unit_cost: undefined,
       _is_reservation: true, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Libération réservation',
@@ -167,19 +206,76 @@ export async function liberateReservation(docId: string): Promise<void> {
   }
 }
 
-export type SaleArticle = { id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number };
-export async function searchSaleArticles(companyId: string, term: string): Promise<SaleArticle[]> {
-  const s = term.replace(/[,()%*]/g, ' ').trim();
-  let q = supabase.from('articles').select('id, reference, designation, sale_price_ht, vat_rate').eq('company_id', companyId).limit(8);
+/**
+ * Article proposé dans la recherche d'une ligne de vente, avec son stock (triple stock B4) :
+ * réel, réservé et « en commande » (commandes fournisseur CMD validées sans réception reçue).
+ * Le statut disponible / en commande / à commander se calcule avec `saleStockStatus`
+ * (availability.ts) selon la quantité de la ligne.
+ */
+export type SaleArticle = {
+  id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number;
+  mgmt_type: string | null; real_qty: number; reserved_qty: number; on_order_qty: number;
+  bin_location: string | null;
+  /** Référence remplacée (mission 05, carte 3) et groupe d'équivalences. */
+  superseded_by_id: string | null; equivalence_group: string | null;
+};
+/**
+ * Recherche d'article pour une ligne de vente (référence, désignation, réf. fournisseur,
+ * code-barres). Réutilise la fonction SQL de la mission 02 `part_order_article_search`
+ * (même calcul du stock et de l'« en commande » que l'écran des commandes de pièces).
+ */
+export async function searchSaleArticles(companyId: string, term: string, limit = 8): Promise<SaleArticle[]> {
+  const s = term.trim();
+  if (s.length < 2) return [];
+  const { data, error } = await supabase.rpc('part_order_article_search', { _company: companyId, _term: s, _limit: limit });
+  if (error) throw error;
+  const rows = data ?? [];
+  // Remplacement / équivalences (non renvoyés par la fonction SQL) : un seul aller-retour.
+  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null }>();
+  if (rows.length) {
+    const { data: l, error: le } = await supabase
+      .from('articles').select('id, superseded_by_id, equivalence_group').in('id', rows.map((a) => a.article_id));
+    if (le) throw le;
+    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group });
+  }
+  return rows.map((a) => ({
+    id: a.article_id, reference: a.reference, designation: a.designation,
+    sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
+    mgmt_type: a.mgmt_type ?? null, bin_location: a.bin_location ?? null,
+    real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
+    superseded_by_id: links.get(a.article_id)?.superseded_by_id ?? null,
+    equivalence_group: links.get(a.article_id)?.equivalence_group ?? null,
+  }));
+}
+
+/**
+ * Articles de main-d'œuvre (type de gestion T, ADR-002) pour une ligne « main d'œuvre » :
+ * taux horaire en prix de vente, quantité en heures décimales. Sans terme : les 20 premiers.
+ */
+export async function searchLabourArticles(companyId: string, term: string): Promise<SaleArticle[]> {
+  const s = term.replace(/[,()%*\\]/g, ' ').trim();
+  let q = supabase.from('articles')
+    .select('id, reference, designation, sale_price_ht, vat_rate, superseded_by_id, equivalence_group')
+    .eq('company_id', companyId).eq('mgmt_type', 'T').eq('is_active', true).order('reference').limit(20);
   if (s) q = q.or(`reference.ilike.%${s}%,designation.ilike.%${s}%`);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []).map((a) => ({ id: a.id, reference: a.reference, designation: a.designation, sale_price_ht: Number(a.sale_price_ht), vat_rate: Number(a.vat_rate) }));
+  return (data ?? []).map((a) => ({
+    id: a.id, reference: a.reference, designation: a.designation,
+    sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
+    mgmt_type: 'T', bin_location: null, real_qty: 0, reserved_qty: 0, on_order_qty: 0,
+    superseded_by_id: a.superseded_by_id, equivalence_group: a.equivalence_group,
+  }));
 }
 
-/** Conversions autorisées (G8 p.96, p.101-109). DEV→tout ; RES→FAC/BL ; BL→FAC. */
+/**
+ * Conversions autorisées (G8 p.96, p.101-109). Chaîne mission 05 : DEV (devis / proforma)
+ * → BC (bon de commande) → RES/BL/FAC ; DEV peut aussi aller directement en RES/BL/FAC.
+ * RES→FAC/BL ; BL→FAC. Les acomptes perçus suivent le document (convertDocument).
+ */
 export const CONVERSIONS: Record<string, readonly string[]> = {
-  DEV: ['FAC', 'RES', 'BL'],
+  DEV: ['BC', 'RES', 'BL', 'FAC'],
+  BC: ['RES', 'BL', 'FAC'],
   RES: ['FAC', 'BL'],
   BL: ['FAC'],
 };
@@ -205,10 +301,7 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
   const allowed = CONVERSIONS[doc.doc_type] ?? [];
   if (!allowed.includes(targetType)) throw new Error(`Conversion ${doc.doc_type}→${targetType} non autorisée`);
 
-  const lineInputs: LineInput[] = lines.map((l) => ({
-    article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
-    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
-  }));
+  const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l));
 
   const today = new Date().toISOString().slice(0, 10);
   const newId = await createDocument({
@@ -247,10 +340,7 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
   if (doc.status === 'annulee' || doc.status === 'converti') throw new Error('Facture déjà annulée');
 
   // Lignes en négatif (qté inversée → totaux négatifs via computeTotals).
-  const lineInputs: LineInput[] = lines.map((l) => ({
-    article_id: l.article_id, designation: l.designation, quantity: -Math.abs(Number(l.quantity)),
-    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
-  }));
+  const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l, -1));
 
   const today = new Date().toISOString().slice(0, 10);
   const avoId = await createDocument({
@@ -261,7 +351,7 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
 
   // Réintégration du stock : entrée réel +qté pour chaque ligne article (B4).
   for (const l of lines) {
-    if (!l.article_id || Number(l.quantity) <= 0) continue;
+    if (!lineMovesStock(l) || !l.article_id) continue;
     const { error } = await supabase.rpc('record_stock_move', {
       _article: l.article_id, _type: 'entree', _qty: Math.abs(Number(l.quantity)), _unit_cost: undefined,
       _is_reservation: false, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Avoir / réintégration',
@@ -302,10 +392,7 @@ export async function getDocumentFull(id: string): Promise<DocumentFull> {
  */
 export async function duplicateDocument(id: string): Promise<string> {
   const { doc, lines } = await getDocumentFull(id);
-  const lineInputs: LineInput[] = lines.map((l) => ({
-    article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
-    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
-  }));
+  const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l));
   const today = new Date().toISOString().slice(0, 10);
   return createDocument({
     companyId: doc.company_id, docType: doc.doc_type, contactId: doc.contact_id, vehicleId: doc.vehicle_id,
@@ -350,7 +437,7 @@ export async function listDocuments(companyId: string, docType?: string): Promis
   return data ?? [];
 }
 
-export type AvailabilityLineRow = { document_id: string; article_id: string | null; quantity: number };
+export type AvailabilityLineRow = { document_id: string; article_id: string | null; quantity: number; line_type: string };
 /**
  * Lignes (article_id, quantity) d'un lot de documents, en un seul aller-retour — utilisé
  * par la liste des ventes pour calculer la pastille de disponibilité (B4) sans requête N+1
@@ -359,7 +446,7 @@ export type AvailabilityLineRow = { document_id: string; article_id: string | nu
 export async function listDocumentLinesFor(documentIds: string[]): Promise<AvailabilityLineRow[]> {
   if (documentIds.length === 0) return [];
   const { data, error } = await supabase
-    .from('document_lines').select('document_id, article_id, quantity').in('document_id', documentIds);
+    .from('document_lines').select('document_id, article_id, quantity, line_type').in('document_id', documentIds);
   if (error) throw error;
   return data ?? [];
 }

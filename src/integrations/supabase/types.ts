@@ -535,6 +535,8 @@ export type Database = {
           supplier_ref: string | null
           updated_at: string
           vat_rate: number
+          web_description: string | null
+          web_title: string | null
           weight_volume_length: number | null
         }
         Insert: {
@@ -593,6 +595,8 @@ export type Database = {
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
+          web_description?: string | null
+          web_title?: string | null
           weight_volume_length?: number | null
         }
         Update: {
@@ -651,6 +655,8 @@ export type Database = {
           supplier_ref?: string | null
           updated_at?: string
           vat_rate?: number
+          web_description?: string | null
+          web_title?: string | null
           weight_volume_length?: number | null
         }
         Relationships: [
@@ -707,47 +713,56 @@ export type Database = {
       }
       attachments: {
         Row: {
+          alt_text: string | null
           company_id: string
           content_hash: string | null
           content_type: string | null
           created_at: string
           entity_id: string
           entity_type: string
+          external_id: string | null
           file_name: string
           folder: string | null
           id: string
           note: string | null
           size_bytes: number | null
+          sort_order: number | null
           storage_path: string
           uploaded_by: string | null
         }
         Insert: {
+          alt_text?: string | null
           company_id: string
           content_hash?: string | null
           content_type?: string | null
           created_at?: string
           entity_id: string
           entity_type: string
+          external_id?: string | null
           file_name: string
           folder?: string | null
           id?: string
           note?: string | null
           size_bytes?: number | null
+          sort_order?: number | null
           storage_path: string
           uploaded_by?: string | null
         }
         Update: {
+          alt_text?: string | null
           company_id?: string
           content_hash?: string | null
           content_type?: string | null
           created_at?: string
           entity_id?: string
           entity_type?: string
+          external_id?: string | null
           file_name?: string
           folder?: string | null
           id?: string
           note?: string | null
           size_bytes?: number | null
+          sort_order?: number | null
           storage_path?: string
           uploaded_by?: string | null
         }
@@ -4405,6 +4420,81 @@ export type Database = {
           },
         ]
       }
+      shopify_content_imports: {
+        Row: {
+          article_id: string
+          company_id: string
+          description_applied: boolean
+          dms_text_kept: boolean
+          error: string | null
+          first_imported_at: string
+          id: string
+          images_added: number
+          images_found: number
+          images_total: number
+          imported_at: string
+          imported_by: string | null
+          shopify_description: string | null
+          shopify_product_id: string
+          shopify_title: string | null
+          status: string
+          title_applied: boolean
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          description_applied?: boolean
+          dms_text_kept?: boolean
+          error?: string | null
+          first_imported_at?: string
+          id?: string
+          images_added?: number
+          images_found?: number
+          images_total?: number
+          imported_at?: string
+          imported_by?: string | null
+          shopify_description?: string | null
+          shopify_product_id: string
+          shopify_title?: string | null
+          status: string
+          title_applied?: boolean
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          description_applied?: boolean
+          dms_text_kept?: boolean
+          error?: string | null
+          first_imported_at?: string
+          id?: string
+          images_added?: number
+          images_found?: number
+          images_total?: number
+          imported_at?: string
+          imported_by?: string | null
+          shopify_description?: string | null
+          shopify_product_id?: string
+          shopify_title?: string | null
+          status?: string
+          title_applied?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_content_imports_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_content_imports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shopify_links: {
         Row: {
           article_id: string | null
@@ -5552,6 +5642,20 @@ export type Database = {
         }
         Returns: Json
       }
+      _shopify_apply_content: {
+        Args: {
+          _actor: string
+          _article: string
+          _company: string
+          _description: string
+          _error: string
+          _images: Json
+          _images_found: number
+          _product: string
+          _title: string
+        }
+        Returns: Json
+      }
       _shopify_auto_candidates: {
         Args: { _company: string }
         Returns: {
@@ -5559,6 +5663,24 @@ export type Database = {
           candidates: Json
           sku: string
           variant_id: string
+        }[]
+      }
+      _shopify_content_targets: {
+        Args: {
+          _before: string
+          _company: string
+          _limit: number
+          _product: string
+        }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          existing_photo_count: number
+          imported_media_ids: string[]
+          shopify_product_id: string
+          web_description: string
+          web_title: string
         }[]
       }
       append_lead_exchange_note: {
