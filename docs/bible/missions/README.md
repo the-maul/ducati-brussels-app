@@ -46,7 +46,7 @@ service « Updates & Modifs »). Chaque changement est une **carte** (activité)
 | 01 | Nouveau client — prospects, comptes, portail | 🟦 en cours | [`mission-01-nouveau-client.md`](mission-01-nouveau-client.md) |
 | 02 | Commandes de pièces | 🟦 validée le 19/09, cartes en cours | spécification : [`../../process-commandes-pieces.md`](../../process-commandes-pieces.md) |
 | 03 | Shopify relié au stock du DMS | 🟦 accès en cours de création | [`mission-03-shopify.md`](mission-03-shopify.md) — accès et secrets au §2 |
-| 04 | Fiche client et moto au comptoir | ⬜ cartes créées le 19/09, en attente du feu vert | [`mission-04-fiche-client-moto.md`](mission-04-fiche-client-moto.md) |
-| 05 | Devis moto, options et préparation | ⬜ cartes créées le 19/09, en attente du feu vert | [`mission-05-devis-preparation.md`](mission-05-devis-preparation.md) |
+| 04 | Fiche client et moto au comptoir | 🟦 feu vert le 19/09, en cours | [`mission-04-fiche-client-moto.md`](mission-04-fiche-client-moto.md) |
+| 05 | Devis moto, options et préparation | 🟦 feu vert le 19/09, en cours | [`mission-05-devis-preparation.md`](mission-05-devis-preparation.md) |
 
 Légende : ⬜ pas commencée · 🟦 en cours · ✅ terminée et validée par le client.

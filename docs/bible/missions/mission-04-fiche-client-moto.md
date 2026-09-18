@@ -1,61 +1,85 @@
 ---
 mission: 04
 titre: Fiche client et moto au comptoir
-etat: ⬜
+etat: 🟦
 ouverte_le: 2026-09-19
-modules: [M01, M03, M00]
+modules: [M01, M03, M00, M09]
 ---
 
 # Mission 04 — Fiche client et moto au comptoir
 
-> **Objectif** : créer en quelques secondes un client et sa moto quand il est au comptoir, avec des
-> données propres (mobile unique, e-mail en minuscules, ville trouvée par le code postal).
+> **Objectif** : créer un client et sa moto au comptoir avec des données propres et complètes, et
+> faire en sorte que le client puisse compléter lui-même son profil et déclarer sa moto (espace client,
+> borne), l'équipe étant prévenue et validant — comme dans un vrai DMS : une seule fiche client, un seul
+> parc, alimentés par le comptoir, la borne et l'espace client.
 
 Liste ERP : « Mission 04 — Fiche client et moto au comptoir » (`c3ab4e5d-f23c-45fc-a041-cdf2ea60ffc6`).
-Source : vidéo de Simon du 18/09 (création d'un client et de son véhicule dans G8). Transcription locale :
-`C:\Users\simon\whisper-models\mission4.srt`.
+Source : vidéo de Domenico (G8, 14/09, envoyée par Simon le 18/09). Transcription :
+`C:\Users\simon\whisper-models\mission4.srt` (whisper small, approximative : croisée avec les images).
+**Feu vert de Simon le 19/09** (« c'est ok pour développer tes cartes 4 et 5 »).
 
-## 1. Le besoin
+## 1. Le parcours montré dans la vidéo (G8)
 
-Ce que montre la vidéo dans G8 :
-- la fiche client est longue et on la remplit au comptoir, client en face ;
-- la liste des civilités est datée ; les professionnels n'ont pas de champ « forme juridique » propre ;
-- on recopie le téléphone dans « portable », sinon les SMS ne partent pas ;
-- l'e-mail est saisi avec des majuscules ; la ville se tape à la main ;
-- date et lieu de naissance, IBAN, n° TVA sont demandés au client ;
-- la moto se crée ensuite comme « produit fini réparation », à partir de la carte grise : VIN, plaque,
-  n° moteur, marque/modèle, cylindrée, kW/CV, bridage P1/P2, norme, couleur, 1re immatriculation, km,
-  fin de garantie, année modèle.
-
-## 2. Décisions
-
-Aucune encore. Les cartes marquées `a-confirmer` attendent une note de Simon.
-
-## 3. Lots (cartes ERP)
-
-| Carte | Fait quand | État |
+| Min. | Ce qu'il fait dans G8 | Ce qu'il dit (souhait) |
 |---|---|---|
-| Créer une fiche client rapide au comptoir | création en un écran court, champs secondaires pliés | ⬜ |
-| Moderniser la liste des civilités | M./Mme + forme juridique séparée pour les pros | ⬜ a-confirmer |
-| Un seul numéro mobile, utilisé pour les SMS | un champ mobile au format +32, source des SMS | ⬜ |
-| E-mail en minuscules et code postal qui remplit la ville | saisie normalisée, ville proposée | ⬜ |
-| Naissance, IBAN et n° TVA complétés par le client dans son espace | champs éditables dans /mon-espace | ⬜ a-confirmer |
-| Créer la moto du client depuis sa fiche | bouton sur la fiche client, tous les champs carte grise | ⬜ |
-| Remplir la moto à partir d'une photo de la carte grise | lecture photo → champs pré-remplis, vérifiés par l'employé | ⬜ a-confirmer |
+| 0:09 | Liste Clients → Nouveau : fiche « Prospect », nom MOREAU 2, prénom SIMON, « Particulier » | — |
+| 0:39 | Civilité : une seule liste qui mélange MR, MME et des formes de société (SA, SPRL, SCRL, ASBL, SARL, BV…) | « on sait choisir monsieur madame et éventuellement le statut pro… **c'est un petit peu à revoir, c'est un petit peu vieux** » |
+| 0:49 | Tape +32 412 34 56 78 dans Téléphone, puis le **recopie** dans Portable | « je copie téléphone dans portable **parce que c'est comme ça dans G8, pour les envois de SMS** — il faut que le numéro soit dans portable » |
+| 1:15 | Tape l'e-mail en minuscules | « on met le mail **en minuscule, je préfère** » |
+| 1:29 | Rue de la Victoire 1, code postal 5000 → G8 remplit **NAMUR** tout seul | (déjà dans G8, à garder) |
+| 1:39 | Infos supplémentaires : date de naissance, CP/ville de naissance, nom de naissance ; onglet compta : IBAN, BIC, n° TVA, conditions de règlement | « **ça serait bien dans le portail** qu'on mettra à jour : date de naissance, lieu… les infos pour les gens, le numéro de compte bancaire, le numéro TVA » |
+| 2:39 | Depuis la fiche client : « Saisie produit fini » → « Réparation produit fini » (= la moto d'un client, pas une moto à vendre) | — |
+| 2:47 | Fiche véhicule : n° de série (E), marque (D.1), plaque (A), n° moteur, cylindrée (P.1), puissance CV (P.2), bridé, énergie (P.3), norme (V.9), couleur, 1re mise en circulation (B), km, fin de garantie, année modèle | « on essaie de **maximiser toutes les infos pour remplir tous les champs** » |
+| 3:01 | — | « on encode un véhicule quand il vient, pour une demande de pièces ou de rendez-vous » |
+| 3:19 | — | « on demande généralement le **certificat d'immatriculation** pour avoir toutes les données : 1re mise en circulation, n° de châssis, kW, norme » |
 
-## 4. Questions en attente
+Les lettres E, D.1, A, P.1… affichées par G8 sont les **codes officiels des cases de la carte grise** :
+on les garde à côté des libellés, l'employé recopie case par case.
 
-1. Civilités : garder d'autres titres (Dr, Me…) ? *Reco : non, M./Mme + forme juridique.*
-2. Le client peut-il changer lui-même son IBAN dans son espace ? *Reco : oui, avec une trace et une alerte à l'équipe.*
-3. Lecture de la carte grise par photo : d'accord ? *Reco : oui, même principe que la carte d'identité (`read-id-doc`).*
+## 2. Ce que le DMS a déjà (inventaire du 19/09)
+
+- **Fiche client** (`src/modules/contacts/contact-form.tsx`) : type particulier / pro ; civilité codée en
+  dur (Monsieur, Madame, Autre) et, pour un pro, le même champ sert de forme juridique ; **un seul mobile**
+  (+ « Mobile 2 ») ; adresse découpée ; TVA (contrôle VIES), IBAN, BIC **pour les pros seulement** ; date de
+  naissance pour les clients ; **pas de lieu de naissance** ; e-mail **pas** mis en minuscules ; **pas** de
+  code postal → ville.
+- Table de référence `civility` (Paramètres) : MR, MME, SRL, SA, SPRL, SCRL, ASBL, BV — **pas lue** par le formulaire.
+- **SMS** : partent vers `mobile` (sinon `phone`) — le problème G8 du « recopier dans portable » n'existe déjà plus.
+- **Fiche véhicule** (`src/modules/vehicles/vehicle-form.tsx`) : tous les champs de la vidéo existent, décodage
+  du VIN Ducati ; **pas** de contrôle VIN 17 caractères ni de doublon ; **pas** de création depuis la fiche client
+  (le lien propriétaire `vehicle_owners` n'est écrit que par le flux reprise).
+- **Inscription / borne** : le client déclare « sa moto » (famille, modèle, année) dans `contact_declared_vehicles`,
+  **qu'aucun écran de l'équipe ne lit**.
+- **Espace client** : le client modifie son profil (liste blanche, sans IBAN ni lieu de naissance) ; il **voit** ses
+  motos et y dépose des documents (dont la carte grise) mais **ne peut pas en ajouter**.
+- **Cloche** : un seul type de notification d'équipe (`signup`), visibilité par rôle.
+- **Lecture de documents** : `read-id-doc` lit carte d'identité et permis (Claude Vision) — réutilisable pour la carte grise.
+
+## 3. Cartes : pourquoi chacune, et comment elle s'intègre
+
+| # | Carte | Répond à (vidéo) | Intégration dans l'existant |
+|---|---|---|---|
+| 1 | Créer une fiche client rapide au comptoir | 0:09–2:09 : la fiche G8 est longue, remplie client en face | Même formulaire M01, en deux temps : l'essentiel (civilité, nom, prénom, mobile, e-mail, adresse) puis « Compléter » (naissance, IBAN, TVA…) replié ; recherche de doublon par e-mail/mobile avant création (règle D3) |
+| 2 | Moderniser la liste des civilités | 0:39 « c'est un petit peu vieux » | Civilité = M. / Mme / Mx (particulier) ; **forme juridique** = champ séparé pour les pros, lu dans la table `civility` de Paramètres (plus de liste codée en dur) ; reprise G8 : SA, SPRL… passent en forme juridique |
+| 3 | Un seul numéro mobile, utilisé pour les SMS | 0:59 recopie téléphone → portable « pour les SMS » | Déjà un seul mobile qui sert aux SMS : on ajoute le format international automatique (+32…) et on corrige les fiches G8 où le mobile n'est que dans « téléphone » (liste proposée, pas de fusion automatique) |
+| 4 | E-mail en minuscules et code postal qui remplit la ville | 1:15 « en minuscule, je préfère » ; 1:33 G8 remplit Namur | Minuscules à la saisie **et** en base (toutes les sources : comptoir, borne, portail, CRM) ; table des codes postaux belges → ville proposée (choix si plusieurs communes), aussi à la borne et dans l'espace client |
+| 5 | Naissance, IBAN et n° TVA complétés par le client dans son espace | 1:49 « ça serait bien dans le portail » | Champs ouverts aux particuliers (IBAN aussi) ; lieu de naissance ajouté ; l'espace client permet de les compléter ; un changement d'IBAN par le client est tracé et **prévient l'équipe** (cloche) |
+| 6 | Créer la moto du client depuis sa fiche | 2:39 « Saisie produit fini → réparation » | Bouton « Ajouter une moto » sur la fiche client → fiche véhicule M03 pré-liée au propriétaire (`vehicle_owners`) ; libellés avec les codes carte grise (E, D.1, A, B, P.1, P.2, P.3, V.9) ; VIN 17 caractères contrôlé ; si le VIN existe déjà : proposer de rattacher la moto existante au lieu d'en créer une 2e |
+| 7 | Remplir la moto à partir d'une photo de la carte grise | 3:19 « on demande le certificat d'immatriculation pour avoir toutes les données » | **Idée de Claude** (pas dite dans la vidéo), validée par Simon le 19/09 : photo ou PDF → `read-id-doc` en mode « carte grise » → champs pré-remplis, l'employé vérifie avant d'enregistrer ; la photo est rangée dans les documents de la moto |
+| 8 | Le client déclare sa moto, l'équipe est prévenue et la valide | Demande de Simon du 19/09 (« quand un client enregistre une moto, une notif doit arriver chez les vendeurs et admin ») | Espace client : « Ajouter ma moto » (+ photo de carte grise) ; borne/inscription : la moto déclarée n'est plus perdue. Chaque déclaration → notification (cloche) vendeurs + admins avec lien direct → écran « Motos déclarées à valider » : rattacher à une moto existante (même VIN) ou créer la fiche du parc |
+
+## 4. Décisions (Simon, 19/09 — feu vert global sur les recommandations)
+
+- Civilités : M. / Mme / Mx, forme juridique séparée pour les pros.
+- Le client peut changer son IBAN dans son espace, avec trace et notification à l'équipe.
+- Carte grise par photo : oui, vérification humaine obligatoire avant enregistrement.
+- Moto déclarée par un client : jamais ajoutée au parc sans validation d'un membre de l'équipe.
 
 ## 5. Ce qui a changé dans l'application
 
-Rien encore. Points de départ : fiche contact (M01), fiche véhicule (M03), table de référence
-`civility` (Paramètres), fonction `read-id-doc`.
+(rempli à chaque lot livré)
 
 ## 6. Risques
 
-- Données G8 existantes : le mobile est parfois dans « téléphone », parfois dans « portable » ; il
-  faudra une reprise (proposer la liste, pas de fusion automatique — même règle que les doublons).
-- Contrôle du VIN (17 caractères) et du doublon de VIN avant création.
+- Reprise G8 : mobiles rangés dans « téléphone » et formes juridiques dans la civilité → proposer, ne pas corriger en masse sans accord.
+- VIN en doublon déjà présents en base (index non unique) : lister avant d'imposer une règle.

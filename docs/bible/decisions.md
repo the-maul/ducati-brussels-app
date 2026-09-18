@@ -11,10 +11,18 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 ## 2026-09-19 — Missions 04 et 05 (vidéos)
 
 - **M-6** — Missions 04 « Fiche client et moto au comptoir » et 05 « Devis moto, options et
-  préparation » tirées des vidéos de Simon du 18/09 ; listes et cartes créées dans l'ERP **avant** que Simon ait vu la proposition (erreur : il fallait d'abord proposer dans le chat, règle S-5) ; elles restent **propositions à corriger**.
-  **Pas de code avant son feu vert** (leçon M-5). Cartes `a-confirmer` : civilités, IBAN dans l'espace
-  client, carte grise par photo, e-catalog Ducati, règle acompte/impayés. *Client · 19/09.*
+  préparation » tirées des vidéos de Domenico (G8, 14/09). Cartes créées avant validation (erreur, règle
+  S-5), puis parcours résumé à Simon, qui a confirmé la compréhension et donné le **feu vert le 19/09**
+  (« c'est ok pour développer tes cartes 4 et 5 »). Recommandations retenues : civilité M./Mme/Mx +
+  forme juridique séparée ; le client peut changer son IBAN (trace + cloche) ; carte grise lue par photo
+  avec vérification humaine ; moto déclarée par un client validée par l'équipe (carte ajoutée à la demande
+  de Simon, cloche vendeurs + admins) ; acompte versé = encaissé ; alerte impayés = vendeur + admins ;
+  e-catalog Ducati = coller la référence. *Client · 19/09.*
   [mission 04](missions/mission-04-fiche-client-moto.md), [mission 05](missions/mission-05-devis-preparation.md)
+- **M-7** — **Vidéos : écouter la parole, pas seulement les images.** Domenico y dit ce qu'il voudrait
+  que le DMS fasse et que G8 ne fait pas (« idéalement… », « ce serait bien… », « c'est un petit bug »).
+  Chaque souhait est cité avec sa minute dans le fichier mission et dans la carte ; on distingue
+  « G8 le fait déjà », « souhait dit » et « idée de Claude ». *Client · 19/09.*
 - **W-6** — **Liaison des clients Shopify** : seules les correspondances **exactes** sont liées
   automatiquement ; toutes les autres sont proposées et **validées à la main**. *Client · 19/09.*
   [mission 03](missions/mission-03-shopify.md)
