@@ -56,7 +56,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 
 | Carte | État |
 |---|---|
-| Donner au DMS l'accès à la boutique Shopify | 🟦 en cours avec Simon (18/09) |
+| Donner au DMS l'accès à la boutique Shopify | ✅ 19/09 — vérifié : 1 595 produits, 1 emplacement, droits OK |
 | Questions Shopify à trancher avant de coder | ⬜ en attente de réponses |
 | Voir les produits Shopify et les rapprocher des articles du stock | ⬜ |
 | Reprendre une fois les photos et textes de Shopify dans le DMS | ⬜ |
@@ -67,7 +67,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 ## 4. Questions en attente
 
 1. Les produits Shopify portent-ils la référence de l'article (SKU = référence Ducati / code DMS) ?
-2. Combien d'emplacements de stock dans Shopify ?
+2. ~~Combien d'emplacements de stock dans Shopify ?~~ **Un seul** : « Chaussée de Bruxelles 688 » (vérifié le 19/09).
 3. Vente en magasin avec la caisse Shopify, ou seulement en ligne ?
 4. Prix Shopify TVA comprise ?
 5. Produit Shopify sans article dans le DMS : le créer dans le DMS ou le retirer du site ?
