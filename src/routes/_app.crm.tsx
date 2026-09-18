@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listLeads, createLead, createLeadTask, getDefaultAssignee, setLeadStage, listOpenTasksByLead, listCompanyMembers, LEAD_STAGES, PIPELINES, dueState, type Lead, type Pipeline } from '@/modules/crm/api';
+import { listLeads, createManualLead, getLead, setLeadStage, listOpenTasksByLead, listCompanyMembers, LEAD_STAGES, PIPELINES, dueState, type Lead, type Pipeline } from '@/modules/crm/api';
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
@@ -30,6 +30,7 @@ function CrmPage() {
   const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState('all');
   // Le CRM affiché. Un seul aujourd'hui (commercial) ; l'atelier s'ajoutera à PIPELINES.
   const [pipeline, setPipeline] = useState<Pipeline>('commercial');
@@ -135,29 +136,33 @@ function CrmPage() {
           </div>
         ))}
       </div>
-      {showNew && <NewLeadDialog companyId={activeCompanyId!} pipeline={pipeline} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refreshBoard(); }} />}
-      {selected && <LeadDetail lead={selected} companyId={activeCompanyId!} onClose={() => setSelected(null)} onChanged={refreshBoard} />}
+      {showNew && <NewLeadDialog companyId={activeCompanyId!} pipeline={pipeline} onClose={() => setShowNew(false)}
+        onCreated={() => { setShowNew(false); refreshBoard(); }}
+        onExisting={(l) => { setShowNew(false); setNotice(t('crm.existingLeadOpened')); setSelected(l); }} />}
+      {selected && <LeadDetail key={selected.id} lead={selected} notice={notice} companyId={activeCompanyId!} onClose={() => { setSelected(null); setNotice(null); }} onChanged={refreshBoard} />}
     </>
   );
 }
 
-function NewLeadDialog({ companyId, pipeline, onClose, onCreated }: { companyId: string; pipeline: Pipeline; onClose: () => void; onCreated: () => void }) {
+function NewLeadDialog({ companyId, pipeline, onClose, onCreated, onExisting }: { companyId: string; pipeline: Pipeline; onClose: () => void; onCreated: () => void; onExisting: (lead: Lead) => void }) {
   const [f, setF] = useState({ name: '', email: '', phone: '', vehicle: '', source: '', value: '' });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const [err, setErr] = useState<string | null>(null);
+  const noEmail = f.email.trim() === '';
   const create = useMutation({
-    // Une carte entre TOUJOURS avec une tâche : « Recontacter le client » à 2 jours,
-    // confiée au responsable par défaut — comme les demandes arrivées par mail.
-    mutationFn: async () => {
-      const leadId = await createLead({ companyId, pipeline, name: f.name, email: f.email, phone: f.phone, vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null });
-      const owner = await getDefaultAssignee(companyId);
-      if (owner) {
-        await createLeadTask({
-          companyId, leadId, title: t('crm.initialTaskTitle'),
-          dueAt: new Date(Date.now() + 2 * 864e5).toISOString(), assignedTo: owner,
-        });
+    // Tout se fait en base, en une transaction (crm_create_manual_lead) :
+    // - l'e-mail décide (D3) : fiche existante reliée, sinon fiche prospect créée ;
+    // - si ce client a déjà une carte ouverte, pas de doublon : on ouvre la sienne ;
+    // - la carte entre avec « Recontacter le client » à J+2, confiée au responsable par défaut.
+    mutationFn: () => createManualLead({ companyId, pipeline, name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null }),
+    onSuccess: async (r) => {
+      if (r.existing) {
+        const lead = await getLead(r.lead_id);
+        if (lead) { onExisting(lead); return; }
       }
+      onCreated();
     },
-    onSuccess: onCreated,
+    onError: (e) => setErr(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)),
   });
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -176,9 +181,16 @@ function NewLeadDialog({ companyId, pipeline, onClose, onCreated }: { companyId:
           </Field>
           <Field label={t('crm.estimatedValue')}><Input type="number" value={f.value} onChange={(e) => set('value', e.target.value)} className="text-right tabular-nums" /></Field>
         </div>
+        {/* Sans e-mail, la carte n'est reliée à aucune fiche : pas d'échanges par mail. */}
+        {noEmail && f.name.trim() && (
+          <p className="flex items-start gap-1.5 text-[12px] text-muted-foreground">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--warning)]" /> {t('crm.noEmailWarn')}
+          </p>
+        )}
+        {err && <p className="text-[12px] text-[var(--danger)]">{err}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={() => create.mutate()} disabled={create.isPending || !f.name.trim()}>{create.isPending ? <Loader2 className="animate-spin" /> : null} {t('crm.create')}</Button>
+          <Button onClick={() => { setErr(null); create.mutate(); }} disabled={create.isPending || !f.name.trim()}>{create.isPending ? <Loader2 className="animate-spin" /> : null} {t('crm.create')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

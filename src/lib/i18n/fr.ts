@@ -1238,6 +1238,22 @@ export const fr = {
     fromReceivedHere: 'a reçu le mail du client',
     fromMyAddress: 'mon adresse',
     initialTaskTitle: 'Recontacter le client',
+    // --- 19/09 : carte créée à la main reliée à une fiche client ---
+    noEmailWarn: 'Sans e-mail, pas d’échanges par mail : la carte ne sera reliée à aucune fiche client. Vous pourrez la relier plus tard depuis la carte.',
+    existingLeadOpened: 'Ce client a déjà une carte ouverte : on l’a ouverte au lieu d’en créer une deuxième.',
+    noContactWarn: 'Cette carte n’est reliée à aucune fiche client : pas d’échanges ni de réponse par mail.',
+    linkContact: 'Relier ou créer la fiche client',
+    linkHelp: 'Cherchez la fiche par nom, e-mail ou téléphone, ou créez-la avec les infos de la carte.',
+    linkSearchPlaceholder: 'Nom, e-mail ou téléphone',
+    linkSearch: 'Chercher',
+    linkNoResult: 'Aucune fiche trouvée.',
+    linkArchived: 'archivée',
+    linkThis: 'Relier',
+    linkCreate: 'Créer la fiche avec les infos de la carte',
+    linkCreateHelp: 'Si une fiche porte déjà l’e-mail de la carte, c’est elle qui sera reliée. Sinon une fiche prospect est créée.',
+    linkedCreated: 'Fiche prospect créée et reliée : les échanges sont disponibles.',
+    linkedExisting: 'Carte reliée à la fiche client : les échanges sont disponibles.',
+    linkedOtherOpen: 'Carte reliée. Attention : ce client a déjà une autre carte ouverte dans le CRM.',
   },
 
   // Matching client intéressé ↔ moto en stock (M10 × M3)
