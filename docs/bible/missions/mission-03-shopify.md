@@ -59,7 +59,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Donner au DMS l'accès à la boutique Shopify | ✅ 19/09 — vérifié : 1 595 produits, 1 emplacement, droits OK |
 | Questions Shopify à trancher avant de coder | ⬜ en attente de réponses |
 | Voir les produits Shopify et les rapprocher des articles du stock | 🟦 19/09 — fait, à valider : écran Pièces & Accessoires → Produits Shopify, 300 liaisons automatiques exactes |
-| Reprendre une fois les photos et textes de Shopify dans le DMS | ⬜ |
+| Reprendre une fois les photos et textes de Shopify dans le DMS | 🟦 19/09 — fait, à valider : reprise réelle des 300 produits reliés (chiffres en §5) ; bouton « Reprendre photos et textes » sur l'écran Produits Shopify |
 | Le stock et le prix du DMS s'affichent en direct sur le site | ⬜ |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | ⬜ |
@@ -106,6 +106,38 @@ Point de départ gardé lors du nettoyage du 18/09 : la case « publiable » de 
 - Tables `shopify_products` et `shopify_links`, décisions tracées dans `events`
   (migration `20260919270000_m2_shopify_products.sql`, appliquée le 19/09).
 - Détail et pièges : [M02 Articles](../modules/M02-articles.md) §2, §3, §4, §7.
+
+**19/09 — « Reprendre une fois les photos et textes de Shopify dans le DMS »** (branche
+`lot-shopify-photos`, à valider ; décision W-4 : ensuite le DMS fait foi) :
+
+- Pour chaque produit Shopify **relié** à un article (liaison automatique exacte ou validée à la main) :
+  le **titre** et la **description** (HTML Shopify nettoyé : paragraphes, listes, gras, italique, titres,
+  liens sûrs ; scripts, styles, attributs et images intégrées retirés) vont dans les nouveaux champs
+  **Titre sur le site** / **Description sur le site** de la fiche article (section « Site web ») ; **toutes
+  les images** du produit (image principale d'abord, 2048 px maximum) sont **téléchargées depuis Shopify et
+  stockées dans le DMS** (Storage privé `ged`, GED de l'article, dossier « Photos », texte alternatif
+  Shopify ou, à défaut, titre du produit). Plus aucun lien vers le CDN Shopify.
+- **Rien n'est écrasé** : un titre ou une description déjà saisis dans la fiche sont gardés ; le texte
+  Shopify est alors noté à côté (encadré « Texte Shopify non repris » sous la description). Les photos du DMS
+  restent ; seules les images Shopify manquantes sont ajoutées.
+- **Relançable sans doublon** (clé = id d'image Shopify) : écran Produits Shopify → **Reprendre photos et
+  textes** (tous les produits reliés pas encore repris, en erreur ou incomplets) ou **Reprendre** sur une
+  ligne (ce produit seulement). Utile quand de nouvelles liaisons sont validées.
+- Fonction serveur `shopify-import-content` (lecture seule Shopify, Admin GraphQL 2026-07, lots de 8 produits,
+  pauses si Shopify limite, rend la main toutes les 70 s). Migration `20260919320000_m2_shopify_content_import.sql`
+  (appliquée le 19/09) : `articles.web_title`, `articles.web_description`, `attachments.alt_text / sort_order /
+  external_id`, table `shopify_content_imports`. Trace dans `events` : action `shopify_content_import`,
+  origine `reprise_shopify`.
+- **Reprise réelle du 19/09** (déclenchée depuis la base, clé x-cron-secret) : voir chiffres ci-dessous.
+
+  | Vérifié en base le 19/09 | Nombre |
+  |---|---|
+  | Produits reliés repris (sur 300) | **300**, 0 en erreur, 0 incomplet |
+  | Articles enrichis : titre web / description web remplis | **300** / **300** |
+  | Articles où le texte du DMS a été gardé | **0** (aucun des 300 n'avait de texte web ni de photo avant la reprise) |
+  | Images Shopify lues / stockées dans le DMS | **1 038** / **1 038** (137 Mo, 3,5 images par produit en moyenne) |
+  | Traces `events` (`shopify_content_import`) | 301 (une relance d'un produit interrompu) |
+  | Relance à blanc d'un produit déjà repris | 0 image ajoutée, 0 texte modifié (idempotence vérifiée) |
 
 ## 6. Risques
 

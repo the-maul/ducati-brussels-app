@@ -43,3 +43,6 @@ verify_jwt = false
 
 [functions.shopify-sync-products]
 verify_jwt = false
+
+[functions.shopify-import-content]
+verify_jwt = false

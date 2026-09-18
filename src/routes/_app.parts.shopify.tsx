@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Loader2, RefreshCw, Search, Link2, Unlink, EyeOff, Eye, CheckCircle2, Zap, CircleDashed, Ban, ImageOff,
+  Images, ImageDown, AlertTriangle, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -11,11 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listArticles } from '@/modules/articles/api';
 import {
   listShopifyProducts, listShopifySuggestions, linkShopifyVariant, setShopifyDecision, runShopifySync, countShopify,
-  type ShopifyOverviewRow,
+  listShopifyContentImports, runShopifyContentImport,
+  type ShopifyOverviewRow, type ShopifyContentImport, type ShopifyContentResult,
 } from '@/modules/articles/shopify-api';
 import { t } from '@/lib/i18n';
 
@@ -24,7 +30,7 @@ export const Route = createFileRoute('/_app/parts/shopify')({
   component: ShopifyProductsPage,
 });
 
-type Filter = 'all' | 'review' | 'linked' | 'auto' | 'valide' | 'ignore' | 'nosku';
+type Filter = 'all' | 'review' | 'linked' | 'auto' | 'valide' | 'ignore' | 'nosku' | 'imported' | 'notimported';
 const MAX_ROWS = 300;
 
 function fmtEur(n: number | null): string {
@@ -48,6 +54,26 @@ const LINK_BADGE: Record<string, { tone: StatusTone; label: string; icon: typeof
   ignore: { tone: 'neutral', label: 'shopify.stIgnored', icon: Ban },
 };
 
+const importKey = (productId: string, articleId: string) => `${productId}|${articleId}`;
+
+/** État de la reprise photos/textes d'une ligne reliée (couleur + icône + libellé). */
+function importBadge(imp: ShopifyContentImport | undefined): { tone: StatusTone; label: string; icon: typeof Zap } | null {
+  if (!imp) return null;
+  if (imp.status === 'erreur') return { tone: 'danger', label: t('shopify.stImportError'), icon: AlertTriangle };
+  if (imp.images_total < imp.images_found) return { tone: 'warning', label: t('shopify.stImportPartial'), icon: AlertTriangle };
+  if (imp.dms_text_kept) return { tone: 'info', label: t('shopify.stImportedKept'), icon: FileText };
+  return { tone: 'info', label: fill(t('shopify.stImported'), { n: imp.images_total }), icon: Images };
+}
+
+function importToast(r: ShopifyContentResult) {
+  if (!r.products) { toast.info(t('shopify.importNothing')); return; }
+  toast.success(fill(t('shopify.importDone'), {
+    products: r.products ?? 0, images: r.images_added ?? 0,
+    texts: Math.max(r.articles_title_set ?? 0, r.articles_description_set ?? 0), kept: r.articles_dms_text_kept ?? 0,
+  }));
+  if (r.images_failed) toast.warning(fill(t('shopify.importFailed'), { n: r.images_failed }));
+}
+
 function shopStatusLabel(s: string | null): string {
   if (s === 'ACTIVE') return t('shopify.shopActive');
   if (s === 'DRAFT') return t('shopify.shopDraft');
@@ -65,6 +91,7 @@ function ShopifyProductsPage() {
   const [filter, setFilter] = useState<Filter>('review');
   const [shopStatus, setShopStatus] = useState<string>('all');
   const [linking, setLinking] = useState<ShopifyOverviewRow | null>(null);
+  const [confirmImport, setConfirmImport] = useState(false);
 
   const { data: rows, isLoading, error } = useQuery({
     queryKey: ['shopify-products', activeCompanyId],
@@ -72,7 +99,23 @@ function ShopifyProductsPage() {
     enabled: !!activeCompanyId && canRead,
   });
 
+  const { data: imports } = useQuery({
+    queryKey: ['shopify-content-imports', activeCompanyId],
+    queryFn: () => listShopifyContentImports(activeCompanyId!),
+    enabled: !!activeCompanyId && canRead,
+  });
+  const importMap = useMemo(() => {
+    const m = new Map<string, ShopifyContentImport>();
+    for (const i of imports ?? []) m.set(importKey(i.shopify_product_id, i.article_id), i);
+    return m;
+  }, [imports]);
+  const importOf = (r: ShopifyOverviewRow) => (r.article_id ? importMap.get(importKey(r.shopify_product_id, r.article_id)) : undefined);
+
   const counters = useMemo(() => countShopify(rows ?? []), [rows]);
+  const importedCount = useMemo(
+    () => (rows ?? []).filter((r) => r.article_id && importMap.get(importKey(r.shopify_product_id, r.article_id))?.status === 'fait').length,
+    [rows, importMap],
+  );
   const lastSync = useMemo(() => {
     let max: string | null = null;
     for (const r of rows ?? []) if (r.synced_at && (!max || r.synced_at > max)) max = r.synced_at;
@@ -88,14 +131,32 @@ function ShopifyProductsPage() {
       if (filter === 'valide' && r.link_status !== 'valide') return false;
       if (filter === 'ignore' && r.link_status !== 'ignore') return false;
       if (filter === 'nosku' && (r.sku ?? '').trim()) return false;
+      if (filter === 'imported' && importOf(r)?.status !== 'fait') return false;
+      if (filter === 'notimported' && (!r.article_id || importOf(r)?.status === 'fait')) return false;
       if (shopStatus !== 'all' && r.product_status !== shopStatus) return false;
       if (!s) return true;
       return [r.product_title, r.variant_title, r.sku, r.barcode, r.article_reference, r.article_designation, r.vendor]
         .some((v) => (v ?? '').toLowerCase().includes(s));
     });
-  }, [rows, filter, shopStatus, search]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, filter, shopStatus, search, importMap]);
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['shopify-products', activeCompanyId] });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['shopify-products', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['shopify-content-imports', activeCompanyId] });
+  };
+
+  const importAll = useMutation({
+    mutationFn: () => runShopifyContentImport(activeCompanyId!),
+    onSuccess: (r) => { importToast(r); refresh(); },
+    onError: (e) => toast.error(`${t('shopify.importErr')} : ${errMsg(e)}`),
+  });
+
+  const importOne = useMutation({
+    mutationFn: (productId: string) => runShopifyContentImport(activeCompanyId!, productId),
+    onSuccess: (r) => { importToast(r); refresh(); },
+    onError: (e) => toast.error(`${t('shopify.importErr')} : ${errMsg(e)}`),
+  });
 
   const sync = useMutation({
     mutationFn: () => runShopifySync(activeCompanyId!),
@@ -130,6 +191,12 @@ function ShopifyProductsPage() {
               <ArrowLeft /> {t('shopify.back')}
             </Button>
             {admin && (
+              <Button variant="outline" onClick={() => setConfirmImport(true)} disabled={importAll.isPending || !activeCompanyId}>
+                {importAll.isPending ? <Loader2 className="animate-spin" /> : <ImageDown />}
+                {importAll.isPending ? t('shopify.importing') : t('shopify.importBtn')}
+              </Button>
+            )}
+            {admin && (
               <Button onClick={() => sync.mutate()} disabled={sync.isPending || !activeCompanyId}>
                 {sync.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
                 {sync.isPending ? t('shopify.syncing') : t('shopify.syncBtn')}
@@ -143,15 +210,17 @@ function ShopifyProductsPage() {
         {t('shopify.rule')}{' '}
         {lastSync && <>· {t('shopify.lastSync')} : <span className="tabular-nums">{new Date(lastSync).toLocaleString('fr-BE')}</span></>}
       </p>
+      <p className="mb-3 text-[13px] text-muted-foreground">{t('shopify.importRule')}</p>
       {!admin && <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('shopify.readOnly')}</p>}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Counter label={t('shopify.cTotal')} value={counters.total} onClick={() => setFilter('all')} active={filter === 'all'} />
         <Counter label={t('shopify.cAuto')} value={counters.auto} onClick={() => setFilter('auto')} active={filter === 'auto'} />
         <Counter label={t('shopify.cValide')} value={counters.valide} onClick={() => setFilter('valide')} active={filter === 'valide'} />
         <Counter label={t('shopify.cReview')} value={counters.toReview} onClick={() => setFilter('review')} active={filter === 'review'} />
         <Counter label={t('shopify.cIgnored')} value={counters.ignored} onClick={() => setFilter('ignore')} active={filter === 'ignore'} />
         <Counter label={t('shopify.cNoSku')} value={counters.noSku} onClick={() => setFilter('nosku')} active={filter === 'nosku'} />
+        <Counter label={t('shopify.cImported')} value={importedCount} onClick={() => setFilter('imported')} active={filter === 'imported'} />
       </div>
 
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 bg-background pb-2">
@@ -169,6 +238,8 @@ function ShopifyProductsPage() {
             <SelectItem value="valide">{t('shopify.fValide')}</SelectItem>
             <SelectItem value="ignore">{t('shopify.fIgnored')}</SelectItem>
             <SelectItem value="nosku">{t('shopify.fNoSku')}</SelectItem>
+            <SelectItem value="imported">{t('shopify.fImported')}</SelectItem>
+            <SelectItem value="notimported">{t('shopify.fNotImported')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={shopStatus} onValueChange={setShopStatus}>
@@ -197,7 +268,7 @@ function ShopifyProductsPage() {
               <Th className="text-right">{t('shopify.colStock')}</Th>
               <Th>{t('shopify.colLink')}</Th>
               <Th>{t('shopify.colArticle')}</Th>
-              {admin && <Th className="w-48" />}
+              {admin && <Th className="w-64" />}
             </tr>
           </thead>
           <tbody>
@@ -210,6 +281,8 @@ function ShopifyProductsPage() {
             {shown.map((r) => {
               const b = LINK_BADGE[r.link_status] ?? LINK_BADGE.a_valider;
               const busy = decide.isPending && decide.variables?.variant === r.shopify_variant_id;
+              const ib = r.article_id ? importBadge(importOf(r)) : null;
+              const importing = importOne.isPending && importOne.variables === r.shopify_product_id;
               return (
                 <tr key={r.shopify_variant_id} className="border-t border-border align-middle">
                   <td className="px-3 py-1.5">
@@ -235,6 +308,7 @@ function ShopifyProductsPage() {
                     {r.link_status === 'auto_exact' && r.match_via && (
                       <div className="mt-0.5 text-[11px] text-muted-foreground">{t(r.match_via === 'barcode' ? 'shopify.viaBarcode' : 'shopify.viaSku')}</div>
                     )}
+                    {ib && <div className="mt-1"><StatusBadge tone={ib.tone} icon={ib.icon} label={ib.label} /></div>}
                   </td>
                   <td className="px-3 py-1.5">
                     {r.article_id ? (
@@ -250,6 +324,13 @@ function ShopifyProductsPage() {
                         {r.link_status !== 'ignore' && (
                           <Button size="sm" variant="outline" onClick={() => setLinking(r)} disabled={busy}>
                             <Link2 /> {r.article_id ? t('shopify.change') : t('shopify.link')}
+                          </Button>
+                        )}
+                        {r.article_id && (
+                          <Button size="sm" variant="outline" disabled={busy || importing || importAll.isPending}
+                            title={t('shopify.importBtn')}
+                            onClick={() => importOne.mutate(r.shopify_product_id)}>
+                            {importing ? <Loader2 className="animate-spin" /> : <ImageDown />} {t('shopify.importOne')}
                           </Button>
                         )}
                         {r.article_id && (
@@ -282,6 +363,19 @@ function ShopifyProductsPage() {
       {filtered.length > MAX_ROWS && (
         <p className="mt-2 text-[13px] text-muted-foreground">{fill(t('shopify.more'), { n: filtered.length - MAX_ROWS })}</p>
       )}
+
+      <AlertDialog open={confirmImport} onOpenChange={setConfirmImport}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('shopify.importBtn')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('shopify.importConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmImport(false); importAll.mutate(); }}>{t('shopify.importBtn')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {linking && activeCompanyId && (
         <LinkDialog
