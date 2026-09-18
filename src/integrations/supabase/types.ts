@@ -5153,6 +5153,12 @@ export type Database = {
           current_due: number
         }[]
       }
+      contact_merge: { Args: { _absorb: string; _keep: string }; Returns: Json }
+      contact_merge_preview: {
+        Args: { _absorb: string; _keep: string }
+        Returns: Json
+      }
+      contact_merge_refs: { Args: { _id: string }; Returns: Json }
       contact_norm_phone: { Args: { _v: string }; Returns: string }
       contact_norm_txt: { Args: { _v: string }; Returns: string }
       contacts_find_duplicates: {
