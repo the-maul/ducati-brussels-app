@@ -1237,6 +1237,8 @@ export type Database = {
           contact_id: string
           created_at: string
           created_by: string | null
+          first_portal_visit_at: string | null
+          last_portal_visit_at: string | null
           user_id: string
         }
         Insert: {
@@ -1244,6 +1246,8 @@ export type Database = {
           contact_id: string
           created_at?: string
           created_by?: string | null
+          first_portal_visit_at?: string | null
+          last_portal_visit_at?: string | null
           user_id: string
         }
         Update: {
@@ -1251,6 +1255,8 @@ export type Database = {
           contact_id?: string
           created_at?: string
           created_by?: string | null
+          first_portal_visit_at?: string | null
+          last_portal_visit_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -5767,6 +5773,7 @@ export type Database = {
         }
         Returns: string
       }
+      portal_touch: { Args: never; Returns: undefined }
       portal_update_profile: { Args: { p: Json }; Returns: Json }
       portal_vehicle: { Args: { p_vehicle_id: string }; Returns: Json }
       portal_vehicles: { Args: never; Returns: Json }

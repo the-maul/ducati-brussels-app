@@ -84,6 +84,23 @@ export async function getContact(id: string): Promise<Contact | null> {
   return data;
 }
 
+/**
+ * Espace client de la fiche (P-6) : a-t-elle un compte, et le client est-il déjà
+ * venu sur /mon-espace ? `null` = aucun compte client. Lu par la politique
+ * contact_accounts_member_read (membres de la société).
+ */
+export type ContactPortalVisit = { first_visit_at: string | null; last_visit_at: string | null };
+
+export async function getContactPortalVisit(contactId: string): Promise<ContactPortalVisit | null> {
+  const { data, error } = await supabase
+    .from('contact_accounts')
+    .select('first_portal_visit_at, last_portal_visit_at')
+    .eq('contact_id', contactId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { first_visit_at: data.first_portal_visit_at, last_visit_at: data.last_portal_visit_at } : null;
+}
+
 export async function createContact(input: ContactInsert): Promise<Contact> {
   const { data, error } = await supabase.from('contacts').insert(input).select().single();
   if (error) throw error;

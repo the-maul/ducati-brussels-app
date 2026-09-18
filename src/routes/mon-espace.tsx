@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { isClientHost } from '@/lib/portal-host';
-import { getWhoami } from '@/modules/portal/api';
+import { getWhoami, touchPortal } from '@/modules/portal/api';
 import { PortalShell } from '@/modules/portal/portal-shell';
 
 /**
@@ -33,6 +33,12 @@ function PortalLayout() {
     enabled: !!session,
     staleTime: 60_000,
   });
+
+  // Visite de l'espace (P-6) : une fois par ouverture, dès que le compte client est confirmé.
+  const isClient = !!me.data;
+  useEffect(() => {
+    if (isClient) void touchPortal();
+  }, [isClient, session?.user.id]);
 
   if (loading || !session || me.isPending) {
     return (
