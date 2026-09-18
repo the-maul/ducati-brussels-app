@@ -10,7 +10,7 @@ import type { StatusTone } from '@/components/status-badge';
 
 export type AvailabilityStatus = 'disponible' | 'partiel' | 'indisponible' | 'na';
 
-export type AvailabilityLine = { article_id: string | null; quantity: number };
+export type AvailabilityLine = { article_id: string | null; quantity: number; line_type?: string | null };
 
 export type DocAvailability = { pct: number; status: AvailabilityStatus };
 
@@ -38,6 +38,7 @@ export function computeDocAvailability(lines: AvailabilityLine[], stockMap: Map<
   let covered = 0;
   for (const l of lines) {
     if (!l.article_id || l.quantity <= 0) continue;
+    if (l.line_type && l.line_type !== 'article') continue; // main-d'œuvre, texte, vide : pas de stock
     const dispo = stockMap.get(l.article_id) ?? 0;
     need += l.quantity;
     covered += Math.min(dispo, l.quantity);

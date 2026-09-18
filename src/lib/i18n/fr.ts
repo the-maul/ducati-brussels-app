@@ -979,6 +979,14 @@ export const fr = {
     colVat: 'TVA', colDiscount: 'Rem.%', colLineHt: 'Total HT',
     lineArticleOrText: 'Article ou texte libre…',
     addLine: 'Ajouter une ligne',
+    // types de ligne (mission 05, carte 5)
+    addLabour: 'Main d’œuvre', addText: 'Texte', addBlank: 'Ligne vide', recallComment: 'Rappeler un commentaire',
+    lineType_article: 'Article', lineType_main_oeuvre: 'Main d’œuvre', lineType_texte: 'Texte', lineType_vide: 'Ligne vide',
+    labourPlaceholder: 'Main d’œuvre (article de type T)…', labourNone: 'Aucun article de main d’œuvre (type T) trouvé.',
+    textPlaceholder: 'Commentaire (plusieurs lignes possibles)…', blankLine: 'Ligne vide', hoursUnit: 'h',
+    recallTitle: 'Rappeler un commentaire', recallHint: 'Le texte est inséré en ligne texte : vous pouvez ensuite le modifier.',
+    recallEmpty: 'Aucun commentaire type enregistré. Ajoutez-en dans Paramètres → Commentaires types.',
+    recallManage: 'Gérer les commentaires types',
     needLine: 'Ajoutez au moins une ligne.',
     errSave: 'Erreur',
     draft: 'Brouillon', validate: 'Valider',
@@ -1028,6 +1036,18 @@ export const fr = {
     purgeQuotesNone: 'Aucun devis à purger avant cette date.',
     purgeQuotesDone: '{n} devis supprimé(s).',
     errPurge: 'Erreur à la purge.',
+  },
+
+  // Commentaires types (mission 05, carte 5)
+  commentTemplates: {
+    title: 'Commentaires types',
+    subtitle: 'Textes enregistrés, rappelés dans un document de vente puis modifiables.',
+    intro: 'Chaque commentaire a un nom court (visible dans la liste « Rappeler un commentaire ») et un texte. Un commentaire inactif n’est plus proposé.',
+    empty: 'Aucun commentaire type pour l’instant.',
+    new: 'Nouveau commentaire', add: 'Ajouter le commentaire',
+    name: 'Nom court', namePlaceholder: 'ex. Premier entretien offert', body: 'Texte', order: 'Ordre', active: 'Actif',
+    delete: 'Supprimer', deleteConfirm: 'Supprimer ce commentaire type ? Les documents déjà établis ne changent pas.',
+    errDuplicate: 'Un commentaire porte déjà ce nom.',
   },
 
   // Picking list digitale (M6 — Ventes & Facturation, item 11)
@@ -2058,6 +2078,7 @@ export const fr = {
     usersDesc: 'Comptes du personnel et attribution des rôles par société.',
     numbering: 'Numérotation des documents',
     numberingDesc: 'Préfixes et formats des séquences (factures, OR, devis…).',
+    commentsTitle: 'Commentaires types', commentsDesc: 'Textes enregistrés à rappeler dans un devis, un bon de commande ou une facture.',
     companies: 'Sociétés', companiesDesc: 'Entités juridiques (TVA, adresse, IBAN, Peppol, comptes) — multi-société.',
     kioskTitle: 'Borne d’inscription',
     kioskDesc: 'Lancer la borne du comptoir sur une tablette, son adresse et son QR code, le guide de verrouillage.',

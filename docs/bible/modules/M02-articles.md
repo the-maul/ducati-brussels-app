@@ -140,3 +140,4 @@ Ce qui marche : liste, recherche, fiche (hors années), onglets, familles, casca
 | 2026-07-30 | Étiquette standard au format Ducati, lignes personnalisées | `4815c7d`, `cbb0253` |
 | 2026-09-11 | Retour visuel d'enregistrement, bouton grisé tant que rien ne change | `7f6ce22`, `d24c84f` |
 | 2026-09-19 | Ventes : proposition automatique de la dernière référence d'une chaîne de remplacement et affichage des équivalents (mission 05, carte 3) | code seul (`src/modules/sales/replacement.ts`) |
+| 2026-09-19 | Articles de type T proposés dans les lignes « main d'œuvre » des ventes, quantité en heures décimales (mission 05, carte 5) | code seul (`searchLabourArticles`) |

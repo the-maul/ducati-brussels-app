@@ -10,12 +10,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
-import { createDocument, computeTotals, searchSaleArticles, type LineInput, type SaleArticle, type PiedInput } from './write-api';
+import { createDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount, type LineInput, type LineType, type SaleArticle, type PiedInput } from './write-api';
+import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -33,7 +37,10 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null };
 let counter = 0;
-const blankLine = (): EditLine => ({ _key: `l${counter++}`, article_id: null, designation: '', quantity: 1, unit_price_ht: 0, vat_rate: 21, discount_pct: 0 });
+const blankLine = (type: LineType = 'article', designation = ''): EditLine => ({
+  _key: `l${counter++}`, article_id: null, designation, quantity: type === 'texte' || type === 'vide' ? 0 : 1,
+  unit_price_ht: 0, vat_rate: 21, discount_pct: 0, line_type: type,
+});
 
 export function DocumentEditor({ companyId, initialContactId, initialVehicleId, workshopOrNumber, workshop }: {
   companyId: string; initialContactId?: string; initialVehicleId?: string; workshopOrNumber?: string; workshop?: boolean;
@@ -96,9 +103,14 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
+  // Un article de type T devient une ligne « main d'œuvre » (quantité en heures, sans stock).
   const pickArticle = (key: string, a: SaleArticle) => setLine(key, {
-    article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
+    article_id: a.id, designation: a.designation, reference: a.reference,
+    unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
+    line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article',
   });
+  const addLine = (type: LineType, designation = '') => setLines((ls) => [...ls, blankLine(type, designation)]);
+  const [recallOpen, setRecallOpen] = useState(false);
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
 
   const pied: PiedInput = {
@@ -112,8 +124,9 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   const save = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
-      const payload = lines.filter((l) => l.designation.trim()).map(({ _key, _fee, _stock, ...l }) => l);
-      if (payload.length === 0) { setError(t('sales.needLine')); setBusy(false); return; }
+      // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
+      const payload = lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, ...l }) => l);
+      if (!payload.some((l) => l.line_type !== 'vide')) { setError(t('sales.needLine')); setBusy(false); return; }
       const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
       const id = await createDocument({
         companyId, docType, contactId: contact?.id ?? null, vehicleId: initialVehicleId ?? null, issueDate, dueDate: dueDate || null,
@@ -165,7 +178,24 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
           </thead>
           <tbody>
             {lines.map((l) => {
-              const ht = l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100);
+              const del = <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>;
+              if (l.line_type === 'vide') return (
+                <tr key={l._key} className="border-b border-border last:border-0">
+                  <td colSpan={7} className="px-3 py-2 text-[12px] italic text-muted-foreground"><Minus className="mr-1 inline size-3.5" />{t('sales.blankLine')}</td>
+                  {del}
+                </tr>
+              );
+              if (l.line_type === 'texte') return (
+                <tr key={l._key} className="border-b border-border last:border-0">
+                  <td colSpan={7} className="px-2 py-1">
+                    <Textarea rows={Math.min(6, Math.max(2, l.designation.split('\n').length))} value={l.designation}
+                      placeholder={t('sales.textPlaceholder')} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="min-h-0 text-[13px]" />
+                  </td>
+                  {del}
+                </tr>
+              );
+              const labour = l.line_type === 'main_oeuvre';
+              const ht = lineHasAmount(l) ? l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) : 0;
               const vatFactor = 1 + (taxExempt ? 0 : l.vat_rate || 0) / 100;
               const shownPrice = priceMode === 'ttc' ? r2(l.unit_price_ht * vatFactor) : l.unit_price_ht;
               const onPrice = (v: number) => setLine(l._key, { unit_price_ht: priceMode === 'ttc' ? r2(v / vatFactor) : v });
@@ -181,6 +211,10 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                         <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
                         {l._stock && <ReplacementHint companyId={companyId} article={l._stock} onReplace={(a) => pickArticle(l._key, a)} />}
                       </>
+                    ) : labour ? (
+                      <LabourPicker companyId={companyId} value={l.designation}
+                        onText={(v) => setLine(l._key, { designation: v })}
+                        onPick={(a) => pickArticle(l._key, a)} />
                     ) : (
                       <LinePicker companyId={companyId} value={l.designation}
                         onText={(v) => setLine(l._key, { designation: v })}
@@ -191,6 +225,11 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                     {l._fee ? (
                       <Input type="number" step="0.25" min={0} max={feeParams?.diagnosticMaxHours} value={String(l.quantity)} disabled={l._fee === 'accident'}
                         onChange={(e) => setFeeQty(l, num(e.target.value))} title={l._fee === 'diagnostic' ? t('sales.feeHoursHint') : undefined} className="h-8 text-right tabular-nums" />
+                    ) : labour ? (
+                      <div className="flex items-center gap-1">
+                        <Input type="number" step="0.25" min={0} value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" />
+                        <span className="text-[12px] text-muted-foreground">{t('sales.hoursUnit')}</span>
+                      </div>
                     ) : (
                       <Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" />
                     )}
@@ -199,8 +238,10 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={taxExempt} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
-                  <td className="px-2 py-1">{l._stock && <SaleStockBadge status={saleStockStatus(l._stock, l.quantity)} free={l._stock.real_qty - l._stock.reserved_qty} />}</td>
-                  <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
+                  <td className="px-2 py-1">{labour
+                    ? <StatusBadge tone="neutral" icon={Clock} label={t('sales.lineType_main_oeuvre')} />
+                    : l._stock && <SaleStockBadge status={saleStockStatus(l._stock, l.quantity)} free={l._stock.real_qty - l._stock.reserved_qty} />}</td>
+                  {del}
                 </tr>
               );
             })}
@@ -208,7 +249,14 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         </table>
       </div>
 
-      <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('sales.addLine')}</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={() => addLine('article')}><Plus /> {t('sales.addLine')}</Button>
+        <Button type="button" variant="outline" onClick={() => addLine('main_oeuvre')}><Clock /> {t('sales.addLabour')}</Button>
+        <Button type="button" variant="outline" onClick={() => addLine('texte')}><Type /> {t('sales.addText')}</Button>
+        <Button type="button" variant="outline" onClick={() => addLine('vide')}><Minus /> {t('sales.addBlank')}</Button>
+        <Button type="button" variant="outline" onClick={() => setRecallOpen(true)}><MessageSquareText /> {t('sales.recallComment')}</Button>
+      </div>
+      {recallOpen && <RecallCommentDialog companyId={companyId} onClose={() => setRecallOpen(false)} onPick={(body) => { addLine('texte', body); setRecallOpen(false); }} />}
 
       {/* Devis atelier : frais de devis */}
       {(docType === 'DEV' || workshopQuote) && (
@@ -368,6 +416,61 @@ function LinePicker({ companyId, value, onText, onPick }: { companyId: string; v
         </div>
       )}
     </div>
+  );
+}
+
+/** Ligne main-d'œuvre : articles de type T (liste complète à l'ouverture, filtrée à la frappe). */
+function LabourPicker({ companyId, value, onText, onPick }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: SaleArticle) => void }) {
+  const roundUp = useRoundSalePrices(companyId);
+  const [open, setOpen] = useState(false);
+  const [deb, setDeb] = useState('');
+  useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
+  const { data, isFetched } = useQuery({ queryKey: ['sale-labour', companyId, deb], queryFn: () => searchLabourArticles(companyId, deb), enabled: open });
+  return (
+    <div className="relative">
+      <Clock className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input value={value} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => onText(e.target.value)} placeholder={t('sales.labourPlaceholder')} className="h-8 pl-8" />
+      {open && isFetched && (
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
+          {(data ?? []).length === 0 && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('sales.labourNone')}</p>}
+          {(data ?? []).map((a) => (
+            <button key={a.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(a); setOpen(false); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
+              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
+              <span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))} / {t('sales.hoursUnit')}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** « Rappeler un commentaire » : insère le texte d'un commentaire type en ligne texte (modifiable ensuite). */
+function RecallCommentDialog({ companyId, onClose, onPick }: { companyId: string; onClose: () => void; onPick: (body: string) => void }) {
+  const { data, isLoading } = useQuery({ queryKey: ['comment-templates', companyId, 'active'], queryFn: () => listCommentTemplates(companyId, true) });
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('sales.recallTitle')}</DialogTitle>
+          <DialogDescription>{t('sales.recallHint')}</DialogDescription>
+        </DialogHeader>
+        {isLoading && <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />}
+        {!isLoading && (data ?? []).length === 0 && <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('sales.recallEmpty')}</p>}
+        <div className="max-h-80 space-y-2 overflow-auto">
+          {(data ?? []).map((c) => (
+            <button key={c.id} type="button" onClick={() => onPick(c.body)}
+              className="block w-full rounded-md border border-border px-3 py-2 text-left hover:bg-accent">
+              <span className="block text-sm font-bold">{c.name}</span>
+              <span className="block whitespace-pre-wrap text-[12px] text-muted-foreground">{c.body}</span>
+            </button>
+          ))}
+        </div>
+        <Link to="/settings/comments" className="text-[12px] text-info underline">{t('sales.recallManage')}</Link>
+      </DialogContent>
+    </Dialog>
   );
 }
 

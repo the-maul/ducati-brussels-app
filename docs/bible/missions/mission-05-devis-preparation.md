@@ -113,6 +113,29 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 - Code : `src/modules/sales/replacement.ts` (`followReplacementChain`, `getReplacementInfo`),
   `replacement-hint.tsx`, `document-editor.tsx`, `write-api.ts` ; test `tests/sales-replacement-chain.test.ts`.
 
+### Carte 5 — Lignes de main d'œuvre, lignes vides et commentaires types (19/09, à valider)
+- Sous les lignes du document : boutons **Ajouter une ligne** (article), **Main d'œuvre**, **Texte**,
+  **Ligne vide** et **Rappeler un commentaire**.
+- **Main d'œuvre** : choix parmi les articles de type **T** (liste à l'ouverture, filtre à la frappe),
+  quantité en **heures décimales** (pas de 0,25 h), prix = taux horaire ; jamais de mouvement de stock.
+  Un article T choisi dans une ligne normale devient aussi une ligne main-d'œuvre.
+- **Texte** : commentaire sur plusieurs lignes, sans montant. **Ligne vide** : séparation, sans montant.
+  Les deux sont exclus des totaux et contrôlés en base (contrainte : aucun montant).
+- **Commentaires types** : Paramètres → **Commentaires types** (nom court + texte, actif, ordre ;
+  suppression réservée à l'administrateur, les autres désactivent). Dans le document, « Rappeler un
+  commentaire » insère le texte en ligne texte, **modifiable ensuite**. Table livrée **vide** : aucun
+  commentaire pré-rempli (pas d'IBAN), l'équipe les saisit.
+- Le type de ligne suit les conversions (DEV → BC → RES/BL/FAC), les duplications et les avoirs ;
+  fiche du document et impression affichent le texte multi-lignes, la ligne vide et « 5,50 h ».
+- **Traçabilité** : chaque ligne de document écrite, modifiée ou supprimée laisse désormais une trace
+  dans `events` (jusqu'ici seul l'en-tête l'était).
+- Migration `20260919290000_m6_lignes_types_commentaires.sql` (colonne `document_lines.line_type`,
+  défaut `article` pour toutes les lignes existantes ; table `document_comment_templates` avec RLS ;
+  audit des lignes). Code : `write-api.ts` (`LineType`, `lineHasAmount`, `lineMovesStock`,
+  `rowToLineInput`, `searchLabourArticles`), `document-editor.tsx`, `comment-templates-api.ts`,
+  `comment-templates-editor.tsx`, route `src/routes/_app.settings.comments.tsx`, `print-document.ts`,
+  `_app.sales.$documentId.tsx` ; test `tests/sales-line-types.test.ts`.
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.
