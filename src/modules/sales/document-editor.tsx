@@ -10,7 +10,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,15 +21,17 @@ import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
 import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
 import { loadQuoteFeeParams } from '@/modules/workshop/quote-fees-api';
-import { saleStockStatus, type SaleStockInput } from './availability';
+import { saleStockStatus } from './availability';
 import { SaleStockBadge } from './availability-badge';
+import { ReplacementHint } from './replacement-hint';
+import { StatusBadge } from '@/components/status-badge';
 
 const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleStockInput | null };
+type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null };
 let counter = 0;
 const blankLine = (): EditLine => ({ _key: `l${counter++}`, article_id: null, designation: '', quantity: 1, unit_price_ht: 0, vat_rate: 21, discount_pct: 0 });
 
@@ -93,6 +95,10 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   useEffect(() => { if (preContact) setContact(preContact); }, [preContact]);
 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
+  // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
+  const pickArticle = (key: string, a: SaleArticle) => setLine(key, {
+    article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
+  });
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
 
   const pied: PiedInput = {
@@ -171,11 +177,14 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                         <Wrench className="size-3.5 text-muted-foreground" /><span className="truncate font-medium">{l.designation}</span>
                       </div>
                     ) : l.article_id ? (
-                      <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
+                      <>
+                        <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
+                        {l._stock && <ReplacementHint companyId={companyId} article={l._stock} onReplace={(a) => pickArticle(l._key, a)} />}
+                      </>
                     ) : (
                       <LinePicker companyId={companyId} value={l.designation}
                         onText={(v) => setLine(l._key, { designation: v })}
-                        onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a })} />
+                        onPick={(a) => pickArticle(l._key, a)} />
                     )}
                   </td>
                   <td className="px-2 py-1">
@@ -350,6 +359,7 @@ function LinePicker({ companyId, value, onText, onPick }: { companyId: string; v
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
               <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
+                {a.superseded_by_id && <StatusBadge tone="warning" icon={Repeat} label={t('sales.replacedBadge')} />}
                 <SaleStockBadge status={saleStockStatus(a)} free={a.real_qty - a.reserved_qty} />
                 <span className="tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
               </span>

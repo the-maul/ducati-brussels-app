@@ -968,6 +968,11 @@ export const fr = {
     date: 'Date', dueDate: 'Échéance', draftSuffix: '(brouillon)',
     type_FAC: 'Facture', type_DEV: 'Devis / proforma', type_TIK: 'Ticket', type_BL: 'Bon de livraison',
     type_RES: 'Réservation', type_AVO: 'Avoir', type_BC: 'Bon de commande',
+    replacedBadge: 'Remplacée', replacedBy: 'Remplacée par {ref}',
+    replacedLatest: 'dernière référence de la chaîne : {ref} ({n} remplacements)',
+    replaceWithLatest: 'Prendre {ref}',
+    replacementLoop: 'Chaîne de remplacement en boucle : vérifiez les fiches articles (onglet Remplacement / équivalences).',
+    equivalents: 'Équivalents :',
     operator: 'Opérateur', operatorAuto: 'Utilisateur connecté, enregistré automatiquement sur le document.',
     // lignes
     colDesignation: 'Article / Désignation', colQty: 'Qté', colPuHt: 'PU HT', colPuTtc: 'PU TTC',

@@ -100,6 +100,19 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   `availability-badge.tsx` (`SaleStockBadge`), `document-editor.tsx` ; test `tests/sales-stock-status.test.ts`.
 - Limite : « en commande » ne distingue pas encore pour quel client la pièce est commandée (carte 7).
 
+### Carte 3 — Référence remplacée : proposer automatiquement la dernière (19/09, à valider)
+- Dans la recherche d'article, une référence remplacée porte le repère **« Remplacée »**.
+- Une fois posée sur la ligne : bandeau **« Remplacée par … »** (et « dernière référence de la chaîne »
+  quand il y a plusieurs remplacements), pastille de disponibilité de la dernière référence et bouton
+  **« Prendre … »** qui remplace la ligne par la **dernière** référence (quantité et remise conservées,
+  prix et TVA de la nouvelle référence).
+- La chaîne `superseded_by_id` est suivie jusqu'au bout, avec protection contre les boucles
+  (A → B → A : arrêt + message) et une borne de 30 maillons. En base au 19/09 : 16 331 références
+  remplacées, dont 4 969 dont le remplaçant est lui-même remplacé ; aucune boucle.
+- **Équivalents** (`equivalence_group`) listés sous la ligne, cliquables (aucun groupe rempli en base au 19/09).
+- Code : `src/modules/sales/replacement.ts` (`followReplacementChain`, `getReplacementInfo`),
+  `replacement-hint.tsx`, `document-editor.tsx`, `write-api.ts` ; test `tests/sales-replacement-chain.test.ts`.
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.

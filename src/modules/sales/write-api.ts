@@ -180,6 +180,8 @@ export type SaleArticle = {
   id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number;
   mgmt_type: string | null; real_qty: number; reserved_qty: number; on_order_qty: number;
   bin_location: string | null;
+  /** Référence remplacée (mission 05, carte 3) et groupe d'équivalences. */
+  superseded_by_id: string | null; equivalence_group: string | null;
 };
 /**
  * Recherche d'article pour une ligne de vente (référence, désignation, réf. fournisseur,
@@ -191,11 +193,22 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
   if (s.length < 2) return [];
   const { data, error } = await supabase.rpc('part_order_article_search', { _company: companyId, _term: s, _limit: limit });
   if (error) throw error;
-  return (data ?? []).map((a) => ({
+  const rows = data ?? [];
+  // Remplacement / équivalences (non renvoyés par la fonction SQL) : un seul aller-retour.
+  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null }>();
+  if (rows.length) {
+    const { data: l, error: le } = await supabase
+      .from('articles').select('id, superseded_by_id, equivalence_group').in('id', rows.map((a) => a.article_id));
+    if (le) throw le;
+    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group });
+  }
+  return rows.map((a) => ({
     id: a.article_id, reference: a.reference, designation: a.designation,
     sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
     mgmt_type: a.mgmt_type ?? null, bin_location: a.bin_location ?? null,
     real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
+    superseded_by_id: links.get(a.article_id)?.superseded_by_id ?? null,
+    equivalence_group: links.get(a.article_id)?.equivalence_group ?? null,
   }));
 }
 
