@@ -673,6 +673,12 @@ export const fr = {
     notifyModelStock: 'Notifier quand un modèle souhaité rentre en stock',
     modelSelectHint: 'Cochez les modèles qui intéressent ce client.',
     modelInterestsTitle: "Modèles d'intérêt",
+    // Espace client (P-6) : visite de /mon-espace, visible sur la fiche
+    portalSpace: 'Espace client',
+    portalNoAccount: 'pas de compte',
+    portalNeverOpened: 'compte créé, jamais ouvert',
+    portalLastVisit: 'dernière visite le {date}',
+    portalNeverHint: 'Tant que le client n’est jamais venu, les e-mails qu’on lui envoie l’invitent à se connecter.',
     noModelInterests: "Aucun modèle d'intérêt sélectionné.",
     removeModel: 'Retirer',
     // Étiquette client (impression depuis la fiche)

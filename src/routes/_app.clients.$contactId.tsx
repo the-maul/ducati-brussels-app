@@ -17,7 +17,7 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
   getContact, updateContact, archiveContact, unarchiveContact, mergeContacts, mergeErrorMessage, listContacts,
-  contactDisplayName, getModelInterests, getWatchNote, contactDependencies, deleteContact,
+  contactDisplayName, getModelInterests, getWatchNote, contactDependencies, deleteContact, getContactPortalVisit,
   type ContactInsert, type Contact,
 } from '@/modules/contacts/api';
 import { MergeSummary, useMergePreviews } from '@/modules/contacts/merge-summary';
@@ -55,6 +55,12 @@ function EditClient() {
     enabled: !!activeCompanyId,
   });
   const debtorRow = debtors?.find((d) => d.contact_id === contactId);
+
+  // Espace client (P-6) : jamais ouvert / dernière visite.
+  const { data: portalVisit, isSuccess: portalVisitLoaded } = useQuery({
+    queryKey: ['contact-portal-visit', contactId],
+    queryFn: () => getContactPortalVisit(contactId),
+  });
 
   useEffect(() => {
     if (!debtorAlertShown.current && debtorRow && debtorRow.total_due > 0) {
@@ -268,6 +274,25 @@ function EditClient() {
             onRemove={(model) => removeModel.mutate(getModelInterests(contact).filter((x) => x !== model))}
           />
         </div>
+      )}
+      {portalVisitLoaded && (
+        <p
+          className="mb-3 text-[12px] text-muted-foreground"
+          title={portalVisit && !portalVisit.first_visit_at ? t('contacts.portalNeverHint') : undefined}
+        >
+          <span className="font-bold uppercase tracking-[0.04em]">{t('contacts.portalSpace')}</span>
+          {' : '}
+          {!portalVisit
+            ? t('contacts.portalNoAccount')
+            : !portalVisit.first_visit_at
+              ? t('contacts.portalNeverOpened')
+              : t('contacts.portalLastVisit').replace(
+                  '{date}',
+                  new Date(portalVisit.last_visit_at ?? portalVisit.first_visit_at).toLocaleString('fr-BE', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                  }),
+                )}
+        </p>
       )}
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">

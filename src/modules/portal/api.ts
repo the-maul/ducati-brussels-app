@@ -258,6 +258,14 @@ export const cancelAppointmentRequest = (id: string) =>
   rpc<null>('portal_cancel_appointment_request', { p_appointment_id: id });
 
 /**
+ * Retient la visite de l'espace client (contact_accounts.first/last_portal_visit_at).
+ * Sert au pied de mail (P-6) : tant que le client n'est jamais venu, ses mails
+ * l'invitent à se connecter. Sans effet visible ; une erreur est ignorée.
+ * Migration : supabase/migrations/20260919200000_m0_portail_visite.sql.
+ */
+export const touchPortal = () => rpc<null>('portal_touch').catch(() => null);
+
+/**
  * Dépôt d'un fichier en trois temps :
  *   1. portal_prepare_upload : la base vérifie la moto, le type, la taille et FIXE le chemin ;
  *   2. envoi dans le bucket, autorisé par la politique ged_portal_insert pour ce seul chemin ;

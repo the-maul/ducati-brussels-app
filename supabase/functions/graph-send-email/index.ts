@@ -16,13 +16,18 @@
 // n'est pas relevée : on enregistre donc l'échange ici même, sinon il n'apparaîtrait
 // jamais dans la carte.
 //
-// PIED DE MAIL (décision client P-5 du 18/09) : sous le message, une invitation
-// sobre à rejoindre l'application, avec un lien vers <origine>/inscription?email=…
-// Ajoutée UNIQUEMENT si le destinataire n'a encore aucun compte (ni client, ni
-// équipe) et n'est pas une adresse de la concession. L'origine (adresse de
-// l'application client) est transmise par l'appelant (`origin`) ; sans origine
-// valide, pas de pied de mail.
-//
+// PIED DE MAIL (décisions client P-5 du 18/09 et P-6 du 19/09) : sous le message,
+// une invitation sobre à rejoindre l'application. Deux variantes :
+//   - destinataire SANS compte : texte P-5 + lien « Créer mon compte » vers
+//     <origine>/inscription?email=… ;
+//   - destinataire AVEC un compte client mais JAMAIS venu sur son espace
+//     (contact_accounts.first_portal_visit_at vide, rempli par portal_touch() à
+//     l'ouverture de /mon-espace) : « Votre espace Ducati Bruxelles est prêt… » +
+//     lien « Me connecter » vers <origine>/login.
+// Pas de pied de mail : client déjà venu sur son espace, compte de l'équipe (sans
+// fiche client), compte désactivé, plusieurs destinataires, adresse de la
+// concession, origine invalide, ou doute (erreur de lecture). L'origine (adresse
+// de l'application client) est transmise par l'appelant (`origin`).
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
@@ -58,22 +63,46 @@ async function caller(req: Request): Promise<{ id: string; email: string } | nul
 const domainOf = (a: string) => a.split('@')[1]?.toLowerCase() ?? '';
 const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
-/** Invitation P-5, sous le message. Texte validé par le client le 18/09. */
-function joinFooter(origin: string, to: string): string {
-  const link = `${origin}/inscription?email=${encodeURIComponent(to)}`;
+type FooterKind = 'join' | 'login' | null;
+
+const FOOTER_STYLE = 'margin-top:24px;padding-top:12px;border-top:1px solid #d9d9d9;font-size:13px;line-height:18px;color:#5c5c5c';
+
+/** Pied de mail P-5 / P-6, sous le message. Textes validés par le client (18/09, 19/09). */
+function footerHtml(kind: 'join' | 'login', origin: string, to: string): string {
+  const join = kind === 'join';
+  const link = join ? `${origin}/inscription?email=${encodeURIComponent(to)}` : `${origin}/login`;
+  const text = join
+    ? 'Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l’application Ducati Bruxelles.'
+    : 'Votre espace Ducati Bruxelles est prêt : retrouvez la vie de votre moto (photos, entretiens, pièces, documents) et vos bonus de fidélité.';
+  const label = join ? 'Créer mon compte' : 'Me connecter';
   return `
-<div style="margin-top:24px;padding-top:12px;border-top:1px solid #d9d9d9;font-size:13px;line-height:18px;color:#5c5c5c">
-  <p style="margin:0 0 6px 0">Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l'application Ducati Bruxelles.</p>
-  <p style="margin:0"><a href="${esc(link)}" style="color:#c8102e">Rejoindre l'application Ducati Bruxelles</a></p>
+<div style="${FOOTER_STYLE}">
+  <p style="margin:0 0 6px 0">${esc(text)}</p>
+  <p style="margin:0"><a href="${esc(link)}" style="color:#c8102e">${label}</a></p>
 </div>`;
 }
 
-/** Vrai si l'adresse a déjà un compte (client ou équipe). En cas de doute, on considère que oui. */
-async function hasAccount(address: string): Promise<boolean> {
-  const r = await db(`profiles?select=id&email=ilike.${encodeURIComponent(address)}&limit=1`);
-  if (!r.ok) return true;
+/**
+ * Quel pied de mail pour cette adresse ?
+ *   'join'  : aucun compte ;
+ *   'login' : compte client actif, jamais venu sur son espace ;
+ *   null    : déjà venu, compte équipe, compte désactivé, ou doute (erreur de lecture).
+ */
+async function footerKind(address: string): Promise<FooterKind> {
+  const r = await db(`profiles?select=id,email,is_active&email=ilike.${encodeURIComponent(address)}&limit=5`);
+  if (!r.ok) return null;
   const rows = await r.json();
-  return Array.isArray(rows) && rows.length > 0;
+  if (!Array.isArray(rows)) return null;
+  // ilike traite « _ » comme un joker : seule l’adresse exacte compte (sinon : pas de compte).
+  const exact = rows.filter((p: { email: string | null }) => String(p.email ?? '').toLowerCase() === address);
+  if (exact.length === 0) return 'join';
+  const profile = exact[0] as { id: string; is_active: boolean | null };
+  if (profile.is_active === false) return null;
+  const ca = await db(`contact_accounts?select=first_portal_visit_at&user_id=eq.${profile.id}&limit=1`);
+  if (!ca.ok) return null;
+  const acc = await ca.json();
+  if (!Array.isArray(acc) || acc.length === 0) return null;          // compte de l'équipe
+  return acc[0].first_portal_visit_at ? null : 'login';
 }
 const toText = (html: string) => html
   .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n')
@@ -116,14 +145,14 @@ Deno.serve(async (req) => {
     '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
   })) : [];
 
-  // Pied de mail P-5 : destinataire unique, sans compte, hors concession, origine valide.
+  // Pied de mail P-5 / P-6 : destinataire unique, hors concession, origine valide.
   const o = typeof origin === 'string' ? origin.trim().replace(/\/+$/, '') : '';
   const validOrigin = /^https:\/\/[^/\s]+$/.test(o) || /^http:\/\/localhost(:\d+)?$/.test(o);
   const recipient = String(to).trim().toLowerCase();
   const single = /^[^\s@,;]+@[^\s@,;]+$/.test(recipient);
   const internalAddress = domains.has(domainOf(recipient)) || shared.has(recipient);
-  const footer = validOrigin && single && !internalAddress && !(await hasAccount(recipient))
-    ? joinFooter(o, recipient) : '';
+  const kind = validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
+  const footer = kind ? footerHtml(kind, o, recipient) : '';
 
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);

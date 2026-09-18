@@ -50,6 +50,14 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   réponse une invitation à rejoindre l'application : « Retrouvez facilement la vie de votre moto
   (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre
   communauté de clients sur l'application Ducati Bruxelles. » *Client · 18/09.*
+- **P-6** — **Le pied de mail a deux variantes**, car un client qui a un compte (par exemple via une
+  inscription) ne sait pas forcément que l'application existe : **sans compte** → texte P-5 + lien
+  « Créer mon compte » (`/inscription?email=…`) ; **compte client jamais venu sur son espace** →
+  « Votre espace Ducati Bruxelles est prêt : retrouvez la vie de votre moto (photos, entretiens,
+  pièces, documents) et vos bonus de fidélité » + lien « Me connecter » (`/login`) ; **déjà venu** →
+  pas de pied de mail. La visite de `/mon-espace` est retenue (`contact_accounts.first_portal_visit_at`
+  / `last_portal_visit_at`) et affichée sur la fiche client (« Espace client : … »).
+  *Client (retour de Simon) · 19/09.* [M10](modules/M10-crm.md), [M00](modules/M00-socle.md)
 - **K-1** — Borne : prénom, nom, e-mail, téléphone, moto actuelle (**choix soigné de la moto**),
   intérêt, consentement marketing. *Client · 18/09.*
 - **K-2** — Le client peut demander **à être recontacté**, ou passer. **S'il passe, pas de carte CRM.**

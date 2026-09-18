@@ -57,6 +57,7 @@ sociaux) n'est **pas** construit.
 - **Message relayé** (formulaire Shopify) : on extrait l'adresse réelle du corps ; `origin = web`, `source = WEB`. Direct : `mail` / `MAIL`.
 - **Curseur de relève** : avance seulement après traitement réussi ; la relève **s'arrête au premier échec** pour que le message repasse (incident du 14/09 sur `occasions@`).
 - **Envoi par Outlook / Microsoft Graph** (D4), jamais Resend. Le serveur vérifie que l'appelant est membre de la société et que l'adresse d'expédition appartient à la société ou à l'appelant.
+- **Pied de mail (P-5, P-6)** : sous chaque mail envoyé par `graph-send-email`, destinataire unique hors concession : **sans compte** → invitation P-5 + « Créer mon compte » (`<adresse client>/inscription?email=…`) ; **compte client jamais venu sur `/mon-espace`** (`contact_accounts.first_portal_visit_at` vide) → « Votre espace Ducati Bruxelles est prêt… » + « Me connecter » (`<adresse client>/login`) ; **déjà venu**, compte de l'équipe, compte désactivé ou doute → rien. L'adresse client vient de l'appelant (`clientAppUrl()`).
 - **Plusieurs CRM** (18/09) : colonne `leads.pipeline` ; ajouter le CRM atelier = une valeur dans `PIPELINES` (`api.ts`). Ne pas le créer avant la demande client.
 - **Note vivante** (18/09) : un paragraphe daté par échange, ajouté une seule fois (`append_lead_exchange_note`), copies d'un même envoi relevé dans deux boîtes ignorées.
 
@@ -134,4 +135,5 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 | 2026-09-14 | Lot 1 : un mail d'inconnu crée fiche prospect + carte ; relais Shopify ; canal d'arrivée ; échéance et cloche ; suivi nominatif ; assignation ; diagnostic de boîte | `b9022cb`, `1a813fa`, `0df1673`, `a271cf4`, `145f766`, `d10bc49`, `d38bef9` |
 | 2026-09-14 | La tâche devient un objet, une seule ouverte par carte ; trois sorties ; archivage | `8b66784`, `d5ae557`, `403e268`, migrations `20260914240000`, `20260914260000` |
 | 2026-09-18 | Onglets de CRM (commercial), boîte de réponse par défaut, note résumée à chaque échange, responsable par défaut | `872fa30`, migrations `20260918140000`, `20260918141000` |
+| 2026-09-19 | **Pied de mail à deux variantes** (P-6) : aussi pour les comptes clients jamais venus sur leur espace (« Me connecter ») ; « Créer mon compte » pour les autres | branche `lot-pied-mail`, migration `20260919200000_m0_portail_visite.sql` (appliquée le 19/09) ; fonction `graph-send-email` **à déployer** |
 | 2026-09-18 | **Cloche : nouvelles inscriptions de clients** (borne / en ligne), cliquables vers la fiche, lu par utilisateur ; les 2 inscriptions de test du 18/09 reprises | branche `lot-notif-tri`, migration `20260919170000` (appliquée le 18/09) |
