@@ -1270,6 +1270,70 @@ export type Database = {
           },
         ]
       }
+      contact_declared_vehicles: {
+        Row: {
+          brand: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          family: string | null
+          id: string
+          kind: string
+          model: string | null
+          model_year: number | null
+          source: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          brand?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          family?: string | null
+          id?: string
+          kind: string
+          model?: string | null
+          model_year?: number | null
+          source: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          brand?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          family?: string | null
+          id?: string
+          kind?: string
+          model?: string | null
+          model_year?: number | null
+          source?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_declared_vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_declared_vehicles_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_declared_vehicles_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_invitations: {
         Row: {
           company_id: string
@@ -1486,6 +1550,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -1521,6 +1586,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -1587,6 +1654,7 @@ export type Database = {
           company_id: string
           company_name?: string | null
           contact_name?: string | null
+          contact_preference?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
@@ -1622,6 +1690,8 @@ export type Database = {
           license_number?: string | null
           license_place?: string | null
           license_scan_path?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
@@ -1688,6 +1758,7 @@ export type Database = {
           company_id?: string
           company_name?: string | null
           contact_name?: string | null
+          contact_preference?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
@@ -1723,6 +1794,8 @@ export type Database = {
           license_number?: string | null
           license_place?: string | null
           license_scan_path?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
@@ -2632,105 +2705,6 @@ export type Database = {
           },
         ]
       }
-      improvement_points: {
-        Row: {
-          company_id: string
-          created_at: string
-          done: boolean
-          id: string
-          improvement_id: string
-          label: string
-          parent_id: string | null
-          position: number
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          done?: boolean
-          id?: string
-          improvement_id: string
-          label: string
-          parent_id?: string | null
-          position?: number
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          done?: boolean
-          id?: string
-          improvement_id?: string
-          label?: string
-          parent_id?: string | null
-          position?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "improvement_points_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "improvement_points_improvement_id_fkey"
-            columns: ["improvement_id"]
-            isOneToOne: false
-            referencedRelation: "improvements"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "improvement_points_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "improvement_points"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      improvements: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          position: number
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          position?: number
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          position?: number
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "improvements_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       inventory_sessions: {
         Row: {
           closed_at: string | null
@@ -3449,6 +3423,79 @@ export type Database = {
           },
         ]
       }
+      portal_uploads: {
+        Row: {
+          attachment_id: string | null
+          company_id: string
+          completed_at: string | null
+          contact_id: string
+          content_type: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          id: string
+          kind: string
+          size_bytes: number | null
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          attachment_id?: string | null
+          company_id: string
+          completed_at?: string | null
+          contact_id: string
+          content_type: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          id?: string
+          kind: string
+          size_bytes?: number | null
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          attachment_id?: string | null
+          company_id?: string
+          completed_at?: string | null
+          contact_id?: string
+          content_type?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          file_name?: string
+          id?: string
+          kind?: string
+          size_bytes?: number | null
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_uploads_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_uploads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_uploads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_changes: {
         Row: {
           article_id: string
@@ -4095,60 +4142,33 @@ export type Database = {
           },
         ]
       }
-      shop_settings: {
+      signup_settings: {
         Row: {
-          address: string | null
           company_id: string
-          content: Json
-          custom_domain: string | null
-          description: string | null
-          email: string | null
-          hero_text: string | null
-          name: string | null
-          phone: string | null
-          published: boolean
-          published_content: Json | null
-          slug: string | null
-          theme_color: string | null
+          id: boolean
+          is_open: boolean
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
-          address?: string | null
           company_id: string
-          content?: Json
-          custom_domain?: string | null
-          description?: string | null
-          email?: string | null
-          hero_text?: string | null
-          name?: string | null
-          phone?: string | null
-          published?: boolean
-          published_content?: Json | null
-          slug?: string | null
-          theme_color?: string | null
+          id?: boolean
+          is_open?: boolean
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
-          address?: string | null
           company_id?: string
-          content?: Json
-          custom_domain?: string | null
-          description?: string | null
-          email?: string | null
-          hero_text?: string | null
-          name?: string | null
-          phone?: string | null
-          published?: boolean
-          published_content?: Json | null
-          slug?: string | null
-          theme_color?: string | null
+          id?: boolean
+          is_open?: boolean
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "shop_settings_company_id_fkey"
+            foreignKeyName: "signup_settings_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -4782,114 +4802,6 @@ export type Database = {
           },
         ]
       }
-      web_order_lines: {
-        Row: {
-          article_id: string | null
-          designation: string
-          id: string
-          line_ttc: number
-          order_id: string
-          quantity: number
-          unit_price_ttc: number
-        }
-        Insert: {
-          article_id?: string | null
-          designation: string
-          id?: string
-          line_ttc?: number
-          order_id: string
-          quantity?: number
-          unit_price_ttc?: number
-        }
-        Update: {
-          article_id?: string | null
-          designation?: string
-          id?: string
-          line_ttc?: number
-          order_id?: string
-          quantity?: number
-          unit_price_ttc?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "web_order_lines_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "web_order_lines_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "web_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      web_orders: {
-        Row: {
-          address: string | null
-          company_id: string
-          created_at: string
-          customer_name: string | null
-          document_id: string | null
-          email: string | null
-          id: string
-          notes: string | null
-          number: string | null
-          phone: string | null
-          status: string
-          total_ttc: number
-          updated_at: string
-        }
-        Insert: {
-          address?: string | null
-          company_id: string
-          created_at?: string
-          customer_name?: string | null
-          document_id?: string | null
-          email?: string | null
-          id?: string
-          notes?: string | null
-          number?: string | null
-          phone?: string | null
-          status?: string
-          total_ttc?: number
-          updated_at?: string
-        }
-        Update: {
-          address?: string | null
-          company_id?: string
-          created_at?: string
-          customer_name?: string | null
-          document_id?: string | null
-          email?: string | null
-          id?: string
-          notes?: string | null
-          number?: string | null
-          phone?: string | null
-          status?: string
-          total_ttc?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "web_orders_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "web_orders_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       workshop_appointments: {
         Row: {
           company_id: string
@@ -4902,6 +4814,8 @@ export type Database = {
           or_id: string | null
           planned_minutes: number
           reception_notes: string | null
+          requested_slot: string | null
+          source: string | null
           starts_at: string
           status: string
           updated_at: string
@@ -4920,6 +4834,8 @@ export type Database = {
           or_id?: string | null
           planned_minutes?: number
           reception_notes?: string | null
+          requested_slot?: string | null
+          source?: string | null
           starts_at: string
           status?: string
           updated_at?: string
@@ -4938,6 +4854,8 @@ export type Database = {
           or_id?: string | null
           planned_minutes?: number
           reception_notes?: string | null
+          requested_slot?: string | null
+          source?: string | null
           starts_at?: string
           status?: string
           updated_at?: string
@@ -5130,6 +5048,20 @@ export type Database = {
         Args: { _company: string; _doc_type: string }
         Returns: string
       }
+      _portal_ctx: { Args: never; Returns: Record<string, unknown> }
+      _portal_invoice_pdf: {
+        Args: { _company: string; _document: string }
+        Returns: string
+      }
+      _portal_last_upload: {
+        Args: { _contact: string; _entity: string; _kind: string }
+        Returns: string
+      }
+      _portal_owns_vehicle: {
+        Args: { _company: string; _contact: string; _vehicle: string }
+        Returns: boolean
+      }
+      _portal_vehicle_label: { Args: { _vehicle: string }; Returns: string }
       _recompute_paid_unchecked: {
         Args: { _document: string }
         Returns: undefined
@@ -5248,6 +5180,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -5283,6 +5216,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -5380,6 +5315,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -5415,6 +5351,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -5559,10 +5497,6 @@ export type Database = {
           _to: string
         }
         Returns: number
-      }
-      finalize_web_order: {
-        Args: { _method?: string; _order: string }
-        Returns: string
       }
       generate_accounting_entries: {
         Args: { _company: string; _from: string; _to: string }
@@ -5718,20 +5652,41 @@ export type Database = {
           subject: string
         }[]
       }
-      place_web_order: {
-        Args: {
-          _address: string
-          _email: string
-          _lines: Json
-          _name: string
-          _phone: string
-          _slug: string
-        }
-        Returns: {
-          number: string
-          order_id: string
-        }[]
+      portal_appointments: { Args: never; Returns: Json }
+      portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
+      portal_can_write_object: { Args: { p_name: string }; Returns: boolean }
+      portal_cancel_appointment_request: {
+        Args: { p_appointment_id: string }
+        Returns: undefined
       }
+      portal_complete_upload: { Args: { p_upload_id: string }; Returns: Json }
+      portal_home: { Args: never; Returns: Json }
+      portal_invoice: { Args: { p_document_id: string }; Returns: Json }
+      portal_invoices: { Args: never; Returns: Json }
+      portal_prepare_upload: {
+        Args: {
+          p_content_type: string
+          p_file_name: string
+          p_kind: string
+          p_size: number
+          p_vehicle_id: string
+        }
+        Returns: Json
+      }
+      portal_profile: { Args: never; Returns: Json }
+      portal_request_appointment: {
+        Args: {
+          p_date: string
+          p_reason: string
+          p_slot: string
+          p_vehicle_id: string
+        }
+        Returns: string
+      }
+      portal_update_profile: { Args: { p: Json }; Returns: Json }
+      portal_vehicle: { Args: { p_vehicle_id: string }; Returns: Json }
+      portal_vehicles: { Args: never; Returns: Json }
+      portal_whoami: { Args: never; Returns: Json }
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined
@@ -5918,37 +5873,24 @@ export type Database = {
           reversal: number
         }[]
       }
-      shop_public_catalog: {
-        Args: { _slug: string }
-        Returns: {
-          article_id: string
-          available: number
-          designation: string
-          image_path: string
-          price_ttc: number
-          reference: string
-        }[]
+      signup_precheck: {
+        Args: { _company: string; _email: string }
+        Returns: string
       }
-      shop_public_info: {
-        Args: { _slug: string }
+      signup_register: {
+        Args: {
+          _company: string
+          _email: string
+          _origin: string
+          _p: Json
+          _user: string
+        }
         Returns: {
-          address: string
-          company_id: string
-          description: string
-          email: string
-          hero_text: string
-          name: string
-          phone: string
-          theme_color: string
-        }[]
-      }
-      shop_public_site: {
-        Args: { _slug: string }
-        Returns: {
-          company_id: string
-          content: Json
-          name: string
-          theme_color: string
+          contact_created: boolean
+          contact_id: string
+          lead_created: boolean
+          lead_id: string
+          task_created: boolean
         }[]
       }
       stock_value_owned: { Args: { _company: string }; Returns: number }
@@ -5999,13 +5941,6 @@ export type Database = {
           total_margin: number
           total_sale: number
           total_vat_margin: number
-        }[]
-      }
-      web_order_public_status: {
-        Args: { _order: string }
-        Returns: {
-          number: string
-          status: string
         }[]
       }
       workshop_load: {
