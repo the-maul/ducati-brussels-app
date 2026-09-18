@@ -9,6 +9,10 @@
  *
  * Ne renvoie JAMAIS le corps d'un message : objet, expéditeur et date suffisent.
  *
+ * ACCÈS (lot sécurité S, 19/09) : clé de service, ou utilisateur connecté membre actif de la
+ * société à laquelle la boîte est rattachée (company_mailboxes.company_id). Avant : aucun
+ * contrôle — n'importe qui voyait les dossiers et l'objet / l'expéditeur du dernier mail.
+ *
  * Déploiement : `supabase functions deploy mailbox-diag`
  * Entrée  : POST { mailbox: "occasions@ducatibxl.be" }
  * Sortie  : { mailbox, folders: [{ name, total, unread, newest }] }
@@ -16,6 +20,7 @@
  * deno-lint-ignore-file
  */
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
+import { activeCompaniesOf, identify } from '../_shared/acces.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -42,12 +47,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
 
+  const caller = await identify(req);
+  if (!caller || caller.kind === 'cron') return J({ error: 'not_signed_in' }, 401);
+
   const { mailbox } = await req.json() as { mailbox?: string };
   if (!mailbox) return J({ error: 'no_mailbox' }, 400);
 
   // La boîte doit être une boîte écoutée : pas d'exploration arbitraire du tenant.
-  const mb = await (await db(`company_mailboxes?select=address&address=eq.${encodeURIComponent(mailbox)}`)).json();
+  const mb = await (await db(`company_mailboxes?select=address,company_id&address=eq.${encodeURIComponent(mailbox)}`)).json();
   if (!Array.isArray(mb) || mb.length === 0) return J({ error: 'unknown_mailbox' }, 400);
+  if (caller.kind === 'user') {
+    const mine = await activeCompaniesOf(caller.id);
+    if (!mb.some((m: { company_id: string }) => mine.includes(m.company_id))) return J({ error: 'forbidden' }, 403);
+  }
 
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);

@@ -1,5 +1,36 @@
 project_id = "ujmrosbgkvgvwfnuryna"
+
+# verify_jwt = vérification du jeton par la plateforme AVANT d'entrer dans la fonction.
+# Aligné le 19/09/2026 sur l'état réellement déployé (API Supabase, liste des fonctions) :
+# avant, seules 4 fonctions étaient déclarées ici alors que 9 sont déployées sans vérification,
+# et un `supabase functions deploy` aurait changé leur comportement sans prévenir.
+#
+# Rappel : la clé publique (anon) EST un jeton valide. verify_jwt = true ne bloque donc que les
+# appels sans aucun jeton ; la vraie barrière est le contrôle d'accès dans le code
+# (supabase/functions/_shared/acces.ts, lot sécurité S). Détail : docs/bible/securite-lot-S.md.
+
+# Appelées par pg_cron (en-tête x-cron-secret). Stripe et la vitrine ont été supprimés le 18/09.
 [functions.dispatch-notifications]
 verify_jwt = false
 [functions.outlook-poll]
 verify_jwt = false
+
+# Contrôle d'accès dans le code (clé de service ou membre actif de la société).
+[functions.read-id-doc]
+verify_jwt = false
+[functions.classify-prospect-email]
+verify_jwt = false
+[functions.mailbox-diag]
+verify_jwt = false
+[functions.graph-send-email]
+verify_jwt = false
+
+# Service public sans donnée (VIES, Commission européenne).
+[functions.vies-check]
+verify_jwt = false
+
+# Déployées avec vérification du jeton, plus contrôle dans le code.
+[functions.summarize-exchange]
+verify_jwt = true
+[functions.send-account-invitation]
+verify_jwt = true

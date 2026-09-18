@@ -10,9 +10,15 @@
  * Sortie  : { data: { first_name, last_name, birth_date, national_register,
  *             national_id_number, license_number, license_categories,
  *             license_date, license_place } }  — null pour les champs illisibles
+ *
+ * ACCÈS (lot sécurité S, 19/09) : clé de service, ou utilisateur connecté membre actif de la
+ * société à laquelle appartient CHAQUE fichier (1er segment du chemin GED = company_id).
+ * Avant : aucun contrôle — quiconque connaissait un chemin obtenait l'extraction d'une pièce
+ * d'identité et consommait du crédit Anthropic.
  */
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { activeCompaniesOf, identify } from "../_shared/acces.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,8 +66,21 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) return json({ error: "not_configured" }, 500);
 
+    const caller = await identify(req);
+    if (!caller || caller.kind === "cron") return json({ error: "not_signed_in" }, 401);
+
     const { paths } = await req.json() as { paths?: string[] };
     if (!Array.isArray(paths) || paths.length === 0) return json({ error: "no_paths" }, 400);
+    if (paths.some((p) => typeof p !== "string" || p.includes(".."))) return json({ error: "bad_path" }, 400);
+
+    // Chemin GED = <company_id>/<entité>/<id>/<fichier> : chaque fichier doit appartenir
+    // à une société dont l'appelant est membre actif.
+    if (caller.kind === "user") {
+      const companies = await activeCompaniesOf(caller.id);
+      if (!paths.slice(0, 4).every((p) => companies.includes(p.split("/")[0]))) {
+        return json({ error: "forbidden" }, 403);
+      }
+    }
 
     // Téléchargement des scans depuis la GED (service role — la fonction est
     // appelée par un utilisateur authentifié via supabase.functions.invoke)
