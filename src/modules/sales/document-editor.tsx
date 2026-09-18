@@ -21,13 +21,15 @@ import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
 import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
 import { loadQuoteFeeParams } from '@/modules/workshop/quote-fees-api';
+import { saleStockStatus, type SaleStockInput } from './availability';
+import { SaleStockBadge } from './availability-badge';
 
 const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null };
+type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleStockInput | null };
 let counter = 0;
 const blankLine = (): EditLine => ({ _key: `l${counter++}`, article_id: null, designation: '', quantity: 1, unit_price_ht: 0, vat_rate: 21, discount_pct: 0 });
 
@@ -99,12 +101,12 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
     forcedTtc: forcedTtc.trim() ? num(forcedTtc) : null,
   };
-  const totals = computeTotals(lines.map(({ _key, _fee, ...l }) => l), pied);
+  const totals = computeTotals(lines.map(({ _key, _fee, _stock, ...l }) => l), pied);
 
   const save = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
-      const payload = lines.filter((l) => l.designation.trim()).map(({ _key, _fee, ...l }) => l);
+      const payload = lines.filter((l) => l.designation.trim()).map(({ _key, _fee, _stock, ...l }) => l);
       if (payload.length === 0) { setError(t('sales.needLine')); setBusy(false); return; }
       const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
       const id = await createDocument({
@@ -151,6 +153,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               <Th className="w-16 text-right">{t('sales.colVat')}</Th>
               <Th className="w-20 text-right">{t('sales.colDiscount')}</Th>
               <Th className="w-28 text-right">{t('sales.colLineHt')}</Th>
+              <Th className="w-36">{t('availability.colDispo')}</Th>
               <Th className="w-10" />
             </tr>
           </thead>
@@ -172,7 +175,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                     ) : (
                       <LinePicker companyId={companyId} value={l.designation}
                         onText={(v) => setLine(l._key, { designation: v })}
-                        onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate })} />
+                        onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a })} />
                     )}
                   </td>
                   <td className="px-2 py-1">
@@ -187,6 +190,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={taxExempt} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
+                  <td className="px-2 py-1">{l._stock && <SaleStockBadge status={saleStockStatus(l._stock, l.quantity)} free={l._stock.real_qty - l._stock.reserved_qty} />}</td>
                   <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
                 </tr>
               );
@@ -341,8 +345,14 @@ function LinePicker({ companyId, value, onText, onPick }: { companyId: string; v
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
-            <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
+            <button key={a.id} type="button" onClick={() => onPick(a)}
+              title={t('availability.stockHint').replace('{free}', String(a.real_qty - a.reserved_qty)).replace('{real}', String(a.real_qty)).replace('{reserved}', String(a.reserved_qty)).replace('{order}', String(a.on_order_qty))}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
+              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
+              <span className="ml-auto flex shrink-0 items-center gap-2">
+                <SaleStockBadge status={saleStockStatus(a)} free={a.real_qty - a.reserved_qty} />
+                <span className="tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
+              </span>
             </button>
           ))}
         </div>

@@ -2539,6 +2539,9 @@ export const fr = {
     filterPartial: 'Partiellement disponible',
     filterOrder: 'En commande',
     filterNone: 'Indisponible',
+    // recherche d'article d'une ligne de vente (mission 05, carte 2)
+    stockDisponible: 'Disponible', stockEnCommande: 'En commande', stockACommander: 'À commander',
+    stockHint: 'Libre {free} (réel {real} − réservé {reserved}) · en commande {order}',
   },
 } as const;
 

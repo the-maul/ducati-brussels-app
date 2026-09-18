@@ -39,7 +39,7 @@ de façon traçable. L'atelier (M8) passe par ce module pour transformer un OR e
 | Lectures (encours, documents d'un client, stats article) | `src/modules/sales/api.ts` |
 | Éditeur de document / règlements | `src/modules/sales/document-editor.tsx`, `src/modules/sales/payment-panel.tsx` |
 | Vente comptoir / caisse | `src/modules/sales/pos-sale.tsx`, `src/modules/sales/cash-screen.tsx`, `src/modules/sales/cash-api.ts` |
-| Disponibilité du stock sur les documents | `src/modules/sales/availability.ts`, `src/modules/sales/availability-badge.tsx` |
+| Disponibilité du stock sur les documents et dans la recherche d'article (disponible / en commande / à commander) | `src/modules/sales/availability.ts` (`computeDocAvailability`, `saleStockStatus`), `src/modules/sales/availability-badge.tsx` ; recherche : `searchSaleArticles` → fonction SQL `part_order_article_search` (M04) |
 | Impression (HTML imprimé par le navigateur, mention TVA marge, CGV) | `src/modules/sales/print-document.ts` |
 | Envoi e-mail / SMS | `src/modules/sales/notify-api.ts` (e-mail via `graph-send-email`, SMS via table `notifications`) |
 | Picking list | `src/modules/sales/picking-api.ts` |
@@ -49,10 +49,11 @@ de façon traçable. L'atelier (M8) passe par ce module pour transformer un OR e
 | Tâches planifiées | `invoice-reminders` (07:00, relance des factures échues, voir M12) |
 | Migrations clés | `supabase/migrations/20260919280000_m6_bon_de_commande_operateur.sql` (BC, opérateur), `supabase/migrations/20260610210000_m6_documents.sql`, `…20260610240000_m6_pied_facture.sql`, `…20260610250000_m6_payments.sql`, `…20260610260000_m6_conversions.sql`, `…20260610270000_m6_cash.sql`, `…20260610280000_m6_fix_sequences.sql`, `…20260612320000_m6_line_reference.sql`, `…20260726120000_m6_picking_lists.sql` |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `sales`, `pos`, `cash`, `picking`, `availability` |
-| Tests | `tests/sales-totals.test.ts` (8 cas : totaux, pied, détaxe, net forcé), `tests/sales-doc-chain.test.ts` (chaîne DEV → BC → RES/BL/FAC) |
+| Tests | `tests/sales-totals.test.ts` (8 cas : totaux, pied, détaxe, net forcé), `tests/sales-doc-chain.test.ts` (chaîne DEV → BC → RES/BL/FAC), `tests/sales-stock-status.test.ts` (disponible / en commande / à commander) |
 
 ## 4. Règles métier et décisions
 - **Stock selon le type de document** (B4, B7) : FAC et TIK débitent le stock **réel** à la validation ; RES et BL débitent le **disponible** (mouvement de réservation) ; DEV ne touche pas au stock. La conversion RES/BL→FAC libère la réservation puis la facture débite le réel. Tout passe par `record_stock_move` (append-only). Source : `write-api.ts`, `REAL_OUT_DOC_TYPES` / `RESERVE_DOC_TYPES`.
+- **Disponibilité dans la recherche d'article** (mission 05, carte 2) : libre = réel − réservé ; *disponible* si le libre couvre la quantité, *en commande* si libre + en commande (CMD validées sans réception reçue, `_article_on_order_qty`) la couvre, sinon *à commander* ; pas de statut pour M / F / T.
 - **Numéro attribué à la validation seulement** (brouillon sans numéro), par société et par type, via `next_document_number` (séquences M0, préfixes `FAC-`, `DEV-`, `TIK-`…). Un brouillon peut être supprimé ; un document validé non.
 - **Avoir** (G8 Facturation p.88) : lignes en négatif, réintégration du stock (entrée réel), remboursement des règlements perçus (règlements négatifs), facture d'origine passée en `annulee`.
 - **Conversions autorisées** (G8 p.96, p.101-109, mission 05) : DEV→BC/RES/BL/FAC ; BC→RES/BL/FAC ; RES→FAC/BL ; BL→FAC. Les acomptes perçus sur la source sont reportés sur la cible ; la source passe en `converti`.
@@ -138,3 +139,4 @@ Invariants : B4 fait (réservé / réel selon type), B7 partiel (mouvements de s
 | 2026-09-11 | Retour visuel d'enregistrement ; corrections de typage | `7f6ce22`, `c1dd2b7`, `7d31b6d` |
 | 2026-09-19 | Case « Devis atelier » : frais de devis accident / diagnostic dans l'éditeur (mission 02) | `20260919230000_m8_frais_devis_atelier.sql` |
 | 2026-09-19 | Mission 05 carte 1 : « Devis / proforma », bon de commande `BC-` (chaîne DEV → BC → RES/BL/FAC, acompte reporté), opérateur = utilisateur connecté écrit par le serveur et imprimé | `20260919280000_m6_bon_de_commande_operateur.sql` |
+| 2026-09-19 | Mission 05 carte 2 : recherche d'article d'une ligne avec disponibilité en couleur (disponible / en commande / à commander), réf. fournisseur et code-barres, via `part_order_article_search` | code seul, pas de migration |

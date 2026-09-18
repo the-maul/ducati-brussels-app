@@ -170,14 +170,33 @@ export async function liberateReservation(docId: string): Promise<void> {
   }
 }
 
-export type SaleArticle = { id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number };
-export async function searchSaleArticles(companyId: string, term: string): Promise<SaleArticle[]> {
-  const s = term.replace(/[,()%*]/g, ' ').trim();
-  let q = supabase.from('articles').select('id, reference, designation, sale_price_ht, vat_rate').eq('company_id', companyId).limit(8);
-  if (s) q = q.or(`reference.ilike.%${s}%,designation.ilike.%${s}%`);
-  const { data, error } = await q;
+/**
+ * Article proposé dans la recherche d'une ligne de vente, avec son stock (triple stock B4) :
+ * réel, réservé et « en commande » (commandes fournisseur CMD validées sans réception reçue).
+ * Le statut disponible / en commande / à commander se calcule avec `saleStockStatus`
+ * (availability.ts) selon la quantité de la ligne.
+ */
+export type SaleArticle = {
+  id: string; reference: string; designation: string; sale_price_ht: number; vat_rate: number;
+  mgmt_type: string | null; real_qty: number; reserved_qty: number; on_order_qty: number;
+  bin_location: string | null;
+};
+/**
+ * Recherche d'article pour une ligne de vente (référence, désignation, réf. fournisseur,
+ * code-barres). Réutilise la fonction SQL de la mission 02 `part_order_article_search`
+ * (même calcul du stock et de l'« en commande » que l'écran des commandes de pièces).
+ */
+export async function searchSaleArticles(companyId: string, term: string, limit = 8): Promise<SaleArticle[]> {
+  const s = term.trim();
+  if (s.length < 2) return [];
+  const { data, error } = await supabase.rpc('part_order_article_search', { _company: companyId, _term: s, _limit: limit });
   if (error) throw error;
-  return (data ?? []).map((a) => ({ id: a.id, reference: a.reference, designation: a.designation, sale_price_ht: Number(a.sale_price_ht), vat_rate: Number(a.vat_rate) }));
+  return (data ?? []).map((a) => ({
+    id: a.article_id, reference: a.reference, designation: a.designation,
+    sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
+    mgmt_type: a.mgmt_type ?? null, bin_location: a.bin_location ?? null,
+    real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
+  }));
 }
 
 /**

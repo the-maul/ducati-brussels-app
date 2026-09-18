@@ -5,7 +5,7 @@
  * Les lignes texte/main d'œuvre (sans article_id) sont ignorées du calcul.
  * Un document sans aucune ligne à article n'a pas de statut ('na').
  */
-import { PackageCheck, PackageMinus, PackageX, Package, type LucideIcon } from 'lucide-react';
+import { PackageCheck, PackageMinus, PackageX, Package, Truck, ShoppingCart, type LucideIcon } from 'lucide-react';
 import type { StatusTone } from '@/components/status-badge';
 
 export type AvailabilityStatus = 'disponible' | 'partiel' | 'indisponible' | 'na';
@@ -47,3 +47,35 @@ export function computeDocAvailability(lines: AvailabilityLine[], stockMap: Map<
   const status: AvailabilityStatus = pct >= 100 ? 'disponible' : pct > 0 ? 'partiel' : 'indisponible';
   return { pct, status };
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Disponibilité d'un article dans la recherche d'une ligne de vente (mission 05, carte 2).
+ * « Couleur verte = disponible » (vidéo de Domenico, G8). Trois états, calculés sur le triple
+ * stock B4 : libre = réel − réservé ; « en commande » = commandes fournisseur CMD validées sans
+ * réception reçue (fonction SQL _article_on_order_qty, via part_order_article_search).
+ *   - disponible  : le libre couvre la quantité demandée ;
+ *   - en commande : le libre + l'en-commande la couvrent ;
+ *   - à commander : sinon.
+ * Les articles non stockés (M), texte (F) et main-d'œuvre (T) n'ont pas de statut ('na').
+ * ---------------------------------------------------------------------------------------- */
+export type SaleStockStatus = 'disponible' | 'en_commande' | 'a_commander' | 'na';
+
+export const NON_STOCK_MGMT_TYPES = ['M', 'F', 'T'] as const;
+
+export type SaleStockInput = { mgmt_type: string | null; real_qty: number; reserved_qty: number; on_order_qty: number };
+
+export function saleStockStatus(a: SaleStockInput, need = 1): SaleStockStatus {
+  if (a.mgmt_type && (NON_STOCK_MGMT_TYPES as readonly string[]).includes(a.mgmt_type)) return 'na';
+  const qty = need > 0 ? need : 1;
+  const free = (Number(a.real_qty) || 0) - (Number(a.reserved_qty) || 0);
+  if (free >= qty) return 'disponible';
+  if (free + (Number(a.on_order_qty) || 0) >= qty) return 'en_commande';
+  return 'a_commander';
+}
+
+export const SALE_STOCK_META: Record<SaleStockStatus, { tone: StatusTone; icon: LucideIcon; labelKey: string }> = {
+  disponible: { tone: 'success', icon: PackageCheck, labelKey: 'availability.stockDisponible' },
+  en_commande: { tone: 'info', icon: Truck, labelKey: 'availability.stockEnCommande' },
+  a_commander: { tone: 'warning', icon: ShoppingCart, labelKey: 'availability.stockACommander' },
+  na: { tone: 'neutral', icon: Package, labelKey: 'availability.statusNa' },
+};

@@ -87,6 +87,19 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   (`CONVERSIONS`, `DEPOSIT_DOC_TYPES`), `document-editor.tsx`, `availability.ts`,
   `src/routes/_app.sales.$documentId.tsx`, `_app.sales.index.tsx` ; test `tests/sales-doc-chain.test.ts`.
 
+### Carte 2 — Chercher un article et voir sa disponibilité en couleur (19/09, à valider)
+- La recherche d'article d'une ligne (devis, bon de commande, facture… mais aussi caisse, OR et tarifs
+  clients, qui partagent `searchSaleArticles`) cherche désormais aussi par **réf. fournisseur et
+  code-barres** et affiche pour chaque article une pastille **Disponible** (vert, libre = réel − réservé),
+  **En commande** (bleu, commande fournisseur CMD validée sans réception) ou **À commander** (orange),
+  couleur + icône + libellé ; survol = détail réel / réservé / en commande.
+- Sur la ligne choisie, colonne « Dispo » recalculée selon la quantité saisie.
+- Pas de nouveau calcul : réutilise la fonction SQL `part_order_article_search` de la mission 02
+  (`article_stock` + `_article_on_order_qty`). Articles M / F / T : pas de pastille.
+- Code : `src/modules/sales/write-api.ts` (`searchSaleArticles`), `availability.ts` (`saleStockStatus`),
+  `availability-badge.tsx` (`SaleStockBadge`), `document-editor.tsx` ; test `tests/sales-stock-status.test.ts`.
+- Limite : « en commande » ne distingue pas encore pour quel client la pièce est commandée (carte 7).
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.
