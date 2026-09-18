@@ -943,6 +943,12 @@ export const fr = {
     secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
+    // Mission 04, carte 2 : civilité de la personne (valeurs Monsieur / Madame / Mx)
+    civilityM: 'M.',
+    civilityMme: 'Mme',
+    civilityMx: 'Mx',
+    civilityContact: 'Civilité de la personne de contact',
+    legalForm: 'Forme juridique',
     civilityMr: 'Monsieur',
     civilityMrs: 'Madame',
     civilityOther: 'Autre',

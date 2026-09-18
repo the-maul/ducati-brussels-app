@@ -31,6 +31,8 @@ import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
+import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
+import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
@@ -150,37 +152,16 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'evenements', labelKey: 'signup.interest.evenements' },
 ];
 
-// Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions
 /** Valeur sentinelle : Radix Select interdit un SelectItem de valeur vide. */
 const CIVILITY_NONE = '__none__';
-/** Liste fermee de la civilite (fiche privee). Une valeur hors liste heritee d'une
- *  reprise reste affichee telle quelle plutot que d'etre perdue silencieusement. */
-const CIVILITY_OPTIONS = ['Monsieur', 'Madame', 'Autre'];
-
-const COMPANY_TYPES: { value: string; label: string }[] = [
-  { value: 'SRL', label: 'Société à resp. limitée' },
-  { value: 'BV', label: 'Besloten vennootschap' },
-  { value: 'SA', label: 'Société anonyme' },
-  { value: 'NV', label: 'Naamloze vennootschap' },
-  { value: 'SC', label: 'Société coopérative' },
-  { value: 'CV', label: 'Coöperatieve vennootschap' },
-  { value: 'SCRL', label: 'Société coop. à resp. limitée' },
-  { value: 'SNC', label: 'Société en nom collectif' },
-  { value: 'VOF', label: 'Vennootschap onder firma' },
-  { value: 'SComm', label: 'Société en commandite' },
-  { value: 'SCS', label: 'Société en commandite simple' },
-  { value: 'ASBL', label: 'Association sans but lucratif' },
-  { value: 'VZW', label: 'Vereniging zonder winstoogmerk' },
-  { value: 'SPRL', label: 'SPRL (ancienne forme)' },
-  { value: 'BVBA', label: 'BVBA (oude vorm)' },
-  { value: 'Indépendant', label: 'Personne physique / Eenmanszaak' },
-];
 
 type FormState = {
   type: ContactType;
   status: ContactStatus;
   code: string;
   civility: string;
+  /** Mission 04, carte 2 : forme juridique d'un pro (colonne legal_form). */
+  legal_form: string;
   first_name: string;
   last_name: string;
   company_name: string;
@@ -251,7 +232,10 @@ function fromContact(c: Contact | null): FormState {
     type: c?.type ?? 'particulier',
     status: c?.status ?? 'prospect',
     code: c?.code ?? '',
-    civility: c?.civility ?? '',
+    // Écritures G8 (MR, MME…) ramenées à Monsieur / Madame ; une forme juridique
+    // restée dans `civility` est conservée telle quelle (non affichée, jamais effacée).
+    civility: personCivility(c?.civility) ?? c?.civility ?? '',
+    legal_form: ext?.legal_form ?? '',
     first_name: c?.first_name ?? '',
     last_name: c?.last_name ?? '',
     company_name: c?.company_name ?? '',
@@ -391,6 +375,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     notify_model_stock: f.notify_model_stock,
     // Colonne ajoutée par migration 20260726 — pas encore dans types.ts auto-généré
     watch_note: nn(f.watch_note),
+    // Mission 04, carte 2 (migration 20260919261000)
+    legal_form: nn(f.legal_form),
   });
 }
 
@@ -426,6 +412,15 @@ export function ContactForm({
   const isPro = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
   const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
+
+  // Formes juridiques : table de référence `civility` de Paramètres (lignes « Professionnel »).
+  const civilityRefQ = useQuery({
+    queryKey: ['ref', companyId, 'civility'],
+    queryFn: () => listRef(companyId, 'civility'),
+    enabled: isPro,
+    staleTime: 300_000,
+  });
+  const legalForms = legalFormOptions(civilityRefQ.data ?? []);
 
   const addressTitle = isPro ? t('contacts.secAddressPro') : t('contacts.secAddressPrivate');
 
@@ -565,36 +560,43 @@ export function ContactForm({
                 <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
               </Field>
             )}
-            {isPro ? (
-              <Field label={t('contacts.companyType')}>
-                <Input list="company-types" value={f.civility} onChange={(e) => set('civility', e.target.value)} placeholder={t('contacts.companyTypePlaceholder')} />
-                <datalist id="company-types">
-                  {COMPANY_TYPES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </datalist>
-              </Field>
-            ) : (
-              <Field label={t('contacts.civility')}>
-                {/* Liste fermee : la saisie libre laissait passer des formes juridiques
-                    (SPRL, SA...) heritees a tort de la fiche pro liee. */}
+            {isPro && (
+              <Field label={t('contacts.legalForm')}>
+                {/* Mission 04, carte 2 : liste lue dans Paramètres → Tables → Civilités
+                    (lignes « Professionnel »), plus de liste codée en dur. */}
                 <Select
-                  value={f.civility || CIVILITY_NONE}
-                  onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
+                  value={f.legal_form || CIVILITY_NONE}
+                  onValueChange={(v) => set('legal_form', v === CIVILITY_NONE ? '' : v)}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
-                    <SelectItem value="Monsieur">{t('contacts.civilityMr')}</SelectItem>
-                    <SelectItem value="Madame">{t('contacts.civilityMrs')}</SelectItem>
-                    <SelectItem value="Autre">{t('contacts.civilityOther')}</SelectItem>
-                    {f.civility && !CIVILITY_OPTIONS.includes(f.civility) && (
-                      <SelectItem value={f.civility}>{f.civility}</SelectItem>
+                    {legalForms.map((o) => (
+                      <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>
+                    ))}
+                    {f.legal_form && !legalForms.some((o) => o.code === f.legal_form) && (
+                      <SelectItem value={f.legal_form}>{f.legal_form}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               </Field>
             )}
+            <Field label={isPro ? t('contacts.civilityContact') : t('contacts.civility')}>
+              {/* Civilité de la PERSONNE : M. / Mme / Mx. Une forme juridique héritée de G8
+                  dans ce champ n'est pas proposée ici (voir « Forme juridique »). */}
+              <Select
+                value={personCivility(f.civility) ?? CIVILITY_NONE}
+                onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
+                  {PERSON_CIVILITIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label={t('contacts.firstName')}>
               <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
             </Field>
