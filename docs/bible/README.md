@@ -47,6 +47,9 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
 |---|---|---|
 | 01 | [Nouveau client](missions/mission-01-nouveau-client.md) | 🟦 lots 0, 1, 2 faits · lot 5 : cloche des inscriptions et tri G8 faits · reste fusion des doublons, portail, borne, questionnaire du site |
 | 02 | [Commandes de pièces](missions/mission-02-commandes-pieces.md) ([spécification](../process-commandes-pieces.md)) | 🟦 règles des 4 types et suivi de l’état faits (à valider) · reste 8 cartes |
+| 03 | [Shopify](missions/mission-03-shopify.md) | 🟦 accès fait · questions en attente |
+| 04 | [Fiche client et moto au comptoir](missions/mission-04-fiche-client-moto.md) | ⬜ 7 cartes créées, en attente du feu vert |
+| 05 | [Devis moto, options et préparation](missions/mission-05-devis-preparation.md) | ⬜ 10 cartes créées, en attente du feu vert |
 
 ## Alertes relevées par le scan du 18/09
 

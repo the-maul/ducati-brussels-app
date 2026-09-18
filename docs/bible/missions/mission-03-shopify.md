@@ -73,6 +73,8 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 5. Produit Shopify sans article dans le DMS : le créer dans le DMS ou le retirer du site ?
 6. Frais de port : ligne à part sur la vente dans le DMS ?
 
+Décidé le 19/09 : **W-5** l'inscription du site Shopify renvoie vers `/app-client` (page « bientôt disponible ») ; **W-6** liaison des clients Shopify : correspondances exactes seulement en automatique, les autres validées à la main.
+
 ## 5. Ce qui a changé dans l'application
 
 Rien encore. Point de départ gardé lors du nettoyage du 18/09 : la case « publiable » de la fiche article.
