@@ -1,0 +1,23 @@
+# Application Shopify « DMS Ducati Bruxelles » — liaison entre la boutique
+# ducati-bruxelles.myshopify.com et le DMS (mission 03, docs/bible/missions/mission-03-shopify.md).
+#
+# client_id est rempli automatiquement par `npx @shopify/cli@latest app config link`.
+# Il n'est PAS secret. Le Client secret, lui, ne va JAMAIS ici : il va dans les secrets
+# des fonctions Supabase (SHOPIFY_CLIENT_SECRET).
+client_id = ""
+name = "DMS Ducati Bruxelles"
+application_url = "https://ducatilive.netlify.app"
+embedded = false
+
+[access_scopes]
+# Produits (lecture + publication), stock, emplacements, commandes, clients.
+scopes = "read_products,write_products,read_inventory,write_inventory,read_locations,read_orders,read_customers"
+
+[auth]
+redirect_urls = [ "https://ducatilive.netlify.app/" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[build]
+include_config_on_deploy = true

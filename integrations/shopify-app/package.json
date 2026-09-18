@@ -1,0 +1,5 @@
+{
+  "name": "dms-ducati-shopify-app",
+  "private": true,
+  "description": "Configuration de l'application Shopify du DMS (droits d'accès). Aucune interface : le DMS appelle l'API Shopify depuis ses fonctions serveur."
+}

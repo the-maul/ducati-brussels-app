@@ -34,3 +34,7 @@ verify_jwt = false
 verify_jwt = true
 [functions.send-account-invitation]
 verify_jwt = true
+
+# Mission 03 — vérification de la connexion Shopify (contrôle d’accès dans le code).
+[functions.shopify-ping]
+verify_jwt = false

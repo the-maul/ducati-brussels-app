@@ -39,6 +39,19 @@ Pour renouveler le secret : Dev Dashboard → application → Settings → rég�
 `npx supabase@2.117.0 secrets set SHOPIFY_CLIENT_SECRET=… --project-ref ujmrosbgkvgvwfnuryna` (à faire
 par une personne, pas par l'IA).
 
+### Mise en route (à faire une fois, par Simon, avec son compte Shopify)
+
+L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.app.toml`](../../../integrations/shopify-app/shopify.app.toml)
+(nom, droits). Depuis ce dossier :
+
+1. `npx @shopify/cli@latest app config link` → connexion Shopify dans le navigateur → « Create a new app »
+   → nom « DMS Ducati Bruxelles ». Le `client_id` s'écrit tout seul dans le fichier.
+2. `npx @shopify/cli@latest app deploy` → publie une version de l'application avec ses droits.
+3. Dev Dashboard → l'application → Install app → boutique Ducati Bruxelles.
+4. Dev Dashboard → l'application → Settings : copier Client ID et Client secret, puis
+   `npx supabase@2.117.0 secrets set SHOPIFY_STORE_DOMAIN=ducati-bruxelles.myshopify.com SHOPIFY_CLIENT_ID=… SHOPIFY_CLIENT_SECRET=… --project-ref ujmrosbgkvgvwfnuryna`
+5. Vérification : fonction serveur `shopify-ping` (nom de la boutique, droits accordés, nombre de produits, emplacements).
+
 ## 3. Lots (cartes ERP)
 
 | Carte | État |
