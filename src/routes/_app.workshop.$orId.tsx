@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,7 @@ function OrView() {
           <div className="flex flex-wrap gap-2">
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
             {!invoiced && <Button onClick={() => toInvoice.mutate()} disabled={toInvoice.isPending || pending}><FileText /> {t('workshop.toInvoice')}</Button>}
+            {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
             <Button variant="outline" onClick={() => setAccidentOpen(true)}><LifeBuoy /> {t('accident.btn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
