@@ -69,7 +69,8 @@ export async function createManualLead(p: {
 }): Promise<ManualLeadResult> {
   const { data, error } = await rpcUntyped('crm_create_manual_lead', {
     _company: p.companyId, _pipeline: p.pipeline, _name: p.name,
-    _email: p.email || null, _phone: p.phone || null, _vehicle_interest: p.vehicleInterest || null,
+    // Mission 04, carte 4 : e-mail en minuscules (la fiche client créée le reprend).
+    _email: p.email?.trim().toLowerCase() || null, _phone: p.phone || null, _vehicle_interest: p.vehicleInterest || null,
     _source: p.source || null, _estimated_value: p.estimatedValue ?? null,
   });
   if (error) throw error;

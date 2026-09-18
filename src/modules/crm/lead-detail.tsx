@@ -103,7 +103,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged, notice }: { le
 
   const saveLead = useMutation({
     mutationFn: () => updateLead(lead.id, {
-      name: f.name, email: f.email || null, phone: f.phone || null,
+      name: f.name, email: f.email.trim().toLowerCase() || null, phone: f.phone || null,
       vehicle_interest: f.vehicle_interest || null,
       estimated_value: f.estimated_value ? num(f.estimated_value) : null,
       stage: f.stage, notes: f.notes || null,

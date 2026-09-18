@@ -761,6 +761,24 @@ export type Database = {
           },
         ]
       }
+      be_postal_codes: {
+        Row: {
+          city: string
+          code: string
+          province: string | null
+        }
+        Insert: {
+          city: string
+          code: string
+          province?: string | null
+        }
+        Update: {
+          city?: string
+          code?: string
+          province?: string | null
+        }
+        Relationships: []
+      }
       cash_movements: {
         Row: {
           amount: number
@@ -1629,6 +1647,7 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1733,6 +1752,7 @@ export type Database = {
           is_watch?: boolean
           last_name?: string | null
           legacy_code?: string | null
+          legal_form?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -1837,6 +1857,7 @@ export type Database = {
           is_watch?: boolean
           last_name?: string | null
           legacy_code?: string | null
+          legal_form?: string | null
           license_category?:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -2027,6 +2048,50 @@ export type Database = {
           },
         ]
       }
+      document_comment_templates: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_comment_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_lines: {
         Row: {
           article_id: string | null
@@ -2037,6 +2102,7 @@ export type Database = {
           id: string
           line_ht: number
           line_ttc: number
+          line_type: string
           quantity: number
           reference: string | null
           sort_order: number
@@ -2052,6 +2118,7 @@ export type Database = {
           id?: string
           line_ht?: number
           line_ttc?: number
+          line_type?: string
           quantity?: number
           reference?: string | null
           sort_order?: number
@@ -2067,6 +2134,7 @@ export type Database = {
           id?: string
           line_ht?: number
           line_ttc?: number
+          line_type?: string
           quantity?: number
           reference?: string | null
           sort_order?: number
@@ -2265,6 +2333,7 @@ export type Database = {
           notes: string | null
           number: string | null
           operator: string | null
+          operator_user_id: string | null
           paid_amount: number
           price_mode: string
           remise_ttc: number | null
@@ -2302,6 +2371,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -2339,6 +2409,7 @@ export type Database = {
           notes?: string | null
           number?: string | null
           operator?: string | null
+          operator_user_id?: string | null
           paid_amount?: number
           price_mode?: string
           remise_ttc?: number | null
@@ -4331,6 +4402,131 @@ export type Database = {
           },
         ]
       }
+      shopify_links: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          id: string
+          match_via: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id: string
+          status: string
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          match_via?: string | null
+          shopify_variant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_products: {
+        Row: {
+          barcode: string | null
+          company_id: string
+          first_seen_at: string
+          handle: string | null
+          id: string
+          image_url: string | null
+          inventory_quantity: number | null
+          price: number | null
+          product_title: string | null
+          product_type: string | null
+          removed_at: string | null
+          shopify_product_id: string
+          shopify_updated_at: string | null
+          shopify_variant_id: string
+          sku: string | null
+          status: string | null
+          synced_at: string
+          variant_title: string | null
+          vendor: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          company_id: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id: string
+          shopify_updated_at?: string | null
+          shopify_variant_id: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          company_id?: string
+          first_seen_at?: string
+          handle?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          price?: number | null
+          product_title?: string | null
+          product_type?: string | null
+          removed_at?: string | null
+          shopify_product_id?: string
+          shopify_updated_at?: string | null
+          shopify_variant_id?: string
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          variant_title?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signup_settings: {
         Row: {
           client_app_open: boolean
@@ -5290,6 +5486,7 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _article_on_order_qty: { Args: { _article: string }; Returns: number }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -5305,6 +5502,10 @@ export type Database = {
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      _part_order_refresh_totals: {
+        Args: { _order_id: string }
+        Returns: undefined
       }
       _portal_ctx: { Args: never; Returns: Record<string, unknown> }
       _portal_invoice_pdf: {
@@ -5336,6 +5537,25 @@ export type Database = {
           rule_kind: string
           unit_price_ht: number
           unit_price_ttc: number
+        }[]
+      }
+      _shopify_apply_auto_links: {
+        Args: {
+          _actor: string
+          _company: string
+          _links: Json
+          _run_started_at: string
+          _stats: Json
+        }
+        Returns: Json
+      }
+      _shopify_auto_candidates: {
+        Args: { _company: string }
+        Returns: {
+          barcode: string
+          candidates: Json
+          sku: string
+          variant_id: string
         }[]
       }
       append_lead_exchange_note: {
@@ -5413,6 +5633,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      contact_be_gsm: { Args: { _p: string }; Returns: string }
       contact_delete_safe: { Args: { _id: string }; Returns: undefined }
       contact_dependencies: {
         Args: { _id: string }
@@ -5437,6 +5658,127 @@ export type Database = {
       contact_merge_refs: { Args: { _id: string }; Returns: Json }
       contact_norm_phone: { Args: { _v: string }; Returns: string }
       contact_norm_txt: { Args: { _v: string }; Returns: string }
+      contact_phone_key: { Args: { _p: string }; Returns: string }
+      contact_use_phone_as_mobile: { Args: { _id: string }; Returns: string }
+      contacts_find_by_email_or_mobile: {
+        Args: {
+          _company: string
+          _email: string
+          _exclude?: string
+          _mobile: string
+        }
+        Returns: {
+          account_code: string | null
+          accounting_account: string | null
+          address: string | null
+          address_complement: string | null
+          address_complement2: string | null
+          address_mismatch: boolean
+          bic: string | null
+          birth_date: string | null
+          category: string | null
+          city: string | null
+          civility: string | null
+          code: string | null
+          company_id: string
+          company_name: string | null
+          contact_name: string | null
+          contact_preference: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          delivery_address: string | null
+          domiciliation: string | null
+          dou: string | null
+          ducati_code: string | null
+          ducati_url: string | null
+          email: string | null
+          email_pro: string | null
+          external_ref: string | null
+          factoring_code: string | null
+          fax: string | null
+          first_name: string | null
+          gsm: string | null
+          iban: string | null
+          id: string
+          imported_from: string | null
+          interests: string[]
+          is_account: boolean
+          is_active: boolean
+          is_blocked: boolean
+          is_detaxe: boolean
+          is_vip: boolean
+          is_watch: boolean
+          last_name: string | null
+          legacy_code: string | null
+          legal_form: string | null
+          license_category:
+            | Database["public"]["Enums"]["license_category"]
+            | null
+          license_date: string | null
+          license_number: string | null
+          license_place: string | null
+          license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
+          marketing_opt_out: boolean
+          mobile: string | null
+          mobile_pro: string | null
+          mode_ht: boolean
+          model_interests: string[] | null
+          my_ducati_city: string | null
+          my_ducati_country: string | null
+          my_ducati_data: Json | null
+          my_ducati_email: string | null
+          my_ducati_first_name: string | null
+          my_ducati_is_current_owner: boolean | null
+          my_ducati_last_name: string | null
+          my_ducati_marketing: boolean | null
+          my_ducati_phone: string | null
+          my_ducati_profiling: boolean | null
+          my_ducati_score: number | null
+          my_ducati_synced_at: string | null
+          national_id: string | null
+          national_id_scan_path: string | null
+          national_register: string | null
+          notes: string | null
+          notify_model_stock: boolean | null
+          opening_balance: number
+          origin: string | null
+          payment_terms: string | null
+          phone: string | null
+          phone_pro: string | null
+          po_box: string | null
+          price_list: string | null
+          receipt_copies: number
+          sale_vat_type: Database["public"]["Enums"]["sale_vat_type"]
+          segment: Database["public"]["Enums"]["customer_segment"]
+          show_discounts_pos: boolean
+          status: Database["public"]["Enums"]["contact_status"]
+          street_number: string | null
+          supplier_customer_no: string | null
+          supplier_franco_min: number | null
+          supplier_is_internal: boolean
+          supplier_order_min: number | null
+          supplier_order_min_qty: number | null
+          supplier_rfa_rate: number | null
+          type: Database["public"]["Enums"]["contact_type"]
+          updated_at: string
+          vat_number: string | null
+          vehicle_preference: string | null
+          vies_checked_at: string | null
+          vies_valid: boolean | null
+          watch_note: string | null
+          zip: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "contacts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       contacts_find_duplicates: {
         Args: {
           _city: string
@@ -5491,6 +5833,7 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -5572,6 +5915,21 @@ export type Database = {
           reason: string
         }[]
       }
+      contacts_phone_gsm_candidates: {
+        Args: { _company: string; _limit?: number; _offset?: number }
+        Returns: {
+          city: string
+          code: string
+          company_name: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          proposed_mobile: string
+          total: number
+          type: Database["public"]["Enums"]["contact_type"]
+        }[]
+      }
       contacts_search: {
         Args: {
           _company: string
@@ -5626,6 +5984,7 @@ export type Database = {
           is_watch: boolean
           last_name: string | null
           legacy_code: string | null
+          legal_form: string | null
           license_category:
             | Database["public"]["Enums"]["license_category"]
             | null
@@ -5996,6 +6355,28 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      part_order_article_search: {
+        Args: { _company: string; _limit?: number; _term: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          is_library: boolean
+          matched_barcode: string
+          mgmt_type: string
+          on_order_qty: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sale_price_ht: number
+          supplier_id: string
+          supplier_name: string
+          supplier_ref: string
+          vat_rate: number
+        }[]
+      }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
       part_order_history: {
         Args: { _order_id: string }
@@ -6006,6 +6387,45 @@ export type Database = {
           from_status: string
           note: string
           to_status: string
+        }[]
+      }
+      part_order_line_delete: { Args: { _line_id: string }; Returns: undefined }
+      part_order_line_save: {
+        Args: {
+          _article_id?: string
+          _designation?: string
+          _line_id?: string
+          _order_id: string
+          _qty_client?: number
+          _qty_shop?: number
+          _supplier_id?: string
+          _unit_price_ht?: number
+          _vat_rate?: number
+        }
+        Returns: Json
+      }
+      part_order_lines_detail: {
+        Args: { _order_id: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          id: string
+          line_ht: number
+          on_order_qty: number
+          order_id: string
+          qty_client: number
+          qty_shop: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
         }[]
       }
       part_order_rules: {
@@ -6301,6 +6721,49 @@ export type Database = {
           commission: number
           reversal: number
         }[]
+      }
+      shopify_link_suggestions: {
+        Args: { _company: string; _variant: string }
+        Returns: {
+          article_id: string
+          designation: string
+          reason: string
+          reference: string
+          score: number
+        }[]
+      }
+      shopify_link_variant: {
+        Args: { _article: string; _company: string; _variant: string }
+        Returns: undefined
+      }
+      shopify_products_overview: {
+        Args: { _company: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          barcode: string
+          decided_at: string
+          handle: string
+          image_url: string
+          inventory_quantity: number
+          link_status: string
+          match_via: string
+          price: number
+          product_status: string
+          product_title: string
+          product_type: string
+          shopify_product_id: string
+          shopify_variant_id: string
+          sku: string
+          synced_at: string
+          variant_title: string
+          vendor: string
+        }[]
+      }
+      shopify_set_variant_decision: {
+        Args: { _company: string; _decision: string; _variant: string }
+        Returns: undefined
       }
       signup_precheck: {
         Args: { _company: string; _email: string }

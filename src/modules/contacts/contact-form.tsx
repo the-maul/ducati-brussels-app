@@ -32,7 +32,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
-import { normalizeMobile } from '@/lib/contact-normalize';
+import { normalizeEmail, normalizeMobile } from '@/lib/contact-normalize';
+import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
 import type {
@@ -313,7 +314,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     first_name: nn(f.first_name),
     last_name: nn(f.last_name),
     company_name: nn(f.company_name),
-    email: nn(f.email),
+    // Mission 04, carte 4 : e-mail sans espaces, en minuscules (aussi garanti en base).
+    email: nn(normalizeEmail(f.email)),
     // `phone` (téléphone repris de G8) n'est plus dans l'écran : on ne l'envoie plus du
     // tout (avant : `phone: null` l'effaçait à chaque enregistrement de la fiche).
     // Mission 04, carte 3 : mobiles au format international (+32…), utilisés pour les SMS.
@@ -636,10 +638,12 @@ export function ContactForm({
               <Input value={f.po_box} onChange={(e) => set('po_box', e.target.value)} />
             </Field>
             <Field label={t('contacts.zip')}>
-              <Input value={f.zip} onChange={(e) => set('zip', e.target.value)} />
+              <Input value={f.zip} inputMode="numeric" onChange={(e) => set('zip', e.target.value)} />
             </Field>
             <Field label={t('contacts.city')}>
               <Input value={f.city} onChange={(e) => set('city', e.target.value)} />
+              {/* Mission 04, carte 4 : le code postal propose la localité. */}
+              <ZipCitySuggest zip={f.zip} country={f.country} city={f.city} onPick={(c) => set('city', c)} />
             </Field>
             <Field label={t('contacts.country')}>
               <Input value={f.country} onChange={(e) => set('country', e.target.value)} />

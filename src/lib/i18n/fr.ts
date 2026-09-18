@@ -943,6 +943,9 @@ export const fr = {
     secFollowUp: 'Suivi de la fiche',
 
     // Civilite (fiche privee) — liste fermee
+    // Mission 04, carte 4 : code postal → localité
+    zipPick: 'Plusieurs localités pour ce code postal : choisissez',
+
     // Mission 04, carte 3 : un seul mobile, format international, utilisé pour les SMS
     mobileSmsHint: 'Ce numéro reçoit les SMS. Mis au format international (+32…) à l’enregistrement.',
     mobileFix: {

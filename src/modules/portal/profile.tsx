@@ -20,6 +20,7 @@ import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { checkVat, parseViesAddress, type ViesResult } from '@/modules/contacts/vies-api';
 import { normalizeMobile } from '@/lib/contact-normalize';
+import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import {
   CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch,
 } from './api';
@@ -142,7 +143,11 @@ export function ProfileView() {
             <Field id="pf-street_number" label={t('portal.profile.number')}>{input('street_number')}</Field>
             <Field id="pf-address_complement" label={t('portal.profile.complement')}>{input('address_complement', { autoComplete: 'address-line2' })}</Field>
             <Field id="pf-zip" label={t('portal.profile.zip')}>{input('zip', { inputMode: 'numeric', autoComplete: 'postal-code' })}</Field>
-            <Field id="pf-city" label={t('portal.profile.city')}>{input('city', { autoComplete: 'address-level2' })}</Field>
+            <Field id="pf-city" label={t('portal.profile.city')}>
+              {input('city', { autoComplete: 'address-level2' })}
+              {/* Mission 04, carte 4 : le code postal propose la localité. */}
+              <ZipCitySuggest zip={form.zip} country={form.country} city={form.city} onPick={(c) => set('city', c)} large />
+            </Field>
             <Field id="pf-country" label={t('portal.profile.country')}>{input('country', { maxLength: 2, autoComplete: 'country' })}</Field>
             <Field id="pf-birth_date" label={t('portal.profile.birthDate')}>{input('birth_date', { type: 'date', autoComplete: 'bday' })}</Field>
           </div>
