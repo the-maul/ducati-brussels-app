@@ -16,6 +16,13 @@
 // n'est pas relevée : on enregistre donc l'échange ici même, sinon il n'apparaîtrait
 // jamais dans la carte.
 //
+// PIED DE MAIL (décision client P-5 du 18/09) : sous le message, une invitation
+// sobre à rejoindre l'application, avec un lien vers <origine>/inscription?email=…
+// Ajoutée UNIQUEMENT si le destinataire n'a encore aucun compte (ni client, ni
+// équipe) et n'est pas une adresse de la concession. L'origine (adresse de
+// l'application client) est transmise par l'appelant (`origin`) ; sans origine
+// valide, pas de pied de mail.
+//
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
@@ -49,6 +56,25 @@ async function caller(req: Request): Promise<{ id: string; email: string } | nul
 }
 
 const domainOf = (a: string) => a.split('@')[1]?.toLowerCase() ?? '';
+const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+/** Invitation P-5, sous le message. Texte validé par le client le 18/09. */
+function joinFooter(origin: string, to: string): string {
+  const link = `${origin}/inscription?email=${encodeURIComponent(to)}`;
+  return `
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #d9d9d9;font-size:13px;line-height:18px;color:#5c5c5c">
+  <p style="margin:0 0 6px 0">Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l'application Ducati Bruxelles.</p>
+  <p style="margin:0"><a href="${esc(link)}" style="color:#c8102e">Rejoindre l'application Ducati Bruxelles</a></p>
+</div>`;
+}
+
+/** Vrai si l'adresse a déjà un compte (client ou équipe). En cas de doute, on considère que oui. */
+async function hasAccount(address: string): Promise<boolean> {
+  const r = await db(`profiles?select=id&email=ilike.${encodeURIComponent(address)}&limit=1`);
+  if (!r.ok) return true;
+  const rows = await r.json();
+  return Array.isArray(rows) && rows.length > 0;
+}
 const toText = (html: string) => html
   .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n')
   .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -61,7 +87,7 @@ Deno.serve(async (req) => {
   const user = await caller(req);
   if (!user) return J({ error: 'not_signed_in' }, 401);
 
-  const { companyId, contactId, to, subject, body, attachments, from } = await req.json();
+  const { companyId, contactId, to, subject, body, attachments, from, origin } = await req.json();
   if (!companyId || !to || !subject) return J({ error: 'missing_params' }, 400);
 
   const member = await (await db(`user_roles?select=role&user_id=eq.${user.id}&company_id=eq.${companyId}&limit=1`)).json();
@@ -90,6 +116,15 @@ Deno.serve(async (req) => {
     '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
   })) : [];
 
+  // Pied de mail P-5 : destinataire unique, sans compte, hors concession, origine valide.
+  const o = typeof origin === 'string' ? origin.trim().replace(/\/+$/, '') : '';
+  const validOrigin = /^https:\/\/[^/\s]+$/.test(o) || /^http:\/\/localhost(:\d+)?$/.test(o);
+  const recipient = String(to).trim().toLowerCase();
+  const single = /^[^\s@,;]+@[^\s@,;]+$/.test(recipient);
+  const internalAddress = domains.has(domainOf(recipient)) || shared.has(recipient);
+  const footer = validOrigin && single && !internalAddress && !(await hasAccount(recipient))
+    ? joinFooter(o, recipient) : '';
+
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);
 
@@ -98,7 +133,7 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       message: {
         subject,
-        body: { contentType: 'HTML', content: String(body || '') }, // déjà du HTML (éditeur enrichi)
+        body: { contentType: 'HTML', content: String(body || '') + footer }, // déjà du HTML (éditeur enrichi)
         toRecipients: [{ emailAddress: { address: to } }],
         ...(atts.length ? { attachments: atts } : {}),
       },

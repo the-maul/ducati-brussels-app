@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as BorneRouteImport } from './routes/borne'
+import { Route as InscriptionRouteImport } from './routes/inscription'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
@@ -92,6 +94,16 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BorneRoute = BorneRouteImport.update({
+  id: '/borne',
+  path: '/borne',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InscriptionRoute = InscriptionRouteImport.update({
+  id: '/inscription',
+  path: '/inscription',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -466,6 +478,8 @@ const AppSettingsTablesTableKeyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/borne': typeof BorneRoute
+  '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
@@ -542,6 +556,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/borne': typeof BorneRoute
+  '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
@@ -608,6 +624,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/borne': typeof BorneRoute
+  '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_app/accounting': typeof AppAccountingRoute
@@ -686,6 +704,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/borne'
+    | '/inscription'
     | '/login'
     | '/reset-password'
     | '/accounting'
@@ -762,6 +782,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/borne'
+    | '/inscription'
     | '/login'
     | '/reset-password'
     | '/accounting'
@@ -827,6 +849,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/borne'
+    | '/inscription'
     | '/login'
     | '/reset-password'
     | '/_app/accounting'
@@ -905,6 +929,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  BorneRoute: typeof BorneRoute
+  InscriptionRoute: typeof InscriptionRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
@@ -923,6 +949,20 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/borne': {
+      id: '/borne'
+      path: '/borne'
+      fullPath: '/borne'
+      preLoaderRoute: typeof BorneRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inscription': {
+      id: '/inscription'
+      path: '/inscription'
+      fullPath: '/inscription'
+      preLoaderRoute: typeof InscriptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1712,6 +1752,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  BorneRoute: BorneRoute,
+  InscriptionRoute: InscriptionRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
 }

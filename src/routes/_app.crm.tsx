@@ -15,7 +15,7 @@ import { LeadDetail } from '@/modules/crm/lead-detail';
 import { t } from '@/lib/i18n';
 
 /** Catégories de lead (source) — filtre CRM. */
-const LEAD_SOURCES = ['MAIL', 'WEB', 'REP', 'VN', 'VO', 'ATELIER', 'PIECE', 'FINANCEMENT'] as const;
+const LEAD_SOURCES = ['MAIL', 'WEB', 'COMPTOIR', 'REP', 'VN', 'VO', 'ATELIER', 'PIECE', 'FINANCEMENT'] as const;
 
 export const Route = createFileRoute('/_app/crm')({
   head: () => ({ meta: [{ title: 'CRM — Ducati Bruxelles' }] }),

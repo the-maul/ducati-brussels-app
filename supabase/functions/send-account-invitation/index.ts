@@ -10,7 +10,12 @@
 // et on ne dépend pas de la liste d'adresses de retour autorisées côté Supabase.
 //
 // Réservé à un administrateur de la société.
-// Entrée : POST { companyId, userId, origin }   Sortie : { ok, to }
+// Exception (mission 01, lot 4) : l'inscription publique (/inscription, /borne)
+// appelle cette fonction depuis le serveur avec la CLÉ DE SERVICE et
+// purpose = 'signup'. Seul le serveur connaît cette clé ; la personne invitée doit
+// alors être un compte CLIENT de la société (contact_accounts), jamais un membre
+// de l'équipe.
+// Entrée : POST { companyId, userId, origin, purpose? }   Sortie : { ok, to }
 // Secrets : MS_GRAPH_* (envoi), clé de service injectée.
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
@@ -38,19 +43,26 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
 
-  // 1. L'appelant : connecté ET administrateur de la société.
+  // 1. L'appelant : connecté ET administrateur de la société,
+  //    ou le serveur de l'application (clé de service) pour une inscription publique.
   const auth = req.headers.get('Authorization') ?? '';
-  const me = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: SVC!, Authorization: auth } });
-  if (!me.ok) return J({ error: 'not_signed_in' }, 401);
-  const caller = await me.json();
+  const internal = !!SVC && auth === `Bearer ${SVC}`;
 
-  const { companyId, userId, origin } = await req.json();
+  const { companyId, userId, origin, purpose } = await req.json();
   if (!companyId || !userId || !origin) return J({ error: 'missing_params' }, 400);
   const o = String(origin);
   if (!/^https:\/\/[^/]+$/.test(o) && !/^http:\/\/localhost(:\d+)?$/.test(o)) return J({ error: 'bad_origin' }, 400);
+  const selfSignup = internal && purpose === 'signup';
 
-  const admin = await (await db(`user_roles?select=role&user_id=eq.${caller.id}&company_id=eq.${companyId}&role=eq.admin&limit=1`)).json();
-  if (!Array.isArray(admin) || admin.length === 0) return J({ error: 'admin_only' }, 403);
+  if (!internal) {
+    const me = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: SVC!, Authorization: auth } });
+    if (!me.ok) return J({ error: 'not_signed_in' }, 401);
+    const caller = await me.json();
+    const admin = await (await db(`user_roles?select=role&user_id=eq.${caller.id}&company_id=eq.${companyId}&role=eq.admin&limit=1`)).json();
+    if (!Array.isArray(admin) || admin.length === 0) return J({ error: 'admin_only' }, 403);
+  } else if (!selfSignup) {
+    return J({ error: 'bad_purpose' }, 400);
+  }
 
   // 2. La personne invitée doit appartenir à cette société (équipe ou client).
   const [roles, account] = await Promise.all([
@@ -60,6 +72,8 @@ Deno.serve(async (req) => {
   const isStaff = Array.isArray(roles) && roles.length > 0;
   const isClient = Array.isArray(account) && account.length > 0;
   if (!isStaff && !isClient) return J({ error: 'not_in_company' }, 403);
+  // Inscription publique : uniquement un compte client, jamais un compte de l'équipe.
+  if (selfSignup && (isStaff || !isClient)) return J({ error: 'not_a_client' }, 403);
 
   const ur = await fetch(`${URL}/auth/v1/admin/users/${userId}`, { headers: H });
   if (!ur.ok) return J({ error: 'user_not_found' }, 404);
@@ -84,7 +98,9 @@ Deno.serve(async (req) => {
   if (!sender) return J({ error: 'no_mailbox' }, 400);
 
   const hello = name ? `Bonjour ${esc(name)},` : 'Bonjour,';
-  const intro = isClient
+  const intro = selfSignup
+    ? "Merci pour votre inscription chez Ducati Bruxelles. Votre espace client est prêt : vous pourrez y retrouver vos informations, vos véhicules et vos achats."
+    : isClient
     ? "Ducati Bruxelles vous a créé un espace client. Vous pourrez y retrouver vos informations, vos véhicules et vos achats."
     : "Un compte a été créé pour vous sur la plateforme de gestion de Ducati Bruxelles.";
   const html = `
@@ -94,7 +110,9 @@ Deno.serve(async (req) => {
     <p><a href="${esc(link)}">Choisir mon mot de passe</a></p>
     <p>Votre identifiant de connexion est : <b>${esc(email)}</b></p>
     <p>Ce lien ne sert qu'une fois et n'est valable que peu de temps. S'il a expiré, demandez-en simplement un nouveau à la concession.</p>
-    <p>Si vous n'attendiez pas ce message, vous pouvez l'ignorer.</p>
+    <p>${selfSignup
+      ? "Si vous n'êtes pas à l'origine de cette inscription, ignorez simplement ce message : sans mot de passe choisi, le compte reste inutilisable."
+      : "Si vous n'attendiez pas ce message, vous pouvez l'ignorer."}</p>
     <p>Ducati Bruxelles</p>`;
 
   const tok = await graphToken();
