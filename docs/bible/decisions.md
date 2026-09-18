@@ -11,7 +11,7 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 ## 2026-09-19 — Missions 04 et 05 (vidéos)
 
 - **M-6** — Missions 04 « Fiche client et moto au comptoir » et 05 « Devis moto, options et
-  préparation » tirées des vidéos de Simon du 18/09 ; listes et cartes créées dans l'ERP à sa demande.
+  préparation » tirées des vidéos de Simon du 18/09 ; listes et cartes créées dans l'ERP **avant** que Simon ait vu la proposition (erreur : il fallait d'abord proposer dans le chat, règle S-5) ; elles restent **propositions à corriger**.
   **Pas de code avant son feu vert** (leçon M-5). Cartes `a-confirmer` : civilités, IBAN dans l'espace
   client, carte grise par photo, e-catalog Ducati, règle acompte/impayés. *Client · 19/09.*
   [mission 04](missions/mission-04-fiche-client-moto.md), [mission 05](missions/mission-05-devis-preparation.md)
