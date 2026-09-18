@@ -1,47 +1,151 @@
 /**
- * Règles métier des commandes de pièces (Miro 2026-07-30) — fonctions pures, testables.
- * Seuils par défaut ; les valeurs réelles sont paramétrables (reference_values / order_threshold).
+ * Règles métier des commandes de pièces — fonctions pures, testables.
+ *
+ * Les valeurs (minimums, supplément, nombre par jour, repli, minimum par onglet) ne sont
+ * PAS en dur : elles viennent de Paramètres → Tables → « Règles des types de commande »
+ * (reference_values / order_threshold), lues par la fonction SQL `part_order_rules`.
+ * Le contrôle qui fait foi est côté serveur (`part_order_check_rules`, appelé par
+ * `part_order_transition` à la validation et à l'envoi) ; ces fonctions reproduisent
+ * la même logique pour l'affichage et les tests.
  */
 import type { OrderKind } from './api';
 
-export const DEFAULT_THRESHOLDS = {
-  standard: { minHt: 250, surchargePct: 0 },
-  urgente: { minHt: 0, surchargePct: 10, maxPerDay: 1 },
-  accident: { minHt: 1500, fallback: 'standard' as OrderKind },
-  excel: { minHtPerTab: 2000, tabs: ['demo', 'courtoisie', 'showroom'] as const },
+/** Règle d'un type de commande (une ligne de Paramètres → Tables). */
+/**
+ * Valeur de SECOURS uniquement, si le réglage « Règles des types de commande » manque pour la
+ * société (Paramètres → Tables). La valeur de référence est toujours celle des paramètres.
+ */
+export const DEFAULT_THRESHOLDS = { excel: { minHtPerTab: 2000 } } as const;
+
+export type OrderRule = {
+  code: OrderKind;
+  label: string;
+  sortOrder: number;
+  isActive: boolean;
+  /** false = type présent dans la base mais pas encore réglé dans Paramètres */
+  configured: boolean;
+  /** minimum HTVA de la commande (null = pas de minimum) */
+  minHt: number | null;
+  /** supplément facturé au client, en % */
+  surchargePct: number;
+  /** nombre maximum de commandes validées par jour et par société (null = illimité) */
+  maxPerDay: number | null;
+  /** type vers lequel la commande repasse si son minimum n'est pas atteint */
+  fallback: OrderKind | null;
+  /** minimum HTVA par onglet du classeur Excel (null = pas de minimum) */
+  minHtPerTab: number | null;
 };
 
 export type ExcelTab = 'demo' | 'courtoisie' | 'showroom';
+export const EXCEL_TABS: ExcelTab[] = ['demo', 'courtoisie', 'showroom'];
 
-/** Surcharge appliquée au client selon le type (urgente = +10 %). */
-export function surchargeForKind(kind: OrderKind): number {
-  return kind === 'urgente' ? DEFAULT_THRESHOLDS.urgente.surchargePct : 0;
+export function ruleFor(rules: OrderRule[], kind: OrderKind): OrderRule | undefined {
+  return rules.find((r) => r.code === kind);
+}
+
+/** Supplément appliqué au client selon le type (réglé dans Paramètres). */
+export function surchargeForKind(kind: OrderKind, rules: OrderRule[]): number {
+  const r = ruleFor(rules, kind);
+  return r && r.isActive ? r.surchargePct : 0;
 }
 
 /**
- * Valide un montant HTVA pour un type donné.
- * - standard : doit atteindre 250 € (sinon en attente de regroupement).
- * - accident : doit atteindre 1500 €, sinon repasse en standard.
- * - urgente  : pas de minima.
- * Retourne le type effectif + si le seuil est atteint.
+ * Type effectif d'une commande et respect du minimum.
+ * - type avec repli (accident) sous son minimum → repasse dans le type de repli (standard),
+ *   dont le minimum s'applique alors ;
+ * - type sans minimum (urgente) → toujours atteint.
  */
-export function resolveKind(kind: OrderKind, totalHt: number): { effectiveKind: OrderKind; thresholdMet: boolean } {
-  if (kind === 'accident') {
-    const met = totalHt >= DEFAULT_THRESHOLDS.accident.minHt;
-    return met ? { effectiveKind: 'accident', thresholdMet: true } : { effectiveKind: 'standard', thresholdMet: totalHt >= DEFAULT_THRESHOLDS.standard.minHt };
+export function resolveKind(
+  kind: OrderKind,
+  totalHt: number,
+  rules: OrderRule[],
+): { effectiveKind: OrderKind; thresholdMet: boolean } {
+  let r = ruleFor(rules, kind);
+  let eff = kind;
+  if (r && r.fallback && r.fallback !== kind && r.minHt != null && totalHt < r.minHt) {
+    const fb = ruleFor(rules, r.fallback);
+    if (fb) { eff = r.fallback; r = fb; }
   }
-  if (kind === 'standard') {
-    return { effectiveKind: 'standard', thresholdMet: totalHt >= DEFAULT_THRESHOLDS.standard.minHt };
-  }
-  // urgente / excel : pas de minima bloquant à ce niveau
-  return { effectiveKind: kind, thresholdMet: true };
+  const met = !r || r.minHt == null || r.minHt <= 0 || totalHt >= r.minHt;
+  return { effectiveKind: eff, thresholdMet: met };
 }
 
-/** Prix client d'une ligne, surcharge de type incluse. */
-export function clientLinePrice(unitHt: number, qty: number, kind: OrderKind): number {
+/** Prix client d'une ligne, supplément du type inclus. */
+export function clientLinePrice(unitHt: number, qty: number, kind: OrderKind, rules: OrderRule[]): number {
   const base = unitHt * qty;
-  const pct = surchargeForKind(kind);
-  return round2(base * (1 + pct / 100));
+  return round2(base * (1 + surchargeForKind(kind, rules) / 100));
+}
+
+export type RuleIssueCode =
+  | 'no_lines' | 'no_rule' | 'kind_disabled' | 'fallback' | 'below_min' | 'below_min_tab' | 'daily_limit';
+export type RuleIssue = { code: RuleIssueCode; kind?: OrderKind; tab?: ExcelTab; min?: number; total?: number; max?: number; to?: OrderKind };
+
+export type OrderCheckInput = {
+  kind: OrderKind;
+  /** total HTVA de la commande */
+  totalHt: number;
+  /** nombre de pièces (lignes de commande + lignes Excel) */
+  lineCount: number;
+  /** total remisé par onglet Excel (onglets avec au moins une pièce) */
+  excelTabs?: Partial<Record<ExcelTab, number>>;
+  /** commandes du même type déjà validées aujourd'hui par la société */
+  validatedToday?: number;
+  /** la commande est encore en brouillon (le « n par jour » ne se contrôle qu'à la validation) */
+  isDraft?: boolean;
+};
+
+export type OrderCheckResult = {
+  ok: boolean;
+  effectiveKind: OrderKind;
+  surchargePct: number;
+  errors: RuleIssue[];
+  notices: RuleIssue[];
+};
+
+/** Même logique que la fonction SQL `part_order_check_rules`. */
+export function checkOrderRules(input: OrderCheckInput, rules: OrderRule[]): OrderCheckResult {
+  const errors: RuleIssue[] = [];
+  const notices: RuleIssue[] = [];
+  let eff = input.kind;
+  const total = input.totalHt;
+
+  if (input.lineCount === 0) errors.push({ code: 'no_lines' });
+
+  let r = ruleFor(rules, eff);
+  if (!r || !r.configured) {
+    notices.push({ code: 'no_rule', kind: eff });
+    return { ok: errors.length === 0, effectiveKind: eff, surchargePct: 0, errors, notices };
+  }
+  if (!r.isActive) {
+    errors.push({ code: 'kind_disabled', kind: eff });
+    return { ok: false, effectiveKind: eff, surchargePct: 0, errors, notices };
+  }
+
+  if (r.fallback && r.fallback !== eff && r.minHt != null && total < r.minHt) {
+    const fb = ruleFor(rules, r.fallback);
+    if (fb) {
+      notices.push({ code: 'fallback', kind: eff, to: r.fallback, min: r.minHt, total });
+      eff = r.fallback;
+      r = fb;
+    }
+  }
+
+  if (r.isActive) {
+    if (r.minHt != null && r.minHt > 0 && total < r.minHt) {
+      errors.push({ code: 'below_min', kind: eff, min: r.minHt, total });
+    }
+    if (r.minHtPerTab != null && r.minHtPerTab > 0 && input.excelTabs) {
+      for (const tab of EXCEL_TABS) {
+        const v = input.excelTabs[tab];
+        if (v != null && v < r.minHtPerTab) errors.push({ code: 'below_min_tab', kind: eff, tab, min: r.minHtPerTab, total: v });
+      }
+    }
+    if (r.maxPerDay != null && r.maxPerDay > 0 && input.isDraft !== false && (input.validatedToday ?? 0) >= r.maxPerDay) {
+      errors.push({ code: 'daily_limit', kind: eff, max: r.maxPerDay });
+    }
+  }
+
+  return { ok: errors.length === 0, effectiveKind: eff, surchargePct: r.isActive ? r.surchargePct : 0, errors, notices };
 }
 
 // ---- Commande Excel : calculs par onglet (reproduit les formules du classeur Ducati) ----
@@ -64,23 +168,29 @@ export function excelTabTotal(lines: ExcelLine[], tab: ExcelTab): number {
   return round2(lines.filter((l) => l.tab === tab).reduce((s, l) => s + excelLineFinal(l), 0));
 }
 
-/** Un onglet atteint-il le minima (2000 € HTVA) pour l'extra-discount ? */
-export function excelTabReached(lines: ExcelLine[], tab: ExcelTab): boolean {
-  return excelTabTotal(lines, tab) >= DEFAULT_THRESHOLDS.excel.minHtPerTab;
+/** Un onglet atteint-il le minimum par onglet (réglé dans Paramètres) ? */
+export function excelTabReached(lines: ExcelLine[], tab: ExcelTab, minHtPerTab: number): boolean {
+  return excelTabTotal(lines, tab) >= minHtPerTab;
 }
 
-/** Reste à commander sur un onglet pour atteindre le seuil (0 si atteint). */
-export function excelTabRemaining(lines: ExcelLine[], tab: ExcelTab): number {
-  const rem = DEFAULT_THRESHOLDS.excel.minHtPerTab - excelTabTotal(lines, tab);
+/** Reste à commander sur un onglet pour atteindre le minimum (0 si atteint). */
+export function excelTabRemaining(lines: ExcelLine[], tab: ExcelTab, minHtPerTab: number): number {
+  const rem = minHtPerTab - excelTabTotal(lines, tab);
   return rem > 0 ? round2(rem) : 0;
 }
 
 /** État par onglet (pour la notif navbar + affichage). */
-export function excelTabsStatus(lines: ExcelLine[]): Record<ExcelTab, { total: number; reached: boolean; remaining: number }> {
-  const tabs: ExcelTab[] = ['demo', 'courtoisie', 'showroom'];
+export function excelTabsStatus(
+  lines: ExcelLine[],
+  minHtPerTab: number,
+): Record<ExcelTab, { total: number; reached: boolean; remaining: number }> {
   const out = {} as Record<ExcelTab, { total: number; reached: boolean; remaining: number }>;
-  for (const t of tabs) {
-    out[t] = { total: excelTabTotal(lines, t), reached: excelTabReached(lines, t), remaining: excelTabRemaining(lines, t) };
+  for (const t of EXCEL_TABS) {
+    out[t] = {
+      total: excelTabTotal(lines, t),
+      reached: excelTabReached(lines, t, minHtPerTab),
+      remaining: excelTabRemaining(lines, t, minHtPerTab),
+    };
   }
   return out;
 }

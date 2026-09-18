@@ -5,13 +5,20 @@
  * 20260730160000_orders_parts.sql ; on ne bloque pas le build dessus).
  */
 import { supabase } from '@/integrations/supabase/client';
+import type { OrderRule, RuleIssueCode } from './thresholds';
+import type { OrderKindStatus } from './status-flow';
 
 // Client non typé pour les tables introduites par la migration orders (pas encore dans types.ts).
 const sb = supabase as unknown as {
   from: (t: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => any;
 };
 
-export type OrderKind = 'urgente' | 'standard' | 'excel' | 'accident';
+/**
+ * Type de commande. Liste extensible : les types viennent de l'énum `order_kind`
+ * et de Paramètres → Tables → « Règles des types de commande » (voir getOrderRules).
+ */
+export type OrderKind = 'urgente' | 'standard' | 'excel' | 'accident' | (string & {});
 export type OrderDispatchStatus =
   | 'brouillon' | 'en_attente_paiement' | 'payee' | 'a_envoyer' | 'envoyee' | 'annulee';
 
@@ -34,6 +41,10 @@ export type PartOrder = {
   is_accident: boolean;
   claim_ref: string | null;
   notes: string | null;
+  validated_at: string | null;
+  validated_by: string | null;
+  sent_at: string | null;
+  status_changed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,11 +64,15 @@ export type PartOrderLine = {
   sort_order: number;
 };
 
-/** Liste des commandes de pièces (option : filtrer par type). */
-export async function listPartOrders(companyId: string, kind?: OrderKind): Promise<PartOrder[]> {
+/** Liste des commandes de pièces (filtres facultatifs : type et état). */
+export async function listPartOrders(
+  companyId: string,
+  filters: { kind?: OrderKind; status?: OrderDispatchStatus } = {},
+): Promise<PartOrder[]> {
   let q = sb.from('part_orders').select('*').eq('company_id', companyId)
     .order('created_at', { ascending: false }).limit(200);
-  if (kind) q = q.eq('order_kind', kind);
+  if (filters.kind) q = q.eq('order_kind', filters.kind);
+  if (filters.status) q = q.eq('dispatch_status', filters.status);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as PartOrder[];
@@ -98,13 +113,96 @@ export async function createPartOrder(p: NewPartOrder): Promise<string> {
   return (data as { id: string }).id;
 }
 
-/** Compteur de commandes par type (pour les pastilles de l'écran liste). */
-export async function countByKind(companyId: string): Promise<Record<OrderKind, number>> {
-  const out: Record<OrderKind, number> = { urgente: 0, standard: 0, excel: 0, accident: 0 };
-  const { data, error } = await sb.from('part_orders').select('order_kind').eq('company_id', companyId);
+/** Couples (type, état) de toutes les commandes de la société — base des compteurs de la liste. */
+export async function listKindStatus(companyId: string): Promise<OrderKindStatus[]> {
+  const { data, error } = await sb.from('part_orders').select('order_kind, dispatch_status').eq('company_id', companyId);
   if (error) throw error;
-  for (const r of (data ?? []) as { order_kind: OrderKind }[]) {
-    if (r.order_kind in out) out[r.order_kind] += 1;
-  }
-  return out;
+  return (data ?? []) as OrderKindStatus[];
+}
+
+// ---- Cycle de vie (carte « Suivre l'état d'une commande ») : règles pures dans status-flow.ts ----
+
+/** Change l'état d'une commande par la fonction SQL part_order_transition (contrôles + historique + events). */
+export async function transitionPartOrder(
+  orderId: string,
+  to: OrderDispatchStatus,
+  opts: { paymentMethod?: string | null; note?: string | null } = {},
+): Promise<ServerRuleCheck> {
+  const { data, error } = await sb.rpc('part_order_transition', {
+    _order_id: orderId,
+    _to: to,
+    _payment_method: opts.paymentMethod ?? null,
+    _note: opts.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return data as ServerRuleCheck;
+}
+
+export type PartOrderHistoryRow = {
+  changed_at: string;
+  from_status: OrderDispatchStatus | null;
+  to_status: OrderDispatchStatus;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  note: string | null;
+};
+
+/** Historique des états (qui, quand, ancien → nouveau, note). */
+export async function getPartOrderHistory(orderId: string): Promise<PartOrderHistoryRow[]> {
+  const { data, error } = await sb.rpc('part_order_history', { _order_id: orderId });
+  if (error) throw error;
+  return (data ?? []) as PartOrderHistoryRow[];
+}
+
+// ---- Règles des types (Paramètres → Tables → Règles des types de commande) ----
+
+type RuleRow = {
+  code: string; label: string; sort_order: number; is_active: boolean; configured: boolean;
+  min_ht: number | null; surcharge_pct: number | null; max_per_day: number | null;
+  fallback: string | null; min_ht_per_tab: number | null;
+};
+
+const num = (v: unknown): number | null => (v == null || v === '' ? null : Number(v));
+
+/** Règles de chaque type de commande, lues côté serveur (fonction SQL `part_order_rules`). */
+export async function getOrderRules(companyId: string): Promise<OrderRule[]> {
+  const { data, error } = await sb.rpc('part_order_rules', { _company: companyId });
+  if (error) throw error;
+  return ((data ?? []) as RuleRow[]).map((r) => ({
+    code: r.code,
+    label: r.label,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+    configured: r.configured,
+    minHt: num(r.min_ht),
+    surchargePct: num(r.surcharge_pct) ?? 0,
+    maxPerDay: num(r.max_per_day),
+    fallback: r.fallback,
+    minHtPerTab: num(r.min_ht_per_tab),
+  }));
+}
+
+export type ServerRuleIssue = { code: RuleIssueCode; message: string; [k: string]: unknown };
+export type ServerRuleCheck = {
+  ok: boolean;
+  kind: OrderKind;
+  effective_kind: OrderKind;
+  total_ht: number;
+  surcharge_pct: number;
+  errors: ServerRuleIssue[];
+  notices: ServerRuleIssue[];
+};
+
+/** Diagnostic des règles d'une commande, sans rien écrire (fonction SQL `part_order_check_rules`). */
+export async function checkPartOrderRules(orderId: string): Promise<ServerRuleCheck> {
+  const { data, error } = await sb.rpc('part_order_check_rules', { _order_id: orderId });
+  if (error) throw error;
+  return data as ServerRuleCheck;
+}
+
+/** Valide la commande : brouillon → en attente de paiement. Refusé par le serveur si une règle bloque. */
+export async function validatePartOrder(orderId: string): Promise<ServerRuleCheck> {
+  const { data, error } = await sb.rpc('part_order_validate', { _order_id: orderId });
+  if (error) throw new Error(error.message);
+  return data as ServerRuleCheck;
 }

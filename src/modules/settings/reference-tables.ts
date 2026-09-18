@@ -12,7 +12,7 @@ export type RefColumn = {
 export type RefTableDef = {
   key: string;
   label: string;
-  group: 'vente' | 'article' | 'vehicule' | 'atelier' | 'autre';
+  group: 'vente' | 'achat' | 'article' | 'vehicule' | 'atelier' | 'autre';
   extraColumns: RefColumn[];
 };
 
@@ -76,10 +76,21 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { key: 'max_hours', label: 'Heures max (diagnostic)', type: 'number' },
       { key: 'vat_rate', label: 'TVA %', type: 'number' },
     ] },
+  // Commandes de pièces (mission 02) : une ligne par type de commande, code = type (standard, urgente,
+  // accident, excel…). Lu et contrôlé côté serveur par part_order_rules / part_order_check_rules.
+  { key: 'order_threshold', label: 'Règles des types de commande', group: 'achat',
+    extraColumns: [
+      { key: 'min_ht', label: 'Minimum € HTVA', type: 'number' },
+      { key: 'surcharge_pct', label: 'Supplément client %', type: 'number' },
+      { key: 'max_per_day', label: 'Maximum par jour', type: 'number' },
+      { key: 'fallback', label: 'Sous le minimum, repasse en (code)', type: 'text' },
+      { key: 'min_ht_per_tab', label: 'Minimum € HTVA par onglet Excel', type: 'number' },
+    ] },
 ];
 
 export const REFERENCE_GROUPS: { key: RefTableDef['group']; label: string }[] = [
   { key: 'vente', label: 'Ventes & règlements' },
+  { key: 'achat', label: 'Achats & commandes de pièces' },
   { key: 'article', label: 'Articles' },
   { key: 'vehicule', label: 'Véhicules' },
   { key: 'atelier', label: 'Atelier' },

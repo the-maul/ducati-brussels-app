@@ -193,6 +193,50 @@ export type Database = {
           },
         ]
       }
+      app_client_waitlist: {
+        Row: {
+          client_hash: string | null
+          company_id: string
+          consent_at: string
+          consent_text: string
+          created_at: string
+          email: string
+          id: string
+          notified_at: string | null
+          source: string
+        }
+        Insert: {
+          client_hash?: string | null
+          company_id: string
+          consent_at?: string
+          consent_text: string
+          created_at?: string
+          email: string
+          id?: string
+          notified_at?: string | null
+          source?: string
+        }
+        Update: {
+          client_hash?: string | null
+          company_id?: string
+          consent_at?: string
+          consent_text?: string
+          created_at?: string
+          email?: string
+          id?: string
+          notified_at?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_client_waitlist_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_applicabilities: {
         Row: {
           article_id: string | null
@@ -3274,6 +3318,60 @@ export type Database = {
           },
         ]
       }
+      part_order_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          from_status:
+            | Database["public"]["Enums"]["order_dispatch_status"]
+            | null
+          id: number
+          note: string | null
+          order_id: string
+          to_status: Database["public"]["Enums"]["order_dispatch_status"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          from_status?:
+            | Database["public"]["Enums"]["order_dispatch_status"]
+            | null
+          id?: never
+          note?: string | null
+          order_id: string
+          to_status: Database["public"]["Enums"]["order_dispatch_status"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          from_status?:
+            | Database["public"]["Enums"]["order_dispatch_status"]
+            | null
+          id?: never
+          note?: string | null
+          order_id?: string
+          to_status?: Database["public"]["Enums"]["order_dispatch_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_order_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "part_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_orders: {
         Row: {
           channel: string
@@ -3290,7 +3388,9 @@ export type Database = {
           paid: boolean
           paid_at: string | null
           payment_method: string | null
+          sent_at: string | null
           source_document_id: string | null
+          status_changed_at: string | null
           surcharge_pct: number
           total_ht: number
           total_ttc: number
@@ -3314,7 +3414,9 @@ export type Database = {
           paid?: boolean
           paid_at?: string | null
           payment_method?: string | null
+          sent_at?: string | null
           source_document_id?: string | null
+          status_changed_at?: string | null
           surcharge_pct?: number
           total_ht?: number
           total_ttc?: number
@@ -3338,7 +3440,9 @@ export type Database = {
           paid?: boolean
           paid_at?: string | null
           payment_method?: string | null
+          sent_at?: string | null
           source_document_id?: string | null
+          status_changed_at?: string | null
           surcharge_pct?: number
           total_ht?: number
           total_ttc?: number
@@ -4229,6 +4333,7 @@ export type Database = {
       }
       signup_settings: {
         Row: {
+          client_app_open: boolean
           company_id: string
           id: boolean
           is_open: boolean
@@ -4236,6 +4341,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          client_app_open?: boolean
           company_id: string
           id?: boolean
           is_open?: boolean
@@ -4243,6 +4349,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          client_app_open?: boolean
           company_id?: string
           id?: boolean
           is_open?: boolean
@@ -5890,6 +5997,17 @@ export type Database = {
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
+      part_order_history: {
+        Args: { _order_id: string }
+        Returns: {
+          changed_at: string
+          changed_by: string
+          changed_by_name: string
+          from_status: string
+          note: string
+          to_status: string
+        }[]
+      }
       part_order_rules: {
         Args: { _company: string }
         Returns: {
@@ -5904,6 +6022,15 @@ export type Database = {
           sort_order: number
           surcharge_pct: number
         }[]
+      }
+      part_order_transition: {
+        Args: {
+          _note?: string
+          _order_id: string
+          _payment_method?: string
+          _to: Database["public"]["Enums"]["order_dispatch_status"]
+        }
+        Returns: Json
       }
       part_order_validate: { Args: { _order_id: string }; Returns: Json }
       password_reset_allow: {

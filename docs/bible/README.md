@@ -46,7 +46,7 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
 | # | Mission | État |
 |---|---|---|
 | 01 | [Nouveau client](missions/mission-01-nouveau-client.md) | 🟦 lots 0, 1, 2 faits · lot 5 : cloche des inscriptions et tri G8 faits · reste fusion des doublons, portail, borne, questionnaire du site |
-| 02 | Commandes de pièces ([spécification](../process-commandes-pieces.md)) | ⬜ |
+| 02 | [Commandes de pièces](missions/mission-02-commandes-pieces.md) ([spécification](../process-commandes-pieces.md)) | 🟦 règles des 4 types et suivi de l’état faits (à valider) · reste 8 cartes |
 
 ## Alertes relevées par le scan du 18/09
 
