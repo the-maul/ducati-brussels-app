@@ -2,8 +2,8 @@
 chapitre: M04
 titre: Achats & réceptions
 etat: 🟦
-verifie_le: 2026-09-18
-missions: []
+verifie_le: 2026-09-19
+missions: [02]
 mots_cles: [achat, réception, commande fournisseur, CMD, REC, fournisseur, PAHT, PAMP, entrée de stock, châssis, moto neuve, VIN, DCS, export DCS, STANDARD, URGENTE, proposition de commande, réappro, échéancier, régime TVA, CEE, commandes de pièces, urgente, standard, accident, Excel Ducati]
 ---
 
@@ -32,8 +32,9 @@ Menu latéral : **Achats & réceptions** (`/purchases`) et **Commandes de pièce
 | Achats & réceptions → Proposition de commande (`/purchases/reorder`) | Articles dont le disponible est sous le stock mini, quantité suggérée (maxi ou mini − disponible), regroupés par fournisseur ; **Créer les commandes** (une CMD validée par fournisseur). Un article peut y être poussé depuis la liste Pièces. |
 | Achats & réceptions → Fournisseurs (`/purchases/suppliers`, `/new`, `/$supplierId`) | Fiches fournisseurs (contacts de type fournisseur) : coordonnées, n° client chez le fournisseur, code interne magasin, RFA %, franco de port, minimum de commande. |
 | Commandes de pièces → liste (`/orders`) | Commandes filtrées par type (urgente, standard, Excel, accident) avec compteurs ; statut d'envoi. |
-| Commandes de pièces → Nouvelle commande (`/orders/new`) | Choix du type et du canal (comptoir / mail) ; crée une commande **vide**. |
-| Commandes de pièces → commande (`/orders/$orderId`) | Lignes (qté client / qté magasin), rappel des règles de seuil du type. **Aucun ajout de ligne** dans l'écran (pas de fonction d'écriture de lignes dans `src/modules/orders/api.ts`). |
+| Commandes de pièces → Nouvelle commande (`/orders/new`) | Choix du type (liste lue dans Paramètres, donc extensible, avec le résumé de la règle de chaque type) et du canal (comptoir / mail) ; crée une commande **vide** en brouillon. |
+| Commandes de pièces → commande (`/orders/$orderId`) | Lignes (qté client / qté magasin) ; **rappel des règles du type** tel que réglé dans Paramètres (lien « Régler dans Paramètres ») ; en brouillon, **contrôle du serveur en direct** (erreurs en rouge, avis en bleu, total HT recalculé) et bouton **Valider la commande** (refusé par le serveur si une règle bloque) ; après validation : supplément client et total TTC client. **Aucun ajout de ligne** dans l'écran (carte « Ajouter et modifier les pièces d'une commande »). |
+| Paramètres → Tables → **Règles des types de commande** (`/settings/tables/order_threshold`) | Une ligne par type (code = type) : minimum € HTVA, supplément client %, maximum par jour, type de repli sous le minimum, minimum par onglet Excel ; case Actif. Modifiable par un administrateur (RLS `is_admin`). |
 | Commandes de pièces → Excel (`/orders/excel`) | Recherche dans le catalogue Excel Ducati (Demo / Courtoisie / Showroom), total par onglet avec seuil de 2 000 € HTVA, téléchargement du classeur `.xlsx` prérempli. La saisie n'est pas enregistrée en base (brouillon en mémoire). |
 
 ## 3. Où trouver quoi
@@ -41,12 +42,12 @@ Menu latéral : **Achats & réceptions** (`/purchases`) et **Commandes de pièce
 | Quoi | Où |
 |---|---|
 | Écrans (routes) | `src/routes/_app.purchases.tsx`, `_app.purchases.index.tsx`, `_app.purchases.new.tsx`, `_app.purchases.$orderId.tsx`, `_app.purchases.reorder.tsx`, `_app.purchases.suppliers.tsx`, `_app.purchases.suppliers.index.tsx`, `_app.purchases.suppliers.new.tsx`, `_app.purchases.suppliers.$supplierId.tsx` ; `_app.orders.tsx`, `_app.orders.index.tsx`, `_app.orders.new.tsx`, `_app.orders.$orderId.tsx`, `_app.orders.excel.tsx` |
-| Logique métier | `src/modules/purchases/` : `write-api.ts` (création CMD/REC, calcul des totaux, **entrées de stock + PAMP**, réception châssis → véhicule, commandes depuis propositions), `api.ts` (lectures, fournisseurs, recherche article, `reorder_proposals`), `purchase-editor.tsx`, `dcs-export.ts`, `customer-label-dialog.tsx` ; `src/modules/orders/` : `api.ts`, `excel-api.ts`, `thresholds.ts` |
+| Logique métier | `src/modules/purchases/` : `write-api.ts` (création CMD/REC, calcul des totaux, **entrées de stock + PAMP**, réception châssis → véhicule, commandes depuis propositions), `api.ts` (lectures, fournisseurs, recherche article, `reorder_proposals`), `purchase-editor.tsx`, `dcs-export.ts`, `customer-label-dialog.tsx` ; `src/modules/orders/` : `api.ts`, `excel-api.ts`, `thresholds.ts` (règles, fonctions pures testées), `order-ui.tsx` (libellés, icônes, rappel des règles) |
 | Tables | `purchase_orders` (en-tête CMD/REC, statut, régime TVA, totaux, lien réception ↔ commande `source_order_id`), `purchase_lines` (lignes, PAHT, casier, étiquettes), `purchase_schedules` (échéancier), colonnes fournisseur sur `contacts` (`supplier_customer_no`, `supplier_is_internal`, `supplier_rfa_rate`, `supplier_franco_min`, `supplier_order_min`) ; `part_orders`, `part_order_lines`, `excel_catalog`, `excel_orders`, `excel_order_lines` (commandes de pièces) |
-| Fonctions SQL (RPC) | `record_stock_move` (entrée + PAMP, M5), `reorder_proposals`, `next_document_number` (n° CMD-/REC-, M0) |
+| Fonctions SQL (RPC) | `record_stock_move` (entrée + PAMP, M5), `reorder_proposals`, `next_document_number` (n° CMD-/REC-, M0) ; commandes de pièces : `part_order_rules` (règles de chaque type), `part_order_check_rules` (diagnostic sans écriture), `part_order_validate` (brouillon → en attente de paiement) |
 | Fonctions serveur (Edge) | aucune |
 | Tâches planifiées | aucune |
-| Migrations clés | `supabase/migrations/20260610290000_m4_purchases.sql` (schéma + RLS + audit), `20260610300000_m4_reorder.sql`, `20260730160000_orders_parts.sql` (commandes de pièces) |
+| Migrations clés | `supabase/migrations/20260610290000_m4_purchases.sql` (schéma + RLS + audit), `20260610300000_m4_reorder.sql`, `20260730160000_orders_parts.sql` (commandes de pièces), `20260919210000_orders_rules.sql` (règles des types) |
 | Tests | `tests/purchases-totals.test.ts`, `tests/orders-thresholds.test.ts` |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `purchases`, `orders`, `labels` |
 
@@ -58,7 +59,10 @@ Menu latéral : **Achats & réceptions** (`/purchases`) et **Commandes de pièce
 - **Réception châssis → fiche véhicule** (ACH004, B9, G8 R4-R5) : une ligne avec VIN crée un `vehicles` lié à l'article (`article_id`), statut `stock_vn`, PA = coût net, prix affiché = PV TTC de la ligne. Le type de gestion de l'article n'est pas contrôlé (devrait être V).
 - **Export DCS** (ACH001, glossaire) : DCS fermé, pas d'API ; deux fichiers distincts STANDARD et URGENTE. Aujourd'hui **CSV** (`;`, BOM UTF-8) avec les colonnes Reference ; Designation ; Quantite ; Type, prises sur la réf. fournisseur. Le commentaire du code le dit provisoire : « le mapping exact des colonnes sera aligné sur le gabarit Ducati fourni par le client ».
 - **Proposition de commande** (INV005) : `disponible < stock mini` avec `stock mini > 0` ; quantité = (maxi, sinon mini) − disponible. Le conditionnement (`pack_qty`) est affiché mais **n'arrondit pas** la quantité (INV009 manquant). Les commandes créées depuis la proposition ont un PA à 0.
-- **Commandes de pièces — décision client du 30/07/2026** (`docs/process-commandes-pieces.md` §0) : on abandonne le classement G8 Stock/Dépannage/Garantie au profit de `urgente / standard / excel / accident` (énum extensible `order_kind`). Seuils : standard 250 € HTVA ; urgente sans minimum, +10 % facturé, 1×/jour ; accident 1 500 € HTVA sinon repasse en standard ; Excel 2 000 € HTVA par onglet. Codés dans `src/modules/orders/thresholds.ts` (valeurs paramétrables via `reference_values` / `order_threshold` d'après le commentaire, à vérifier).
+- **Commandes de pièces — décision client du 30/07/2026** (`docs/process-commandes-pieces.md` §0) : on abandonne le classement G8 Stock/Dépannage/Garantie au profit de `urgente / standard / excel / accident` (énum extensible `order_kind`). Seuils : standard 250 € HTVA ; urgente sans minimum, +10 % facturé, 1×/jour ; accident 1 500 € HTVA sinon repasse en standard ; Excel 2 000 € HTVA par onglet. Depuis le 19/09 (mission 02), **aucune valeur en dur** : les règles sont réglées par société dans Paramètres → Tables → « Règles des types de commande » (`reference_values`, `table_key = 'order_threshold'`, colonnes `extra.min_ht`, `surcharge_pct`, `max_per_day`, `fallback`, `min_ht_per_tab`).
+- **Contrôle côté serveur** (`part_order_check_rules`, appelé à la validation et à l'envoi) : commande sans pièce refusée ; type désactivé refusé ; type sous son minimum avec repli (accident) → **repasse dans le type de repli** (avis) puis le minimum de ce type s'applique ; minimum de la commande (standard 250 €) ; minimum **par onglet utilisé** du classeur (Excel 2 000 €) ; **nombre par jour** (urgente 1) compté sur les commandes du même type validées le jour même (heure de Bruxelles, hors annulées), contrôlé à la validation seulement. Messages en clair avec le total et ce qu'il manque. Total HT = Σ (qté client + qté magasin) × PU HT (+ lignes Excel liées).
+- **À la validation** : n° `CDP-AAAA-NNNNN` (séquence `CDP`, par société, modifiable dans Numérotation des documents), type effectif enregistré, supplément du type (urgente +10 %) enregistré dans `surcharge_pct`, total TTC client = Σ lignes TTC × (1 + supplément), `validated_at` / `validated_by`.
+- **Liste extensible** : ajouter un type = une valeur de l'énum `order_kind` (`alter type … add value`, migration dédiée) + une ligne dans Paramètres. Un type sans ligne est accepté sans minimum (avis « aucune règle réglée »).
 - **Multi-société + audit** : `company_id` + RLS `is_member` ; lignes contrôlées via l'en-tête ; triggers `audit_row` sur en-têtes et lignes (B7).
 
 ## 5. État en production
@@ -121,3 +125,4 @@ select count(*) from public.excel_catalog;
 | 2026-07-27 | « Proposer à la commande » depuis Pièces ; étiquette client à la réception | `ec38231`, `1a67fb8` |
 | 2026-07-30 | Module Commandes de pièces par type (squelette + classeur Excel) | `2f1e4cf`, `20260730160000_orders_parts` |
 | 2026-09-11 | **Commandes et réceptions à nouveau enregistrables** (insert rejeté en 400 depuis la création) | `7d31b6d` |
+| 2026-09-19 | Mission 02 — Règles des 4 types réglables dans Paramètres, contrôle serveur à la validation, rappel à l'écran | `20260919210000_orders_rules` |

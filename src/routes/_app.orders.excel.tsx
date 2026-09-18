@@ -4,7 +4,10 @@ import { Download, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { buildExcelWorkbook, type ExcelOrder, type ExcelOrderLine } from '@/modules/orders/excel-api';
-import { excelTabsStatus, DEFAULT_THRESHOLDS, type ExcelTab, type ExcelLine } from '@/modules/orders/thresholds';
+import { excelTabsStatus, ruleFor, type ExcelTab, type ExcelLine } from '@/modules/orders/thresholds';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/lib/auth/auth-context';
+import { getOrderRules } from '@/modules/orders/api';
 import { t } from '@/lib/i18n';
 import * as XLSX from 'xlsx';
 
@@ -25,12 +28,21 @@ let dc = 0;
 function ExcelOrderScreen() {
   const [activeTab, setActiveTab] = useState<ExcelTab>('demo');
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const { activeCompanyId } = useAuth();
+  // Minimum par onglet réglé dans Paramètres → Tables → Règles des types de commande
+  const { data: rules } = useQuery({
+    queryKey: ['part-order-rules', activeCompanyId],
+    queryFn: () => getOrderRules(activeCompanyId!),
+    enabled: !!activeCompanyId,
+  });
+  const excelRule = rules ? ruleFor(rules, 'excel') : undefined;
+  const minPerTab = excelRule?.isActive ? (excelRule.minHtPerTab ?? 0) : 0;
 
   const add = () => setLines((ls) => [...ls, { key: `d${dc++}`, tab: activeTab, reference: '', description: '', qty: 1, priceDealer: 0, extraDiscount: 0.18 }]);
   const patch = (key: string, p: Partial<DraftLine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)));
   const remove = (key: string) => setLines((ls) => ls.filter((l) => l.key !== key));
 
-  const status = useMemo(() => excelTabsStatus(lines.map((l): ExcelLine => ({ tab: l.tab, priceDealer: l.priceDealer, qty: l.qty, extraDiscount: l.extraDiscount }))), [lines]);
+  const status = useMemo(() => excelTabsStatus(lines.map((l): ExcelLine => ({ tab: l.tab, priceDealer: l.priceDealer, qty: l.qty, extraDiscount: l.extraDiscount })), minPerTab), [lines, minPerTab]);
   const tabLines = lines.filter((l) => l.tab === activeTab);
 
   const download = () => {
@@ -65,18 +77,18 @@ function ExcelOrderScreen() {
               <FileSpreadsheet className="size-4" />
               {t(`orders.tab_${tab}`)}
               <span className="tabular-nums">{eur(st.total)}</span>
-              {st.reached
+              {minPerTab > 0 && (st.reached
                 ? <CheckCircle2 className="size-4 text-success" />
-                : <span className="text-[11px] text-warning">−{eur(st.remaining)}</span>}
+                : <span className="text-[11px] text-warning">−{eur(st.remaining)}</span>)}
             </button>
           );
         })}
       </div>
 
       {/* Notification seuil atteint (verte) */}
-      {TABS.filter((tb) => status[tb].reached).map((tb) => (
+      {minPerTab > 0 && TABS.filter((tb) => status[tb].reached && status[tb].total > 0).map((tb) => (
         <div key={tb} className="mb-2 flex items-center gap-2 rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">
-          <CheckCircle2 className="size-4" /> {t('orders.excelThresholdReached').replace('{tab}', t(`orders.tab_${tb}`)).replace('{min}', eur(DEFAULT_THRESHOLDS.excel.minHtPerTab))}
+          <CheckCircle2 className="size-4" /> {t('orders.excelThresholdReached').replace('{tab}', t(`orders.tab_${tb}`)).replace('{min}', eur(minPerTab))}
         </div>
       ))}
 

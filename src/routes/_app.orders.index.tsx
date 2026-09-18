@@ -47,7 +47,7 @@ function OrdersList() {
     enabled: !!activeCompanyId,
   });
 
-  const total = useMemo(() => (counts ? counts.urgente + counts.standard + counts.excel + counts.accident : 0), [counts]);
+  const total = useMemo(() => (counts ? Object.values(counts).reduce((a, b) => a + b, 0) : 0), [counts]);
 
   return (
     <>
