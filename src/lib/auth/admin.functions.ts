@@ -16,10 +16,13 @@
  * MOT DE PASSE : soit l'administrateur le fixe (ex. mot de passe commun provisoire),
  * soit il le laisse vide et la personne reçoit une invitation par e-mail pour choisir
  * le sien (fonction Edge send-account-invitation, appelée ensuite par l'écran).
+ * Un mot de passe fixé par l'administrateur respecte les mêmes règles que partout
+ * ailleurs (src/lib/password-policy.ts, décision U-4), revérifiées ici côté serveur.
  */
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { isStrongPassword } from '@/lib/password-policy';
 
 const APP_ROLES = [
   'admin', 'vendeur', 'magasinier', 'mecanicien',
@@ -101,7 +104,9 @@ export const createOrgUser = createServerFn({ method: 'POST' })
     z.object({
       kind: z.enum(['staff', 'client']).default('staff'),
       email: z.string().trim().email().optional(),
-      password: z.string().min(8).optional(),
+      password: z.string()
+        .refine(isStrongPassword, 'Mot de passe trop faible : au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un caractère spécial.')
+        .optional(),
       full_name: z.string().trim().min(1).optional(),
       roles: z.array(z.object({ company_id: z.string().uuid(), role: roleEnum })).default([]),
       company_id: z.string().uuid().optional(),

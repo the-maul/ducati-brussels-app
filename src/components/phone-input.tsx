@@ -10,11 +10,16 @@ import {
 } from '@/components/ui/select';
 import { DIAL_CODES, FAVORITE_DIAL_CODES, splitPhone, joinPhone, dialCodeName } from '@/lib/dial-codes';
 import { t } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
-export function PhoneInput({ value, onChange, placeholder }: {
+export function PhoneInput({ value, onChange, placeholder, autoComplete, className }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  /** Ex. 'off' sur la borne du comptoir (aucune suggestion du client précédent). */
+  autoComplete?: string;
+  /** Classes appliquées au menu du préfixe et au champ (ex. hauteur tactile). */
+  className?: string;
 }) {
   // Découpage FIABLE (plus longue correspondance sur indicatifs connus).
   const { prefix, local } = splitPhone(value);
@@ -24,7 +29,7 @@ export function PhoneInput({ value, onChange, placeholder }: {
   return (
     <div className="flex gap-1">
       <Select value={prefix} onValueChange={(p) => onChange(joinPhone(p, local))}>
-        <SelectTrigger className="w-[124px] shrink-0 font-mono" title={t('contacts.phonePrefixHint')}>
+        <SelectTrigger className={cn('w-[104px] shrink-0 font-mono sm:w-[124px]', className)} title={t('contacts.phonePrefixHint')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="max-h-72">
@@ -52,7 +57,10 @@ export function PhoneInput({ value, onChange, placeholder }: {
         </SelectContent>
       </Select>
       <Input
-        className="flex-1"
+        className={cn('min-w-0 flex-1', className)}
+        type="tel"
+        inputMode="tel"
+        autoComplete={autoComplete}
         value={local}
         onChange={(e) => onChange(joinPhone(prefix, e.target.value))}
         placeholder={placeholder ?? '470 12 34 56'}

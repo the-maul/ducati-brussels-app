@@ -1,14 +1,18 @@
 /**
  * Mission 01, lot 4 — Formulaire d'inscription client, étape 1 « Créer mon compte »
  * (décision P-4). Un seul formulaire pour deux usages :
- *   - `web`   : page publique /inscription ; le client choisit son mot de passe ;
- *   - `kiosk` : borne du comptoir /borne ; AUCUN mot de passe saisi sur la tablette
- *     partagée, AUCUNE auto-complétion, aucun lien sortant ; l'invitation « choisir
- *     mon mot de passe » part par e-mail.
+ *   - `web`   : page publique /inscription ;
+ *   - `kiosk` : borne du comptoir /borne ; grandes cibles tactiles, AUCUNE
+ *     auto-complétion, aucun lien sortant.
+ * Dans les deux cas le client choisit son mot de passe (décision K-5 du 18/09), selon
+ * les règles de src/lib/password-policy.ts (U-4), avec un bouton « Afficher ». Sur la
+ * borne, le mot de passe ne vit que dans l'état de ce formulaire, détruit à chaque
+ * retour à l'accueil, et les champs portent autocomplete="new-password".
+ * Fiche déjà connue : le mot de passe tapé n'ouvre pas le compte (voir signup.functions.ts).
  * La logique serveur est dans signup.functions.ts.
  */
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { CheckCircle2, Loader2, Mail, PhoneCall, ShieldCheck, WifiOff } from 'lucide-react';
+import { CheckCircle2, Loader2, Lock, Mail, PhoneCall, ShieldCheck, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -18,6 +22,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { PhoneInput } from '@/components/phone-input';
+import { PasswordInput, PasswordRules } from '@/components/password-field';
+import { isStrongPassword } from '@/lib/password-policy';
 import { MotoPicker, isMotoComplete, type MotoChoice } from '@/components/moto-picker';
 import { splitPhone } from '@/lib/dial-codes';
 import { clientAppHost, clientAppUrl } from '@/lib/client-app-url';
@@ -56,7 +62,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
 }) {
   const kiosk = mode === 'kiosk';
   const ac = kiosk ? 'off' : undefined;
-  const inputCls = kiosk ? 'h-12 text-[16px]' : undefined;
+  // Cibles tactiles : au moins 44 px (h-11) sur téléphone et tablette, 48 px sur la borne.
+  const inputCls = kiosk ? 'h-12 text-[16px]' : 'h-11 lg:h-10';
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -106,10 +113,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
     if (!lastName.trim()) e.last_name = t('signup.errors.required');
     if (!EMAIL_RE.test(email.trim())) e.email = t('signup.errors.email');
     if (!isMotoComplete(moto)) e.moto = t('signup.errors.moto');
-    if (!kiosk) {
-      if (password.length < 8) e.password = t('signup.errors.passwordShort');
-      else if (password !== confirm) e.confirm = t('signup.errors.passwordMismatch');
-    }
+    if (!isStrongPassword(password)) e.password = t('signup.errors.passwordShort');
+    else if (password !== confirm) e.confirm = t('signup.errors.passwordMismatch');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -137,7 +142,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           last_name: lastName.trim(),
           email: email.trim().toLowerCase(),
           phone: local ? phone.trim() : undefined,
-          password: kiosk ? undefined : password,
+          password,
           moto: moto!,
           interests: interests as (typeof SIGNUP_INTERESTS)[number][],
           marketing_consent: consent,
@@ -190,6 +195,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
       case 'expired': return t('signup.errors.expired');
       case 'closed': return t('signup.errors.closed');
       case 'invalid': return t('signup.errors.invalid');
+      case 'weak_password': return t('signup.errors.weakPassword');
       case 'offline': return t('signup.errors.offline');
       default: return t('signup.errors.generic');
     }
@@ -231,7 +237,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           </div>
           <div className="space-y-1.5">
             <Label className={labelCls}>{t('signup.phone')}</Label>
-            <PhoneInput value={phone} onChange={setPhone} />
+            <PhoneInput value={phone} onChange={setPhone} autoComplete={ac ?? 'tel-national'} className={inputCls} />
           </div>
         </div>
       </section>
@@ -266,30 +272,34 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
         </div>
       </section>
 
-      {/* Mot de passe (en ligne seulement) */}
+      {/* Mot de passe (en ligne et à la borne, décision K-5) */}
       <section className="space-y-4">
         <SectionTitle>{t('signup.sectionAccount')}</SectionTitle>
-        {kiosk ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="su-pwd" className={labelCls}>{t('signup.password')} *</Label>
+            <PasswordInput id="su-pwd" name={kiosk ? 'kiosk-new-password' : 'new-password'} value={password}
+              onChange={(e) => setPassword(e.target.value)} inputClassName={inputCls}
+              aria-invalid={!!errors.password} aria-describedby="su-pwd-rules" />
+            <FieldError msg={errors.password} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="su-pwd2" className={labelCls}>{t('signup.passwordConfirm')} *</Label>
+            <PasswordInput id="su-pwd2" name={kiosk ? 'kiosk-new-password-confirm' : 'new-password-confirm'} value={confirm}
+              onChange={(e) => setConfirm(e.target.value)} inputClassName={inputCls}
+              aria-invalid={!!errors.confirm} />
+            <FieldError msg={errors.confirm} />
+          </div>
+        </div>
+        <div id="su-pwd-rules">
+          <PasswordRules value={password} large={kiosk} />
+        </div>
+        <p className="text-[13px] text-muted-foreground">{t('signup.passwordHint')}</p>
+        {kiosk && (
           <p className="flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[14px] text-info">
-            <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>{t('signup.kioskPasswordNote')}</span>
           </p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="su-pwd" className={labelCls}>{t('signup.password')} *</Label>
-              <Input id="su-pwd" type="password" autoComplete="new-password" value={password}
-                onChange={(e) => setPassword(e.target.value)} aria-invalid={!!errors.password} />
-              <p className="text-[12px] text-muted-foreground">{t('signup.passwordHint')}</p>
-              <FieldError msg={errors.password} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="su-pwd2" className={labelCls}>{t('signup.passwordConfirm')} *</Label>
-              <Input id="su-pwd2" type="password" autoComplete="new-password" value={confirm}
-                onChange={(e) => setConfirm(e.target.value)} aria-invalid={!!errors.confirm} />
-              <FieldError msg={errors.confirm} />
-            </div>
-          </div>
         )}
       </section>
 
@@ -297,14 +307,14 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
       <section className="space-y-4">
         <SectionTitle>{t('signup.sectionContact')}</SectionTitle>
         <label className={cn('flex cursor-pointer items-start gap-3 rounded-md border border-border p-3', kiosk && 'p-4')}>
-          <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className={cn('mt-0.5', kiosk && 'size-5')} />
+          <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5 size-5" />
           <span className={cn('space-y-1', kiosk ? 'text-[16px]' : 'text-[14px]')}>
             <span className="block">{t('signup.consent')}</span>
             <span className="block text-[12px] text-muted-foreground">{t('signup.consentHint')}</span>
           </span>
         </label>
         <label className={cn('flex cursor-pointer items-start gap-3 rounded-md border border-border p-3', kiosk && 'p-4')}>
-          <Checkbox checked={recontact} onCheckedChange={(v) => setRecontact(v === true)} className={cn('mt-0.5', kiosk && 'size-5')} />
+          <Checkbox checked={recontact} onCheckedChange={(v) => setRecontact(v === true)} className="mt-0.5 size-5" />
           <span className={cn('space-y-1', kiosk ? 'text-[16px]' : 'text-[14px]')}>
             <span className="flex items-center gap-2"><PhoneCall className="size-4 shrink-0" aria-hidden />{t('signup.recontact')}</span>
             <span className="block text-[12px] text-muted-foreground">{t('signup.recontactHint')}</span>
@@ -319,7 +329,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           </div>
         )}
         <button type="button" onClick={() => setPrivacyOpen(true)}
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          className="inline-flex min-h-11 items-center gap-1.5 text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <ShieldCheck className="size-4" aria-hidden />
           {t('signup.privacyLink')}
         </button>
@@ -335,7 +345,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
         </p>
       )}
 
-      <Button type="submit" size="lg" className={cn('w-full', kiosk && 'h-14 text-[16px]')}
+      <Button type="submit" size="lg" className={cn('w-full', kiosk ? 'h-14 text-[16px]' : 'h-12 text-[15px]')}
         disabled={submitting || formError === 'offline'}>
         {(submitting || formError === 'offline') && <Loader2 className="animate-spin" />}
         {submitting || formError === 'offline' ? t('signup.submitting') : t('signup.submit')}
@@ -379,17 +389,16 @@ export function SignupWelcome({ result, mode, footer }: {
         {t('signup.welcomeAddress')}{' '}
         <span className="font-bold text-foreground">{host}</span>
       </p>
-      {result.invite === 'sent' && (
+      {result.mailSent ? (
         <p className="mx-auto flex max-w-md items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-left text-[14px] text-info">
           <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            {(mode === 'web' ? t('signup.welcomeConfirmEmail') : t('signup.welcomeInvite')).replace('{email}', result.email)}
+            {(result.mail === 'invite' ? t('signup.welcomeExistingInvite') : t('signup.welcomeMailSent')).replace('{email}', result.email)}
           </span>
         </p>
-      )}
-      {result.invite === 'failed' && (
+      ) : (
         <p className="mx-auto max-w-md rounded-md bg-warning-bg px-3 py-2 text-left text-[14px] text-warning">
-          {t('signup.welcomeInviteFailed')}
+          {result.mail === 'invite' ? t('signup.welcomeInviteFailed') : t('signup.welcomeMailFailed')}
         </p>
       )}
       {result.recontact && (

@@ -14,13 +14,19 @@
  *   - U-2 : compte CLIENT rattaché à sa fiche (contact_accounts), sans rôle ;
  *   - S-1 : la société cible est lue dans le réglage `signup_settings`, jamais devinée.
  *
- * MOT DE PASSE :
- *   - en ligne, pour une NOUVELLE fiche, le client choisit son mot de passe ;
- *   - sur la borne (tablette partagée) : jamais de mot de passe saisi ;
+ * MOT DE PASSE (décisions K-5 et U-4 du 18/09) :
+ *   - en ligne ET sur la borne, pour une NOUVELLE fiche, le client choisit son mot de
+ *     passe (règles de src/lib/password-policy.ts, revérifiées ici) ;
  *   - si l'e-mail correspond à une fiche EXISTANTE, le mot de passe saisi est ignoré :
  *     sinon n'importe qui pourrait ouvrir le compte d'un client connu (et voir un
  *     jour ses factures) en tapant son adresse. Le client reçoit alors l'invitation
  *     « choisir mon mot de passe », qui prouve qu'il possède bien la boîte mail.
+ *
+ * MAILS (décision U-5) : après toute inscription réussie, un e-mail part par Outlook
+ * (fonction Edge send-account-invitation, appelée avec la clé de service) :
+ *   - nouveau compte avec mot de passe choisi → `kind: 'welcome'` (bienvenue,
+ *     identifiant, lien vers l'espace client, texte du message de bienvenue K) ;
+ *   - fiche déjà connue → `kind: 'invite'` (bienvenue + « choisir mon mot de passe »).
  *
  * ANTI-ABUS (simple) : champ piège invisible (`website`), et un ticket signé délivré
  * à l'affichage du formulaire, qui impose un délai minimal de saisie et expire.
@@ -29,6 +35,7 @@
  */
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
+import { PASSWORD_MAX_LENGTH, isStrongPassword } from '@/lib/password-policy';
 
 export const SIGNUP_INTERESTS = ['neuf', 'occasion', 'atelier', 'accessoires', 'evenements'] as const;
 
@@ -38,10 +45,17 @@ const MIN_FILL_MS = 4_000;
 const MAX_FILL_MS = 12 * 60 * 60 * 1000;
 
 export type SignupErrorCode =
-  | 'account_exists' | 'too_fast' | 'expired' | 'closed' | 'invalid' | 'generic';
+  | 'account_exists' | 'too_fast' | 'expired' | 'closed' | 'invalid' | 'weak_password' | 'generic';
 
 export type SignupResult =
-  | { status: 'ok'; invite: 'sent' | 'failed' | 'none'; existing: boolean; recontact: boolean }
+  | {
+      status: 'ok';
+      /** Mail envoyé : bienvenue (mot de passe choisi) ou invitation (fiche déjà connue). */
+      mail: 'welcome' | 'invite';
+      mailSent: boolean;
+      existing: boolean;
+      recontact: boolean;
+    }
   | { status: 'error'; code: SignupErrorCode };
 
 async function hmac(payload: string): Promise<string> {
@@ -86,7 +100,7 @@ const signupInput = z.object({
   last_name: z.string().trim().min(1).max(80),
   email: z.string().trim().toLowerCase().email().max(200),
   phone: z.string().trim().max(40).optional(),
-  password: z.string().min(8).max(72).optional(),
+  password: z.string().max(PASSWORD_MAX_LENGTH).optional(),
   moto: motoSchema,
   interests: z.array(z.enum(SIGNUP_INTERESTS)).max(SIGNUP_INTERESTS.length).default([]),
   marketing_consent: z.boolean(),
@@ -102,7 +116,7 @@ export const submitSignup = createServerFn({ method: 'POST' })
     // 1. Anti-abus.
     if (data.website && data.website.trim() !== '') {
       // Un robot a rempli le champ invisible : on fait comme si tout allait bien.
-      return { status: 'ok', invite: 'none', existing: false, recontact: false };
+      return { status: 'ok', mail: 'welcome', mailSent: true, existing: false, recontact: false };
     }
     const [issued, sig] = data.ticket.split('.');
     if (!issued || !sig || sig !== (await hmac(issued))) return { status: 'error', code: 'expired' };
@@ -128,8 +142,12 @@ export const submitSignup = createServerFn({ method: 'POST' })
     if (pre === 'account_exists') return { status: 'error', code: 'account_exists' };
 
     const origin = data.mode === 'kiosk' ? 'comptoir' : 'web';
-    const usePassword = data.mode === 'web' && pre === 'new';
-    if (usePassword && !data.password) return { status: 'error', code: 'invalid' };
+    // Nouvelle fiche : le mot de passe choisi (en ligne comme à la borne) ouvre le compte.
+    // Fiche déjà connue : il est ignoré, l'invitation par e-mail prend le relais.
+    const usePassword = pre === 'new';
+    if (usePassword && (!data.password || !isStrongPassword(data.password))) {
+      return { status: 'error', code: 'weak_password' };
+    }
 
     // 4. Compte de connexion.
     const fullName = `${data.first_name} ${data.last_name}`;
@@ -174,28 +192,28 @@ export const submitSignup = createServerFn({ method: 'POST' })
     const row = Array.isArray(reg) ? reg[0] : reg;
     await supabaseAdmin.from('profiles').upsert({ id: userId, email: data.email, full_name: fullName, is_active: true });
 
-    // 6. Invitation « choisir mon mot de passe » (borne, ou fiche déjà connue).
-    let invite: 'sent' | 'failed' | 'none' = 'none';
-    if (!usePassword) {
-      invite = 'failed';
-      try {
-        const url = process.env.SUPABASE_URL;
-        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const r = await fetch(`${url}/functions/v1/send-account-invitation`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${key}`, apikey: key!, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId, userId, origin: data.origin, purpose: 'signup' }),
-        });
-        if (r.ok) invite = 'sent';
-        else console.error('[signup] invitation', r.status, (await r.text()).slice(0, 200));
-      } catch (e) {
-        console.error('[signup] invitation', e instanceof Error ? e.message : e);
-      }
+    // 6. E-mail par Outlook : bienvenue (mot de passe choisi) ou invitation
+    //    « choisir mon mot de passe » (fiche déjà connue). Échec = compte créé quand même.
+    const mail: 'welcome' | 'invite' = usePassword ? 'welcome' : 'invite';
+    let mailSent = false;
+    try {
+      const url = process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const r = await fetch(`${url}/functions/v1/send-account-invitation`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, apikey: key!, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, userId, origin: data.origin, purpose: 'signup', kind: mail }),
+      });
+      if (r.ok) mailSent = true;
+      else console.error('[signup] mail', mail, r.status, (await r.text()).slice(0, 200));
+    } catch (e) {
+      console.error('[signup] mail', mail, e instanceof Error ? e.message : e);
     }
 
     return {
       status: 'ok',
-      invite,
+      mail,
+      mailSent,
       existing: !row.contact_created,
       recontact: data.recontact,
     };

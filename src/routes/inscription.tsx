@@ -24,20 +24,20 @@ function SignupPage() {
   const [result, setResult] = useState<SignupSuccess | null>(null);
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8">
+    <main className="min-h-screen bg-background px-4 py-6 sm:py-8">
       <div className="mx-auto w-full max-w-2xl">
         <div className="mb-8 flex flex-col items-center gap-3">
           <span className="grid size-12 place-items-center rounded-md bg-primary font-display text-xl font-bold text-primary-foreground">D</span>
           <p className="text-center font-display text-[28px] font-bold uppercase leading-[34px] text-foreground">{t('signup.brand')}</p>
         </div>
 
-        <div className="rounded-md border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:p-8">
+        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-8">
           {result ? (
             <SignupWelcome
               result={result}
               mode="web"
-              footer={result.invite === 'none' ? (
-                <Button asChild size="lg" className="w-full">
+              footer={result.mail === 'welcome' ? (
+                <Button asChild size="lg" className="h-12 w-full text-[15px]">
                   <Link to="/login">{t('signup.welcomeLogin')}</Link>
                 </Button>
               ) : null}
@@ -52,7 +52,7 @@ function SignupPage() {
               <SignupForm mode="web" initialEmail={email} onSuccess={setResult} />
               <p className="text-center text-[14px] text-muted-foreground">
                 {t('signup.alreadyClient')}{' '}
-                <Link to="/login" className="font-medium text-foreground underline underline-offset-2">{t('signup.signIn')}</Link>
+                <Link to="/login" className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-2">{t('signup.signIn')}</Link>
               </p>
             </div>
           )}
