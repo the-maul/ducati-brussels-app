@@ -5290,6 +5290,7 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _article_on_order_qty: { Args: { _article: string }; Returns: number }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -5305,6 +5306,10 @@ export type Database = {
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
+      }
+      _part_order_refresh_totals: {
+        Args: { _order_id: string }
+        Returns: undefined
       }
       _portal_ctx: { Args: never; Returns: Record<string, unknown> }
       _portal_invoice_pdf: {
@@ -5996,6 +6001,28 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      part_order_article_search: {
+        Args: { _company: string; _limit?: number; _term: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          is_library: boolean
+          matched_barcode: string
+          mgmt_type: string
+          on_order_qty: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sale_price_ht: number
+          supplier_id: string
+          supplier_name: string
+          supplier_ref: string
+          vat_rate: number
+        }[]
+      }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
       part_order_history: {
         Args: { _order_id: string }
@@ -6006,6 +6033,45 @@ export type Database = {
           from_status: string
           note: string
           to_status: string
+        }[]
+      }
+      part_order_line_delete: { Args: { _line_id: string }; Returns: undefined }
+      part_order_line_save: {
+        Args: {
+          _article_id?: string
+          _designation?: string
+          _line_id?: string
+          _order_id: string
+          _qty_client?: number
+          _qty_shop?: number
+          _supplier_id?: string
+          _unit_price_ht?: number
+          _vat_rate?: number
+        }
+        Returns: Json
+      }
+      part_order_lines_detail: {
+        Args: { _order_id: string }
+        Returns: {
+          article_id: string
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          id: string
+          line_ht: number
+          on_order_qty: number
+          order_id: string
+          qty_client: number
+          qty_shop: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
         }[]
       }
       part_order_rules: {
