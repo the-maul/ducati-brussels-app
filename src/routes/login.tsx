@@ -1,9 +1,17 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+/**
+ * M0 — Connexion.
+ * Propose aussi « Pas encore de compte ? Créer mon compte » (→ /inscription) et
+ * « Mot de passe oublié ? » : formulaire e-mail qui fait envoyer un lien de
+ * réinitialisation par Outlook (src/lib/auth/password-reset.ts). Le message affiché
+ * est toujours le même, que le compte existe ou non.
+ */
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { resolveHomePath } from '@/lib/auth/home-path';
+import { requestPasswordReset } from '@/lib/auth/password-reset';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +29,31 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // « Mot de passe oublié ? »
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  const openForgot = () => {
+    setResetEmail(email);
+    setResetSent(false);
+    setResetError(null);
+    setMode('forgot');
+  };
+  const onForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetSending(true);
+    try {
+      const ok = await requestPasswordReset(resetEmail);
+      if (ok) setResetSent(true);
+      else setResetError(t('auth.forgotError'));
+    } finally {
+      setResetSending(false);
+    }
+  };
 
   // Déjà connecté → tableau de bord (personnel) ou espace client (client).
   useEffect(() => {
@@ -66,6 +99,51 @@ function LoginPage() {
           </h1>
         </div>
 
+        {mode === 'forgot' ? (
+          <div className="space-y-4 rounded-md border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <h2 className="text-[16px] font-medium">{t('auth.forgot')}</h2>
+            {resetSent ? (
+              <p className="rounded-md bg-muted px-3 py-2 text-[13px]" role="status">
+                {t('auth.forgotSent')}
+                <span className="mt-1 block text-[12px] text-muted-foreground">{t('auth.forgotHint')}</span>
+              </p>
+            ) : (
+              <form onSubmit={onForgot} className="space-y-4">
+                <p className="text-[13px] text-muted-foreground">{t('auth.forgotIntro')}</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="reset-email" className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                    {t('auth.email')}
+                  </Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    maxLength={254}
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="h-11 lg:h-10"
+                  />
+                </div>
+                {resetError && (
+                  <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger" role="alert">{resetError}</p>
+                )}
+                <Button type="submit" className="h-11 w-full" disabled={resetSending}>
+                  {resetSending && <Loader2 className="animate-spin" />}
+                  {resetSending ? t('auth.forgotSending') : t('auth.forgotSend')}
+                </Button>
+              </form>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode('login')}
+              className="min-h-11 w-full text-center text-[13px] font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {t('auth.backToLogin')}
+            </button>
+          </div>
+        ) : (
+        <>
         <form
           onSubmit={onSubmit}
           className="space-y-4 rounded-md border border-border bg-card p-6 shadow-[var(--shadow-card)]"
@@ -108,7 +186,24 @@ function LoginPage() {
             {submitting && <Loader2 className="animate-spin" />}
             {submitting ? t('auth.signingIn') : t('auth.signIn')}
           </Button>
+
+          <button
+            type="button"
+            onClick={openForgot}
+            className="min-h-11 w-full text-center text-[13px] font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {t('auth.forgot')}
+          </button>
         </form>
+
+        <p className="mt-4 text-center text-[13px] text-muted-foreground">
+          {t('auth.noAccount')}{' '}
+          <Link to="/inscription" className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">
+            {t('auth.createAccount')}
+          </Link>
+        </p>
+        </>
+        )}
       </div>
     </main>
   );

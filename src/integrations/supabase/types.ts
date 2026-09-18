@@ -3320,6 +3320,27 @@ export type Database = {
           },
         ]
       }
+      password_reset_requests: {
+        Row: {
+          created_at: string
+          email_hash: string
+          id: number
+          ip_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_hash: string
+          id?: never
+          ip_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_hash?: string
+          id?: never
+          ip_hash?: string | null
+        }
+        Relationships: []
+      }
       picking_list_items: {
         Row: {
           article_id: string | null
@@ -5736,6 +5757,17 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      password_reset_allow: {
+        Args: { _email_hash: string; _ip_hash?: string }
+        Returns: boolean
+      }
+      password_reset_target: {
+        Args: { _email: string }
+        Returns: {
+          company_id: string
+          user_id: string
+        }[]
+      }
       pending_deposits: {
         Args: { _company: string }
         Returns: {

@@ -17,6 +17,13 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
 
+- **N-1** — **La cloche est filtrée par rôle et par responsable** : chacun voit les tâches CRM qui lui
+  sont confiées (en retard ou pour aujourd’hui) ; les administrateurs voient aussi celles sans
+  responsable et peuvent basculer « Les miennes / Toute l’équipe » ; les nouvelles inscriptions ne
+  vont qu’aux rôles vendeur, marketing et admin (refusées en base aux autres) ; les demandes de
+  rendez-vous atelier du portail vont aux rôles mécanicien, chef d’atelier et admin. Le badge ne
+  compte que ce que la personne voit. *Client (carte « Prévenir l’équipe quand un client s’inscrit ») · 19/09.*
+  [M00](modules/M00-socle.md), [M10](modules/M10-crm.md)
 - **S-5** — **Chaque échange sur une carte met la bible à jour** (chapitre, mission, décisions).
   Les nouvelles missions naissent d'une **vidéo** de Simon : Claude propose sa compréhension et la
   liste de cartes dans le chat, Simon valide, puis Claude crée la liste dans l'ERP et réalise.

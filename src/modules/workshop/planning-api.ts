@@ -14,6 +14,35 @@ export async function listAppointments(companyId: string, fromISO: string, toISO
   return data ?? [];
 }
 
+/**
+ * Cloche (décision N-1) : demandes de rendez-vous envoyées par les clients depuis
+ * le portail (statut « demande », source « portail »), à confirmer par l'atelier.
+ * Affichées aux rôles mecanicien, chef_atelier et admin.
+ */
+export const APPT_REQUEST_ROLES = ['admin', 'mecanicien', 'chef_atelier'] as const;
+export type AppointmentRequest = {
+  id: string;
+  starts_at: string;
+  requested_slot: string | null;
+  work_description: string | null;
+  client_name: string;
+};
+export async function listPortalAppointmentRequests(companyId: string): Promise<AppointmentRequest[]> {
+  const { data, error } = await supabase.from('workshop_appointments')
+    .select('id, starts_at, requested_slot, work_description, contacts(first_name, last_name)')
+    .eq('company_id', companyId).eq('status', 'demande').eq('source', 'portail')
+    .order('starts_at').limit(50);
+  if (error) throw error;
+  return (data ?? []).map((a) => {
+    const c = (Array.isArray(a.contacts) ? a.contacts[0] : a.contacts) as { first_name: string | null; last_name: string | null } | null;
+    const name = [c?.first_name, c?.last_name].map((s) => (s ?? '').trim()).filter(Boolean).join(' ');
+    return {
+      id: a.id, starts_at: a.starts_at, requested_slot: a.requested_slot,
+      work_description: a.work_description, client_name: name || '—',
+    };
+  });
+}
+
 export type NewAppointment = {
   companyId: string; contactId?: string | null; vehicleId?: string | null; mechanicName?: string;
   workshop?: string; startsAt: string; plannedMinutes: number; workDescription?: string;
