@@ -140,6 +140,12 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
   { key: 'sport', labelKey: 'contacts.interestSport' },
   { key: 'offroad', labelKey: 'contacts.interestOffroad' },
   { key: 'piste', labelKey: 'contacts.interestPiste' },
+  // Intérêts déclarés par le client à l'inscription (mission 01, lot 4).
+  { key: 'neuf', labelKey: 'signup.interest.neuf' },
+  { key: 'occasion', labelKey: 'signup.interest.occasion' },
+  { key: 'atelier', labelKey: 'signup.interest.atelier' },
+  { key: 'accessoires', labelKey: 'signup.interest.accessoires' },
+  { key: 'evenements', labelKey: 'signup.interest.evenements' },
 ];
 
 // Types d'entreprise (B2B) — formes juridiques belges proposées en suggestions

@@ -1270,6 +1270,70 @@ export type Database = {
           },
         ]
       }
+      contact_declared_vehicles: {
+        Row: {
+          brand: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          family: string | null
+          id: string
+          kind: string
+          model: string | null
+          model_year: number | null
+          source: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          brand?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          family?: string | null
+          id?: string
+          kind: string
+          model?: string | null
+          model_year?: number | null
+          source: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          brand?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          family?: string | null
+          id?: string
+          kind?: string
+          model?: string | null
+          model_year?: number | null
+          source?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_declared_vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_declared_vehicles_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_declared_vehicles_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_invitations: {
         Row: {
           company_id: string
@@ -1486,6 +1550,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -1521,6 +1586,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -1587,6 +1654,7 @@ export type Database = {
           company_id: string
           company_name?: string | null
           contact_name?: string | null
+          contact_preference?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
@@ -1622,6 +1690,8 @@ export type Database = {
           license_number?: string | null
           license_place?: string | null
           license_scan_path?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
@@ -1688,6 +1758,7 @@ export type Database = {
           company_id?: string
           company_name?: string | null
           contact_name?: string | null
+          contact_preference?: string | null
           country?: string
           created_at?: string
           created_by?: string | null
@@ -1723,6 +1794,8 @@ export type Database = {
           license_number?: string | null
           license_place?: string | null
           license_scan_path?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_opt_out?: boolean
           mobile?: string | null
           mobile_pro?: string | null
@@ -3449,6 +3522,79 @@ export type Database = {
           },
         ]
       }
+      portal_uploads: {
+        Row: {
+          attachment_id: string | null
+          company_id: string
+          completed_at: string | null
+          contact_id: string
+          content_type: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          id: string
+          kind: string
+          size_bytes: number | null
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          attachment_id?: string | null
+          company_id: string
+          completed_at?: string | null
+          contact_id: string
+          content_type: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          id?: string
+          kind: string
+          size_bytes?: number | null
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          attachment_id?: string | null
+          company_id?: string
+          completed_at?: string | null
+          contact_id?: string
+          content_type?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          file_name?: string
+          id?: string
+          kind?: string
+          size_bytes?: number | null
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_uploads_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_uploads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_uploads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_changes: {
         Row: {
           article_id: string
@@ -4149,6 +4295,38 @@ export type Database = {
             foreignKeyName: "shop_settings_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signup_settings: {
+        Row: {
+          company_id: string
+          id: boolean
+          is_open: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          id?: boolean
+          is_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          id?: boolean
+          is_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -4902,6 +5080,8 @@ export type Database = {
           or_id: string | null
           planned_minutes: number
           reception_notes: string | null
+          requested_slot: string | null
+          source: string | null
           starts_at: string
           status: string
           updated_at: string
@@ -4920,6 +5100,8 @@ export type Database = {
           or_id?: string | null
           planned_minutes?: number
           reception_notes?: string | null
+          requested_slot?: string | null
+          source?: string | null
           starts_at: string
           status?: string
           updated_at?: string
@@ -4938,6 +5120,8 @@ export type Database = {
           or_id?: string | null
           planned_minutes?: number
           reception_notes?: string | null
+          requested_slot?: string | null
+          source?: string | null
           starts_at?: string
           status?: string
           updated_at?: string
@@ -5130,6 +5314,20 @@ export type Database = {
         Args: { _company: string; _doc_type: string }
         Returns: string
       }
+      _portal_ctx: { Args: never; Returns: Record<string, unknown> }
+      _portal_invoice_pdf: {
+        Args: { _company: string; _document: string }
+        Returns: string
+      }
+      _portal_last_upload: {
+        Args: { _contact: string; _entity: string; _kind: string }
+        Returns: string
+      }
+      _portal_owns_vehicle: {
+        Args: { _company: string; _contact: string; _vehicle: string }
+        Returns: boolean
+      }
+      _portal_vehicle_label: { Args: { _vehicle: string }; Returns: string }
       _recompute_paid_unchecked: {
         Args: { _document: string }
         Returns: undefined
@@ -5248,6 +5446,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -5283,6 +5482,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -5380,6 +5581,7 @@ export type Database = {
           company_id: string
           company_name: string | null
           contact_name: string | null
+          contact_preference: string | null
           country: string
           created_at: string
           created_by: string | null
@@ -5415,6 +5617,8 @@ export type Database = {
           license_number: string | null
           license_place: string | null
           license_scan_path: string | null
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_opt_out: boolean
           mobile: string | null
           mobile_pro: string | null
@@ -5732,6 +5936,41 @@ export type Database = {
           order_id: string
         }[]
       }
+      portal_appointments: { Args: never; Returns: Json }
+      portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
+      portal_can_write_object: { Args: { p_name: string }; Returns: boolean }
+      portal_cancel_appointment_request: {
+        Args: { p_appointment_id: string }
+        Returns: undefined
+      }
+      portal_complete_upload: { Args: { p_upload_id: string }; Returns: Json }
+      portal_home: { Args: never; Returns: Json }
+      portal_invoice: { Args: { p_document_id: string }; Returns: Json }
+      portal_invoices: { Args: never; Returns: Json }
+      portal_prepare_upload: {
+        Args: {
+          p_content_type: string
+          p_file_name: string
+          p_kind: string
+          p_size: number
+          p_vehicle_id: string
+        }
+        Returns: Json
+      }
+      portal_profile: { Args: never; Returns: Json }
+      portal_request_appointment: {
+        Args: {
+          p_date: string
+          p_reason: string
+          p_slot: string
+          p_vehicle_id: string
+        }
+        Returns: string
+      }
+      portal_update_profile: { Args: { p: Json }; Returns: Json }
+      portal_vehicle: { Args: { p_vehicle_id: string }; Returns: Json }
+      portal_vehicles: { Args: never; Returns: Json }
+      portal_whoami: { Args: never; Returns: Json }
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined
@@ -5949,6 +6188,26 @@ export type Database = {
           content: Json
           name: string
           theme_color: string
+        }[]
+      }
+      signup_precheck: {
+        Args: { _company: string; _email: string }
+        Returns: string
+      }
+      signup_register: {
+        Args: {
+          _company: string
+          _email: string
+          _origin: string
+          _p: Json
+          _user: string
+        }
+        Returns: {
+          contact_created: boolean
+          contact_id: string
+          lead_created: boolean
+          lead_id: string
+          task_created: boolean
         }[]
       }
       stock_value_owned: { Args: { _company: string }; Returns: number }

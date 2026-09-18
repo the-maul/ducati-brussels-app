@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { clientAppUrl } from '@/lib/client-app-url';
 
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type Communication = Database['public']['Tables']['communications']['Row'];
@@ -307,9 +308,14 @@ export async function listCompanyMailboxes(companyId: string): Promise<CompanyMa
 }
 
 export type MailAttachment = { name: string; contentType: string; contentBytes: string };
-/** Envoie un e-mail (corps HTML + pièces jointes) depuis la boîte Outlook (Graph). */
+/**
+ * Envoie un e-mail (corps HTML + pièces jointes) depuis la boîte Outlook (Graph).
+ * `origin` = adresse de l'application client : la fonction serveur s'en sert pour le
+ * pied de mail « rejoindre l'application » (décision P-5), ajouté seulement si le
+ * destinataire n'a pas encore de compte.
+ */
 export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string; attachments?: MailAttachment[]; from?: string }): Promise<{ ok?: boolean; error?: string }> {
-  const { data, error } = await supabase.functions.invoke('graph-send-email', { body: p });
+  const { data, error } = await supabase.functions.invoke('graph-send-email', { body: { ...p, origin: clientAppUrl() } });
   if (error) {
     // l'Edge Function renvoie un JSON d'erreur (ex. graph_not_configured) → le remonter
     const ctx = (error as { context?: { body?: unknown } }).context;
