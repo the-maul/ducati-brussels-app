@@ -63,6 +63,9 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 7. **« En commande » dans le disponible** (carte 2) : compté aujourd'hui sur les commandes
    fournisseur (CMD) validées sans réception reçue liée, pas sur les commandes de pièces (elles le
    seront quand elles deviendront des commandes fournisseur, carte 4). *À confirmer.*
+   **Mis à jour le 19/09 (mission 05, carte 7)** : les commandes de pièces validées comptent
+   désormais : leur quantité magasin pour tout le monde (tant qu'elle n'est pas associée à un client),
+   leur quantité client pour ce client seulement. Carte 4 : exclure les pièces transformées en CMD.
 
 ## 5. Ce qui a changé dans l'application
 

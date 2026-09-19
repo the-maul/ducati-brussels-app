@@ -163,6 +163,39 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 - Testé en base dans une transaction annulée (création, réouverture sans doublon, lignes texte / vide /
   MO exclues, étapes, statut de la liste, emplacement, refus d'un utilisateur d'une autre société).
 
+### Carte 7 — Ne pas attribuer le stock commandé pour un autre client (19/09, à valider)
+- Sur la fiche d'un document (devis / proforma, bon de commande, réservation, BL), la colonne
+  **Dispo** de chaque ligne affiche **Disponible / En commande / À commander** calculé pour **le client
+  du document** : « en commande » = ce qui est commandé **pour lui** (commandes de pièces à son nom ou
+  liées à ce document) + ce qui est commandé **pour le stock** (commandes fournisseur, quantité
+  magasin des commandes de pièces). **La commande d'un autre client n'est jamais comptée** (les
+  valises de la vidéo). Survol = détail libre / réel / réservé / en commande.
+- Même règle dans la **liste de préparation** (carte 6). Sans client (recherche d'article, caisse,
+  écran des commandes de pièces) : seulement ce qui est commandé pour le stock.
+- **« Associer une commande en cours à ce client »** : icône lien sur une ligne non disponible →
+  liste des commandes de pièces en cours pour l'article, avec pour chacune la part **pour ce
+  client**, **pour le stock**, **autre client (exclu)** ; une quantité pour le stock peut être
+  réservée à ce client (jamais plus que ce qui reste libre). Les associations du document sont
+  listées sous les lignes avec **Retirer**. Chaque association et chaque retrait laissent une trace
+  dans `events` (qui, quand, quelle commande, quelle quantité).
+- **Un seul calcul** : fonction SQL `article_on_order_for(article, client, document)` ; l'ancien
+  `_article_on_order_qty` (carte 2, mission 02) en est la version sans client. Changement de règle :
+  la quantité magasin des commandes de pièces validées compte désormais « en commande » (avant :
+  seules les CMD fournisseur).
+- Bouton **« Préparer »** (carte 6) ajouté aussi en tête de la fiche du document.
+- Migration `20260919311000_m6_en_commande_par_client.sql` (table `part_order_allocations` avec RLS,
+  écriture seulement par fonction ; fonctions `article_on_order_for`, `document_lines_stock`,
+  `part_order_open_lines`, `part_order_allocate`, `part_order_allocation_cancel`, `document_allocations` ;
+  `picking_detail` compte pour le client du document). Code : `src/modules/sales/on-order.ts`,
+  `on-order-api.ts`, `associate-order-dialog.tsx`, `availability.ts`, `src/routes/_app.sales.$documentId.tsx` ;
+  test `tests/sales-on-order-client.test.ts`.
+- Vérifié en base dans une transaction annulée : 2 valises commandées pour un autre client + 1 pour
+  le stock → Moreau voit 1, l'autre client 3, la recherche d'article 1 ; après association du stock
+  à Moreau : 1 / 2 / 0 ; retrait → retour à 1 ; écriture directe dans la table refusée.
+- Limites : une commande de pièces reste « en commande » tant qu'elle n'est pas annulée (pas encore
+  d'état « reçue ») ; à la carte 4 de la mission 02 (commande de pièces → CMD) il faudra éviter de la
+  compter deux fois. La pastille globale du document reste sur le seul stock libre.
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.

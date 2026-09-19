@@ -52,8 +52,10 @@ export function computeDocAvailability(lines: AvailabilityLine[], stockMap: Map<
 /* ------------------------------------------------------------------------------------------
  * Disponibilité d'un article dans la recherche d'une ligne de vente (mission 05, carte 2).
  * « Couleur verte = disponible » (vidéo de Domenico, G8). Trois états, calculés sur le triple
- * stock B4 : libre = réel − réservé ; « en commande » = commandes fournisseur CMD validées sans
- * réception reçue (fonction SQL _article_on_order_qty, via part_order_article_search).
+ * stock B4 : libre = réel − réservé ; « en commande » = ce qui est commandé pour le stock
+ * (CMD validées sans réception reçue + quantité magasin des commandes de pièces non associée à un
+ * client), et, sur un document, aussi ce qui est commandé pour SON client (mission 05, carte 7) :
+ * fonction SQL unique article_on_order_for (via part_order_article_search / document_lines_stock).
  *   - disponible  : le libre couvre la quantité demandée ;
  *   - en commande : le libre + l'en-commande la couvrent ;
  *   - à commander : sinon.

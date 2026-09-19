@@ -2644,6 +2644,23 @@ export const fr = {
     // recherche d'article d'une ligne de vente (mission 05, carte 2)
     stockDisponible: 'Disponible', stockEnCommande: 'En commande', stockACommander: 'À commander',
     stockHint: 'Libre {free} (réel {real} − réservé {reserved}) · en commande {order}',
+    stockHintClient: 'Libre {free} (réel {real} − réservé {reserved}) · en commande pour ce client ou pour le stock {order} (commandes des autres clients exclues)',
+  },
+
+  // « En commande » par client (mission 05, carte 7)
+  onOrder: {
+    associate: 'Associer une commande', associateHint: 'Associer une commande en cours à ce client',
+    dialogTitle: 'Associer une commande en cours à ce client',
+    rule: 'Une pièce commandée pour un autre client n\'est jamais « en commande » pour celui-ci. Seules comptent ses propres commandes et celles passées pour le stock. Une quantité pour le stock peut lui être réservée ici (tracé).',
+    noneOpen: 'Aucune commande de pièces en cours pour cet article.',
+    colOrder: 'Commande', colFor: 'Commandée pour', colMine: 'Pour ce client', colStock: 'Pour le stock', colOther: 'Autre client (exclu)',
+    forThisClient: 'Ce client', forStock: 'Stock', forOtherClient: 'Autre client : {name}',
+    allocate: 'Associer', allocateHint: 'Réserver cette quantité pour le stock à ce client',
+    allocated: 'Commande associée au client.', errAllocate: 'Impossible d\'associer la commande.',
+    allocationsTitle: 'Commandes associées à ce client',
+    allocationLine: '{qty} × {ref} — commande {order}, par {who} le {when}',
+    remove: 'Retirer', removeConfirm: 'Retirer cette association ? La quantité redevient disponible pour le stock.',
+    removed: 'Association retirée.', errRemove: 'Impossible de retirer l\'association.',
   },
 
   // Mission 03 — Produits Shopify rapprochés des articles du stock (M2)

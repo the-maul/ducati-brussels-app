@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, Mail, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, Mail, MessageSquare, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -19,8 +19,11 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
 import { listStock } from '@/modules/stock/stock-api';
-import { computeDocAvailability, AVAILABILITY_DOC_TYPES } from '@/modules/sales/availability';
-import { AvailabilityBadge } from '@/modules/sales/availability-badge';
+import { computeDocAvailability, AVAILABILITY_DOC_TYPES, saleStockStatus } from '@/modules/sales/availability';
+import { AvailabilityBadge, SaleStockBadge } from '@/modules/sales/availability-badge';
+import { getDocumentLinesStock, listDocumentAllocations, cancelAllocation } from '@/modules/sales/on-order-api';
+import { AssociateOrderDialog } from '@/modules/sales/associate-order-dialog';
+import { PrepareButton } from '@/modules/sales/prepare-button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -45,6 +48,28 @@ function DocumentView() {
   });
   const stockMap = new Map((stockQ.data ?? []).map((r) => [r.article_id, r.available_qty]));
   const docAvailability = data && showAvailability ? computeDocAvailability(data.lines, stockMap) : null;
+  // « En commande » par ligne pour le client du document (mission 05, carte 7) : jamais la commande d'un autre client.
+  const linesStockQ = useQuery({
+    queryKey: ['doc-lines-stock', documentId],
+    queryFn: () => getDocumentLinesStock(documentId),
+    enabled: showAvailability,
+  });
+  const lineStockById = new Map((linesStockQ.data ?? []).map((r) => [r.line_id, r]));
+  const allocationsQ = useQuery({
+    queryKey: ['doc-allocations', documentId],
+    queryFn: () => listDocumentAllocations(documentId),
+    enabled: showAvailability,
+  });
+  const removeAllocation = useMutation({
+    meta: { success: false, error: false },
+    mutationFn: (id: string) => cancelAllocation(id),
+    onSuccess: () => {
+      toast.success(t('onOrder.removed'));
+      linesStockQ.refetch(); allocationsQ.refetch();
+    },
+    onError: (e) => toast.error(e instanceof Error && e.message ? e.message : t('onOrder.errRemove')),
+  });
+  const [associate, setAssociate] = useState<{ articleId: string; reference: string | null; designation: string } | null>(null);
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
   const vehicleId = data?.doc.vehicle_id ?? null;
@@ -89,6 +114,7 @@ function DocumentView() {
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
+            <PrepareButton doc={doc} withLabel />
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
@@ -161,7 +187,8 @@ function DocumentView() {
                   <td colSpan={showAvailability ? 6 : 5} className="whitespace-pre-wrap px-3 py-2 italic">{l.designation}</td>
                 </tr>
               );
-              const lineAvail = showAvailability ? computeDocAvailability([l], stockMap) : null;
+              const ls = showAvailability ? lineStockById.get(l.id) : undefined;
+              const lineStatus = ls ? saleStockStatus(ls, Number(l.quantity)) : null;
               return (
                 <tr key={l.id} className="border-b border-border last:border-0">
                   <td className="px-3 py-2">{l.reference ? <span className="mr-2 font-mono text-[12px] text-muted-foreground">{l.reference}</span> : null}{l.designation}</td>
@@ -171,7 +198,24 @@ function DocumentView() {
                   <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_ht))}</td>
                   {showAvailability && (
                     <td className="px-3 py-2">
-                      {lineAvail && lineAvail.status !== 'na' && <AvailabilityBadge status={lineAvail.status} pct={lineAvail.pct} />}
+                      {ls && lineStatus && lineStatus !== 'na' && (
+                        <span
+                          className="inline-flex items-center gap-1"
+                          title={t('availability.stockHintClient')
+                            .replace('{free}', String(ls.real_qty - ls.reserved_qty)).replace('{real}', String(ls.real_qty))
+                            .replace('{reserved}', String(ls.reserved_qty)).replace('{order}', String(ls.on_order_qty))}
+                        >
+                          <SaleStockBadge status={lineStatus} free={ls.real_qty - ls.reserved_qty} />
+                          {contactId && lineStatus !== 'disponible' && (
+                            <Button
+                              size="sm" variant="ghost" title={t('onOrder.associateHint')}
+                              onClick={() => setAssociate({ articleId: ls.article_id, reference: l.reference, designation: l.designation })}
+                            >
+                              <Link2 className="size-4" />
+                            </Button>
+                          )}
+                        </span>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -180,6 +224,31 @@ function DocumentView() {
           </tbody>
         </table>
       </div>
+
+      {allocationsQ.data && allocationsQ.data.length > 0 && (
+        <div className="mt-3 rounded-md border border-border bg-card p-3">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('onOrder.allocationsTitle')}</p>
+          <ul className="space-y-1 font-data text-[13px]">
+            {allocationsQ.data.map((a) => (
+              <li key={a.id} className="flex items-center gap-2">
+                <Link2 className="size-4 text-info" />
+                <span className="tabular-nums">
+                  {t('onOrder.allocationLine')
+                    .replace('{qty}', String(a.qty)).replace('{ref}', a.reference ?? '—')
+                    .replace('{order}', a.part_order_number ?? '—').replace('{who}', a.created_by_name ?? '—')
+                    .replace('{when}', new Date(a.created_at).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))}
+                </span>
+                <Button
+                  size="sm" variant="ghost" className="ml-auto" disabled={removeAllocation.isPending}
+                  onClick={() => { if (window.confirm(t('onOrder.removeConfirm'))) removeAllocation.mutate(a.id); }}
+                >
+                  <X className="size-4" /> {t('onOrder.remove')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col items-end gap-1 font-data text-sm tabular-nums">
         {discount > 0.005 && <span className="text-muted-foreground">{t('sales.totalDiscount')} : − {eur(discount)}</span>}
@@ -202,6 +271,13 @@ function DocumentView() {
         <AttachmentsPanel companyId={doc.company_id} entityType="document" entityId={documentId} />
       </div>
 
+      {associate && contactId && (
+        <AssociateOrderDialog
+          articleId={associate.articleId} reference={associate.reference} designation={associate.designation}
+          documentId={documentId} contactId={contactId}
+          onClose={() => { setAssociate(null); linesStockQ.refetch(); allocationsQ.refetch(); }}
+        />
+      )}
       {mailOpen && contactQ.data && (
         <SendMailDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setMailOpen(false)} />
       )}
