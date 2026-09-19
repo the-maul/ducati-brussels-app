@@ -1099,7 +1099,7 @@ export const fr = {
 
   // Picking list digitale (M6 — Ventes & Facturation, item 11)
   picking: {
-    title: 'Picking list', subtitle: 'Préparation des commandes clients — reçu, à préparer, à recevoir.',
+    title: 'Listes de préparation', subtitle: 'Préparation des commandes clients — disponible, commandé, préparé, monté.',
     new: 'Nouvelle picking list', newTitle: 'Nouvelle picking list',
     sourceLabel: 'Origine', fromDocument: 'Depuis un document de vente', empty: 'Picking list vide (attribution manuelle)',
     document: 'Document', documentPlaceholder: 'Choisir un document…',
@@ -1123,6 +1123,23 @@ export const fr = {
     updated: 'Picking list mise à jour.', errUpdate: 'Erreur à la mise à jour.',
     itemAdded: 'Article ajouté.', errAddItem: 'Erreur à l\'ajout de l\'article.',
     errQty: 'Erreur à la mise à jour de la quantité.',
+    // Préparation en un clic, vue tablette (mission 05, carte 6)
+    prepare: 'Préparer', prepareHint: 'Ouvrir la liste de préparation (tablette)', errOpen: 'Impossible d\'ouvrir la liste de préparation.',
+    openTablet: 'Ouvrir sur la tablette', quantities: 'Quantités',
+    tabletTitle: 'Préparation', tabletBack: 'Listes de préparation',
+    tabletClient: 'Client', tabletNoClient: 'Sans client',
+    prepLocation: 'Emplacement de préparation', prepLocationHint: 'Où la commande du client est posée une fois préparée (texte libre ou casier).',
+    prepLocationPlaceholder: 'Ex. CUISINE/A14', prepLocationSave: 'Enregistrer', prepLocationSaved: 'Emplacement enregistré.',
+    prepLocationNone: 'Pas encore d\'emplacement',
+    progress: '{done} / {total} préparées',
+    bins: 'Casier(s)', noBin: 'Aucun casier',
+    stockLine: 'Stock : libre {free} · en commande {order}',
+    stepBy: '{step} par {who} le {when}',
+    step_commande: 'Commandé', step_prepare: 'Préparé', step_monte: 'Monté',
+    stepUndo: 'Annuler l\'étape', errStep: 'Impossible d\'enregistrer l\'étape.',
+    tabletEmpty: 'Aucune ligne à préparer (lignes texte, vides et main-d\'œuvre exclues).',
+    livreLocked: 'Préparation livrée : elle ne se modifie plus.',
+    noStockMove: 'Changer d\'étape ne bouge pas le stock : la réservation et la sortie se font par les documents (réservation, facture).',
   },
 
   // Tableau de bord (M13)

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -3598,11 +3623,16 @@ export type Database = {
           company_id: string
           created_at: string
           designation: string | null
+          document_line_id: string | null
           id: string
           picking_id: string
+          prep_step: string | null
+          prep_step_at: string | null
+          prep_step_by: string | null
           qty_ordered: number
           qty_picked: number
           reference: string | null
+          sort_order: number
           status: string
         }
         Insert: {
@@ -3610,11 +3640,16 @@ export type Database = {
           company_id: string
           created_at?: string
           designation?: string | null
+          document_line_id?: string | null
           id?: string
           picking_id: string
+          prep_step?: string | null
+          prep_step_at?: string | null
+          prep_step_by?: string | null
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          sort_order?: number
           status?: string
         }
         Update: {
@@ -3622,11 +3657,16 @@ export type Database = {
           company_id?: string
           created_at?: string
           designation?: string | null
+          document_line_id?: string | null
           id?: string
           picking_id?: string
+          prep_step?: string | null
+          prep_step_at?: string | null
+          prep_step_by?: string | null
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          sort_order?: number
           status?: string
         }
         Relationships: [
@@ -3642,6 +3682,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_list_items_document_line_id_fkey"
+            columns: ["document_line_id"]
+            isOneToOne: false
+            referencedRelation: "document_lines"
             referencedColumns: ["id"]
           },
           {
@@ -6629,6 +6676,41 @@ export type Database = {
           subject: string
         }[]
       }
+      picking_detail: {
+        Args: { _picking: string }
+        Returns: {
+          article_id: string
+          bins: string[]
+          designation: string
+          document_line_id: string
+          id: string
+          mgmt_type: string
+          on_order_qty: number
+          picking_id: string
+          prep_step: string
+          prep_step_at: string
+          prep_step_by_name: string
+          qty_ordered: number
+          qty_picked: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          status: string
+        }[]
+      }
+      picking_open_for_document: {
+        Args: { _document: string }
+        Returns: string
+      }
+      picking_set_location: {
+        Args: { _location: string; _picking: string }
+        Returns: undefined
+      }
+      picking_set_step: {
+        Args: { _item: string; _step: string }
+        Returns: undefined
+      }
       portal_appointments: { Args: never; Returns: Json }
       portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
       portal_can_write_object: { Args: { p_name: string }; Returns: boolean }
@@ -6938,6 +7020,38 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      vehicle_attach_owner: {
+        Args: {
+          _contact: string
+          _from_date?: string
+          _reason?: string
+          _vehicle: string
+        }
+        Returns: Json
+      }
+      vehicle_create_for_contact: {
+        Args: {
+          _company: string
+          _contact: string
+          _from_date?: string
+          _vehicle: Json
+        }
+        Returns: string
+      }
+      vehicles_find_by_vin: {
+        Args: { _company: string; _exclude?: string; _vin: string }
+        Returns: {
+          brand: string
+          id: string
+          model: string
+          owner_id: string
+          owner_name: string
+          plate: string
+          status: Database["public"]["Enums"]["vehicle_status"]
+          vin: string
+        }[]
+      }
+      vin_normalize: { Args: { _vin: string }; Returns: string }
       vo_margin_register: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {
@@ -7172,6 +7286,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

@@ -104,11 +104,11 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 |---|---|---|---|
 | INV000 | Paramétrage standard | ✅ fait | types de cession en table de paramètres |
 | INV005 | Réappro min/max | 🟦 partiel | `reorder_proposals`, vue Réappro, `/purchases/reorder` ; déclenchement manuel, pas automatique |
-| INV006 | Multi-emplacements (casiers) | 🟦 partiel | 2 localisations par article + casier sur le mouvement ; `article_bins` inutilisée ; casier non affiché en facturation/POS/picking (recherché dans `src/modules/sales/`) |
+| INV006 | Multi-emplacements (casiers) | 🟦 partiel | 2 localisations par article + casier sur le mouvement ; `article_bins` inutilisée ; casier affiché dans la liste de préparation (vue tablette, mission 05 carte 6) ; pas encore en facturation / POS |
 | INV007 | Étiquettes personnalisées | ✅ fait | M02 `/parts/labels` ; file différée sans écran |
 | INV010 | Stock unifié magasin + e-shop | ✅ fait | même `stock_moves`, e-shop M11 (`avancement.md` E10) |
 | INV011 | Inventaire physique annuel | ✅ fait | `/stock/inventory`, fonctions de `20260610320000_m5_inventory.sql` |
-| INV015 | Listes de préparation | 🟦 partiel | `/picking` (M6, `20260726120000_m6_picking_lists`) ; préparation VN : à vérifier |
+| INV015 | Listes de préparation | 🟦 partiel | `/picking` + vue tablette `/preparation/$pickingId` (M6, `20260726120000_m6_picking_lists`, `20260919310000_m6_preparation_tablette`) : casiers, disponible / en commande, étapes commandé → préparé → monté ; préparation VN (moto + options) via le bouton « Préparer » d'un document |
 | B4 | Triple stock + copies datées | 🟦 partiel | réel/réservé/disponible faits ; « en commande » absent ; copies non consultables ; cron à vérifier |
 | B5 | PAMP à chaque entrée | ✅ fait | `record_stock_move` (voir limites §7) |
 | B6 | 3 modes de réajustement | 🟦 partiel | 3 modes en SQL, 2 à l'écran |
@@ -133,3 +133,4 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | 2026-09-11 | Paramètres SQL facultatifs passés en `undefined` (appels `record_stock_move` etc.) | `7d31b6d` |
 | 2026-09-19 | Disponible avec « en commande » (CMD validées sans réception liée) sur l'écran des commandes de pièces (mission 02, carte 2) | `20260919250000_orders_lines` |
 | 2026-09-19 | « En commande » affiché aussi dans la recherche d'article des ventes (mission 05, carte 2), même calcul `_article_on_order_qty` | code seul |
+| 2026-09-19 | Liste de préparation sur tablette (mission 05, carte 6) : casiers (principal, second, `article_bins`) et triple stock par ligne ; **aucun mouvement de stock** au changement d'étape (commandé / préparé / monté) | `20260919310000_m6_preparation_tablette` |

@@ -18,6 +18,7 @@ import {
 } from './subobjects-api';
 import { contactDisplayName } from './api';
 import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
+import { PrepareButton } from '@/modules/sales/prepare-button';
 import { t } from '@/lib/i18n';
 
 const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)?.tone ?? 'neutral';
@@ -46,7 +47,7 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th></tr></thead>
+        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th><Th className="w-12" /></tr></thead>
         <tbody>
           {data.map((d) => (
             <tr key={d.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}>
@@ -56,6 +57,7 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
               <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>
               <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
               <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.paid_amount))}</td>
+              <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><PrepareButton doc={d} /></td>
             </tr>
           ))}
         </tbody>

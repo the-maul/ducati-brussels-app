@@ -23,6 +23,7 @@ import { listContactsByIds, contactDisplayName } from '@/modules/contacts/api';
 import { listStock } from '@/modules/stock/stock-api';
 import { computeDocAvailability, AVAILABILITY_DOC_TYPES, type AvailabilityStatus } from '@/modules/sales/availability';
 import { AvailabilityBadge } from '@/modules/sales/availability-badge';
+import { PrepareButton } from '@/modules/sales/prepare-button';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/')({
@@ -316,7 +317,7 @@ function SalesList() {
               <Th>{t('availability.colDispo')}</Th>
               <Th className="text-right">{t('sales.colTtc')}</Th>
               <Th>{t('sales.colAcompte')}</Th>
-              <Th className="w-32 text-right">{t('sales.colActions')}</Th>
+              <Th className="w-40 text-right">{t('sales.colActions')}</Th>
             </tr>
           </thead>
           <tbody>
@@ -337,6 +338,7 @@ function SalesList() {
                   <td className="px-3 py-2"><PaidBadge ttc={Number(d.total_ttc)} paid={Number(d.paid_amount)} /></td>
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
+                      <PrepareButton doc={d} />
                       <Button variant="ghost" size="icon" title={t('sales.print')} onClick={() => printMut.mutate(d.id)}>
                         <Printer className="size-4" />
                       </Button>

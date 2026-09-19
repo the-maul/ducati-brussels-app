@@ -136,6 +136,33 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   `comment-templates-editor.tsx`, route `src/routes/_app.settings.comments.tsx`, `print-document.ts`,
   `_app.sales.$documentId.tsx` ; test `tests/sales-line-types.test.ts`.
 
+### Carte 6 — Liste de préparation en un clic, sur tablette (19/09, à valider)
+- Bouton **« Préparer »** (icône liste) sur chaque document de la **liste des ventes** et de l'onglet
+  **Documents de la fiche client** (devis / proforma, bon de commande, réservation, BL, facture ; pas
+  un document annulé) : **crée ou rouvre** la liste de préparation du document, sans entrer dedans,
+  et ouvre la **vue tablette**. Une seule liste par document ; les lignes ajoutées au document
+  ensuite sont ajoutées à la réouverture (rien n'est supprimé).
+- **Vue tablette** (`/preparation/…`, aussi en cliquant une liste dans « Listes de préparation ») :
+  une carte par ligne (moto + options ; lignes texte, vides et main-d'œuvre exclues) avec
+  référence, désignation, quantité, **casier(s)** en gros (casier principal, second casier et
+  casiers multiples), stock libre et en commande, état **Disponible / En commande / À commander**
+  (calculé) puis grands boutons **Commandé → Préparé → Monté** ; « préparé par X le … » affiché,
+  « Annuler l'étape » pour revenir en arrière. **Emplacement de préparation** du client en tête
+  (boutons Buanderie, G.ET.C, P.ET.C, ET@ ou texte libre / casier). Avancement « x / y préparées » ;
+  toutes les lignes préparées ou montées → liste « Prête ».
+- **Stock** : changer d'étape **ne bouge pas le stock** (le picking n'en faisait déjà pas) ; la
+  réservation et la sortie restent faites par les documents (RES / BL / FAC). Règle rappelée à l'écran.
+- **Traçabilité** : chaque écriture sur une liste ou une ligne (étape, emplacement, création) va dans
+  `events` (qui, quand, ancien → nouveau) ; l'étape garde aussi son auteur et son heure.
+- Migration `20260919310000_m6_preparation_tablette.sql` (colonnes `picking_list_items.document_line_id`,
+  `prep_step`, `prep_step_at`, `prep_step_by`, `sort_order` ; index unique par document ; audit ;
+  fonctions `picking_open_for_document`, `picking_set_step`, `picking_set_location`, `picking_detail`).
+  Code : `src/modules/sales/picking-api.ts`, `preparation.ts`, `prepare-button.tsx`,
+  `src/routes/_app.preparation.$pickingId.tsx`, `_app.picking.tsx`, `_app.sales.index.tsx`,
+  `src/modules/contacts/client-tabs.tsx` ; test `tests/sales-preparation.test.ts`.
+- Testé en base dans une transaction annulée (création, réouverture sans doublon, lignes texte / vide /
+  MO exclues, étapes, statut de la liste, emplacement, refus d'un utilisateur d'une autre société).
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.

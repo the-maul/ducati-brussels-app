@@ -1,7 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ClipboardCheck } from 'lucide-react';
+import { Loader2, Plus, ClipboardCheck, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
@@ -21,7 +21,7 @@ import { listDocuments, type DocumentRow } from '@/modules/sales/write-api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/picking')({
-  head: () => ({ meta: [{ title: 'Picking list — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: 'Listes de préparation — Ducati Bruxelles' }] }),
   component: PickingPage,
 });
 
@@ -34,6 +34,7 @@ const ITEM_STATUS_TONE: Record<PickingItemStatus, StatusTone> = { a_preparer: 'n
 function PickingPage() {
   const { activeCompanyId } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -60,12 +61,19 @@ function PickingPage() {
               <Th>{t('picking.colStatus')}</Th>
               <Th className="text-right">{t('picking.colProgress')}</Th>
               <Th>{t('picking.colDate')}</Th>
+              <Th className="w-16" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={5} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && data.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('picking.listEmpty')}</td></tr>}
-            {data?.map((p) => <PickingRow key={p.id} picking={p} onOpen={() => setDetailId(p.id)} />)}
+            {isLoading && <tr><td colSpan={6} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
+            {data && data.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('picking.listEmpty')}</td></tr>}
+            {data?.map((p) => (
+              <PickingRow
+                key={p.id} picking={p}
+                onOpen={() => navigate({ to: '/preparation/$pickingId', params: { pickingId: p.id } })}
+                onQuantities={() => setDetailId(p.id)}
+              />
+            ))}
           </tbody>
         </table>
       </div>
@@ -77,7 +85,7 @@ function PickingPage() {
           onCreated={(id) => {
             qc.invalidateQueries({ queryKey: ['picking-lists', activeCompanyId] });
             setNewOpen(false);
-            setDetailId(id);
+            navigate({ to: '/preparation/$pickingId', params: { pickingId: id } });
           }}
         />
       )}
@@ -93,7 +101,7 @@ function PickingPage() {
   );
 }
 
-function PickingRow({ picking, onOpen }: { picking: PickingListRow; onOpen: () => void }) {
+function PickingRow({ picking, onOpen, onQuantities }: { picking: PickingListRow; onOpen: () => void; onQuantities: () => void }) {
   const { data: items } = useQuery({
     queryKey: ['picking-items', picking.id],
     queryFn: () => getPicking(picking.id).then((r) => r.items),
@@ -109,6 +117,9 @@ function PickingRow({ picking, onOpen }: { picking: PickingListRow; onOpen: () =
       <td className="px-3 py-2"><StatusBadge tone={PICKING_STATUS_TONE[picking.status]} label={t(`picking.status${cap(picking.status)}`)} /></td>
       <td className="px-3 py-2 text-right tabular-nums">{ready} / {total}</td>
       <td className="px-3 py-2 font-mono text-[12px]">{picking.created_at.slice(0, 10)}</td>
+      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon" title={t('picking.quantities')} onClick={onQuantities}><ListChecks className="size-4" /></Button>
+      </td>
     </tr>
   );
 }

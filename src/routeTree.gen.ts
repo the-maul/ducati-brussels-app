@@ -57,6 +57,7 @@ import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
 import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
 import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
+import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
@@ -340,6 +341,11 @@ const AppPartsShopifyRoute = AppPartsShopifyRouteImport.update({
   path: '/shopify',
   getParentRoute: () => AppPartsRoute,
 } as any)
+const AppPreparationPickingIdRoute = AppPreparationPickingIdRouteImport.update({
+  id: '/preparation/$pickingId',
+  path: '/preparation/$pickingId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -606,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/new': typeof AppPartsNewRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
+  '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -687,6 +694,7 @@ export interface FileRoutesByTo {
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/new': typeof AppPartsNewRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
+  '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -779,6 +787,7 @@ export interface FileRoutesById {
   '/_app/parts/labels': typeof AppPartsLabelsRoute
   '/_app/parts/new': typeof AppPartsNewRoute
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
+  '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -873,6 +882,7 @@ export interface FileRouteTypes {
     | '/parts/labels'
     | '/parts/new'
     | '/parts/shopify'
+    | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/new'
     | '/purchases/reorder'
@@ -954,6 +964,7 @@ export interface FileRouteTypes {
     | '/parts/labels'
     | '/parts/new'
     | '/parts/shopify'
+    | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/new'
     | '/purchases/reorder'
@@ -1045,6 +1056,7 @@ export interface FileRouteTypes {
     | '/_app/parts/labels'
     | '/_app/parts/new'
     | '/_app/parts/shopify'
+    | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
     | '/_app/purchases/new'
     | '/_app/purchases/reorder'
@@ -1441,6 +1453,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/parts/shopify'
       preLoaderRoute: typeof AppPartsShopifyRouteImport
       parentRoute: typeof AppPartsRoute
+    }
+    '/_app/preparation/$pickingId': {
+      id: '/_app/preparation/$pickingId'
+      path: '/preparation/$pickingId'
+      fullPath: '/preparation/$pickingId'
+      preLoaderRoute: typeof AppPreparationPickingIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/purchases/': {
       id: '/_app/purchases/'
@@ -1998,6 +2017,7 @@ interface AppRouteChildren {
   AppTradeinRoute: typeof AppTradeinRouteWithChildren
   AppVehiclesRoute: typeof AppVehiclesRouteWithChildren
   AppWorkshopRoute: typeof AppWorkshopRouteWithChildren
+  AppPreparationPickingIdRoute: typeof AppPreparationPickingIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2022,6 +2042,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTradeinRoute: AppTradeinRouteWithChildren,
   AppVehiclesRoute: AppVehiclesRouteWithChildren,
   AppWorkshopRoute: AppWorkshopRouteWithChildren,
+  AppPreparationPickingIdRoute: AppPreparationPickingIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
