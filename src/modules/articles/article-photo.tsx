@@ -15,7 +15,7 @@ import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type At
 import { t } from '@/lib/i18n';
 
 const PHOTOS_FOLDER = 'Photos';
-const MAX_GALLERY = 12;
+const MAX_GALLERY = 40;   // la reprise Shopify peut apporter une dizaine de photos par produit
 
 type PhotoItem = { att: Attachment; url: string };
 
@@ -36,15 +36,16 @@ export function ArticlePhotoCard({ companyId, articleId }: { companyId: string; 
     queryKey: ['article-photos', articleId],
     queryFn: async (): Promise<PhotoItem[]> => {
       const atts = await listAttachments('article', articleId);
-      const imgs = atts.filter(isArticlePhoto).slice(0, MAX_GALLERY);
-      const out: PhotoItem[] = [];
-      for (const att of imgs) {
-        try {
-          const url = await signedUrl(att.storage_path);
-          if (url) out.push({ att, url });
-        } catch { /* pièce illisible — ignorée */ }
-      }
-      return out;
+      // Ordre : photos du DMS (plus récentes d'abord), puis photos reprises de Shopify dans leur
+      // ordre d'origine (sort_order, image principale en premier).
+      const imgs = atts.filter(isArticlePhoto)
+        .map((a, i) => ({ a, i }))
+        .sort((x, y) => (x.a.sort_order ?? -1) - (y.a.sort_order ?? -1) || x.i - y.i)
+        .map((x) => x.a)
+        .slice(0, MAX_GALLERY);
+      const urls = await Promise.all(imgs.map((att) => signedUrl(att.storage_path).catch(() => null)));
+      // pièce illisible — ignorée
+      return imgs.flatMap((att, i) => (urls[i] ? [{ att, url: urls[i]! }] : []));
     },
   });
   const photos = photosQ.data ?? [];
@@ -103,7 +104,7 @@ export function ArticlePhotoCard({ companyId, articleId }: { companyId: string; 
               key={p.att.id} type="button" onClick={() => setZoom(p)} title={t('articles.photoZoom')}
               className="group relative shrink-0 cursor-zoom-in overflow-hidden rounded border border-border"
             >
-              <img src={p.url} alt={t('articles.photoOf')} className="h-20 w-28 object-cover transition-transform group-hover:scale-105" />
+              <img src={p.url} alt={p.att.alt_text || t('articles.photoOf')} className="h-20 w-28 object-cover transition-transform group-hover:scale-105" />
               <span className="absolute inset-0 grid place-items-center text-white opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
                 <ZoomIn className="size-4" />
               </span>
@@ -120,7 +121,7 @@ export function ArticlePhotoCard({ companyId, articleId }: { companyId: string; 
           </DialogHeader>
           {zoom && (
             <>
-              <img src={zoom.url} alt={t('articles.photoOf')} className="max-h-[74vh] w-full rounded object-contain" />
+              <img src={zoom.url} alt={zoom.att.alt_text || t('articles.photoOf')} className="max-h-[74vh] w-full rounded object-contain" />
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" onClick={() => del.mutate(zoom.att)} disabled={del.isPending}>
                   {del.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4 text-danger" />} {t('action.delete')}

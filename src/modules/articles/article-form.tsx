@@ -24,6 +24,7 @@ import {
 } from './product-families';
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
+import { ArticleWebSection } from './article-web';
 
 /** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
 export type RoundingRule = { sort_order: number; up_to: number; step: number; mode: 'up' | 'nearest' };
@@ -83,6 +84,8 @@ type FormState = {
   reprise_prefix: string;
   publishable: boolean;
   is_library: boolean;
+  web_title: string;
+  web_description: string;
 };
 
 function fromArticle(a: Article | null): FormState {
@@ -129,6 +132,8 @@ function fromArticle(a: Article | null): FormState {
     reprise_prefix: a?.reprise_prefix ?? '',
     publishable: a?.publishable ?? false,
     is_library: a?.is_library ?? false,
+    web_title: a?.web_title ?? '',
+    web_description: a?.web_description ?? '',
   };
 }
 
@@ -177,6 +182,9 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     reprise_prefix: nn(f.reprise_prefix),
     publishable: f.publishable,
     is_library: f.is_library,
+    // Textes du site (repris une fois de Shopify, décision W-4 ; le DMS fait foi ensuite)
+    web_title: nn(f.web_title),
+    web_description: f.web_description.trim() === '' ? null : f.web_description.trim(),
   };
   // Colonnes ajoutées par migrations 20260718/20260720 — pas encore dans les types générés
   const year = (s: string) => {
@@ -394,6 +402,17 @@ export function ArticleForm({
         <div className="col-span-full">
           <Check label={t('articles.showDescriptifDoc')} checked={f.show_descriptif_on_documents} onChange={(v) => set('show_descriptif_on_documents', v)} />
         </div>
+      </Section>
+
+      <Section title={t('articles.secWeb')}>
+        <ArticleWebSection
+          companyId={companyId}
+          articleId={initial?.id ?? null}
+          title={f.web_title}
+          description={f.web_description}
+          onTitle={(v) => set('web_title', v)}
+          onDescription={(v) => set('web_description', v)}
+        />
       </Section>
 
       <Section title={t('articles.secSupplier')}>

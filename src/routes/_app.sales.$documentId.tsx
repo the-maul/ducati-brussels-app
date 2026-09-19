@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, Mail, MessageSquare, Link2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -14,7 +14,9 @@ import { getDocumentFull, convertDocument, generateCreditNote, listPayments, CON
 import { documentBalance } from '@/modules/sales/balance';
 import { DocumentBalanceBlock, FinancingDialog } from '@/modules/sales/balance-panel';
 import { listFinancingOrgs } from '@/modules/sales/financing-api';
-import { enqueueDocumentEmail, enqueueDocumentSms } from '@/modules/sales/notify-api';
+import { enqueueDocumentSms } from '@/modules/sales/notify-api';
+import { openSalesPdfPreview } from '@/modules/sales/document-pdf-data';
+import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
@@ -95,6 +97,10 @@ function DocumentView() {
   });
   const [mailOpen, setMailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
+  const pdfPreview = useMutation({
+    mutationFn: () => openSalesPdfPreview(data!),
+    meta: { success: false },
+  });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return (
@@ -129,6 +135,7 @@ function DocumentView() {
           <div className="flex items-center gap-2">
             <PrepareButton doc={doc} withLabel />
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
+            <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setSmsOpen(true)}><MessageSquare /> {t('sales.sendSms')}</Button>}
@@ -311,57 +318,12 @@ function DocumentView() {
         />
       )}
       {mailOpen && contactQ.data && (
-        <SendMailDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setMailOpen(false)} />
+        <DocumentMailDialog full={data} contact={contactQ.data} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} onClose={() => setMailOpen(false)} />
       )}
       {smsOpen && contactQ.data && (
         <SendSmsDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setSmsOpen(false)} />
       )}
     </>
-  );
-}
-
-function SendMailDialog({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
-  const label = document.number ?? t('sales.draftSuffix');
-  const [subject, setSubject] = useState(t('sales.mailSubjectDefault').replace('{number}', label));
-  const [body, setBody] = useState(t('sales.mailBodyDefault').replace('{number}', label));
-  const send = useMutation({
-    mutationFn: () => enqueueDocumentEmail({ companyId, document, contact, subject, body }),
-    onSuccess: () => { toast.success(t('sales.mailQueued')); onClose(); },
-      // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
-      meta: { success: false, error: false },
-    onError: () => toast.error(t('sales.errSend')),
-  });
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{t('sales.sendMailTitle')}</DialogTitle></DialogHeader>
-        {!contact.email ? (
-          <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('sales.noEmail')}</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>{t('sales.mailTo')}</Label>
-              <Input value={contact.email} disabled />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('sales.mailSubject')}</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('sales.mailBody')}</Label>
-              <Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
-            </div>
-            <p className="text-[12px] text-muted-foreground">{t('sales.notifHint')}</p>
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={() => send.mutate()} disabled={send.isPending || !contact.email}>
-            {send.isPending ? <Loader2 className="animate-spin" /> : <Mail />} {t('sales.send')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
