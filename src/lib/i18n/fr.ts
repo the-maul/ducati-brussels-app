@@ -27,6 +27,7 @@ export const fr = {
     purchases: 'Achats & réceptions',
     orders: 'Commandes de pièces',
     sales: 'Ventes & Facturation',
+    balances: 'Soldes à encaisser',
     picking: 'Picking list',
     clients: 'Contacts',
     crm: 'CRM',
@@ -2544,6 +2545,12 @@ export const fr = {
     vehicleDeclToValidate: 'À valider',
     vehicleDeclSeeAll: 'Ouvrir « Motos déclarées à valider »',
     originPortal: 'espace client',
+    // Mission 05, carte 10 : acompte encaissé → pièces à commander ; factures échues impayées
+    depositTitle: 'Acompte reçu : pièces à commander',
+    depositLine: '{n} pièce(s) à commander',
+    unpaidTitle: 'Factures échues impayées',
+    unpaidLine: 'Reste {amount} · échue le {date}',
+    unpaidSeeAll: 'Ouvrir « Soldes à encaisser »',
   },
 
   // Mission 04, cartes 6 à 8 : moto du client (fiche client, carte grise, déclaration par le client)
@@ -2873,6 +2880,27 @@ export const fr = {
     originDoc: 'Document :',
     originClient: 'Client :',
     originVehicle: 'Moto :',
+  },
+
+  // Soldes à encaisser (mission 05, carte 10)
+  openBalances: {
+    title: 'Soldes à encaisser',
+    subtitle: 'Documents ouverts avec un reste à payer par le client (financement accepté déduit).',
+    filterSeller: 'Vendeur',
+    allSellers: 'Tous les vendeurs',
+    sortBy: 'Trier par',
+    sortDue: 'Échéance (échus d’abord)',
+    sortAge: 'Ancienneté',
+    sortAmount: 'Montant',
+    totalDue: 'Reste à encaisser',
+    overdueDue: 'Dont échu',
+    docs: 'Documents',
+    overdueCount: '{n} échu(s)',
+    empty: 'Aucun solde à encaisser.',
+    colDoc: 'Document', colClient: 'Client', colSeller: 'Vendeur', colDate: 'Date', colDue: 'Échéance', colState: 'État',
+    ageDays: '({n} j)',
+    daysOverdue: 'depuis {n} j',
+    rule: 'Factures, tickets, bons de commande, réservations et BL non soldés (ni brouillon, ni annulé, ni converti). Une facture échue impayée est signalée une seule fois dans la cloche du vendeur et des administrateurs.',
   },
 
   // Mission 03 — Produits Shopify rapprochés des articles du stock (M2)
