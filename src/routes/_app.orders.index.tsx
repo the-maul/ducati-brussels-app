@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Plus, FileSpreadsheet, PackageCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -57,6 +57,9 @@ function OrdersList() {
         description={t('orders.subtitle')}
         actions={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/purchases/proposal' })}>
+              <PackageCheck /> {t('purchases.proposalBtn')}
+            </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/orders/excel' })}>
               <FileSpreadsheet /> {t('orders.excelTitle')}
             </Button>

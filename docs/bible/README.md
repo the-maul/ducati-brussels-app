@@ -46,7 +46,7 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
 | # | Mission | État |
 |---|---|---|
 | 01 | [Nouveau client](missions/mission-01-nouveau-client.md) | 🟦 lots 0, 1, 2 faits · lot 5 : cloche des inscriptions et tri G8 faits · reste fusion des doublons, portail, borne, questionnaire du site |
-| 02 | [Commandes de pièces](missions/mission-02-commandes-pieces.md) ([spécification](../process-commandes-pieces.md)) | 🟦 règles des 4 types, suivi de l’état et pièces d’une commande faits (à valider) · réservation en PDF par mail faite (à valider) · paiement par QR de virement sur le 2e écran fait (à valider ; Stripe et Bancontact à venir) · commande depuis un devis ou une facture faite (à valider) · reste 4 cartes |
+| 02 | [Commandes de pièces](missions/mission-02-commandes-pieces.md) ([spécification](../process-commandes-pieces.md)) | 🟦 règles des 4 types, suivi de l’état et pièces d’une commande faits (à valider) · réservation en PDF par mail faite (à valider) · paiement par QR de virement sur le 2e écran fait (à valider ; Stripe et Bancontact à venir) · commande depuis un devis ou une facture faite (à valider) · regroupement par fournisseur et commande fournisseur faits (à valider ; fichier DCS exact attendu) · reste 3 cartes |
 | 03 | [Shopify](missions/mission-03-shopify.md) | 🟦 accès fait · produits Shopify rapprochés des articles (à valider) · photos et textes repris dans le DMS (à valider) · questions en attente |
 | 04 | [Fiche client et moto au comptoir](missions/mission-04-fiche-client-moto.md) | 🟦 feu vert 19/09 · cartes 1 à 8 faites (à valider) |
 | 05 | [Devis moto, options et préparation](missions/mission-05-devis-preparation.md) | 🟦 feu vert 19/09 · cartes 1 à 10 faites (à valider) |

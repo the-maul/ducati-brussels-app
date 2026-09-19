@@ -62,6 +62,7 @@ import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.prepa
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
+import { Route as AppPurchasesProposalRouteImport } from './routes/_app.purchases.proposal'
 import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases.reorder'
 import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchases.suppliers'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
@@ -369,6 +370,11 @@ const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AppPurchasesRoute,
 } as any)
+const AppPurchasesProposalRoute = AppPurchasesProposalRouteImport.update({
+  id: '/proposal',
+  path: '/proposal',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
 const AppPurchasesReorderRoute = AppPurchasesReorderRouteImport.update({
   id: '/reorder',
   path: '/reorder',
@@ -634,6 +640,7 @@ export interface FileRoutesByFullPath {
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
+  '/purchases/proposal': typeof AppPurchasesProposalRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
@@ -719,6 +726,7 @@ export interface FileRoutesByTo {
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
+  '/purchases/proposal': typeof AppPurchasesProposalRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
@@ -815,6 +823,7 @@ export interface FileRoutesById {
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
+  '/_app/purchases/proposal': typeof AppPurchasesProposalRoute
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
@@ -913,6 +922,7 @@ export interface FileRouteTypes {
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/new'
+    | '/purchases/proposal'
     | '/purchases/reorder'
     | '/purchases/suppliers'
     | '/sales/$documentId'
@@ -998,6 +1008,7 @@ export interface FileRouteTypes {
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/new'
+    | '/purchases/proposal'
     | '/purchases/reorder'
     | '/sales/$documentId'
     | '/sales/balances'
@@ -1093,6 +1104,7 @@ export interface FileRouteTypes {
     | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
     | '/_app/purchases/new'
+    | '/_app/purchases/proposal'
     | '/_app/purchases/reorder'
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
@@ -1526,6 +1538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPurchasesNewRouteImport
       parentRoute: typeof AppPurchasesRoute
     }
+    '/_app/purchases/proposal': {
+      id: '/_app/purchases/proposal'
+      path: '/proposal'
+      fullPath: '/purchases/proposal'
+      preLoaderRoute: typeof AppPurchasesProposalRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
     '/_app/purchases/reorder': {
       id: '/_app/purchases/reorder'
       path: '/reorder'
@@ -1905,6 +1924,7 @@ const AppPurchasesSuppliersRouteWithChildren =
 interface AppPurchasesRouteChildren {
   AppPurchasesOrderIdRoute: typeof AppPurchasesOrderIdRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
+  AppPurchasesProposalRoute: typeof AppPurchasesProposalRoute
   AppPurchasesReorderRoute: typeof AppPurchasesReorderRoute
   AppPurchasesSuppliersRoute: typeof AppPurchasesSuppliersRouteWithChildren
   AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
@@ -1913,6 +1933,7 @@ interface AppPurchasesRouteChildren {
 const AppPurchasesRouteChildren: AppPurchasesRouteChildren = {
   AppPurchasesOrderIdRoute: AppPurchasesOrderIdRoute,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
+  AppPurchasesProposalRoute: AppPurchasesProposalRoute,
   AppPurchasesReorderRoute: AppPurchasesReorderRoute,
   AppPurchasesSuppliersRoute: AppPurchasesSuppliersRouteWithChildren,
   AppPurchasesIndexRoute: AppPurchasesIndexRoute,

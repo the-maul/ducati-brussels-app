@@ -41,7 +41,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 | 1 | Règles des 4 types de commande réglables dans Paramètres | Les minimums, le supplément, le « une par jour » et le repli se règlent dans Paramètres → Tables ; le serveur refuse une validation hors règle avec un message clair ; la règle est rappelée sur l'écran de la commande | 🟦 à valider | 19/09 |
 | 2 | Ajouter et modifier les pièces d'une commande | On ajoute, modifie, supprime des lignes (article, qté client / magasin, fournisseur, prix) tant que la commande est en brouillon | 🟦 à valider | 19/09 |
 | 3 | Créer une commande depuis un devis ou une facture | Bouton « Proposition de commande » ligne / totale sur un document de vente, avec choix du type | 🟦 à valider | 19/09 |
-| 4 | Regrouper par fournisseur et envoyer | Écran « Rappel proposition » groupé par fournisseur avec minimum / franco, génération de la commande fournisseur | ⬜ à faire | — |
+| 4 | Regrouper par fournisseur et envoyer | Écran « Rappel proposition » groupé par fournisseur avec minimum / franco, génération de la commande fournisseur | 🟦 à valider (fichier DCS au format provisoire, voir §4 q. 9) | 19/09 |
 | 5 | Suivre l'état d'une commande : en attente de paiement, payée, à envoyer, envoyée | Transitions par boutons, contrôlées par le serveur, historique (qui, quand) ; liste filtrable par état et par type avec compteurs | 🟦 à valider | 19/09 |
 | 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | 🟦 à valider (toutes les lignes, voir §5) | 19/09 |
 | 7 | Commande Excel Ducati : alerte 2 000 €, clôture, archivage | Saisie enregistrée en base, alerte verte dans la barre du haut, n° interne au 1er téléchargement, clôture et archivage du classeur | ⬜ à faire (écran brouillon en mémoire existant) | — |
@@ -72,6 +72,21 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
    **Mis à jour le 19/09 (mission 05, carte 7)** : les commandes de pièces validées comptent
    désormais : leur quantité magasin pour tout le monde (tant qu'elle n'est pas associée à un client),
    leur quantité client pour ce client seulement. Carte 4 : exclure les pièces transformées en CMD.
+   **Fait le 19/09 (carte 4)** : une pièce de commande de pièces reliée à une ligne de CMD compte **une seule
+   fois**, par la commande de pièces (règle client / magasin ci-dessus) ; la ligne de CMD ne compte que ce
+   qu'elle commande en plus pour le stock ; CMD reçue (réception liée) = plus rien en commande. Test
+   `tests/purchases-proposal.test.ts` + vérification en base (transaction annulée).
+9. **Fichier DCS exact** (carte 4) : les fichiers STANDARD et URGENTE sortent au **format provisoire** existant
+   (CSV : référence, désignation, quantité, type). **Le modèle exact du fichier Ducati attend Simon** (fichier
+   Excel imposé par Ducati, glossaire DCS). Tant qu'il n'est pas reçu, ne pas présenter le fichier comme conforme.
+10. **Prix de la proposition** (carte 4) : les montants, le minimum de commande et le franco sont calculés au
+   **prix d'achat** (PA de la fiche article, sinon PAMP), pas au prix client. Au 19/09, seuls 301 articles sur
+   81 785 ont un PA : les autres sont signalés « PA inconnu » et non comptés. *À confirmer*, et à compléter par
+   l'import des tarifs fournisseurs (M02).
+11. **Commande pas encore payée** (carte 4) : ses pièces apparaissent dans la proposition mais **ne sont pas
+   cochées** par défaut ; si on les commande quand même (règle « commander dès l'acompte »), la commande de pièces
+   reste « en attente de paiement ». Les commandes **payées / à envoyer** entièrement commandées passent
+   automatiquement à **« Envoyée »**. *À confirmer* : est-ce le bon moment pour « Envoyée » ?
 
 ## 5. Ce qui a changé dans l'application
 
@@ -119,6 +134,44 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   `qr_payment_cancel` / `counter_display_show` / `counter_display_current`, table `counter_displays`.
   Migration `20260919360000_m6_qr_virement_ecran_client`. Aucun flux bancaire : la réception est confirmée
   à la main. Stripe (+5 %) et Bancontact : pas faits (voir §2).
+
+- [M04 Achats](../modules/M04-achats.md) : **regrouper les commandes par fournisseur et les envoyer** (carte 4,
+  parité G8 « Rappel proposition de commande »). Achats → **Commandes de pièces à passer** (`/purchases/proposal`,
+  aussi depuis la liste des commandes de pièces) : toutes les pièces des commandes de pièces validées (en attente
+  de paiement, payées, à envoyer) pas encore commandées chez un fournisseur, **regroupées par fournisseur** ;
+  filtre **par type** (tous, urgente, standard, Excel, accident, liste lue dans Paramètres) avec compteurs ; par
+  fournisseur : total HTVA **au prix d'achat** (PA, sinon PAMP ; « PA inconnu » signalé), montant par type,
+  **minimum de commande** et **franco de port** (champs existants de la fiche fournisseur) avec badge atteint /
+  « manque X » et alerte ; lignes : réf., désignation, **client**, **document d'origine**, commande et son état,
+  type, **qté client / qté magasin**, PA, montant, **fournisseur modifiable** (tracé). Pièces cochées par défaut :
+  commandes payées ou à envoyer ; une commande **Excel** reste visible mais garde son circuit (classeur Ducati).
+  Actions par fournisseur : **Demande de prix** et **Envoyer la commande par mail** (Outlook par `graph-send-email`,
+  boîte au choix, PDF ou CSV joint, **« Vérifier sans envoyer »** = simulation ; envoi réel tracé dans `events`) ;
+  **Valider → commande fournisseur** : crée la CMD (n° `CMD-`, séquence par société) validée avec une ligne par
+  article, relie chaque pièce à sa ligne (`part_order_lines.purchase_line_id`), passe les commandes de pièces
+  payées / à envoyer entièrement commandées à **« Envoyée »** (`part_order_transition`), trace dans `events`
+  (`supplier_order_from_proposal`, `part_order_supplier_order`). **Fournisseur DCS** (nouvelle case « Commandé par
+  le DCS Ducati » sur la fiche fournisseur) : une CMD **STANDARD** (standard + accident) et une CMD **URGENTE**
+  distinctes, chacune avec son fichier DCS (format provisoire, q. 9). **Réception** : bloc « Pour qui ? » sur la
+  CMD (client, commande de pièces, document d'origine de chaque ligne ; aussi sur une réception reliée à sa CMD).
+  **« En commande » sans double comptage** (q. 7). Aucun mouvement de stock. Fonctions `supplier_order_proposal`,
+  `supplier_order_from_proposal`, `supplier_proposal_set_supplier`, `supplier_proposal_log_mail`,
+  `purchase_order_destinations`, `article_on_order_for` (redéfinie). Migration
+  `20260919370000_m4_proposition_commande_fournisseur` (appliquée le 19/09 après test en transaction annulée).
+  Code : `src/modules/purchases/proposal.ts`, `proposal-api.ts`, `proposal-pdf.ts`, `supplier-mail-dialog.tsx`,
+  `purchase-destinations.tsx`, `src/routes/_app.purchases.proposal.tsx` ; test `tests/purchases-proposal.test.ts`.
+
+### À tester (carte 4)
+
+1. Fiche du fournisseur Ducati (Achats → Fournisseurs) : cocher **« Commandé par le DCS Ducati »**, saisir un
+   minimum de commande et un franco. Valider une commande de pièces standard et une urgente avec des pièces de
+   ce fournisseur, les marquer payées.
+2. Achats → **Commandes de pièces à passer** : le fournisseur regroupe les deux commandes (client, document,
+   qté client / magasin), le filtre « Urgente » ne garde que l'urgente, les badges minimum / franco disent ce
+   qu'il manque. **Envoyer la commande par mail** → votre adresse → **Vérifier sans envoyer** (rien ne part).
+3. **Valider → commande fournisseur** : deux CMD (STANDARD, URGENTE) avec leur bouton DCS ; les commandes de
+   pièces passent « Envoyée » ; sur la CMD, le bloc « Pour qui ? » montre les clients ; sur le devis d'origine,
+   la pièce reste « en commande » pour ce client, sans être comptée deux fois.
 
 ### À tester (carte 9)
 
@@ -200,7 +253,9 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 
 - Le **disponible** compte « en commande » les commandes fournisseur (CMD) validées sans réception
   liée ; or l'écran Achats ne relie pas encore une réception à sa commande (`source_order_id`, voir
-  M04 §7) : une CMD validée resterait « en commande » après sa réception. Aucune CMD en base au 19/09.
+  M04 §7) : une CMD validée resterait « en commande » après sa réception, et le bloc « Pour qui ? »
+  n'apparaît que sur la CMD, pas sur une réception saisie à part (carte 4). **Manque** : choisir la CMD
+  à la saisie d'une réception. Aucune CMD en base au 19/09.
 - Le stock disponible affiché n'est **pas réservé** par la commande de pièces (règle de la carte : le
   stock n'est jamais modifié ici). La réservation viendra avec le document de réservation (carte 6).
 - Le total HT des règles = Σ (qté client + qté magasin) × PU HT : la part magasin compte dans le

@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileDown, Tag } from 'lucide-react';
+import { ArrowLeft, Loader2, FileDown, Tag, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { getPurchaseFull, listSuppliers, supplierName } from '@/modules/purchases/api';
 import { downloadDcs } from '@/modules/purchases/dcs-export';
 import { CustomerLabelDialog } from '@/modules/purchases/customer-label-dialog';
+import { PurchaseDestinations } from '@/modules/purchases/purchase-destinations';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -42,8 +43,8 @@ function PurchaseView() {
           <div className="flex flex-wrap gap-2">
             {order.doc_type === 'CMD' && (
               <>
-                <Button variant="outline" onClick={() => downloadDcs(order, lines, 'STANDARD')}><FileDown /> {t('purchases.dcsStandard')}</Button>
-                <Button variant="outline" onClick={() => downloadDcs(order, lines, 'URGENTE')}><FileDown /> {t('purchases.dcsUrgent')}</Button>
+                {order.dcs_kind !== 'URGENTE' && <Button variant="outline" onClick={() => downloadDcs(order, lines, 'STANDARD')}><FileDown /> {t('purchases.dcsStandard')}</Button>}
+                {order.dcs_kind !== 'STANDARD' && <Button variant="outline" onClick={() => downloadDcs(order, lines, 'URGENTE')}><FileDown /> {t('purchases.dcsUrgent')}</Button>}
               </>
             )}
             {order.doc_type === 'REC' && lines.length > 0 && (
@@ -56,6 +57,7 @@ function PurchaseView() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(order.status)} label={t(`purchases.status_${order.status}`)} />
         <StatusBadge tone="info" label={t(`purchases.regime_${order.vat_regime}`)} />
+        {order.dcs_kind && <StatusBadge tone="info" icon={FileDown} label={t('purchases.dcsKindBadge').replace('{kind}', order.dcs_kind)} />}
         {order.supplier_invoice_no && <span className="font-data text-[13px] text-muted-foreground">{t('purchases.invoiceNo')} : {order.supplier_invoice_no}</span>}
       </div>
 
@@ -83,6 +85,8 @@ function PurchaseView() {
         <span className="text-muted-foreground">{t('purchases.totalVat')} : {eur(Number(order.total_vat))}</span>
         <span className="text-base">{t('purchases.totalTtc')} : <b>{eur(Number(order.total_ttc))}</b></span>
       </div>
+
+      {(order.doc_type === 'CMD' || order.source_order_id) && <PurchaseDestinations orderId={order.id} lines={lines} icon={Users} />}
 
       {schedules.length > 0 && (
         <div className="mt-6">

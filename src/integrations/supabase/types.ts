@@ -1744,6 +1744,7 @@ export type Database = {
           street_number: string | null
           supplier_customer_no: string | null
           supplier_franco_min: number | null
+          supplier_is_dcs: boolean
           supplier_is_internal: boolean
           supplier_order_min: number | null
           supplier_order_min_qty: number | null
@@ -1850,6 +1851,7 @@ export type Database = {
           street_number?: string | null
           supplier_customer_no?: string | null
           supplier_franco_min?: number | null
+          supplier_is_dcs?: boolean
           supplier_is_internal?: boolean
           supplier_order_min?: number | null
           supplier_order_min_qty?: number | null
@@ -1956,6 +1958,7 @@ export type Database = {
           street_number?: string | null
           supplier_customer_no?: string | null
           supplier_franco_min?: number | null
+          supplier_is_dcs?: boolean
           supplier_is_internal?: boolean
           supplier_order_min?: number | null
           supplier_order_min_qty?: number | null
@@ -3517,6 +3520,7 @@ export type Database = {
           id: string
           line_ht: number
           order_id: string
+          purchase_line_id: string | null
           qty_client: number
           qty_shop: number
           reference: string | null
@@ -3532,6 +3536,7 @@ export type Database = {
           id?: string
           line_ht?: number
           order_id: string
+          purchase_line_id?: string | null
           qty_client?: number
           qty_shop?: number
           reference?: string | null
@@ -3547,6 +3552,7 @@ export type Database = {
           id?: string
           line_ht?: number
           order_id?: string
+          purchase_line_id?: string | null
           qty_client?: number
           qty_shop?: number
           reference?: string | null
@@ -3568,6 +3574,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "part_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_lines_purchase_line_id_fkey"
+            columns: ["purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
             referencedColumns: ["id"]
           },
           {
@@ -4149,6 +4162,7 @@ export type Database = {
           bl_date: string | null
           company_id: string
           created_at: string
+          dcs_kind: string | null
           doc_type: string
           expected_date: string | null
           global_discount_pct: number
@@ -4177,6 +4191,7 @@ export type Database = {
           bl_date?: string | null
           company_id: string
           created_at?: string
+          dcs_kind?: string | null
           doc_type?: string
           expected_date?: string | null
           global_discount_pct?: number
@@ -4205,6 +4220,7 @@ export type Database = {
           bl_date?: string | null
           company_id?: string
           created_at?: string
+          dcs_kind?: string | null
           doc_type?: string
           expected_date?: string | null
           global_discount_pct?: number
@@ -6189,6 +6205,7 @@ export type Database = {
           street_number: string | null
           supplier_customer_no: string | null
           supplier_franco_min: number | null
+          supplier_is_dcs: boolean
           supplier_is_internal: boolean
           supplier_order_min: number | null
           supplier_order_min_qty: number | null
@@ -6311,6 +6328,7 @@ export type Database = {
           street_number: string | null
           supplier_customer_no: string | null
           supplier_franco_min: number | null
+          supplier_is_dcs: boolean
           supplier_is_internal: boolean
           supplier_order_min: number | null
           supplier_order_min_qty: number | null
@@ -6463,6 +6481,7 @@ export type Database = {
           street_number: string | null
           supplier_customer_no: string | null
           supplier_franco_min: number | null
+          supplier_is_dcs: boolean
           supplier_is_internal: boolean
           supplier_order_min: number | null
           supplier_order_min_qty: number | null
@@ -7169,6 +7188,23 @@ export type Database = {
       portal_vehicle: { Args: { p_vehicle_id: string }; Returns: Json }
       portal_vehicles: { Args: never; Returns: Json }
       portal_whoami: { Args: never; Returns: Json }
+      purchase_order_destinations: {
+        Args: { _order: string }
+        Returns: {
+          contact_id: string
+          contact_name: string
+          dispatch_status: string
+          order_kind: string
+          part_order_id: string
+          part_order_line_id: string
+          part_order_number: string
+          purchase_line_id: string
+          qty_client: number
+          qty_shop: number
+          source_document_id: string
+          source_document_number: string
+        }[]
+      }
       qr_payment_cancel: { Args: { _payment: string }; Returns: undefined }
       qr_payment_confirm: { Args: { _payment: string }; Returns: undefined }
       qr_payment_lock: {
@@ -7521,6 +7557,64 @@ export type Database = {
         }[]
       }
       stock_value_owned: { Args: { _company: string }; Returns: number }
+      supplier_order_from_proposal: {
+        Args: {
+          _company: string
+          _line_ids: string[]
+          _note?: string
+          _supplier: string
+        }
+        Returns: Json
+      }
+      supplier_order_proposal: {
+        Args: { _company: string }
+        Returns: {
+          article_id: string
+          contact_id: string
+          contact_name: string
+          designation: string
+          dispatch_status: string
+          line_id: string
+          order_id: string
+          order_kind: string
+          order_number: string
+          paid: boolean
+          purchase_price: number
+          qty_client: number
+          qty_shop: number
+          reference: string
+          sale_price_ht: number
+          source_document_id: string
+          source_document_number: string
+          source_document_type: string
+          supplier_email: string
+          supplier_franco_min: number
+          supplier_id: string
+          supplier_is_dcs: boolean
+          supplier_name: string
+          supplier_order_min: number
+          supplier_ref: string
+          validated_at: string
+          vat_rate: number
+        }[]
+      }
+      supplier_proposal_log_mail: {
+        Args: {
+          _attachment: string
+          _company: string
+          _from: string
+          _kind: string
+          _line_ids: string[]
+          _subject: string
+          _supplier: string
+          _to: string
+        }
+        Returns: undefined
+      }
+      supplier_proposal_set_supplier: {
+        Args: { _line: string; _supplier: string }
+        Returns: undefined
+      }
       top_articles: {
         Args: { _company: string; _from: string; _limit?: number; _to: string }
         Returns: {

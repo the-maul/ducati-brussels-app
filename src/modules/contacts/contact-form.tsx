@@ -228,6 +228,7 @@ type FormState = {
   supplier_rfa_rate: string;
   supplier_franco_min: string;
   supplier_order_min: string;
+  supplier_is_dcs: boolean;
 };
 
 function fromContact(c: Contact | null): FormState {
@@ -302,6 +303,7 @@ function fromContact(c: Contact | null): FormState {
     supplier_rfa_rate: c?.supplier_rfa_rate != null ? String(c.supplier_rfa_rate) : '',
     supplier_franco_min: c?.supplier_franco_min != null ? String(c.supplier_franco_min) : '',
     supplier_order_min: c?.supplier_order_min != null ? String(c.supplier_order_min) : '',
+    supplier_is_dcs: c?.supplier_is_dcs ?? false,
   };
 }
 
@@ -378,6 +380,7 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     supplier_rfa_rate: f.supplier_rfa_rate.trim() === '' ? null : Number(f.supplier_rfa_rate),
     supplier_franco_min: f.supplier_franco_min.trim() === '' ? null : Number(f.supplier_franco_min),
     supplier_order_min: f.supplier_order_min.trim() === '' ? null : Number(f.supplier_order_min),
+    supplier_is_dcs: f.supplier_is_dcs,
   };
   // Colonnes ajoutées par migration 20260629 — pas encore dans types.ts auto-généré
   return Object.assign(base, {
@@ -844,6 +847,7 @@ export function ContactForm({
                 <Input type="number" step="0.01" min="0" value={f.supplier_order_min} onChange={(e) => set('supplier_order_min', e.target.value)} className="text-right tabular-nums" />
               </Field>
               <Check label={t('contacts.supplierInternal')} checked={f.supplier_is_internal} onChange={(v) => set('supplier_is_internal', v)} />
+              <Check label={t('contacts.supplierIsDcs')} checked={f.supplier_is_dcs} onChange={(v) => set('supplier_is_dcs', v)} />
             </Section>
           )}
 
