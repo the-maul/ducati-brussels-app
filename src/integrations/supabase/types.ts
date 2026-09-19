@@ -5071,27 +5071,42 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          dedupe_key: string | null
+          document_id: string | null
           id: string
           kind: string
           origin: string | null
+          payload: Json | null
+          resolved_at: string | null
+          target_user_id: string | null
           title: string
         }
         Insert: {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          document_id?: string | null
           id?: string
           kind: string
           origin?: string | null
+          payload?: Json | null
+          resolved_at?: string | null
+          target_user_id?: string | null
           title: string
         }
         Update: {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          document_id?: string | null
           id?: string
           kind?: string
           origin?: string | null
+          payload?: Json | null
+          resolved_at?: string | null
+          target_user_id?: string | null
           title?: string
         }
         Relationships: [
@@ -5100,6 +5115,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_notifications_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -5774,6 +5796,7 @@ export type Database = {
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
+      _brussels_today: { Args: never; Returns: string }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -5782,6 +5805,7 @@ export type Database = {
       _cron_dormant_alert: { Args: never; Returns: undefined }
       _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
+      _cron_sales_alerts: { Args: never; Returns: Json }
       _cron_stock_copies: { Args: never; Returns: number }
       _declared_vehicle_copy_scan: {
         Args: {
@@ -5820,6 +5844,35 @@ export type Database = {
         }
       }
       _doc_margin: { Args: { _doc: string }; Returns: number }
+      _document_chain: {
+        Args: { _document: string }
+        Returns: {
+          depth: number
+          document_id: string
+        }[]
+      }
+      _document_order_needs: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          line_ids: string[]
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
+        }[]
+      }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
       _next_document_number_unchecked: {
@@ -5862,6 +5915,22 @@ export type Database = {
           unit_price_ttc: number
         }[]
       }
+      _sales_deposit_alert: { Args: { _document: string }; Returns: boolean }
+      _sales_deposit_received: { Args: { _document: string }; Returns: number }
+      _sales_doc_balance: {
+        Args: { _document: string }
+        Returns: {
+          client_due: number
+          financed: number
+          financing_pending: number
+          paid: number
+          paid_by_org: number
+          to_receive_from_org: number
+          ttc: number
+        }[]
+      }
+      _sales_resolve_alerts: { Args: { _document: string }; Returns: number }
+      _sales_unpaid_alert: { Args: { _document: string }; Returns: boolean }
       _shopify_apply_auto_links: {
         Args: {
           _actor: string
@@ -6555,6 +6624,45 @@ export type Database = {
           reserved_qty: number
         }[]
       }
+      document_order_needs: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          line_ids: string[]
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
+        }[]
+      }
+      document_part_orders: {
+        Args: { _document: string }
+        Returns: {
+          channel: string
+          created_at: string
+          dispatch_status: string
+          id: string
+          line_count: number
+          number: string
+          order_kind: string
+          source_doc_type: string
+          source_document_id: string
+          source_number: string
+          total_ht: number
+          total_ttc: number
+        }[]
+      }
       document_set_financing: {
         Args: {
           _amount: number
@@ -6819,6 +6927,16 @@ export type Database = {
         }[]
       }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
+      part_order_create_from_document: {
+        Args: {
+          _channel?: string
+          _document: string
+          _kind: string
+          _lines?: Json
+          _notes?: string
+        }
+        Returns: string
+      }
       part_order_history: {
         Args: { _order_id: string }
         Returns: {
@@ -7267,6 +7385,29 @@ export type Database = {
           total_ht: number
           total_ttc: number
           total_vat: number
+        }[]
+      }
+      sales_open_balances: {
+        Args: { _company: string; _operator?: string }
+        Returns: {
+          age_days: number
+          client_due: number
+          contact_id: string
+          contact_name: string
+          days_overdue: number
+          doc_type: string
+          due_date: string
+          financing_pending: number
+          id: string
+          issue_date: string
+          number: string
+          operator_name: string
+          operator_user_id: string
+          overdue: boolean
+          paid: number
+          status: string
+          to_receive_from_org: number
+          ttc: number
         }[]
       }
       sepa_collectable: {
