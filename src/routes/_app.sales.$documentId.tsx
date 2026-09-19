@@ -20,6 +20,7 @@ import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
+import { QrPaymentCard } from '@/modules/sales/qr-payment-card';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
@@ -294,6 +295,17 @@ function DocumentView() {
             documentId={documentId} companyId={doc.company_id} due={balance.clientDue} overdue={balance.overdue}
             financingAccepted={doc.financing_status === 'accepte'}
             acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)}
+          />
+        </div>
+      )}
+
+      {/* Paiement par QR de virement sur l'écran client (mission 02, carte 9) */}
+      {doc.status !== 'annulee' && doc.status !== 'brouillon' && doc.status !== 'converti' && doc.doc_type !== 'AVO' && (
+        <div className="mt-4">
+          <QrPaymentCard
+            documentId={documentId} companyId={doc.company_id} docType={doc.doc_type} docNumber={doc.number}
+            customerName={contactQ.data ? contactDisplayName(contactQ.data) : null}
+            totalTtc={Number(doc.total_ttc)} clientDue={balance.clientDue}
           />
         </div>
       )}

@@ -26,6 +26,9 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 - **M-5** (19/09) : mission validée par Simon sur la base de la spécification du 30/07 et des cartes ERP.
 - **P-1** (30/07) : classement `urgente / standard / excel / accident`, **extensible**.
 - **P-2** (30/07) : paiement comptoir = QR Stripe + terminal Bancontact + QR de virement SEPA (IBAN et terminal à fournir).
+  **Étape 1 faite le 19/09** : QR de virement SEPA (IBAN d'ITALBIKE STORE déjà en base, BIC vide : facultatif).
+  À venir : QR Stripe (+5 %) → **clé Stripe de production** ; terminal Bancontact → **marque et modèle du terminal**
+  (détail dans [`../decisions.md`](../decisions.md), P-2).
 - **P-3** (30/07) : commande Excel = classeur Ducati Demo / Courtoisie / Showroom, **2 000 € par onglet**.
 - Règles (spécification §1.3) : standard minimum 250 € HTVA ; urgente sans minimum, +10 % facturé au
   client, au plus une par jour et par société ; accident minimum 1 500 € HTVA sinon repasse en
@@ -43,7 +46,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 | 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | 🟦 à valider (toutes les lignes, voir §5) | 19/09 |
 | 7 | Commande Excel Ducati : alerte 2 000 €, clôture, archivage | Saisie enregistrée en base, alerte verte dans la barre du haut, n° interne au 1er téléchargement, clôture et archivage du classeur | ⬜ à faire (écran brouillon en mémoire existant) | — |
 | 8 | Frais atelier sur devis | Accident 125 € fixe, diagnostic au taux horaire (max 4 h) ajoutés automatiquement, réglables | ⬜ à faire | — |
-| 9 | Paiement par QR code (attend IBAN/BIC) | QR de virement SEPA sur le 2e écran du comptoir | 🟡 attend l'IBAN et le BIC du client | — |
+| 9 | Paiement par QR code sur un 2e écran au comptoir | QR de virement SEPA sur le 2e écran du comptoir | 🟦 à valider (étape 1 : QR de virement ; Stripe et Bancontact à venir, voir §2) | 19/09 |
 | 10 | Questions à trancher | Réponses du client consignées ici et dans `../decisions.md` | ⬜ à poser | — |
 
 ## 4. Questions en attente
@@ -55,7 +58,10 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 3. **Qui peut annuler une commande déjà payée** ? Choix actuel : administrateur ou comptable
    (remboursement à prévoir). *À confirmer.*
 4. **Signature électronique** : simple signature horodatée ou prestataire à valeur légale (eIDAS) ?
-5. **IBAN / BIC** de la concession pour le QR de virement, **modèle du terminal Bancontact**.
+5. ~~IBAN / BIC~~ (IBAN en base, BIC facultatif ; carte 9 faite). Reste : **modèle du terminal Bancontact**
+   et **clé Stripe de production** (QR Stripe +5 %).
+8. **Communication du QR de virement** (carte 9) : structurée belge par défaut (dérivée du n° du document),
+   ou libre au choix du vendeur. *À confirmer* : le comptable veut-il une autre règle (ex. n° de client) ?
 6. **Prix proposé sur une ligne** (carte 2) : le PV HTVA de la fiche article, modifiable ligne par
    ligne. *Recommandation* : garder le prix de vente client, puisque le minimum et le supplément
    urgente se calculent sur ce que paie le client. Le prix d'achat servira au regroupement par
@@ -100,6 +106,32 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   de la réservation figurent dans le PDF, ce que la fenêtre d'envoi rappelle. À faire avec la carte 3
   (« Créer une commande depuis un devis ») : choisir les lignes, les enregistrer, puis ne mettre qu'elles
   dans le PDF.
+
+- [M06 Ventes](../modules/M06-ventes-caisse.md) : **paiement par QR de virement SEPA sur le 2e écran**
+  (carte 9, étape 1 de P-2). Sur un document de vente validé : bloc « Paiement par QR (virement) » →
+  « Payer par QR (virement) » → montant (reste à payer / acompte 10 % / montant libre) et communication
+  (structurée belge `+++…+++` calculée modulo 97 depuis le n° du document, ou texte libre « n° + nom ») avec
+  aperçu du QR → règlement **attendu** « Virement QR » + affichage sur l'**écran client** `/ecran-client`
+  (fenêtre ouverte par le vendeur, session équipe, plein écran, Realtime) : QR en très grand, montant,
+  bénéficiaire, IBAN, communication, nom du client. « Paiement reçu » → règlement reçu (date, qui), trace
+  `events`, reste à payer à jour, l'écran dit « Merci, paiement reçu » puis revient à l'accueil. QR au
+  format EPC069-12 v002 (librairie `qrcode`). Fonctions `qr_payment_start` / `qr_payment_confirm` /
+  `qr_payment_cancel` / `counter_display_show` / `counter_display_current`, table `counter_displays`.
+  Migration `20260919360000_m6_qr_virement_ecran_client`. Aucun flux bancaire : la réception est confirmée
+  à la main. Stripe (+5 %) et Bancontact : pas faits (voir §2).
+
+### À tester (carte 9)
+
+1. Ventes → un document validé (devis, réservation ou facture) avec un client et un reste à payer →
+   bloc « Paiement par QR (virement) » → **Ouvrir l'écran client** : une fenêtre s'ouvre (accueil au nom de
+   la société) ; la glisser sur le 2e écran, bouton plein écran en bas à droite.
+2. **Payer par QR (virement)** → choisir « Acompte 10 % » puis « Montant libre », vérifier l'aperçu ;
+   **Afficher sur l'écran client** : l'écran montre le QR en grand, le montant, ITALBIKE STORE, l'IBAN et la
+   communication `+++…+++`. **Scanner le QR avec une appli bancaire SANS valider le virement** :
+   bénéficiaire, IBAN, montant et communication doivent être pré-remplis, puis annuler dans l'appli.
+3. Sur le document : **Paiement reçu** → confirmer : l'écran client affiche « Merci, paiement reçu » puis
+   revient à l'accueil ; le règlement passe à « Reçu », le reste à payer baisse. Tester aussi
+   **Abandonner** sur un autre QR (le règlement attendu disparaît, l'écran revient à l'accueil).
 
 ### À tester (carte 6)
 

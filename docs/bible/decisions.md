@@ -66,6 +66,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   spécification du 30/07 ([`../process-commandes-pieces.md`](../process-commandes-pieces.md)) et des
   cartes ERP de la liste « Mission 02 ». Leçon retenue : ne jamais lancer une mission tirée d'un ancien
   document sans la faire confirmer par Simon. *Client · 19/09.*
+- **P-2 étape 1 faite** (carte 9, 19/09) — **QR de virement SEPA** au comptoir, gratuit. Norme **EPC069-12
+  version 002** (UTF-8, `SCT`, BIC omis tant qu'il est vide : facultatif dans l'EEE en v002), correction
+  d'erreur M. Communication **structurée belge** `+++XXX/XXXX/XXXXX+++` calculée depuis le numéro du
+  document (1er chiffre = type : DEV 1, BC 2, RES 3, BL 4, FAC 5, TIK 6, AVO 7 ; puis les 9 derniers
+  chiffres du numéro ; contrôle = modulo 97, 97 si le reste vaut 0), placée dans le champ « référence
+  structurée » du QR ; ou texte libre « n° du document + nom du client ». **Pas de flux bancaire** : le
+  vendeur confirme « Paiement reçu ». Écran client **par vendeur** (utilisateur × société), session équipe
+  obligatoire. Librairie **`qrcode`** (1.5.4, MIT, la plus répandue sur npm, sans dépendance native, déjà
+  prévue par la spécification §4.5) ; seule sa partie « matrice » est utilisée, le dessin SVG est fait
+  dans l'application (couleurs de la charte). *Équipe · 19/09.*
+  [mission 02](missions/mission-02-commandes-pieces.md), [M06](modules/M06-ventes-caisse.md)
+- **P-2 étapes 2 et 3 à faire** — **QR Stripe (+5 %)** : il faudra la **clé Stripe de production**
+  (`STRIPE_SECRET_KEY` + secret du webhook, en secrets Supabase, jamais commités), le choix Payment Link ou
+  PaymentIntent, et la règle du supplément de 5 % (ligne de frais sur le document ?). **Terminal
+  Bancontact** : il faudra la **marque et le modèle du terminal** (et son prestataire : Stripe Terminal,
+  Worldline, CCV…) pour savoir s'il a une API. Les deux pourront réutiliser l'écran client
+  (`counter_displays`) et le règlement « attendu » puis « reçu ». *Équipe · 19/09.*
 
 ## 2026-09-18 — Réponses au questionnaire (mission 01 et au-delà)
 

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppClientRouteImport } from './routes/app-client'
 import { Route as BorneRouteImport } from './routes/borne'
+import { Route as EcranClientRouteImport } from './routes/ecran-client'
 import { Route as InscriptionRouteImport } from './routes/inscription'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MonEspaceRouteImport } from './routes/mon-espace'
@@ -120,6 +121,11 @@ const AppClientRoute = AppClientRouteImport.update({
 const BorneRoute = BorneRouteImport.update({
   id: '/borne',
   path: '/borne',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EcranClientRoute = EcranClientRouteImport.update({
+  id: '/ecran-client',
+  path: '/ecran-client',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InscriptionRoute = InscriptionRouteImport.update({
@@ -577,6 +583,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
+  '/ecran-client': typeof EcranClientRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/mon-espace': typeof MonEspaceRouteWithChildren
@@ -671,6 +678,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
+  '/ecran-client': typeof EcranClientRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -754,6 +762,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/app-client': typeof AppClientRoute
   '/borne': typeof BorneRoute
+  '/ecran-client': typeof EcranClientRoute
   '/inscription': typeof InscriptionRoute
   '/login': typeof LoginRoute
   '/mon-espace': typeof MonEspaceRouteWithChildren
@@ -850,6 +859,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app-client'
     | '/borne'
+    | '/ecran-client'
     | '/inscription'
     | '/login'
     | '/mon-espace'
@@ -944,6 +954,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app-client'
     | '/borne'
+    | '/ecran-client'
     | '/inscription'
     | '/login'
     | '/reset-password'
@@ -1026,6 +1037,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/app-client'
     | '/borne'
+    | '/ecran-client'
     | '/inscription'
     | '/login'
     | '/mon-espace'
@@ -1122,6 +1134,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AppClientRoute: typeof AppClientRoute
   BorneRoute: typeof BorneRoute
+  EcranClientRoute: typeof EcranClientRoute
   InscriptionRoute: typeof InscriptionRoute
   LoginRoute: typeof LoginRoute
   MonEspaceRoute: typeof MonEspaceRouteWithChildren
@@ -1156,6 +1169,13 @@ declare module '@tanstack/react-router' {
       path: '/borne'
       fullPath: '/borne'
       preLoaderRoute: typeof BorneRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ecran-client': {
+      id: '/ecran-client'
+      path: '/ecran-client'
+      fullPath: '/ecran-client'
+      preLoaderRoute: typeof EcranClientRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inscription': {
@@ -2097,6 +2117,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AppClientRoute: AppClientRoute,
   BorneRoute: BorneRoute,
+  EcranClientRoute: EcranClientRoute,
   InscriptionRoute: InscriptionRoute,
   LoginRoute: LoginRoute,
   MonEspaceRoute: MonEspaceRouteWithChildren,
