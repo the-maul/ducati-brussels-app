@@ -106,6 +106,8 @@ export type ArticleFilters = {
   color?: string;
   paLocked?: boolean;
   pvLocked?: boolean;
+  /** articles « à compléter » (créés au vol depuis une vente, mission 05 carte 4) */
+  toComplete?: boolean;
   /** plafond de lignes (défaut 500 ; élargi quand le filtre stock croise côté client) */
   limit?: number;
 };
@@ -142,6 +144,7 @@ export async function listArticles(companyId: string, filters: ArticleFilters | 
   if (f.color) matchExact('color', f.color);
   if (f.paLocked) q = q.eq('price_purchase_locked', true);
   if (f.pvLocked) q = q.eq('price_sale_locked', true);
+  if (f.toComplete) q = q.eq('to_complete', true);
   // Année : la plage de l'article couvre l'année demandée (bornes nulles = ouvertes,
   // mais au moins une borne renseignée pour ne pas tout matcher).
   if (f.year != null) {

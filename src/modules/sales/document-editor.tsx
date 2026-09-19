@@ -29,13 +29,15 @@ import { saleStockStatus } from './availability';
 import { SaleStockBadge } from './availability-badge';
 import { ReplacementHint } from './replacement-hint';
 import { StatusBadge } from '@/components/status-badge';
+import { EcatalogPasteButton, EcatalogLink, type EcatalogPick } from './ecatalog-paste';
+import { looksLikeDucatiReference } from './ecatalog';
 
 const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null };
+type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null; _catalogUrl?: string | null };
 let counter = 0;
 const blankLine = (type: LineType = 'article', designation = ''): EditLine => ({
   _key: `l${counter++}`, article_id: null, designation, quantity: type === 'texte' || type === 'vide' ? 0 : 1,
@@ -107,9 +109,21 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   const pickArticle = (key: string, a: SaleArticle) => setLine(key, {
     article_id: a.id, designation: a.designation, reference: a.reference,
     unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
-    line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article',
+    line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null,
   });
   const addLine = (type: LineType, designation = '') => setLines((ls) => [...ls, blankLine(type, designation)]);
+  // Article collé depuis l'e-catalog (carte 4) : remplit la dernière ligne article vide, sinon en ajoute une.
+  const addEcatalogLine = ({ article: a, catalogUrl, unitPriceHt }: EcatalogPick) => setLines((ls) => {
+    const last = ls[ls.length - 1];
+    const reuse = last && last.line_type === 'article' && !last.article_id && !last._fee && !last.designation.trim();
+    const base = reuse ? last : blankLine();
+    const line: EditLine = {
+      ...base, article_id: a.id, designation: a.designation, reference: a.reference,
+      unit_price_ht: unitPriceHt ?? effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
+      line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: catalogUrl,
+    };
+    return reuse ? [...ls.slice(0, -1), line] : [...ls, line];
+  });
   const [recallOpen, setRecallOpen] = useState(false);
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
 
@@ -119,13 +133,13 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
     forcedTtc: forcedTtc.trim() ? num(forcedTtc) : null,
   };
-  const totals = computeTotals(lines.map(({ _key, _fee, _stock, ...l }) => l), pied);
+  const totals = computeTotals(lines.map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l), pied);
 
   const save = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
       // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
-      const payload = lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, ...l }) => l);
+      const payload = lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l);
       if (!payload.some((l) => l.line_type !== 'vide')) { setError(t('sales.needLine')); setBusy(false); return; }
       const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
       const id = await createDocument({
@@ -210,6 +224,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                       <>
                         <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
                         {l._stock && <ReplacementHint companyId={companyId} article={l._stock} onReplace={(a) => pickArticle(l._key, a)} />}
+                        {(l._catalogUrl || looksLikeDucatiReference(l.reference)) && <EcatalogLink reference={l.reference} catalogUrl={l._catalogUrl} />}
                       </>
                     ) : labour ? (
                       <LabourPicker companyId={companyId} value={l.designation}
@@ -255,6 +270,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         <Button type="button" variant="outline" onClick={() => addLine('texte')}><Type /> {t('sales.addText')}</Button>
         <Button type="button" variant="outline" onClick={() => addLine('vide')}><Minus /> {t('sales.addBlank')}</Button>
         <Button type="button" variant="outline" onClick={() => setRecallOpen(true)}><MessageSquareText /> {t('sales.recallComment')}</Button>
+        <EcatalogPasteButton companyId={companyId} priceMode={priceMode} onPick={addEcatalogLine} />
       </div>
       {recallOpen && <RecallCommentDialog companyId={companyId} onClose={() => setRecallOpen(false)} onPick={(body) => { addLine('texte', body); setRecallOpen(false); }} />}
 

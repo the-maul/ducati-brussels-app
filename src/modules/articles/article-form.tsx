@@ -84,6 +84,8 @@ type FormState = {
   reprise_prefix: string;
   publishable: boolean;
   is_library: boolean;
+  /** Article créé au vol depuis une vente (mission 05, carte 4) : PA, fournisseur, famille à compléter. */
+  to_complete: boolean;
   web_title: string;
   web_description: string;
 };
@@ -132,6 +134,7 @@ function fromArticle(a: Article | null): FormState {
     reprise_prefix: a?.reprise_prefix ?? '',
     publishable: a?.publishable ?? false,
     is_library: a?.is_library ?? false,
+    to_complete: a?.to_complete ?? false,
     web_title: a?.web_title ?? '',
     web_description: a?.web_description ?? '',
   };
@@ -182,6 +185,7 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     reprise_prefix: nn(f.reprise_prefix),
     publishable: f.publishable,
     is_library: f.is_library,
+    to_complete: f.to_complete,
     // Textes du site (repris une fois de Shopify, décision W-4 ; le DMS fait foi ensuite)
     web_title: nn(f.web_title),
     web_description: f.web_description.trim() === '' ? null : f.web_description.trim(),
@@ -526,6 +530,7 @@ export function ArticleForm({
         )}
         <div className="col-span-full flex flex-wrap gap-4">
           <Check label={t('articles.isLibrary')} checked={f.is_library} onChange={(v) => set('is_library', v)} />
+          <Check label={t('ecatalog.toCompleteField')} checked={f.to_complete} onChange={(v) => set('to_complete', v)} />
         </div>
       </Section>
 
