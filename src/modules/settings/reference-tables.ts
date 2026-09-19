@@ -36,6 +36,11 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { key: 'eom', label: 'Fin de mois', type: 'bool' },
       { key: 'lcr', label: 'Géré en LCR', type: 'bool' },
     ] },
+  // Mention de validité imprimée sur le PDF (mission 05, carte 8) : code = type de document
+  // (DEV, BC…), libellé = texte imprimé (« {date} » = date limite), mois = durée (0 = sans date).
+  // Sans ligne pour DEV : « Devis valable 1 mois ». Ligne inactive = aucune mention.
+  { key: 'sales_document_validity', label: 'Validité des documents (PDF)', group: 'vente',
+    extraColumns: [{ key: 'months', label: 'Durée (mois)', type: 'number' }] },
   { key: 'civility', label: 'Civilités', group: 'autre',
     extraColumns: [
       { key: 'professional', label: 'Professionnel', type: 'bool' },

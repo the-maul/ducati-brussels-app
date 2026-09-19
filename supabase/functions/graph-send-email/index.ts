@@ -28,9 +28,20 @@
 // fiche client), compte désactivé, plusieurs destinataires, adresse de la
 // concession, origine invalide, ou doute (erreur de lecture). L'origine (adresse
 // de l'application client) est transmise par l'appelant (`origin`).
+//
+// SIMULATION (`dryRun: true`, 19/09) : mêmes contrôles (connexion, société, boîte, pied de
+// mail), mais RIEN n'est envoyé ni enregistré : la fonction renvoie le message construit
+// (objet, destinataire, boîte, corps HTML avec pied, pièces jointes sans leur contenu).
+// Sert aux essais sans écrire à un client.
+//
+// TRACE D'UN DOCUMENT (`trace: { entityType: 'documents', entityId }`, mission 05 carte 8) :
+// le document doit appartenir à la société ; après un envoi réussi, une ligne `events`
+// (action `email_sent`) note qui, quand, à qui, depuis quelle boîte, l'objet et les fichiers.
+// Les appelants existants (sans `dryRun` ni `trace`) ne voient aucun changement.
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
+import { footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary } from '../_shared/mail-message.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -61,26 +72,7 @@ async function caller(req: Request): Promise<{ id: string; email: string } | nul
 }
 
 const domainOf = (a: string) => a.split('@')[1]?.toLowerCase() ?? '';
-const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
-
 type FooterKind = 'join' | 'login' | null;
-
-const FOOTER_STYLE = 'margin-top:24px;padding-top:12px;border-top:1px solid #d9d9d9;font-size:13px;line-height:18px;color:#5c5c5c';
-
-/** Pied de mail P-5 / P-6, sous le message. Textes validés par le client (18/09, 19/09). */
-function footerHtml(kind: 'join' | 'login', origin: string, to: string): string {
-  const join = kind === 'join';
-  const link = join ? `${origin}/inscription?email=${encodeURIComponent(to)}` : `${origin}/login`;
-  const text = join
-    ? 'Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l’application Ducati Bruxelles.'
-    : 'Votre espace Ducati Bruxelles est prêt : retrouvez la vie de votre moto (photos, entretiens, pièces, documents) et vos bonus de fidélité.';
-  const label = join ? 'Créer mon compte' : 'Me connecter';
-  return `
-<div style="${FOOTER_STYLE}">
-  <p style="margin:0 0 6px 0">${esc(text)}</p>
-  <p style="margin:0"><a href="${esc(link)}" style="color:#c8102e">${label}</a></p>
-</div>`;
-}
 
 /**
  * Quel pied de mail pour cette adresse ?
@@ -111,12 +103,14 @@ const toText = (html: string) => html
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
+  const payload = await req.json().catch(() => ({}));
+  const { companyId, contactId, to, subject, body, attachments, from, origin, trace } = payload ?? {};
+  const dryRun = payload?.dryRun === true;
+  if (!dryRun && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
 
   const user = await caller(req);
   if (!user) return J({ error: 'not_signed_in' }, 401);
 
-  const { companyId, contactId, to, subject, body, attachments, from, origin } = await req.json();
   if (!companyId || !to || !subject) return J({ error: 'missing_params' }, 400);
 
   const member = await (await db(`user_roles?select=role&user_id=eq.${user.id}&company_id=eq.${companyId}&limit=1`)).json();
@@ -141,9 +135,16 @@ Deno.serve(async (req) => {
   if (!mailbox) return J({ error: 'no_mailbox' }, 400);
 
   // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
-  const atts = Array.isArray(attachments) ? attachments.map((a: Record<string, string>) => ({
-    '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.contentBytes,
-  })) : [];
+  const atts = toGraphAttachments(attachments);
+
+  // Document à tracer : il doit appartenir à la société (sinon on n'envoie rien).
+  const traceId = trace && trace.entityType === 'documents' && typeof trace.entityId === 'string' && /^[0-9a-f-]{36}$/i.test(trace.entityId)
+    ? trace.entityId : null;
+  if (trace && !traceId) return J({ error: 'bad_trace' }, 400);
+  if (traceId) {
+    const d = await (await db(`documents?select=id&id=eq.${traceId}&company_id=eq.${companyId}&limit=1`)).json();
+    if (!Array.isArray(d) || d.length === 0) return J({ error: 'unknown_document' }, 400);
+  }
 
   // Pied de mail P-5 / P-6 : destinataire unique, hors concession, origine valide.
   const o = typeof origin === 'string' ? origin.trim().replace(/\/+$/, '') : '';
@@ -154,22 +155,37 @@ Deno.serve(async (req) => {
   const kind = validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
   const footer = kind ? footerHtml(kind, o, recipient) : '';
 
+  // Corps déjà en HTML (éditeur enrichi) + pied de mail.
+  const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), footer, to, attachments: atts });
+
+  if (dryRun) {
+    return J({
+      ok: true, dryRun: true, from: mailbox, to, subject, footer: kind,
+      html: graphBody.message.body.content, attachments: attachmentsSummary(atts),
+      trace: traceId ? { entityType: 'documents', entityId: traceId } : null,
+    });
+  }
+
   const tok = await token();
   if (!tok) return J({ error: 'graph_auth_failed' }, 502);
 
   const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
     method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: {
-        subject,
-        body: { contentType: 'HTML', content: String(body || '') + footer }, // déjà du HTML (éditeur enrichi)
-        toRecipients: [{ emailAddress: { address: to } }],
-        ...(atts.length ? { attachments: atts } : {}),
-      },
-      saveToSentItems: true,
-    }),
+    body: JSON.stringify(graphBody),
   });
   if (!sendRes.ok) return J({ error: 'send_failed', detail: (await sendRes.text()).slice(0, 200) }, 502);
+
+  // Trace du document envoyé (qui, quand, à qui, quelle boîte, quels fichiers).
+  if (traceId) {
+    await db('events', {
+      method: 'POST', headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        company_id: companyId, actor_id: user.id, action: 'email_sent', entity_type: 'documents',
+        entity_id: traceId, origin: 'screen',
+        new_data: { to, from: mailbox, subject, contact_id: contactId ?? null, attachments: attachmentsSummary(atts), footer: kind },
+      }),
+    });
+  }
 
   // Adresse personnelle : la relève ne la lit pas, on enregistre l'échange nous-mêmes.
   if (!shared.has(mailbox) && contactId) {
