@@ -198,6 +198,14 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 - Testé en base dans une transaction annulée (création, réouverture sans doublon, lignes texte / vide /
   MO exclues, étapes, statut de la liste, emplacement, refus d'un utilisateur d'une autre société).
 
+- **Complément (mission 02, carte 11 « picking list », 19/09, à valider)** : la page « Listes de
+  préparation » est refondue (document, client, moto, vendeur, avancement, emplacement, statut ; filtres,
+  tri) et la vue tablette reçoit un bouton retour et les actions **Imprimer**, **Régénérer depuis le
+  document** (états gardés, lignes retirées signalées), **Terminer**, **Annuler / supprimer** (supprimée
+  seulement si rien n'est préparé ni monté, sinon annulée avec motif), **Rouvrir**. « Préparer » sur un
+  document dont la liste est annulée ou terminée l'ouvre telle quelle (bouton « Rouvrir »). Détail :
+  [mission 02](mission-02-commandes-pieces.md) §5, migration `20260919380000_m6_listes_preparation_gestion.sql`.
+
 ### Carte 7 — Ne pas attribuer le stock commandé pour un autre client (19/09, à valider)
 - Sur la fiche d'un document (devis / proforma, bon de commande, réservation, BL), la colonne
   **Dispo** de chaque ligne affiche **Disponible / En commande / À commander** calculé pour **le client

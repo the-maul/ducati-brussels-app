@@ -8,7 +8,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Loader2, MapPin, Truck, PackageCheck, Wrench, Undo2, Save, type LucideIcon,
+  AlertTriangle, ArrowLeft, FileText, Loader2, MapPin, Truck, PackageCheck, Wrench, Undo2, Save, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -18,10 +18,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getPickingHeader, getPickingDetail, setPickingStep, setPickingLocation, prepDisplayState, prepProgress,
-  PREP_STEPS, type PrepStep, type PickingDetailLine, type PrepDisplayState,
+  pickingActions, PREP_STEPS, type PrepStep, type PickingLine, type PrepDisplayState,
 } from '@/modules/sales/picking-api';
+import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
 import { SALE_STOCK_META } from '@/modules/sales/availability';
-import { getContact, contactDisplayName } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/preparation/$pickingId')({
@@ -37,8 +37,6 @@ const STEP_META: Record<PrepStep, { tone: StatusTone; icon: LucideIcon }> = {
   monte: { tone: 'success', icon: Wrench },
 };
 
-const LIST_TONE: Record<string, StatusTone> = { en_cours: 'warning', pret: 'success', livre: 'neutral' };
-const cap = (s: string) => s.replace(/(^|_)([a-z])/g, (_, _sep, c: string) => c.toUpperCase());
 const qty = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 const when = (iso: string) => new Date(iso).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -59,8 +57,6 @@ function PreparationTablet() {
 
   const headerQ = useQuery({ queryKey: ['picking-header', pickingId], queryFn: () => getPickingHeader(pickingId) });
   const linesQ = useQuery({ queryKey: ['picking-tablet', pickingId], queryFn: () => getPickingDetail(pickingId) });
-  const contactId = headerQ.data?.contact_id ?? null;
-  const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['picking-header', pickingId] });
@@ -78,47 +74,73 @@ function PreparationTablet() {
 
   const header = headerQ.data;
   const lines = linesQ.data ?? [];
-  const locked = header?.status === 'livre';
-  const progress = prepProgress(lines);
+  const locked = header ? !pickingActions(header).editSteps : false;
+  const progress = prepProgress(lines.filter((l) => !l.removed));
 
   if (headerQ.isLoading || linesQ.isLoading) {
     return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   }
   if (!header) return <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('picking.errOpen')}</p>;
 
-  const docLabel = header.document_number || header.document_type
-    ? `${header.document_type ? t(`sales.type_${header.document_type}`) : ''} ${header.document_number ?? t('sales.draftSuffix')}`
+  const docLabel = header.doc_type
+    ? `${t(`sales.type_${header.doc_type}`)} ${header.doc_number ?? t('sales.draftSuffix')}`
     : t('picking.noDocument');
+  const backToList = () => navigate({ to: '/picking' });
 
   return (
     <>
       <PageHeader
         title={`${t('picking.tabletTitle')} — ${docLabel}`}
-        description={`${t('picking.tabletClient')} : ${contactQ.data ? contactDisplayName(contactQ.data) : contactId ? '…' : t('picking.tabletNoClient')}`}
+        description={[
+          `${t('picking.tabletClient')} : ${header.client_name ?? t('picking.tabletNoClient')}`,
+          header.vehicle_label ? `${t('picking.printVehicle')} : ${header.vehicle_label}` : '',
+          header.seller_name ? `${t('picking.printSeller')} : ${header.seller_name}` : '',
+        ].filter(Boolean).join(' · ')}
         breadcrumbs={[{ label: t('picking.tabletBack'), to: '/picking' }, { label: docLabel }]}
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" className="h-12 px-4 text-base" onClick={backToList}><ArrowLeft /> {t('picking.tabletBack')}</Button>
             {header.document_id && (
-              <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: header.document_id! } })}>
-                {docLabel}
+              <Button variant="outline" className="h-12 px-4 text-base" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: header.document_id! } })}>
+                <FileText /> {docLabel}
               </Button>
             )}
-            <Button variant="outline" onClick={() => navigate({ to: '/picking' })}><ArrowLeft /> {t('picking.tabletBack')}</Button>
           </div>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <StatusBadge tone={LIST_TONE[header.status] ?? 'neutral'} label={t(`picking.status${cap(header.status)}`)} />
+        <PickingStatusBadge row={header} className="px-3 py-1.5 text-[14px]" />
         <span className="font-data text-lg font-bold tabular-nums">
           {t('picking.progress').replace('{done}', String(progress.done)).replace('{total}', String(progress.total))}
         </span>
+        <div className="ml-auto"><PickingActions row={header} variant="tablet" onDeleted={backToList} /></div>
       </div>
+
+      {header.status === 'annulee' && (
+        <p className="mb-3 rounded-md bg-danger-bg px-3 py-2 text-[14px] text-danger">
+          {t('picking.cancelledInfo')
+            .replace('{who}', header.cancelled_by_name ?? '—')
+            .replace('{when}', header.cancelled_at ? when(header.cancelled_at) : '—')
+            .replace('{reason}', header.cancel_reason ?? '—')}
+        </p>
+      )}
+      {header.status === 'livre' && (
+        <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[14px] text-info">
+          {t('picking.finishedInfo')
+            .replace('{who}', header.completed_by_name ?? '—')
+            .replace('{when}', header.completed_at ? when(header.completed_at) : '—')}
+        </p>
+      )}
+      {header.doc_changed && !locked && (
+        <p className="mb-3 flex items-center gap-2 rounded-md bg-warning-bg px-3 py-2 text-[14px] text-warning">
+          <AlertTriangle className="size-4 shrink-0" /> {t('picking.docChangedHint')}
+        </p>
+      )}
 
       <LocationCard pickingId={pickingId} current={header.location} locked={locked} onSaved={refresh} />
 
       <p className="mb-3 text-[12px] text-muted-foreground">{t('picking.noStockMove')}</p>
-      {locked && <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('picking.livreLocked')}</p>}
 
       {lines.length === 0 && (
         <div className="rounded-md border border-dashed border-border bg-card py-10 text-center text-sm text-muted-foreground">{t('picking.tabletEmpty')}</div>
@@ -178,14 +200,20 @@ function LocationCard({ pickingId, current, locked, onSaved }: { pickingId: stri
 }
 
 function LineCard({ line, locked, pending, onStep }: {
-  line: PickingDetailLine; locked: boolean; pending: boolean; onStep: (step: PrepStep | null) => void;
+  line: PickingLine; locked: boolean; pending: boolean; onStep: (step: PrepStep | null) => void;
 }) {
   const state = prepDisplayState(line);
   const free = (line.real_qty ?? 0) - (line.reserved_qty ?? 0);
   const stepIcon: Record<PrepStep, LucideIcon> = { commande: Truck, prepare: PackageCheck, monte: Wrench };
   return (
-    <Card>
+    <Card className={line.removed ? 'border-dashed opacity-70' : undefined}>
       <CardContent className="space-y-3 p-4">
+        {line.removed && (
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone="warning" icon={AlertTriangle} label={t('picking.removedBadge')} />
+            <span className="text-[12px] text-muted-foreground">{t('picking.removedHint')}</span>
+          </div>
+        )}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             {line.reference && <div className="font-mono text-[13px] text-muted-foreground">{line.reference}</div>}

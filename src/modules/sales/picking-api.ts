@@ -1,87 +1,42 @@
 /**
- * M6 — Picking list digitale (Ventes & Facturation, item 11).
- * Tables : picking_lists / picking_list_items (migration 20260726).
- * NB : les fonctions historiques passent par un client non typé (`raw`) ; celles de la vue tablette
- * (mission 05, carte 6) par les fonctions SQL typées picking_* .
+ * M6 — Listes de préparation (picking) : accès base.
+ * Une seule notion : la liste de préparation d'un document (mission 05 carte 6, mission 02 carte
+ * « picking list »). Toutes les écritures passent par les fonctions SQL picking_* (règles + trace
+ * dans events) ; l'application n'écrit plus directement dans picking_lists / picking_list_items.
+ * Règles pures : preparation.ts. Aucun mouvement de stock ici.
  */
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import type { PrepStep, PickingDetailLine } from './preparation';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const raw = supabase as any;
+/* Vue tablette et gestion des listes — règles pures dans preparation.ts. */
+export * from './preparation';
 
-export type PickingStatus = 'en_cours' | 'pret' | 'livre';
-export type PickingItemStatus = 'a_preparer' | 'partiel' | 'pret' | 'a_recevoir';
+/** Une liste dans la page « Listes de préparation » (fonction SQL picking_overview). */
+export type PickingOverviewRow = Database['public']['Functions']['picking_overview']['Returns'][number];
 
-export type PickingList = {
-  id: string;
-  company_id: string;
-  document_id: string | null;
-  location: string | null;
-  status: PickingStatus;
-  note: string | null;
-  created_at: string;
-  created_by: string | null;
-};
-
-export type PickingItem = {
-  id: string;
-  company_id: string;
-  picking_id: string;
-  article_id: string | null;
-  designation: string | null;
-  reference: string | null;
-  qty_ordered: number;
-  qty_picked: number;
-  status: PickingItemStatus;
-  created_at: string;
-};
-
-/** Picking list enrichie du n° de document lié, pour l'affichage en liste. */
-export type PickingListRow = PickingList & { document_number: string | null; document_type: string | null };
-
-/** Calcule le statut d'une ligne à partir des quantités (règle : 0 → à préparer, < commandé → partiel, ≥ commandé → prêt). */
-export function computeItemStatus(qtyOrdered: number, qtyPicked: number): PickingItemStatus {
-  if (qtyPicked <= 0) return 'a_preparer';
-  if (qtyPicked < qtyOrdered) return 'partiel';
-  return 'pret';
+/** Toutes les listes de la société : document, client, moto, vendeur, avancement, statut. */
+export async function listPickingOverview(companyId: string): Promise<PickingOverviewRow[]> {
+  const { data, error } = await supabase.rpc('picking_overview', { _company: companyId });
+  if (error) throw error;
+  return data ?? [];
 }
 
-export async function listPickings(companyId: string): Promise<PickingListRow[]> {
-  const { data, error } = await raw
-    .from('picking_lists').select('*')
-    .eq('company_id', companyId).order('created_at', { ascending: false });
+/** En-tête d'une liste (même contenu qu'une ligne de la page des listes). */
+export async function getPickingHeader(pickingId: string): Promise<PickingOverviewRow> {
+  const { data: p, error } = await supabase.from('picking_lists').select('company_id').eq('id', pickingId).single();
   if (error) throw error;
-  const rows = (data as PickingList[]) ?? [];
-  const docIds = Array.from(new Set(rows.map((r) => r.document_id).filter((id): id is string => !!id)));
-  const docById = new Map<string, { number: string | null; doc_type: string }>();
-  if (docIds.length > 0) {
-    const { data: docs, error: docErr } = await supabase
-      .from('documents').select('id, number, doc_type').in('id', docIds);
-    if (docErr) throw docErr;
-    for (const d of docs ?? []) docById.set(d.id, { number: d.number, doc_type: d.doc_type });
-  }
-  return rows.map((r) => ({
-    ...r,
-    document_number: r.document_id ? (docById.get(r.document_id)?.number ?? null) : null,
-    document_type: r.document_id ? (docById.get(r.document_id)?.doc_type ?? null) : null,
-  }));
-}
-
-export async function getPicking(id: string): Promise<{ picking: PickingList; items: PickingItem[] }> {
-  const { data: picking, error } = await raw.from('picking_lists').select('*').eq('id', id).single();
-  if (error) throw error;
-  const { data: items, error: itemsErr } = await raw
-    .from('picking_list_items').select('*').eq('picking_id', id).order('created_at');
-  if (itemsErr) throw itemsErr;
-  return { picking: picking as PickingList, items: (items as PickingItem[]) ?? [] };
+  const { data, error: e2 } = await supabase.rpc('picking_overview', { _company: p.company_id, _picking: pickingId });
+  if (e2) throw e2;
+  const row = data?.[0];
+  if (!row) throw new Error('not found');
+  return row;
 }
 
 /**
- * Crée ou rouvre la liste de préparation d'un document (mission 05, carte 6) : une seule liste
- * par document ; lignes article seulement (moto + options), pas de texte, ligne vide ni
- * main-d'œuvre ; les lignes ajoutées au document depuis sont ajoutées. Fonction SQL
- * `picking_open_for_document`. Aucun mouvement de stock.
+ * Crée ou rouvre la liste de préparation d'un document (bouton « Préparer ») : une seule liste
+ * par document ; lignes article seulement (moto + options). Une liste annulée ou terminée est
+ * rendue telle quelle (l'écran propose « Rouvrir »).
  */
 export async function openPickingForDocument(documentId: string): Promise<string> {
   const { data, error } = await supabase.rpc('picking_open_for_document', { _document: documentId });
@@ -89,62 +44,16 @@ export async function openPickingForDocument(documentId: string): Promise<string
   return data as string;
 }
 
-/** Crée (ou rouvre) un picking depuis un document de vente, puis pose la localisation choisie. */
-export async function createPickingFromDocument(_companyId: string, documentId: string, location: string | null): Promise<string> {
-  const id = await openPickingForDocument(documentId);
-  if (location) await setPickingLocation(id, location);
-  return id;
-}
+export type PickingLine = PickingDetailLine & { removed: boolean };
 
-/** Crée un picking vide, sans document — attribution manuelle des articles ensuite. */
-export async function createEmptyPicking(companyId: string, location: string | null): Promise<string> {
-  const { data, error } = await raw
-    .from('picking_lists')
-    .insert({ company_id: companyId, document_id: null, location: location || null })
-    .select('id').single();
+export async function getPickingDetail(pickingId: string): Promise<PickingLine[]> {
+  const [{ data, error }, { data: flags, error: fErr }] = await Promise.all([
+    supabase.rpc('picking_detail', { _picking: pickingId }),
+    supabase.from('picking_list_items').select('id, removed_at').eq('picking_id', pickingId),
+  ]);
   if (error) throw error;
-  return (data as { id: string }).id;
-}
-
-export async function addPickingItem(
-  pickingId: string, companyId: string,
-  item: { articleId?: string | null; designation: string; reference?: string | null; qtyOrdered: number },
-): Promise<void> {
-  const { error } = await raw.from('picking_list_items').insert({
-    company_id: companyId, picking_id: pickingId, article_id: item.articleId ?? null,
-    designation: item.designation.trim(), reference: item.reference?.trim() || null,
-    qty_ordered: item.qtyOrdered, qty_picked: 0, status: 'a_preparer',
-  });
-  if (error) throw error;
-}
-
-/** Met à jour la qté préparée d'une ligne et recalcule son statut. */
-export async function updatePickedQty(itemId: string, qtyPicked: number): Promise<void> {
-  const { data: item, error: readErr } = await raw
-    .from('picking_list_items').select('qty_ordered').eq('id', itemId).single();
-  if (readErr) throw readErr;
-  const status = computeItemStatus(Number((item as { qty_ordered: number }).qty_ordered), qtyPicked);
-  const { error } = await raw.from('picking_list_items').update({ qty_picked: qtyPicked, status }).eq('id', itemId);
-  if (error) throw error;
-}
-
-/** Emplacement de préparation du client (texte libre ou casier), tracé dans events. */
-export async function setPickingLocation(id: string, location: string | null): Promise<void> {
-  const { error } = await supabase.rpc('picking_set_location', { _picking: id, _location: location ?? '' });
-  if (error) throw error;
-}
-
-export async function setPickingStatus(id: string, status: PickingStatus): Promise<void> {
-  const { error } = await raw.from('picking_lists').update({ status }).eq('id', id);
-  if (error) throw error;
-}
-
-/* Vue tablette (mission 05, carte 6) — règles pures dans preparation.ts. */
-export * from './preparation';
-
-export async function getPickingDetail(pickingId: string): Promise<PickingDetailLine[]> {
-  const { data, error } = await supabase.rpc('picking_detail', { _picking: pickingId });
-  if (error) throw error;
+  if (fErr) throw fErr;
+  const removed = new Set((flags ?? []).filter((f) => f.removed_at).map((f) => f.id));
   return ((data ?? []) as unknown as PickingDetailLine[]).map((r) => ({
     ...r,
     bins: r.bins ?? [],
@@ -152,6 +61,7 @@ export async function getPickingDetail(pickingId: string): Promise<PickingDetail
     real_qty: r.real_qty == null ? null : Number(r.real_qty),
     reserved_qty: r.reserved_qty == null ? null : Number(r.reserved_qty),
     on_order_qty: r.on_order_qty == null ? null : Number(r.on_order_qty),
+    removed: removed.has(r.id),
   }));
 }
 
@@ -162,20 +72,42 @@ export async function setPickingStep(itemId: string, step: PrepStep | null): Pro
   if (error) throw error;
 }
 
-export type PickingHeader = PickingList & {
-  document_number: string | null; document_type: string | null; contact_id: string | null;
-};
-export async function getPickingHeader(pickingId: string): Promise<PickingHeader> {
-  const { data, error } = await supabase.from('picking_lists').select('*').eq('id', pickingId).single();
+/** Emplacement de préparation du client (texte libre ou casier), tracé dans events. */
+export async function setPickingLocation(id: string, location: string | null): Promise<void> {
+  const { error } = await supabase.rpc('picking_set_location', { _picking: id, _location: location ?? '' });
   if (error) throw error;
-  const p = data as unknown as PickingList;
-  let doc: { number: string | null; doc_type: string; contact_id: string | null } | null = null;
-  if (p.document_id) {
-    const { data: d, error: dErr } = await supabase
-      .from('documents').select('number, doc_type, contact_id').eq('id', p.document_id).maybeSingle();
-    if (dErr) throw dErr;
-    doc = d;
-  }
-  return { ...p, document_number: doc?.number ?? null, document_type: doc?.doc_type ?? null, contact_id: doc?.contact_id ?? null };
 }
 
+/**
+ * Annuler / supprimer : le serveur supprime si rien n'a été préparé ni monté, sinon annule avec
+ * le motif (obligatoire dans ce cas). Retourne ce qui a été fait.
+ */
+export async function cancelPicking(id: string, reason: string): Promise<'deleted' | 'cancelled'> {
+  const { data, error } = await supabase.rpc('picking_cancel', { _picking: id, _reason: reason });
+  if (error) throw error;
+  return data as 'deleted' | 'cancelled';
+}
+
+/** Rouvrir une liste annulée ou terminée (les étapes saisies sont gardées). */
+export async function reopenPicking(id: string): Promise<void> {
+  const { error } = await supabase.rpc('picking_reopen', { _picking: id });
+  if (error) throw error;
+}
+
+/** Terminer : toutes les lignes préparées ou montées → liste terminée (prête à livrer). */
+export async function finishPicking(id: string): Promise<void> {
+  const { error } = await supabase.rpc('picking_finish', { _picking: id });
+  if (error) throw error;
+}
+
+export type RegenerateResult = {
+  added: number; removed: number; restored: number; qty_changed: number;
+  removed_lines: { reference: string | null; designation: string | null; prep_step: string | null }[];
+};
+
+/** Régénérer depuis le document : ajoute, signale les retirées, garde les états saisis. */
+export async function regeneratePicking(id: string): Promise<RegenerateResult> {
+  const { data, error } = await supabase.rpc('picking_regenerate', { _picking: id });
+  if (error) throw error;
+  return data as unknown as RegenerateResult;
+}

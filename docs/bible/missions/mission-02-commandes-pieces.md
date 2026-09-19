@@ -48,6 +48,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 | 8 | Frais atelier sur devis | Accident 125 € fixe, diagnostic au taux horaire (max 4 h) ajoutés automatiquement, réglables | ⬜ à faire | — |
 | 9 | Paiement par QR code sur un 2e écran au comptoir | QR de virement SEPA sur le 2e écran du comptoir | 🟦 à valider (étape 1 : QR de virement ; Stripe et Bancontact à venir, voir §2) | 19/09 |
 | 10 | Questions à trancher | Réponses du client consignées ici et dans `../decisions.md` | ⬜ à poser | — |
+| 11 | Picking list : une vraie gestion des listes de préparation (retour de Simon : « on ne sait pas supprimer une picking list… on ne sait quasi rien faire ») | Page des listes (document, client, moto, vendeur, date, avancement, emplacement, statut en couleur + icône + libellé ; filtres, tri) ; annuler / supprimer, rouvrir, régénérer depuis le document, imprimer, terminer — aussi sur la tablette | 🟦 à valider | 19/09 |
 
 ## 4. Questions en attente
 
@@ -160,6 +161,35 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   `20260919370000_m4_proposition_commande_fournisseur` (appliquée le 19/09 après test en transaction annulée).
   Code : `src/modules/purchases/proposal.ts`, `proposal-api.ts`, `proposal-pdf.ts`, `supplier-mail-dialog.tsx`,
   `purchase-destinations.tsx`, `src/routes/_app.purchases.proposal.tsx` ; test `tests/purchases-proposal.test.ts`.
+
+- [M06 Ventes](../modules/M06-ventes-caisse.md) — **carte 11 « picking list »** (19/09, à valider) : une seule
+  notion, la **liste de préparation d'un document**. Page **Listes de préparation** (`/picking`) refondue :
+  statut (à préparer / en cours / prête / montée / terminée / annulée, couleur + icône + libellé), document
+  (avec « Document modifié » si le document a changé), client, moto, vendeur, date, avancement « x / y
+  préparées · n montées », emplacement ; recherche client / document / moto, filtres statut / vendeur /
+  dates, tri par colonne. Actions : **Ouvrir** (tablette), **Document**, **Imprimer** (feuille A4 : client,
+  moto, casiers, emplacement, cases « Préparé » / « Monté », signatures), **Régénérer depuis le document**
+  (ajoute les nouvelles lignes, signale les lignes retirées, garde les étapes), **Terminer** (toutes les
+  lignes préparées ou montées), **Annuler / supprimer** (suppression réelle seulement si rien n'est préparé
+  ni monté, sinon annulation avec motif obligatoire), **Rouvrir**. Mêmes actions et bouton retour sur la
+  vue tablette. Plus d'écriture directe dans les tables depuis l'application : tout passe par les fonctions
+  `picking_*`, chacune tracée dans `events`. Aucun mouvement de stock. Anciens écrans retirés : liste vide
+  sans document, dialogue « Quantités ». Migration `20260919380000_m6_listes_preparation_gestion.sql` (appliquée le 19/09 après test en transaction
+  annulée). Code : `src/modules/sales/preparation.ts`, `picking-api.ts`, `picking-actions.tsx`,
+  `print-picking.ts`, `src/routes/_app.picking.tsx`, `_app.preparation.$pickingId.tsx` ; test
+  `tests/sales-picking-lists.test.ts`.
+
+### À tester (carte 11 — picking list)
+
+1. Sur un devis avec moto + options, **Préparer** → tablette ; revenir par **Listes de préparation** : la
+   liste montre client, moto, vendeur, « 0 / y préparées », statut « À préparer ». Menu « … » →
+   **Annuler / supprimer** : la fenêtre annonce une **suppression** (rien de préparé) → la liste disparaît.
+2. Re-**Préparer** le document, marquer une ligne **Préparé**, choisir un emplacement. **Annuler / supprimer** :
+   cette fois **annulation**, motif obligatoire ; la liste reste visible (filtre « Toutes » ou « Annulée »)
+   avec son motif ; **Rouvrir** → les étapes sont toujours là.
+3. **Imprimer** (feuille A4 lisible) ; si le document a changé, **Régénérer depuis le document** : lignes
+   nouvelles ajoutées, lignes retirées marquées « Retirée du document », étapes gardées ; tout préparer puis
+   **Terminer** → statut « Terminée », plus modifiable sans « Rouvrir ».
 
 ### À tester (carte 4)
 

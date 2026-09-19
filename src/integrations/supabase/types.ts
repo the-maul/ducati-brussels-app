@@ -3792,6 +3792,7 @@ export type Database = {
           qty_ordered: number
           qty_picked: number
           reference: string | null
+          removed_at: string | null
           sort_order: number
           status: string
         }
@@ -3809,6 +3810,7 @@ export type Database = {
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          removed_at?: string | null
           sort_order?: number
           status?: string
         }
@@ -3826,6 +3828,7 @@ export type Database = {
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          removed_at?: string | null
           sort_order?: number
           status?: string
         }
@@ -3862,7 +3865,12 @@ export type Database = {
       }
       picking_lists: {
         Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           company_id: string
+          completed_at: string | null
+          completed_by: string | null
           created_at: string
           created_by: string | null
           document_id: string | null
@@ -3872,7 +3880,12 @@ export type Database = {
           status: string
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id: string
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string | null
           document_id?: string | null
@@ -3882,7 +3895,12 @@ export type Database = {
           status?: string
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string | null
           document_id?: string | null
@@ -5899,6 +5917,10 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      _picking_refresh_status: {
+        Args: { _picking: string }
+        Returns: undefined
+      }
       _portal_ctx: { Args: never; Returns: Record<string, unknown> }
       _portal_invoice_pdf: {
         Args: { _company: string; _document: string }
@@ -7096,6 +7118,10 @@ export type Database = {
           subject: string
         }[]
       }
+      picking_cancel: {
+        Args: { _picking: string; _reason?: string }
+        Returns: string
+      }
       picking_detail: {
         Args: { _picking: string }
         Returns: {
@@ -7119,10 +7145,46 @@ export type Database = {
           status: string
         }[]
       }
+      picking_finish: { Args: { _picking: string }; Returns: undefined }
       picking_open_for_document: {
         Args: { _document: string }
         Returns: string
       }
+      picking_overview: {
+        Args: { _company: string; _picking?: string }
+        Returns: {
+          cancel_reason: string
+          cancelled_at: string
+          cancelled_by_name: string
+          client_name: string
+          company_id: string
+          completed_at: string
+          completed_by_name: string
+          contact_id: string
+          created_at: string
+          created_by_name: string
+          doc_changed: boolean
+          doc_issue_date: string
+          doc_number: string
+          doc_status: string
+          doc_type: string
+          document_id: string
+          id: string
+          lines_mounted: number
+          lines_ordered: number
+          lines_prepared: number
+          lines_removed: number
+          lines_total: number
+          location: string
+          note: string
+          seller_name: string
+          seller_user_id: string
+          status: string
+          vehicle_label: string
+        }[]
+      }
+      picking_regenerate: { Args: { _picking: string }; Returns: Json }
+      picking_reopen: { Args: { _picking: string }; Returns: undefined }
       picking_set_location: {
         Args: { _location: string; _picking: string }
         Returns: undefined

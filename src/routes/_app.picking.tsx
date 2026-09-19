@@ -1,23 +1,31 @@
+/**
+ * M6 — Listes de préparation (mission 02, carte « picking list » ; mission 05, carte 6).
+ * Une seule notion : la liste de préparation d'un document. Toutes les listes avec document,
+ * client, moto, vendeur, date, avancement, emplacement et statut ; filtres, tri ; ouvrir la vue
+ * tablette ou le document ; imprimer, régénérer, terminer, annuler / supprimer, rouvrir.
+ * Aucune action ne touche au stock.
+ */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ClipboardCheck, ListChecks } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ClipboardList, FileText, Loader2, MapPin, Plus, Search, Tablet, X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
-import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
-  listPickings, getPicking, createPickingFromDocument, createEmptyPicking, addPickingItem,
-  updatePickedQty, setPickingLocation, setPickingStatus,
-  type PickingListRow, type PickingItem, type PickingStatus, type PickingItemStatus,
+  listPickingOverview, openPickingForDocument, filterPickings, sortPickings, canPrepareDocument,
+  ALL_SELLERS, DEFAULT_PICKING_FILTERS, PICKING_LIST_STATUSES,
+  type PickingFilters, type PickingOverviewRow, type PickingSortKey, type PickingStatusFilter,
 } from '@/modules/sales/picking-api';
-import { listDocuments, type DocumentRow } from '@/modules/sales/write-api';
+import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
+import { listDocuments } from '@/modules/sales/write-api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/picking')({
@@ -25,364 +33,203 @@ export const Route = createFileRoute('/_app/picking')({
   component: PickingPage,
 });
 
-const LOCATIONS = ['Buanderie', 'G.ET.C', 'P.ET.C', 'ET@'] as const;
-const OTHER_SENTINEL = '__autre__';
-
-const PICKING_STATUS_TONE: Record<PickingStatus, StatusTone> = { en_cours: 'warning', pret: 'success', livre: 'neutral' };
-const ITEM_STATUS_TONE: Record<PickingItemStatus, StatusTone> = { a_preparer: 'neutral', partiel: 'warning', pret: 'success', a_recevoir: 'info' };
+const docLabel = (r: PickingOverviewRow) =>
+  r.doc_type ? `${t(`sales.type_${r.doc_type}`)} ${r.doc_number ?? t('sales.draftSuffix')}` : t('picking.noDocument');
+const dmy = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-BE') : '—');
 
 function PickingPage() {
   const { activeCompanyId } = useAuth();
-  const qc = useQueryClient();
   const navigate = useNavigate();
+  const [filters, setFilters] = useState<PickingFilters>(DEFAULT_PICKING_FILTERS);
+  const [sort, setSort] = useState<{ key: PickingSortKey; dir: 'asc' | 'desc' }>({ key: 'date', dir: 'desc' });
   const [newOpen, setNewOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['picking-lists', activeCompanyId],
-    queryFn: () => listPickings(activeCompanyId!),
+    queryFn: () => listPickingOverview(activeCompanyId!),
     enabled: !!activeCompanyId,
   });
+
+  const sellers = useMemo(
+    () => Array.from(new Set((data ?? []).map((r) => r.seller_name).filter((s): s is string => !!s))).sort(),
+    [data],
+  );
+  const rows = useMemo(() => sortPickings(filterPickings(data ?? [], filters), sort.key, sort.dir), [data, filters, sort]);
+  const set = (p: Partial<PickingFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const toggleSort = (key: PickingSortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' ? 'desc' : 'asc' }));
+  const filtered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_PICKING_FILTERS);
+
+  const openTablet = (id: string) => navigate({ to: '/preparation/$pickingId', params: { pickingId: id } });
 
   return (
     <>
       <PageHeader
         title={t('picking.title')}
         description={t('picking.subtitle')}
-        actions={<Button onClick={() => setNewOpen(true)}><Plus /> {t('picking.new')}</Button>}
+        actions={<Button className="h-11" onClick={() => setNewOpen(true)}><Plus /> {t('picking.new')}</Button>}
       />
 
-      <div className="overflow-hidden rounded-md border border-border">
-        <table className="w-full border-collapse font-data text-[13px]">
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <div className="relative min-w-60 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={filters.search} onChange={(e) => set({ search: e.target.value })}
+            placeholder={t('picking.searchPlaceholder')} className="h-11 pl-9 text-base"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">{t('picking.filterStatus')}</Label>
+          <Select value={filters.status} onValueChange={(v) => set({ status: v as PickingStatusFilter })}>
+            <SelectTrigger className="h-11 w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="actives">{t('picking.filterActives')}</SelectItem>
+              <SelectItem value="toutes">{t('picking.filterAll')}</SelectItem>
+              {PICKING_LIST_STATUSES.map((s) => <SelectItem key={s} value={s}>{t(`picking.listStatus_${s}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">{t('picking.filterSeller')}</Label>
+          <Select value={filters.seller} onValueChange={(v) => set({ seller: v })}>
+            <SelectTrigger className="h-11 w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SELLERS}>{t('picking.filterAllSellers')}</SelectItem>
+              {sellers.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">{t('picking.filterFrom')}</Label>
+          <Input type="date" value={filters.from} onChange={(e) => set({ from: e.target.value })} className="h-11 w-40" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">{t('picking.filterTo')}</Label>
+          <Input type="date" value={filters.to} onChange={(e) => set({ to: e.target.value })} className="h-11 w-40" />
+        </div>
+        {filtered && (
+          <Button variant="ghost" className="h-11" onClick={() => setFilters(DEFAULT_PICKING_FILTERS)}><X /> {t('picking.resetFilters')}</Button>
+        )}
+      </div>
+      <p className="mb-2 text-[12px] text-muted-foreground">
+        {t('picking.count').replace('{n}', String(rows.length)).replace('{total}', String(data?.length ?? 0))}
+      </p>
+
+      <div className="overflow-x-auto rounded-md border border-border">
+        <table className="w-full border-collapse font-data text-[14px]">
           <thead className="bg-muted">
             <tr>
-              <Th>{t('picking.colDocument')}</Th>
+              <SortTh k="status" sort={sort} onSort={toggleSort}>{t('picking.colStatus')}</SortTh>
+              <SortTh k="document" sort={sort} onSort={toggleSort}>{t('picking.colDocument')}</SortTh>
+              <SortTh k="client" sort={sort} onSort={toggleSort}>{t('picking.colClient')}</SortTh>
+              <Th>{t('picking.colVehicle')}</Th>
+              <SortTh k="seller" sort={sort} onSort={toggleSort}>{t('picking.colSeller')}</SortTh>
+              <SortTh k="date" sort={sort} onSort={toggleSort}>{t('picking.colDate')}</SortTh>
+              <SortTh k="progress" sort={sort} onSort={toggleSort}>{t('picking.colProgress')}</SortTh>
               <Th>{t('picking.colLocation')}</Th>
-              <Th>{t('picking.colStatus')}</Th>
-              <Th className="text-right">{t('picking.colProgress')}</Th>
-              <Th>{t('picking.colDate')}</Th>
-              <Th className="w-16" />
+              <Th className="w-56" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={6} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && data.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t('picking.listEmpty')}</td></tr>}
-            {data?.map((p) => (
-              <PickingRow
-                key={p.id} picking={p}
-                onOpen={() => navigate({ to: '/preparation/$pickingId', params: { pickingId: p.id } })}
-                onQuantities={() => setDetailId(p.id)}
-              />
+            {isLoading && <tr><td colSpan={9} className="px-3 py-8 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
+            {error && <tr><td colSpan={9} className="px-3 py-6 text-center text-danger">{t('picking.errLoad')}</td></tr>}
+            {data && rows.length === 0 && (
+              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
+                {data.length === 0 ? t('picking.listEmpty') : t('picking.listEmptyFiltered')}
+              </td></tr>
+            )}
+            {rows.map((r) => (
+              <tr key={r.id} onClick={() => openTablet(r.id)} className="cursor-pointer border-b border-border align-top last:border-0 hover:bg-accent">
+                <td className="px-3 py-3"><PickingStatusBadge row={r} /></td>
+                <td className="px-3 py-3">
+                  <div className="font-mono text-[13px]">{docLabel(r)}</div>
+                  {r.doc_changed && (r.status === 'en_cours' || r.status === 'pret') && (
+                    <div className="mt-1 inline-flex items-center gap-1 text-[12px] text-warning" title={t('picking.docChangedHint')}>
+                      <AlertTriangle className="size-3.5" /> {t('picking.docChanged')}
+                    </div>
+                  )}
+                </td>
+                <td className="px-3 py-3 font-semibold">{r.client_name ?? <span className="font-normal text-muted-foreground">{t('picking.tabletNoClient')}</span>}</td>
+                <td className="px-3 py-3 text-[13px]">{r.vehicle_label ?? '—'}</td>
+                <td className="px-3 py-3 text-[13px]">{r.seller_name ?? '—'}</td>
+                <td className="px-3 py-3 font-mono text-[13px] tabular-nums">{dmy(r.created_at)}</td>
+                <td className="px-3 py-3 tabular-nums">
+                  <div className="font-bold">{t('picking.progressShort').replace('{done}', String(r.lines_prepared)).replace('{total}', String(r.lines_total))}</div>
+                  <div className="text-[12px] text-muted-foreground">
+                    {t('picking.mountedShort').replace('{n}', String(r.lines_mounted))}
+                    {r.lines_removed > 0 && ` · ${t('picking.removedShort').replace('{n}', String(r.lines_removed))}`}
+                  </div>
+                </td>
+                <td className="px-3 py-3">
+                  {r.location
+                    ? <span className="inline-flex items-center gap-1 font-mono font-bold"><MapPin className="size-3.5 text-muted-foreground" />{r.location}</span>
+                    : <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="outline" className="h-10" onClick={() => openTablet(r.id)}><Tablet className="size-4" /> {t('picking.actionOpen')}</Button>
+                    {r.document_id && (
+                      <Button
+                        variant="ghost" size="icon" className="size-10" title={t('picking.actionDocument')}
+                        onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: r.document_id! } })}
+                      >
+                        <FileText className="size-4" />
+                      </Button>
+                    )}
+                    <PickingActions row={r} variant="list" />
+                  </div>
+                  {r.status === 'annulee' && r.cancel_reason && (
+                    <p className="mt-1 max-w-56 text-right text-[12px] text-muted-foreground">{t('picking.reasonShort').replace('{reason}', r.cancel_reason)}</p>
+                  )}
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <p className="mt-2 text-[12px] text-muted-foreground">{t('picking.noStockMove')}</p>
 
-      {newOpen && (
-        <NewPickingDialog
-          companyId={activeCompanyId!}
-          onClose={() => setNewOpen(false)}
-          onCreated={(id) => {
-            qc.invalidateQueries({ queryKey: ['picking-lists', activeCompanyId] });
-            setNewOpen(false);
-            navigate({ to: '/preparation/$pickingId', params: { pickingId: id } });
-          }}
-        />
-      )}
-
-      {detailId && (
-        <PickingDetailDialog
-          id={detailId}
-          onClose={() => setDetailId(null)}
-          onChanged={() => qc.invalidateQueries({ queryKey: ['picking-lists', activeCompanyId] })}
-        />
+      {newOpen && activeCompanyId && (
+        <NewPickingDialog companyId={activeCompanyId} onClose={() => setNewOpen(false)} onOpened={(id) => { setNewOpen(false); openTablet(id); }} />
       )}
     </>
   );
 }
 
-function PickingRow({ picking, onOpen, onQuantities }: { picking: PickingListRow; onOpen: () => void; onQuantities: () => void }) {
-  const { data: items } = useQuery({
-    queryKey: ['picking-items', picking.id],
-    queryFn: () => getPicking(picking.id).then((r) => r.items),
-  });
-  const total = items?.length ?? 0;
-  const ready = items?.filter((i) => i.status === 'pret').length ?? 0;
-  return (
-    <tr onClick={onOpen} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
-      <td className="px-3 py-2 font-mono text-[12px]">
-        {picking.document_number ? `${t(`sales.type_${picking.document_type}`)} ${picking.document_number}` : t('picking.noDocument')}
-      </td>
-      <td className="px-3 py-2">{picking.location || '—'}</td>
-      <td className="px-3 py-2"><StatusBadge tone={PICKING_STATUS_TONE[picking.status]} label={t(`picking.status${cap(picking.status)}`)} /></td>
-      <td className="px-3 py-2 text-right tabular-nums">{ready} / {total}</td>
-      <td className="px-3 py-2 font-mono text-[12px]">{picking.created_at.slice(0, 10)}</td>
-      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-        <Button variant="ghost" size="icon" title={t('picking.quantities')} onClick={onQuantities}><ListChecks className="size-4" /></Button>
-      </td>
-    </tr>
-  );
-}
-
-function cap(s: string): string {
-  return s.replace(/(^|_)([a-z])/g, (_, sep, c: string) => c.toUpperCase());
-}
-
-function NewPickingDialog({ companyId, onClose, onCreated }: { companyId: string; onClose: () => void; onCreated: (id: string) => void }) {
-  const [source, setSource] = useState<'document' | 'empty'>('document');
+/** « Nouvelle liste » = « Préparer » un document choisi dans la liste (une liste par document). */
+function NewPickingDialog({ companyId, onClose, onOpened }: { companyId: string; onClose: () => void; onOpened: (id: string) => void }) {
+  const qc = useQueryClient();
   const [documentId, setDocumentId] = useState('');
-  const [location, setLocation] = useState('');
-  const [otherLocation, setOtherLocation] = useState('');
-
   const { data: documents } = useQuery({
     queryKey: ['sales-documents-for-picking', companyId],
     queryFn: () => listDocuments(companyId),
-    enabled: !!companyId,
   });
-
-  const resolvedLocation = location === OTHER_SENTINEL ? otherLocation : location;
-
-  const createMut = useMutation({
-    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+  const open = useMutation({
     meta: { success: false, error: false },
-    mutationFn: () => source === 'document'
-      ? createPickingFromDocument(companyId, documentId, resolvedLocation)
-      : createEmptyPicking(companyId, resolvedLocation),
-    onSuccess: (id) => { toast.success(t('picking.created')); onCreated(id); },
-    onError: () => toast.error(t('picking.errCreate')),
+    mutationFn: () => openPickingForDocument(documentId),
+    onSuccess: (id) => { qc.invalidateQueries({ queryKey: ['picking-lists'] }); onOpened(id); },
+    onError: (e) => toast.error(e instanceof Error && e.message ? e.message : t('picking.errOpen')),
   });
-
-  const canCreate = source === 'empty' || !!documentId;
-
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader><DialogTitle>{t('picking.newTitle')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t('picking.sourceLabel')}</Label>
-            <RadioGroup value={source} onValueChange={(v) => setSource(v as 'document' | 'empty')} className="gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value="document" /> {t('picking.fromDocument')}
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value="empty" /> {t('picking.empty')}
-              </label>
-            </RadioGroup>
-          </div>
-
-          {source === 'document' && (
-            <div className="space-y-1.5">
-              <Label>{t('picking.document')}</Label>
-              <Select value={documentId} onValueChange={setDocumentId}>
-                <SelectTrigger><SelectValue placeholder={t('picking.documentPlaceholder')} /></SelectTrigger>
-                <SelectContent>
-                  {documents?.map((d: DocumentRow) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {t(`sales.type_${d.doc_type}`)} {d.number ?? '—'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label>{t('picking.location')}</Label>
-            <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger><SelectValue placeholder={t('picking.locationPlaceholder')} /></SelectTrigger>
-              <SelectContent>
-                {LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                <SelectItem value={OTHER_SENTINEL}>{t('picking.locOther')}</SelectItem>
-              </SelectContent>
-            </Select>
-            {location === OTHER_SENTINEL && (
-              <Input value={otherLocation} onChange={(e) => setOtherLocation(e.target.value)} placeholder={t('picking.locOtherPlaceholder')} />
-            )}
-          </div>
+        <p className="text-[13px] text-muted-foreground">{t('picking.newHint')}</p>
+        <div className="space-y-1.5">
+          <Label>{t('picking.document')}</Label>
+          <Select value={documentId} onValueChange={setDocumentId}>
+            <SelectTrigger className="h-11"><SelectValue placeholder={t('picking.documentPlaceholder')} /></SelectTrigger>
+            <SelectContent>
+              {(documents ?? []).filter(canPrepareDocument).map((d) => (
+                <SelectItem key={d.id} value={d.id}>{t(`sales.type_${d.doc_type}`)} {d.number ?? t('sales.draftSuffix')} · {d.issue_date}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={() => createMut.mutate()} disabled={!canCreate || createMut.isPending}>
-            {createMut.isPending ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {t('picking.create')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function PickingDetailDialog({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
-  const qc = useQueryClient();
-  const [addOpen, setAddOpen] = useState(false);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['picking-detail', id],
-    queryFn: () => getPicking(id),
-  });
-
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ['picking-detail', id] });
-    qc.invalidateQueries({ queryKey: ['picking-items', id] });
-    onChanged();
-  };
-
-  const locationMut = useMutation({
-    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
-    meta: { success: false, error: false },
-    mutationFn: (loc: string) => setPickingLocation(id, loc),
-    onSuccess: () => { toast.success(t('picking.updated')); refresh(); },
-    onError: () => toast.error(t('picking.errUpdate')),
-  });
-  const statusMut = useMutation({
-    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
-    meta: { success: false, error: false },
-    mutationFn: (s: PickingStatus) => setPickingStatus(id, s),
-    onSuccess: () => { toast.success(t('picking.updated')); refresh(); },
-    onError: () => toast.error(t('picking.errUpdate')),
-  });
-  const qtyMut = useMutation({
-    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
-    meta: { error: false },
-    mutationFn: ({ itemId, qty }: { itemId: string; qty: number }) => updatePickedQty(itemId, qty),
-    onSuccess: () => refresh(),
-    onError: () => toast.error(t('picking.errQty')),
-  });
-
-  const picking = data?.picking;
-  const items = useMemo(() => data?.items ?? [], [data]);
-  const [locationDraft, setLocationDraft] = useState<string | null>(null);
-  const location = locationDraft ?? picking?.location ?? '';
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[85vh] overflow-auto sm:max-w-3xl">
-        <DialogHeader><DialogTitle>{t('picking.detailTitle')}</DialogTitle></DialogHeader>
-
-        {isLoading && <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />}
-
-        {picking && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1.5">
-                <Label>{t('picking.location')}</Label>
-                <Input
-                  value={location}
-                  onChange={(e) => setLocationDraft(e.target.value)}
-                  onBlur={() => { if (locationDraft !== null && locationDraft !== picking.location) locationMut.mutate(locationDraft); }}
-                  className="w-48"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t('picking.globalStatus')}</Label>
-                <Select value={picking.status} onValueChange={(v) => statusMut.mutate(v as PickingStatus)}>
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en_cours">{t('picking.statusEnCours')}</SelectItem>
-                    <SelectItem value="pret">{t('picking.statusPret')}</SelectItem>
-                    <SelectItem value="livre">{t('picking.statusLivre')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button variant="outline" className="ml-auto" onClick={() => setAddOpen(true)}>
-                <Plus /> {t('picking.addItem')}
-              </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-md border border-border">
-              <table className="w-full border-collapse font-data text-[13px]">
-                <thead className="bg-muted">
-                  <tr>
-                    <Th>{t('picking.colDesignation')}</Th>
-                    <Th>{t('picking.colReference')}</Th>
-                    <Th className="text-right">{t('picking.qtyOrdered')}</Th>
-                    <Th className="text-right">{t('picking.qtyPicked')}</Th>
-                    <Th>{t('picking.colStatusItem')}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('picking.itemsEmpty')}</td></tr>}
-                  {items.map((item) => <ItemRow key={item.id} item={item} onQtyBlur={(qty) => qtyMut.mutate({ itemId: item.id, qty })} />)}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('action.close')}</Button>
-        </DialogFooter>
-      </DialogContent>
-
-      {addOpen && picking && (
-        <AddItemDialog
-          pickingId={id} companyId={picking.company_id}
-          onClose={() => setAddOpen(false)}
-          onAdded={() => { setAddOpen(false); refresh(); }}
-        />
-      )}
-    </Dialog>
-  );
-}
-
-function ItemRow({ item, onQtyBlur }: { item: PickingItem; onQtyBlur: (qty: number) => void }) {
-  const [qty, setQty] = useState(String(item.qty_picked));
-  return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-3 py-2">{item.designation || '—'}</td>
-      <td className="px-3 py-2 font-mono text-[12px]">{item.reference || '—'}</td>
-      <td className="px-3 py-2 text-right tabular-nums">{item.qty_ordered}</td>
-      <td className="px-3 py-2 text-right">
-        <Input
-          type="number" min={0} value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          onBlur={() => {
-            const n = Number(qty);
-            if (!Number.isNaN(n) && n !== item.qty_picked) onQtyBlur(n);
-          }}
-          className="w-24 text-right tabular-nums"
-        />
-      </td>
-      <td className="px-3 py-2"><StatusBadge tone={ITEM_STATUS_TONE[item.status]} label={t(`picking.itemStatus_${item.status}`)} /></td>
-    </tr>
-  );
-}
-
-function AddItemDialog({ pickingId, companyId, onClose, onAdded }: { pickingId: string; companyId: string; onClose: () => void; onAdded: () => void }) {
-  const [designation, setDesignation] = useState('');
-  const [reference, setReference] = useState('');
-  const [qty, setQty] = useState('1');
-
-  const addMut = useMutation({
-    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
-    meta: { success: false, error: false },
-    mutationFn: () => addPickingItem(pickingId, companyId, { designation, reference, qtyOrdered: Number(qty) || 0 }),
-    onSuccess: () => { toast.success(t('picking.itemAdded')); onAdded(); },
-    onError: () => toast.error(t('picking.errAddItem')),
-  });
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{t('picking.addItemTitle')}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>{t('picking.itemDesignation')}</Label>
-            <Input value={designation} onChange={(e) => setDesignation(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('picking.itemReference')}</Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('picking.itemQty')}</Label>
-            <Input type="number" min={0} value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={() => addMut.mutate()} disabled={!designation.trim() || addMut.isPending}>
-            {addMut.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('picking.add')}
+          <Button variant="outline" className="h-11" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button className="h-11" onClick={() => open.mutate()} disabled={!documentId || open.isPending}>
+            {open.isPending ? <Loader2 className="animate-spin" /> : <ClipboardList />} {t('picking.prepare')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -392,4 +239,17 @@ function AddItemDialog({ pickingId, companyId, onClose, onAdded }: { pickingId: 
 
 function Th({ children, className = '' }: { children?: ReactNode; className?: string }) {
   return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+}
+
+function SortTh({ k, sort, onSort, children }: {
+  k: PickingSortKey; sort: { key: PickingSortKey; dir: 'asc' | 'desc' }; onSort: (k: PickingSortKey) => void; children: ReactNode;
+}) {
+  const Icon = sort.key !== k ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <Th>
+      <button type="button" className="inline-flex items-center gap-1 uppercase hover:text-foreground" onClick={() => onSort(k)}>
+        {children} <Icon className={`size-3.5 ${sort.key === k ? 'text-foreground' : 'opacity-50'}`} />
+      </button>
+    </Th>
+  );
 }
