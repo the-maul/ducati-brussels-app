@@ -2647,6 +2647,23 @@ export const fr = {
     stockHintClient: 'Libre {free} (réel {real} − réservé {reserved}) · en commande pour ce client ou pour le stock {order} (commandes des autres clients exclues)',
   },
 
+  // Reste à payer et financement (mission 05, carte 9)
+  balance: {
+    restToPay: 'Reste à payer', restToPayClient: 'Reste à payer par le client',
+    overdue: 'Échéance dépassée', notDue: 'À échoir', settled: 'Soldé',
+    ttc: 'Total TTC', paidClient: 'Réglé', paidByOrg: 'Versé par l\'organisme',
+    toReceiveFromOrg: 'À recevoir de l\'organisme', financingPending: 'Financement demandé (non déduit)',
+    financing: 'Financement', financingNone: 'Aucun financement', financingEdit: 'Financement',
+    financingTitle: 'Financement en cours', financingOrg: 'Organisme de financement', financingAmount: 'Montant financé TTC',
+    financingStatus: 'Statut', financingStatus_demande: 'Demandé', financingStatus_accepte: 'Accepté', financingStatus_refuse: 'Refusé',
+    financingRule: 'Seul un financement accepté est déduit du reste à payer par le client ; il reste « à recevoir de l\'organisme » jusqu\'à son versement (règlement coché « versé par l\'organisme »).',
+    financingNoOrg: 'Aucun organisme de financement : ajoutez-les dans Paramètres → Tables → Organismes de financement.',
+    financingRemove: 'Retirer le financement', financingSaved: 'Financement enregistré.', errFinancing: 'Impossible d\'enregistrer le financement.',
+    fromFinancing: 'Versé par l\'organisme', orgBadge: 'Organisme',
+    clientHeader: 'Encours financier', clientOpenDocs: '{n} document(s) ouvert(s)', clientNothing: 'Rien à payer',
+    colRest: 'Reste à payer', paymentsOf: 'Règlements', noPayment: 'Aucun règlement',
+  },
+
   // « En commande » par client (mission 05, carte 7)
   onOrder: {
     associate: 'Associer une commande', associateHint: 'Associer une commande en cours à ce client',

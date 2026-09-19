@@ -10,7 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { documentBalance } from '@/modules/sales/balance';
+import { DocumentBalanceBlock, FinancingDialog } from '@/modules/sales/balance-panel';
+import { listFinancingOrgs } from '@/modules/sales/financing-api';
 import { enqueueDocumentEmail, enqueueDocumentSms } from '@/modules/sales/notify-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
@@ -69,6 +72,14 @@ function DocumentView() {
     },
     onError: (e) => toast.error(e instanceof Error && e.message ? e.message : t('onOrder.errRemove')),
   });
+  // Reste à payer et financement (mission 05, carte 9)
+  const paymentsQ = useQuery({ queryKey: ['payments', documentId], queryFn: () => listPayments(documentId) });
+  const orgsQ = useQuery({
+    queryKey: ['financing-orgs', data?.doc.company_id],
+    queryFn: () => listFinancingOrgs(data!.doc.company_id),
+    enabled: !!data?.doc.financing_org_id,
+  });
+  const [financingOpen, setFinancingOpen] = useState(false);
   const [associate, setAssociate] = useState<{ articleId: string; reference: string | null; designation: string } | null>(null);
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
@@ -97,7 +108,9 @@ function DocumentView() {
   );
 
   const { doc, lines } = data;
-  const due = Number(doc.total_ttc) - Number(doc.paid_amount);
+  const balance = documentBalance(doc, paymentsQ.data ?? null, new Date().toISOString().slice(0, 10));
+  const orgLabel = orgsQ.data?.find((o) => o.id === doc.financing_org_id)?.label ?? null;
+  const showBalance = doc.doc_type !== 'AVO';
   const linesHt = lines.reduce((s, l) => s + Number(l.line_ht), 0);
   const discount = Number(doc.global_discount_pct) > 0
     ? linesHt * Number(doc.global_discount_pct) / 100
@@ -256,13 +269,25 @@ function DocumentView() {
         <span>{t('sales.totalHt')} : <b>{eur(Number(doc.total_ht))}</b></span>
         <span className="text-muted-foreground">{t('sales.totalVat')} : {eur(Number(doc.total_vat))}</span>
         <span className="text-base">{t('sales.totalTtc')} : <b>{eur(Number(doc.total_ttc))}</b></span>
-        <span>{t('sales.paid')} : {eur(Number(doc.paid_amount))}</span>
-        {due > 0.005 && <span className="text-danger">{t('sales.due')} : <b>{eur(due)}</b></span>}
       </div>
+
+      {showBalance && (
+        <div className="mt-4">
+          <DocumentBalanceBlock
+            balance={balance} orgLabel={orgLabel}
+            financingStatus={doc.financing_status} financingAmount={Number(doc.financing_amount)}
+            onEditFinancing={doc.status !== 'annulee' ? () => setFinancingOpen(true) : undefined}
+          />
+        </div>
+      )}
 
       {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
         <div className="mt-4">
-          <PaymentPanel documentId={documentId} companyId={doc.company_id} due={due} acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)} />
+          <PaymentPanel
+            documentId={documentId} companyId={doc.company_id} due={balance.clientDue} overdue={balance.overdue}
+            financingAccepted={doc.financing_status === 'accepte'}
+            acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)}
+          />
         </div>
       )}
 
@@ -271,6 +296,13 @@ function DocumentView() {
         <AttachmentsPanel companyId={doc.company_id} entityType="document" entityId={documentId} />
       </div>
 
+      {financingOpen && (
+        <FinancingDialog
+          documentId={documentId} companyId={doc.company_id} totalTtc={Number(doc.total_ttc)}
+          current={{ orgId: doc.financing_org_id, amount: Number(doc.financing_amount), status: doc.financing_status }}
+          onClose={() => setFinancingOpen(false)}
+        />
+      )}
       {associate && contactId && (
         <AssociateOrderDialog
           articleId={associate.articleId} reference={associate.reference} designation={associate.designation}

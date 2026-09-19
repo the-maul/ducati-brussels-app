@@ -1,10 +1,10 @@
 /**
  * M1 — Onglets de la fiche client : Parc (VIN liés), Adresses de livraison, Tarifs à paliers.
  */
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Bike } from 'lucide-react';
+import { Loader2, Plus, Trash2, Bike, Landmark } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,47 +19,130 @@ import {
 import { contactDisplayName } from './api';
 import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
 import { PrepareButton } from '@/modules/sales/prepare-button';
+import { documentBalance, contactBalance, isOpenForBalance } from '@/modules/sales/balance';
+import { RestToPay, FinancingBadge } from '@/modules/sales/balance-panel';
+import { listPaymentsFor, listFinancingOrgs } from '@/modules/sales/financing-api';
+import { listPaymentMethods } from '@/modules/sales/write-api';
 import { t } from '@/lib/i18n';
 
 const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)?.tone ?? 'neutral';
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 
-/* ---------------- Encours (bandeau crédit) ---------------- */
+/* ---------------- Documents + règlements du client (mission 05, carte 9) ---------------- */
+function useClientDocsWithPayments(contactId: string) {
+  const docsQ = useQuery({ queryKey: ['client-docs', contactId], queryFn: () => listContactDocuments(contactId) });
+  const ids = (docsQ.data ?? []).map((d) => d.id);
+  const paymentsQ = useQuery({
+    queryKey: ['client-payments', contactId, ids.length],
+    queryFn: () => listPaymentsFor(ids),
+    enabled: !!docsQ.data,
+  });
+  return { docsQ, paymentsQ };
+}
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/* ---------------- Encours (bandeau crédit + reste à payer en grand, en haut à droite) ---------------- */
 export function EncoursBar({ contactId }: { contactId: string }) {
   const { data } = useQuery({ queryKey: ['encours', contactId], queryFn: () => getContactEncours(contactId) });
+  const { docsQ, paymentsQ } = useClientDocsWithPayments(contactId);
+  const bal = docsQ.data && paymentsQ.data ? contactBalance(docsQ.data, paymentsQ.data, todayIso()) : null;
   if (!data) return null;
   const over = data.available < 0;
   return (
-    <div className="mb-4 grid grid-cols-3 gap-3">
+    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_1.6fr]">
       <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours autorisé</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.authorized)}</div></div>
       <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours actuel</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.current)}</div></div>
       <div className={`rounded-md border p-3 ${over ? 'border-danger/40 bg-danger-bg' : 'border-success/30 bg-success-bg'}`}><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Disponible</div><div className={`mt-1 font-data text-xl tabular-nums ${over ? 'text-danger' : 'text-success'}`}>{eur(data.available)}</div></div>
+      <div className="rounded-md border border-border bg-card p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1 font-data text-[12px] tabular-nums text-muted-foreground">
+            <div className="text-[11px] font-bold uppercase tracking-[0.04em]">{t('balance.clientHeader')}</div>
+            {bal && <div>{bal.openDocs > 0 ? t('balance.clientOpenDocs').replace('{n}', String(bal.openDocs)) : t('balance.clientNothing')}</div>}
+            {bal && bal.toReceiveFromOrg > 0.005 && (
+              <div className="flex items-center gap-1 text-foreground"><Landmark className="size-3.5" />{t('balance.toReceiveFromOrg')} : <b>{eur(bal.toReceiveFromOrg)}</b></div>
+            )}
+            {bal && bal.financingPending > 0.005 && <div>{t('balance.financingPending')} : {eur(bal.financingPending)}</div>}
+          </div>
+          {bal ? <RestToPay due={bal.clientDue} overdue={bal.overdue} /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ---------------- Documents ---------------- */
+/* ---------------- Documents (règlements listés sous chaque document) ---------------- */
 export function DocumentsTab({ contactId }: { contactId: string }) {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({ queryKey: ['client-docs', contactId], queryFn: () => listContactDocuments(contactId) });
-  if (isLoading) return <Spinner />;
+  const { docsQ, paymentsQ } = useClientDocsWithPayments(contactId);
+  const data = docsQ.data;
+  const companyId = data?.[0]?.company_id ?? null;
+  const methodsQ = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId!), enabled: !!companyId });
+  const orgsQ = useQuery({ queryKey: ['financing-orgs', companyId], queryFn: () => listFinancingOrgs(companyId!), enabled: !!companyId });
+  if (docsQ.isLoading) return <Spinner />;
   if (!data || data.length === 0) return <Empty>Aucun document.</Empty>;
+  const methodLabel = (code: string) => methodsQ.data?.find((m) => m.code === code)?.label ?? code;
+  const orgLabel = (id: string | null) => (id ? orgsQ.data?.find((o) => o.id === id)?.label ?? null : null);
+  const today = todayIso();
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th><Th className="w-12" /></tr></thead>
+        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th><Th className="text-right">{t('balance.colRest')}</Th><Th className="w-12" /></tr></thead>
         <tbody>
-          {data.map((d) => (
-            <tr key={d.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}>
-              <td className="px-3 py-2 font-mono text-[12px] text-info underline">{d.number ?? '—'}</td>
-              <td className="px-3 py-2">{d.doc_type}</td>
-              <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
-              <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>
-              <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.paid_amount))}</td>
-              <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><PrepareButton doc={d} /></td>
-            </tr>
-          ))}
+          {data.map((d) => {
+            const pays = paymentsQ.data?.get(d.id) ?? [];
+            const b = documentBalance(d, pays, today);
+            const open = isOpenForBalance(d);
+            const showPays = pays.length > 0 || (open && b.clientDue > 0.005);
+            return (
+              <Fragment key={d.id}>
+                <tr className={`cursor-pointer hover:bg-accent ${showPays ? '' : 'border-b border-border last:border-0'}`} onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}>
+                  <td className="px-3 py-2 font-mono text-[12px] text-info underline">{d.number ?? '—'}</td>
+                  <td className="px-3 py-2">{d.doc_type}</td>
+                  <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
+                  <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.paid_amount))}</td>
+                  <td className="px-3 py-2 text-right">
+                    {open
+                      ? <span className={`font-bold tabular-nums ${b.overdue ? 'text-danger' : 'text-foreground'}`}>{eur(b.clientDue)}</span>
+                      : <span className="text-muted-foreground">—</span>}
+                    {d.financing_status && (
+                      <div className="mt-1 flex justify-end"><FinancingBadge status={d.financing_status} orgLabel={orgLabel(d.financing_org_id)} /></div>
+                    )}
+                    {open && b.toReceiveFromOrg > 0.005 && (
+                      <div className="text-[11px] tabular-nums text-muted-foreground">{t('balance.toReceiveFromOrg')} : {eur(b.toReceiveFromOrg)}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><PrepareButton doc={d} /></td>
+                </tr>
+                {showPays && (
+                  <tr className="border-b border-border bg-muted/40 last:border-0">
+                    <td />
+                    <td colSpan={7} className="px-3 pb-2 pt-0">
+                      {pays.length === 0 ? (
+                        <span className="text-[12px] text-muted-foreground">{t('balance.noPayment')}</span>
+                      ) : (
+                        <ul className="space-y-0.5 text-[12px]">
+                          {pays.map((p) => (
+                            <li key={p.id} className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-muted-foreground">{p.paid_at.slice(0, 10)}</span>
+                              <span>{methodLabel(p.method)}</span>
+                              {p.status === 'attendu'
+                                ? <StatusBadge tone="warning" label={`${t('sales.deferred')}${p.due_date ? ` · ${p.due_date}` : ''}`} />
+                                : <StatusBadge tone="success" label={t('sales.received')} />}
+                              {p.from_financing && <StatusBadge tone="info" icon={Landmark} label={t('balance.orgBadge')} />}
+                              <span className="ml-auto tabular-nums">{eur(Number(p.amount))}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

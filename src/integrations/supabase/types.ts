@@ -2206,6 +2206,7 @@ export type Database = {
           amount: number
           document_id: string
           due_date: string | null
+          from_financing: boolean
           given_amount: number | null
           id: string
           method: string
@@ -2217,6 +2218,7 @@ export type Database = {
           amount: number
           document_id: string
           due_date?: string | null
+          from_financing?: boolean
           given_amount?: number | null
           id?: string
           method?: string
@@ -2228,6 +2230,7 @@ export type Database = {
           amount?: number
           document_id?: string
           due_date?: string | null
+          from_financing?: boolean
           given_amount?: number | null
           id?: string
           method?: string
@@ -2364,6 +2367,9 @@ export type Database = {
           date_transfert: string | null
           doc_type: string
           due_date: string | null
+          financing_amount: number
+          financing_org_id: string | null
+          financing_status: string | null
           forced_ttc: number | null
           global_discount_amount: number
           global_discount_pct: number
@@ -2402,6 +2408,9 @@ export type Database = {
           date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
+          financing_amount?: number
+          financing_org_id?: string | null
+          financing_status?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
@@ -2440,6 +2449,9 @@ export type Database = {
           date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
+          financing_amount?: number
+          financing_org_id?: string | null
+          financing_status?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
@@ -2481,6 +2493,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_financing_org_id_fkey"
+            columns: ["financing_org_id"]
+            isOneToOne: false
+            referencedRelation: "reference_values"
             referencedColumns: ["id"]
           },
           {
@@ -6408,6 +6427,15 @@ export type Database = {
           real_qty: number
           reserved_qty: number
         }[]
+      }
+      document_set_financing: {
+        Args: {
+          _amount: number
+          _document: string
+          _org: string
+          _status: string
+        }
+        Returns: undefined
       }
       dormant_stock: {
         Args: { _company: string; _months?: number }

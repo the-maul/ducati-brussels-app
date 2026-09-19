@@ -196,6 +196,33 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   d'état « reçue ») ; à la carte 4 de la mission 02 (commande de pièces → CMD) il faudra éviter de la
   compter deux fois. La pastille globale du document reste sur le seul stock libre.
 
+### Carte 9 — Voir les paiements et le solde restant dû (19/09, à valider)
+- **Fiche du document** : bloc **« Reste à payer par le client »** en grand (chiffre principal, en
+  `--danger` seulement si l'échéance est dépassée, sinon neutre, avec badge Soldé / À échoir /
+  Échéance dépassée) ; à côté : total TTC, réglé, versé par l'organisme, financement et « à recevoir
+  de l'organisme ». Le panneau des règlements préremplit et affiche ce reste à payer.
+- **Financement en cours** : bouton « Financement » → organisme (table de référence « Organismes de
+  financement », Paramètres → Tables ; **vide au 19/09**, à remplir par l'équipe), montant financé TTC
+  (≤ total), statut **demandé / accepté / refusé** (couleur + icône + libellé) ; retrait possible. Seul
+  un financement **accepté** est déduit du reste à payer du client ; il apparaît « à recevoir de
+  l'organisme » jusqu'à ce qu'un règlement coché **« Versé par l'organisme »** le solde. Un financement
+  demandé est affiché sans être déduit. Le financement suit la conversion (DEV → BC → FAC…).
+- **Fiche client** : en haut à droite, **« Encours financier »** avec le **reste à payer en grand**
+  (somme des documents ouverts : factures, tickets, bons de commande, réservations, BL ; pas les
+  devis), le nombre de documents concernés, « à recevoir de l'organisme » et les financements
+  demandés ; onglet **Documents** : colonne « Reste à payer », badge de financement et **liste des
+  règlements sous chaque document** (date, mode, perçu / à échéance, organisme, montant, « Aucun
+  règlement » si rien n'est payé).
+- Migration `20260919312000_m6_financement_reste_a_payer.sql` (colonnes `documents.financing_org_id`,
+  `financing_amount`, `financing_status` ; `document_payments.from_financing` ; fonction
+  `document_set_financing`). Code : `src/modules/sales/balance.ts`, `balance-panel.tsx`,
+  `financing-api.ts`, `payment-panel.tsx`, `write-api.ts` (report à la conversion, règlement de
+  l'organisme), `src/routes/_app.sales.$documentId.tsx`, `src/modules/contacts/client-tabs.tsx` ;
+  test `tests/sales-balance.test.ts`.
+- Testé en base dans une transaction annulée (pose, contrôles montant / statut / organisme d'une autre
+  société, règlement de l'organisme, retrait, refus d'un utilisateur d'une autre société).
+- Limite : la pastille « Solde » de la liste des ventes ne tient pas compte du financement.
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.
