@@ -191,10 +191,20 @@ export function ParcTab({ contactId }: { contactId: string }) {
     enabled: !linkedQ.isLoading,
   });
   if (isLoading || linkedQ.isLoading) return <Spinner />;
-  if (!data || data.length === 0) return <Empty>Aucun véhicule lié à ce client.</Empty>;
+  // Mission 04, carte 6 : « Ajouter une moto » → formulaire véhicule pré-lié à ce client.
+  const addBar = (
+    <div className="mb-3 flex justify-end">
+      <Button size="sm" onClick={() => navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined } })}>
+        <Plus /> {t('motoClient.addForClient')}
+      </Button>
+    </div>
+  );
+  if (!data || data.length === 0) return <>{addBar}<Empty>Aucun véhicule lié à ce client.</Empty></>;
   const ownerName = (id: string) => (id === contactId ? null : (linked.find((l) => l.contact.id === id) ? contactDisplayName(linked.find((l) => l.contact.id === id)!.contact) : null));
   const hasLinked = linked.length > 0;
   return (
+    <>
+    {addBar}
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
         <thead className="bg-muted"><tr><Th>Véhicule</Th><Th>VIN</Th><Th>Période</Th>{hasLinked && <Th>Propriétaire</Th>}<Th>Statut</Th></tr></thead>
@@ -212,6 +222,7 @@ export function ParcTab({ contactId }: { contactId: string }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

@@ -46,7 +46,7 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | Tables | `attachments` (index des pièces : entité, chemin, type, taille, dossier, empreinte), `document_signatures` (prévue pour les signatures, **inutilisée**), `companies.cgv_text` / `invoice_footer` (CGV et pied de facture) |
 | Stockage | bucket privé `ged` (13 191 objets), bucket public `shop-assets` (M11) |
 | Fonctions SQL (RPC) | aucune propre ; politique `ged_public_products` pour les photos d'articles publiés (M11) |
-| Fonctions serveur (Edge) | `supabase/functions/outlook-poll` dépose les pièces jointes des mails (dossier « E-mails », dédoublonnées par empreinte `content_hash`) ; `supabase/functions/read-id-doc` lit les scans d'identité (M1) |
+| Fonctions serveur (Edge) | `supabase/functions/outlook-poll` dépose les pièces jointes des mails (dossier « E-mails », dédoublonnées par empreinte `content_hash`) ; `supabase/functions/read-id-doc` lit les scans d'identité (M1) et, en mode `carte_grise`, la carte grise d'une moto (M3, mission 04 carte 7 : photo rangée dans la GED du véhicule, dossier « Carte grise ») |
 | Tâches planifiées | `outlook-poll` (toutes les 5 min, voir M10) |
 | Migrations clés | `supabase/migrations/20260610370000_m9_ged.sql`, `20260612260000_m9_cgv_signatures.sql`, `20260612370000_m9_ged_folders.sql` |
 | Libellés | `src/lib/i18n/fr.ts`, bloc `ged` |
@@ -123,3 +123,4 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | 2026-07-19 | Bloc de signature et PDF de validation de reprise (M7) ; assainissement du texte des PDF | `b7ed89c`, `cf8ee9a` |
 | 2026-09-14 | La carte CRM affiche les pièces du client | `0e60be2` |
 | 2026-09-19 | PDF des documents de vente (jsPDF) : aperçu, pièce jointe du mail, archivé en GED client + document (mission 05 carte 8, mission 02 carte 6) | code seul |
+| 2026-09-19 | Carte grise lue par `read-id-doc` (mode `carte_grise`) et rangée dans la GED de la moto (mission 04, carte 7) | branche `lot-m4-moto` |

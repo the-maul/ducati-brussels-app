@@ -86,6 +86,7 @@ import { Route as AppTradeinNewRouteImport } from './routes/_app.tradein.new'
 import { Route as AppTradeinPartnersRouteImport } from './routes/_app.tradein.partners'
 import { Route as AppVehiclesIndexRouteImport } from './routes/_app.vehicles.index'
 import { Route as AppVehiclesVehicleIdRouteImport } from './routes/_app.vehicles.$vehicleId'
+import { Route as AppVehiclesDeclarationsRouteImport } from './routes/_app.vehicles.declarations'
 import { Route as AppVehiclesNewRouteImport } from './routes/_app.vehicles.new'
 import { Route as AppWorkshopIndexRouteImport } from './routes/_app.workshop.index'
 import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orId'
@@ -486,6 +487,11 @@ const AppVehiclesVehicleIdRoute = AppVehiclesVehicleIdRouteImport.update({
   path: '/$vehicleId',
   getParentRoute: () => AppVehiclesRoute,
 } as any)
+const AppVehiclesDeclarationsRoute = AppVehiclesDeclarationsRouteImport.update({
+  id: '/declarations',
+  path: '/declarations',
+  getParentRoute: () => AppVehiclesRoute,
+} as any)
 const AppVehiclesNewRoute = AppVehiclesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -635,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/tradein/new': typeof AppTradeinNewRoute
   '/tradein/partners': typeof AppTradeinPartnersRoute
   '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/vehicles/new': typeof AppVehiclesNewRoute
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
@@ -715,6 +722,7 @@ export interface FileRoutesByTo {
   '/tradein/new': typeof AppTradeinNewRoute
   '/tradein/partners': typeof AppTradeinPartnersRoute
   '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/vehicles/new': typeof AppVehiclesNewRoute
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
@@ -810,6 +818,7 @@ export interface FileRoutesById {
   '/_app/tradein/new': typeof AppTradeinNewRoute
   '/_app/tradein/partners': typeof AppTradeinPartnersRoute
   '/_app/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
+  '/_app/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/_app/vehicles/new': typeof AppVehiclesNewRoute
   '/_app/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
@@ -905,6 +914,7 @@ export interface FileRouteTypes {
     | '/tradein/new'
     | '/tradein/partners'
     | '/vehicles/$vehicleId'
+    | '/vehicles/declarations'
     | '/vehicles/new'
     | '/workshop/$orId'
     | '/workshop/chrono'
@@ -985,6 +995,7 @@ export interface FileRouteTypes {
     | '/tradein/new'
     | '/tradein/partners'
     | '/vehicles/$vehicleId'
+    | '/vehicles/declarations'
     | '/vehicles/new'
     | '/workshop/$orId'
     | '/workshop/chrono'
@@ -1079,6 +1090,7 @@ export interface FileRouteTypes {
     | '/_app/tradein/new'
     | '/_app/tradein/partners'
     | '/_app/vehicles/$vehicleId'
+    | '/_app/vehicles/declarations'
     | '/_app/vehicles/new'
     | '/_app/workshop/$orId'
     | '/_app/workshop/chrono'
@@ -1657,6 +1669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVehiclesVehicleIdRouteImport
       parentRoute: typeof AppVehiclesRoute
     }
+    '/_app/vehicles/declarations': {
+      id: '/_app/vehicles/declarations'
+      path: '/declarations'
+      fullPath: '/vehicles/declarations'
+      preLoaderRoute: typeof AppVehiclesDeclarationsRouteImport
+      parentRoute: typeof AppVehiclesRoute
+    }
     '/_app/vehicles/new': {
       id: '/_app/vehicles/new'
       path: '/new'
@@ -1961,12 +1980,14 @@ const AppTradeinRouteWithChildren = AppTradeinRoute._addFileChildren(
 
 interface AppVehiclesRouteChildren {
   AppVehiclesVehicleIdRoute: typeof AppVehiclesVehicleIdRoute
+  AppVehiclesDeclarationsRoute: typeof AppVehiclesDeclarationsRoute
   AppVehiclesNewRoute: typeof AppVehiclesNewRoute
   AppVehiclesIndexRoute: typeof AppVehiclesIndexRoute
 }
 
 const AppVehiclesRouteChildren: AppVehiclesRouteChildren = {
   AppVehiclesVehicleIdRoute: AppVehiclesVehicleIdRoute,
+  AppVehiclesDeclarationsRoute: AppVehiclesDeclarationsRoute,
   AppVehiclesNewRoute: AppVehiclesNewRoute,
   AppVehiclesIndexRoute: AppVehiclesIndexRoute,
 }

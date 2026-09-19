@@ -2,10 +2,10 @@
  * « Mes motos » : liste et fiche (infos, photo, entretiens et réparations,
  * documents du véhicule déposés par le client, factures liées).
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, ImageIcon, Wrench } from 'lucide-react';
+import { Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, ImageIcon, Plus, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
@@ -14,11 +14,19 @@ import {
   Card, EmptyState, ErrorBox, Loading, PortalPage, RepairStatus, SectionTitle, SignedImage, UploadButtons,
   dateFr, eur, km, vehicleName,
 } from './ui';
+import { DeclareVehicleForm, DeclaredVehiclesCard } from './declare-vehicle';
 
 export function VehicleListView() {
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'vehicles'], queryFn: listVehicles });
+  // Mission 04, carte 8 : le client déclare sa moto ; elle attend la validation de l'équipe.
+  const [adding, setAdding] = useState(false);
   return (
-    <PortalPage title={t('portal.vehicles.title')} subtitle={t('portal.vehicles.subtitle')}>
+    <PortalPage title={t('portal.vehicles.title')} subtitle={t('portal.vehicles.subtitle')}
+      actions={!adding ? (
+        <Button size="sm" onClick={() => setAdding(true)}><Plus /> {t('motoClient.portalAdd')}</Button>
+      ) : undefined}>
+      {adding && <DeclareVehicleForm onDone={() => setAdding(false)} />}
+      <DeclaredVehiclesCard />
       {isLoading && <Loading />}
       {error && <ErrorBox error={error} />}
       {data && data.length === 0 && (

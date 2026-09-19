@@ -11,6 +11,14 @@
  *             national_id_number, license_number, license_categories,
  *             license_date, license_place } }  — null pour les champs illisibles
  *
+ * MODE « carte_grise » (mission 04, carte 7) : POST { paths, mode: 'carte_grise' } lit un
+ * certificat d'immatriculation belge (parties I et II, photo ou PDF) et renvoie
+ * { data: MappedCarteGrise } : champs du formulaire véhicule (vin, plate, first_registration_date,
+ * brand, model, displacement, power_kw, power_cv, energy, antipollution, color), un indice de
+ * confiance par champ (high / medium / low), les cases lues mais non reprises et le titulaire.
+ * Schéma, consigne et mappage : ../_shared/carte-grise.ts (testé par tests/carte-grise.test.ts).
+ * Même accès, même téléchargement, même modèle que la lecture d'identité.
+ *
  * ACCÈS (lot sécurité S, 19/09) : clé de service, ou utilisateur connecté membre actif de la
  * société à laquelle appartient CHAQUE fichier (1er segment du chemin GED = company_id).
  * Avant : aucun contrôle — quiconque connaissait un chemin obtenait l'extraction d'une pièce
@@ -19,6 +27,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { activeCompaniesOf, identify } from "../_shared/acces.ts";
+import { CARTE_GRISE_PROMPT, CARTE_GRISE_SCHEMA, mapCarteGrise, type RawCarteGrise } from "../_shared/carte-grise.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +78,9 @@ Deno.serve(async (req) => {
     const caller = await identify(req);
     if (!caller || caller.kind === "cron") return json({ error: "not_signed_in" }, 401);
 
-    const { paths } = await req.json() as { paths?: string[] };
+    const { paths, mode } = await req.json() as { paths?: string[]; mode?: string };
+    if (mode !== undefined && mode !== "identity" && mode !== "carte_grise") return json({ error: "bad_mode" }, 400);
+    const isCarteGrise = mode === "carte_grise";
     if (!Array.isArray(paths) || paths.length === 0) return json({ error: "no_paths" }, 400);
     if (paths.some((p) => typeof p !== "string" || p.includes(".."))) return json({ error: "bad_path" }, 400);
 
@@ -106,6 +117,23 @@ Deno.serve(async (req) => {
     if (blocks.length === 0) return json({ error: "no_readable_files" }, 400);
 
     const anthropic = new Anthropic({ apiKey });
+
+    // Mission 04, carte 7 : carte grise → champs du formulaire véhicule + confiance.
+    if (isCarteGrise) {
+      const cg = await anthropic.messages.create({
+        model: "claude-opus-4-8",
+        max_tokens: 2048,
+        output_config: {
+          format: { type: "json_schema", schema: CARTE_GRISE_SCHEMA },
+        },
+        messages: [{ role: "user", content: [...blocks, { type: "text", text: CARTE_GRISE_PROMPT }] }],
+      });
+      if (cg.stop_reason === "refusal") return json({ error: "refused" }, 422);
+      const cgText = cg.content.find((b) => b.type === "text");
+      if (!cgText || cgText.type !== "text") return json({ error: "empty" }, 500);
+      return json({ data: mapCarteGrise(JSON.parse(cgText.text) as RawCarteGrise) });
+    }
+
     const response = await anthropic.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 2048,

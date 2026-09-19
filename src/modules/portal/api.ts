@@ -226,6 +226,12 @@ export function portalErrorMessage(err: unknown): string {
     ['invalid vat_number', 'portal.errors.invalidVat'],
     ['invalid iban', 'portal.errors.invalidIban'],
     ['invalid bic', 'portal.errors.invalidBic'],
+    ['brand required', 'portal.errors.brandRequired'],
+    ['model required', 'portal.errors.modelRequired'],
+    ['invalid year', 'portal.errors.invalidYear'],
+    ['invalid vin', 'portal.errors.invalidVin'],
+    ['invalid plate', 'portal.errors.invalidPlate'],
+    ['too many pending declarations', 'portal.errors.tooManyDeclarations'],
     ['not found', 'portal.errors.notFound'],
     ['no client account', 'portal.errors.noAccount'],
   ];
@@ -312,4 +318,46 @@ export async function openFile(path: string): Promise<void> {
     win?.close();
     throw e;
   }
+}
+
+// ---------------------------------------------------------------- motos déclarées (mission 04, carte 8)
+/**
+ * Le client déclare une moto : elle n'entre PAS dans son parc, elle attend la
+ * validation de l'équipe (alerte dans la cloche vendeurs + admins). Migration :
+ * supabase/migrations/20260919302000_m3_motos_declarees.sql.
+ */
+export type PortalDeclaredVehicle = {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  model_year: number | null;
+  vin: string | null;
+  plate: string | null;
+  status: 'a_valider' | 'ignoree';
+  created_at: string;
+  has_registration: boolean;
+};
+
+export const listDeclaredVehicles = () => rpc<PortalDeclaredVehicle[]>('portal_declared_vehicles');
+
+export type VehicleDeclaration = {
+  brand: string; model: string; modelYear: number | null; vin: string | null; plate: string | null;
+};
+
+export const declareVehicle = (d: VehicleDeclaration) =>
+  rpc<string>('portal_declare_vehicle', {
+    p_brand: d.brand, p_model: d.model, p_model_year: d.modelYear, p_vin: d.vin, p_plate: d.plate,
+  });
+
+/** Photo de la carte grise d'une déclaration : même dépôt en 3 temps que les autres fichiers. */
+export async function uploadDeclarationScan(declarationId: string, original: File): Promise<void> {
+  const file = await prepareFileForUpload(original);
+  const prepared = await rpc<{ upload_id: string; path: string }>('portal_prepare_declaration_upload', {
+    p_declaration_id: declarationId, p_file_name: original.name, p_content_type: file.type, p_size: file.size,
+  });
+  const { error } = await supabase.storage.from(BUCKET).upload(prepared.path, file, {
+    contentType: file.type, upsert: false,
+  });
+  if (error) throw new Error(portalErrorMessage(error));
+  await rpc('portal_complete_upload', { p_upload_id: prepared.upload_id });
 }
