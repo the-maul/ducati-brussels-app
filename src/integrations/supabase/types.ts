@@ -533,6 +533,8 @@ export type Database = {
           superseded_by_id: string | null
           supplier_availability: string | null
           supplier_ref: string | null
+          to_complete: boolean
+          to_complete_source: string | null
           updated_at: string
           vat_rate: number
           web_description: string | null
@@ -593,6 +595,8 @@ export type Database = {
           superseded_by_id?: string | null
           supplier_availability?: string | null
           supplier_ref?: string | null
+          to_complete?: boolean
+          to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
           web_description?: string | null
@@ -653,6 +657,8 @@ export type Database = {
           superseded_by_id?: string | null
           supplier_availability?: string | null
           supplier_ref?: string | null
+          to_complete?: boolean
+          to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
           web_description?: string | null
@@ -7102,6 +7108,29 @@ export type Database = {
         Returns: string
       }
       round_up_euro: { Args: { p: number }; Returns: number }
+      sale_article_exact_lookup: {
+        Args: { _company: string; _ref: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          brand: string
+          catalog_url: string
+          designation: string
+          equivalence_group: string
+          is_library: boolean
+          matched_on: string
+          mgmt_type: string
+          on_order_qty: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sale_price_ht: number
+          superseded_by_id: string
+          supplier_ref: string
+          to_complete: boolean
+          vat_rate: number
+        }[]
+      }
       sales_journal: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {

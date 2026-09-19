@@ -61,7 +61,7 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 ## 6. Prévu / en cours
 
 - **Intégrateur** : appliquer la migration `20260919130000` (avec backup), puis supprimer du projet Supabase les fonctions Edge `stripe-checkout` et `stripe-webhook`, le webhook correspondant côté tableau de bord Stripe, et régénérer `src/integrations/supabase/types.ts`.
-- Mission 03 en cours : synchronisation Shopify ↔ stock DMS (W-2). Premier lot fait le 19/09 : **Produits Shopify** (lecture de la boutique et rapprochement avec les articles), documenté dans [M02](M02-articles.md).
+- Mission 03 en cours : synchronisation Shopify ↔ stock DMS (W-2). Premier lot fait le 19/09 : **Produits Shopify** (lecture de la boutique et rapprochement avec les articles), documenté dans [M02](M02-articles.md). Deuxième lot le 19/09 : **reprise unique des photos et textes** des produits reliés dans les fiches articles (W-4 : le DMS fait foi ensuite) — champs `articles.web_title` / `web_description` et photos en GED, base de la future publication vers Shopify.
 
 ## 7. Limites connues, dettes, pièges
 

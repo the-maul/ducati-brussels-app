@@ -136,6 +136,45 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   `comment-templates-editor.tsx`, route `src/routes/_app.settings.comments.tsx`, `print-document.ts`,
   `_app.sales.$documentId.tsx` ; test `tests/sales-line-types.test.ts`.
 
+### Carte 8 — Aperçu du document et envoi par mail (19/09, à valider)
+- Sur la fiche d'un document de vente : bouton **« Aperçu PDF »** (ouvre le vrai PDF dans un onglet :
+  lire, imprimer, télécharger). L'impression HTML existante reste en place.
+- Le PDF reprend l'impression : **en-tête société** (logo, adresse, TVA, IBAN lus dans `companies`),
+  bloc client, code-barres du n°, bandeau date / heure / n° client / condition / échéance / **opérateur**,
+  lignes (article, **main-d'œuvre en heures**, **texte** multi-lignes, **ligne vide**), bloc véhicule,
+  **détail TVA par taux**, brut / net HT / TVA / net TTC, **règlements et acomptes**, **RESTE À PAYER**,
+  mention TVA marge ou détaxe, **validité** (« Devis valable 1 mois (jusqu'au …) » sur un devis /
+  proforma), notes, pied de facture, **case « Bon pour accord »** (devis, BC, réservation, BL), CGV au
+  verso, « Page i / n ».
+- **Validité réglable** : Paramètres → Tables → « Validité des documents (PDF) » : code = type (DEV,
+  BC…), libellé = texte imprimé (`{date}` = date limite), durée en mois (0 = sans date). Sans ligne :
+  « Devis valable 1 mois ». Ligne inactive : pas de mention. Aucune ligne créée en base.
+- **« Envoyer par e-mail »** : destinataire = e-mail du client, **modifiable** ; **boîte d'envoi au
+  choix** (même règle que le CRM : boîtes de la société + sa propre adresse, par défaut celle qui a reçu
+  le dernier mail du client) ; objet et message pré-remplis modifiables ; **PDF joint** (nom, taille,
+  bouton « Voir ») ; pied de mail P-5 / P-6 ajouté par le serveur comme avant ; bouton
+  **« Vérifier sans envoyer »** (simulation serveur : boîte, pied de mail, pièce jointe, rien ne part).
+- Après l'envoi : PDF rangé dans la **GED du client** (dossier « Documents de vente ») et dans celle du
+  **document**, note « Envoyé par e-mail à … depuis … le … » ; ligne **`events`** `email_sent` sur le
+  document (qui, quand, à qui, quelle boîte, objet, fichier) écrite par le serveur.
+- Choix technique : PDF **dans le navigateur avec jsPDF** (déjà utilisé par M7), justifié dans
+  [M09 §4](../modules/M09-documents.md). Pas de migration. Fonction `graph-send-email` étendue
+  (`dryRun`, `trace`), compatible avec ses appelants, **déployée le 19/09**.
+- Code : `src/modules/sales/document-pdf.ts`, `document-pdf-data.ts`, `pdf-print-style.ts`,
+  `document-mail-api.ts`, `document-mail-dialog.tsx`, `src/routes/_app.sales.$documentId.tsx`,
+  `src/modules/settings/reference-tables.ts`, `supabase/functions/graph-send-email/index.ts`,
+  `supabase/functions/_shared/mail-message.ts` ; tests `tests/sales-document-pdf.test.ts`,
+  `tests/graph-send-email-message.test.ts`.
+
+**À tester (carte 8)**
+1. Ventes → un devis / proforma avec une ligne main-d'œuvre, un commentaire et une ligne vide →
+   **Aperçu PDF** : vérifier en-tête, lignes, détail TVA, reste à payer, « Devis valable 1 mois », case
+   signature.
+2. **Envoyer par e-mail** → mettre **votre propre adresse** comme destinataire → **Vérifier sans
+   envoyer** (message vert, rien ne part) → **Envoyer** : le mail arrive avec le PDF joint.
+3. Fiche du client → onglet GED → dossier « Documents de vente » : le PDF envoyé y est ; il est aussi
+   dans la GED du document.
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.

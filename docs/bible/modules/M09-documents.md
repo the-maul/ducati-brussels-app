@@ -19,7 +19,8 @@ dans un dossier, on le retrouve et on l'ouvre. La relève mail y dépose aussi a
 pièces jointes des e-mails reçus des clients. Le module fournit en outre deux briques réutilisables :
 un **bloc de signature manuscrite** (doigt, stylet, souris) et un **assainissement du texte des PDF**.
 Les générateurs de documents métier (COC, dossier garantie, contrat d'essai, bridage) prévus au cahier
-**n'existent pas encore** ; seuls ceux du module Reprises (M7) et la facture (M6) sont écrits.
+**n'existent pas encore** ; seuls ceux du module Reprises (M7) et les documents de vente (M6 : impression
+HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont écrits.
 
 ## 2. Ce qu'on a aujourd'hui
 
@@ -28,6 +29,7 @@ Les générateurs de documents métier (COC, dossier garantie, contrat d'essai, 
 | Panneau « Documents » (réutilisé partout, voir ligne suivante) | Déposer un ou plusieurs fichiers (bouton, caméra sur mobile, glisser-déposer) avec un libellé rapide (Réception, Avant atelier, Après atelier, COC, Pièce d'identité, Photo) ; créer des **dossiers** et y glisser les pièces ; filtrer par dossier ; vignettes pour les images ; ouvrir (lien signé valable 1 h) ; renommer ; supprimer. |
 | Où le panneau apparaît | Clients → fiche → onglet GED · Véhicules → fiche · Pièces → fiche article → onglet Photos · Ventes → document · Atelier → OR · CRM → carte d'une demande → onglet Documents (pièces du **client**) · Améliorations → tâche |
 | Ventes → document → Imprimer | Facture / devis / ticket / BL / avoir au format de la concession, avec les **CGV au verso** si la société en a (M6, `print-document.ts`). |
+| Ventes → document → **Aperçu PDF** / **Envoyer par e-mail** (19/09) | PDF du devis / proforma, bon de commande, réservation, BL, facture… ; à l'envoi, le PDF est rangé dans la GED du **client** (dossier « Documents de vente ») et dans celle du **document**, avec la note « Envoyé par e-mail à … depuis … le … ». |
 | Reprises → validation (M7) | Signature manuscrite du client sur l'attestation « TVA régime de la marge », PDF d'archive de la reprise déposé en GED sur la moto et sur le client, fiche de reprise PDF. ⚠️ Module M7 inopérant en production (voir chapitre M7). |
 
 ## 3. Où trouver quoi
@@ -38,6 +40,7 @@ Les générateurs de documents métier (COC, dossier garantie, contrat d'essai, 
 | Panneau GED | `src/modules/documents/attachments-panel.tsx` |
 | Accès aux fichiers | `src/modules/documents/ged-api.ts` (chemin de stockage : `<company_id>/<entity_type>/<entity_id>/<horodatage>_<nom>`) |
 | Signature manuscrite | `src/modules/documents/signature-pad.tsx` (utilisé seulement par `src/modules/tradein/validate-dialog.tsx`) |
+| PDF des documents de vente (M6) | `src/modules/sales/document-pdf.ts`, `document-pdf-data.ts`, `pdf-print-style.ts` ; envoi + archivage `document-mail-api.ts` |
 | Texte des PDF (jsPDF) | `src/modules/documents/pdf-text.ts` (`sanitizePdfText`, `patchPdfText`) |
 | Générateurs de documents existants (hors module) | `src/modules/sales/print-document.ts` (M6, HTML imprimable), `src/modules/tradein/attestation-pdf.ts`, `reprise-pdf.ts`, `validation-pdf.ts`, `sheet-builder.ts` (M7, jsPDF) |
 | Tables | `attachments` (index des pièces : entité, chemin, type, taille, dossier, empreinte), `document_signatures` (prévue pour les signatures, **inutilisée**), `companies.cgv_text` / `invoice_footer` (CGV et pied de facture) |
@@ -55,6 +58,8 @@ Les générateurs de documents métier (COC, dossier garantie, contrat d'essai, 
 - **Isolement par société** : le premier dossier du chemin est le `company_id` ; les politiques du bucket `ged` exigent `is_member` de cette société. Bucket privé : on n'ouvre un fichier que par lien signé temporaire.
 - **Pièces d'un mail = pièces du client** (correctif du 14/09) : la carte CRM affiche la GED du **contact**, pas celle de la demande, sinon les deux dossiers ne se voyaient pas.
 - **PDF imprimés** : couleurs et polices en dur autorisées dans les documents imprimés (charte §7) ; tout texte passe par `patchPdfText` pour éviter les caractères parasites (espace fine insécable de `toLocaleString`, correctif `cf8ee9a`).
+- **PDF des documents de vente généré dans le navigateur avec jsPDF** (19/09, mission 05 carte 8). Pourquoi : jsPDF est **déjà** une dépendance du projet (PDF de reprise M7), léger, très répandu, compatible Lovable / TanStack Start (chargé à la demande, seulement au clic) ; le même fichier sert à l'aperçu, à la pièce jointe et à l'archive GED, sans aller-retour serveur. Écartés : une Edge Function Deno (il faudrait y réécrire la mise en page et relire toutes les données avec la clé service, pour aucun gain tant qu'aucun PDF ne part sans utilisateur) ; l'impression HTML `window.print()` (aucun fichier à joindre ni à archiver) ; pdf-lib (nouvelle dépendance, pas de mise en page du texte). Couleurs et polices du PDF : **uniquement** `pdf-print-style.ts` (document imprimé, charte §7), jamais dans un composant React. Le jour où un PDF devra partir sans utilisateur connecté (relance automatique), déplacer `document-pdf.ts` (pur) dans une Edge Function.
+- **Un PDF envoyé = deux fichiers GED** (client et document), pas une ligne partagée : supprimer l'un ne casse pas l'autre (la suppression efface le fichier du stockage).
 - **Prix de vente jamais dans le PDF d'archive de reprise** (demande magasin, en-tête de `validation-pdf.ts`).
 
 ## 5. État en production
@@ -77,7 +82,8 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 
 ## 7. Limites connues, dettes, pièges
 
-- **Pas de générateur PDF templaté commun** : chaque module écrit le sien (HTML imprimable en M6, jsPDF en M7). Le « générateur PDF en Edge Function » du dossier-projet n'existe pas.
+- **Pas de générateur PDF templaté commun** : chaque module écrit le sien (HTML imprimable et PDF jsPDF en M6, jsPDF en M7). Le « générateur PDF en Edge Function » du dossier-projet n'existe pas (choix du 19/09, §4).
+- **Signature du PDF de vente** : une case « Bon pour accord » vide, à signer à la main ; pas de signature électronique (VEN003).
 - La GED d'une entité est lue par `entity_type` + `entity_id` sans filtre `company_id` côté requête (la RLS s'en charge).
 - Les dossiers vides n'existent que dans l'écran (état local) : un dossier sans fichier disparaît au rechargement.
 - Aucune limite de taille sur le bucket `ged` (`file_size_limit` nul).
@@ -116,4 +122,5 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | 2026-06-22 | Dossiers, glisser-déposer, renommage ; pièces jointes des mails en GED, dédoublonnées | `13be403`, `168399a`, migration `20260612370000_m9_ged_folders` |
 | 2026-07-19 | Bloc de signature et PDF de validation de reprise (M7) ; assainissement du texte des PDF | `b7ed89c`, `cf8ee9a` |
 | 2026-09-14 | La carte CRM affiche les pièces du client | `0e60be2` |
+| 2026-09-19 | PDF des documents de vente (jsPDF) : aperçu, pièce jointe du mail, archivé en GED client + document (mission 05 carte 8, mission 02 carte 6) | code seul |
 | 2026-09-19 | Carte grise lue par `read-id-doc` (mode `carte_grise`) et rangée dans la GED de la moto (mission 04, carte 7) | branche `lot-m4-moto` |
