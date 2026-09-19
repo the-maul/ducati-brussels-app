@@ -61,7 +61,7 @@ function daysInStock(entry: string, sold: string): number | null {
 
 // Listes à choix fixes. Valeurs identiques FR/NL (gamme constructeur, normes, nb de cylindres)
 // donc constantes plutôt que dictionnaire i18n.
-const VEHICLE_FAMILIES = [
+export const VEHICLE_FAMILIES = [
   'SCRAMBLER','HERITAGE','SUPERSPORT','MULTISTRADA','DIAVEL','XDIAVEL','MONSTER','SUPERBIKE',
   'STREETFIGHTER','HYPERMOTARD','DESERT X','OFF-ROAD','SPORTCLASSIC','DESMOSEDICI RR','SPORT TOURING',
 ] as const;
@@ -118,7 +118,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
 }
 
 export function VehicleForm({
-  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching,
+  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching, clientScanPath,
 }: {
   initial: Vehicle | null;
   companyId: string;
@@ -133,6 +133,8 @@ export function VehicleForm({
   /** VIN déjà présent : rattacher la moto existante au client au lieu d'en créer une 2e. */
   onAttachExisting?: (vehicleId: string, ownerFrom: string) => void;
   attaching?: boolean;
+  /** Carte 8 : carte grise déposée par le client dans son espace (chemin GED), lisible d'un clic. */
+  clientScanPath?: string | null;
 }) {
   const isClient = !!client;
   const [f, setF] = useState<F>(() => fromVehicle(initial, isClient, prefill));
@@ -197,6 +199,14 @@ export function VehicleForm({
       setCgBusy(false);
       if (cgInput.current) cgInput.current.value = '';
     }
+  };
+
+  /** Carte 8 : lecture de la carte grise déjà déposée par le client (pas de nouveau dépôt). */
+  const onClientScan = async () => {
+    if (!clientScanPath) return;
+    setCgMsg({ tone: 'info', text: t('motoClient.reading') }); setCgBusy(true);
+    try { applyReading(await readCarteGrise([clientScanPath])); }
+    catch (e) { cgError(e); } finally { setCgBusy(false); }
   };
 
   /** Surlignage d'un champ lu : bleu = lu net, orange = à vérifier (couleur + icône + libellé). */
@@ -345,6 +355,11 @@ export function VehicleForm({
             <Button type="button" variant="outline" disabled={cgBusy} onClick={() => cgInput.current?.click()}>
               {cgBusy ? <Loader2 className="animate-spin" /> : <ScanText />} {t('motoClient.readCg')}
             </Button>
+            {clientScanPath && (
+              <Button type="button" variant="outline" disabled={cgBusy} onClick={onClientScan}>
+                {cgBusy ? <Loader2 className="animate-spin" /> : <ScanText />} {t('motoClient.readClientCg')}
+              </Button>
+            )}
             <span className="text-[12px] text-muted-foreground">{t('motoClient.readCgHint')}</span>
           </div>
           {cgMsg && (

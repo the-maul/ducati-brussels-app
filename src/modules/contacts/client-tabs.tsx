@@ -109,7 +109,7 @@ export function ParcTab({ contactId }: { contactId: string }) {
   // Mission 04, carte 6 : « Ajouter une moto » → formulaire véhicule pré-lié à ce client.
   const addBar = (
     <div className="mb-3 flex justify-end">
-      <Button size="sm" onClick={() => navigate({ to: '/vehicles/new', search: { contact: contactId } })}>
+      <Button size="sm" onClick={() => navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined } })}>
         <Plus /> {t('motoClient.addForClient')}
       </Button>
     </div>

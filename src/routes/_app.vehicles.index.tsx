@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus } from 'lucide-react';
+import { Search, Loader2, Plus, Bike } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listVehicles, vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
+import { listPendingDeclarations } from '@/modules/vehicles/declarations-api';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/vehicles/')({
@@ -42,15 +43,32 @@ function VehiclesList() {
     enabled: !!activeCompanyId,
   });
 
+  // Mission 04, carte 8 : motos déclarées par les clients, en attente de validation.
+  const declQ = useQuery({
+    queryKey: ['declared-vehicles', activeCompanyId],
+    queryFn: () => listPendingDeclarations(activeCompanyId!),
+    enabled: !!activeCompanyId,
+    staleTime: 60_000,
+  });
+  const pendingDecl = declQ.data?.length ?? 0;
+
   return (
     <>
       <PageHeader
         title={t('vehicles.title')}
         description={t('vehicles.subtitle')}
         actions={
-          <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined } })}>
-            <Plus /> {t('vehicles.new')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/vehicles/declarations' })}>
+              <Bike /> {t('motoClient.declOpen')}
+              {pendingDecl > 0 && (
+                <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1.5 font-data text-[12px] font-bold tabular-nums text-warning">{pendingDecl}</span>
+              )}
+            </Button>
+            <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined, declaration: undefined } })}>
+              <Plus /> {t('vehicles.new')}
+            </Button>
+          </div>
         }
       />
 

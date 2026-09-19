@@ -183,6 +183,41 @@ Migrations appliquées en base le 19/09 (testées d'abord dans une transaction a
   Rien n'est enregistré sans cliquer sur Enregistrer.
 - **Pas testé avec une vraie carte grise** : mappage couvert par `tests/carte-grise.test.ts`.
 
+**Carte 8 — Le client déclare sa moto, l'équipe est prévenue et la valide**
+- **Espace client** → Mes motos → **« Ajouter ma moto »** : marque, modèle, année, VIN et plaque
+  facultatifs, photo de la carte grise facultative (photo ou PDF). Enregistrée comme **déclaration**
+  dans `contact_declared_vehicles` (étendue : `vin`, `plate`, `status`, `registration_upload_id`,
+  `reviewed_*`, origine `portail`), **jamais** dans le parc. Le client la voit **« En attente de
+  validation »** (orange + horloge), puis sa moto dans « Mes motos » une fois validée, ou « Non
+  retenue — contactez-nous » si elle est ignorée (60 jours). Au plus 5 déclarations en attente.
+- Photo de la carte grise : même dépôt en 3 temps que les autres fichiers du portail
+  (`portal_prepare_declaration_upload` puis `portal_complete_upload`), rangée sur la fiche du client
+  (la moto n'existe pas encore), **recopiée dans la GED de la moto** à la validation.
+- **Chaque déclaration** (espace client, inscription en ligne, borne) → alerte dans la **cloche**
+  « Moto déclarée : Prénom Nom — Marque Modèle (année) (espace client / en ligne / borne) » pour
+  **admin et vendeur** (filtré aussi en base), lien direct vers l'écran de validation ; « lu » par
+  utilisateur. Les 4 étapes de M00 suivies (contrainte, `can_see_team_notification`, déclencheur
+  `trg_contact_declared_vehicles_notify`, `topbar.tsx`).
+- **Véhicules → « Motos déclarées à valider »** (`/vehicles/declarations`, bouton avec le nombre en
+  attente sur la liste des véhicules) : pour chaque déclaration, client, date, origine, VIN/plaque,
+  **« Voir la carte grise »**, la moto du parc de **même VIN ou même plaque** (sinon « aucune »), et :
+  **« Rattacher à cette moto »** (le client devient propriétaire courant), **« Créer la fiche moto »**
+  (formulaire de la carte 6 pré-rempli + bouton **« Lire la carte grise déposée par le client »** de la
+  carte 7), **« Ignorer »** (motif interne facultatif). Chaque choix clôt la déclaration et est tracé
+  (`vehicle_declaration_attached` / `_created` / `_ignored`) ; une déclaration ne se traite qu'une fois.
+- Déclarations déjà reçues avant ce lot : 1 à valider (inscription en ligne du 18/09) ; « pas encore
+  de moto » n'est jamais à valider.
+- **Étanchéité vérifiée en base** (transaction annulée, deux clients fictifs A et B, 29 contrôles ok) :
+  `supabase/tests/m4_motos_declarees_etancheite.sql` ; contrôle statique de toutes les fonctions
+  `portal_*` : `tests/portal-etancheite.test.ts`.
+- Migrations : `20260919302000_m3_motos_declarees`, `20260919303000_m3_declaration_sans_moto`
+  (appliquées le 19/09).
+
+**À tester (Simon / Domenico)** : fiche client → Parc → « Ajouter une moto » (essayer un VIN déjà
+connu, ex. `ZDM1A02BGMB009261`) ; « Lire la carte grise » avec une vraie carte grise (photo puis PDF) ;
+depuis `/mon-espace/motos`, « Ajouter ma moto » avec photo, puis cloche d'un compte vendeur →
+« Motos déclarées à valider » → « Créer la fiche moto » → retour dans l'espace client.
+
 ## 6. Risques
 
 - Reprise G8 : mobiles rangés dans « téléphone » et formes juridiques dans la civilité → proposer, ne pas corriger en masse sans accord.
