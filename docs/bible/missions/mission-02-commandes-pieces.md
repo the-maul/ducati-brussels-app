@@ -40,7 +40,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 | 3 | Créer une commande depuis un devis ou une facture | Bouton « Proposition de commande » ligne / totale sur un document de vente, avec choix du type | ⬜ à faire | — |
 | 4 | Regrouper par fournisseur et envoyer | Écran « Rappel proposition » groupé par fournisseur avec minimum / franco, génération de la commande fournisseur | ⬜ à faire | — |
 | 5 | Suivre l'état d'une commande : en attente de paiement, payée, à envoyer, envoyée | Transitions par boutons, contrôlées par le serveur, historique (qui, quand) ; liste filtrable par état et par type avec compteurs | 🟦 à valider | 19/09 |
-| 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | ⬜ à faire | — |
+| 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | 🟦 à valider (toutes les lignes, voir §5) | 19/09 |
 | 7 | Commande Excel Ducati : alerte 2 000 €, clôture, archivage | Saisie enregistrée en base, alerte verte dans la barre du haut, n° interne au 1er téléchargement, clôture et archivage du classeur | ⬜ à faire (écran brouillon en mémoire existant) | — |
 | 8 | Frais atelier sur devis | Accident 125 € fixe, diagnostic au taux horaire (max 4 h) ajoutés automatiquement, réglables | ⬜ à faire | — |
 | 9 | Paiement par QR code (attend IBAN/BIC) | QR de virement SEPA sur le 2e écran du comptoir | 🟡 attend l'IBAN et le BIC du client | — |
@@ -85,6 +85,26 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   ajout, modification, suppression écrit une trace dans `events`. Aucun mouvement de stock.
   Fonctions `part_order_article_search`, `part_order_lines_detail`, `part_order_line_save`,
   `part_order_line_delete`, trigger `part_order_lines_guard`. Migration `20260919250000_orders_lines`.
+
+- [M06 Ventes](../modules/M06-ventes-caisse.md) / [M09 Documents](../modules/M09-documents.md) :
+  **document de réservation en PDF envoyé par mail** (carte 6, livrée avec la carte 8 de la
+  [mission 05](mission-05-devis-preparation.md)). Sur une réservation (RES) : « Aperçu PDF » et
+  « Envoyer par e-mail » (objet et message propres à la réservation de pièces, PDF joint, boîte au
+  choix, pied de mail conservé) ; le PDF est rangé en GED du client et de la réservation, l'envoi est
+  tracé dans `events`. **Manque** : la sélection des pièces cochées / décochées de la spécification
+  §1.4 n'est **pas modélisée** (aucune colonne de sélection sur les lignes, et la commande de pièces
+  n'est pas encore reliée à la réservation, `source_document_id` jamais rempli) : **toutes les lignes**
+  de la réservation figurent dans le PDF, ce que la fenêtre d'envoi rappelle. À faire avec la carte 3
+  (« Créer une commande depuis un devis ») : choisir les lignes, les enregistrer, puis ne mettre qu'elles
+  dans le PDF.
+
+### À tester (carte 6)
+
+1. Ventes → une réservation (RES) avec un client → **Aperçu PDF** : lignes, acompte, reste à payer,
+   case signature.
+2. **Envoyer par e-mail** → destinataire = votre adresse → **Vérifier sans envoyer**, puis **Envoyer** :
+   objet « Réservation de vos pièces … », PDF joint.
+3. Fiche du client → GED → « Documents de vente » : le PDF de la réservation y est.
 
 ### À tester (cartes 1 et 5)
 
