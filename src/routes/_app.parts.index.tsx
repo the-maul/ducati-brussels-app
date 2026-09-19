@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store, FilePenLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -47,11 +47,12 @@ type FiltersState = {
   color: string;
   paLocked: boolean;
   pvLocked: boolean;
+  toComplete: boolean;
 };
 
 const EMPTY_FILTERS: FiltersState = {
   supplierId: '', stock: 'all', year: '', rayon: '', sousRayon: '', categorie: '',
-  brand: '', size: '', color: '', paLocked: false, pvLocked: false,
+  brand: '', size: '', color: '', paLocked: false, pvLocked: false, toComplete: false,
 };
 
 function countActive(f: FiltersState): number {
@@ -65,6 +66,7 @@ function countActive(f: FiltersState): number {
   if (f.color) n++;
   if (f.paLocked) n++;
   if (f.pvLocked) n++;
+  if (f.toComplete) n++;
   return n;
 }
 
@@ -116,6 +118,7 @@ function ArticlesList() {
     color: f.color || undefined,
     paLocked: f.paLocked || undefined,
     pvLocked: f.pvLocked || undefined,
+    toComplete: f.toComplete || undefined,
     limit,
   };
 
@@ -285,6 +288,10 @@ function ArticlesList() {
                 <Checkbox checked={f.pvLocked} onCheckedChange={(v) => set('pvLocked', v === true)} />
                 {t('articles.priceLockSale')}
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={f.toComplete} onCheckedChange={(v) => set('toComplete', v === true)} />
+                {t('ecatalog.filterToComplete')}
+              </label>
               <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => setF(EMPTY_FILTERS)} disabled={active === 0}>
                 <X /> {t('articles.filterReset')}
               </Button>
@@ -355,6 +362,7 @@ function ArticlesList() {
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex flex-wrap items-center gap-2">
                     <span className={isReplaced ? 'line-through decoration-1' : ''}>{a.designation}</span>
+                    {a.to_complete && <StatusBadge tone="info" icon={FilePenLine} label={t('ecatalog.toCompleteBadge')} />}
                     {isReplaced && (
                       <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement?.reference ? `${t('articles.replacedBadge')} → ${a.replacement.reference}` : t('articles.replacedBadge')} />
                     )}

@@ -558,6 +558,8 @@ export type Database = {
           superseded_by_id: string | null
           supplier_availability: string | null
           supplier_ref: string | null
+          to_complete: boolean
+          to_complete_source: string | null
           updated_at: string
           vat_rate: number
           web_description: string | null
@@ -618,6 +620,8 @@ export type Database = {
           superseded_by_id?: string | null
           supplier_availability?: string | null
           supplier_ref?: string | null
+          to_complete?: boolean
+          to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
           web_description?: string | null
@@ -678,6 +682,8 @@ export type Database = {
           superseded_by_id?: string | null
           supplier_availability?: string | null
           supplier_ref?: string | null
+          to_complete?: boolean
+          to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
           web_description?: string | null
@@ -1389,8 +1395,15 @@ export type Database = {
           kind: string
           model: string | null
           model_year: number | null
+          plate: string | null
+          registration_upload_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           source: string
+          status: string | null
           vehicle_id: string | null
+          vin: string | null
         }
         Insert: {
           brand?: string | null
@@ -1402,8 +1415,15 @@ export type Database = {
           kind: string
           model?: string | null
           model_year?: number | null
+          plate?: string | null
+          registration_upload_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source: string
+          status?: string | null
           vehicle_id?: string | null
+          vin?: string | null
         }
         Update: {
           brand?: string | null
@@ -1415,8 +1435,15 @@ export type Database = {
           kind?: string
           model?: string | null
           model_year?: number | null
+          plate?: string | null
+          registration_upload_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source?: string
+          status?: string | null
           vehicle_id?: string | null
+          vin?: string | null
         }
         Relationships: [
           {
@@ -1431,6 +1458,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_declared_vehicles_registration_upload_id_fkey"
+            columns: ["registration_upload_id"]
+            isOneToOne: false
+            referencedRelation: "portal_uploads"
             referencedColumns: ["id"]
           },
           {
@@ -2206,6 +2240,7 @@ export type Database = {
           amount: number
           document_id: string
           due_date: string | null
+          from_financing: boolean
           given_amount: number | null
           id: string
           method: string
@@ -2217,6 +2252,7 @@ export type Database = {
           amount: number
           document_id: string
           due_date?: string | null
+          from_financing?: boolean
           given_amount?: number | null
           id?: string
           method?: string
@@ -2228,6 +2264,7 @@ export type Database = {
           amount?: number
           document_id?: string
           due_date?: string | null
+          from_financing?: boolean
           given_amount?: number | null
           id?: string
           method?: string
@@ -2364,6 +2401,9 @@ export type Database = {
           date_transfert: string | null
           doc_type: string
           due_date: string | null
+          financing_amount: number
+          financing_org_id: string | null
+          financing_status: string | null
           forced_ttc: number | null
           global_discount_amount: number
           global_discount_pct: number
@@ -2402,6 +2442,9 @@ export type Database = {
           date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
+          financing_amount?: number
+          financing_org_id?: string | null
+          financing_status?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
@@ -2440,6 +2483,9 @@ export type Database = {
           date_transfert?: string | null
           doc_type?: string
           due_date?: string | null
+          financing_amount?: number
+          financing_org_id?: string | null
+          financing_status?: string | null
           forced_ttc?: number | null
           global_discount_amount?: number
           global_discount_pct?: number
@@ -2481,6 +2527,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_financing_org_id_fkey"
+            columns: ["financing_org_id"]
+            isOneToOne: false
+            referencedRelation: "reference_values"
             referencedColumns: ["id"]
           },
           {
@@ -5707,6 +5760,42 @@ export type Database = {
       _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_stock_copies: { Args: never; Returns: number }
+      _declared_vehicle_copy_scan: {
+        Args: {
+          _d: Database["public"]["Tables"]["contact_declared_vehicles"]["Row"]
+          _vehicle: string
+        }
+        Returns: undefined
+      }
+      _declared_vehicle_lock: {
+        Args: { _declaration: string }
+        Returns: {
+          brand: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          family: string | null
+          id: string
+          kind: string
+          model: string | null
+          model_year: number | null
+          plate: string | null
+          registration_upload_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          status: string | null
+          vehicle_id: string | null
+          vin: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contact_declared_vehicles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _doc_margin: { Args: { _doc: string }; Returns: number }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
@@ -6381,6 +6470,19 @@ export type Database = {
           total_due: number
         }[]
       }
+      declared_vehicle_attach: {
+        Args: { _declaration: string; _from_date?: string; _vehicle: string }
+        Returns: Json
+      }
+      declared_vehicle_create: {
+        Args: { _declaration: string; _from_date?: string; _vehicle: Json }
+        Returns: string
+      }
+      declared_vehicle_ignore: {
+        Args: { _declaration: string; _note?: string }
+        Returns: undefined
+      }
+      declared_vehicles_pending: { Args: { _company: string }; Returns: Json }
       default_assignee: { Args: { _company: string }; Returns: string }
       document_allocations: {
         Args: { _document: string }
@@ -6408,6 +6510,15 @@ export type Database = {
           real_qty: number
           reserved_qty: number
         }[]
+      }
+      document_set_financing: {
+        Args: {
+          _amount: number
+          _document: string
+          _org: string
+          _status: string
+        }
+        Returns: undefined
       }
       dormant_stock: {
         Args: { _company: string; _months?: number }
@@ -6839,6 +6950,7 @@ export type Database = {
         Args: { _item: string; _step: string }
         Returns: undefined
       }
+      plate_normalize: { Args: { _plate: string }; Returns: string }
       portal_appointments: { Args: never; Returns: Json }
       portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
       portal_can_write_object: { Args: { p_name: string }; Returns: boolean }
@@ -6847,9 +6959,29 @@ export type Database = {
         Returns: undefined
       }
       portal_complete_upload: { Args: { p_upload_id: string }; Returns: Json }
+      portal_declare_vehicle: {
+        Args: {
+          p_brand: string
+          p_model: string
+          p_model_year: number
+          p_plate: string
+          p_vin: string
+        }
+        Returns: string
+      }
+      portal_declared_vehicles: { Args: never; Returns: Json }
       portal_home: { Args: never; Returns: Json }
       portal_invoice: { Args: { p_document_id: string }; Returns: Json }
       portal_invoices: { Args: never; Returns: Json }
+      portal_prepare_declaration_upload: {
+        Args: {
+          p_content_type: string
+          p_declaration_id: string
+          p_file_name: string
+          p_size: number
+        }
+        Returns: Json
+      }
       portal_prepare_upload: {
         Args: {
           p_content_type: string
@@ -7001,6 +7133,29 @@ export type Database = {
         Returns: string
       }
       round_up_euro: { Args: { p: number }; Returns: number }
+      sale_article_exact_lookup: {
+        Args: { _company: string; _ref: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          brand: string
+          catalog_url: string
+          designation: string
+          equivalence_group: string
+          is_library: boolean
+          matched_on: string
+          mgmt_type: string
+          on_order_qty: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sale_price_ht: number
+          superseded_by_id: string
+          supplier_ref: string
+          to_complete: boolean
+          vat_rate: number
+        }[]
+      }
       sales_journal: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {
