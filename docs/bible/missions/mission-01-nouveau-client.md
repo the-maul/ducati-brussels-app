@@ -61,3 +61,5 @@ Voir [`../questions-en-attente.md`](../questions-en-attente.md), section « Miss
   minimum d'accès. Un client ne doit voir que ses propres données.
 - **Adresses partagées** (84) : un mail venant d'une adresse commune à plusieurs fiches ne doit pas
   être rattaché au hasard.
+
+- 19/09 (ronde) : Simon demande une notification atelier pour les demandes de RDV du portail → déjà couvert par la cloche par rôle (N-1 : mécanicien, chef d'atelier, admin) ; carte « Espace client : demander un rendez-vous atelier » repassée à valider.
