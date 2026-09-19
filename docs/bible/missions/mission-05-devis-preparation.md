@@ -113,6 +113,41 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
 - Code : `src/modules/sales/replacement.ts` (`followReplacementChain`, `getReplacementInfo`),
   `replacement-hint.tsx`, `document-editor.tsx`, `write-api.ts` ; test `tests/sales-replacement-chain.test.ts`.
 
+### Carte 4 — Ajouter un accessoire trouvé dans l'e-catalog Ducati (19/09, à valider)
+- Dans l'éditeur de document de vente, bouton **« Coller une référence ou un lien e-catalog »** : on colle
+  une référence Ducati (ex. `96680574A`, `96782291BA`, espaces et minuscules acceptés) ou un lien copié
+  dans e-catalog.ducati.com. **Le site n'est jamais appelé** : la référence est lue dans le texte ou dans
+  l'URL (paramètre, segment du chemin, ancre). Les liens EPC réels (`/EPC/parts/106/125/…/45968`) ne
+  contiennent en général **pas** la référence (identifiants internes) : l'écran la demande alors.
+- **Recherche exacte** dans les articles de la société : référence, réf. fournisseur, code-barres
+  (comparaison sans espaces / tirets / points, en majuscules), **librairie comprise**, avec la pastille de
+  disponibilité. Une référence remplacée affiche « Remplacée par … » et le bouton qui pose la **dernière**
+  (carte 3). « Ajouter » pose la ligne comme la recherche habituelle.
+- **Rien trouvé** → **« Créer l'article à compléter »** : désignation et prix de vente saisis (TTC ou HT
+  selon le mode du document) ; article **type A en librairie** (non stocké tant qu'il n'est pas
+  réceptionné, même règle que l'import des tarifs), marque Ducati, réf. fournisseur = référence, lien
+  e-catalog gardé s'il a été collé, drapeau **« À compléter »**. Créé par le chemin habituel
+  (`createArticle`, code-barres = référence) ; trace `events` `article_to_complete` (origine `ecatalog`),
+  puis `article_completed` quand le magasin décoche le drapeau. La ligne prend le prix saisi.
+- **Pièces & Accessoires** : filtre **« À compléter uniquement »**, badge « À compléter » dans la liste,
+  case « À compléter » sur la fiche (le magasin la décoche après avoir saisi PA, fournisseur, famille).
+- Sur les lignes d'articles Ducati (référence au format Ducati, ou lien e-catalog connu) : lien
+  **« Voir dans l'e-catalog »** (nouvel onglet ; lien exact de l'article sinon accueil du catalogue ; la
+  référence est copiée pour la coller dans la recherche — aucun format d'URL de recherche connu). Rien
+  n'est téléchargé du site.
+- Migration `20260919340000_m2_article_a_completer_ecatalog.sql` (appliquée le 19/09). Code :
+  `src/modules/sales/ecatalog.ts` (lecture et normalisation, pur), `ecatalog-api.ts`, `ecatalog-paste.tsx`,
+  `document-editor.tsx` (bouton + lien), `src/modules/articles/api.ts` (filtre), `article-form.tsx`,
+  `src/routes/_app.parts.index.tsx` ; test `tests/sales-ecatalog.test.ts`.
+
+**À tester (carte 4)**
+1. Ventes → Nouveau document → « Coller une référence ou un lien e-catalog » → coller une référence
+   existante (ex. une référence de la librairie) → elle apparaît avec sa pastille → « Ajouter ».
+2. Coller une référence inconnue → « Créer l'article à compléter » (désignation + prix) → la ligne est
+   ajoutée avec ce prix ; lien « Voir dans l'e-catalog » sous la ligne.
+3. Pièces & Accessoires → Filtres → « À compléter uniquement » : l'article créé y est ; le compléter et
+   décocher « À compléter ».
+
 ### Carte 5 — Lignes de main d'œuvre, lignes vides et commentaires types (19/09, à valider)
 - Sous les lignes du document : boutons **Ajouter une ligne** (article), **Main d'œuvre**, **Texte**,
   **Ligne vide** et **Rappeler un commentaire**.
