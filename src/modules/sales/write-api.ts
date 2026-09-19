@@ -317,7 +317,16 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
     await addPayments(newId, acomptes.map((p) => ({
       method: p.method, amount: Number(p.amount), status: 'recu',
       note: `Acompte reporté ${doc.doc_type} ${doc.number ?? ''}`.trim(),
+      fromFinancing: !!p.from_financing,
     })));
+  }
+
+  // Report du financement en cours (mission 05, carte 9) : même organisme, montant et statut.
+  if (doc.financing_org_id && doc.financing_status && Number(doc.financing_amount) > 0) {
+    const { error: fe } = await supabase.rpc('document_set_financing', {
+      _document: newId, _org: doc.financing_org_id, _amount: Number(doc.financing_amount), _status: doc.financing_status,
+    });
+    if (fe) throw fe;
   }
 
   // Libère la réservation de la source (RES/BL) puis marque la source convertie.
@@ -459,6 +468,7 @@ export type NewPayment = {
   dueDate?: string | null;       // échéance d'un règlement différé
   givenAmount?: number | null;   // espèces remises (pour le rendu de monnaie)
   note?: string | null;
+  fromFinancing?: boolean;       // versé par l'organisme de financement (mission 05, carte 9)
 };
 
 /** Modes de règlement paramétrés (reference_values), visibles en caisse en premier. */
@@ -490,6 +500,7 @@ export async function addPayments(documentId: string, lines: NewPayment[]): Prom
       document_id: documentId, method: l.method, amount: l.amount,
       status: l.status ?? 'recu', due_date: l.dueDate ?? null,
       given_amount: l.givenAmount ?? null, note: l.note ?? null,
+      from_financing: !!l.fromFinancing,
     }));
   if (rows.length === 0) return;
   const { error } = await supabase.from('document_payments').insert(rows);

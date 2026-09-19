@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Check } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, Landmark } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,16 +20,23 @@ const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.'
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const CASH = 'ESP'; // mode espèces → rendu de monnaie
 
-type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string };
+type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string; fromFinancing: boolean };
 let dc = 0;
 
-export function PaymentPanel({ documentId, companyId, due, acompte = false }: { documentId: string; companyId: string; due: number; acompte?: boolean }) {
+/**
+ * `due` : reste à payer par le client (financement accepté déduit, mission 05 carte 9) ;
+ * `overdue` : échéance dépassée → couleur --danger, sinon neutre ;
+ * `financingAccepted` : propose de marquer un règlement « versé par l'organisme ».
+ */
+export function PaymentPanel({ documentId, companyId, due, acompte = false, overdue = false, financingAccepted = false }: {
+  documentId: string; companyId: string; due: number; acompte?: boolean; overdue?: boolean; financingAccepted?: boolean;
+}) {
   const qc = useQueryClient();
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
   const { data: payments } = useQuery({ queryKey: ['payments', documentId], queryFn: () => listPayments(documentId) });
 
   const firstMethod = methods?.[0]?.code ?? CASH;
-  const newDraft = (amount = ''): Draft => ({ _key: `d${dc++}`, method: firstMethod, amount, deferred: false, dueDate: '', given: '' });
+  const newDraft = (amount = ''): Draft => ({ _key: `d${dc++}`, method: firstMethod, amount, deferred: false, dueDate: '', given: '', fromFinancing: false });
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +53,8 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false }: { 
     qc.invalidateQueries({ queryKey: ['payments', documentId] });
     qc.invalidateQueries({ queryKey: ['doc-full', documentId] });
     qc.invalidateQueries({ queryKey: ['documents'] });
+    qc.invalidateQueries({ queryKey: ['client-docs'] });
+    qc.invalidateQueries({ queryKey: ['client-payments'] });
   };
 
   const save = useMutation({
@@ -57,6 +66,7 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false }: { 
           status: d.deferred ? 'attendu' : 'recu',
           dueDate: d.deferred ? (d.dueDate || null) : null,
           givenAmount: d.method === CASH && num(d.given) > 0 ? num(d.given) : null,
+          fromFinancing: financingAccepted && d.fromFinancing,
         }));
       if (lines.length === 0) throw new Error(t('sales.payNeedAmount'));
       await addPayments(documentId, lines);
@@ -78,7 +88,7 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false }: { 
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{acompte ? t('sales.deposits') : t('sales.payments')}</p>
-        {due > 0.005 && <span className="font-data text-sm tabular-nums text-danger">{t('sales.due')} : <b>{eur(due)}</b></span>}
+        {due > 0.005 && <span className={`font-data text-sm tabular-nums ${overdue ? 'text-danger' : 'text-foreground'}`}>{t('balance.restToPayClient')} : <b>{eur(due)}</b></span>}
       </div>
       {acompte && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.depositInfo')}</p>}
 
@@ -93,6 +103,7 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false }: { 
                   {p.status === 'attendu'
                     ? <StatusBadge tone="warning" label={`${t('sales.deferred')}${p.due_date ? ` · ${p.due_date}` : ''}`} />
                     : <StatusBadge tone="success" label={t('sales.received')} />}
+                  {p.from_financing && <span className="ml-1"><StatusBadge tone="info" icon={Landmark} label={t('balance.orgBadge')} /></span>}
                 </td>
                 <td className="py-1.5 text-right tabular-nums">{eur(Number(p.amount))}</td>
                 <td className="w-20 py-1.5 text-right">
@@ -131,6 +142,12 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false }: { 
             <input type="checkbox" checked={d.deferred} onChange={(e) => setDraft(d._key, { deferred: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" />
             {t('sales.deferred')}
           </label>
+          {financingAccepted && (
+            <label className="flex h-9 items-center gap-2 px-1 text-[12px] text-muted-foreground">
+              <input type="checkbox" checked={d.fromFinancing} onChange={(e) => setDraft(d._key, { fromFinancing: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" />
+              {t('balance.fromFinancing')}
+            </label>
+          )}
           {d.deferred && (
             <div className="space-y-1">
               <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.dueDate')}</label>

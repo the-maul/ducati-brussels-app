@@ -171,6 +171,66 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   `comment-templates-editor.tsx`, route `src/routes/_app.settings.comments.tsx`, `print-document.ts`,
   `_app.sales.$documentId.tsx` ; test `tests/sales-line-types.test.ts`.
 
+### Carte 6 — Liste de préparation en un clic, sur tablette (19/09, à valider)
+- Bouton **« Préparer »** (icône liste) sur chaque document de la **liste des ventes** et de l'onglet
+  **Documents de la fiche client** (devis / proforma, bon de commande, réservation, BL, facture ; pas
+  un document annulé) : **crée ou rouvre** la liste de préparation du document, sans entrer dedans,
+  et ouvre la **vue tablette**. Une seule liste par document ; les lignes ajoutées au document
+  ensuite sont ajoutées à la réouverture (rien n'est supprimé).
+- **Vue tablette** (`/preparation/…`, aussi en cliquant une liste dans « Listes de préparation ») :
+  une carte par ligne (moto + options ; lignes texte, vides et main-d'œuvre exclues) avec
+  référence, désignation, quantité, **casier(s)** en gros (casier principal, second casier et
+  casiers multiples), stock libre et en commande, état **Disponible / En commande / À commander**
+  (calculé) puis grands boutons **Commandé → Préparé → Monté** ; « préparé par X le … » affiché,
+  « Annuler l'étape » pour revenir en arrière. **Emplacement de préparation** du client en tête
+  (boutons Buanderie, G.ET.C, P.ET.C, ET@ ou texte libre / casier). Avancement « x / y préparées » ;
+  toutes les lignes préparées ou montées → liste « Prête ».
+- **Stock** : changer d'étape **ne bouge pas le stock** (le picking n'en faisait déjà pas) ; la
+  réservation et la sortie restent faites par les documents (RES / BL / FAC). Règle rappelée à l'écran.
+- **Traçabilité** : chaque écriture sur une liste ou une ligne (étape, emplacement, création) va dans
+  `events` (qui, quand, ancien → nouveau) ; l'étape garde aussi son auteur et son heure.
+- Migration `20260919310000_m6_preparation_tablette.sql` (colonnes `picking_list_items.document_line_id`,
+  `prep_step`, `prep_step_at`, `prep_step_by`, `sort_order` ; index unique par document ; audit ;
+  fonctions `picking_open_for_document`, `picking_set_step`, `picking_set_location`, `picking_detail`).
+  Code : `src/modules/sales/picking-api.ts`, `preparation.ts`, `prepare-button.tsx`,
+  `src/routes/_app.preparation.$pickingId.tsx`, `_app.picking.tsx`, `_app.sales.index.tsx`,
+  `src/modules/contacts/client-tabs.tsx` ; test `tests/sales-preparation.test.ts`.
+- Testé en base dans une transaction annulée (création, réouverture sans doublon, lignes texte / vide /
+  MO exclues, étapes, statut de la liste, emplacement, refus d'un utilisateur d'une autre société).
+
+### Carte 7 — Ne pas attribuer le stock commandé pour un autre client (19/09, à valider)
+- Sur la fiche d'un document (devis / proforma, bon de commande, réservation, BL), la colonne
+  **Dispo** de chaque ligne affiche **Disponible / En commande / À commander** calculé pour **le client
+  du document** : « en commande » = ce qui est commandé **pour lui** (commandes de pièces à son nom ou
+  liées à ce document) + ce qui est commandé **pour le stock** (commandes fournisseur, quantité
+  magasin des commandes de pièces). **La commande d'un autre client n'est jamais comptée** (les
+  valises de la vidéo). Survol = détail libre / réel / réservé / en commande.
+- Même règle dans la **liste de préparation** (carte 6). Sans client (recherche d'article, caisse,
+  écran des commandes de pièces) : seulement ce qui est commandé pour le stock.
+- **« Associer une commande en cours à ce client »** : icône lien sur une ligne non disponible →
+  liste des commandes de pièces en cours pour l'article, avec pour chacune la part **pour ce
+  client**, **pour le stock**, **autre client (exclu)** ; une quantité pour le stock peut être
+  réservée à ce client (jamais plus que ce qui reste libre). Les associations du document sont
+  listées sous les lignes avec **Retirer**. Chaque association et chaque retrait laissent une trace
+  dans `events` (qui, quand, quelle commande, quelle quantité).
+- **Un seul calcul** : fonction SQL `article_on_order_for(article, client, document)` ; l'ancien
+  `_article_on_order_qty` (carte 2, mission 02) en est la version sans client. Changement de règle :
+  la quantité magasin des commandes de pièces validées compte désormais « en commande » (avant :
+  seules les CMD fournisseur).
+- Bouton **« Préparer »** (carte 6) ajouté aussi en tête de la fiche du document.
+- Migration `20260919311000_m6_en_commande_par_client.sql` (table `part_order_allocations` avec RLS,
+  écriture seulement par fonction ; fonctions `article_on_order_for`, `document_lines_stock`,
+  `part_order_open_lines`, `part_order_allocate`, `part_order_allocation_cancel`, `document_allocations` ;
+  `picking_detail` compte pour le client du document). Code : `src/modules/sales/on-order.ts`,
+  `on-order-api.ts`, `associate-order-dialog.tsx`, `availability.ts`, `src/routes/_app.sales.$documentId.tsx` ;
+  test `tests/sales-on-order-client.test.ts`.
+- Vérifié en base dans une transaction annulée : 2 valises commandées pour un autre client + 1 pour
+  le stock → Moreau voit 1, l'autre client 3, la recherche d'article 1 ; après association du stock
+  à Moreau : 1 / 2 / 0 ; retrait → retour à 1 ; écriture directe dans la table refusée.
+- Limites : une commande de pièces reste « en commande » tant qu'elle n'est pas annulée (pas encore
+  d'état « reçue ») ; à la carte 4 de la mission 02 (commande de pièces → CMD) il faudra éviter de la
+  compter deux fois. La pastille globale du document reste sur le seul stock libre.
+
 ### Carte 8 — Aperçu du document et envoi par mail (19/09, à valider)
 - Sur la fiche d'un document de vente : bouton **« Aperçu PDF »** (ouvre le vrai PDF dans un onglet :
   lire, imprimer, télécharger). L'impression HTML existante reste en place.
@@ -209,6 +269,33 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
    envoyer** (message vert, rien ne part) → **Envoyer** : le mail arrive avec le PDF joint.
 3. Fiche du client → onglet GED → dossier « Documents de vente » : le PDF envoyé y est ; il est aussi
    dans la GED du document.
+
+### Carte 9 — Voir les paiements et le solde restant dû (19/09, à valider)
+- **Fiche du document** : bloc **« Reste à payer par le client »** en grand (chiffre principal, en
+  `--danger` seulement si l'échéance est dépassée, sinon neutre, avec badge Soldé / À échoir /
+  Échéance dépassée) ; à côté : total TTC, réglé, versé par l'organisme, financement et « à recevoir
+  de l'organisme ». Le panneau des règlements préremplit et affiche ce reste à payer.
+- **Financement en cours** : bouton « Financement » → organisme (table de référence « Organismes de
+  financement », Paramètres → Tables ; **vide au 19/09**, à remplir par l'équipe), montant financé TTC
+  (≤ total), statut **demandé / accepté / refusé** (couleur + icône + libellé) ; retrait possible. Seul
+  un financement **accepté** est déduit du reste à payer du client ; il apparaît « à recevoir de
+  l'organisme » jusqu'à ce qu'un règlement coché **« Versé par l'organisme »** le solde. Un financement
+  demandé est affiché sans être déduit. Le financement suit la conversion (DEV → BC → FAC…).
+- **Fiche client** : en haut à droite, **« Encours financier »** avec le **reste à payer en grand**
+  (somme des documents ouverts : factures, tickets, bons de commande, réservations, BL ; pas les
+  devis), le nombre de documents concernés, « à recevoir de l'organisme » et les financements
+  demandés ; onglet **Documents** : colonne « Reste à payer », badge de financement et **liste des
+  règlements sous chaque document** (date, mode, perçu / à échéance, organisme, montant, « Aucun
+  règlement » si rien n'est payé).
+- Migration `20260919312000_m6_financement_reste_a_payer.sql` (colonnes `documents.financing_org_id`,
+  `financing_amount`, `financing_status` ; `document_payments.from_financing` ; fonction
+  `document_set_financing`). Code : `src/modules/sales/balance.ts`, `balance-panel.tsx`,
+  `financing-api.ts`, `payment-panel.tsx`, `write-api.ts` (report à la conversion, règlement de
+  l'organisme), `src/routes/_app.sales.$documentId.tsx`, `src/modules/contacts/client-tabs.tsx` ;
+  test `tests/sales-balance.test.ts`.
+- Testé en base dans une transaction annulée (pose, contrôles montant / statut / organisme d'une autre
+  société, règlement de l'organisme, retrait, refus d'un utilisateur d'une autre société).
+- Limite : la pastille « Solde » de la liste des ventes ne tient pas compte du financement.
 
 ## 6. Risques
 

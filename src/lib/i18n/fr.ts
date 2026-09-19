@@ -1165,7 +1165,7 @@ export const fr = {
 
   // Picking list digitale (M6 — Ventes & Facturation, item 11)
   picking: {
-    title: 'Picking list', subtitle: 'Préparation des commandes clients — reçu, à préparer, à recevoir.',
+    title: 'Listes de préparation', subtitle: 'Préparation des commandes clients — disponible, commandé, préparé, monté.',
     new: 'Nouvelle picking list', newTitle: 'Nouvelle picking list',
     sourceLabel: 'Origine', fromDocument: 'Depuis un document de vente', empty: 'Picking list vide (attribution manuelle)',
     document: 'Document', documentPlaceholder: 'Choisir un document…',
@@ -1189,6 +1189,23 @@ export const fr = {
     updated: 'Picking list mise à jour.', errUpdate: 'Erreur à la mise à jour.',
     itemAdded: 'Article ajouté.', errAddItem: 'Erreur à l\'ajout de l\'article.',
     errQty: 'Erreur à la mise à jour de la quantité.',
+    // Préparation en un clic, vue tablette (mission 05, carte 6)
+    prepare: 'Préparer', prepareHint: 'Ouvrir la liste de préparation (tablette)', errOpen: 'Impossible d\'ouvrir la liste de préparation.',
+    openTablet: 'Ouvrir sur la tablette', quantities: 'Quantités',
+    tabletTitle: 'Préparation', tabletBack: 'Listes de préparation',
+    tabletClient: 'Client', tabletNoClient: 'Sans client',
+    prepLocation: 'Emplacement de préparation', prepLocationHint: 'Où la commande du client est posée une fois préparée (texte libre ou casier).',
+    prepLocationPlaceholder: 'Ex. CUISINE/A14', prepLocationSave: 'Enregistrer', prepLocationSaved: 'Emplacement enregistré.',
+    prepLocationNone: 'Pas encore d\'emplacement',
+    progress: '{done} / {total} préparées',
+    bins: 'Casier(s)', noBin: 'Aucun casier',
+    stockLine: 'Stock : libre {free} · en commande {order}',
+    stepBy: '{step} par {who} le {when}',
+    step_commande: 'Commandé', step_prepare: 'Préparé', step_monte: 'Monté',
+    stepUndo: 'Annuler l\'étape', errStep: 'Impossible d\'enregistrer l\'étape.',
+    tabletEmpty: 'Aucune ligne à préparer (lignes texte, vides et main-d\'œuvre exclues).',
+    livreLocked: 'Préparation livrée : elle ne se modifie plus.',
+    noStockMove: 'Changer d\'étape ne bouge pas le stock : la réservation et la sortie se font par les documents (réservation, facture).',
   },
 
   // Tableau de bord (M13)
@@ -2693,6 +2710,40 @@ export const fr = {
     // recherche d'article d'une ligne de vente (mission 05, carte 2)
     stockDisponible: 'Disponible', stockEnCommande: 'En commande', stockACommander: 'À commander',
     stockHint: 'Libre {free} (réel {real} − réservé {reserved}) · en commande {order}',
+    stockHintClient: 'Libre {free} (réel {real} − réservé {reserved}) · en commande pour ce client ou pour le stock {order} (commandes des autres clients exclues)',
+  },
+
+  // Reste à payer et financement (mission 05, carte 9)
+  balance: {
+    restToPay: 'Reste à payer', restToPayClient: 'Reste à payer par le client',
+    overdue: 'Échéance dépassée', notDue: 'À échoir', settled: 'Soldé',
+    ttc: 'Total TTC', paidClient: 'Réglé', paidByOrg: 'Versé par l\'organisme',
+    toReceiveFromOrg: 'À recevoir de l\'organisme', financingPending: 'Financement demandé (non déduit)',
+    financing: 'Financement', financingNone: 'Aucun financement', financingEdit: 'Financement',
+    financingTitle: 'Financement en cours', financingOrg: 'Organisme de financement', financingAmount: 'Montant financé TTC',
+    financingStatus: 'Statut', financingStatus_demande: 'Demandé', financingStatus_accepte: 'Accepté', financingStatus_refuse: 'Refusé',
+    financingRule: 'Seul un financement accepté est déduit du reste à payer par le client ; il reste « à recevoir de l\'organisme » jusqu\'à son versement (règlement coché « versé par l\'organisme »).',
+    financingNoOrg: 'Aucun organisme de financement : ajoutez-les dans Paramètres → Tables → Organismes de financement.',
+    financingRemove: 'Retirer le financement', financingSaved: 'Financement enregistré.', errFinancing: 'Impossible d\'enregistrer le financement.',
+    fromFinancing: 'Versé par l\'organisme', orgBadge: 'Organisme',
+    clientHeader: 'Encours financier', clientOpenDocs: '{n} document(s) ouvert(s)', clientNothing: 'Rien à payer',
+    colRest: 'Reste à payer', paymentsOf: 'Règlements', noPayment: 'Aucun règlement',
+  },
+
+  // « En commande » par client (mission 05, carte 7)
+  onOrder: {
+    associate: 'Associer une commande', associateHint: 'Associer une commande en cours à ce client',
+    dialogTitle: 'Associer une commande en cours à ce client',
+    rule: 'Une pièce commandée pour un autre client n\'est jamais « en commande » pour celui-ci. Seules comptent ses propres commandes et celles passées pour le stock. Une quantité pour le stock peut lui être réservée ici (tracé).',
+    noneOpen: 'Aucune commande de pièces en cours pour cet article.',
+    colOrder: 'Commande', colFor: 'Commandée pour', colMine: 'Pour ce client', colStock: 'Pour le stock', colOther: 'Autre client (exclu)',
+    forThisClient: 'Ce client', forStock: 'Stock', forOtherClient: 'Autre client : {name}',
+    allocate: 'Associer', allocateHint: 'Réserver cette quantité pour le stock à ce client',
+    allocated: 'Commande associée au client.', errAllocate: 'Impossible d\'associer la commande.',
+    allocationsTitle: 'Commandes associées à ce client',
+    allocationLine: '{qty} × {ref} — commande {order}, par {who} le {when}',
+    remove: 'Retirer', removeConfirm: 'Retirer cette association ? La quantité redevient disponible pour le stock.',
+    removed: 'Association retirée.', errRemove: 'Impossible de retirer l\'association.',
   },
 
   // Mission 05, carte 4 — accessoire trouvé dans l'e-catalog Ducati (M6 + M2)
