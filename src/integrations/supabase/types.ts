@@ -1979,6 +1979,45 @@ export type Database = {
           },
         ]
       }
+      counter_displays: {
+        Row: {
+          company_id: string
+          id: string
+          payment_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          payment_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          payment_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counter_displays_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_displays_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "document_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_price_rules: {
         Row: {
           article_id: string | null
@@ -2221,6 +2260,9 @@ export type Database = {
           method: string
           note: string | null
           paid_at: string
+          qr_reference: string | null
+          received_at: string | null
+          received_by: string | null
           status: string
         }
         Insert: {
@@ -2233,6 +2275,9 @@ export type Database = {
           method?: string
           note?: string | null
           paid_at?: string
+          qr_reference?: string | null
+          received_at?: string | null
+          received_by?: string | null
           status?: string
         }
         Update: {
@@ -2245,6 +2290,9 @@ export type Database = {
           method?: string
           note?: string | null
           paid_at?: string
+          qr_reference?: string | null
+          received_at?: string | null
+          received_by?: string | null
           status?: string
         }
         Relationships: [
@@ -5023,27 +5071,42 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          dedupe_key: string | null
+          document_id: string | null
           id: string
           kind: string
           origin: string | null
+          payload: Json | null
+          resolved_at: string | null
+          target_user_id: string | null
           title: string
         }
         Insert: {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          document_id?: string | null
           id?: string
           kind: string
           origin?: string | null
+          payload?: Json | null
+          resolved_at?: string | null
+          target_user_id?: string | null
           title: string
         }
         Update: {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          document_id?: string | null
           id?: string
           kind?: string
           origin?: string | null
+          payload?: Json | null
+          resolved_at?: string | null
+          target_user_id?: string | null
           title?: string
         }
         Relationships: [
@@ -5052,6 +5115,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_notifications_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -5726,6 +5796,7 @@ export type Database = {
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
+      _brussels_today: { Args: never; Returns: string }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -5734,6 +5805,7 @@ export type Database = {
       _cron_dormant_alert: { Args: never; Returns: undefined }
       _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
+      _cron_sales_alerts: { Args: never; Returns: Json }
       _cron_stock_copies: { Args: never; Returns: number }
       _declared_vehicle_copy_scan: {
         Args: {
@@ -5772,6 +5844,35 @@ export type Database = {
         }
       }
       _doc_margin: { Args: { _doc: string }; Returns: number }
+      _document_chain: {
+        Args: { _document: string }
+        Returns: {
+          depth: number
+          document_id: string
+        }[]
+      }
+      _document_order_needs: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          line_ids: string[]
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
+        }[]
+      }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
       _next_document_number_unchecked: {
@@ -5814,6 +5915,22 @@ export type Database = {
           unit_price_ttc: number
         }[]
       }
+      _sales_deposit_alert: { Args: { _document: string }; Returns: boolean }
+      _sales_deposit_received: { Args: { _document: string }; Returns: number }
+      _sales_doc_balance: {
+        Args: { _document: string }
+        Returns: {
+          client_due: number
+          financed: number
+          financing_pending: number
+          paid: number
+          paid_by_org: number
+          to_receive_from_org: number
+          ttc: number
+        }[]
+      }
+      _sales_resolve_alerts: { Args: { _document: string }; Returns: number }
+      _sales_unpaid_alert: { Args: { _document: string }; Returns: boolean }
       _shopify_apply_auto_links: {
         Args: {
           _actor: string
@@ -5923,6 +6040,7 @@ export type Database = {
           supplier_id: string
         }[]
       }
+      be_structured_ref_ok: { Args: { _ref: string }; Returns: boolean }
       bin_stock: { Args: { _article: string; _bin: string }; Returns: number }
       can_see_team_notification: {
         Args: { _company: string; _kind: string }
@@ -6369,6 +6487,26 @@ export type Database = {
         Args: { _company: string; _q: string; _type: string }
         Returns: number
       }
+      counter_display_current: {
+        Args: { _company: string }
+        Returns: {
+          amount: number
+          beneficiary: string
+          bic: string
+          customer_name: string
+          document_number: string
+          iban: string
+          payment_id: string
+          received_at: string
+          reference: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      counter_display_show: {
+        Args: { _company: string; _payment: string }
+        Returns: undefined
+      }
       create_company: {
         Args: {
           _address?: string
@@ -6484,6 +6622,45 @@ export type Database = {
           quantity: number
           real_qty: number
           reserved_qty: number
+        }[]
+      }
+      document_order_needs: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          line_ids: string[]
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
+        }[]
+      }
+      document_part_orders: {
+        Args: { _document: string }
+        Returns: {
+          channel: string
+          created_at: string
+          dispatch_status: string
+          id: string
+          line_count: number
+          number: string
+          order_kind: string
+          source_doc_type: string
+          source_document_id: string
+          source_number: string
+          total_ht: number
+          total_ttc: number
         }[]
       }
       document_set_financing: {
@@ -6750,6 +6927,16 @@ export type Database = {
         }[]
       }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
+      part_order_create_from_document: {
+        Args: {
+          _channel?: string
+          _document: string
+          _kind: string
+          _lines?: Json
+          _notes?: string
+        }
+        Returns: string
+      }
       part_order_history: {
         Args: { _order_id: string }
         Returns: {
@@ -6982,6 +7169,62 @@ export type Database = {
       portal_vehicle: { Args: { p_vehicle_id: string }; Returns: Json }
       portal_vehicles: { Args: never; Returns: Json }
       portal_whoami: { Args: never; Returns: Json }
+      qr_payment_cancel: { Args: { _payment: string }; Returns: undefined }
+      qr_payment_confirm: { Args: { _payment: string }; Returns: undefined }
+      qr_payment_lock: {
+        Args: { _payment: string }
+        Returns: {
+          code_client_legacy: string | null
+          company_id: string
+          compta_transferred: boolean
+          condition_reglement: string | null
+          contact_id: string | null
+          created_at: string
+          date_transfert: string | null
+          doc_type: string
+          due_date: string | null
+          financing_amount: number
+          financing_org_id: string | null
+          financing_status: string | null
+          forced_ttc: number | null
+          global_discount_amount: number
+          global_discount_pct: number
+          id: string
+          imported_from: string | null
+          issue_date: string
+          legacy_number: string | null
+          marge: number | null
+          marge_pct: number | null
+          notes: string | null
+          number: string | null
+          operator: string | null
+          operator_user_id: string | null
+          paid_amount: number
+          price_mode: string
+          remise_ttc: number | null
+          shipping_ht: number
+          shipping_taxed: boolean
+          shipping_vat_rate: number
+          source_document_id: string | null
+          status: string
+          tax_exempt: boolean
+          total_ht: number
+          total_ttc: number
+          total_vat: number
+          updated_at: string
+          vehicle_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      qr_payment_start: {
+        Args: { _amount: number; _document: string; _reference: string }
+        Returns: string
+      }
       recompute_document_paid: {
         Args: { _document: string }
         Returns: undefined
@@ -7142,6 +7385,29 @@ export type Database = {
           total_ht: number
           total_ttc: number
           total_vat: number
+        }[]
+      }
+      sales_open_balances: {
+        Args: { _company: string; _operator?: string }
+        Returns: {
+          age_days: number
+          client_due: number
+          contact_id: string
+          contact_name: string
+          days_overdue: number
+          doc_type: string
+          due_date: string
+          financing_pending: number
+          id: string
+          issue_date: string
+          number: string
+          operator_name: string
+          operator_user_id: string
+          overdue: boolean
+          paid: number
+          status: string
+          to_receive_from_org: number
+          ttc: number
         }[]
       }
       sepa_collectable: {

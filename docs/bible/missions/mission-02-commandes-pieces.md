@@ -37,7 +37,7 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 |---|---|---|---|---|
 | 1 | Règles des 4 types de commande réglables dans Paramètres | Les minimums, le supplément, le « une par jour » et le repli se règlent dans Paramètres → Tables ; le serveur refuse une validation hors règle avec un message clair ; la règle est rappelée sur l'écran de la commande | 🟦 à valider | 19/09 |
 | 2 | Ajouter et modifier les pièces d'une commande | On ajoute, modifie, supprime des lignes (article, qté client / magasin, fournisseur, prix) tant que la commande est en brouillon | 🟦 à valider | 19/09 |
-| 3 | Créer une commande depuis un devis ou une facture | Bouton « Proposition de commande » ligne / totale sur un document de vente, avec choix du type | ⬜ à faire | — |
+| 3 | Créer une commande depuis un devis ou une facture | Bouton « Proposition de commande » ligne / totale sur un document de vente, avec choix du type | 🟦 à valider | 19/09 |
 | 4 | Regrouper par fournisseur et envoyer | Écran « Rappel proposition » groupé par fournisseur avec minimum / franco, génération de la commande fournisseur | ⬜ à faire | — |
 | 5 | Suivre l'état d'une commande : en attente de paiement, payée, à envoyer, envoyée | Transitions par boutons, contrôlées par le serveur, historique (qui, quand) ; liste filtrable par état et par type avec compteurs | 🟦 à valider | 19/09 |
 | 6 | Envoyer au client le document de réservation PDF | PDF de réservation généré et envoyé par mail au client | 🟦 à valider (toutes les lignes, voir §5) | 19/09 |
@@ -100,6 +100,40 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
   de la réservation figurent dans le PDF, ce que la fenêtre d'envoi rappelle. À faire avec la carte 3
   (« Créer une commande depuis un devis ») : choisir les lignes, les enregistrer, puis ne mettre qu'elles
   dans le PDF.
+
+- [M04 Achats](../modules/M04-achats.md) / [M06 Ventes](../modules/M06-ventes-caisse.md) : **créer une commande
+  de pièces depuis un document de vente** (carte 3, parité G8 « Mise en proposition de commande »). Sur la
+  fiche d'un devis / proforma, bon de commande, réservation, BL ou facture (validé, ni annulé ni converti) :
+  bouton **« Commander les pièces »** (tout le document) et icône panier sur une ligne « À commander » (cette
+  pièce seulement). La fenêtre ne propose que les **pièces manquantes pour le client du document** : besoin −
+  libre (réel − réservé, en rendant au document ce qu'il a lui-même réservé ou sorti) − « en commande » pour
+  ce client (calcul unique `article_on_order_for`, mission 05 carte 7) − ce qui est déjà lancé en brouillon
+  pour ce client ou ce document. Pièces seulement (types A et N) : motos, non stockés, texte et main-d'œuvre
+  exclus. On coche les pièces, on choisit le **type** (règles de Paramètres affichées + **seuil en direct**) et
+  le canal ; **qté client** = manquant par défaut, **qté magasin** = 0, **fournisseur principal** proposé
+  (modifiable), **prix HTVA net du document** (modifiable). La commande est créée **en brouillon**, liée au
+  **client**, à la **moto** du document et au **document** (`part_orders.source_document_id`, enfin rempli),
+  puis s'ouvre ; ses pièces passent par `part_order_line_save` (contrôles, trace `events`) et la création
+  écrit un `events` `part_order_from_document` sur le document et sur la commande. **Lien dans les deux
+  sens** : bloc « Commandes de pièces liées » sur la fiche du document (y compris celles passées depuis le
+  document d'origine, DEV → BC → RES) ; bloc « Document / Client / Moto » en tête de l'écran de la commande.
+  Fonctions `document_order_needs`, `part_order_create_from_document`, `document_part_orders` (internes
+  `_document_order_needs`, `_document_chain`). Migration `20260919350000_m4_commande_depuis_document`
+  (appliquée le 19/09 après test en transaction annulée). Code : `src/modules/orders/from-document.ts`,
+  `order-from-document-dialog.tsx`, `document-orders-panel.tsx`, `order-origin.tsx`,
+  `src/routes/_app.sales.$documentId.tsx`, `_app.orders.$orderId.tsx` ; test `tests/orders-from-document.test.ts`.
+  Le choix des lignes n'alimente pas encore le PDF de réservation (carte 6) : toutes les lignes y restent.
+
+### À tester (carte 3)
+
+1. Ventes → un devis / proforma validé, avec un client et une pièce sans stock → bandeau « X pièce(s)
+   manquante(s) » → **Commander les pièces** : seules les pièces manquantes sont listées (quantité client =
+   manquant, magasin 0, fournisseur principal).
+2. Choisir le type (ex. Accident) : le bloc « Seuil du type — en direct » change ; décocher une pièce ou
+   changer une quantité : le total bouge. **Créer la commande** : l'écran de la commande s'ouvre, en tête
+   « Document / Client / Moto » cliquables.
+3. Revenir sur le devis : « Commandes de pièces liées » montre la commande ; le bandeau « manquante » a
+   disparu (pièces lancées en brouillon).
 
 ### À tester (carte 6)
 

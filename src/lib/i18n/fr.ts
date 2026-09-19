@@ -2850,6 +2850,31 @@ export const fr = {
     removed: 'Association retirée.', errRemove: 'Impossible de retirer l\'association.',
   },
 
+  // Commander les pièces depuis un document de vente (mission 02, carte 3) et après acompte (mission 05, carte 10)
+  orderFromDoc: {
+    button: 'Commander les pièces',
+    lineHint: 'Commander cette pièce pour le client',
+    title: 'Commander les pièces — {doc}',
+    rule: 'Seules les pièces manquantes pour ce client sont proposées : besoin du document moins le stock libre, ce qui est déjà en commande pour lui (ou pour le stock) et ce qui est déjà lancé en brouillon. La commande est liée au client, à sa moto et à ce document.',
+    nothingMissing: 'Rien à commander : toutes les pièces sont disponibles ou déjà commandées pour ce client.',
+    colPiece: 'Pièce', colNeeded: 'Besoin', colFree: 'Libre', colOnOrder: 'En commande', colMissing: 'Manquant',
+    colQtyClient: 'Qté client', colQtyShop: 'Qté magasin', colLineHt: 'Total HTVA',
+    onOrderHint: 'En commande pour ce client ou pour le stock, dont {draft} déjà lancé(s) en brouillon',
+    selectedCount: '{n} pièce(s) cochée(s) sur {total}',
+    afterHint: 'La commande est créée en brouillon : vous la retrouvez ensuite pour la valider (les règles du type sont contrôlées à la validation).',
+    create: 'Créer la commande',
+    created: 'Commande de pièces créée.',
+    depositBanner: 'Acompte reçu — {n} pièce(s) à commander',
+    depositAmount: 'Acompte encaissé : {amount}',
+    missingLine: '{n} pièce(s) manquante(s) pour ce client, pas encore commandée(s).',
+    linkedTitle: 'Commandes de pièces liées',
+    linkedLine: '{n} pièce(s) · {total} HTVA',
+    fromParent: 'depuis {doc}',
+    originDoc: 'Document :',
+    originClient: 'Client :',
+    originVehicle: 'Moto :',
+  },
+
   // Mission 03 — Produits Shopify rapprochés des articles du stock (M2)
   shopify: {
     title: 'Produits Shopify',

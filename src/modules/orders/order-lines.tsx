@@ -436,7 +436,7 @@ const BAR_CLASS: Record<string, string> = {
 };
 
 /** Rappel en direct du seuil du type : minimum, reste à commander, bascule vers le type de repli. */
-function ThresholdPanel({ progress: p, total, rules, drafting }: { progress: ThresholdProgress; total: number; rules: OrderRule[]; drafting: boolean }) {
+export function ThresholdPanel({ progress: p, total, rules, drafting }: { progress: ThresholdProgress; total: number; rules: OrderRule[]; drafting: boolean }) {
   const state = !p.configured ? 'unset'
     : p.disabled ? 'disabled'
     : !p.met ? 'missing'
