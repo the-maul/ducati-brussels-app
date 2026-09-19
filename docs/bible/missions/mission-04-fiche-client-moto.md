@@ -164,6 +164,25 @@ Migrations appliquées en base le 19/09 (testées d'abord dans une transaction a
   (Supersport 950 S), `ZDM3K00AANB005633` (Scrambler 800 Nightshift), `ZDMB200AAFB011445`
   (Hypermotard). À fusionner à la main (aucun écran de fusion de motos).
 
+**Carte 7 — Remplir la moto à partir d'une photo de la carte grise**
+- Formulaire véhicule (nouvelle moto, moto de client, modification) → **« Lire la carte grise »**
+  (photo ou PDF, parties I et II). La photo est déposée dans la GED de la moto (bucket `ged`,
+  `<société>/vehicle/<id>/…`, même stockage que les documents déposés par le client dans son espace),
+  dossier **« Carte grise »** ; pour une moto pas encore enregistrée, elle y est rangée à
+  l'enregistrement (identifiant de la moto fixé d'avance).
+- Fonction serveur **`read-id-doc`, mode `carte_grise`** (même accès, même téléchargement, même modèle
+  Claude `claude-opus-4-8` que la lecture d'identité ; déployée le 19/09) : Claude recopie chaque case
+  (A, B, C.1, D.1, D.2, D.3, E, J, P.1, P.2, P.3, R, V.9) avec une confiance (nette / douteuse / pas sûre) ;
+  `supabase/functions/_shared/carte-grise.ts` normalise (VIN, plaque `M-ABC-123`, date, nombres,
+  énergie `ESSENCE`, norme `EURO n`, CV calculés depuis les kW) et baisse la confiance d'une valeur qui
+  ne passe pas le contrôle.
+- À l'écran : les champs **vides** sont remplis et **surlignés** — bleu + coche « Lu sur la carte
+  grise », orange + triangle « Lu, à vérifier » ; un champ déjà saisi et différent **n'est jamais
+  écrasé** (« Sur la carte grise : … » + **Utiliser**). Le surlignage disparaît quand l'employé touche le
+  champ. Titulaire lu (C.1) affiché pour comparer au client ; cases lues mais non reprises listées.
+  Rien n'est enregistré sans cliquer sur Enregistrer.
+- **Pas testé avec une vraie carte grise** : mappage couvert par `tests/carte-grise.test.ts`.
+
 ## 6. Risques
 
 - Reprise G8 : mobiles rangés dans « téléphone » et formes juridiques dans la civilité → proposer, ne pas corriger en masse sans accord.

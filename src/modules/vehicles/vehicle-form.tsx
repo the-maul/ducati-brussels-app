@@ -7,11 +7,15 @@
  * VIN (avertissements, jamais bloquant) et refus d'un VIN déjà présent dans le parc
  * (on propose de rattacher la moto existante). Mode « moto de client » (`client`) :
  * pas de suivi commercial, la moto rejoint le parc du client.
+ *
+ * Mission 04, carte 7 : « Lire la carte grise » (photo ou PDF) → champs pré-remplis et
+ * surlignés (lu / à vérifier), jamais d'écrasement d'une saisie ; la photo est rangée
+ * dans les documents de la moto (GED). L'employé vérifie avant d'enregistrer.
  */
-import { useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useRef, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Bike, Link2, Loader2, Wand2 } from 'lucide-react';
+import { AlertTriangle, Bike, CheckCircle2, Link2, Loader2, ScanText, Wand2 } from 'lucide-react';
 import { decodeDucatiVin } from '@/lib/ducati-vin';
 import { checkVin, normalizeVin } from '@/lib/vin';
 import { Input } from '@/components/ui/input';
@@ -28,6 +32,11 @@ import {
   type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif,
 } from './api';
 import { PurchaseInvoiceField } from './purchase-invoice-field';
+import {
+  attachCarteGrise, CgReadError, readCarteGrise, uploadCarteGrise,
+  type CgConfidence, type CgField, type CgReading, type CgScan,
+} from './carte-grise';
+import { applyCgReading } from './carte-grise-apply';
 
 type F = Record<string, string | boolean>;
 
@@ -71,7 +80,8 @@ export const CARTE_GRISE_CODES: Record<string, string> = {
 
 /** Moto de client : le formulaire la rattache à ce contact (vehicle_owners). */
 export type VehicleFormClient = { id: string; name: string };
-export type VehicleSubmitMeta = { ownerFrom: string };
+/** `scan` : carte grise lue sur une moto pas encore enregistrée, à ranger après création. */
+export type VehicleSubmitMeta = { ownerFrom: string; scan: CgScan | null };
 
 function fromVehicle(v: Vehicle | null, client: boolean, prefill?: Partial<Record<string, string>>): F {
   const f: F = {};
@@ -130,7 +140,92 @@ export function VehicleForm({
   // Rien de modifié = rien à enregistrer : le bouton reste grisé (sauf pré-remplissage à créer).
   const dirty = useIsDirty(f);
   const [localError, setLocalError] = useState<string | null>(null);
-  const set = (k: string, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
+
+  // Carte 7 : champs lus sur la carte grise (surlignés tant que l'employé n'y a pas touché).
+  const qc = useQueryClient();
+  const [pendingId] = useState(() => crypto.randomUUID());
+  const [cgConf, setCgConf] = useState<Partial<Record<CgField, CgConfidence>>>({});
+  const [cgConflicts, setCgConflicts] = useState<Partial<Record<CgField, string>>>({});
+  const [cgInfo, setCgInfo] = useState<Pick<CgReading, 'holder' | 'unmapped'> | null>(null);
+  const [cgMsg, setCgMsg] = useState<{ tone: 'info' | 'warning' | 'danger'; text: string } | null>(null);
+  const [cgBusy, setCgBusy] = useState(false);
+  const [scan, setScan] = useState<CgScan | null>(null);
+  const cgInput = useRef<HTMLInputElement>(null);
+
+  const set = (k: string, v: string | boolean) => {
+    setF((p) => ({ ...p, [k]: v }));
+    // Champ corrigé ou confirmé par l'employé : plus surligné.
+    setCgConf((c) => { if (!(k in c)) return c; const n = { ...c }; delete n[k as CgField]; return n; });
+    setCgConflicts((c) => { if (!(k in c)) return c; const n = { ...c }; delete n[k as CgField]; return n; });
+  };
+
+  const applyReading = (r: CgReading) => {
+    const { next, filled, conflicts } = applyCgReading(f, r);
+    setF(next);
+    setCgConf(Object.fromEntries([...filled, ...Object.keys(conflicts)].map((k) => [k, r.confidence[k as CgField] ?? 'low'])));
+    setCgConflicts(conflicts);
+    setCgInfo({ holder: r.holder, unmapped: r.unmapped });
+    const n = filled.length;
+    setCgMsg(n + Object.keys(conflicts).length === 0
+      ? { tone: 'warning', text: t('motoClient.readNothing') }
+      : { tone: 'info', text: t('motoClient.readDone').replace('{n}', String(n)) });
+  };
+
+  const cgError = (e: unknown) => {
+    const code = e instanceof CgReadError ? e.code : 'read_failed';
+    setCgMsg({
+      tone: code === 'not_registration' ? 'warning' : 'danger',
+      text: code === 'not_configured' ? t('motoClient.readNotConfigured')
+        : code === 'not_registration' ? t('motoClient.readNotCg') : t('motoClient.readErr'),
+    });
+  };
+
+  /** Photo ou PDF choisi : dépôt dans la GED de la moto, lecture, pré-remplissage. */
+  const onCgFile = async (file: File | undefined) => {
+    if (!file) return;
+    setCgMsg({ tone: 'info', text: t('motoClient.reading') }); setCgBusy(true);
+    try {
+      const vehicleId = initial?.id ?? pendingId;
+      const sc = await uploadCarteGrise(companyId, vehicleId, file);
+      if (initial) {
+        // Moto déjà enregistrée : la photo est rangée tout de suite.
+        await attachCarteGrise(companyId, vehicleId, sc);
+        qc.invalidateQueries({ queryKey: ['attachments', 'vehicle', vehicleId] });
+      } else setScan(sc);
+      applyReading(await readCarteGrise([sc.path]));
+    } catch (e) { cgError(e); } finally {
+      setCgBusy(false);
+      if (cgInput.current) cgInput.current.value = '';
+    }
+  };
+
+  /** Surlignage d'un champ lu : bleu = lu net, orange = à vérifier (couleur + icône + libellé). */
+  const hl = (k: string) => {
+    const c = cgConf[k as CgField];
+    return !c ? '' : c === 'high' ? 'ring-2 ring-info/60' : 'ring-2 ring-warning/70';
+  };
+  const cgHint = (k: string) => {
+    const c = cgConf[k as CgField];
+    const conflict = cgConflicts[k as CgField];
+    if (!c && !conflict) return null;
+    return (
+      <>
+        {c && (c === 'high' ? (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-info"><CheckCircle2 className="size-3.5" />{t('motoClient.confHigh')}</p>
+        ) : (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-warning"><AlertTriangle className="size-3.5" />{t('motoClient.confCheck')}</p>
+        ))}
+        {conflict && (
+          <p className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+            {t('motoClient.onCard')}<span className="font-mono text-foreground">{conflict}</span>
+            <button type="button" className="font-medium text-info underline-offset-2 hover:underline" onClick={() => set(k, conflict)}>
+              {t('motoClient.useValue')}
+            </button>
+          </p>
+        )}
+      </>
+    );
+  };
 
   const [decoding, setDecoding] = useState(false);
   const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
@@ -184,26 +279,38 @@ export function VehicleForm({
     if (!f.vin && !f.plate && !f.model) { setLocalError(t('motoClient.identityRequired')); return; }
     // Jamais de 2e fiche pour un VIN déjà connu : on rattache (ou on ouvre) l'existante.
     if (duplicates.length > 0) { setLocalError(t('motoClient.vinExistsBlock')); return; }
-    onSubmit(buildPayload(f, companyId), { ownerFrom });
+    const payload = buildPayload(f, companyId);
+    // Carte grise déjà déposée sous l'identifiant fixé d'avance : la moto le reprend.
+    onSubmit(!initial && scan ? { ...payload, id: pendingId } : payload, { ownerFrom, scan: initial ? null : scan });
   };
 
   const T = (k: string, label: string, mono = false) => (
-    <Field label={label} code={CARTE_GRISE_CODES[k]}><Input value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={mono ? 'font-mono' : ''} /></Field>
+    <Field label={label} code={CARTE_GRISE_CODES[k]}>
+      <Input value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={`${mono ? 'font-mono' : ''} ${hl(k)}`} />
+      {cgHint(k)}
+    </Field>
   );
   const N = (k: string, label: string, step = '1') => (
-    <Field label={label} code={CARTE_GRISE_CODES[k]}><Input type="number" step={step} value={f[k] as string} onChange={(e) => set(k, e.target.value)} className="text-right tabular-nums" /></Field>
+    <Field label={label} code={CARTE_GRISE_CODES[k]}>
+      <Input type="number" step={step} value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={`text-right tabular-nums ${hl(k)}`} />
+      {cgHint(k)}
+    </Field>
   );
   const D = (k: string, label: string) => (
-    <Field label={label} code={CARTE_GRISE_CODES[k]}><Input type="date" value={f[k] as string} onChange={(e) => set(k, e.target.value)} /></Field>
+    <Field label={label} code={CARTE_GRISE_CODES[k]}>
+      <Input type="date" value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={hl(k)} />
+      {cgHint(k)}
+    </Field>
   );
   const S = (k: string, label: string, options: readonly string[]) => (
     <Field label={label} code={CARTE_GRISE_CODES[k]}>
       <Select value={(f[k] as string) || undefined} onValueChange={(v) => set(k, v)}>
-        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectTrigger className={hl(k)}><SelectValue placeholder="—" /></SelectTrigger>
         <SelectContent>
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
       </Select>
+      {cgHint(k)}
     </Field>
   );
 
@@ -231,10 +338,37 @@ export function VehicleForm({
       )}
 
       <Section title={t('vehicles.secId')}>
+        <div className="col-span-full space-y-2 rounded-md border border-dashed border-border p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <input ref={cgInput} type="file" accept="image/*,application/pdf" className="hidden"
+              onChange={(e) => onCgFile(e.target.files?.[0])} />
+            <Button type="button" variant="outline" disabled={cgBusy} onClick={() => cgInput.current?.click()}>
+              {cgBusy ? <Loader2 className="animate-spin" /> : <ScanText />} {t('motoClient.readCg')}
+            </Button>
+            <span className="text-[12px] text-muted-foreground">{t('motoClient.readCgHint')}</span>
+          </div>
+          {cgMsg && (
+            <p className={`flex items-start gap-1.5 text-[12px] font-medium ${cgMsg.tone === 'info' ? 'text-info' : cgMsg.tone === 'warning' ? 'text-warning' : 'text-danger'}`}>
+              {cgMsg.tone === 'info' ? <ScanText className="mt-0.5 size-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />}
+              {cgMsg.text}
+            </p>
+          )}
+          {cgInfo?.holder && (
+            <p className="text-[12px] text-muted-foreground">{t('motoClient.holder')}<span className="font-medium text-foreground">{cgInfo.holder}</span></p>
+          )}
+          {cgInfo && cgInfo.unmapped.length > 0 && (
+            <p className="text-[12px] text-muted-foreground">
+              {t('motoClient.unmapped')}{cgInfo.unmapped.map((u) => `${u.code} « ${u.raw} »`).join(' · ')}
+            </p>
+          )}
+          {scan && !initial && <p className="text-[12px] text-muted-foreground">{t('motoClient.scanPending')}</p>}
+          {cgInfo && initial && <p className="text-[12px] text-muted-foreground">{t('motoClient.scanAttached')}</p>}
+        </div>
         <Field label={t('vehicles.vin')} code={CARTE_GRISE_CODES.vin}>
           <Input value={f.vin as string} onChange={(e) => set('vin', e.target.value.toUpperCase())}
             onBlur={() => { if (f.vin) set('vin', normalizeVin(f.vin as string)); }}
-            className="font-mono" autoCapitalize="characters" spellCheck={false} maxLength={30} />
+            className={`font-mono ${hl('vin')}`} autoCapitalize="characters" spellCheck={false} maxLength={30} />
+          {cgHint('vin')}
           {vin.warnings.includes('length') && (
             <p className="flex items-start gap-1 text-[12px] text-warning">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />

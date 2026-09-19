@@ -37,15 +37,15 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 | Quoi | Où |
 |---|---|
 | Écrans (routes) | `src/routes/_app.vehicles.tsx`, `_app.vehicles.index.tsx`, `_app.vehicles.new.tsx`, `_app.vehicles.$vehicleId.tsx`, `_app.settings.extension.tsx` |
-| Logique métier | `src/modules/vehicles/` : `api.ts` (lecture/écriture avec repli sur colonne inconnue, recherche par propriétaire, propriétaires, documents), `vehicle-form.tsx`, `ducati-panel.tsx` (panneau My Ducati), `purchase-invoice-field.tsx` (facture d'achat en GED), `model-abbrev.ts` (abréviations pour étiquettes) |
+| Logique métier | `src/modules/vehicles/` : `carte-grise.ts` + `carte-grise-apply.ts` (lecture de la carte grise, mission 04), `api.ts` (lecture/écriture avec repli sur colonne inconnue, recherche par propriétaire, propriétaires, documents), `vehicle-form.tsx`, `ducati-panel.tsx` (panneau My Ducati), `purchase-invoice-field.tsx` (facture d'achat en GED), `model-abbrev.ts` (abréviations pour étiquettes) |
 | My Ducati | `src/lib/myducati.ts` (réception des données de l'extension, écriture véhicule/maintenance/bulletins/contact), `src/components/myducati-listener.tsx`, extension source `tools/myducati-extension/` (`manifest.json`, `ducati.js`, `background.js`, `dms-bridge.js`, `README.md`), spécification `docs/extension-myducati.md` |
 | Décodage VIN | `src/lib/ducati-vin.ts` (VIN connu → `ducati_vin_facts`, sinon code VDS → `ducati_vds`) |
 | Tables | `vehicles` (fiche VIN, statut, prix), `vehicle_owners` (historique propriétaires daté), `vehicle_maintenance` (entretiens My Ducati), `vehicle_bulletins` (bulletins techniques + PDF), `ducati_vds` (table de référence modèle par code VDS, lisible par tous les connectés), `ducati_vin_facts` (VIN connus des factures) |
 | Fonctions SQL (RPC) | Mission 04 : `vin_normalize`, `vehicles_find_by_vin` (doublon de VIN + propriétaire actuel), `vehicle_create_for_contact` (moto + propriétaire en une transaction, refuse `VIN_EXISTS`), `vehicle_attach_owner` (changement de propriétaire tracé) ; `learn_ducati_vds` + trigger `trg_learn_ducati_vds` (chaque moto Ducati enregistrée enrichit la table VDS), `recompute_oro_and_vehicle` (coût de revient, voir M07), `contacts_search` (recherche par propriétaire) |
-| Fonctions serveur (Edge) | aucune |
+| Fonctions serveur (Edge) | `read-id-doc`, mode `carte_grise` (mission 04 carte 7 : lecture de la carte grise par Claude ; mappage `supabase/functions/_shared/carte-grise.ts`) |
 | Tâches planifiées | aucune pour les véhicules (l'alerte `dormant-stock-alert` ne porte que sur les articles de type A, voir §7) |
 | Migrations clés | `supabase/migrations/20260610170000_m3_vehicles.sql` (schéma, statuts, RLS), `20260612270000_m14_g8_legacy_fields.sql` (`entry_date`, `sold_date`…), `20260612600000_ducati_vds_decoder.sql`, `20260612700000_ducati_vin_facts.sql`, `20260613500000_m3_ducati_vehicle_data.sql` (My Ducati), `20260613600000_m3_bulletin_url.sql`, `20260613700000_m3_bulletin_pdf.sql`, `20260629140000_m3_vehicle_marking_to_origin.sql`, `20260716090000_m3_vehicles_papers_100hp.sql` |
-| Tests | `tests/myducati.test.ts`, `tests/model-abbrev.test.ts`, `tests/vin.test.ts` (contrôle du VIN) |
+| Tests | `tests/myducati.test.ts`, `tests/model-abbrev.test.ts`, `tests/vin.test.ts` (contrôle du VIN), `tests/carte-grise.test.ts` (mappage carte grise) |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `vehicles`, `matching`, `settings` (clés `ext*`) |
 
 ## 4. Règles métier et décisions
@@ -134,4 +134,5 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-07-18 | Case « Papiers 100 CH » + repli sur colonne inconnue | `f01ee2c`, `20260716090000` (non appliquée au 14/09) |
 | 2026-07-26 | Matching client intéressé ↔ moto en stock | `6954757` |
 | 2026-09-11 | Retour visuel d'enregistrement, bouton grisé tant que rien ne change | `7f6ce22`, `d24c84f` |
+| 2026-09-19 | **Mission 04 carte 7** : « Lire la carte grise » (photo ou PDF) → champs pré-remplis surlignés, photo rangée dans la GED de la moto | branche `lot-m4-moto`, fonction `read-id-doc` redéployée le 19/09 |
 | 2026-09-19 | **Mission 04 carte 6** : « Ajouter une moto » depuis la fiche client (propriétaire en une transaction, sans article), codes carte grise sur les libellés, contrôle du VIN, refus d'un doublon + rattachement de la moto existante | branche `lot-m4-moto`, migration `20260919300000_m3_moto_client_depuis_fiche` (appliquée le 19/09) |

@@ -8,6 +8,7 @@ import { VehicleForm, type VehicleSubmitMeta } from '@/modules/vehicles/vehicle-
 import {
   attachVehicleOwner, createVehicle, createVehicleForContact, VinExistsError, type VehicleInsert,
 } from '@/modules/vehicles/api';
+import { attachCarteGrise } from '@/modules/vehicles/carte-grise';
 import { contactDisplayName, getContact } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
@@ -49,11 +50,12 @@ function NewVehicle() {
 
   const m = useSaveMutation({
     mutationFn: async ({ p, meta }: { p: VehicleInsert; meta: VehicleSubmitMeta }) => {
-      if (contactId) {
-        const id = await createVehicleForContact(activeCompanyId!, contactId, p, meta.ownerFrom);
-        return { id };
-      }
-      return createVehicle(p);
+      const id = contactId
+        ? await createVehicleForContact(activeCompanyId!, contactId, p, meta.ownerFrom)
+        : (await createVehicle(p)).id;
+      // Carte 7 : la carte grise lue avant l'enregistrement rejoint les documents de la moto.
+      if (meta.scan) await attachCarteGrise(activeCompanyId!, id, meta.scan).catch(() => undefined);
+      return { id };
     },
     success: contactId ? t('motoClient.created') : t('feedback.created'),
     onSuccess: invalidate,
