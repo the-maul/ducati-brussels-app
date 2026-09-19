@@ -179,6 +179,7 @@ Vérifié dans `cron.job` et `cron.job_run_details` le 18/09/2026 : 6 tâches, t
 | `appointment-reminders` | `0 17 * * *` (17:00) | `_cron_appointment_reminders()` : rappel e-mail + SMS des RDV atelier du lendemain | `20260612240000_m10_notifications.sql` |
 | `dispatch-notifications` | `*/10 * * * *` | `net.http_post` → Edge Function `dispatch-notifications` | `20260612240000_m10_notifications.sql` |
 | `outlook-poll` | `*/5 * * * *` | `net.http_post` → Edge Function `outlook-poll` | `20260612350000_m10_email_ingest.sql` |
+| `sales-alerts` | `0 6 * * *` (06:00) | `_cron_sales_alerts()` : cloche interne seulement (aucun envoi) — rappel « acompte reçu : pièces à commander », factures échues impayées (1 alerte / document / échéance), alertes réglées | `20260919351000_m6_acompte_commande_soldes.sql` (ajoutée le 19/09, SQL pur, sans appel HTTP ni secret) |
 
 Les deux appels HTTP portent la **clé publique anon** (écrite dans la commande du job et dans les migrations — pas un secret, mais à changer si la clé est un jour régénérée). Le fuseau de `pg_cron` est UTC : 07:00 UTC = 09:00 à Bruxelles en été.
 

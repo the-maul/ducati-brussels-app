@@ -5,8 +5,8 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark } from 'lucide-react';
-import { useState } from 'react';
+import { PanelLeft, Bell, Bike, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,8 @@ import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/wor
 import { VEHICLE_DECL_NOTIF_ROLES } from '@/modules/vehicles/declarations-api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { ExcelThresholdAlert } from '@/modules/orders/excel-alert';
+import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-alerts';
+import { eur } from '@/modules/sales/balance-panel';
 import { t } from '@/lib/i18n';
 
 /**
@@ -45,6 +47,12 @@ import { t } from '@/lib/i18n';
  *   5. MOTOS DÉCLARÉES PAR DES CLIENTS (mission 04, carte 8, 7 derniers jours : espace
  *      client, inscription, borne) : rôles admin, vendeur (filtré aussi en base). Mène à
  *      Véhicules → « Motos déclarées à valider ». « Lu » propre à chaque utilisateur.
+ *   6. (mission 05, carte 10) PIÈCES À COMMANDER APRÈS ACOMPTE : acompte encaissé sur un devis /
+ *      proforma, bon de commande ou réservation, pièces manquantes pas encore commandées ; rappel
+ *      quotidien tant que ce n'est pas fait (une ligne par document, la plus récente).
+ *   7. (mission 05, carte 10) SOLDES IMPAYÉS : facture échue avec un reste à payer (une seule alerte
+ *      par document et par échéance). Pour 6 et 7 : le vendeur du document et les administrateurs
+ *      (filtré en base) ; une alerte réglée (pièces commandées, solde payé) disparaît. Mènent au document.
  * Le badge compte uniquement ce que la personne voit : tâches + inscriptions non
  * lues + demandes de rendez-vous. Aucun e-mail ni SMS.
  */
@@ -113,6 +121,22 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid && seesVehicleDecl,
     refetchInterval: 120_000,
   });
+  // Mission 05, carte 10 : pas de filtre de rôle à l'écran, la base ne renvoie que ce que la
+  // personne peut voir (vendeur du document + administrateurs).
+  const depositKey = ['deposit-order-alerts', activeCompanyId, uid];
+  const { data: depositData } = useQuery({
+    queryKey: depositKey,
+    queryFn: () => listDocumentAlerts(activeCompanyId!, uid!, 'order_after_deposit'),
+    enabled: !!activeCompanyId && !!uid,
+    refetchInterval: 120_000,
+  });
+  const unpaidKey = ['unpaid-balance-alerts', activeCompanyId, uid];
+  const { data: unpaidData } = useQuery({
+    queryKey: unpaidKey,
+    queryFn: () => listDocumentAlerts(activeCompanyId!, uid!, 'unpaid_balance'),
+    enabled: !!activeCompanyId && !!uid,
+    refetchInterval: 120_000,
+  });
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -125,6 +149,8 @@ function NotificationsBell() {
       queryClient.invalidateQueries({ queryKey: signupsKey });
       queryClient.invalidateQueries({ queryKey: ibanKey });
       queryClient.invalidateQueries({ queryKey: vehicleDeclKey });
+      queryClient.invalidateQueries({ queryKey: depositKey });
+      queryClient.invalidateQueries({ queryKey: unpaidKey });
     },
   });
 
@@ -136,8 +162,13 @@ function NotificationsBell() {
   const unreadIbans = ibans.filter((n) => !n.read);
   const vehicleDecls = seesVehicleDecl ? vehicleDeclData ?? [] : [];
   const unreadVehicleDecls = vehicleDecls.filter((n) => !n.read);
-  const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length;
-  const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length;
+  const depositAlerts = depositData ?? [];
+  const unreadDeposit = depositAlerts.filter((n) => !n.read);
+  const unpaidAlerts = unpaidData ?? [];
+  const unreadUnpaid = unpaidAlerts.filter((n) => !n.read);
+  const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length;
+  const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
+    + unreadDeposit.length + unreadUnpaid.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -150,7 +181,7 @@ function NotificationsBell() {
         {total > 0 && (
           <span
             className={`absolute right-0.5 top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white ${
-              overdue > 0 ? 'bg-[var(--danger)]' : tasks.length > 0 || appts.length > 0 || unreadIbans.length > 0 || unreadVehicleDecls.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
+              overdue > 0 ? 'bg-[var(--danger)]' : tasks.length > 0 || appts.length > 0 || unreadIbans.length > 0 || unreadVehicleDecls.length > 0 || unreadDeposit.length > 0 ? 'bg-[var(--warning)]' : 'bg-[var(--info)]'
             }`}
           >
             {total > 99 ? '99+' : total}
@@ -237,6 +268,25 @@ function NotificationsBell() {
               <Link to="/workshop/planning" search={{ week: undefined }} className="text-[12px]">{t('notif.apptSeeAll')}</Link>
             </DropdownMenuItem>
           </>
+        )}
+
+        {depositAlerts.length > 0 && (
+          <DocumentAlertSection
+            title={t('notif.depositTitle')} alerts={depositAlerts} icon={ShoppingCart} tone="warning"
+            line={(n) => t('notif.depositLine').replace('{n}', String(n.payload.missing_lines ?? 0))}
+            onRead={(id) => markRead.mutate([id])} fmt={fmt}
+          />
+        )}
+
+        {unpaidAlerts.length > 0 && (
+          <DocumentAlertSection
+            title={t('notif.unpaidTitle')} alerts={unpaidAlerts} icon={Wallet} tone="danger"
+            line={(n) => t('notif.unpaidLine')
+              .replace('{amount}', eur(Number(n.payload.client_due ?? 0)))
+              .replace('{date}', n.payload.due_date ? new Date(`${n.payload.due_date}T00:00:00`).toLocaleDateString('fr-BE') : '—')}
+            onRead={(id) => markRead.mutate([id])} fmt={fmt}
+            footer={<Link to="/sales/balances" className="text-[12px]">{t('notif.unpaidSeeAll')}</Link>}
+          />
         )}
 
         {ibans.length > 0 && (
@@ -348,6 +398,49 @@ function NotificationsBell() {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Section de la cloche pour les alertes liées à un document de vente (mission 05, carte 10). */
+function DocumentAlertSection({ title, alerts, icon: Icon, tone, line, onRead, fmt, footer }: {
+  title: string;
+  alerts: DocumentAlert[];
+  icon: typeof Bell;
+  tone: 'warning' | 'danger';
+  line: (n: DocumentAlert) => string;
+  onRead: (id: string) => void;
+  fmt: (iso: string) => string;
+  footer?: ReactNode;
+}) {
+  const color = tone === 'danger' ? 'text-[var(--danger)]' : 'text-[var(--warning)]';
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>{title}</DropdownMenuLabel>
+      {alerts.slice(0, 8).map((n) => {
+        const body = (
+          <>
+            <span className="flex w-full items-center gap-1.5">
+              <Icon className={`size-3.5 shrink-0 ${n.read ? 'text-muted-foreground' : color}`} />
+              <span className={`truncate text-[13px] ${n.read ? 'text-muted-foreground' : 'font-medium'}`}>{n.title}</span>
+            </span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              <span className={n.read ? '' : `font-medium ${color}`}>{line(n)}</span> · {fmt(n.createdAt)}
+            </span>
+          </>
+        );
+        return (
+          <DropdownMenuItem key={n.id} asChild className="cursor-pointer" onSelect={() => { if (!n.read) onRead(n.id); }}>
+            {n.documentId ? (
+              <Link to="/sales/$documentId" params={{ documentId: n.documentId }} className="flex flex-col items-start gap-0.5">{body}</Link>
+            ) : (
+              <div className="flex flex-col items-start gap-0.5">{body}</div>
+            )}
+          </DropdownMenuItem>
+        );
+      })}
+      {footer && <DropdownMenuItem asChild className="cursor-pointer">{footer}</DropdownMenuItem>}
+    </>
   );
 }
 

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -30,6 +30,9 @@ import { AvailabilityBadge, SaleStockBadge } from '@/modules/sales/availability-
 import { getDocumentLinesStock, listDocumentAllocations, cancelAllocation } from '@/modules/sales/on-order-api';
 import { AssociateOrderDialog } from '@/modules/sales/associate-order-dialog';
 import { PrepareButton } from '@/modules/sales/prepare-button';
+import { DocumentOrdersPanel } from '@/modules/orders/document-orders-panel';
+import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-dialog';
+import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 
@@ -83,6 +86,8 @@ function DocumentView() {
     enabled: !!data?.doc.financing_org_id,
   });
   const [financingOpen, setFinancingOpen] = useState(false);
+  // Commander les pièces (mission 02, carte 3) : null = fermé, [] = tout le document, [article] = une ligne
+  const [orderDialog, setOrderDialog] = useState<string[] | null>(null);
   const [associate, setAssociate] = useState<{ articleId: string; reference: string | null; designation: string } | null>(null);
   const contactId = data?.doc.contact_id ?? null;
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
@@ -187,6 +192,8 @@ function DocumentView() {
         </div>
       )}
 
+      <DocumentOrdersPanel doc={doc} payments={paymentsQ.data ?? null} onOrder={() => setOrderDialog([])} />
+
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
@@ -233,6 +240,11 @@ function DocumentView() {
                               onClick={() => setAssociate({ articleId: ls.article_id, reference: l.reference, designation: l.designation })}
                             >
                               <Link2 className="size-4" />
+                            </Button>
+                          )}
+                          {lineStatus === 'a_commander' && canOrderFromDocument(doc) && (
+                            <Button size="sm" variant="ghost" title={t('orderFromDoc.lineHint')} onClick={() => setOrderDialog([ls.article_id])}>
+                              <ShoppingCart className="size-4" />
                             </Button>
                           )}
                         </span>
@@ -320,6 +332,13 @@ function DocumentView() {
           documentId={documentId} companyId={doc.company_id} totalTtc={Number(doc.total_ttc)}
           current={{ orgId: doc.financing_org_id, amount: Number(doc.financing_amount), status: doc.financing_status }}
           onClose={() => setFinancingOpen(false)}
+        />
+      )}
+      {orderDialog && (
+        <OrderFromDocumentDialog
+          documentId={documentId} companyId={doc.company_id} preselect={orderDialog}
+          documentLabel={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
+          onClose={() => { setOrderDialog(null); linesStockQ.refetch(); }}
         />
       )}
       {associate && contactId && (

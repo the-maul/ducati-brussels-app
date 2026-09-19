@@ -16,6 +16,7 @@ import { ruleFor } from '@/modules/orders/thresholds';
 import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel, ruleSentences } from '@/modules/orders/order-ui';
 import { listRef } from '@/modules/settings/reference-api';
 import { OrderLinesEditor } from '@/modules/orders/order-lines';
+import { OrderOrigin } from '@/modules/orders/order-origin';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/$orderId')({
@@ -131,6 +132,9 @@ function OrderDetail() {
           </div>
         }
       />
+
+      {/* D'où vient la commande : document de vente, client, véhicule (mission 02, carte 3) */}
+      <OrderOrigin contactId={order.contact_id} vehicleId={order.vehicle_id} sourceDocumentId={order.source_document_id} />
 
       {/* Confirmation d'un passage d'état (paiement, envoi, annulation) */}
       {pending && (

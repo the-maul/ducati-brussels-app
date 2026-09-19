@@ -66,6 +66,7 @@ import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases
 import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchases.suppliers'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
+import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
 import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
@@ -388,6 +389,11 @@ const AppSalesDocumentIdRoute = AppSalesDocumentIdRouteImport.update({
   path: '/$documentId',
   getParentRoute: () => AppSalesRoute,
 } as any)
+const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
+  id: '/balances',
+  path: '/balances',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSalesNewRoute = AppSalesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -631,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
@@ -714,6 +721,7 @@ export interface FileRoutesByTo {
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
@@ -810,6 +818,7 @@ export interface FileRoutesById {
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/_app/sales/balances': typeof AppSalesBalancesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
   '/_app/settings/comments': typeof AppSettingsCommentsRoute
@@ -907,6 +916,7 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/purchases/suppliers'
     | '/sales/$documentId'
+    | '/sales/balances'
     | '/sales/new'
     | '/settings/app-client'
     | '/settings/comments'
@@ -990,6 +1000,7 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/purchases/reorder'
     | '/sales/$documentId'
+    | '/sales/balances'
     | '/sales/new'
     | '/settings/app-client'
     | '/settings/comments'
@@ -1085,6 +1096,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/reorder'
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
+    | '/_app/sales/balances'
     | '/_app/sales/new'
     | '/_app/settings/app-client'
     | '/_app/settings/comments'
@@ -1542,6 +1554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesDocumentIdRouteImport
       parentRoute: typeof AppSalesRoute
     }
+    '/_app/sales/balances': {
+      id: '/_app/sales/balances'
+      path: '/balances'
+      fullPath: '/sales/balances'
+      preLoaderRoute: typeof AppSalesBalancesRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/sales/new': {
       id: '/_app/sales/new'
       path: '/new'
@@ -1905,12 +1924,14 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 
 interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
+  AppSalesBalancesRoute: typeof AppSalesBalancesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
 }
 
 const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
+  AppSalesBalancesRoute: AppSalesBalancesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
 }

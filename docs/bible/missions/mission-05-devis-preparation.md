@@ -297,6 +297,48 @@ croisée avec les images). **Feu vert de Simon le 19/09.**
   société, règlement de l'organisme, retrait, refus d'un utilisateur d'une autre société).
 - Limite : la pastille « Solde » de la liste des ventes ne tient pas compte du financement.
 
+### Carte 10 — Commander les pièces dès l'acompte et ne laisser aucun solde impayé (19/09, à valider)
+- **Acompte encaissé → pièces à commander.** Dès qu'un règlement **perçu** du client (pas un règlement
+  « attendu », pas un versement de l'organisme de financement) est enregistré sur un devis / proforma, bon
+  de commande ou réservation qui a des pièces manquantes pas encore commandées (calcul de la carte 3 de la
+  [mission 02](mission-02-commandes-pieces.md)) :
+  - **bandeau** sur la fiche du document « Acompte reçu — X pièce(s) à commander » + montant encaissé +
+    bouton **« Commander les pièces »** (fenêtre de la carte 3) ; calculé à l'affichage ;
+  - **cloche** (type `order_after_deposit`) du **vendeur du document** (opérateur) et des **administrateurs**,
+    créée par le serveur au règlement (déclencheur sur `document_payments`) puis **rappelée chaque jour**
+    (tâche planifiée `sales-alerts`, 06:00 UTC) tant que ce n'est pas fait ; au plus une alerte par document
+    et par jour, la cloche n'en montre qu'une par document ; l'alerte disparaît dès que les pièces sont
+    commandées (même en brouillon) ou que le document est converti / annulé.
+- **Soldes à encaisser** (menu **Soldes à encaisser**, `/sales/balances`) : factures, tickets, bons de
+  commande, réservations et BL ouverts avec un **reste à payer par le client > 0** (financement accepté
+  déduit, même calcul que la carte 9), triés par échéance (échus d'abord), ancienneté ou montant, **filtre
+  par vendeur** ; total à encaisser et part échue ; état couleur + icône + libellé.
+- **Facture échue impayée** → cloche (type `unpaid_balance`) du vendeur + admins, **une seule fois par
+  document et par échéance** (clé anti-doublon en base) ; disparaît quand le reste est soldé (ou couvert par
+  un financement accepté). Aucun e-mail, aucun SMS (la relance client existante `invoice-reminders` reste
+  inchangée).
+- Migration `20260919351000_m6_acompte_commande_soldes.sql` (colonnes `team_notifications.document_id`,
+  `target_user_id`, `payload`, `dedupe_key`, `resolved_at` ; politique de lecture « destinataire » ;
+  fonctions `_sales_doc_balance`, `_sales_deposit_received`, `_sales_deposit_alert`, `_sales_unpaid_alert`,
+  `_sales_resolve_alerts`, `_cron_sales_alerts`, `sales_open_balances` ; déclencheurs sur `document_payments`
+  et `part_order_lines` ; tâche `sales-alerts`). Appliquée le 19/09 après test en transaction annulée
+  (règlement attendu → rien ; reçu → 1 alerte, un 2e règlement le même jour → pas de doublon ; vendeur et
+  admin la voient, mécanicien non ; commande créée → alerte réglée ; tâche relancée → pas de doublon
+  d'impayé ; financement accepté → réglée ; nouvelle échéance → nouvelle alerte ; anonyme refusé).
+- Code : `src/modules/sales/deposit-alerts.ts`, `src/modules/orders/document-orders-panel.tsx`,
+  `src/routes/_app.sales.balances.tsx`, `src/components/layout/topbar.tsx`, `src/lib/navigation.ts` ;
+  test `tests/sales-deposit-alerts.test.ts`.
+- Au 19/09 en production : une facture non reprise de G8 est échue avec un reste à payer ; la première
+  exécution de la tâche (20/09, 08:00) créera donc une alerte « solde impayé » pour son vendeur et les admins.
+
+**À tester (carte 10)**
+1. Un devis / proforma avec une pièce sans stock : ajouter un règlement **à échéance** (non perçu) → pas de
+   bandeau ; le marquer **perçu** → bandeau « Acompte reçu — 1 pièce(s) à commander » et alerte dans la
+   cloche du vendeur (et d'un admin).
+2. Cliquer **Commander les pièces** et créer la commande → le bandeau et l'alerte disparaissent.
+3. Menu **Soldes à encaisser** : les documents non soldés, filtre « Vendeur », tri par échéance ; une facture
+   échue apparaît en tête avec « Échéance dépassée ».
+
 ## 6. Risques
 
 - Ne pas créer un deuxième circuit de vente : tout passe par les documents M06 existants.
