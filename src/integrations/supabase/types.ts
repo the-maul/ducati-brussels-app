@@ -3362,6 +3362,77 @@ export type Database = {
           },
         ]
       }
+      part_order_allocations: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          document_id: string | null
+          id: string
+          note: string | null
+          part_order_line_id: string
+          qty: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          note?: string | null
+          part_order_line_id: string
+          qty: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          note?: string | null
+          part_order_line_id?: string
+          qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_order_allocations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_allocations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_allocations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_allocations_part_order_line_id_fkey"
+            columns: ["part_order_line_id"]
+            isOneToOne: false
+            referencedRelation: "part_order_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_order_lines: {
         Row: {
           article_id: string | null
@@ -3623,11 +3694,16 @@ export type Database = {
           company_id: string
           created_at: string
           designation: string | null
+          document_line_id: string | null
           id: string
           picking_id: string
+          prep_step: string | null
+          prep_step_at: string | null
+          prep_step_by: string | null
           qty_ordered: number
           qty_picked: number
           reference: string | null
+          sort_order: number
           status: string
         }
         Insert: {
@@ -3635,11 +3711,16 @@ export type Database = {
           company_id: string
           created_at?: string
           designation?: string | null
+          document_line_id?: string | null
           id?: string
           picking_id: string
+          prep_step?: string | null
+          prep_step_at?: string | null
+          prep_step_by?: string | null
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          sort_order?: number
           status?: string
         }
         Update: {
@@ -3647,11 +3728,16 @@ export type Database = {
           company_id?: string
           created_at?: string
           designation?: string | null
+          document_line_id?: string | null
           id?: string
           picking_id?: string
+          prep_step?: string | null
+          prep_step_at?: string | null
+          prep_step_by?: string | null
           qty_ordered?: number
           qty_picked?: number
           reference?: string | null
+          sort_order?: number
           status?: string
         }
         Relationships: [
@@ -3667,6 +3753,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_list_items_document_line_id_fkey"
+            columns: ["document_line_id"]
+            isOneToOne: false
+            referencedRelation: "document_lines"
             referencedColumns: ["id"]
           },
           {
@@ -5712,6 +5805,10 @@ export type Database = {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
       }
+      article_on_order_for: {
+        Args: { _article: string; _contact?: string; _document?: string }
+        Returns: number
+      }
       article_stock: {
         Args: { _article: string }
         Returns: {
@@ -6285,6 +6382,33 @@ export type Database = {
         }[]
       }
       default_assignee: { Args: { _company: string }; Returns: string }
+      document_allocations: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          created_at: string
+          created_by_name: string
+          id: string
+          part_order_id: string
+          part_order_line_id: string
+          part_order_number: string
+          qty: number
+          reference: string
+        }[]
+      }
+      document_lines_stock: {
+        Args: { _document: string }
+        Returns: {
+          article_id: string
+          line_id: string
+          mgmt_type: string
+          on_order_qty: number
+          on_order_stock_qty: number
+          quantity: number
+          real_qty: number
+          reserved_qty: number
+        }[]
+      }
       dormant_stock: {
         Args: { _company: string; _months?: number }
         Returns: {
@@ -6509,6 +6633,14 @@ export type Database = {
         Returns: string
       }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
+      part_order_allocate: {
+        Args: { _document: string; _line: string; _note?: string; _qty: number }
+        Returns: string
+      }
+      part_order_allocation_cancel: {
+        Args: { _allocation: string }
+        Returns: undefined
+      }
       part_order_article_search: {
         Args: { _company: string; _limit?: number; _term: string }
         Returns: {
@@ -6582,6 +6714,24 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      part_order_open_lines: {
+        Args: { _article: string; _document: string }
+        Returns: {
+          allocated_here: number
+          allocated_qty: number
+          dispatch_status: string
+          line_id: string
+          order_contact_id: string
+          order_contact_name: string
+          order_id: string
+          order_kind: string
+          order_number: string
+          qty_client: number
+          qty_shop: number
+          source_document_id: string
+          validated_at: string
+        }[]
+      }
       part_order_rules: {
         Args: { _company: string }
         Returns: {
@@ -6653,6 +6803,41 @@ export type Database = {
           occurred_at: string
           subject: string
         }[]
+      }
+      picking_detail: {
+        Args: { _picking: string }
+        Returns: {
+          article_id: string
+          bins: string[]
+          designation: string
+          document_line_id: string
+          id: string
+          mgmt_type: string
+          on_order_qty: number
+          picking_id: string
+          prep_step: string
+          prep_step_at: string
+          prep_step_by_name: string
+          qty_ordered: number
+          qty_picked: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          status: string
+        }[]
+      }
+      picking_open_for_document: {
+        Args: { _document: string }
+        Returns: string
+      }
+      picking_set_location: {
+        Args: { _location: string; _picking: string }
+        Returns: undefined
+      }
+      picking_set_step: {
+        Args: { _item: string; _step: string }
+        Returns: undefined
       }
       portal_appointments: { Args: never; Returns: Json }
       portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
@@ -6963,6 +7148,38 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      vehicle_attach_owner: {
+        Args: {
+          _contact: string
+          _from_date?: string
+          _reason?: string
+          _vehicle: string
+        }
+        Returns: Json
+      }
+      vehicle_create_for_contact: {
+        Args: {
+          _company: string
+          _contact: string
+          _from_date?: string
+          _vehicle: Json
+        }
+        Returns: string
+      }
+      vehicles_find_by_vin: {
+        Args: { _company: string; _exclude?: string; _vin: string }
+        Returns: {
+          brand: string
+          id: string
+          model: string
+          owner_id: string
+          owner_name: string
+          plate: string
+          status: Database["public"]["Enums"]["vehicle_status"]
+          vin: string
+        }[]
+      }
+      vin_normalize: { Args: { _vin: string }; Returns: string }
       vo_margin_register: {
         Args: { _company: string; _from: string; _to: string }
         Returns: {
