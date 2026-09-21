@@ -26,7 +26,7 @@ retirer ; un produit publié est toujours lié à un article du stock.
 
 | Écran (menu → page) | Ce qu'on peut y faire |
 |---|---|
-| Fiche article → case **« Publiable e-shop »** (M2) | Marquer un article comme destiné à la vente en ligne. N'a plus d'effet dans le DMS ; donnée conservée pour la synchronisation Shopify. |
+| Fiche article → case **« Publiable e-shop »** (M2) | Marquer un article comme destiné à la vente en ligne. Depuis le 21/09, condition pour **Publier sur le site** (Shopify) depuis la fiche (mission 03). |
 | Ventes → filtre **Département** (Magasin / E-shop) (M6) | Inchangé. Repose sur `documents.imported_from` ; aucune vente ne correspond à « E-shop » aujourd'hui. Pourra servir aux ventes venues de Shopify. |
 
 Retiré le 18/09 : l'entrée de menu **E-shop** (`/eshop` : onglets Site, Produits, Commandes) et la
@@ -89,3 +89,4 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 | 2026-06-12 | Bloc Atouts : sélecteur d'icônes | `673be91` |
 | 2026-09-11 | Correctifs de typage des appels RPC | `7d31b6d` |
 | 2026-09-18 | **Module supprimé** (décision W-1) : écrans, code, fonctions Stripe, libellés ; migration de suppression écrite, non appliquée ; `articles.publishable` conservé | branche `lot-nettoyage`, migration `20260919130000` (non appliquée) |
+| 2026-09-21 | Mission 03 : le DMS écrit sur Shopify (stock + prix en direct, publier / retirer depuis la fiche), mode essai, livré « Arrêtée » | voir [M02](M02-articles.md) |

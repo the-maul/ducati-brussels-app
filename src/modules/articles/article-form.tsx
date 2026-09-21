@@ -25,6 +25,7 @@ import {
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
 import { ArticleWebSection } from './article-web';
+import { ShopifyPublishPanel } from './shopify-publish-panel';
 
 /** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
 export type RoundingRule = { sort_order: number; up_to: number; step: number; mode: 'up' | 'nearest' };
@@ -417,6 +418,9 @@ export function ArticleForm({
           onTitle={(v) => set('web_title', v)}
           onDescription={(v) => set('web_description', v)}
         />
+        {initial?.id && (
+          <ShopifyPublishPanel companyId={companyId} articleId={initial.id} publishable={!!initial.publishable} />
+        )}
       </Section>
 
       <Section title={t('articles.secSupplier')}>

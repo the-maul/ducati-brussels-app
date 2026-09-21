@@ -62,7 +62,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Reprendre une fois les photos et textes de Shopify dans le DMS | 🟦 19/09 — fait, à valider : reprise réelle des 300 produits reliés (chiffres en §5) ; bouton « Reprendre photos et textes » sur l'écran Produits Shopify |
 | Le stock et le prix du DMS s'affichent en direct sur le site | 🟦 21/09 — fait, livré en mode **Arrêtée** (rien n'est écrit sur le site) ; essai à lancer par Simon (§5 bis) |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
-| Publier ou retirer un article du site depuis sa fiche dans le DMS | ⬜ |
+| Publier ou retirer un article du site depuis sa fiche dans le DMS | 🟦 21/09 — fait, soumis au même mode essai (livré Arrêtée) |
 
 ## 4. Questions en attente
 
@@ -193,6 +193,32 @@ est environ 20 % plus bas** que le prix du site (médiane : prix site = 1,245 ×
 - [ ] Changement de prix d'un article d'essai → prix du site en ≤ 3 min, arrondi à l'euro supérieur.
 - [ ] Un article hors essai n'est jamais écrit en mode Essai.
 - [ ] Retour à Arrêtée : plus rien ne part.
+
+### Publier ou retirer depuis la fiche article (carte « Publier ou retirer »)
+
+Fiche article → section **Site web** → encadré **Sur le site Shopify** : état (Pas sur le site / En ligne /
+Retiré (brouillon) / Archivé, couleur + icône + libellé), prix et stock du site, derniers envois.
+Administrateurs, selon le mode (Arrêtée : rien ; Essai : article d'essai seulement ; Tous : tout article) :
+
+- **Publier sur le site** (case « Publiable » cochée et enregistrée, prix de vente présent) : crée le produit
+  Shopify (`productSet`) avec titre web (sinon désignation), description web, photos du DMS (liens signés 24 h
+  vers le Storage), prix TTC, stock disponible, **SKU = référence**, puis le relie (`shopify_links` « valide »).
+  Refus si un produit du site porte déjà cette référence (le relier depuis Produits Shopify : jamais de doublon).
+- **Retirer du site** : produit en **brouillon** (jamais supprimé). **Remettre en ligne** le repasse actif.
+- **Mettre à jour sur le site** : renvoie titre et description, ajoute les photos du DMS pas encore envoyées
+  (les photos reprises de Shopify ne sont pas renvoyées).
+- Trace : `events` (`shopify_publication`, `shopify_retrait`, `shopify_remise_en_ligne`, `shopify_mise_a_jour`,
+  `shopify_link`) + journal des envois. Fonction `shopify-publish`, migration `20260921111000_m2_shopify_publication.sql`.
+- Point ouvert : l'application n'a pas le droit `write_publications` ; un produit créé est « Actif » mais peut ne
+  pas apparaître sur le canal **Boutique en ligne** tant qu'il n'y est pas coché dans Shopify (à vérifier à l'essai).
+
+### À tester (carte publication)
+
+- [ ] Mode Arrêtée : boutons grisés, message « Synchronisation Shopify arrêtée ».
+- [ ] Essai : publier un article d'essai « Publiable » non relié → produit visible sur le site, relié dans Produits Shopify.
+- [ ] Retirer → brouillon sur Shopify ; Remettre en ligne → actif.
+- [ ] Mettre à jour après changement du titre web / ajout d'une photo.
+- [ ] Publier une référence déjà présente sur le site → refus clair.
 
 ## 6. Risques
 
