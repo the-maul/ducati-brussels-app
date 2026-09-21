@@ -24,6 +24,7 @@ import {
   type ShopifyOverviewRow, type ShopifyContentImport, type ShopifyContentResult,
 } from '@/modules/articles/shopify-api';
 import { ShopifySyncPanel } from '@/modules/articles/shopify-sync-panel';
+import { ShopifyRealignButton } from '@/modules/articles/shopify-realign-dialog';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/shopify')({
@@ -191,6 +192,7 @@ function ShopifyProductsPage() {
             <Button variant="outline" onClick={() => navigate({ to: '/parts' })}>
               <ArrowLeft /> {t('shopify.back')}
             </Button>
+            {admin && activeCompanyId && <ShopifyRealignButton companyId={activeCompanyId} disabled={sync.isPending} />}
             {admin && (
               <Button variant="outline" onClick={() => setConfirmImport(true)} disabled={importAll.isPending || !activeCompanyId}>
                 {importAll.isPending ? <Loader2 className="animate-spin" /> : <ImageDown />}

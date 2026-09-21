@@ -125,3 +125,31 @@ export async function runPublishAction(companyId: string, articleId: string, act
   }
   return data as PublishResult;
 }
+
+// ─── Aligner le DMS sur le site (stock et prix) — reprise W-10 ─────────────────────────
+
+export type RealignRow = {
+  article_id: string; reference: string; designation: string | null; product_title: string | null; shop_status: string | null;
+  stock_before: number; stock_after: number; shop_qty: number | null; reserved: number; stock_change: boolean;
+  shop_price: number | null; vat_rate: number;
+  ht_before: number | null; ttc_before: number | null; ht_after: number | null; ttc_after: number | null;
+  price_change: boolean; notes: string[];
+};
+
+export type RealignReport = {
+  applied: boolean; snapshot_at: string | null; sync_mode: SyncMode;
+  linked: number; stock_to_change: number; price_to_change: number; with_notes: number;
+  pieces_before: number; pieces_after: number; stock_moves: number; price_changes: number;
+  rows: RealignRow[];
+};
+
+/**
+ * Aperçu (apply = false, rien n'est écrit) ou application de la reprise : stock réel = stock Shopify
+ * (mouvement d'inventaire tracé) et PV HT/TTC = prix du site (changement de prix tracé). Réexécutable.
+ * Rien n'est écrit sur Shopify.
+ */
+export async function shopifyRealign(companyId: string, apply: boolean): Promise<RealignReport> {
+  const { data, error } = await rpc('shopify_realign', { _company: companyId, _apply: apply });
+  if (error) throw error;
+  return data as unknown as RealignReport;
+}

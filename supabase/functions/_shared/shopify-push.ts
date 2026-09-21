@@ -197,6 +197,11 @@ export function planPush(targets: PushTarget[], states: Map<string, VariantState
       }
     }
     if (ttc == null) detail.push('pas de prix de vente dans le DMS : prix du site inchangé');
+    else if (writePrice && t.round_up && priceBefore != null) {
+      // Le prix exact du DMS est déjà celui du site : seul l'arrondi société (euro supérieur) le change.
+      const exact = shopifyTtc({ ...t, round_up: false });
+      if (exact != null && Math.abs(priceBefore - exact) < 0.005) detail.push('écart dû seulement à l’arrondi à l’euro supérieur de la société');
+    }
 
     const upd: VariantPriceUpdate = { id: st.variant_id };
     if (writePrice) upd.price = money(ttc!);

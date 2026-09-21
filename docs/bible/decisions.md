@@ -8,6 +8,18 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Mission 03, reprise du stock et des prix des articles reliés au site
+
+- **W-10** — **Stock de départ = stock du site Shopify ; prix de vente = prix du site ; le PV repris de G8 était
+  hors TVA.** Pour les articles reliés, le stock réel du DMS est aligné sur le stock Shopify par un mouvement
+  d'inventaire « annule et remplace » (origine `reprise_shopify`, sans prix d'achat : PAMP inchangé), et le prix de
+  vente par un changement de prix tracé (origine `reprise_prix_shopify`) : **PV TTC = prix du site** (TVA comprise,
+  W-7), **PV HT = prix du site ÷ (1 + TVA de l'article)** au centime. Rien n'est écrit sur le site. Appliqué en
+  production le 21/09 sur les 300 articles reliés (259 mouvements, 305 pièces, 300 prix) ; bouton « Aligner le DMS
+  sur le site (stock et prix) » pour les liaisons futures. *Simon (chat 21/09 : « stock Shopify », « prix du site »,
+  « le prix était HTVA sans doute »).* [mission 03](missions/mission-03-shopify.md), [M02](modules/M02-articles.md),
+  [M05](modules/M05-stock.md)
+
 ## 2026-09-21 — Mission 03, commandes du site (choix de réalisation)
 
 - **W-9** — **Une commande payée sur le site = une facture `FAC` validée et payée** dans le DMS (pas un bon de
