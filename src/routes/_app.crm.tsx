@@ -12,6 +12,8 @@ import { listLeads, createManualLead, getLead, setLeadStage, listOpenTasksByLead
 import { RepriseStatusBadge } from '@/modules/tradein/reprise-status-badge';
 import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
+import { PhoneInput } from '@/components/phone-input';
+import { toE164 } from '@/lib/phone';
 import { t } from '@/lib/i18n';
 
 /** Catégories de lead (source) — filtre CRM. */
@@ -149,12 +151,15 @@ function NewLeadDialog({ companyId, pipeline, onClose, onCreated, onExisting }: 
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState<string | null>(null);
   const noEmail = f.email.trim() === '';
+  // Retour client du 21/09 : le téléphone n'accepte qu'un numéro (jamais un e-mail), stocké en E.164.
+  const phoneE164 = toE164(f.phone);
+  const phoneInvalid = phoneE164 === null;
   const create = useMutation({
     // Tout se fait en base, en une transaction (crm_create_manual_lead) :
     // - l'e-mail décide (D3) : fiche existante reliée, sinon fiche prospect créée ;
     // - si ce client a déjà une carte ouverte, pas de doublon : on ouvre la sienne ;
     // - la carte entre avec « Recontacter le client » à J+2, confiée au responsable par défaut.
-    mutationFn: () => createManualLead({ companyId, pipeline, name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null }),
+    mutationFn: () => createManualLead({ companyId, pipeline, name: f.name.trim(), email: f.email.trim(), phone: phoneE164 || undefined, vehicleInterest: f.vehicle, source: f.source, estimatedValue: f.value ? num(f.value) : null }),
     onSuccess: async (r) => {
       if (r.existing) {
         const lead = await getLead(r.lead_id);
@@ -171,7 +176,7 @@ function NewLeadDialog({ companyId, pipeline, onClose, onCreated, onExisting }: 
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('crm.leadName')}><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
           <Field label={t('crm.email')}><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
-          <Field label={t('crm.phone')}><Input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
+          <div className="col-span-2"><Field label={t('crm.phone')}><PhoneInput name="lead-phone" autoComplete="off" value={f.phone} onChange={(v) => set('phone', v)} /></Field></div>
           <Field label={t('crm.vehicleInterest')}><Input value={f.vehicle} onChange={(e) => set('vehicle', e.target.value)} /></Field>
           <Field label={t('crm.source')}>
             <Select value={f.source || undefined} onValueChange={(v) => set('source', v)}>
@@ -190,7 +195,7 @@ function NewLeadDialog({ companyId, pipeline, onClose, onCreated, onExisting }: 
         {err && <p className="text-[12px] text-[var(--danger)]">{err}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={() => { setErr(null); create.mutate(); }} disabled={create.isPending || !f.name.trim()}>{create.isPending ? <Loader2 className="animate-spin" /> : null} {t('crm.create')}</Button>
+          <Button onClick={() => { setErr(null); create.mutate(); }} disabled={create.isPending || !f.name.trim() || phoneInvalid}>{create.isPending ? <Loader2 className="animate-spin" /> : null} {t('crm.create')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

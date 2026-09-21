@@ -1387,6 +1387,7 @@ export const fr = {
     thread: 'Échanges avec le client', replyFrom: 'Répondre depuis', noThread: 'Aucun échange pour l\'instant.',
     replyFromDefault: 'Boîte par défaut',
     // Sortie de la carte : on force une décision
+    phoneInvalidSave: 'Corrigez le téléphone (un numéro, pas une adresse e-mail) pour enregistrer.',
     closeTitle: 'Avant de fermer',
     closeQuestion: 'Où en est cette demande ?',
     closeDone: 'Traitée, clôturer',

@@ -4,6 +4,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { clientAppUrl } from '@/lib/client-app-url';
+import { toE164 } from '@/lib/phone';
 
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type Communication = Database['public']['Tables']['communications']['Row'];
@@ -27,9 +28,18 @@ export async function listLeads(companyId: string, pipeline: Pipeline = 'commerc
   return data ?? [];
 }
 
+/** Téléphone d'une carte : E.164 si c'est un numéro, vide → null ; autre texte laissé au garde-fou en base. */
+function leadPhone(raw: string | null | undefined): string | null {
+  const e = toE164(raw);
+  if (e === null) return raw?.trim() || null;
+  return e || null;
+}
+
 export async function createLead(p: { companyId: string; name: string; email?: string; phone?: string; vehicleInterest?: string; source?: string; estimatedValue?: number | null; contactId?: string | null; oroId?: string | null; repriseStatus?: string | null; pipeline?: Pipeline }): Promise<string> {
   const base = {
-    company_id: p.companyId, pipeline: p.pipeline ?? 'commercial', name: p.name, email: p.email || null, phone: p.phone || null,
+    company_id: p.companyId, pipeline: p.pipeline ?? 'commercial', name: p.name, email: p.email || null,
+    // Téléphone au format E.164 quand c'est un numéro (retour client 21/09) ; le garde-fou en base refuse un e-mail.
+    phone: leadPhone(p.phone),
     vehicle_interest: p.vehicleInterest || null, source: p.source || null, estimated_value: p.estimatedValue ?? null, contact_id: p.contactId ?? null,
   };
   // Lien reprise + tag de statut : colonnes récentes (migration 20260720).
