@@ -1162,6 +1162,11 @@ export type Database = {
           is_active: boolean
           legal_name: string | null
           logo_url: string | null
+          mail_signature_address: string | null
+          mail_signature_brand: string | null
+          mail_signature_phone: string | null
+          mail_signature_site_label: string | null
+          mail_signature_site_url: string | null
           name: string
           peppol_id: string | null
           round_sale_prices_up: boolean
@@ -1191,6 +1196,11 @@ export type Database = {
           is_active?: boolean
           legal_name?: string | null
           logo_url?: string | null
+          mail_signature_address?: string | null
+          mail_signature_brand?: string | null
+          mail_signature_phone?: string | null
+          mail_signature_site_label?: string | null
+          mail_signature_site_url?: string | null
           name: string
           peppol_id?: string | null
           round_sale_prices_up?: boolean
@@ -1220,6 +1230,11 @@ export type Database = {
           is_active?: boolean
           legal_name?: string | null
           logo_url?: string | null
+          mail_signature_address?: string | null
+          mail_signature_brand?: string | null
+          mail_signature_phone?: string | null
+          mail_signature_site_label?: string | null
+          mail_signature_site_url?: string | null
           name?: string
           peppol_id?: string | null
           round_sale_prices_up?: boolean
@@ -1243,6 +1258,7 @@ export type Database = {
           is_active: boolean
           purpose: string
           sent_last_check: string | null
+          signature_name: string | null
           updated_at: string
         }
         Insert: {
@@ -1254,6 +1270,7 @@ export type Database = {
           is_active?: boolean
           purpose?: string
           sent_last_check?: string | null
+          signature_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -1265,6 +1282,7 @@ export type Database = {
           is_active?: boolean
           purpose?: string
           sent_last_check?: string | null
+          signature_name?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5261,6 +5279,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean
+          job_title: string | null
           phone: string | null
           updated_at: string
         }
@@ -5271,6 +5290,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean
+          job_title?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -5281,6 +5301,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean
+          job_title?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -7745,6 +7766,7 @@ export type Database = {
       _accounting_cutover: { Args: { _company: string }; Returns: string }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
       _brussels_today: { Args: never; Returns: string }
+      _can_edit_user_signature: { Args: { _user: string }; Returns: boolean }
       _contact_haystack: {
         Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
         Returns: string
@@ -9027,6 +9049,14 @@ export type Database = {
         Args: { _company: string; _kind?: string; _label: string }
         Returns: string
       }
+      get_user_mail_signature: {
+        Args: { _user: string }
+        Returns: {
+          email: string
+          full_name: string
+          job_title: string
+        }[]
+      }
       has_role: {
         Args: {
           _company: string
@@ -9740,6 +9770,10 @@ export type Database = {
         Args: { _company: string; _date: string }
         Returns: undefined
       }
+      set_company_mail_signature: {
+        Args: { _company: string; _settings: Json }
+        Returns: undefined
+      }
       set_default_assignee: {
         Args: { _company: string; _transfer?: boolean; _user: string }
         Returns: number
@@ -9754,6 +9788,10 @@ export type Database = {
       }
       set_mailbox_cursors: {
         Args: { _in: string; _mailbox: string; _sent: string }
+        Returns: undefined
+      }
+      set_user_mail_signature: {
+        Args: { _full_name: string; _job_title: string; _user: string }
         Returns: undefined
       }
       settle_consignment: {
