@@ -9476,6 +9476,10 @@ export type Database = {
           vendor: string
         }[]
       }
+      shopify_realign: {
+        Args: { _apply?: boolean; _company: string }
+        Returns: Json
+      }
       shopify_set_variant_decision: {
         Args: { _company: string; _decision: string; _variant: string }
         Returns: undefined
