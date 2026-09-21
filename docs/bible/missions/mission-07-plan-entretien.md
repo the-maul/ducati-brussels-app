@@ -40,7 +40,18 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé | 07-2 |
 | 7 | Relances d'entretien (cloche d'abord ; mail/SMS quand les services seront choisis) | 07-4 |
 
-## 4. Questions en attente
+## 4. Décisions (Simon, 21/09)
+
+- Documents reçus le 21/09 (30 PDF, dossier « uploads de whatsapp\fiches entretien ») ; extraction dans
+  `C:\Users\simon\Desktop\ducati\entretiens-extraits\` (plans, échéances, opérations, temps, avec source).
+- Les posters « Entretien Transparent » donnent des **temps** officiels Ducati (pas des prix) : prix = temps × taux horaire.
+- **Taux horaire atelier exprimé HT** (valeur à saisir dans Paramètres).
+- En cas de contradiction entre documents, **le plus récent fait foi** (l'ancien gardé en historique).
+- **Échéance = le premier atteint (km ou mois)**, partout.
+- **Plans piste / racing aussi dans le DMS**, avec un **usage** (route / piste amateur / racing) choisi par le client : l'entretien dépend de l'usage.
+- Pièces, quantités et prix ne sont dans aucun document : ils viendront du catalogue (mission 06).
+
+## 4 bis. Questions (anciennes)
 
 1. Documents d'entretien Ducati : lesquels avez-vous (manuels d'atelier, plans d'entretien par modèle) ? À déposer sur la carte 1.
 2. Temps d'entretien : barème Ducati (« tempario », indicateur vu dans l'e-catalog) ou vos temps réels issus des OR ? *Reco : barème Ducati s'il est accessible, sinon temps réels.*
