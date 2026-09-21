@@ -280,6 +280,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "article_applicabilities_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "article_applicabilities_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -318,6 +325,13 @@ export type Database = {
             referencedRelation: "articles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "article_barcodes_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
         ]
       }
       article_bins: {
@@ -349,6 +363,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_bins_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
         ]
       }
@@ -428,11 +449,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "article_kit_items_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "article_kit_items_kit_id_fkey"
             columns: ["kit_id"]
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_kit_items_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
         ]
       }
@@ -468,6 +503,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_suppliers_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "article_suppliers_supplier_id_fkey"
@@ -695,6 +737,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "articles_origin_reference_id_fkey"
+            columns: ["origin_reference_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "articles_reprise_category_id_fkey"
             columns: ["reprise_category_id"]
             isOneToOne: false
@@ -714,6 +763,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_superseded_by_id_fkey"
+            columns: ["superseded_by_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
         ]
       }
@@ -1283,6 +1339,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "consignments_company_id_fkey"
@@ -2070,6 +2133,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_price_rules_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "customer_price_rules_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
@@ -2242,6 +2312,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "document_lines_document_id_fkey"
@@ -3736,6 +3813,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "label_queue_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "label_queue_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -4509,6 +4593,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "oro_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "oro_lines_oro_id_fkey"
             columns: ["oro_id"]
             isOneToOne: false
@@ -4644,6 +4735,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "part_order_lines_order_id_fkey"
@@ -4917,6 +5015,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "picking_list_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "picking_list_items_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -5133,6 +5238,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "price_changes_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "price_changes_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -5241,6 +5353,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "purchase_lines_order_id_fkey"
@@ -5514,6 +5633,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "repair_order_lines_or_id_fkey"
@@ -5791,6 +5917,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shopify_content_imports_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "shopify_content_imports_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -5840,6 +5973,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "shopify_links_company_id_fkey"
@@ -5903,6 +6043,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "shopify_order_lines_company_id_fkey"
@@ -6035,6 +6182,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_reservations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "shopify_order_reservations_company_id_fkey"
@@ -6318,6 +6472,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shopify_published_media_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "shopify_published_media_attachment_id_fkey"
             columns: ["attachment_id"]
             isOneToOne: false
@@ -6391,6 +6552,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shopify_sync_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "shopify_sync_log_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -6440,6 +6608,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_queue_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "shopify_sync_queue_company_id_fkey"
@@ -6507,6 +6682,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shopify_sync_trial_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "shopify_sync_trial_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -6521,6 +6703,8 @@ export type Database = {
           company_id: string
           id: boolean
           is_open: boolean
+          kiosk_configurator_url: string | null
+          kiosk_used_url: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -6529,6 +6713,8 @@ export type Database = {
           company_id: string
           id?: boolean
           is_open?: boolean
+          kiosk_configurator_url?: string | null
+          kiosk_used_url?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -6537,6 +6723,8 @@ export type Database = {
           company_id?: string
           id?: boolean
           is_open?: boolean
+          kiosk_configurator_url?: string | null
+          kiosk_used_url?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -6594,6 +6782,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_depreciations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "stock_depreciations_company_id_fkey"
@@ -6659,6 +6854,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_moves_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "stock_moves_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -6696,6 +6898,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "articles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_snapshot_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
           },
           {
             foreignKeyName: "stock_snapshot_lines_snapshot_id_fkey"
@@ -7262,6 +7471,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vehicles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
             foreignKeyName: "vehicles_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -7501,7 +7717,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ducati_catalog_article_links: {
+        Row: {
+          article_id: string | null
+          article_reference: string | null
+          catalog_description: string | null
+          catalog_reference: string | null
+          company_id: string | null
+          reference_norm: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _account_label: {
@@ -7916,6 +8150,7 @@ export type Database = {
           table_name: string
         }[]
       }
+      contact_email_in_phone: { Args: { _v: string }; Returns: string }
       contact_encours: {
         Args: { _contact: string }
         Returns: {
@@ -8531,13 +8766,13 @@ export type Database = {
           value_pamp: number
         }[]
       }
-      ducati_catalog_article_link_count: {
-        Args: { _company: string }
-        Returns: Json
-      }
       ducati_catalog_article_for: {
         Args: { _company: string; _reference: string }
         Returns: string
+      }
+      ducati_catalog_article_link_count: {
+        Args: { _company: string }
+        Returns: Json
       }
       ducati_catalog_batch_progress: {
         Args: {
