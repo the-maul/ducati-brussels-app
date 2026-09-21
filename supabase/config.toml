@@ -46,3 +46,9 @@ verify_jwt = false
 
 [functions.shopify-import-content]
 verify_jwt = false
+
+[functions.shopify-push]
+verify_jwt = false
+
+[functions.shopify-publish]
+verify_jwt = false

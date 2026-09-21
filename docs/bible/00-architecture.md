@@ -165,6 +165,7 @@ Liste complète des 11 fonctions de `supabase/functions/`, toutes déployées et
 | `vies-check` | Vérification d'un n° de TVA auprès de VIES (remplace la fonction SQL bloquée par le TLS d'`ec.europa.eu`) | `src/modules/contacts/vies-api.ts` | aucun | non | aucun (service public) |
 | `dispatch-notifications` | Vide la file `notifications` : e-mail via Resend, SMS via un fournisseur générique ; sans clé → `skipped` | pg_cron `dispatch-notifications` (toutes les 10 min) | `RESEND_API_KEY`, `NOTIFY_FROM`, `SMS_API_URL`, `SMS_API_KEY`, `SMS_FROM` — **aucun posé** | non | aucun |
 | `stripe-checkout` | Crée une session Stripe Checkout pour une commande web ; 501 si pas de clé | `src/modules/web/checkout.ts` (vitrine publique) | `STRIPE_SECRET_KEY` | non | aucun (public par nature) |
+| `shopify-push` | Mission 03 : vide la file `shopify_sync_queue`, écrit stock disponible et prix TTC des articles reliés sur Shopify (productVariantsBulkUpdate, inventorySetQuantities), journal `shopify_sync_log` ; mode `simulate` en lecture seule | pg_cron `shopify-push` ; écran Produits Shopify (« Envoyer maintenant », « Tout resynchroniser », « Simuler ») | `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`, `CRON_SECRET` | non | clé de service, x-cron-secret ou administrateur actif ; n'écrit que si le mode société n'est pas « Arrêtée » (contrôle SQL `_shopify_push_claim`) |
 | `stripe-webhook` | Vérifie la signature Stripe puis `finalize_web_order` (commande payée → facture + sortie de stock) | Stripe | `STRIPE_WEBHOOK_SECRET` | non | signature Stripe |
 
 ## 7. Tâches planifiées (pg_cron)
@@ -179,6 +180,7 @@ Vérifié dans `cron.job` et `cron.job_run_details` le 18/09/2026 : 6 tâches, t
 | `appointment-reminders` | `0 17 * * *` (17:00) | `_cron_appointment_reminders()` : rappel e-mail + SMS des RDV atelier du lendemain | `20260612240000_m10_notifications.sql` |
 | `dispatch-notifications` | `*/10 * * * *` | `net.http_post` → Edge Function `dispatch-notifications` | `20260612240000_m10_notifications.sql` |
 | `outlook-poll` | `*/5 * * * *` | `net.http_post` → Edge Function `outlook-poll` | `20260612350000_m10_email_ingest.sql` |
+| `shopify-push` | `*/3 * * * *` | `net.http_post` → Edge Function `shopify-push` (en-tête x-cron-secret du coffre), **seulement si** une société est en mode Essai / Tous avec une file non vide | `20260921110000_m2_shopify_push_stock_prix.sql` (21/09) |
 | `sales-alerts` | `0 6 * * *` (06:00) | `_cron_sales_alerts()` : cloche interne seulement (aucun envoi) — rappel « acompte reçu : pièces à commander », factures échues impayées (1 alerte / document / échéance), alertes réglées | `20260919351000_m6_acompte_commande_soldes.sql` (ajoutée le 19/09, SQL pur, sans appel HTTP ni secret) |
 
 Les deux appels HTTP portent la **clé publique anon** (écrite dans la commande du job et dans les migrations — pas un secret, mais à changer si la clé est un jour régénérée). Le fuseau de `pg_cron` est UTC : 07:00 UTC = 09:00 à Bruxelles en été.

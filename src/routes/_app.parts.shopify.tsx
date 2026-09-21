@@ -23,6 +23,7 @@ import {
   listShopifyContentImports, runShopifyContentImport,
   type ShopifyOverviewRow, type ShopifyContentImport, type ShopifyContentResult,
 } from '@/modules/articles/shopify-api';
+import { ShopifySyncPanel } from '@/modules/articles/shopify-sync-panel';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/shopify')({
@@ -212,6 +213,8 @@ function ShopifyProductsPage() {
       </p>
       <p className="mb-3 text-[13px] text-muted-foreground">{t('shopify.importRule')}</p>
       {!admin && <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('shopify.readOnly')}</p>}
+
+      {activeCompanyId && <ShopifySyncPanel companyId={activeCompanyId} admin={admin} />}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Counter label={t('shopify.cTotal')} value={counters.total} onClick={() => setFilter('all')} active={filter === 'all'} />

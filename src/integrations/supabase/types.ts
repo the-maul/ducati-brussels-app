@@ -2578,6 +2578,646 @@ export type Database = {
           },
         ]
       }
+      ducati_catalog_drawing_lines: {
+        Row: {
+          description: string | null
+          drawing_id: string
+          end_date: string | null
+          has_tempario: boolean | null
+          id: number
+          item_id: string | null
+          line_no: number
+          notes: string | null
+          part_notes: string | null
+          position: string | null
+          quantity: number | null
+          reference: string | null
+          reference_norm: string | null
+          replaced: boolean | null
+          replaced_part: string | null
+          start_date: string | null
+          validities: Json | null
+        }
+        Insert: {
+          description?: string | null
+          drawing_id: string
+          end_date?: string | null
+          has_tempario?: boolean | null
+          id?: never
+          item_id?: string | null
+          line_no: number
+          notes?: string | null
+          part_notes?: string | null
+          position?: string | null
+          quantity?: number | null
+          reference?: string | null
+          reference_norm?: string | null
+          replaced?: boolean | null
+          replaced_part?: string | null
+          start_date?: string | null
+          validities?: Json | null
+        }
+        Update: {
+          description?: string | null
+          drawing_id?: string
+          end_date?: string | null
+          has_tempario?: boolean | null
+          id?: never
+          item_id?: string | null
+          line_no?: number
+          notes?: string | null
+          part_notes?: string | null
+          position?: string | null
+          quantity?: number | null
+          reference?: string | null
+          reference_norm?: string | null
+          replaced?: boolean | null
+          replaced_part?: string | null
+          start_date?: string | null
+          validities?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_drawing_lines_drawing_id_fkey"
+            columns: ["drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_drawings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_drawings: {
+        Row: {
+          code: string | null
+          description: string | null
+          hotspots: Json
+          id: string
+          image_url: string | null
+          original_image_url: string | null
+          parts_count: number | null
+          parts_loaded_at: string | null
+          source_model_year_id: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          validities: Json | null
+        }
+        Insert: {
+          code?: string | null
+          description?: string | null
+          hotspots?: Json
+          id: string
+          image_url?: string | null
+          original_image_url?: string | null
+          parts_count?: number | null
+          parts_loaded_at?: string | null
+          source_model_year_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          validities?: Json | null
+        }
+        Update: {
+          code?: string | null
+          description?: string | null
+          hotspots?: Json
+          id?: string
+          image_url?: string | null
+          original_image_url?: string | null
+          parts_count?: number | null
+          parts_loaded_at?: string | null
+          source_model_year_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          validities?: Json | null
+        }
+        Relationships: []
+      }
+      ducati_catalog_families: {
+        Row: {
+          description: string
+          id: string
+          sort: number | null
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          id: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          id?: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_groups: {
+        Row: {
+          code: string | null
+          description: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          description?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          description?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_import_batches: {
+        Row: {
+          company_id: string | null
+          drawings_imported: number
+          drawings_skipped: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          last_position: Json | null
+          lines_imported: number
+          model_years_done: number
+          model_years_total: number
+          products_imported: number
+          products_skipped: number
+          requests_count: number
+          scope: Json
+          started_at: string
+          started_by: string | null
+          status: string
+          updated_at: string
+          variants_imported: number
+        }
+        Insert: {
+          company_id?: string | null
+          drawings_imported?: number
+          drawings_skipped?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_position?: Json | null
+          lines_imported?: number
+          model_years_done?: number
+          model_years_total?: number
+          products_imported?: number
+          products_skipped?: number
+          requests_count?: number
+          scope?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          variants_imported?: number
+        }
+        Update: {
+          company_id?: string | null
+          drawings_imported?: number
+          drawings_skipped?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_position?: Json | null
+          lines_imported?: number
+          model_years_done?: number
+          model_years_total?: number
+          products_imported?: number
+          products_skipped?: number
+          requests_count?: number
+          scope?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          variants_imported?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_import_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_model_year_drawings: {
+        Row: {
+          drawing_id: string
+          group_id: string
+          group_sort: number | null
+          model_year_id: string
+          sort: number | null
+        }
+        Insert: {
+          drawing_id: string
+          group_id: string
+          group_sort?: number | null
+          model_year_id: string
+          sort?: number | null
+        }
+        Update: {
+          drawing_id?: string
+          group_id?: string
+          group_sort?: number | null
+          model_year_id?: string
+          sort?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_drawing_id_fkey"
+            columns: ["drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_drawings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_model_years: {
+        Row: {
+          code: string | null
+          complete_at: string | null
+          drawings_count: number | null
+          groups_loaded_at: string | null
+          id: string
+          model_id: string
+          name: string | null
+          path: string | null
+          sort: number | null
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          code?: string | null
+          complete_at?: string | null
+          drawings_count?: number | null
+          groups_loaded_at?: string | null
+          id: string
+          model_id: string
+          name?: string | null
+          path?: string | null
+          sort?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          code?: string | null
+          complete_at?: string | null
+          drawings_count?: number | null
+          groups_loaded_at?: string | null
+          id?: string
+          model_id?: string
+          name?: string | null
+          path?: string | null
+          sort?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_model_years_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_models: {
+        Row: {
+          description: string
+          family_id: string
+          id: string
+          is_europe: boolean
+          market: string
+          sort: number | null
+          supermodel_id: string
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          family_id: string
+          id: string
+          is_europe?: boolean
+          market?: string
+          sort?: number | null
+          supermodel_id: string
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          family_id?: string
+          id?: string
+          is_europe?: boolean
+          market?: string
+          sort?: number | null
+          supermodel_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_models_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_models_supermodel_id_fkey"
+            columns: ["supermodel_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_supermodels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_parts: {
+        Row: {
+          catalog_price_ht: number | null
+          catalog_price_ttc: number | null
+          description: string | null
+          discount_group: string | null
+          ean_code: string | null
+          has_tempario: boolean | null
+          min_quantity: number | null
+          price_seen_at: string | null
+          reference: string
+          reference_norm: string
+          replaced: boolean | null
+          replaced_part: string | null
+          replacement_tree: Json | null
+          updated_at: string
+        }
+        Insert: {
+          catalog_price_ht?: number | null
+          catalog_price_ttc?: number | null
+          description?: string | null
+          discount_group?: string | null
+          ean_code?: string | null
+          has_tempario?: boolean | null
+          min_quantity?: number | null
+          price_seen_at?: string | null
+          reference: string
+          reference_norm: string
+          replaced?: boolean | null
+          replaced_part?: string | null
+          replacement_tree?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          catalog_price_ht?: number | null
+          catalog_price_ttc?: number | null
+          description?: string | null
+          discount_group?: string | null
+          ean_code?: string | null
+          has_tempario?: boolean | null
+          min_quantity?: number | null
+          price_seen_at?: string | null
+          reference?: string
+          reference_norm?: string
+          replaced?: boolean | null
+          replaced_part?: string | null
+          replacement_tree?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_product_applicabilities: {
+        Row: {
+          family: string | null
+          hierarchy_path: string
+          is_europe: boolean
+          model: string | null
+          model_year: number | null
+          product_code: string
+          sku_norm: string
+          supermodel: string | null
+        }
+        Insert: {
+          family?: string | null
+          hierarchy_path: string
+          is_europe?: boolean
+          model?: string | null
+          model_year?: number | null
+          product_code: string
+          sku_norm: string
+          supermodel?: string | null
+        }
+        Update: {
+          family?: string | null
+          hierarchy_path?: string
+          is_europe?: boolean
+          model?: string | null
+          model_year?: number | null
+          product_code?: string
+          sku_norm?: string
+          supermodel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_product_applicabilities_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_products"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      ducati_catalog_product_variants: {
+        Row: {
+          archived: boolean | null
+          attributes: Json
+          collection_year: number | null
+          color: string | null
+          description: string | null
+          images: Json
+          is_kit: boolean | null
+          mother_code: string | null
+          name: string | null
+          price_ht: number | null
+          price_seen_at: string | null
+          price_ttc: number | null
+          product_code: string
+          replaced: boolean | null
+          size: string | null
+          sku: string
+          sku_norm: string
+          updated_at: string
+          variant_code: string | null
+        }
+        Insert: {
+          archived?: boolean | null
+          attributes?: Json
+          collection_year?: number | null
+          color?: string | null
+          description?: string | null
+          images?: Json
+          is_kit?: boolean | null
+          mother_code?: string | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          product_code: string
+          replaced?: boolean | null
+          size?: string | null
+          sku: string
+          sku_norm: string
+          updated_at?: string
+          variant_code?: string | null
+        }
+        Update: {
+          archived?: boolean | null
+          attributes?: Json
+          collection_year?: number | null
+          color?: string | null
+          description?: string | null
+          images?: Json
+          is_kit?: boolean | null
+          mother_code?: string | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          product_code?: string
+          replaced?: boolean | null
+          size?: string | null
+          sku?: string
+          sku_norm?: string
+          updated_at?: string
+          variant_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_product_variants_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_products"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      ducati_catalog_products: {
+        Row: {
+          archived: boolean | null
+          attributes: Json
+          category_label: string | null
+          category_path: string | null
+          code: string
+          description: string | null
+          detail_loaded_at: string | null
+          discount_group: string | null
+          ducati_id: string | null
+          family_codes: string[]
+          gender: string | null
+          image_url: string | null
+          images: Json
+          kind: string
+          last_chance: boolean | null
+          name: string | null
+          price_ht: number | null
+          price_seen_at: string | null
+          price_ttc: number | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean | null
+          attributes?: Json
+          category_label?: string | null
+          category_path?: string | null
+          code: string
+          description?: string | null
+          detail_loaded_at?: string | null
+          discount_group?: string | null
+          ducati_id?: string | null
+          family_codes?: string[]
+          gender?: string | null
+          image_url?: string | null
+          images?: Json
+          kind: string
+          last_chance?: boolean | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean | null
+          attributes?: Json
+          category_label?: string | null
+          category_path?: string | null
+          code?: string
+          description?: string | null
+          detail_loaded_at?: string | null
+          discount_group?: string | null
+          ducati_id?: string | null
+          family_codes?: string[]
+          gender?: string | null
+          image_url?: string | null
+          images?: Json
+          kind?: string
+          last_chance?: boolean | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_supermodels: {
+        Row: {
+          description: string
+          family_id: string
+          id: string
+          sort: number | null
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          family_id: string
+          id: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          family_id?: string
+          id?: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_supermodels_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ducati_vds: {
         Row: {
           displacement_cc: number | null
@@ -4774,6 +5414,279 @@ export type Database = {
           },
         ]
       }
+      shopify_order_lines: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          document_line_id: string | null
+          id: string
+          linked_at: string | null
+          quantity: number
+          shopify_line_id: string
+          shopify_order_id: string
+          sku: string | null
+          stock_moved: boolean
+          title: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          document_line_id?: string | null
+          id?: string
+          linked_at?: string | null
+          quantity: number
+          shopify_line_id: string
+          shopify_order_id: string
+          sku?: string | null
+          stock_moved?: boolean
+          title?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          document_line_id?: string | null
+          id?: string
+          linked_at?: string | null
+          quantity?: number
+          shopify_line_id?: string
+          shopify_order_id?: string
+          sku?: string | null
+          stock_moved?: boolean
+          title?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_document_line_id_fkey"
+            columns: ["document_line_id"]
+            isOneToOne: false
+            referencedRelation: "document_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_order_fk"
+            columns: ["company_id", "shopify_order_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_orders"
+            referencedColumns: ["company_id", "shopify_order_id"]
+          },
+        ]
+      }
+      shopify_order_refunds: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          credit_note_id: string | null
+          id: string
+          shopify_order_id: string
+          shopify_refund_id: string
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          credit_note_id?: string | null
+          id?: string
+          shopify_order_id: string
+          shopify_refund_id: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          credit_note_id?: string | null
+          id?: string
+          shopify_order_id?: string
+          shopify_refund_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_refunds_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_refunds_credit_note_id_fkey"
+            columns: ["credit_note_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_refunds_order_fk"
+            columns: ["company_id", "shopify_order_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_orders"
+            referencedColumns: ["company_id", "shopify_order_id"]
+          },
+        ]
+      }
+      shopify_order_settings: {
+        Row: {
+          company_id: string
+          enabled_at: string | null
+          import_enabled: boolean
+          last_catchup: Json | null
+          last_catchup_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          enabled_at?: string | null
+          import_enabled?: boolean
+          last_catchup?: Json | null
+          last_catchup_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          enabled_at?: string | null
+          import_enabled?: boolean
+          last_catchup?: Json | null
+          last_catchup_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_orders: {
+        Row: {
+          attempts: number
+          cancelled_at: string | null
+          check_reason: string | null
+          company_id: string
+          contact_created: boolean
+          contact_id: string | null
+          created_at: string
+          currency: string | null
+          document_id: string | null
+          email: string | null
+          error_message: string | null
+          financial_status: string | null
+          first_via: string | null
+          id: string
+          import_status: string
+          imported_at: string | null
+          last_attempt_at: string | null
+          last_via: string | null
+          needs_check: boolean
+          order_name: string | null
+          shopify_created_at: string | null
+          shopify_order_id: string
+          total_ttc: number | null
+          updated_at: string
+          warnings: Json | null
+        }
+        Insert: {
+          attempts?: number
+          cancelled_at?: string | null
+          check_reason?: string | null
+          company_id: string
+          contact_created?: boolean
+          contact_id?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          email?: string | null
+          error_message?: string | null
+          financial_status?: string | null
+          first_via?: string | null
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          last_attempt_at?: string | null
+          last_via?: string | null
+          needs_check?: boolean
+          order_name?: string | null
+          shopify_created_at?: string | null
+          shopify_order_id: string
+          total_ttc?: number | null
+          updated_at?: string
+          warnings?: Json | null
+        }
+        Update: {
+          attempts?: number
+          cancelled_at?: string | null
+          check_reason?: string | null
+          company_id?: string
+          contact_created?: boolean
+          contact_id?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          email?: string | null
+          error_message?: string | null
+          financial_status?: string | null
+          first_via?: string | null
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          last_attempt_at?: string | null
+          last_via?: string | null
+          needs_check?: boolean
+          order_name?: string | null
+          shopify_created_at?: string | null
+          shopify_order_id?: string
+          total_ttc?: number | null
+          updated_at?: string
+          warnings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_orders_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shopify_products: {
         Row: {
           barcode: string | null
@@ -4841,6 +5754,234 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shopify_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_published_media: {
+        Row: {
+          article_id: string | null
+          attachment_id: string
+          company_id: string
+          pushed_at: string
+          shopify_product_id: string
+        }
+        Insert: {
+          article_id?: string | null
+          attachment_id: string
+          company_id: string
+          pushed_at?: string
+          shopify_product_id: string
+        }
+        Update: {
+          article_id?: string | null
+          attachment_id?: string
+          company_id?: string
+          pushed_at?: string
+          shopify_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_published_media_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_published_media_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_published_media_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_log: {
+        Row: {
+          actor_id: string | null
+          article_id: string | null
+          company_id: string
+          created_at: string
+          detail: string | null
+          id: number
+          kind: string
+          price_before: number | null
+          price_sent: number | null
+          qty_before: number | null
+          qty_sent: number | null
+          shopify_product_id: string | null
+          shopify_variant_id: string | null
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          detail?: string | null
+          id?: number
+          kind: string
+          price_before?: number | null
+          price_sent?: number | null
+          qty_before?: number | null
+          qty_sent?: number | null
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          status: string
+        }
+        Update: {
+          actor_id?: string | null
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          detail?: string | null
+          id?: number
+          kind?: string
+          price_before?: number | null
+          price_sent?: number | null
+          qty_before?: number | null
+          qty_sent?: number | null
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_queue: {
+        Row: {
+          article_id: string
+          attempts: number
+          company_id: string
+          id: number
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          reasons: string[]
+          requested_at: string
+        }
+        Insert: {
+          article_id: string
+          attempts?: number
+          company_id: string
+          id?: number
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          reasons?: string[]
+          requested_at?: string
+        }
+        Update: {
+          article_id?: string
+          attempts?: number
+          company_id?: string
+          id?: number
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          reasons?: string[]
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_queue_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_settings: {
+        Row: {
+          company_id: string
+          mode: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          mode?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          mode?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_trial: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          article_id: string
+          company_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          article_id: string
+          company_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          article_id?: string
+          company_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_trial_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_trial_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -5841,6 +6982,41 @@ export type Database = {
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_sales_alerts: { Args: never; Returns: Json }
       _cron_stock_copies: { Args: never; Returns: number }
+      _dc_batch_guard: {
+        Args: { _batch: string }
+        Returns: {
+          company_id: string | null
+          drawings_imported: number
+          drawings_skipped: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          last_position: Json | null
+          lines_imported: number
+          model_years_done: number
+          model_years_total: number
+          products_imported: number
+          products_skipped: number
+          requests_count: number
+          scope: Json
+          started_at: string
+          started_by: string | null
+          status: string
+          updated_at: string
+          variants_imported: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ducati_catalog_import_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _dc_bool: { Args: { _v: Json }; Returns: boolean }
+      _dc_date: { Args: { _v: Json }; Returns: string }
+      _dc_int: { Args: { _v: Json }; Returns: number }
+      _dc_num: { Args: { _v: Json }; Returns: number }
+      _dc_txt: { Args: { _v: Json }; Returns: string }
       _declared_vehicle_copy_scan: {
         Args: {
           _d: Database["public"]["Tables"]["contact_declared_vehicles"]["Row"]
@@ -6020,6 +7196,80 @@ export type Database = {
           web_title: string
         }[]
       }
+      _shopify_enqueue: {
+        Args: { _article: string; _company: string; _reason: string }
+        Returns: boolean
+      }
+      _shopify_order_apply: {
+        Args: { _company: string; _payload: Json }
+        Returns: Json
+      }
+      _shopify_order_mark_error: {
+        Args: {
+          _company: string
+          _created_at: string
+          _email: string
+          _message: string
+          _order_id: string
+          _order_name: string
+          _total: number
+          _via: string
+        }
+        Returns: undefined
+      }
+      _shopify_orders_catchup_done: {
+        Args: { _at: string; _company: string; _stats: Json }
+        Returns: undefined
+      }
+      _shopify_publish_context: {
+        Args: { _article: string; _company: string }
+        Returns: Json
+      }
+      _shopify_publish_record: {
+        Args: {
+          _action: string
+          _actor: string
+          _article: string
+          _company: string
+          _detail: string
+          _handle: string
+          _media: string[]
+          _ok: boolean
+          _price: number
+          _product: string
+          _product_status: string
+          _qty: number
+          _sku: string
+          _title: string
+          _variant: string
+        }
+        Returns: undefined
+      }
+      _shopify_push_claim: {
+        Args: { _articles?: string[]; _company: string; _limit: number }
+        Returns: {
+          article_id: string
+          mgmt_type: string
+          queue_id: number
+          real_qty: number
+          reasons: string[]
+          reference: string
+          requested_at: string
+          reserved_qty: number
+          round_up: boolean
+          sale_price_ht: number
+          sale_price_ttc: number
+          shopify_product_id: string
+          shopify_variant_id: string
+          vat_rate: number
+        }[]
+      }
+      _shopify_push_companies: { Args: never; Returns: string[] }
+      _shopify_push_done: {
+        Args: { _actor?: string; _company: string; _results: Json }
+        Returns: Json
+      }
+      _shopify_sync_mode: { Args: { _company: string }; Returns: string }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
@@ -6724,6 +7974,116 @@ export type Database = {
           value_pamp: number
         }[]
       }
+      ducati_catalog_article_for: {
+        Args: { _company: string; _reference: string }
+        Returns: string
+      }
+      ducati_catalog_batch_progress: {
+        Args: {
+          _batch: string
+          _counters?: Json
+          _error?: string
+          _position?: Json
+          _status: string
+        }
+        Returns: undefined
+      }
+      ducati_catalog_batch_start: {
+        Args: { _company: string; _model_years_total: number; _scope: Json }
+        Returns: string
+      }
+      ducati_catalog_batch_start_loader: {
+        Args: { _model_years_total: number; _scope: Json }
+        Returns: string
+      }
+      ducati_catalog_drawing_lines: {
+        Args: { _company: string; _drawing_id: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_is_library: boolean
+          article_mgmt_type: string
+          article_reference: string
+          article_sale_price_ht: number
+          catalog_price_ht: number
+          catalog_price_ttc: number
+          description: string
+          end_date: string
+          has_tempario: boolean
+          line_no: number
+          notes: string
+          on_order_qty: number
+          part_notes: string
+          position: string
+          price_seen_at: string
+          quantity: number
+          real_qty: number
+          reference: string
+          reference_norm: string
+          replaced: boolean
+          replaced_part: string
+          reserved_qty: number
+          start_date: string
+        }[]
+      }
+      ducati_catalog_import_state: { Args: never; Returns: Json }
+      ducati_catalog_ingest_drawings: {
+        Args: {
+          _batch: string
+          _complete?: boolean
+          _drawings: Json
+          _model_year_id: string
+        }
+        Returns: Json
+      }
+      ducati_catalog_ingest_model_year: {
+        Args: { _batch: string; _groups: Json; _model_year_id: string }
+        Returns: Json
+      }
+      ducati_catalog_ingest_model_years: {
+        Args: { _batch: string; _items: Json }
+        Returns: Json
+      }
+      ducati_catalog_ingest_products: {
+        Args: { _batch: string; _products: Json }
+        Returns: Json
+      }
+      ducati_catalog_ingest_tree: {
+        Args: { _batch: string; _tree: Json }
+        Returns: Json
+      }
+      ducati_catalog_is_staff: { Args: never; Returns: boolean }
+      ducati_catalog_known_products: {
+        Args: { _batch: string; _codes: string[]; _kind: string }
+        Returns: string[]
+      }
+      ducati_catalog_norm_ref: { Args: { _ref: string }; Returns: string }
+      ducati_catalog_product_for_reference: {
+        Args: { _reference: string }
+        Returns: {
+          category_label: string
+          collection_year: number
+          color: string
+          description: string
+          gender: string
+          image_url: string
+          images: Json
+          kind: string
+          models: string[]
+          price_ht: number
+          price_seen_at: string
+          price_ttc: number
+          product_code: string
+          product_name: string
+          size: string
+          sku: string
+        }[]
+      }
+      ducati_catalog_refresh_completeness: {
+        Args: { _batch: string }
+        Returns: Json
+      }
+      ducati_catalog_stats: { Args: never; Returns: Json }
       enqueue_label: {
         Args: {
           _article: string
@@ -7555,6 +8915,10 @@ export type Database = {
           reversal: number
         }[]
       }
+      shopify_article_site_status: {
+        Args: { _article: string; _company: string }
+        Returns: Json
+      }
       shopify_link_suggestions: {
         Args: { _company: string; _variant: string }
         Returns: {
@@ -7568,6 +8932,24 @@ export type Database = {
       shopify_link_variant: {
         Args: { _article: string; _company: string; _variant: string }
         Returns: undefined
+      }
+      shopify_orders_set_import: {
+        Args: { _company: string; _enabled: boolean }
+        Returns: {
+          company_id: string
+          enabled_at: string | null
+          import_enabled: boolean
+          last_catchup: Json | null
+          last_catchup_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shopify_order_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       shopify_products_overview: {
         Args: { _company: string }
@@ -7596,6 +8978,20 @@ export type Database = {
       }
       shopify_set_variant_decision: {
         Args: { _company: string; _decision: string; _variant: string }
+        Returns: undefined
+      }
+      shopify_sync_resync_all: { Args: { _company: string }; Returns: number }
+      shopify_sync_set_mode: {
+        Args: { _company: string; _mode: string }
+        Returns: number
+      }
+      shopify_sync_status: { Args: { _company: string }; Returns: Json }
+      shopify_sync_trial_add: {
+        Args: { _article: string; _company: string }
+        Returns: undefined
+      }
+      shopify_sync_trial_remove: {
+        Args: { _article: string; _company: string }
         Returns: undefined
       }
       signup_precheck: {

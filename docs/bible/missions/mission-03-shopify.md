@@ -60,7 +60,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Questions Shopify à trancher avant de coder | ⬜ en attente de réponses |
 | Voir les produits Shopify et les rapprocher des articles du stock | 🟦 19/09 — fait, à valider : écran Pièces & Accessoires → Produits Shopify, 300 liaisons automatiques exactes |
 | Reprendre une fois les photos et textes de Shopify dans le DMS | 🟦 19/09 — fait, à valider : reprise réelle des 300 produits reliés (chiffres en §5) ; bouton « Reprendre photos et textes » sur l'écran Produits Shopify |
-| Le stock et le prix du DMS s'affichent en direct sur le site | ⬜ |
+| Le stock et le prix du DMS s'affichent en direct sur le site | 🟦 21/09 — fait, livré en mode **Arrêtée** (rien n'est écrit sur le site) ; essai à lancer par Simon (§5 bis) |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | ⬜ |
 
@@ -140,6 +140,59 @@ Point de départ gardé lors du nettoyage du 18/09 : la case « publiable » de 
   | Images Shopify lues / stockées dans le DMS | **1 038** / **1 038** (137 Mo, 3,5 images par produit en moyenne) |
   | Traces `events` (`shopify_content_import`) | 301 (une relance d'un produit interrompu) |
   | Relance à blanc d'un produit déjà repris | 0 image ajoutée, 0 texte modifié (idempotence vérifiée) |
+
+## 5 bis. Le DMS écrit sur le site — mode essai (W-8, 21/09)
+
+**Sécurité** : réglage société « Synchronisation Shopify » (écran Pièces & Accessoires → Produits Shopify,
+encadré en haut) :
+
+| Mode | Effet |
+|---|---|
+| **Arrêtée** (défaut, livré ainsi) | Rien n'est écrit sur le site. Les demandes s'accumulent dans la file (une ligne par article). |
+| **Essai** | Seuls les **articles d'essai** choisis par un administrateur sont écrits (stock, prix, publication). |
+| **Tous les articles reliés** | Tous les articles reliés sont écrits ; tout article « Publiable » peut être publié. |
+
+Chaque changement de mode est tracé dans `events` (`shopify_sync_mode`).
+
+### Lancer l'essai (Simon)
+
+1. Produits Shopify → encadré « Synchronisation Shopify » → **Articles d'essai** : ajouter 1 à 3 articles
+   **reliés** (badge « Relié »), idéalement des produits peu vendus.
+2. **Simuler (rien n'est écrit)** : tableau prix site / prix DMS TTC / stock site / stock DMS. Vérifier chaque ligne.
+3. Choisir le mode **Essai** (confirmation). Les articles d'essai partent au prochain passage (≤ 3 min) ou
+   tout de suite avec **Envoyer maintenant**.
+4. Vérifier sur ducatibruxelles.be et dans le **Journal des envois**.
+5. Faire un mouvement de stock sur un article d'essai → le site suit en ≤ 3 min.
+6. Revenir à **Arrêtée** à tout moment : plus rien ne part.
+
+**⚠ Constat du 21/09 (simulation en lecture seule sur les 300 articles reliés)** : le DMS n'a **aucun stock**
+sur ces 300 articles (259 ont du stock sur le site, 305 pièces au total) et leur **prix de vente TTC du DMS
+est environ 20 % plus bas** que le prix du site (médiane : prix site = 1,245 × prix DMS ; 293 moins chers,
+2 plus chers, 5 sans prix). Passer en « Tous » aujourd'hui mettrait le site à 0 et baisserait les prix.
+À trancher avant l'essai : reprise du stock G8 et vérification des prix de vente (TTC ou HT ?) dans le DMS.
+
+### Ce qui part vers le site (carte « Le stock et le prix du DMS s'affichent en direct »)
+
+- **Stock** = disponible du DMS (réel − réservé, B4), entier, jamais négatif, à l'emplacement unique
+  « Chaussée de Bruxelles 688 » ; types A, V, O, P, D seulement. Un article pas suivi en stock sur Shopify
+  est passé en suivi ; un article pas stocké à l'emplacement y est activé.
+- **Prix** (W-7) = prix de vente TTC du DMS (à défaut PV HT × (1 + taux de TVA de l'article)), avec l'arrondi
+  de la société (euro supérieur, plancher 2 €) ; aucun prix du DMS → prix du site inchangé (jamais 0 €).
+- **Déclenchement** : mouvement de stock, changement de PV TTC / PV HT / taux de TVA, nouvelle liaison,
+  changement du réglage d'arrondi → l'article relié entre dans la file `shopify_sync_queue` (dédoublonnée).
+  Tâche `shopify-push` toutes les 3 min, **seulement** si une société n'est pas « Arrêtée » et a du travail.
+- **Rien n'est réécrit** si le site est déjà à jour (« Déjà à jour » au journal). Erreur → nouvel essai
+  automatique (2, 4, 8… min, 60 min au plus).
+- **Tout resynchroniser** (administrateurs) : remet tous les articles reliés en file ; le mode décide.
+
+### À tester (carte stock + prix)
+
+- [ ] Mode Arrêtée : un mouvement de stock d'un article relié n'écrit rien (journal vide, file +1).
+- [ ] Essai sur 1 à 3 articles : simulation, puis envoi ; prix et stock du site = DMS.
+- [ ] Vente / réservation dans le DMS → stock du site mis à jour en ≤ 3 min.
+- [ ] Changement de prix d'un article d'essai → prix du site en ≤ 3 min, arrondi à l'euro supérieur.
+- [ ] Un article hors essai n'est jamais écrit en mode Essai.
+- [ ] Retour à Arrêtée : plus rien ne part.
 
 ## 6. Risques
 
