@@ -38,10 +38,22 @@
 // le document doit appartenir à la société ; après un envoi réussi, une ligne `events`
 // (action `email_sent`) note qui, quand, à qui, depuis quelle boîte, l'objet et les fichiers.
 // Les appelants existants (sans `dryRun` ni `trace`) ne voient aucun changement.
+//
+// SIGNATURE (retour client du 21/09) : ajoutée à TOUS les envois (CRM, documents de vente,
+// fournisseurs), entre le message et le pied de mail, selon l'adresse d'envoi :
+//   - adresse personnelle → nom (profiles.full_name) + fonction (profiles.job_title) ;
+//   - boîte partagée → nom de la boîte (company_mailboxes.signature_name), sans personne ;
+// puis les coordonnées de la société (companies.mail_signature_*) et « E : » = adresse d'envoi.
+// Lecture en best-effort : si la migration 20260921191000 n'est pas encore appliquée, on
+// retombe sur le nom et l'adresse de la société ; une erreur de lecture n'empêche jamais l'envoi.
+// Le mode `dryRun` renvoie le HTML complet (aperçu dans la fenêtre d'envoi).
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
-import { footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary } from '../_shared/mail-message.ts';
+import {
+  footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary, signatureHtml, signatureFor,
+  type SignatureCompany,
+} from '../_shared/mail-message.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -96,6 +108,36 @@ async function footerKind(address: string): Promise<FooterKind> {
   if (!Array.isArray(acc) || acc.length === 0) return null;          // compte de l'équipe
   return acc[0].first_portal_visit_at ? null : 'login';
 }
+/** Première ligne d'une réponse REST, ou null (erreur, colonne absente…). */
+async function first<T>(path: string): Promise<T | null> {
+  try {
+    const r = await db(path);
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length ? rows[0] as T : null;
+  } catch { return null; }
+}
+
+/** HTML de la signature pour cette boîte d'envoi ('' si rien à signer). Jamais d'exception. */
+async function signatureBlock(companyId: string, mailbox: string, shared: boolean, userId: string): Promise<string> {
+  const company = await first<SignatureCompany>(`companies?select=name,address,zip,city,mail_signature_brand,mail_signature_address,mail_signature_phone,mail_signature_site_url,mail_signature_site_label&id=eq.${companyId}`)
+    ?? await first<SignatureCompany>(`companies?select=name,address,zip,city&id=eq.${companyId}`);
+  let user: { full_name: string | null; job_title?: string | null } | null = null;
+  let mailboxName: string | null = null;
+  if (shared) {
+    try {
+      const r = await db(`company_mailboxes?select=address,signature_name&company_id=eq.${companyId}`);
+      const rows = r.ok ? await r.json() : [];
+      const box = (Array.isArray(rows) ? rows : []).find((b: { address: string }) => String(b.address).toLowerCase() === mailbox);
+      mailboxName = box?.signature_name ?? null;
+    } catch { mailboxName = null; }
+  } else {
+    user = await first<{ full_name: string | null; job_title: string | null }>(`profiles?select=full_name,job_title&id=eq.${userId}`)
+      ?? await first<{ full_name: string | null }>(`profiles?select=full_name&id=eq.${userId}`);
+  }
+  return signatureHtml(signatureFor({ from: mailbox, shared, user, mailboxName, company }));
+}
+
 const toText = (html: string) => html
   .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n')
   .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -155,12 +197,15 @@ Deno.serve(async (req) => {
   const kind = validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
   const footer = kind ? footerHtml(kind, o, recipient) : '';
 
-  // Corps déjà en HTML (éditeur enrichi) + pied de mail.
-  const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), footer, to, attachments: atts });
+  // Signature selon l'adresse d'envoi (21/09).
+  const signature = await signatureBlock(companyId, mailbox, shared.has(mailbox), user.id);
+
+  // Corps déjà en HTML (éditeur enrichi) + signature + pied de mail.
+  const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), signature, footer, to, attachments: atts });
 
   if (dryRun) {
     return J({
-      ok: true, dryRun: true, from: mailbox, to, subject, footer: kind,
+      ok: true, dryRun: true, from: mailbox, to, subject, footer: kind, signature: signature !== '',
       html: graphBody.message.body.content, attachments: attachmentsSummary(atts),
       trace: traceId ? { entityType: 'documents', entityId: traceId } : null,
     });

@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMailboxes, listCommunications } from '@/modules/crm/api';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
@@ -90,7 +91,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{t('salesMail.title')}</DialogTitle>
           <DialogDescription>{t('salesMail.intro')}</DialogDescription>
@@ -144,6 +145,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
               })}</p>
             </div>
           )}
+          {preview?.html && <MailPreview html={preview.html} />}
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>

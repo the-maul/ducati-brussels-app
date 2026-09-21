@@ -32,6 +32,7 @@ import {
   listLeadTasks, createLeadTask, completeLeadTask, updateLeadTask, openTask,
   LEAD_STAGES, dueState, type Lead,
 } from './api';
+import { toE164 } from '@/lib/phone';
 import { t } from '@/lib/i18n';
 
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -101,9 +102,17 @@ export function LeadDetail({ lead, companyId, onClose, onChanged, notice }: { le
     tasks.refetch(); audit.refetch();
   };
 
+  // Retour client du 21/09 (carte CRM) : jamais d'e-mail ni de texte dans le téléphone.
+  // Un numéro modifié doit être valide ; il est enregistré au format E.164 (+32470123456).
+  // Une ancienne valeur laissée telle quelle ne bloque pas l'enregistrement des autres champs.
+  const phoneChanged = f.phone.trim() !== (lead.phone ?? '').trim();
+  const phoneE164 = toE164(f.phone);
+  const phoneInvalid = phoneChanged && phoneE164 === null;
+
   const saveLead = useMutation({
     mutationFn: () => updateLead(lead.id, {
-      name: f.name, email: f.email.trim().toLowerCase() || null, phone: f.phone || null,
+      name: f.name, email: f.email.trim().toLowerCase() || null,
+      phone: phoneChanged ? (phoneE164 || null) : (lead.phone ?? null),
       vehicle_interest: f.vehicle_interest || null,
       estimated_value: f.estimated_value ? num(f.estimated_value) : null,
       stage: f.stage, notes: f.notes || null,
@@ -288,7 +297,7 @@ export function LeadDetail({ lead, companyId, onClose, onChanged, notice }: { le
               <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('crm.details')}</p>
               <Field label={t('crm.leadName')}><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
               <Field label={t('crm.email')}><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
-              <Field label={t('crm.phone')}><PhoneInput value={f.phone} onChange={(v) => set('phone', v)} /></Field>
+              <Field label={t('crm.phone')}><PhoneInput name="lead-phone" autoComplete="off" value={f.phone} onChange={(v) => set('phone', v)} /></Field>
               <Field label={t('crm.vehicleInterest')}><Input value={f.vehicle_interest} onChange={(e) => set('vehicle_interest', e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label={t('crm.stage')}>
@@ -301,10 +310,11 @@ export function LeadDetail({ lead, companyId, onClose, onChanged, notice }: { le
               </div>
               <Field label={t('crm.notes')}><Textarea rows={4} value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
               <div className="flex items-center gap-2">
-                <Button onClick={() => saveLead.mutate()} disabled={saveLead.isPending}>
+                <Button onClick={() => { setMsg(null); saveLead.mutate(); }} disabled={saveLead.isPending || phoneInvalid}>
                   {saveLead.isPending ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} {t('crm.save')}
                 </Button>
-                {msg && <span className="text-[12px] text-success">{msg}</span>}
+                {phoneInvalid && <span className="text-[12px] text-danger" role="alert">{t('crm.phoneInvalidSave')}</span>}
+                {!phoneInvalid && msg && <span className="text-[12px] text-success">{msg}</span>}
               </div>
             </div>
 

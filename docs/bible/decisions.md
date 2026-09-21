@@ -8,6 +8,21 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Signature des e-mails et téléphone de la carte CRM (choix de réalisation)
+
+- **P-7** — **Signature des e-mails selon l'adresse d'envoi**, ajoutée **côté serveur** (`graph-send-email`) à
+  tous les envois, entre le message et l'invitation à l'espace client (P-5/P-6). Adresse personnelle → nom +
+  fonction de l'utilisateur ; boîte partagée → **nom de la boîte, sans personne** ; puis coordonnées de la
+  société (concession, adresse, téléphone, « E : » = adresse d'envoi, lien vers le site public), **réglables par
+  société** dans la fiche société ; fonction réglable par l'utilisateur et par l'administrateur. Les coordonnées
+  réelles sont en base, jamais dans le dépôt. Les textes proposés ne se terminent plus par le nom de la société.
+  *Client (carte ERP du 21/09, modèles « Signature mail 1 et 2 ») · réalisation Équipe 21/09.*
+  [M10](modules/M10-crm.md)
+- **M-23** — **Le téléphone d'une carte CRM suit la règle des fiches** (M01, 21/09) : numéro seulement,
+  stocké E.164, jamais une adresse e-mail (refus à l'écran, garde-fou en base sur `leads.phone`, cartes
+  existantes réparées). *Client (carte ERP du 21/09) · Équipe.* [M10](modules/M10-crm.md),
+  [mission 01](missions/mission-01-nouveau-client.md)
+
 ## 2026-09-21 — Mission 07, plans d'entretien (réalisation)
 
 - **M-21** — **Plans d'entretien = données de référence globales** (comme le catalogue, M-19), chargées par

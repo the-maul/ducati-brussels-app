@@ -11,12 +11,13 @@
  */
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X, Folder } from 'lucide-react';
+import { Loader2, Plus, Mail, MessageSquare, Phone, StickyNote, Send, Paperclip, X, Folder, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RichEditor } from '@/components/rich-editor';
+import { MailPreview } from '@/components/mail-preview';
 import { listCommunications, addCommunication, sendEmailViaOutlook, listCompanyMailboxes, type MailAttachment } from './api';
 import { getContact } from '@/modules/contacts/api';
 import { listAttachments, signedUrl } from '@/modules/documents/ged-api';
@@ -95,6 +96,19 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
       if (r.error) { setSendMsg(errLabel(r.error)); return; }
       setSendMsg(t('crm.emailSent')); setSubject(''); setBody(''); setAtts([]); setEditorKey((k) => k + 1);
       qc.invalidateQueries({ queryKey: ['comms', contactId] });
+    },
+    onError: (e) => setSendMsg(e instanceof Error ? e.message : 'Erreur'),
+  });
+
+  // « Vérifier sans envoyer » (mode simulation) : aperçu du message tel qu'il partira,
+  // avec la signature de l'adresse choisie et le pied de mail. Rien n'est envoyé.
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  useEffect(() => { setPreviewHtml(null); }, [fromBox, to, subject, body]);
+  const check = useMutation({
+    mutationFn: () => sendEmailViaOutlook({ companyId, contactId, to, subject, body, from: fromBox || undefined, dryRun: true }),
+    onSuccess: (r) => {
+      if (r.error) { setSendMsg(errLabel(r.error)); return; }
+      setPreviewHtml(r.html ?? '');
     },
     onError: (e) => setSendMsg(e instanceof Error ? e.message : 'Erreur'),
   });
@@ -217,9 +231,17 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
 
         {/* 3. LE BOUTON QUI FAIT LE GESTE */}
         {isEmail ? (
-          <Button className="w-full" onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>
-            {send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}
-          </Button>
+          <div className="space-y-2">
+            {previewHtml !== null && <MailPreview html={previewHtml} />}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="sm:flex-1" onClick={() => { setSendMsg(null); check.mutate(); }} disabled={check.isPending || send.isPending || !to.trim() || !subject.trim()} title={t('salesMail.dryRunHint')}>
+                {check.isPending ? <Loader2 className="animate-spin" /> : <ShieldCheck className="size-4" />} {t('salesMail.dryRun')}
+              </Button>
+              <Button className="sm:flex-1" onClick={() => { setSendMsg(null); send.mutate(); }} disabled={send.isPending || !to.trim() || !subject.trim()}>
+                {send.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />} {t('crm.sendEmail')}
+              </Button>
+            </div>
+          </div>
         ) : (
           <Button variant="outline" className="w-full" onClick={() => add.mutate()} disabled={add.isPending || (!subject.trim() && !body.trim())}>
             {add.isPending ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />} {t('crm.logComm')}

@@ -26,6 +26,7 @@ import { useAuth, type AppRole } from '@/lib/auth/auth-context';
 import { listOrgUsers, createOrgUser, setUserRoles, setUserActive } from '@/lib/auth/admin.functions';
 import { listCompanyMembers, getDefaultAssignee, setDefaultAssignee, countOpenTasksOf } from '@/modules/crm/api';
 import { sendAccountInvitation, searchContactsForAccount, type ContactHit } from '@/modules/settings/users-api';
+import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
 import { t } from '@/lib/i18n';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
@@ -105,6 +106,7 @@ function UsersAdmin() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<null | { id: string; name: string }>(null);
+  const [sigUser, setSigUser] = useState<null | { id: string; name: string }>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
   if (!isAdmin()) return <NotAdmin />;
@@ -193,6 +195,11 @@ function UsersAdmin() {
                             {t('users.editRoles')}
                           </Button>
                         )}
+                        {!u.client && u.roles.length > 0 && (
+                          <Button size="sm" variant="ghost" onClick={() => setSigUser({ id: u.id, name: u.full_name ?? u.email ?? '' })}>
+                            {t('mailSignature.adminButton')}
+                          </Button>
+                        )}
                         {invCo && (
                           <ResendInvite companyId={invCo} userId={u.id} onDone={setInviteMsg} />
                         )}
@@ -214,6 +221,10 @@ function UsersAdmin() {
           onClose={() => setCreateOpen(false)}
           onCreated={() => { invalidate(); qc.invalidateQueries({ queryKey: ['company-members'] }); }}
         />
+      )}
+
+      {sigUser && (
+        <UserSignatureDialog userId={sigUser.id} displayName={sigUser.name} onClose={() => setSigUser(null)} onSaved={invalidate} />
       )}
 
       {editUser && data && (
