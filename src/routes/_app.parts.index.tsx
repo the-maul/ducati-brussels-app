@@ -19,6 +19,7 @@ import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/
 import { listSuppliers, supplierName, addToReorderProposal } from '@/modules/purchases/api';
 import { listStock } from '@/modules/stock/stock-api';
 import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
+import { CatalogSearchHint } from '@/modules/catalog/catalog-search-hint';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 
@@ -339,7 +340,11 @@ function ArticlesList() {
               <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
             )}
             {rows && rows.length === 0 && (
-              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">{t('articles.empty')}</td></tr>
+              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">
+                {t('articles.empty')}
+                {/* Mission 06 : la référence n'est pas un article du DMS mais peut exister chez Ducati. */}
+                {activeCompanyId && debounced.trim() && <CatalogSearchHint companyId={activeCompanyId} q={debounced} />}
+              </td></tr>
             )}
             {rows?.map((a) => {
               const isReplaced = !!a.superseded_by_id;

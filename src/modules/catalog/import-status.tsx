@@ -2,12 +2,12 @@
  * Catalogue Ducati — état de l'import : compteurs et lots (qui, quand, état, dernière activité).
  */
 import { useQuery } from '@tanstack/react-query';
-import { Bike, CalendarRange, Layers, ListOrdered, Hash, Loader2, PauseCircle, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Bike, CalendarRange, Layers, ListOrdered, Hash, Link2, Loader2, PauseCircle, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { KpiCard } from '@/components/kpi-card';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { t } from '@/lib/i18n';
-import { getCatalogStats, listCatalogBatches, type CatalogBatch } from './api';
+import { getArticleLinkCount, getCatalogStats, listCatalogBatches, type CatalogBatch } from './api';
 import { fill, fmtDateTime, fmtInt } from './format';
 
 const STATUS: Record<string, { tone: StatusTone; icon: typeof Loader2; key: string }> = {
@@ -23,14 +23,22 @@ export function BatchStatusBadge({ status }: { status: string }) {
   return <StatusBadge tone={m.tone} icon={m.icon} label={t(m.key)} />;
 }
 
-export function CatalogImportStatus() {
+export function CatalogImportStatus({ companyId = null }: { companyId?: string | null }) {
   const stats = useQuery({ queryKey: ['ducati-catalog', 'stats'], queryFn: getCatalogStats, refetchInterval: 30000 });
   const batches = useQuery({ queryKey: ['ducati-catalog', 'batches'], queryFn: () => listCatalogBatches(15), refetchInterval: 30000 });
   const s = stats.data;
+  // Articles du DMS reliés au catalogue par la référence (absent tant que la migration n'est pas appliquée).
+  const links = useQuery({
+    queryKey: ['ducati-catalog', 'link-count', companyId],
+    queryFn: () => getArticleLinkCount(companyId as string),
+    enabled: !!companyId,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard label={t('catalog.kpiModels')} value={fmtInt(s?.models)} icon={Bike} />
         <KpiCard label={t('catalog.kpiModelYears')} value={fmtInt(s?.modelYears)} icon={CalendarRange}
           delta={s ? fill(t('catalog.modelYearsComplete'), { done: fmtInt(s.modelYearsComplete), loaded: fmtInt(s.modelYearsLoaded) }) : undefined} />
@@ -38,6 +46,8 @@ export function CatalogImportStatus() {
           delta={s ? fill(t('catalog.drawingsWithParts'), { n: fmtInt(s.drawingsWithParts) }) : undefined} />
         <KpiCard label={t('catalog.kpiLines')} value={fmtInt(s?.lines)} icon={ListOrdered} />
         <KpiCard label={t('catalog.kpiParts')} value={fmtInt(s?.parts)} icon={Hash} />
+        <KpiCard label={t('catalog.kpiLinked')} value={fmtInt(links.data?.linked)} icon={Link2}
+          delta={links.data ? fill(t('catalog.linkedOf'), { n: fmtInt(links.data.articles) }) : undefined} />
       </div>
 
       <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">

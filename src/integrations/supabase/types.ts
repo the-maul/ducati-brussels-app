@@ -8531,6 +8531,10 @@ export type Database = {
           value_pamp: number
         }[]
       }
+      ducati_catalog_article_link_count: {
+        Args: { _company: string }
+        Returns: Json
+      }
       ducati_catalog_article_for: {
         Args: { _company: string; _reference: string }
         Returns: string
@@ -8583,6 +8587,20 @@ export type Database = {
           start_date: string
         }[]
       }
+      ducati_catalog_find_parts: {
+        Args: { _company: string; _limit?: number; _q: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          catalog_price_ht: number
+          description: string
+          reference: string
+          reference_norm: string
+          replaced: boolean
+          replaced_part: string
+        }[]
+      }
       ducati_catalog_import_state: { Args: never; Returns: Json }
       ducati_catalog_ingest_drawings: {
         Args: {
@@ -8615,6 +8633,25 @@ export type Database = {
         Returns: string[]
       }
       ducati_catalog_norm_ref: { Args: { _ref: string }; Returns: string }
+      ducati_catalog_part_usage: {
+        Args: { _limit?: number; _offset?: number; _reference: string }
+        Returns: {
+          drawing_code: string
+          drawing_description: string
+          drawing_id: string
+          family_description: string
+          group_description: string
+          is_europe: boolean
+          model_description: string
+          model_id: string
+          model_year_code: string
+          model_year_id: string
+          position: string
+          quantity: number
+          total_count: number
+          year: number
+        }[]
+      }
       ducati_catalog_product_for_reference: {
         Args: { _reference: string }
         Returns: {

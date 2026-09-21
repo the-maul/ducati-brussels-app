@@ -9,6 +9,7 @@ import { ArticleForm } from '@/modules/articles/article-form';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import { CatalogPartUsage } from '@/modules/catalog/part-usage';
 import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
@@ -133,6 +134,7 @@ function EditArticle() {
           <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
           <TabsTrigger value="replacement">Remplacement</TabsTrigger>
           <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
+          <TabsTrigger value="ducati-catalog">{t('catalog.usageTitle')}</TabsTrigger>
           <TabsTrigger value="stats">Statistiques</TabsTrigger>
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
@@ -155,6 +157,14 @@ function EditArticle() {
         </TabsContent>
         <TabsContent value="applicability" className="mt-4">
           <ApplicabilityTab articleId={articleId} companyId={activeCompanyId} reference={article.reference} />
+        </TabsContent>
+        <TabsContent value="ducati-catalog" className="mt-4">
+          {/* Mission 06 : motos et vues éclatées Ducati où la référence de l'article apparaît. */}
+          <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+            <h2 className="font-ui text-[15px] font-bold">{t('catalog.usageTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('catalog.usageSubtitle')}</p>
+            <CatalogPartUsage key={article.reference} reference={article.reference} />
+          </div>
         </TabsContent>
         <TabsContent value="stats" className="mt-4"><StatsTab articleId={articleId} /></TabsContent>
         <TabsContent value="photos" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="article" entityId={articleId} /></TabsContent>
