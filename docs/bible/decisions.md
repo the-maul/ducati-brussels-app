@@ -15,6 +15,15 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   d'années = lié ; le reste à valider par l'atelier) ; la moto porte son **modèle-année du catalogue**
   (`vehicles.ducati_model_year_id`, rempli par la carte 06-4) et son **usage** (route par défaut). *Équipe · 21/09.*
   [mission 07](missions/mission-07-plan-entretien.md), [M03](modules/M03-vehicules.md)
+## 2026-09-21 — Mission 03, réservation du stock des commandes non payées (choix de réalisation)
+
+- **W-11** — **Une commande du site pas encore payée réserve le stock** des lignes reliées par des mouvements de
+  réservation append-only (comme un bon RES), **sans créer de document ni de fiche client** avant le paiement (client
+  seulement retrouvé par e-mail). Au paiement, la facture FAC (W-9) libère la réservation et sort le réel dans la même
+  transaction. Libération à l'annulation, au paiement abandonné, à l'**expiration après 7 jours** (réglage société 1 à 60)
+  et à l'**arrêt de l'import**. Même réglage Arrêté / Actif que l'import des commandes. *Équipe · 21/09, à valider par
+  Simon.* [mission 03](missions/mission-03-shopify.md), [M05](modules/M05-stock.md), [M06](modules/M06-ventes-caisse.md)
+
 ## 2026-09-21 — Mission 03, reprise du stock et des prix des articles reliés au site
 
 - **W-10** — **Stock de départ = stock du site Shopify ; prix de vente = prix du site ; le PV repris de G8 était

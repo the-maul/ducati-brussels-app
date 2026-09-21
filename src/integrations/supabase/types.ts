@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -5979,6 +6004,93 @@ export type Database = {
           },
         ]
       }
+      shopify_order_reservations: {
+        Row: {
+          article_id: string
+          company_id: string
+          contact_id: string | null
+          document_id: string | null
+          id: string
+          order_name: string | null
+          release_reason: string | null
+          released_at: string | null
+          reserved_at: string
+          reserved_qty: number
+          shopify_line_id: string
+          shopify_order_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          contact_id?: string | null
+          document_id?: string | null
+          id?: string
+          order_name?: string | null
+          release_reason?: string | null
+          released_at?: string | null
+          reserved_at?: string
+          reserved_qty?: number
+          shopify_line_id: string
+          shopify_order_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          contact_id?: string | null
+          document_id?: string | null
+          id?: string
+          order_name?: string | null
+          release_reason?: string | null
+          released_at?: string | null
+          reserved_at?: string
+          reserved_qty?: number
+          shopify_line_id?: string
+          shopify_order_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_reservations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_reservations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_reservations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_reservations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_reservations_order_fk"
+            columns: ["company_id", "shopify_order_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_orders"
+            referencedColumns: ["company_id", "shopify_order_id"]
+          },
+        ]
+      }
       shopify_order_settings: {
         Row: {
           company_id: string
@@ -5986,6 +6098,7 @@ export type Database = {
           import_enabled: boolean
           last_catchup: Json | null
           last_catchup_at: string | null
+          reservation_days: number
           updated_at: string
           updated_by: string | null
         }
@@ -5995,6 +6108,7 @@ export type Database = {
           import_enabled?: boolean
           last_catchup?: Json | null
           last_catchup_at?: string | null
+          reservation_days?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -6004,6 +6118,7 @@ export type Database = {
           import_enabled?: boolean
           last_catchup?: Json | null
           last_catchup_at?: string | null
+          reservation_days?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -7430,6 +7545,7 @@ export type Database = {
       _cron_invoice_reminders: { Args: never; Returns: number }
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_sales_alerts: { Args: never; Returns: Json }
+      _cron_shopify_orders_tick: { Args: never; Returns: undefined }
       _cron_stock_copies: { Args: never; Returns: number }
       _dc_batch_guard: {
         Args: { _batch: string }
@@ -7669,6 +7785,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      _shopify_order_reservations_sync: {
+        Args: {
+          _action: string
+          _company: string
+          _doc?: string
+          _items: Json
+          _oid: string
+          _order: Json
+          _ref?: string
+          _via: string
+        }
+        Returns: Json
+      }
       _shopify_orders_catchup_done: {
         Args: { _at: string; _company: string; _stats: Json }
         Returns: undefined
@@ -7721,6 +7850,7 @@ export type Database = {
         Args: { _actor?: string; _company: string; _results: Json }
         Returns: Json
       }
+      _shopify_reservations_expire: { Args: never; Returns: number }
       _shopify_sync_mode: { Args: { _company: string }; Returns: string }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
@@ -9416,6 +9546,26 @@ export type Database = {
           import_enabled: boolean
           last_catchup: Json | null
           last_catchup_at: string | null
+          reservation_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shopify_order_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      shopify_orders_set_reservation_days: {
+        Args: { _company: string; _days: number }
+        Returns: {
+          company_id: string
+          enabled_at: string | null
+          import_enabled: boolean
+          last_catchup: Json | null
+          last_catchup_at: string | null
+          reservation_days: number
           updated_at: string
           updated_by: string | null
         }
@@ -9841,6 +9991,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

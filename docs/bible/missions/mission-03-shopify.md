@@ -67,6 +67,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | 🟦 21/09 — fait, soumis au même mode essai (livré Arrêtée) |
 | Reprendre le stock et vérifier les prix de vente des articles reliés au site | 🟦 21/09 — fait, à valider : reprise réelle des 300 articles reliés (§5 ter) ; bouton « Aligner le DMS sur le site (stock et prix) » |
+| Réserver le stock dès qu'une commande du site est passée, même non payée | 🟦 21/09 — fait, à valider (§5 quater) ; même réglage Arrêté / Actif que l'import des commandes (livré Arrêté) |
 
 ## 4. Questions en attente
 
@@ -372,12 +373,63 @@ pour la caisse et les étiquettes) ou accepter des prix du site arrondis à l'eu
   sera la moyenne pondérée avec ces pièces à 0 (ex. 1 pièce reprise + 1 reçue à 100 € → PAMP 50 €). Saisir un PA
   (ou passer un inventaire valorisé) si la valeur de stock compte avant.
 
+## 5 quater. Réservation du stock des commandes non payées (W-11, 21/09)
+
+Carte « Réserver le stock dès qu'une commande du site est passée, même non payée » (branche `lot-shopify-resa`,
+à valider). Pourquoi : une commande payée par virement (« Bank Deposit ») n'entrait dans le DMS qu'une fois payée ;
+entre-temps la pièce pouvait être vendue au comptoir, et le DMS renvoyait au site un disponible trop haut.
+
+**Ce qui est livré** (rien ne se passe tant que « Import des commandes du site » est Arrêté ; rien n'est écrit sur Shopify) :
+- **Commande pas encore payée** (Shopify `PENDING`, `AUTHORIZED`, `PARTIALLY_PAID`, reçue par webhook `orders/create` /
+  `orders/updated` ou par le rattrapage) → **réservation du stock** des lignes reliées (articles A, V, O, P, D de la
+  société), par le **mécanisme existant des bons de réservation RES** : mouvement `reservation` append-only
+  (`record_stock_move`, `is_reservation`, origine `shopify`, réf. = n° de commande du site « #1216 »). Le disponible du DMS
+  (réel − réservé, B4) baisse aussitôt ; le mouvement met l'article dans la file `shopify-push`, qui renvoie au site le
+  nouveau disponible (quand la synchronisation n'est pas Arrêtée). Une ligne non reliée ne réserve rien.
+- **Client** : retrouvé par e-mail (même règle que l'import, D3) et noté sur la réservation et la commande ; **jamais créé
+  avant le paiement**.
+- **Commande modifiée** avant paiement → réservation ajustée (réservation ou libération de l'écart, ligne retirée libérée).
+- **Paiement** → dans la **même transaction** que l'import de la facture FAC (W-9) : libération de la réservation
+  (`liberation`, réf. = n° de facture) puis sortie du stock réel par la facture. **Aucun double comptage** : le disponible
+  ne bouge pas au paiement (vérifié : 2 réservées → payée → réel −2, réservé 0).
+- **Annulation** sur le site, paiement annulé ou expiré (`VOIDED`, `EXPIRED`) → libération.
+- **Expiration** : commande toujours pas payée **7 jours** (réglage société, 1 à 60) après sa création → libération par la
+  tâche planifiée existante `shopify-orders-catchup` (toutes les 15 min, désormais `_cron_shopify_orders_tick` : expiration
+  dans la base, puis appel de la fonction serveur si une société a l'import Actif). Une réservation expirée n'est jamais
+  reprise ; si la commande est payée ensuite, elle est importée normalement.
+- **Import passé à Arrêté** → les réservations en cours sont libérées (ces commandes ne seront jamais importées).
+- **Idempotent** : une réservation par ligne de commande Shopify ; un webhook rejoué ne crée aucun mouvement.
+- **Traces** : chaque mouvement dans `events` (`shopify_order_reservation` : commande, ligne, article, client, quantité,
+  motif) ; changement de durée (`shopify_orders_reservation_days`) ; l'import note les réservations libérées.
+- **Écran Ventes → Commandes du site** : statut **« Réservée (en attente de paiement) »** (couleur + icône + libellé,
+  filtre et compteur), « n pièce(s) réservée(s) jusqu'au … », « Réservation libérée le … » ; encadré « Réservation du stock
+  des commandes non payées » avec la durée (administrateurs).
+- Code : migration `20260921150000_m6_shopify_reservation_commandes.sql` (table `shopify_order_reservations`, colonne
+  `shopify_order_settings.reservation_days`, fonctions `_shopify_order_reservations_sync`, `_shopify_reservations_expire`,
+  `shopify_orders_set_reservation_days`, `_cron_shopify_orders_tick` ; `_shopify_order_apply` et `shopify_orders_set_import`
+  redéfinies) ; règles pures `supabase/functions/_shared/shopify-reservation.ts` (tests `tests/shopify-reservations.test.ts`) ;
+  `shopify-orders` redéployée le 21/09 ; écran `src/routes/_app.sales.web-orders.tsx`, `src/modules/sales/web-orders-api.ts`.
+- **Vérifié le 21/09** dans une **transaction annulée** en production (aucune donnée laissée) : réservation (disponible −1),
+  webhook rejoué (0 mouvement), commande modifiée (+1), paiement (libération 2 + sortie 2 : réel −2, réservé 0, disponible
+  inchangé), paiement rejoué (rien), annulation (libérée), expiration (rien à 6 jours, libérée à 8 jours, pas reprise
+  ensuite), commande déjà trop ancienne (rien), commande de test (rien), arrêt de l'import (libérée, puis import refusé).
+  Migration appliquée ensuite ; 0 réservation en base (import Arrêté).
+
+**À tester (Simon)**
+- [ ] Import Actif, passer sur le site une commande **payée par virement** d'un produit **relié** : Commandes du site →
+      « Réservée (en attente de paiement) » ; fiche article : réservé +1, disponible −1 ; historique : « Réservation
+      commande site #… ».
+- [ ] Marquer la commande payée dans Shopify : « Importée », facture FAC ; stock réel −1, réservé revenu à 0, disponible
+      inchangé par rapport à l'étape précédente.
+- [ ] Une autre commande par virement puis l'annuler dans Shopify : réservation libérée (disponible revenu).
+
 ## 6. Risques
 
 - Double vérité sur le stock pendant la reprise : figer les modifications côté Shopify le temps de la reprise.
 - Limites d'appels de l'API Shopify : regrouper les mises à jour de stock.
 - Commandes du site : une commande payée par virement (« Bank Deposit ») n'entre dans le DMS qu'une fois marquée payée
-  dans Shopify ; d'ici là, le stock du DMS ne la voit pas (Shopify l'a déjà réservée de son côté).
+  dans Shopify. **Depuis le 21/09 (§5 quater)** son stock est réservé dès la création de la commande (import Actif) ;
+  la vente et la sortie de stock restent au paiement.
 - Tant que peu de produits sont reliés (300 variantes sur 3 105), la plupart des commandes seront « À relier » :
   facture et règlement justes, mais stock sorti seulement après liaison + « Réessayer ».
 - Le droit `read_orders` ne donne accès qu'aux 60 derniers jours de commandes : « Réessayer » échoue au-delà.

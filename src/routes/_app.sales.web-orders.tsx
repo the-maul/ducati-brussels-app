@@ -2,13 +2,14 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, CheckCircle2, CircleDashed, Clock, Ban, FlaskConical, Link2, Loader2, RefreshCw, RotateCcw, XCircle,
+  AlertTriangle, CheckCircle2, CircleDashed, Clock, Ban, FlaskConical, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -16,9 +17,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
-  listWebOrders, getWebOrderSettings, setWebOrderImport, retryWebOrder, syncWebOrdersNow,
-  webOrderTone, canRetry, countByStatus, WEB_ORDER_STATUSES, WEB_ORDER_ROLES,
-  type WebOrder, type WebOrderImportStatus,
+  listWebOrders, getWebOrderSettings, setWebOrderImport, setWebOrderReservationDays, retryWebOrder, syncWebOrdersNow,
+  webOrderTone, canRetry, countByStatus, displayStatus, reservationEndsAt, WEB_ORDER_DISPLAY_STATUSES, WEB_ORDER_ROLES,
+  type WebOrder, type WebOrderDisplayStatus,
 } from '@/modules/sales/web-orders-api';
 import { eur } from '@/modules/sales/balance-panel';
 import { t } from '@/lib/i18n';
@@ -28,6 +29,8 @@ import { t } from '@/lib/i18n';
  * sortie de stock dans le DMS »). Liste des commandes Shopify reçues, statut d'import (importée,
  * à relier, erreur…), lien vers la facture du DMS, bouton « Réessayer » ; réglage société
  * « Import des commandes du site » (Arrêté / Actif, administrateurs).
+ * Carte « Réserver le stock dès qu'une commande du site est passée, même non payée » : statut
+ * « Réservée (en attente de paiement) », fin de la réservation, durée réglable (administrateurs).
  */
 export const Route = createFileRoute('/_app/sales/web-orders')({
   head: () => ({ meta: [{ title: 'Commandes du site — Ducati Bruxelles' }] }),
@@ -35,9 +38,10 @@ export const Route = createFileRoute('/_app/sales/web-orders')({
 });
 
 const ALL = '__all';
-const ICONS: Record<WebOrderImportStatus, typeof CheckCircle2> = {
-  importee: CheckCircle2, a_relier: Link2, erreur: XCircle, en_attente: Clock, annulee: Ban, ignoree: FlaskConical,
+const ICONS: Record<WebOrderDisplayStatus, typeof CheckCircle2> = {
+  importee: CheckCircle2, a_relier: Link2, erreur: XCircle, reservee: PackageCheck, en_attente: Clock, annulee: Ban, ignoree: FlaskConical,
 };
+const fmtDate = (d: Date | null) => (d ? d.toLocaleDateString('fr-BE', { dateStyle: 'short' }) : '—');
 const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const fill = (s: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s);
@@ -59,6 +63,7 @@ function WebOrdersPage() {
   const allowed = rolesForActiveCompany.some((r) => (WEB_ORDER_ROLES as readonly string[]).includes(r));
   const [status, setStatus] = useState<string>(ALL);
   const [confirm, setConfirm] = useState<boolean | null>(null);
+  const [daysDraft, setDaysDraft] = useState<string | null>(null);
 
   const settingsQ = useQuery({
     queryKey: ['web-order-settings', activeCompanyId],
@@ -79,6 +84,11 @@ function WebOrdersPage() {
   const toggle = useMutation({
     mutationFn: (on: boolean) => setWebOrderImport(activeCompanyId!, on),
     onSuccess: () => { toast.success(t('webOrders.switched')); refresh(); },
+    onError: (e) => toast.error(`${t('webOrders.errorPrefix')} : ${errMsg(e)}`),
+  });
+  const saveDays = useMutation({
+    mutationFn: (d: number) => setWebOrderReservationDays(activeCompanyId!, d),
+    onSuccess: () => { toast.success(t('webOrders.switched')); setDaysDraft(null); refresh(); },
     onError: (e) => toast.error(`${t('webOrders.errorPrefix')} : ${errMsg(e)}`),
   });
   const sync = useMutation({
@@ -110,7 +120,11 @@ function WebOrdersPage() {
   const counts = countByStatus(rows);
   const shown = status === ALL ? rows
     : status === 'a_verifier' ? rows.filter((r) => r.needsCheck)
-    : rows.filter((r) => r.status === status);
+    : rows.filter((r) => displayStatus(r) === status);
+  const days = s?.reservationDays ?? 7;
+  const daysValue = daysDraft ?? String(days);
+  const daysNum = Number(daysValue);
+  const daysValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 60;
 
   return (
     <>
@@ -155,6 +169,30 @@ function WebOrdersPage() {
           )}
           {!admin && <p>{t('webOrders.settingAdminOnly')}</p>}
         </div>
+        <div className="w-full border-t border-border pt-3 text-[13px]">
+          <div className="text-sm font-semibold">{t('webOrders.resaTitle')}</div>
+          <p className="text-muted-foreground">{fill(t('webOrders.resaHelp'), { days })}</p>
+          {admin && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <label htmlFor="resa-days" className="text-muted-foreground">{t('webOrders.resaDays')}</label>
+              <Input
+                id="resa-days" type="number" min={1} max={60} step={1} inputMode="numeric"
+                className="h-8 w-20 tabular-nums" value={daysValue}
+                onChange={(e) => setDaysDraft(e.target.value)}
+              />
+              <span className="text-muted-foreground">{t('webOrders.resaDaysUnit')}</span>
+              <Button
+                variant="outline" size="sm"
+                disabled={!daysValid || daysNum === days || saveDays.isPending}
+                onClick={() => saveDays.mutate(daysNum)}
+              >
+                {saveDays.isPending && <Loader2 className="size-4 animate-spin" />}
+                {t('webOrders.resaSave')}
+              </Button>
+              {!daysValid && <span className="text-[11px] text-[var(--danger)]">{t('webOrders.resaDaysInvalid')}</span>}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Compteurs + filtre */}
@@ -165,7 +203,7 @@ function WebOrdersPage() {
             <SelectTrigger className="h-9 w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>{t('webOrders.all')} ({rows.length})</SelectItem>
-              {WEB_ORDER_STATUSES.map((st) => (
+              {WEB_ORDER_DISPLAY_STATUSES.map((st) => (
                 <SelectItem key={st} value={st}>{t(`webOrders.st_${st}`)} ({counts[st]})</SelectItem>
               ))}
               <SelectItem value="a_verifier">{t('webOrders.count_a_verifier')} ({counts.a_verifier})</SelectItem>
@@ -173,7 +211,7 @@ function WebOrdersPage() {
           </Select>
         </label>
         <div className="flex flex-wrap gap-2 pb-1">
-          {(['a_relier', 'erreur'] as const).filter((st) => counts[st] > 0).map((st) => (
+          {(['reservee', 'a_relier', 'erreur'] as const).filter((st) => counts[st] > 0).map((st) => (
             <StatusBadge key={st} tone={webOrderTone(st)} icon={ICONS[st]} label={`${t(`webOrders.st_${st}`)} : ${counts[st]}`} />
           ))}
           {counts.a_verifier > 0 && (
@@ -204,6 +242,8 @@ function WebOrdersPage() {
             <tbody>
               {shown.map((o) => {
                 const unlinked = o.lines.filter((l) => !l.articleId);
+                const ds = displayStatus(o);
+                const resa = o.reservation;
                 return (
                   <tr key={o.id} className="border-t border-border align-top">
                     <td className="px-3 py-2 font-semibold">{o.name ?? '—'}</td>
@@ -223,7 +263,20 @@ function WebOrdersPage() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-start gap-1">
-                        <StatusBadge tone={webOrderTone(o.status)} icon={ICONS[o.status]} label={t(`webOrders.st_${o.status}`)} />
+                        <StatusBadge tone={webOrderTone(ds)} icon={ICONS[ds]} label={t(`webOrders.st_${ds}`)} />
+                        {ds === 'reservee' && resa && (
+                          <span className="max-w-72 text-[11px] text-muted-foreground">
+                            {fill(t('webOrders.resaActive'), { n: resa.activeQty, date: fmtDate(reservationEndsAt(o.createdAt, days)) })}
+                          </span>
+                        )}
+                        {resa?.released && resa.released !== 'vendue' && (
+                          <span className="max-w-72 text-[11px] text-muted-foreground">
+                            {fill(t(`webOrders.resaReleased_${resa.released}`), { date: fmtDate(resa.releasedAt ? new Date(resa.releasedAt) : null) })}
+                          </span>
+                        )}
+                        {resa?.released === 'vendue' && (
+                          <span className="max-w-72 text-[11px] text-muted-foreground">{t('webOrders.resaReleased_vendue')}</span>
+                        )}
                         {o.needsCheck && <StatusBadge tone="warning" icon={AlertTriangle} label={t('webOrders.toCheck')} />}
                         {o.status === 'erreur' && o.errorMessage && (
                           <span className="max-w-72 text-[11px] text-[var(--danger)]">{o.errorMessage}</span>

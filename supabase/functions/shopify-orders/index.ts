@@ -19,6 +19,9 @@
 // client retrouvé par e-mail ou créé (jamais fusionné), facture + lignes + sortie de stock par
 // record_stock_move + règlement reçu, avoirs des remboursements, cloche « Nouvelle commande web »,
 // traces events. Idempotent : id de commande Shopify unique, un avoir par remboursement Shopify.
+// Commande pas encore payée (virement…) : RÉSERVATION du stock des lignes reliées (mouvements
+// reservation / liberation, _shopify_order_reservations_sync), libérée au paiement (dans la même
+// transaction que la facture), à l'annulation ou à l'expiration (réglage société, 7 jours).
 // Aucune écriture vers Shopify. Aucun mail envoyé.
 // deno-lint-ignore-file
 import { identify, activeCompaniesOf, isUuid } from '../_shared/acces.ts';
@@ -26,6 +29,7 @@ import {
   ORDER_FIELDS, importDecision, mapOrderToSale, mapRefundToCredit, normalizeGraphqlOrder, refundsToApply,
   verifyShopifyHmac, customerFromOrder, zeroAmountRefunds, type InvoiceLine, type LinkedArticle, type ShopOrder,
 } from '../_shared/shopify-order.ts';
+import { reservationDecision } from '../_shared/shopify-reservation.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
@@ -191,6 +195,9 @@ async function buildPayload(companyId: string, o: ShopOrder, via: string) {
       email: o.email, test: o.test,
     },
     decision, via,
+    // Commande pas encore payée : réserver le stock des lignes reliées ; annulée : libérer (carte
+    // « Réserver le stock dès qu'une commande du site est passée »). Payée : l'import libère.
+    reservation: reservationDecision(o),
     customer: customerFromOrder(o),
     sale,
     // Correspondance ligne Shopify ↔ variante, pour relier après coup (« à relier »).
@@ -304,7 +311,7 @@ Deno.serve(async (req) => {
         out.push({
           name: o.name, created_at: o.createdAt, financial_status: o.financialStatus, cancelled: !!o.cancelledAt,
           test: o.test, taxes_included: o.taxesIncluded, total: o.total, has_email: !!o.email, has_customer: !!o.customer,
-          decision: importDecision(o), gateways: [...new Set(o.transactions.map((t) => t.gateway))],
+          decision: importDecision(o), reservation: reservationDecision(o), gateways: [...new Set(o.transactions.map((t) => t.gateway))],
           refunds: o.refunds.map((r) => ({ amount: r.amount, lines: r.lines.length, restock: r.lines.filter((l) => l.restock).length })),
           lines: sale.lines.map((l) => ({ kind: l.kind, linked: !!l.articleId, ref: l.reference, q: l.quantity, vat: l.vatRate, disc: l.discountPct, ht: l.lineHt, ttc: l.lineTtc })),
           total_ht: sale.totalHt, total_ttc: sale.totalTtc, forced: sale.forcedTtc, unlinked: sale.unlinked,

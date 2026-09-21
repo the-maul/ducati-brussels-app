@@ -4,12 +4,33 @@
  * facture du DMS, bouton « Réessayer » ; réglage société « Import des commandes du site ».
  * Les écritures sont faites par la fonction serveur shopify-orders (clé de service) et la fonction
  * SQL _shopify_order_apply (migration 20260921120000). Rien n'est écrit dans Shopify.
+ * Carte « Réserver le stock dès qu'une commande du site est passée, même non payée » (migration
+ * 20260921150000) : une commande pas encore payée réserve le stock de ses lignes reliées
+ * (shopify_order_reservations) ; affichée « Réservée (en attente de paiement) ».
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { StatusTone } from '@/components/status-badge';
 
 export type WebOrderImportStatus = 'importee' | 'a_relier' | 'erreur' | 'en_attente' | 'annulee' | 'ignoree';
 export const WEB_ORDER_STATUSES: readonly WebOrderImportStatus[] = ['importee', 'a_relier', 'erreur', 'en_attente', 'annulee', 'ignoree'];
+
+/** Statut affiché : « Pas encore payée » devient « Réservée (en attente de paiement) » tant que du stock est réservé. */
+export type WebOrderDisplayStatus = WebOrderImportStatus | 'reservee';
+export const WEB_ORDER_DISPLAY_STATUSES: readonly WebOrderDisplayStatus[] = ['importee', 'a_relier', 'erreur', 'reservee', 'en_attente', 'annulee', 'ignoree'];
+
+export type WebOrderReservationStatus = 'active' | 'vendue' | 'annulee' | 'expiree';
+/** Synthèse des réservations de stock d'une commande (une ligne par ligne de commande reliée). */
+export type WebOrderReservation = {
+  /** Quantité encore réservée (toutes lignes). */
+  activeQty: number;
+  /** État de la dernière libération si plus rien n'est réservé (vendue, annulée, expirée), sinon null. */
+  released: WebOrderReservationStatus | null;
+  releasedAt: string | null;
+  releaseReason: string | null;
+};
+
+/** Durée par défaut d'une réservation (jours), réglable par société. */
+export const DEFAULT_RESERVATION_DAYS = 7;
 
 /** Rôles qui voient l'écran et la cloche « Nouvelle commande web » (filtré aussi en base). */
 export const WEB_ORDER_ROLES = ['admin', 'vendeur'] as const;
@@ -36,20 +57,22 @@ export type WebOrder = {
   contactName: string | null;
   contactCreated: boolean;
   lines: WebOrderLine[];
+  reservation: WebOrderReservation | null;
   credits: { id: string; number: string | null; amount: number }[];
   lastAttemptAt: string | null;
 };
 
-export type WebOrderSettings = { importEnabled: boolean; enabledAt: string | null; lastCatchupAt: string | null };
+export type WebOrderSettings = { importEnabled: boolean; enabledAt: string | null; lastCatchupAt: string | null; reservationDays: number };
 
 const n = (v: unknown): number | null => (v == null ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
 /** Couleur + icône (choisie par l'écran) + libellé : jamais le rouge Ducati pour un statut. */
-export function webOrderTone(s: WebOrderImportStatus): StatusTone {
+export function webOrderTone(s: WebOrderDisplayStatus): StatusTone {
   switch (s) {
     case 'importee': return 'success';
     case 'a_relier': return 'warning';
     case 'erreur': return 'danger';
+    case 'reservee': return 'info';
     case 'en_attente': return 'info';
     default: return 'neutral';
   }
@@ -60,10 +83,38 @@ export function canRetry(o: Pick<WebOrder, 'status'>): boolean {
   return o.status === 'erreur' || o.status === 'a_relier' || o.status === 'en_attente';
 }
 
-export function countByStatus(rows: Pick<WebOrder, 'status' | 'needsCheck'>[]): Record<WebOrderImportStatus | 'a_verifier', number> {
-  const out = { importee: 0, a_relier: 0, erreur: 0, en_attente: 0, annulee: 0, ignoree: 0, a_verifier: 0 };
+/** « Réservée (en attente de paiement) » : pas encore payée et du stock encore réservé. */
+export function displayStatus(o: Pick<WebOrder, 'status' | 'reservation'>): WebOrderDisplayStatus {
+  return o.status === 'en_attente' && (o.reservation?.activeQty ?? 0) > 0 ? 'reservee' : o.status;
+}
+
+/** Réservations d'une commande → synthèse (quantité encore réservée, dernière libération). */
+export function summarizeReservations(
+  rows: { status: string; reserved_qty: number | string | null; released_at: string | null; release_reason: string | null }[],
+): WebOrderReservation | null {
+  if (!rows.length) return null;
+  const activeQty = rows.filter((r) => r.status === 'active').reduce((s, r) => s + Number(r.reserved_qty ?? 0), 0);
+  const last = rows.filter((r) => r.status !== 'active' && r.released_at)
+    .sort((a, b) => (a.released_at! < b.released_at! ? 1 : -1))[0];
+  return {
+    activeQty,
+    released: activeQty > 0 || !last ? null : (last.status as WebOrderReservationStatus),
+    releasedAt: activeQty > 0 || !last ? null : last.released_at,
+    releaseReason: activeQty > 0 || !last ? null : last.release_reason,
+  };
+}
+
+/** Fin de la réservation : date de la commande + durée réglée. */
+export function reservationEndsAt(createdAt: string | null, days: number): Date | null {
+  if (!createdAt) return null;
+  const t = Date.parse(createdAt);
+  return Number.isFinite(t) ? new Date(t + days * 24 * 3600 * 1000) : null;
+}
+
+export function countByStatus(rows: Pick<WebOrder, 'status' | 'needsCheck' | 'reservation'>[]): Record<WebOrderDisplayStatus | 'a_verifier', number> {
+  const out = { importee: 0, a_relier: 0, erreur: 0, reservee: 0, en_attente: 0, annulee: 0, ignoree: 0, a_verifier: 0 };
   for (const r of rows) {
-    out[r.status] += 1;
+    out[displayStatus(r)] += 1;
     if (r.needsCheck) out.a_verifier += 1;
   }
   return out;
@@ -83,6 +134,7 @@ export async function listWebOrders(companyId: string, limit = 200): Promise<Web
       document:documents!shopify_orders_document_id_fkey(number),
       contact:contacts!shopify_orders_contact_id_fkey(company_name, first_name, last_name),
       shopify_order_lines(shopify_line_id, title, sku, quantity, article_id),
+      shopify_order_reservations(status, reserved_qty, released_at, release_reason),
       shopify_order_refunds(credit_note_id, amount, credit:documents!shopify_order_refunds_credit_note_id_fkey(number))`)
     .eq('company_id', companyId)
     .order('shopify_created_at', { ascending: false, nullsFirst: false })
@@ -110,6 +162,7 @@ export async function listWebOrders(companyId: string, limit = 200): Promise<Web
     lines: (r.shopify_order_lines ?? []).map((l) => ({
       shopifyLineId: l.shopify_line_id, title: l.title, sku: l.sku, quantity: Number(l.quantity), articleId: l.article_id,
     })),
+    reservation: summarizeReservations(r.shopify_order_reservations ?? []),
     credits: (r.shopify_order_refunds ?? []).filter((c) => c.credit_note_id).map((c) => ({
       id: c.credit_note_id as string, number: c.credit?.number ?? null, amount: Number(c.amount),
     })),
@@ -120,11 +173,20 @@ export async function listWebOrders(companyId: string, limit = 200): Promise<Web
 export async function getWebOrderSettings(companyId: string): Promise<WebOrderSettings> {
   const { data, error } = await supabase
     .from('shopify_order_settings')
-    .select('import_enabled, enabled_at, last_catchup_at')
+    .select('import_enabled, enabled_at, last_catchup_at, reservation_days')
     .eq('company_id', companyId)
     .maybeSingle();
   if (error) throw error;
-  return { importEnabled: !!data?.import_enabled, enabledAt: data?.enabled_at ?? null, lastCatchupAt: data?.last_catchup_at ?? null };
+  return {
+    importEnabled: !!data?.import_enabled, enabledAt: data?.enabled_at ?? null, lastCatchupAt: data?.last_catchup_at ?? null,
+    reservationDays: data?.reservation_days ?? DEFAULT_RESERVATION_DAYS,
+  };
+}
+
+/** Durée de réservation d'une commande non payée, 1 à 60 jours (administrateurs, tracé dans events). */
+export async function setWebOrderReservationDays(companyId: string, days: number): Promise<void> {
+  const { error } = await supabase.rpc('shopify_orders_set_reservation_days', { _company: companyId, _days: days });
+  if (error) throw error;
 }
 
 /** Arrêté / Actif (administrateurs, tracé dans events). */
