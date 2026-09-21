@@ -45,10 +45,9 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 | 1 | Vérifier l'accès et mesurer le catalogue sur un modèle | ne rien lancer en masse sans mesurer | ✅ fait le 21/09 (§2) |
 | 2 | Importer les modèles Ducati par année | « connaître à 100 % la moto » | 🟦 fait le 21/09, à valider : tables, fonctions, chargeur, écran (§5) ; données à charger après l'extraction. Le lien avec le décodage VIN (`ducati_vds`, `ducati_vin_facts`) relève de la carte 4 |
 | 3 | Importer les vues éclatées et les pièces de chaque modèle | savoir quelles pièces vont sur quelle moto | 🟦 fait le 21/09, à valider : planches + repères + pièces, article du DMS retrouvé par la référence (sans créer d'article) ; le prix du tarif importé fait foi (§5) |
-| 3 bis | Importer les catalogues accessoires et vêtements Ducati | relier les produits Shopify « 98… » (1 994 sans article) | 🟦 base prête le 21/09 (tables, fonctions, recherche par référence) ; chargeur à brancher sur le format de fichier annoncé (§5) |
 | 4 | Reconnaître exactement la moto du client par son VIN | « quand le client s'inscrit, tout est lié » | fiche moto, borne, espace client, motos déclarées (mission 04) ; rattachement en lot des 3 299 motos |
 | 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | devis/OR : planches de SA variante, clic sur un repère = ligne |
-| 7 | Importer les catalogues accessoires et vêtements Ducati | 1 994 produits Shopify « 98… » absents du DMS (mission 03, Q5) | même extension ; API `api/accessories/…` (catégories, familles propres, fiches produit) et `api/apparel/…` (catégories, familles, genres) ; relie ensuite les produits Shopify (W-6) |
+| 7 | Importer les catalogues accessoires et vêtements Ducati | 1 994 produits Shopify « 98… » absents du DMS (mission 03, Q5) | 🟦 base prête le 21/09 (tables, fonctions, recherche par référence, §5) ; API relevée (listes `POST …/product/list`, fiches `POST …/product/detail/{code}`) ; chargeur à brancher sur le format de fichier annoncé ; relier les produits Shopify = carte proposée (W-6) |
 | 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | relecture ciblée (drapeau `updated` de l'API) |
 
 ## 4. Décisions (Simon, 21/09)
@@ -68,7 +67,7 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 
 ## 5. Ce qui a changé dans l'application
 
-### 21/09 — Cartes 2 et 3 (+ base de la carte 3 bis)
+### 21/09 — Cartes 2 et 3 (+ base de la carte 7)
 
 **Pour l'utilisateur**
 - **Pièces & Accessoires → Catalogue Ducati** (`/parts/catalog`) : onglet **Parcourir** (famille → modèle
@@ -78,7 +77,7 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
   correspondant** (lien vers la fiche) et sa **disponibilité** (disponible / en commande / à commander,
   même calcul que les ventes). Onglet **État de l'import** : compteurs (modèles, modèles-années complets,
   vues, lignes, références) et lots d'import (qui, quand, état, compteurs, dernière activité, message).
-- Premier remplissage par **fichiers d'extraction + chargeur** (décision M-16) : guide
+- Premier remplissage par **fichiers d'extraction + chargeur** (décision M-17) : guide
   [`guides/catalogue-ducati.md`](../guides/catalogue-ducati.md).
 - **Extension Chrome** : bouton « Importer le catalogue » sur l'e-catalog (liste Europe / depuis 2000
   modifiable, import en série ~1 page/s, pause, reprise après fermeture, arrêt sur 401/403/429 ou
@@ -92,7 +91,7 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
   repères, liaison planche ↔ modèle-année, lignes, fiche par référence avec prix info),
   `20260921102000_m2_catalogue_ducati_accessoires_vetements`, `20260921103000_m2_catalogue_ducati_chargeur`
   (lots « chargeur » par clé de service, `name`, `item_id`, import groupé, recalcul « complet »).
-- Tables **globales** (décision M-18), lecture équipe (`ducati_catalog_is_staff`), écriture uniquement par
+- Tables **globales** (décision M-19), lecture équipe (`ducati_catalog_is_staff`), écriture uniquement par
   les fonctions `ducati_catalog_*` (security definer ; admin de la société ou clé de service). Traces
   `events` par **lot** (démarrage, arbre reçu, pause, reprise, arrêt, erreur, fin), jamais par ligne.
 - **Dédoublonnage** : une planche partagée n'est stockée qu'une fois (id Ducati) ; l'import d'un

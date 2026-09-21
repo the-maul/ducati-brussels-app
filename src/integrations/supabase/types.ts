@@ -2585,6 +2585,7 @@ export type Database = {
           end_date: string | null
           has_tempario: boolean | null
           id: number
+          item_id: string | null
           line_no: number
           notes: string | null
           part_notes: string | null
@@ -2603,6 +2604,7 @@ export type Database = {
           end_date?: string | null
           has_tempario?: boolean | null
           id?: never
+          item_id?: string | null
           line_no: number
           notes?: string | null
           part_notes?: string | null
@@ -2621,6 +2623,7 @@ export type Database = {
           end_date?: string | null
           has_tempario?: boolean | null
           id?: never
+          item_id?: string | null
           line_no?: number
           notes?: string | null
           part_notes?: string | null
@@ -2858,6 +2861,7 @@ export type Database = {
           groups_loaded_at: string | null
           id: string
           model_id: string
+          name: string | null
           path: string | null
           sort: number | null
           updated_at: string
@@ -2870,6 +2874,7 @@ export type Database = {
           groups_loaded_at?: string | null
           id: string
           model_id: string
+          name?: string | null
           path?: string | null
           sort?: number | null
           updated_at?: string
@@ -2882,6 +2887,7 @@ export type Database = {
           groups_loaded_at?: string | null
           id?: string
           model_id?: string
+          name?: string | null
           path?: string | null
           sort?: number | null
           updated_at?: string
@@ -5408,6 +5414,279 @@ export type Database = {
           },
         ]
       }
+      shopify_order_lines: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          created_at: string
+          document_line_id: string | null
+          id: string
+          linked_at: string | null
+          quantity: number
+          shopify_line_id: string
+          shopify_order_id: string
+          sku: string | null
+          stock_moved: boolean
+          title: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          document_line_id?: string | null
+          id?: string
+          linked_at?: string | null
+          quantity: number
+          shopify_line_id: string
+          shopify_order_id: string
+          sku?: string | null
+          stock_moved?: boolean
+          title?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          document_line_id?: string | null
+          id?: string
+          linked_at?: string | null
+          quantity?: number
+          shopify_line_id?: string
+          shopify_order_id?: string
+          sku?: string | null
+          stock_moved?: boolean
+          title?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_document_line_id_fkey"
+            columns: ["document_line_id"]
+            isOneToOne: false
+            referencedRelation: "document_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_lines_order_fk"
+            columns: ["company_id", "shopify_order_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_orders"
+            referencedColumns: ["company_id", "shopify_order_id"]
+          },
+        ]
+      }
+      shopify_order_refunds: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          credit_note_id: string | null
+          id: string
+          shopify_order_id: string
+          shopify_refund_id: string
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          credit_note_id?: string | null
+          id?: string
+          shopify_order_id: string
+          shopify_refund_id: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          credit_note_id?: string | null
+          id?: string
+          shopify_order_id?: string
+          shopify_refund_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_refunds_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_refunds_credit_note_id_fkey"
+            columns: ["credit_note_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_order_refunds_order_fk"
+            columns: ["company_id", "shopify_order_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_orders"
+            referencedColumns: ["company_id", "shopify_order_id"]
+          },
+        ]
+      }
+      shopify_order_settings: {
+        Row: {
+          company_id: string
+          enabled_at: string | null
+          import_enabled: boolean
+          last_catchup: Json | null
+          last_catchup_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          enabled_at?: string | null
+          import_enabled?: boolean
+          last_catchup?: Json | null
+          last_catchup_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          enabled_at?: string | null
+          import_enabled?: boolean
+          last_catchup?: Json | null
+          last_catchup_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_order_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_orders: {
+        Row: {
+          attempts: number
+          cancelled_at: string | null
+          check_reason: string | null
+          company_id: string
+          contact_created: boolean
+          contact_id: string | null
+          created_at: string
+          currency: string | null
+          document_id: string | null
+          email: string | null
+          error_message: string | null
+          financial_status: string | null
+          first_via: string | null
+          id: string
+          import_status: string
+          imported_at: string | null
+          last_attempt_at: string | null
+          last_via: string | null
+          needs_check: boolean
+          order_name: string | null
+          shopify_created_at: string | null
+          shopify_order_id: string
+          total_ttc: number | null
+          updated_at: string
+          warnings: Json | null
+        }
+        Insert: {
+          attempts?: number
+          cancelled_at?: string | null
+          check_reason?: string | null
+          company_id: string
+          contact_created?: boolean
+          contact_id?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          email?: string | null
+          error_message?: string | null
+          financial_status?: string | null
+          first_via?: string | null
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          last_attempt_at?: string | null
+          last_via?: string | null
+          needs_check?: boolean
+          order_name?: string | null
+          shopify_created_at?: string | null
+          shopify_order_id: string
+          total_ttc?: number | null
+          updated_at?: string
+          warnings?: Json | null
+        }
+        Update: {
+          attempts?: number
+          cancelled_at?: string | null
+          check_reason?: string | null
+          company_id?: string
+          contact_created?: boolean
+          contact_id?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          email?: string | null
+          error_message?: string | null
+          financial_status?: string | null
+          first_via?: string | null
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          last_attempt_at?: string | null
+          last_via?: string | null
+          needs_check?: boolean
+          order_name?: string | null
+          shopify_created_at?: string | null
+          shopify_order_id?: string
+          total_ttc?: number | null
+          updated_at?: string
+          warnings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_orders_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shopify_products: {
         Row: {
           barcode: string | null
@@ -5475,6 +5754,234 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shopify_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_published_media: {
+        Row: {
+          article_id: string | null
+          attachment_id: string
+          company_id: string
+          pushed_at: string
+          shopify_product_id: string
+        }
+        Insert: {
+          article_id?: string | null
+          attachment_id: string
+          company_id: string
+          pushed_at?: string
+          shopify_product_id: string
+        }
+        Update: {
+          article_id?: string | null
+          attachment_id?: string
+          company_id?: string
+          pushed_at?: string
+          shopify_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_published_media_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_published_media_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_published_media_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_log: {
+        Row: {
+          actor_id: string | null
+          article_id: string | null
+          company_id: string
+          created_at: string
+          detail: string | null
+          id: number
+          kind: string
+          price_before: number | null
+          price_sent: number | null
+          qty_before: number | null
+          qty_sent: number | null
+          shopify_product_id: string | null
+          shopify_variant_id: string | null
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          article_id?: string | null
+          company_id: string
+          created_at?: string
+          detail?: string | null
+          id?: number
+          kind: string
+          price_before?: number | null
+          price_sent?: number | null
+          qty_before?: number | null
+          qty_sent?: number | null
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          status: string
+        }
+        Update: {
+          actor_id?: string | null
+          article_id?: string | null
+          company_id?: string
+          created_at?: string
+          detail?: string | null
+          id?: number
+          kind?: string
+          price_before?: number | null
+          price_sent?: number | null
+          qty_before?: number | null
+          qty_sent?: number | null
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_queue: {
+        Row: {
+          article_id: string
+          attempts: number
+          company_id: string
+          id: number
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          reasons: string[]
+          requested_at: string
+        }
+        Insert: {
+          article_id: string
+          attempts?: number
+          company_id: string
+          id?: number
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          reasons?: string[]
+          requested_at?: string
+        }
+        Update: {
+          article_id?: string
+          attempts?: number
+          company_id?: string
+          id?: number
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          reasons?: string[]
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_queue_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_settings: {
+        Row: {
+          company_id: string
+          mode: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          mode?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          mode?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_trial: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          article_id: string
+          company_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          article_id: string
+          company_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          article_id?: string
+          company_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_trial_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_trial_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -6689,6 +7196,80 @@ export type Database = {
           web_title: string
         }[]
       }
+      _shopify_enqueue: {
+        Args: { _article: string; _company: string; _reason: string }
+        Returns: boolean
+      }
+      _shopify_order_apply: {
+        Args: { _company: string; _payload: Json }
+        Returns: Json
+      }
+      _shopify_order_mark_error: {
+        Args: {
+          _company: string
+          _created_at: string
+          _email: string
+          _message: string
+          _order_id: string
+          _order_name: string
+          _total: number
+          _via: string
+        }
+        Returns: undefined
+      }
+      _shopify_orders_catchup_done: {
+        Args: { _at: string; _company: string; _stats: Json }
+        Returns: undefined
+      }
+      _shopify_publish_context: {
+        Args: { _article: string; _company: string }
+        Returns: Json
+      }
+      _shopify_publish_record: {
+        Args: {
+          _action: string
+          _actor: string
+          _article: string
+          _company: string
+          _detail: string
+          _handle: string
+          _media: string[]
+          _ok: boolean
+          _price: number
+          _product: string
+          _product_status: string
+          _qty: number
+          _sku: string
+          _title: string
+          _variant: string
+        }
+        Returns: undefined
+      }
+      _shopify_push_claim: {
+        Args: { _articles?: string[]; _company: string; _limit: number }
+        Returns: {
+          article_id: string
+          mgmt_type: string
+          queue_id: number
+          real_qty: number
+          reasons: string[]
+          reference: string
+          requested_at: string
+          reserved_qty: number
+          round_up: boolean
+          sale_price_ht: number
+          sale_price_ttc: number
+          shopify_product_id: string
+          shopify_variant_id: string
+          vat_rate: number
+        }[]
+      }
+      _shopify_push_companies: { Args: never; Returns: string[] }
+      _shopify_push_done: {
+        Args: { _actor?: string; _company: string; _results: Json }
+        Returns: Json
+      }
+      _shopify_sync_mode: { Args: { _company: string }; Returns: string }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
@@ -7411,6 +7992,10 @@ export type Database = {
         Args: { _company: string; _model_years_total: number; _scope: Json }
         Returns: string
       }
+      ducati_catalog_batch_start_loader: {
+        Args: { _model_years_total: number; _scope: Json }
+        Returns: string
+      }
       ducati_catalog_drawing_lines: {
         Args: { _company: string; _drawing_id: string }
         Returns: {
@@ -7455,6 +8040,10 @@ export type Database = {
         Args: { _batch: string; _groups: Json; _model_year_id: string }
         Returns: Json
       }
+      ducati_catalog_ingest_model_years: {
+        Args: { _batch: string; _items: Json }
+        Returns: Json
+      }
       ducati_catalog_ingest_products: {
         Args: { _batch: string; _products: Json }
         Returns: Json
@@ -7489,6 +8078,10 @@ export type Database = {
           size: string
           sku: string
         }[]
+      }
+      ducati_catalog_refresh_completeness: {
+        Args: { _batch: string }
+        Returns: Json
       }
       ducati_catalog_stats: { Args: never; Returns: Json }
       enqueue_label: {
@@ -8322,6 +8915,10 @@ export type Database = {
           reversal: number
         }[]
       }
+      shopify_article_site_status: {
+        Args: { _article: string; _company: string }
+        Returns: Json
+      }
       shopify_link_suggestions: {
         Args: { _company: string; _variant: string }
         Returns: {
@@ -8335,6 +8932,24 @@ export type Database = {
       shopify_link_variant: {
         Args: { _article: string; _company: string; _variant: string }
         Returns: undefined
+      }
+      shopify_orders_set_import: {
+        Args: { _company: string; _enabled: boolean }
+        Returns: {
+          company_id: string
+          enabled_at: string | null
+          import_enabled: boolean
+          last_catchup: Json | null
+          last_catchup_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shopify_order_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       shopify_products_overview: {
         Args: { _company: string }
@@ -8363,6 +8978,20 @@ export type Database = {
       }
       shopify_set_variant_decision: {
         Args: { _company: string; _decision: string; _variant: string }
+        Returns: undefined
+      }
+      shopify_sync_resync_all: { Args: { _company: string }; Returns: number }
+      shopify_sync_set_mode: {
+        Args: { _company: string; _mode: string }
+        Returns: number
+      }
+      shopify_sync_status: { Args: { _company: string }; Returns: Json }
+      shopify_sync_trial_add: {
+        Args: { _article: string; _company: string }
+        Returns: undefined
+      }
+      shopify_sync_trial_remove: {
+        Args: { _article: string; _company: string }
         Returns: undefined
       }
       signup_precheck: {

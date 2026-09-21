@@ -2,7 +2,7 @@
 
 > Pour : Simon. Mission 06 (catalogue pièces Ducati), cartes « Importer les modèles Ducati par année »
 > et « Importer les vues éclatées et les pièces de chaque modèle ».
-> Décisions M-14 / M-15 (21/09) : accord de Ducati, **Europe seulement, millésimes depuis 2000**,
+> Décisions M-14, M-15, M-17 (21/09) : accord de Ducati, **Europe seulement, millésimes depuis 2000**,
 > lecture avec **votre** session e-catalog, **aucun identifiant Ducati enregistré**.
 
 Il y a deux chemins :

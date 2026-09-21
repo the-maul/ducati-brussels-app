@@ -119,7 +119,7 @@ contrôles écrits dans les fonctions SQL, pas sur le serveur Netlify.
 - **Stock et prix append-only** : `stock_moves`, `price_changes` ; écriture par `record_stock_move` / `record_price_change`.
 - **Numérotation** : `document_sequences` + `next_document_number(_company, _doc_type)`. Séquences par société ; en plus des préfixes de `CLAUDE.md` §4.3, les ventes ont `BL-`, `RES-`, `AVO-` et, depuis le 19/09 (mission 05), **`BC-` (bon de commande client)**, gérables dans Paramètres → Numérotation.
 - **Storage** : `ged` (privé, RLS par société ; exception : images des articles publiables lisibles anonymement pour la vitrine, politique `ged_public_products`) ; `shop-assets` (public, images du constructeur de site).
-- **Tables de référence globales** (sans `company_id`, exception assumée) : `ducati_vds`, `ducati_vin_facts` et le **catalogue Ducati** `ducati_catalog_*` (mission 06, décision M-18) — lecture équipe, écriture uniquement par fonctions.
+- **Tables de référence globales** (sans `company_id`, exception assumée) : `ducati_vds`, `ducati_vin_facts` et le **catalogue Ducati** `ducati_catalog_*` (mission 06, décision M-19) — lecture équipe, écriture uniquement par fonctions.
 - **Extensions** : `pg_cron` 1.6.4 ; `pg_net` installé dans le schéma `public` (signalé par l'audit Supabase).
 
 ### ⚠️ Dérive dépôt ↔ base
