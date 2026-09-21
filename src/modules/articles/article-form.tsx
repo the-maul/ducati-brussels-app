@@ -260,16 +260,28 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
 }
 
 export function ArticleForm({
-  initial, companyId, status, error, onSubmit, onCancel,
+  initial, preset, companyId, status, error, onSubmit, onCancel,
 }: {
   initial: Article | null;
+  /** Création pré-remplie (ex. depuis le catalogue Ducati) : champs repris, bouton Créer actif d'emblée. */
+  preset?: Partial<Pick<Article, 'reference' | 'designation' | 'mgmt_type'>>;
   companyId: string;
   status: SaveStatus;
   error?: string | null;
   onSubmit: (payload: ArticleInsert) => void;
   onCancel: () => void;
 }) {
-  const [f, setF] = useState<FormState>(() => fromArticle(initial));
+  const [f, setF] = useState<FormState>(() => {
+    const base = fromArticle(initial);
+    if (initial || !preset) return base;
+    return {
+      ...base,
+      reference: preset.reference ?? base.reference,
+      designation: preset.designation ?? base.designation,
+      mgmt_type: preset.mgmt_type ?? base.mgmt_type,
+    };
+  });
+  const presetFilled = !initial && !!preset?.reference;
   // Rien de modifié = rien à enregistrer : le bouton reste grisé.
   const dirty = useIsDirty(f);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -544,7 +556,7 @@ export function ArticleForm({
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
-        <SaveButton type="submit" status={status} disabled={!dirty}>
+        <SaveButton type="submit" status={status} disabled={!dirty && !presetFilled}>
           {initial ? t('articles.save') : t('articles.create')}
         </SaveButton>
       </div>

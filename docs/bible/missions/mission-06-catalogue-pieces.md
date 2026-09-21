@@ -118,6 +118,39 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 **Images** : pas de copie massive. Option ultérieure : copier dans le stockage du DMS **seulement les vues
 utilisées** (devis / OR), au premier usage.
 
+### 21/09 — Catalogue visible et relié aux articles (lot `lot-catalogue-pa`)
+
+Plainte de Simon : « ya pas catalogue… je vois rien », « pas connecté aux produits déjà inscrits ».
+
+**Pour l'utilisateur**
+- **Menu** : « Catalogue Ducati » sous Pièces & Accessoires (mêmes personnes), seule l'entrée la plus précise
+  s'allume.
+- **Vue éclatée** : pour chaque pièce, l'article du DMS (lien vers la fiche, disponibilité, **prix de vente HT**)
+  ou **« Créer l'article »** (pièce stockée A ou non stockée M) → écran Nouvel article pré-rempli (référence,
+  désignation Ducati) ; l'article n'existe qu'après « Créer ».
+- **Fiche article → onglet « Catalogue Ducati »** : motos (famille, modèle, année) et vues où la référence
+  apparaît, 20 par page, Europe d'abord, « Ouvrir la vue » (pièce surlignée).
+- **Recherche Pièces & Accessoires** : une référence sans article propose « Trouvée dans le catalogue Ducati ».
+- **Catalogue** : champ « Référence Ducati » ; l'adresse de la page garde la vue ouverte (liens partageables,
+  bouton Retour du navigateur).
+- **État de l'import** : compteur « Articles reliés ».
+
+**Technique**
+- Migration `20260921170000_m2_catalogue_ducati_liens_articles.sql` — **à appliquer** (essayée en transaction
+  annulée le 21/09) : index `idx_dc_parts_ref_prefix` (recherche « commence par »), vue
+  `ducati_catalog_article_links` (security_invoker), fonctions `ducati_catalog_find_parts`,
+  `ducati_catalog_part_usage` (paginée, `total_count`), `ducati_catalog_article_link_count`. Additive, lecture
+  seule, aucune écriture d'article/stock/prix. Tant qu'elle n'est pas appliquée : l'onglet de la fiche affiche
+  « lien pas encore disponible », l'encadré de recherche et le compteur restent absents ; la vue éclatée
+  (article, disponibilité, prix, « Créer l'article ») fonctionne déjà.
+- Mesures (21/09, rôle authenticated, statement_timeout 8 s) : **45 394 articles actifs reliés sur 81 785**
+  (45 394 références Ducati sur 49 403 ont un article) ; compteur 0,2 s ; pire référence (85250241A, 4 430
+  emplacements) 1,0 s ; recherche 0,01 s ; lignes d'une vue 0,09 s.
+- Code : `src/modules/catalog/part-usage.tsx`, `reference-panel.tsx`, `create-article-button.tsx`,
+  `catalog-search-hint.tsx` ; `src/lib/navigation.ts` (sous-entrée `child`, `activeNavTo`) ; `/parts/new`
+  accepte `?reference=&designation=&mgmt=A|M&from=catalog` ; `/parts/catalog` accepte `?my=&drawing=&ref=&tab=`.
+- Test : `tests/ducati-catalog-article-link.test.ts` (normalisation, détection d'une référence, menu).
+
 ## 5 bis. Cartes proposées (21/09)
 
 - **Créer ou relier les articles DMS depuis le catalogue accessoires et vêtements** (les 1 994 produits

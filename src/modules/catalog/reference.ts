@@ -6,3 +6,9 @@
 export function normalizeCatalogReference(ref: string | null | undefined): string {
   return String(ref ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
+
+/** Une saisie « ressemble à une référence » : au moins 4 caractères utiles dont au moins un chiffre. */
+export function looksLikeReference(q: string): boolean {
+  const k = normalizeCatalogReference(q);
+  return k.length >= 4 && /\d/.test(k);
+}

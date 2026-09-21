@@ -5,15 +5,11 @@
  */
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { mainNav } from '@/lib/navigation';
+import { mainNav, activeNavTo } from '@/lib/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { countUnseenOffers } from '@/modules/tradein/partners-api';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-
-function isActivePath(pathname: string, to: string) {
-  return pathname === to || pathname.startsWith(to + '/');
-}
 
 export function AppSidebar({
   collapsed = false,
@@ -38,7 +34,15 @@ export function AppSidebar({
   const badgeFor = (to: string): number => (to === '/tradein' ? unseenOffers : 0);
   // Filtre par rôle : une entrée sans `roles` est visible par tous ; sinon il faut
   // détenir l'un des rôles requis pour la société active.
-  const items = mainNav.filter((item) => !item.roles || item.roles.some((r) => rolesForActiveCompany.includes(r as (typeof rolesForActiveCompany)[number])));
+  const allowed = (roles?: string[]) => !roles || roles.some((r) => rolesForActiveCompany.includes(r as (typeof rolesForActiveCompany)[number]));
+  // Une sous-entrée hérite des droits de l'entrée parente (celle qui la précède).
+  const items = mainNav.filter((item, i) => {
+    if (!item.child) return allowed(item.roles);
+    let p = i - 1;
+    while (p >= 0 && mainNav[p].child) p--;
+    return allowed(item.roles) && (p < 0 || allowed(mainNav[p].roles));
+  });
+  const activeTo = activeNavTo(pathname, items);
 
   return (
     <aside
@@ -67,7 +71,7 @@ export function AppSidebar({
       {/* Modules */}
       <nav className="flex-1 overflow-y-auto py-2">
         {items.map((item) => {
-          const active = isActivePath(pathname, item.to);
+          const active = item.to === activeTo;
           const Icon = item.icon;
           const badge = badgeFor(item.to);
           return (
@@ -82,6 +86,7 @@ export function AppSidebar({
                 active
                   ? 'border-sidebar-primary bg-sidebar-accent font-medium text-sidebar-foreground'
                   : 'border-transparent text-sidebar-foreground/80',
+                item.child && !collapsed && 'h-9 pl-9 text-[13px]',
                 collapsed && 'justify-center px-0',
               )}
             >

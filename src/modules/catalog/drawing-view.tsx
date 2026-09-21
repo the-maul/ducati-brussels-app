@@ -14,8 +14,10 @@ import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { getCatalogDrawing, listDrawingLines, type CatalogLine } from './api';
 import { fill, fmtMoney, hotspotBox } from './format';
+import { normalizeCatalogReference } from './reference';
+import { CreateArticleButton } from './create-article-button';
 
-export function DrawingView({ drawingId, companyId, onBack }: { drawingId: string; companyId: string | null; onBack: () => void }) {
+export function DrawingView({ drawingId, companyId, highlightRef = null, onBack }: { drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void }) {
   const drawing = useQuery({ queryKey: ['ducati-catalog', 'drawing', drawingId], queryFn: () => getCatalogDrawing(drawingId) });
   const lines = useQuery({
     queryKey: ['ducati-catalog', 'lines', companyId, drawingId],
@@ -36,6 +38,16 @@ export function DrawingView({ drawingId, companyId, onBack }: { drawingId: strin
     (lines.data ?? []).forEach((l) => { if (l.position && m[l.position] == null) m[l.position] = l.line_no; });
     return m;
   }, [lines.data]);
+
+  // Lien direct depuis une référence (fiche article, recherche) : surligner sa ligne.
+  const target = highlightRef ? normalizeCatalogReference(highlightRef) : '';
+  useEffect(() => {
+    if (!target || !lines.data) return;
+    const l = lines.data.find((x) => x.reference_norm === target);
+    if (!l) return;
+    if (l.position) setSelected(l.position);
+    setTimeout(() => rowRefs.current[String(l.line_no)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }, [target, lines.data]);
 
   const pick = (pos: string) => {
     setSelected(pos);
@@ -107,12 +119,13 @@ export function DrawingView({ drawingId, companyId, onBack }: { drawingId: strin
                   <TableHead className="text-right">{t('catalog.colQty')}</TableHead>
                   <TableHead className="text-right" title={t('catalog.colPriceHint')}>{t('catalog.colPrice')}</TableHead>
                   <TableHead>{t('catalog.colArticle')}</TableHead>
+                  <TableHead className="text-right" title={t('catalog.salePriceHint')}>{t('catalog.colSalePrice')}</TableHead>
                   <TableHead>{t('catalog.colDispo')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(lines.data ?? []).map((l) => (
-                  <LineRow key={l.line_no} l={l} selected={!!selected && l.position === selected}
+                  <LineRow key={l.line_no} l={l} selected={(!!selected && l.position === selected) || (!!target && l.reference_norm === target)}
                     onPick={() => l.position && setSelected(l.position)}
                     refCb={(el) => { rowRefs.current[String(l.line_no)] = el; }} />
                 ))}
@@ -151,10 +164,13 @@ function LineRow({ l, selected, onPick, refCb }: { l: CatalogLine; selected: boo
           <Link to="/parts/$articleId" params={{ articleId: l.article_id }} className="text-info hover:underline" onClick={(e) => e.stopPropagation()}>
             {l.article_reference} · {l.article_designation}
           </Link>
+        ) : l.reference ? (
+          <CreateArticleButton reference={l.reference} designation={l.description} />
         ) : (
           <span className="text-muted-foreground">{t('catalog.noArticle')}</span>
         )}
       </TableCell>
+      <TableCell className="whitespace-nowrap text-right tabular-nums">{l.article_id ? fmtMoney(l.article_sale_price_ht) : ''}</TableCell>
       <TableCell>{status && <SaleStockBadge status={status} free={free} />}</TableCell>
     </TableRow>
   );

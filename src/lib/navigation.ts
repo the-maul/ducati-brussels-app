@@ -24,6 +24,7 @@ import {
   Wallet,
   type LucideIcon,
   Globe,
+  BookOpen,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -36,6 +37,8 @@ export type NavItem = {
   roles?: string[];
   /** entrée de développement (démo charte) */
   dev?: boolean;
+  /** sous-entrée (affichée en retrait sous l'entrée qui la précède, mêmes droits) */
+  child?: boolean;
 };
 
 export const mainNav: NavItem[] = [
@@ -44,6 +47,8 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
+  // Mission 06 : le catalogue Ducati, sous Pièces & Accessoires (mêmes rôles que l'entrée parente).
+  { labelKey: 'nav.partsCatalog', to: '/parts/catalog', icon: BookOpen, child: true },
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
   { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
@@ -59,3 +64,15 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, roles: ['admin'] },
   { labelKey: 'nav.demo', to: '/demo', icon: Palette, dev: true },
 ];
+
+/**
+ * Entrée active = celle dont le chemin correspond le plus précisément (évite que
+ * « Pièces & Accessoires » reste allumé quand on est dans « Catalogue Ducati »).
+ */
+export function activeNavTo(pathname: string, items: NavItem[]): string | null {
+  let best: string | null = null;
+  for (const it of items) {
+    if ((pathname === it.to || pathname.startsWith(it.to + '/')) && (!best || it.to.length > best.length)) best = it.to;
+  }
+  return best;
+}

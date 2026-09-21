@@ -114,6 +114,54 @@ export async function listDrawingLines(companyId: string, drawingId: string): Pr
 }
 
 // ------------------------------------------------------------------------------------------
+// Lien catalogue ↔ articles du DMS (référence normalisée, migration 20260921170000)
+// ------------------------------------------------------------------------------------------
+export type CatalogPartHit = {
+  reference: string; reference_norm: string; description: string | null; catalog_price_ht: number | null;
+  replaced: boolean | null; replaced_part: string | null;
+  article_id: string | null; article_reference: string | null; article_designation: string | null;
+};
+export type CatalogUsageRow = {
+  model_year_id: string; year: number | null; model_year_code: string | null;
+  model_id: string; model_description: string; is_europe: boolean; family_description: string | null;
+  drawing_id: string; drawing_code: string | null; drawing_description: string | null; group_description: string | null;
+  position: string | null; quantity: number | null; total_count: number;
+};
+
+/** Références du catalogue égales à / commençant par la saisie (≥ 4 caractères utiles) + article DMS. */
+export async function findCatalogParts(companyId: string, q: string, limit = 10): Promise<CatalogPartHit[]> {
+  const { data, error } = await supabase.rpc('ducati_catalog_find_parts', { _company: companyId, _q: q, _limit: limit });
+  if (error) throw error;
+  return (data ?? []) as unknown as CatalogPartHit[];
+}
+
+/** Modèles-années et vues éclatées où la référence apparaît (paginé côté base). */
+export async function listPartUsage(reference: string, limit: number, offset: number): Promise<{ rows: CatalogUsageRow[]; total: number }> {
+  const { data, error } = await supabase.rpc('ducati_catalog_part_usage', { _reference: reference, _limit: limit, _offset: offset });
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as CatalogUsageRow[];
+  return { rows, total: rows.length ? Number(rows[0].total_count) : 0 };
+}
+
+/** Nombre d'articles actifs de la société reliés au catalogue. */
+export async function getArticleLinkCount(companyId: string): Promise<{ articles: number; linked: number }> {
+  const { data, error } = await supabase.rpc('ducati_catalog_article_link_count', { _company: companyId });
+  if (error) throw error;
+  return data as unknown as { articles: number; linked: number };
+}
+
+/** Modèle-année → modèle et famille (ouverture directe d'une vue éclatée depuis un lien). */
+export async function getModelYearContext(modelYearId: string): Promise<{ model_id: string; family_id: string } | null> {
+  const { data, error } = await supabase.from('ducati_catalog_model_years')
+    .select('model_id, model:ducati_catalog_models(family_id)')
+    .eq('id', modelYearId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const m = (data as unknown as { model_id: string; model: { family_id: string } | null });
+  return m.model ? { model_id: m.model_id, family_id: m.model.family_id } : null;
+}
+
+// ------------------------------------------------------------------------------------------
 // Écriture — appelée uniquement par le pont avec l'extension (bridge.ts)
 // ------------------------------------------------------------------------------------------
 export async function catalogImportState(): Promise<Json> {

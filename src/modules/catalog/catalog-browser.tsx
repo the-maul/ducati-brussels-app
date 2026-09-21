@@ -1,7 +1,7 @@
 /**
  * Catalogue Ducati — navigation famille → modèle → millésime → vues éclatées → pièces.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, CheckCircle2, CircleDashed, AlertTriangle, ImageOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,17 +10,37 @@ import { StatusBadge } from '@/components/status-badge';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import {
-  listCatalogFamilies, listCatalogModels, listCatalogModelYears, listModelYearDrawings,
+  listCatalogFamilies, listCatalogModels, listCatalogModelYears, listModelYearDrawings, getModelYearContext,
   type CatalogDrawingRef, type CatalogModelYear,
 } from './api';
 import { DrawingView } from './drawing-view';
+import { CatalogReferencePanel } from './reference-panel';
 
-export function CatalogBrowser({ companyId }: { companyId: string | null }) {
+/** État partagé avec l'adresse de la page (liens directs depuis la fiche article et la recherche). */
+export type CatalogBrowserSearch = { my?: string; drawing?: string; ref?: string };
+
+export function CatalogBrowser({ companyId, search, onSearch }: {
+  companyId: string | null; search: CatalogBrowserSearch; onSearch: (s: CatalogBrowserSearch) => void;
+}) {
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
-  const [modelYearId, setModelYearId] = useState<string | null>(null);
-  const [drawingId, setDrawingId] = useState<string | null>(null);
+  const [modelYearId, setModelYearIdState] = useState<string | null>(search.my ?? null);
+  const drawingId = search.drawing ?? null;
   const [q, setQ] = useState('');
+  const [refQ, setRefQ] = useState('');
+  const setModelYearId = (id: string | null) => { setModelYearIdState(id); onSearch(id ? { my: id } : {}); };
+  const setDrawingId = (id: string | null) => onSearch({ ...(modelYearId ? { my: modelYearId } : {}), ...(id ? { drawing: id } : {}) });
+
+  // Lien direct (?my=…) : retrouver le modèle et la famille pour afficher le bon chemin.
+  const ctx = useQuery({
+    queryKey: ['ducati-catalog', 'my-context', search.my],
+    queryFn: () => getModelYearContext(search.my as string),
+    enabled: !!search.my,
+  });
+  useEffect(() => {
+    if (search.my) setModelYearIdState(search.my);
+    if (ctx.data) { setFamilyId(ctx.data.family_id); setModelId(ctx.data.model_id); }
+  }, [search.my, ctx.data]);
 
   const families = useQuery({ queryKey: ['ducati-catalog', 'families'], queryFn: listCatalogFamilies });
   const models = useQuery({ queryKey: ['ducati-catalog', 'models', familyId], queryFn: () => listCatalogModels(familyId as string), enabled: !!familyId });
@@ -42,13 +62,17 @@ export function CatalogBrowser({ companyId }: { companyId: string | null }) {
     return out;
   }, [drawings.data]);
 
-  if (drawingId) return <DrawingView drawingId={drawingId} companyId={companyId} onBack={() => setDrawingId(null)} />;
+  if (drawingId) return <DrawingView drawingId={drawingId} companyId={companyId} highlightRef={search.ref ?? null} onBack={() => setDrawingId(null)} />;
+  if (search.ref) return <CatalogReferencePanel companyId={companyId} reference={search.ref} onBack={() => onSearch({})} />;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
       {/* Familles et modèles */}
       <div className="space-y-2 rounded-md border border-border bg-card p-3">
-        <Select value={familyId ?? ''} onValueChange={(v) => { setFamilyId(v); setModelId(null); setModelYearId(null); }}>
+        <form onSubmit={(e) => { e.preventDefault(); const k = refQ.trim(); if (k) onSearch({ ref: k }); }}>
+          <Input value={refQ} onChange={(e) => setRefQ(e.target.value)} placeholder={t('catalog.searchRef')} aria-label={t('catalog.searchRef')} />
+        </form>
+        <Select value={familyId ?? ''} onValueChange={(v) => { setFamilyId(v); setModelId(null); if (modelYearId) setModelYearId(null); }}>
           <SelectTrigger><SelectValue placeholder={t('catalog.chooseFamily')} /></SelectTrigger>
           <SelectContent>
             {(families.data ?? []).map((f) => <SelectItem key={f.id} value={f.id}>{f.description}</SelectItem>)}
@@ -60,7 +84,7 @@ export function CatalogBrowser({ companyId }: { companyId: string | null }) {
         <ul className="max-h-[60vh] space-y-0.5 overflow-auto">
           {filteredModels.map((m) => (
             <li key={m.id}>
-              <button type="button" onClick={() => { setModelId(m.id); setModelYearId(null); }}
+              <button type="button" onClick={() => { setModelId(m.id); if (modelYearId) setModelYearId(null); }}
                 className={cn('w-full rounded-[4px] px-2 py-1.5 text-left text-sm hover:bg-muted', modelId === m.id && 'bg-muted font-semibold')}>
                 {m.description}
                 {m.supermodel?.description && <span className="ml-1 text-[12px] text-muted-foreground">{m.supermodel.description}</span>}
