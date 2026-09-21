@@ -3,6 +3,8 @@
  * Le client déclare marque, modèle, année, VIN et plaque (facultatifs) et peut joindre
  * la photo de sa carte grise. La moto n'apparaît dans « Mes motos » qu'après validation
  * par l'équipe ; en attendant, elle est listée « En attente de validation ».
+ * Mission 06, carte 4 : le VIN en premier ; dès qu'il est complet, la moto est reconnue et
+ * marque, modèle et année sont proposés (le client choisit sa version s'il y en a plusieurs).
  */
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +17,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import { declareVehicle, listDeclaredVehicles, uploadDeclarationScan } from './api';
 import { Card, SectionTitle, dateFr, vehicleName } from './ui';
+import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
 /** Motos déclarées, en attente de validation (ou non retenues). */
 export function DeclaredVehiclesCard() {
@@ -90,6 +93,20 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
         <SectionTitle>{t('motoClient.portalAddTitle')}</SectionTitle>
         <p className="text-[12px] text-muted-foreground">{t('motoClient.portalAddHint')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className={field}>{t('motoClient.portalVin')}</Label>
+            <Input value={vin} onChange={(e) => setVin(e.target.value.toUpperCase())} maxLength={25}
+              className="font-mono" autoCapitalize="characters" spellCheck={false} />
+            <p className="text-[12px] text-muted-foreground">{t('motoClient.portalVinHint')}</p>
+            {/* Mission 06 carte 4 : VIN complet → marque, modèle et année proposés (jamais écrasés). */}
+            <VinIdentifyPanel variant="portal" vin={vin}
+              values={{ brand, model, model_year: year }}
+              onApply={(p) => {
+                if (p.brand != null) setBrand(p.brand);
+                if (p.model != null) setModel(p.model);
+                if (p.model_year != null) setYear(p.model_year);
+              }} />
+          </div>
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalBrand')}</Label>
             <Input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} autoComplete="off" />
@@ -106,12 +123,6 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalPlate')}</Label>
             <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} maxLength={15} className="font-mono" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className={field}>{t('motoClient.portalVin')}</Label>
-            <Input value={vin} onChange={(e) => setVin(e.target.value.toUpperCase())} maxLength={25}
-              className="font-mono" autoCapitalize="characters" spellCheck={false} />
-            <p className="text-[12px] text-muted-foreground">{t('motoClient.portalVinHint')}</p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className={field}>{t('motoClient.portalCg')}</Label>

@@ -45,7 +45,7 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 | 1 | Vérifier l'accès et mesurer le catalogue sur un modèle | ne rien lancer en masse sans mesurer | ✅ fait le 21/09 (§2) |
 | 2 | Importer les modèles Ducati par année | « connaître à 100 % la moto » | 🟦 fait le 21/09, à valider : tables, fonctions, chargeur, écran (§5) ; données à charger après l'extraction. Le lien avec le décodage VIN (`ducati_vds`, `ducati_vin_facts`) relève de la carte 4 |
 | 3 | Importer les vues éclatées et les pièces de chaque modèle | savoir quelles pièces vont sur quelle moto | 🟦 fait le 21/09, à valider : planches + repères + pièces, article du DMS retrouvé par la référence (sans créer d'article) ; le prix du tarif importé fait foi (§5) |
-| 4 | Reconnaître exactement la moto du client par son VIN | « quand le client s'inscrit, tout est lié » | fiche moto, borne, espace client, motos déclarées (mission 04) ; rattachement en lot des 3 299 motos |
+| 4 | Reconnaître exactement la moto du client par son VIN | « quand le client s'inscrit, tout est lié » | 🟦 fait le 21/09, à valider (§5, migration `20260921210000` à appliquer) : reconnaissance hors ligne, remplissage sur fiche moto, reprise, espace client ; 2 974 motos déjà rattachées par l'e-catalog |
 | 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | devis/OR : planches de SA variante, clic sur un repère = ligne |
 | 7 | Importer les catalogues accessoires et vêtements Ducati | 1 994 produits Shopify « 98… » absents du DMS (mission 03, Q5) | 🟦 base prête le 21/09 (tables, fonctions, recherche par référence, §5) ; API relevée (listes `POST …/product/list`, fiches `POST …/product/detail/{code}`) ; chargeur à brancher sur le format de fichier annoncé ; relier les produits Shopify = carte proposée (W-6) |
 | 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | relecture ciblée (drapeau `updated` de l'API) |
@@ -151,6 +151,41 @@ Plainte de Simon : « ya pas catalogue… je vois rien », « pas connecté aux 
   accepte `?reference=&designation=&mgmt=A|M&from=catalog` ; `/parts/catalog` accepte `?my=&drawing=&ref=&tab=`.
 - Test : `tests/ducati-catalog-article-link.test.ts` (normalisation, détection d'une référence, menu).
 
+### 21/09 — Carte 4 : reconnaître la moto par son VIN (lot `lot-vin`, à valider)
+
+Demande de Simon : « avec le VIN il fait aucun effort… il peut compléter beaucoup plus les infos ».
+
+**Moteur de reconnaissance hors ligne** (le DMS n'interroge pas l'e-catalog) :
+- 3 144 VIN du parc passés dans l'e-catalog, **2 975 reconnus** (2 970 dont le modèle-année est chargé) ;
+  2 974 motos avaient déjà reçu leur `ducati_model_year_id` par ce passage.
+- Table `ducati_vin_patterns` : **797 lignes, 486 motifs** (caractères 1 à 9 + année) → modèle-année,
+  nombre de motos vues, plage de série **arrondie à la centaine**. Aucun VIN complet, aucun client.
+  Table `ducati_vin_model_specs` : cylindrée, kW, CV, cylindres, norme de **577 modèles-années** (valeur la
+  plus fréquente du parc).
+- **Précision mesurée par validation croisée** (chaque VIN retiré puis reconnu avec les autres, 2 970 VIN) :
+  famille **99,4 %**, cylindrée **97,9 %**, version **71,5 %**, modèle-année exact **70,1 %** en premier
+  choix, bon modèle-année **dans la liste proposée 92,2 %**. Par niveau : unique 16,6 % des VIN (94,9 %
+  exact), probable 41,4 % (79,6 %), plusieurs 37,3 % (bon choix dans la liste 95,5 %), modèle 3,0 %,
+  famille 1,1 %, inconnu 0,6 %.
+- Pourquoi pas 100 % : le VIN Ducati code la famille, le moteur et le cadre, **pas la finition** (Scrambler
+  Icon / Classic / Full Throttle / Urban Enduro ont le même descripteur et des n° de série entremêlés).
+  L'e-catalog, lui, consulte la base de production Ducati VIN par VIN.
+- Correction au passage : le 10e caractère `1`…`9` = 2001…2009 (l'ancien décodeur disait 2031…2039).
+
+**À l'écran** : encart « Reconnaissance par le VIN » sous le VIN (fiche moto, moto de client, création depuis
+une moto déclarée, assistant de reprise et modification de reprise, « Ajouter ma moto » de l'espace client) ;
+détail en M03 §4. Côté équipe : liens **Vues éclatées (n)** (`/parts/catalog?my=`) et **Plan d'entretien**.
+Infos de nos factures pour ce VIN exact (couleur, n° moteur, plaque…) reprises automatiquement.
+
+**À l'enregistrement** : déclencheur `trg_vehicles_catalog_from_vin` (confiance unique seulement, trace
+`events`). Sur les 282 motos Ducati du parc encore sans rattachement : 9 unique, 61 probable, 28 plusieurs,
+50 modèle, 10 famille, 124 inconnu (VIN incomplets ou jamais vus).
+
+Fichiers : `src/lib/vin-identify.ts`, `src/modules/vehicles/vin-identify-api.ts`,
+`src/modules/vehicles/vin-identify-panel.tsx`, `tools/vin-patterns/build.ts` (régénère la table et la
+mesure), `tests/vin-identify.test.ts`, migration `20260921210000_m3_vin_reconnaissance.sql` (**à appliquer**).
+Testée hors production (base PostgreSQL locale : même résultat que les fonctions TypeScript sur 3 000 VIN).
+
 ## 5 bis. Cartes proposées (21/09)
 
 - **Créer ou relier les articles DMS depuis le catalogue accessoires et vêtements** (les 1 994 produits
@@ -158,8 +193,10 @@ Plainte de Simon : « ya pas catalogue… je vois rien », « pas connecté aux 
 - **Tenir le catalogue à jour avec l'extension** : essai réel de l'extension sur quelques modèles, puis
   relecture ciblée des nouveaux millésimes (drapeau `updated` de l'API) — ex-carte 6, rendue possible.
 - **Copier dans le DMS les vues éclatées utilisées** (si les images Ducati deviennent inaccessibles).
-- **Rattacher les modèles-années du catalogue au décodage VIN** (`genericSearch` / `modelYearByVin` de
-  l'API) — c'est la carte 4.
+- ~~Rattacher les modèles-années du catalogue au décodage VIN~~ — fait (carte 4, hors ligne).
+- **Enrichir la table des motifs à chaque nouveau VIN reconnu** (extension My Ducati : `modelYearByVin` pour
+  les VIN « plusieurs » / « inconnu », puis relance de `tools/vin-patterns/build.ts`).
+- **Champ VIN à la borne et à l'inscription en ligne** (aujourd'hui famille / modèle / année seulement).
 
 ## 6. Risques
 

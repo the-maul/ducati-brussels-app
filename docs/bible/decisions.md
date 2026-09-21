@@ -8,6 +8,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Mission 06, carte 4 : reconnaître la moto par son VIN (choix de réalisation)
+
+- **M-24** — **Reconnaissance du VIN hors ligne**, par une table de correspondance tirée de 2 975 VIN du parc
+  reconnus par l'e-catalog : motif = caractères 1 à 9 + année (10e) → modèle-année du catalogue, avec nombre de
+  motos vues et plage de n° de série **arrondie à la centaine** (aucun VIN complet, aucun lien client).
+  Confiance : **unique** (un seul modèle-année, vu ≥ 5 fois : 94,9 % exact en validation croisée),
+  **probable** (79,6 %), **plusieurs** (liste à choisir), **modèle**, **famille**, **inconnu**. Le VIN ne
+  distingue souvent pas les versions d'un même modèle (Scrambler Icon / Classic / Full Throttle…) : on ne
+  devine jamais une version, on propose la liste. **Seuls les champs vides sont remplis** ; une saisie
+  différente est signalée (« d'après le VIN : … — Utiliser »). **`vehicles.ducati_model_year_id` n'est rempli
+  automatiquement que si la confiance est unique** (déclencheur, `events` `vehicle_catalog_linked`) ; un choix
+  fait à l'écran est tracé (`vehicle_catalog_set`) et **fait foi** : une moto détachée n'est jamais
+  re-rattachée automatiquement. *Simon (« avec le VIN il fait aucun effort », 21/09) · réalisation Équipe 21/09.*
+  [M03](modules/M03-vehicules.md), [mission 06](missions/mission-06-catalogue-pieces.md),
+  [mission 04](missions/mission-04-fiche-client-moto.md)
+
 ## 2026-09-21 — Signature des e-mails et téléphone de la carte CRM (choix de réalisation)
 
 - **P-7** — **Signature des e-mails selon l'adresse d'envoi**, ajoutée **côté serveur** (`graph-send-email`) à

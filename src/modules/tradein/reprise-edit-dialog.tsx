@@ -25,6 +25,7 @@ import {
 import { modelsForBrand } from './moto-specs';
 import type { OroVehicle } from './api';
 import { t } from '@/lib/i18n';
+import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
 const num = (s: string) => { const n = Number(String(s).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
@@ -108,6 +109,22 @@ export function RepriseEditDialog({ open, onOpenChange, vehicle, onSaved }: {
           <Field label={t('tradein.vChassis')}>
             <Input className="font-mono uppercase" maxLength={17} value={f.vin} onChange={(e) => set('vin', e.target.value.toUpperCase())} />
           </Field>
+          {/* Mission 06 carte 4 : châssis complet → modèle, année, cylindrée, puissance proposés. */}
+          <div className="col-span-full">
+            <VinIdentifyPanel
+              vin={f.vin}
+              autoApply={f.vin.trim().toUpperCase() !== (vehicle.vin ?? '').toUpperCase()}
+              values={{ brand: f.brand, model: f.model, model_year: f.year, displacement: f.cc, power_cv: f.powerUnit === 'ch' ? f.power : '' }}
+              onApply={(p) => setF((prev) => ({
+                ...prev,
+                brand: p.brand != null && MOTO_BRANDS.includes(p.brand as (typeof MOTO_BRANDS)[number]) ? p.brand : prev.brand,
+                model: p.model ?? prev.model,
+                year: p.model_year ?? prev.year,
+                cc: p.displacement ?? prev.cc,
+                ...(p.power_cv != null && !prev.power ? { power: p.power_cv, powerUnit: 'ch' as PowerUnit } : {}),
+              }))}
+            />
+          </div>
           <Field label={t('tradein.vEngine')}>
             <Input className="font-mono uppercase" value={f.engine} onChange={(e) => set('engine', e.target.value.toUpperCase())} />
           </Field>

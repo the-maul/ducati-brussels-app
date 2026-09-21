@@ -42,6 +42,7 @@ import {
 import { PhotoEditor } from '@/components/photo-editor';
 import { compressImageFile } from '@/lib/image-tools';
 import { t } from '@/lib/i18n';
+import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
 type Step = 'type' | 'docs' | 'client' | 'existing' | 'new' | 'vehicle' | 'photos' | 'done';
 const num = (s: string) => { const n = Number(String(s).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -570,6 +571,24 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
             <Field label={t('tradein.vChassis')}>
               <Input className="h-12 text-[15px] font-mono uppercase" value={v.chassis} onChange={(e) => setVf('chassis', e.target.value.toUpperCase())} maxLength={17} placeholder={t('tradein.vChassisPlaceholder')} />
             </Field>
+            {/* Mission 06 carte 4 : châssis complet → marque, modèle, année, cylindrée, puissance proposés. */}
+            <div className="sm:col-span-2">
+              <VinIdentifyPanel
+                vin={v.chassis}
+                values={{
+                  brand: v.brand, model: v.model, model_year: v.year, displacement: v.cc,
+                  power_cv: v.powerUnit === 'ch' ? v.power : '',
+                }}
+                onApply={(p) => setV((prev) => ({
+                  ...prev,
+                  brand: p.brand != null && MOTO_BRANDS.includes(p.brand as (typeof MOTO_BRANDS)[number]) ? p.brand : prev.brand,
+                  model: p.model ?? prev.model,
+                  year: p.model_year ?? prev.year,
+                  cc: p.displacement ?? prev.cc,
+                  ...(p.power_cv != null && !prev.power ? { power: p.power_cv, powerUnit: 'ch' as PowerUnit } : {}),
+                }))}
+              />
+            </div>
             <Field label={t('tradein.vEngine')}>
               <Input className="h-12 text-[15px] font-mono uppercase" value={v.engine} onChange={(e) => setVf('engine', e.target.value.toUpperCase())} placeholder={t('tradein.vEnginePlaceholder')} />
             </Field>

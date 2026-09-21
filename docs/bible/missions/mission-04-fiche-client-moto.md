@@ -218,6 +218,13 @@ connu, ex. `ZDM1A02BGMB009261`) ; « Lire la carte grise » avec une vraie carte
 depuis `/mon-espace/motos`, « Ajouter ma moto » avec photo, puis cloche d'un compte vendeur →
 « Motos déclarées à valider » → « Créer la fiche moto » → retour dans l'espace client.
 
+### 21/09 — Reconnaissance par le VIN (mission 06, carte 4)
+
+- « Ajouter ma moto » (espace client) : le **VIN passe en premier** ; dès 17 caractères, la moto est reconnue
+  et **marque, modèle et année** sont proposés (jamais écrasés) ; s'il y a plusieurs versions, le client
+  choisit la sienne. Côté équipe, « Créer la fiche moto » depuis une déclaration reprend le VIN et remplit
+  la fiche (famille, version, cylindrée, puissance, norme, modèle-année du catalogue). Détail : mission 06 §5.
+
 ## 6. Risques
 
 - Reprise G8 : mobiles rangés dans « téléphone » et formes juridiques dans la civilité → proposer, ne pas corriger en masse sans accord.

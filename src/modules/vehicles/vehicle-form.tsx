@@ -11,11 +11,15 @@
  * Mission 04, carte 7 : « Lire la carte grise » (photo ou PDF) → champs pré-remplis et
  * surlignés (lu / à vérifier), jamais d'écrasement d'une saisie ; la photo est rangée
  * dans les documents de la moto (GED). L'employé vérifie avant d'enregistrer.
+ *
+ * Mission 06, carte 4 : dès que le VIN est complet, reconnaissance hors ligne (famille, modèle,
+ * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
+ * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Bike, CheckCircle2, Link2, Loader2, ScanText, Wand2 } from 'lucide-react';
+import { AlertTriangle, Bike, CheckCircle2, Link2, Loader2, ScanSearch, ScanText } from 'lucide-react';
 import { decodeDucatiVin } from '@/lib/ducati-vin';
 import { checkVin, normalizeVin } from '@/lib/vin';
 import { Input } from '@/components/ui/input';
@@ -37,6 +41,16 @@ import {
   type CgConfidence, type CgField, type CgReading, type CgScan,
 } from './carte-grise';
 import { applyCgReading } from './carte-grise-apply';
+import { VinIdentifyPanel, type VinValues } from './vin-identify-panel';
+import { isDucatiFullVin, type VinSuggestKey } from '@/lib/vin-identify';
+
+/** Champs de la fiche remplis par la reconnaissance du VIN (clé métier → champ). */
+const VIN_FIELD: Record<VinSuggestKey, string> = {
+  brand: 'brand', family: 'category', model: 'model', model_year: 'model_year', displacement: 'displacement',
+  power_cv: 'power_cv', power_kw: 'power_kw', cylinders: 'cylinders', antipollution: 'antipollution',
+};
+/** Infos de nos factures pour ce VIN exact (`ducati_vin_facts`) reprises si le champ est vide. */
+const FACT_FIELDS = ['color', 'engine_number', 'plate', 'reference', 'origin', 'mileage', 'first_registration_date', 'warranty_end'] as const;
 
 type F = Record<string, string | boolean>;
 
@@ -45,6 +59,8 @@ const TEXT_FIELDS = [
   'origin','production_code','energy','antipollution',
   'color','category','gps_tracker_id','pin_tracker',
   'tpms_av','tpms_ar','antitheft_code','key_number','key_number2','police_book_number','warranty_type','exposition_code',
+  // Mission 06 carte 4 : modèle-année du catalogue Ducati (reconnu par le VIN ou choisi).
+  'ducati_model_year_id',
 ] as const;
 const NUM_FIELDS = ['displacement','power_kw','power_cv','cylinders','mileage','model_year','purchase_price','cost_price','display_price'] as const;
 const DATE_FIELDS = ['first_registration_date','next_inspection_date','warranty_end','entry_date','sold_date'] as const;
@@ -154,8 +170,11 @@ export function VehicleForm({
   const [scan, setScan] = useState<CgScan | null>(null);
   const cgInput = useRef<HTMLInputElement>(null);
 
+  // Mission 06 carte 4 : champs remplis d'après le VIN (surlignés tant qu'on n'y touche pas).
+  const [vinFilled, setVinFilled] = useState<Set<string>>(() => new Set());
   const set = (k: string, v: string | boolean) => {
     setF((p) => ({ ...p, [k]: v }));
+    setVinFilled((s) => { if (!s.has(k)) return s; const n = new Set(s); n.delete(k); return n; });
     // Champ corrigé ou confirmé par l'employé : plus surligné.
     setCgConf((c) => { if (!(k in c)) return c; const n = { ...c }; delete n[k as CgField]; return n; });
     setCgConflicts((c) => { if (!(k in c)) return c; const n = { ...c }; delete n[k as CgField]; return n; });
@@ -212,11 +231,15 @@ export function VehicleForm({
   /** Surlignage d'un champ lu : bleu = lu net, orange = à vérifier (couleur + icône + libellé). */
   const hl = (k: string) => {
     const c = cgConf[k as CgField];
-    return !c ? '' : c === 'high' ? 'ring-2 ring-info/60' : 'ring-2 ring-warning/70';
+    if (!c) return vinFilled.has(k) ? 'ring-2 ring-info/60' : '';
+    return c === 'high' ? 'ring-2 ring-info/60' : 'ring-2 ring-warning/70';
   };
   const cgHint = (k: string) => {
     const c = cgConf[k as CgField];
     const conflict = cgConflicts[k as CgField];
+    if (!c && !conflict && vinFilled.has(k)) {
+      return <p className="flex items-center gap-1 text-[11px] font-medium text-info"><ScanSearch className="size-3.5" />{t('vinId.filledHint')}</p>;
+    }
     if (!c && !conflict) return null;
     return (
       <>
@@ -237,40 +260,6 @@ export function VehicleForm({
     );
   };
 
-  const [decoding, setDecoding] = useState(false);
-  const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
-  const decodeVin = async () => {
-    setDecodeMsg(null); setDecoding(true);
-    try {
-      const r = await decodeDucatiVin(String(f.vin ?? ''));
-      if (!r) { setDecodeMsg(t('vehicles.vinInvalid')); return; }
-      const fill = (cur: string | boolean, val: string | number | undefined | null) =>
-        (val != null && val !== '' ? String(val) : (cur as string));
-      setF((p) => ({
-        ...p,
-        brand: (p.brand as string) || 'Ducati',
-        model: fill(p.model, r.model),
-        displacement: fill(p.displacement, r.displacement),
-        power_cv: fill(p.power_cv, r.powerCv),
-        cylinders: fill(p.cylinders, r.cylinders),
-        antipollution: fill(p.antipollution, r.euro),
-        model_year: fill(p.model_year, r.year),
-        color: fill(p.color, r.color),
-        engine_number: fill(p.engine_number, r.engineNumber),
-        plate: fill(p.plate, r.plate),
-        reference: fill(p.reference, r.reference),
-        origin: fill(p.origin, r.origin),
-        category: fill(p.category, r.category),
-        mileage: fill(p.mileage, r.mileage),
-        first_registration_date: fill(p.first_registration_date, r.firstRegistrationDate),
-        warranty_end: fill(p.warranty_end, r.warrantyEnd),
-      }));
-      setDecodeMsg(r.source === 'facts' ? t('vehicles.vinDecodedFull')
-        : r.source === 'vds' ? t('vehicles.vinDecoded')
-        : t('vehicles.vinPartial'));
-    } finally { setDecoding(false); }
-  };
-
   // Contrôle du VIN : avertissements (longueur, I/O/Q), jamais bloquants.
   const vin = checkVin(f.vin as string);
   const vinChanged = vin.normalized !== normalizeVin(initial?.vin);
@@ -282,6 +271,49 @@ export function VehicleForm({
     staleTime: 30_000,
   });
   const duplicates = vinChanged && vin.normalized.length >= 6 ? dupQ.data ?? [] : [];
+
+  // Mission 06 carte 4 : reconnaissance par le VIN → champs de la fiche (clés métier).
+  const vinValues: VinValues = Object.fromEntries(
+    (Object.entries(VIN_FIELD) as [VinSuggestKey, string][]).map(([k, field]) => [k, String(f[field] ?? '')]),
+  );
+  const applyVin = (patch: VinValues) => {
+    setF((p) => {
+      const n = { ...p };
+      for (const [k, val] of Object.entries(patch) as [VinSuggestKey, string][]) n[VIN_FIELD[k]] = val;
+      return n;
+    });
+  };
+  const markVinFilled = (keys: string[]) => setVinFilled((s) => new Set([...s, ...keys]));
+
+  // VIN Ducati saisi maintenant : infos de nos factures pour ce VIN exact (couleur, n° moteur…).
+  const factsFor = useRef<string | null>(null);
+  const fRef = useRef(f);
+  fRef.current = f;
+  useEffect(() => {
+    const v = vin.normalized;
+    if (!vinChanged || !isDucatiFullVin(v) || factsFor.current === v) return;
+    factsFor.current = v;
+    decodeDucatiVin(v).then((r) => {
+      if (!r || r.source !== 'facts') return;
+      const vals: Record<string, string | number | undefined> = {
+        color: r.color, engine_number: r.engineNumber, plate: r.plate, reference: r.reference, origin: r.origin,
+        mileage: r.mileage, first_registration_date: r.firstRegistrationDate, warranty_end: r.warrantyEnd,
+      };
+      const cur = fRef.current;
+      const patch: Record<string, string> = {};
+      for (const k of FACT_FIELDS) {
+        const val = vals[k];
+        if (val != null && val !== '' && !String(cur[k] ?? '').trim()) patch[k] = String(val);
+      }
+      const done = Object.keys(patch);
+      if (done.length) setF((p) => {
+        const n = { ...p };
+        for (const k of done) if (!String(p[k] ?? '').trim()) n[k] = patch[k];
+        return n;
+      });
+      if (done.length) markVinFilled(done);
+    }).catch(() => { /* infos de factures facultatives */ });
+  }, [vin.normalized, vinChanged]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,6 +429,15 @@ export function VehicleForm({
             </p>
           )}
         </Field>
+        <div className="col-span-full">
+          <VinIdentifyPanel
+            vin={vin.normalized} values={vinValues} onApply={applyVin}
+            modelYearId={(f.ducati_model_year_id as string) || null}
+            onModelYearChange={(id) => set('ducati_model_year_id', id ?? '')}
+            autoApply={!initial || vinChanged}
+            onAutoFilled={(keys) => markVinFilled(keys.map((k) => VIN_FIELD[k]))}
+          />
+        </div>
         {T('plate', t('vehicles.plate'), true)}
         {T('brand', t('vehicles.brand'))}
         {duplicates.length > 0 && (
@@ -442,12 +483,6 @@ export function VehicleForm({
         {T('production_code', t('vehicles.productionCode'))}
         <div className="col-span-full">
           <Check label={t('vehicles.papers100hp')} checked={f.papers_100hp === true} onChange={(v) => set('papers_100hp', v)} />
-        </div>
-        <div className="col-span-full flex flex-wrap items-center gap-3">
-          <Button type="button" variant="outline" onClick={decodeVin} disabled={decoding || !f.vin}>
-            {decoding ? <Loader2 className="animate-spin" /> : <Wand2 />} {t('vehicles.decodeVin')}
-          </Button>
-          {decodeMsg && <span className="text-[12px] text-muted-foreground">{decodeMsg}</span>}
         </div>
       </Section>
 
