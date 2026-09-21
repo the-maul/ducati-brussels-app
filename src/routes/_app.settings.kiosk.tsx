@@ -12,16 +12,28 @@
  *     aucune librairie QR dans le projet) ;
  *   - le guide de verrouillage de la tablette (docs/bible/guides/borne-kiosque.md),
  *     affiché dans l'application en surimpression.
+ *   - les adresses des tuiles « Configurer ma Ducati » et « Nos occasions » de l'écran
+ *     d'accueil de la borne (retour client du 21/09 ; src/modules/settings/kiosk-api.ts,
+ *     défauts et validation dans src/modules/signup/kiosk-links.ts).
  * L'adresse suit VITE_CLIENT_APP_URL (src/lib/client-app-url.ts), comme le message de
  * bienvenue : app.ducatibruxelles.be à terme, l'adresse Netlify en attendant (K-4).
  */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, BookOpen, Check, Copy, Lock, QrCode, TabletSmartphone } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, LayoutGrid, Lock, QrCode, RotateCcw, TabletSmartphone, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { SaveButton } from '@/components/ui/save-button';
+import { useSaveMutation } from '@/lib/use-save-mutation';
+import { getKioskLinkSettings, setKioskLinks } from '@/modules/settings/kiosk-api';
+import {
+  DEFAULT_CONFIGURATOR_URL, DEFAULT_USED_URL, checkKioskUrl, kioskUrlHost, type KioskUrlCheck,
+} from '@/modules/signup/kiosk-links';
 import { useAuth } from '@/lib/auth/auth-context';
 import { clientAppUrl } from '@/lib/client-app-url';
 import { qrMatrix, qrSvgPath } from '@/lib/qr';
@@ -33,9 +45,9 @@ export const Route = createFileRoute('/_app/settings/kiosk')({
   component: KioskSettingsPage,
 });
 
-function Card({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+function Card({ icon, title, children, className }: { icon: ReactNode; title: string; children: ReactNode; className?: string }) {
   return (
-    <section className="space-y-3 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+    <section className={`space-y-3 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] ${className ?? ''}`}>
       <h2 className="flex items-center gap-2 font-ui text-[15px] font-bold">{icon}{title}</h2>
       {children}
     </section>
@@ -129,6 +141,8 @@ function KioskSettingsPage() {
           </div>
         </Card>
 
+        <KioskLinksCard />
+
         <Card icon={<Lock className="size-5 text-primary" />} title={t('kiosk.guideTitle')}>
           <p className="text-[13px] text-muted-foreground">{t('kiosk.guideHint')}</p>
           <Button variant="outline" className="h-11" onClick={() => setGuideOpen(true)}>
@@ -146,6 +160,130 @@ function KioskSettingsPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** Valeur en base → champ affiché : null = défaut, '' = case masquée (champ vide). */
+const toField = (stored: string | null, fallback: string) => (stored === null ? fallback : stored);
+/** Champ → valeur en base : l'adresse par défaut n'est pas figée (null), pour suivre le code. */
+const toStored = (value: string, fallback: string) => (value === fallback ? null : value);
+
+function KioskLinksCard() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const settings = useQuery({ queryKey: ['kiosk', 'links'], queryFn: getKioskLinkSettings });
+  const [configurator, setConfigurator] = useState(DEFAULT_CONFIGURATOR_URL);
+  const [used, setUsed] = useState(DEFAULT_USED_URL);
+
+  useEffect(() => {
+    if (!settings.data) return;
+    setConfigurator(toField(settings.data.configurator, DEFAULT_CONFIGURATOR_URL));
+    setUsed(toField(settings.data.used, DEFAULT_USED_URL));
+  }, [settings.data]);
+
+  const checkC = checkKioskUrl(configurator);
+  const checkU = checkKioskUrl(used);
+  const available = settings.data?.available ?? false;
+
+  const save = useSaveMutation({
+    mutationFn: () => {
+      if (!checkC.ok || !checkU.ok) throw new Error(t('kiosk.linkErrors.invalid'));
+      return setKioskLinks({
+        configurator: toStored(checkC.value, DEFAULT_CONFIGURATOR_URL),
+        used: toStored(checkU.value, DEFAULT_USED_URL),
+      }, user?.id ?? null);
+    },
+    success: t('kiosk.linksSaved'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['kiosk', 'links'] }),
+  });
+
+  const hosts = [checkC, checkU]
+    .map((c) => (c.ok && c.value ? kioskUrlHost(c.value) : ''))
+    .filter(Boolean);
+
+  return (
+    <Card icon={<LayoutGrid className="size-5 text-primary" />} title={t('kiosk.linksTitle')} className="lg:col-span-2">
+      <p className="text-[13px] text-muted-foreground">{t('kiosk.linksHint')}</p>
+      {settings.data && !available && (
+        <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning" role="status">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{t('kiosk.linksPending')}</span>
+        </p>
+      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <LinkField
+          id="kiosk-configurator"
+          label={t('kiosk.linkConfigurator')}
+          value={configurator}
+          onChange={setConfigurator}
+          check={checkC}
+          fallback={DEFAULT_CONFIGURATOR_URL}
+          disabled={!available}
+        />
+        <LinkField
+          id="kiosk-used"
+          label={t('kiosk.linkUsed')}
+          value={used}
+          onChange={setUsed}
+          check={checkU}
+          fallback={DEFAULT_USED_URL}
+          disabled={!available}
+        />
+      </div>
+      <p className="text-[12px] text-muted-foreground">{t('kiosk.linkEmptyHint')}</p>
+      {hosts.length > 0 && (
+        <p className="text-[12px] text-muted-foreground">{t('kiosk.linksWhitelist').replace('{hosts}', hosts.join(', '))}</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <SaveButton status={save.status} onClick={() => save.mutate()} disabled={!available || !checkC.ok || !checkU.ok}>
+          {t('kiosk.linksSave')}
+        </SaveButton>
+        <Button
+          variant="outline"
+          disabled={!available}
+          onClick={() => { setConfigurator(DEFAULT_CONFIGURATOR_URL); setUsed(DEFAULT_USED_URL); }}
+        >
+          <RotateCcw /> {t('kiosk.linkRestore')}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function LinkField({ id, label, value, onChange, check, fallback, disabled }: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  check: KioskUrlCheck;
+  fallback: string;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          type="url"
+          inputMode="url"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-invalid={!check.ok}
+          className="font-mono text-[13px]"
+        />
+        <Button variant="outline" asChild={check.ok && !!check.value} disabled={!check.ok || !check.value}>
+          {check.ok && check.value ? (
+            <a href={check.value} target="_blank" rel="noopener noreferrer"><ExternalLink /> {t('kiosk.linkTest')}</a>
+          ) : (
+            <span><ExternalLink /> {t('kiosk.linkTest')}</span>
+          )}
+        </Button>
+      </div>
+      {!check.ok && <p className="text-[12px] text-danger">{t(`kiosk.linkErrors.${check.code}`)}</p>}
+      <p className="break-all text-[12px] text-muted-foreground">{t('kiosk.linkDefault').replace('{url}', fallback)}</p>
+    </div>
   );
 }
 

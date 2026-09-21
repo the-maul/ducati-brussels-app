@@ -3,9 +3,12 @@
  * Page publique, sans navigation. Tout le comportement kiosque est dans
  * src/modules/signup/kiosk.tsx ; le verrouillage de la tablette dans
  * docs/bible/guides/borne-kiosque.md.
+ * Les adresses des tuiles « Configurer ma Ducati » et « Nos occasions » sont lues
+ * côté serveur (Paramètres → Borne d'inscription, défauts dans kiosk-links.ts).
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { KioskSignup } from '@/modules/signup/kiosk';
+import { getKioskLinks } from '@/modules/signup/kiosk-links.functions';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/borne')({
@@ -20,5 +23,11 @@ export const Route = createFileRoute('/borne')({
       { name: 'apple-mobile-web-app-title', content: t('signup.brand') },
     ],
   }),
-  component: KioskSignup,
+  loader: () => getKioskLinks(),
+  component: BornePage,
 });
+
+function BornePage() {
+  const links = Route.useLoaderData();
+  return <KioskSignup links={links} />;
+}

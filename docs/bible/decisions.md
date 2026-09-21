@@ -238,6 +238,14 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 - **K-6** — **Le mode borne se lance depuis Paramètres → Borne d'inscription** (administrateurs) :
   explication, bouton « Lancer le mode borne sur cet appareil » (plein écran), adresse à copier,
   QR code, guide de verrouillage de la tablette. *Client (retour de test) · 18/09.* [M00](modules/M00-socle.md)
+- **K-7** — **Écran d'accueil de la borne à 3 tuiles** : « Configurer ma Ducati » (configurateur
+  officiel, `configurator.ducati.com/bikes/be/fr`), « Créer mon compte » (le formulaire) et « Nos
+  occasions » (`ducatibruxelles.be/collections/motos-doccasion-new`). Adresses réglables dans
+  Paramètres → Borne d'inscription (vide = case masquée). **Pas de cadre (iframe)** : les deux sites
+  l'interdisent (`X-Frame-Options: DENY`, vérifié le 21/09) ; ils s'ouvrent à la place de la borne et
+  le retour à `/borne` est assuré par l'application kiosque de la tablette (liste blanche, bouton
+  accueil, retour après inactivité). *Client (retour sur la carte « Borne comptoir en mode kiosque ») ·
+  21/09.* [guide borne](guides/borne-kiosque.md)
 - **U-4** — **Règles de mot de passe** partout (inscription en ligne, borne, `/reset-password`,
   création d'un compte avec mot de passe dans Paramètres → Utilisateurs) : au moins 8 caractères, une
   majuscule, une minuscule, un chiffre, un caractère spécial ; indicateur des règles remplies pendant la
