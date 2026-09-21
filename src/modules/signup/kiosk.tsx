@@ -17,13 +17,22 @@
  *     le navigateur ne propose ni n'enregistre de mot de passe).
  * Mot de passe choisi à la borne comme en ligne : décision K-5 du 18/09.
  * Lancement depuis Paramètres → Borne d'inscription : décision K-6.
+ *
+ * Écran d'accueil à 3 tuiles (retour client du 21/09) : « Configurer ma Ducati »
+ * (configurateur officiel), « Créer mon compte » (le formulaire) et « Nos occasions »
+ * (site Ducati Bruxelles). Adresses réglables (src/modules/signup/kiosk-links.ts).
+ * Les deux sites refusent tout cadre (X-Frame-Options: DENY) : ils s'ouvrent dans le
+ * même onglet, et le retour à /borne est assuré par l'application kiosque de la
+ * tablette (liste blanche, bouton accueil, retour après inactivité : guide
+ * borne-kiosque.md). Toute remise à zéro ramène à cet écran d'accueil.
  * Verrouillage de la tablette : docs/bible/guides/borne-kiosque.md.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Maximize, RotateCcw, WifiOff } from 'lucide-react';
+import { Bike, ExternalLink, Home, Maximize, RotateCcw, SlidersHorizontal, UserPlus, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { SignupForm, SignupWelcome, type SignupSuccess } from './signup-form';
+import { kioskHasHome, kioskUrlHost, type KioskLinks } from './kiosk-links';
 
 const WELCOME_MS = 15_000;
 const IDLE_MS = 90_000;
@@ -32,7 +41,10 @@ const NIGHTLY_RELOAD_HOUR = 3;
 /** Filet de sécurité : jamais plus de 26 h sans rechargement. */
 const MAX_UPTIME_MS = 26 * 60 * 60 * 1000;
 
-export function KioskSignup() {
+export function KioskSignup({ links }: { links: KioskLinks }) {
+  const hasHome = kioskHasHome(links);
+  const homeScreen = hasHome ? 'home' : 'form';
+  const [screen, setScreen] = useState<'home' | 'form'>(homeScreen);
   const [round, setRound] = useState(0); // change → le formulaire est recréé vide
   const [result, setResult] = useState<SignupSuccess | null>(null);
   const [countdown, setCountdown] = useState(WELCOME_MS / 1000);
@@ -42,6 +54,7 @@ export function KioskSignup() {
   const pristine = useRef(true); // aucune saisie depuis la dernière remise à zéro
 
   const reset = useCallback(() => {
+    setScreen(homeScreen);
     setResult(null);
     setRound((r) => r + 1);
     setCountdown(WELCOME_MS / 1000);
@@ -51,7 +64,7 @@ export function KioskSignup() {
       (document.activeElement as HTMLElement | null)?.blur?.();
       window.scrollTo({ top: 0 });
     }
-  }, []);
+  }, [homeScreen]);
 
   // Activité à l'écran : repousse la remise à zéro.
   useEffect(() => {
@@ -107,6 +120,20 @@ export function KioskSignup() {
     return () => window.removeEventListener('popstate', onPop);
   }, [reset]);
 
+  // Retour depuis un site externe par le bouton « retour » : le navigateur peut
+  // restaurer la page telle quelle (cache) ; on repart de l'accueil, vide.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) reset(); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, [reset]);
+
+  /** Tuile externe : même onglet (les sites refusent les cadres), borne remise à zéro avant. */
+  const openExternal = (url: string) => {
+    reset();
+    window.location.assign(url);
+  };
+
   // Connexion internet.
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -143,18 +170,34 @@ export function KioskSignup() {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-8 sm:py-8">
+      <div className={`mx-auto w-full ${screen === 'home' ? 'max-w-5xl' : 'max-w-3xl'} px-4 py-6 sm:px-8 sm:py-8`}>
         <header className="mb-6 flex items-center gap-3 sm:mb-8">
           <span className="grid size-12 shrink-0 place-items-center rounded-md bg-primary font-display text-xl font-bold text-primary-foreground">D</span>
           <span className="min-w-0 font-display text-[20px] font-bold uppercase leading-7 text-foreground sm:text-[22px]">{t('signup.brand')}</span>
-          {canFullscreen && !isFullscreen && (
-            <Button type="button" variant="ghost" className="ml-auto h-11" onClick={goFullscreen}>
-              <Maximize className="size-4" aria-hidden />
-              {t('signup.kiosk.fullscreen')}
-            </Button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {canFullscreen && !isFullscreen && (
+              <Button type="button" variant="ghost" className="h-11" onClick={goFullscreen}>
+                <Maximize className="size-4" aria-hidden />
+                {t('signup.kiosk.fullscreen')}
+              </Button>
+            )}
+            {hasHome && screen === 'form' && !result && (
+              <Button type="button" variant="outline" className="h-12 px-4 text-[15px]" onClick={reset}>
+                <Home className="size-5" aria-hidden />
+                {t('signup.kiosk.home')}
+              </Button>
+            )}
+          </div>
         </header>
 
+        {screen === 'home' ? (
+          <KioskHome
+            links={links}
+            online={online}
+            onSignup={() => { setScreen('form'); window.scrollTo({ top: 0 }); }}
+            onExternal={openExternal}
+          />
+        ) : (
         <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-8">
           {result ? (
             <SignupWelcome
@@ -190,7 +233,66 @@ export function KioskSignup() {
             </div>
           )}
         </div>
+        )}
       </div>
     </main>
+  );
+}
+
+/** Écran d'accueil : 3 grandes tuiles tactiles. */
+function KioskHome({ links, online, onSignup, onExternal }: {
+  links: KioskLinks;
+  online: boolean;
+  onSignup: () => void;
+  onExternal: (url: string) => void;
+}) {
+  const tiles: { key: string; icon: typeof Bike; title: string; text: string; primary?: boolean; url?: string }[] = [];
+  if (links.configurator) {
+    tiles.push({ key: 'configurator', icon: SlidersHorizontal, title: t('signup.kiosk.tileConfigurator'), text: t('signup.kiosk.tileConfiguratorText'), url: links.configurator });
+  }
+  tiles.push({ key: 'signup', icon: UserPlus, title: t('signup.kiosk.tileSignup'), text: t('signup.kiosk.tileSignupText'), primary: true });
+  if (links.used) {
+    tiles.push({ key: 'used', icon: Bike, title: t('signup.kiosk.tileUsed'), text: t('signup.kiosk.tileUsedText'), url: links.used });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="font-display text-[28px] font-bold uppercase leading-[34px] sm:text-[32px] sm:leading-[38px]">{t('signup.kiosk.homeTitle')}</h1>
+        <p className="text-[17px] text-muted-foreground">{t('signup.kiosk.homeIntro')}</p>
+      </div>
+      <div className={`grid gap-4 ${tiles.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        {tiles.map((tile) => {
+          const Icon = tile.icon;
+          const disabled = !!tile.url && !online;
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              disabled={disabled}
+              onClick={() => (tile.url ? onExternal(tile.url) : onSignup())}
+              className={`flex min-h-44 w-full flex-col items-start gap-3 rounded-md border p-6 text-left shadow-[var(--shadow-card)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:min-h-64 ${
+                tile.primary
+                  ? 'border-primary bg-primary text-primary-foreground active:bg-primary/90'
+                  : 'border-border bg-card text-foreground active:bg-muted'
+              }`}
+            >
+              <span className={`grid size-14 place-items-center rounded-md ${tile.primary ? 'bg-primary-foreground/15' : 'bg-muted text-primary'}`}>
+                <Icon className="size-8" aria-hidden />
+              </span>
+              <span className="font-display text-[22px] font-bold uppercase leading-7">{tile.title}</span>
+              <span className={`text-[15px] leading-snug ${tile.primary ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{tile.text}</span>
+              {tile.url && (
+                <span className="mt-auto flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                  <ExternalLink className="size-4" aria-hidden />
+                  {disabled ? t('signup.kiosk.tileOffline') : kioskUrlHost(tile.url)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[14px] text-muted-foreground">{t('signup.kiosk.homeReturnHint')}</p>
+    </div>
   );
 }
