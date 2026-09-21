@@ -63,6 +63,9 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Le stock et le prix du DMS s'affichent en direct sur le site | ⬜ |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | 🟦 21/09 — fait, à valider : écran Ventes → Commandes du site ; import **livré Arrêté** (Simon l'active) ; webhooks à publier par Simon (§5) |
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | ⬜ |
+| Le stock et le prix du DMS s'affichent en direct sur le site | 🟦 21/09 — fait, livré en mode **Arrêtée** (rien n'est écrit sur le site) ; essai à lancer par Simon (§5 bis) |
+| Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
+| Publier ou retirer un article du site depuis sa fiche dans le DMS | 🟦 21/09 — fait, soumis au même mode essai (livré Arrêtée) |
 
 ## 4. Questions en attente
 
@@ -223,6 +226,84 @@ l'application avec les abonnements aux webhooks de `shopify.app.toml`). Si Shopi
 Dev Dashboard → l'application → **API access requests → Protected customer data** (niveau 1 ; raison : « gestion des
 commandes dans notre logiciel de gestion »), puis relancer `app deploy`. Le rattrapage toutes les 15 minutes marche
 sans cette étape.
+## 5 bis. Le DMS écrit sur le site — mode essai (W-8, 21/09)
+
+**Sécurité** : réglage société « Synchronisation Shopify » (écran Pièces & Accessoires → Produits Shopify,
+encadré en haut) :
+
+| Mode | Effet |
+|---|---|
+| **Arrêtée** (défaut, livré ainsi) | Rien n'est écrit sur le site. Les demandes s'accumulent dans la file (une ligne par article). |
+| **Essai** | Seuls les **articles d'essai** choisis par un administrateur sont écrits (stock, prix, publication). |
+| **Tous les articles reliés** | Tous les articles reliés sont écrits ; tout article « Publiable » peut être publié. |
+
+Chaque changement de mode est tracé dans `events` (`shopify_sync_mode`).
+
+### Lancer l'essai (Simon)
+
+1. Produits Shopify → encadré « Synchronisation Shopify » → **Articles d'essai** : ajouter 1 à 3 articles
+   **reliés** (badge « Relié »), idéalement des produits peu vendus.
+2. **Simuler (rien n'est écrit)** : tableau prix site / prix DMS TTC / stock site / stock DMS. Vérifier chaque ligne.
+3. Choisir le mode **Essai** (confirmation). Les articles d'essai partent au prochain passage (≤ 3 min) ou
+   tout de suite avec **Envoyer maintenant**.
+4. Vérifier sur ducatibruxelles.be et dans le **Journal des envois**.
+5. Faire un mouvement de stock sur un article d'essai → le site suit en ≤ 3 min.
+6. Revenir à **Arrêtée** à tout moment : plus rien ne part.
+
+**⚠ Constat du 21/09 (simulation en lecture seule sur les 300 articles reliés)** : le DMS n'a **aucun stock**
+sur ces 300 articles (259 ont du stock sur le site, 305 pièces au total) et leur **prix de vente TTC du DMS
+est environ 20 % plus bas** que le prix du site (médiane : prix site = 1,245 × prix DMS ; 293 moins chers,
+2 plus chers, 5 sans prix). Passer en « Tous » aujourd'hui mettrait le site à 0 et baisserait les prix.
+À trancher avant l'essai : reprise du stock G8 et vérification des prix de vente (TTC ou HT ?) dans le DMS.
+
+### Ce qui part vers le site (carte « Le stock et le prix du DMS s'affichent en direct »)
+
+- **Stock** = disponible du DMS (réel − réservé, B4), entier, jamais négatif, à l'emplacement unique
+  « Chaussée de Bruxelles 688 » ; types A, V, O, P, D seulement. Un article pas suivi en stock sur Shopify
+  est passé en suivi ; un article pas stocké à l'emplacement y est activé.
+- **Prix** (W-7) = prix de vente TTC du DMS (à défaut PV HT × (1 + taux de TVA de l'article)), avec l'arrondi
+  de la société (euro supérieur, plancher 2 €) ; aucun prix du DMS → prix du site inchangé (jamais 0 €).
+- **Déclenchement** : mouvement de stock, changement de PV TTC / PV HT / taux de TVA, nouvelle liaison,
+  changement du réglage d'arrondi → l'article relié entre dans la file `shopify_sync_queue` (dédoublonnée).
+  Tâche `shopify-push` toutes les 3 min, **seulement** si une société n'est pas « Arrêtée » et a du travail.
+- **Rien n'est réécrit** si le site est déjà à jour (« Déjà à jour » au journal). Erreur → nouvel essai
+  automatique (2, 4, 8… min, 60 min au plus).
+- **Tout resynchroniser** (administrateurs) : remet tous les articles reliés en file ; le mode décide.
+
+### À tester (carte stock + prix)
+
+- [ ] Mode Arrêtée : un mouvement de stock d'un article relié n'écrit rien (journal vide, file +1).
+- [ ] Essai sur 1 à 3 articles : simulation, puis envoi ; prix et stock du site = DMS.
+- [ ] Vente / réservation dans le DMS → stock du site mis à jour en ≤ 3 min.
+- [ ] Changement de prix d'un article d'essai → prix du site en ≤ 3 min, arrondi à l'euro supérieur.
+- [ ] Un article hors essai n'est jamais écrit en mode Essai.
+- [ ] Retour à Arrêtée : plus rien ne part.
+
+### Publier ou retirer depuis la fiche article (carte « Publier ou retirer »)
+
+Fiche article → section **Site web** → encadré **Sur le site Shopify** : état (Pas sur le site / En ligne /
+Retiré (brouillon) / Archivé, couleur + icône + libellé), prix et stock du site, derniers envois.
+Administrateurs, selon le mode (Arrêtée : rien ; Essai : article d'essai seulement ; Tous : tout article) :
+
+- **Publier sur le site** (case « Publiable » cochée et enregistrée, prix de vente présent) : crée le produit
+  Shopify (`productSet`) avec titre web (sinon désignation), description web, photos du DMS (liens signés 24 h
+  vers le Storage), prix TTC, stock disponible, **SKU = référence**, puis le relie (`shopify_links` « valide »).
+  Refus si un produit du site porte déjà cette référence (le relier depuis Produits Shopify : jamais de doublon).
+- **Retirer du site** : produit en **brouillon** (jamais supprimé). **Remettre en ligne** le repasse actif.
+- **Mettre à jour sur le site** : renvoie titre et description, ajoute les photos du DMS pas encore envoyées
+  (les photos reprises de Shopify ne sont pas renvoyées).
+- Trace : `events` (`shopify_publication`, `shopify_retrait`, `shopify_remise_en_ligne`, `shopify_mise_a_jour`,
+  `shopify_link`) + journal des envois. Fonction `shopify-publish`, migration `20260921111000_m2_shopify_publication.sql`.
+- Point ouvert : l'application n'a pas le droit `write_publications` ; un produit créé est « Actif » mais peut ne
+  pas apparaître sur le canal **Boutique en ligne** tant qu'il n'y est pas coché dans Shopify (à vérifier à l'essai).
+
+### À tester (carte publication)
+
+- [ ] Mode Arrêtée : boutons grisés, message « Synchronisation Shopify arrêtée ».
+- [ ] Essai : publier un article d'essai « Publiable » non relié → produit visible sur le site, relié dans Produits Shopify.
+- [ ] Retirer → brouillon sur Shopify ; Remettre en ligne → actif.
+- [ ] Mettre à jour après changement du titre web / ajout d'une photo.
+- [ ] Publier une référence déjà présente sur le site → refus clair.
 
 ## 6. Risques
 

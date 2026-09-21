@@ -29,6 +29,8 @@ retirer ; un produit publié est toujours lié à un article du stock.
 | Fiche article → case **« Publiable e-shop »** (M2) | Marquer un article comme destiné à la vente en ligne. N'a plus d'effet dans le DMS ; donnée conservée pour la synchronisation Shopify. |
 | Ventes → filtre **Département** (Magasin / E-shop) (M6) | Repose sur `documents.imported_from` ; les factures créées par les commandes du site Shopify portent `imported_from = 'shopify'` et tombent donc dans « E-shop » (mission 03, 21/09). |
 | Ventes → **Commandes du site** (M6, mission 03) | Commandes Shopify reçues et leur import (facture, sortie de stock, règlement, avoirs) ; réglage « Import des commandes du site » (livré Arrêté). |
+| Fiche article → case **« Publiable e-shop »** (M2) | Marquer un article comme destiné à la vente en ligne. Depuis le 21/09, condition pour **Publier sur le site** (Shopify) depuis la fiche (mission 03). |
+| Ventes → filtre **Département** (Magasin / E-shop) (M6) | Inchangé. Repose sur `documents.imported_from` ; aucune vente ne correspond à « E-shop » aujourd'hui. Pourra servir aux ventes venues de Shopify. |
 
 Retiré le 18/09 : l'entrée de menu **E-shop** (`/eshop` : onglets Site, Produits, Commandes) et la
 vitrine publique **`/shop/{slug}`** (panier, commande, redirection Stripe).
@@ -91,3 +93,4 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 | 2026-09-11 | Correctifs de typage des appels RPC | `7d31b6d` |
 | 2026-09-18 | **Module supprimé** (décision W-1) : écrans, code, fonctions Stripe, libellés ; migration de suppression écrite, non appliquée ; `articles.publishable` conservé | branche `lot-nettoyage`, migration `20260919130000` (non appliquée) |
 | 2026-09-21 | Mission 03 : une vente sur le site Shopify crée la facture et la sortie de stock dans le DMS (département E-shop), écran Ventes → Commandes du site | `20260921120000_m6_shopify_commandes_site.sql` |
+| 2026-09-21 | Mission 03 : le DMS écrit sur Shopify (stock + prix en direct, publier / retirer depuis la fiche), mode essai, livré « Arrêtée » | voir [M02](M02-articles.md) |

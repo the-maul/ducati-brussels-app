@@ -51,3 +51,9 @@ verify_jwt = false
 # code), par pg_cron (x-cron-secret) et par l'écran « Commandes du site » (utilisateur vérifié).
 [functions.shopify-orders]
 verify_jwt = false
+
+[functions.shopify-push]
+verify_jwt = false
+
+[functions.shopify-publish]
+verify_jwt = false
