@@ -47,12 +47,14 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 | 3 | Importer les vues éclatées et les pièces de chaque modèle | savoir quelles pièces vont sur quelle moto | planches + repères + pièces, liées aux articles (librairie) ; le prix du tarif importé fait foi |
 | 4 | Reconnaître exactement la moto du client par son VIN | « quand le client s'inscrit, tout est lié » | fiche moto, borne, espace client, motos déclarées (mission 04) ; rattachement en lot des 3 299 motos |
 | 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | devis/OR : planches de SA variante, clic sur un repère = ligne |
+| 7 | Importer les catalogues accessoires et vêtements Ducati | 1 994 produits Shopify « 98… » absents du DMS (mission 03, Q5) | même extension ; API `api/accessories/…` (catégories, familles propres, fiches produit) et `api/apparel/…` (catégories, familles, genres) ; relie ensuite les produits Shopify (W-6) |
 | 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | relecture ciblée (drapeau `updated` de l'API) |
 
 ## 4. Décisions (Simon, 21/09)
 
 - **Europe seulement** (variantes des autres marchés exclues).
 - **Millésimes depuis 2000.**
+- **Accessoires et vêtements aussi** (Simon, 21/09 : « oui top ») : ils résolvent la question 5 de la mission 03.
 - **Import par une extension Chrome** (principe My Ducati : lit avec la session de l'utilisateur, aucun identifiant stocké, envoie au DMS, rythme lent, reprise après interruption).
 
 ## 4 bis. Questions (répondues le 21/09)

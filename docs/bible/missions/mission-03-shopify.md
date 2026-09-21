@@ -85,7 +85,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 2. ~~Combien d'emplacements de stock dans Shopify ?~~ **Un seul** : « Chaussée de Bruxelles 688 » (vérifié le 19/09).
 3. Vente en magasin avec la caisse Shopify, ou seulement en ligne ?
 4. Prix Shopify TVA comprise ?
-5. Produit Shopify sans article dans le DMS : le créer dans le DMS ou le retirer du site ?
+5. ~~Produit Shopify sans article dans le DMS ?~~ **Décidé le 21/09** : les vêtements et accessoires Ducati (« 98… ») viennent de l'e-catalog (mission 06, carte 7), puis liaison W-6.
 6. Frais de port : ligne à part sur la vente dans le DMS ?
 
 Décidé le 19/09 : **W-5** l'inscription du site Shopify renvoie vers `/app-client` (page « bientôt disponible ») ; **W-6** liaison des clients Shopify : correspondances exactes seulement en automatique, les autres validées à la main.
