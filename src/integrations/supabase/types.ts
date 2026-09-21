@@ -2578,6 +2578,640 @@ export type Database = {
           },
         ]
       }
+      ducati_catalog_drawing_lines: {
+        Row: {
+          description: string | null
+          drawing_id: string
+          end_date: string | null
+          has_tempario: boolean | null
+          id: number
+          line_no: number
+          notes: string | null
+          part_notes: string | null
+          position: string | null
+          quantity: number | null
+          reference: string | null
+          reference_norm: string | null
+          replaced: boolean | null
+          replaced_part: string | null
+          start_date: string | null
+          validities: Json | null
+        }
+        Insert: {
+          description?: string | null
+          drawing_id: string
+          end_date?: string | null
+          has_tempario?: boolean | null
+          id?: never
+          line_no: number
+          notes?: string | null
+          part_notes?: string | null
+          position?: string | null
+          quantity?: number | null
+          reference?: string | null
+          reference_norm?: string | null
+          replaced?: boolean | null
+          replaced_part?: string | null
+          start_date?: string | null
+          validities?: Json | null
+        }
+        Update: {
+          description?: string | null
+          drawing_id?: string
+          end_date?: string | null
+          has_tempario?: boolean | null
+          id?: never
+          line_no?: number
+          notes?: string | null
+          part_notes?: string | null
+          position?: string | null
+          quantity?: number | null
+          reference?: string | null
+          reference_norm?: string | null
+          replaced?: boolean | null
+          replaced_part?: string | null
+          start_date?: string | null
+          validities?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_drawing_lines_drawing_id_fkey"
+            columns: ["drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_drawings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_drawings: {
+        Row: {
+          code: string | null
+          description: string | null
+          hotspots: Json
+          id: string
+          image_url: string | null
+          original_image_url: string | null
+          parts_count: number | null
+          parts_loaded_at: string | null
+          source_model_year_id: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          validities: Json | null
+        }
+        Insert: {
+          code?: string | null
+          description?: string | null
+          hotspots?: Json
+          id: string
+          image_url?: string | null
+          original_image_url?: string | null
+          parts_count?: number | null
+          parts_loaded_at?: string | null
+          source_model_year_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          validities?: Json | null
+        }
+        Update: {
+          code?: string | null
+          description?: string | null
+          hotspots?: Json
+          id?: string
+          image_url?: string | null
+          original_image_url?: string | null
+          parts_count?: number | null
+          parts_loaded_at?: string | null
+          source_model_year_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          validities?: Json | null
+        }
+        Relationships: []
+      }
+      ducati_catalog_families: {
+        Row: {
+          description: string
+          id: string
+          sort: number | null
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          id: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          id?: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_groups: {
+        Row: {
+          code: string | null
+          description: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          description?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          description?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_import_batches: {
+        Row: {
+          company_id: string | null
+          drawings_imported: number
+          drawings_skipped: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          last_position: Json | null
+          lines_imported: number
+          model_years_done: number
+          model_years_total: number
+          products_imported: number
+          products_skipped: number
+          requests_count: number
+          scope: Json
+          started_at: string
+          started_by: string | null
+          status: string
+          updated_at: string
+          variants_imported: number
+        }
+        Insert: {
+          company_id?: string | null
+          drawings_imported?: number
+          drawings_skipped?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_position?: Json | null
+          lines_imported?: number
+          model_years_done?: number
+          model_years_total?: number
+          products_imported?: number
+          products_skipped?: number
+          requests_count?: number
+          scope?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          variants_imported?: number
+        }
+        Update: {
+          company_id?: string | null
+          drawings_imported?: number
+          drawings_skipped?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_position?: Json | null
+          lines_imported?: number
+          model_years_done?: number
+          model_years_total?: number
+          products_imported?: number
+          products_skipped?: number
+          requests_count?: number
+          scope?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          variants_imported?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_import_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_model_year_drawings: {
+        Row: {
+          drawing_id: string
+          group_id: string
+          group_sort: number | null
+          model_year_id: string
+          sort: number | null
+        }
+        Insert: {
+          drawing_id: string
+          group_id: string
+          group_sort?: number | null
+          model_year_id: string
+          sort?: number | null
+        }
+        Update: {
+          drawing_id?: string
+          group_id?: string
+          group_sort?: number | null
+          model_year_id?: string
+          sort?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_drawing_id_fkey"
+            columns: ["drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_drawings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_model_year_drawings_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_model_years: {
+        Row: {
+          code: string | null
+          complete_at: string | null
+          drawings_count: number | null
+          groups_loaded_at: string | null
+          id: string
+          model_id: string
+          path: string | null
+          sort: number | null
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          code?: string | null
+          complete_at?: string | null
+          drawings_count?: number | null
+          groups_loaded_at?: string | null
+          id: string
+          model_id: string
+          path?: string | null
+          sort?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          code?: string | null
+          complete_at?: string | null
+          drawings_count?: number | null
+          groups_loaded_at?: string | null
+          id?: string
+          model_id?: string
+          path?: string | null
+          sort?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_model_years_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_models: {
+        Row: {
+          description: string
+          family_id: string
+          id: string
+          is_europe: boolean
+          market: string
+          sort: number | null
+          supermodel_id: string
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          family_id: string
+          id: string
+          is_europe?: boolean
+          market?: string
+          sort?: number | null
+          supermodel_id: string
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          family_id?: string
+          id?: string
+          is_europe?: boolean
+          market?: string
+          sort?: number | null
+          supermodel_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_models_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ducati_catalog_models_supermodel_id_fkey"
+            columns: ["supermodel_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_supermodels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_catalog_parts: {
+        Row: {
+          catalog_price_ht: number | null
+          catalog_price_ttc: number | null
+          description: string | null
+          discount_group: string | null
+          ean_code: string | null
+          has_tempario: boolean | null
+          min_quantity: number | null
+          price_seen_at: string | null
+          reference: string
+          reference_norm: string
+          replaced: boolean | null
+          replaced_part: string | null
+          replacement_tree: Json | null
+          updated_at: string
+        }
+        Insert: {
+          catalog_price_ht?: number | null
+          catalog_price_ttc?: number | null
+          description?: string | null
+          discount_group?: string | null
+          ean_code?: string | null
+          has_tempario?: boolean | null
+          min_quantity?: number | null
+          price_seen_at?: string | null
+          reference: string
+          reference_norm: string
+          replaced?: boolean | null
+          replaced_part?: string | null
+          replacement_tree?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          catalog_price_ht?: number | null
+          catalog_price_ttc?: number | null
+          description?: string | null
+          discount_group?: string | null
+          ean_code?: string | null
+          has_tempario?: boolean | null
+          min_quantity?: number | null
+          price_seen_at?: string | null
+          reference?: string
+          reference_norm?: string
+          replaced?: boolean | null
+          replaced_part?: string | null
+          replacement_tree?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_product_applicabilities: {
+        Row: {
+          family: string | null
+          hierarchy_path: string
+          is_europe: boolean
+          model: string | null
+          model_year: number | null
+          product_code: string
+          sku_norm: string
+          supermodel: string | null
+        }
+        Insert: {
+          family?: string | null
+          hierarchy_path: string
+          is_europe?: boolean
+          model?: string | null
+          model_year?: number | null
+          product_code: string
+          sku_norm: string
+          supermodel?: string | null
+        }
+        Update: {
+          family?: string | null
+          hierarchy_path?: string
+          is_europe?: boolean
+          model?: string | null
+          model_year?: number | null
+          product_code?: string
+          sku_norm?: string
+          supermodel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_product_applicabilities_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_products"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      ducati_catalog_product_variants: {
+        Row: {
+          archived: boolean | null
+          attributes: Json
+          collection_year: number | null
+          color: string | null
+          description: string | null
+          images: Json
+          is_kit: boolean | null
+          mother_code: string | null
+          name: string | null
+          price_ht: number | null
+          price_seen_at: string | null
+          price_ttc: number | null
+          product_code: string
+          replaced: boolean | null
+          size: string | null
+          sku: string
+          sku_norm: string
+          updated_at: string
+          variant_code: string | null
+        }
+        Insert: {
+          archived?: boolean | null
+          attributes?: Json
+          collection_year?: number | null
+          color?: string | null
+          description?: string | null
+          images?: Json
+          is_kit?: boolean | null
+          mother_code?: string | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          product_code: string
+          replaced?: boolean | null
+          size?: string | null
+          sku: string
+          sku_norm: string
+          updated_at?: string
+          variant_code?: string | null
+        }
+        Update: {
+          archived?: boolean | null
+          attributes?: Json
+          collection_year?: number | null
+          color?: string | null
+          description?: string | null
+          images?: Json
+          is_kit?: boolean | null
+          mother_code?: string | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          product_code?: string
+          replaced?: boolean | null
+          size?: string | null
+          sku?: string
+          sku_norm?: string
+          updated_at?: string
+          variant_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_product_variants_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_products"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      ducati_catalog_products: {
+        Row: {
+          archived: boolean | null
+          attributes: Json
+          category_label: string | null
+          category_path: string | null
+          code: string
+          description: string | null
+          detail_loaded_at: string | null
+          discount_group: string | null
+          ducati_id: string | null
+          family_codes: string[]
+          gender: string | null
+          image_url: string | null
+          images: Json
+          kind: string
+          last_chance: boolean | null
+          name: string | null
+          price_ht: number | null
+          price_seen_at: string | null
+          price_ttc: number | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean | null
+          attributes?: Json
+          category_label?: string | null
+          category_path?: string | null
+          code: string
+          description?: string | null
+          detail_loaded_at?: string | null
+          discount_group?: string | null
+          ducati_id?: string | null
+          family_codes?: string[]
+          gender?: string | null
+          image_url?: string | null
+          images?: Json
+          kind: string
+          last_chance?: boolean | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean | null
+          attributes?: Json
+          category_label?: string | null
+          category_path?: string | null
+          code?: string
+          description?: string | null
+          detail_loaded_at?: string | null
+          discount_group?: string | null
+          ducati_id?: string | null
+          family_codes?: string[]
+          gender?: string | null
+          image_url?: string | null
+          images?: Json
+          kind?: string
+          last_chance?: boolean | null
+          name?: string | null
+          price_ht?: number | null
+          price_seen_at?: string | null
+          price_ttc?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ducati_catalog_supermodels: {
+        Row: {
+          description: string
+          family_id: string
+          id: string
+          sort: number | null
+          updated_at: string
+        }
+        Insert: {
+          description: string
+          family_id: string
+          id: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          family_id?: string
+          id?: string
+          sort?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_catalog_supermodels_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ducati_vds: {
         Row: {
           displacement_cc: number | null
@@ -5841,6 +6475,41 @@ export type Database = {
       _cron_maybe_stock_copy: { Args: never; Returns: undefined }
       _cron_sales_alerts: { Args: never; Returns: Json }
       _cron_stock_copies: { Args: never; Returns: number }
+      _dc_batch_guard: {
+        Args: { _batch: string }
+        Returns: {
+          company_id: string | null
+          drawings_imported: number
+          drawings_skipped: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          last_position: Json | null
+          lines_imported: number
+          model_years_done: number
+          model_years_total: number
+          products_imported: number
+          products_skipped: number
+          requests_count: number
+          scope: Json
+          started_at: string
+          started_by: string | null
+          status: string
+          updated_at: string
+          variants_imported: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ducati_catalog_import_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _dc_bool: { Args: { _v: Json }; Returns: boolean }
+      _dc_date: { Args: { _v: Json }; Returns: string }
+      _dc_int: { Args: { _v: Json }; Returns: number }
+      _dc_num: { Args: { _v: Json }; Returns: number }
+      _dc_txt: { Args: { _v: Json }; Returns: string }
       _declared_vehicle_copy_scan: {
         Args: {
           _d: Database["public"]["Tables"]["contact_declared_vehicles"]["Row"]
@@ -6724,6 +7393,104 @@ export type Database = {
           value_pamp: number
         }[]
       }
+      ducati_catalog_article_for: {
+        Args: { _company: string; _reference: string }
+        Returns: string
+      }
+      ducati_catalog_batch_progress: {
+        Args: {
+          _batch: string
+          _counters?: Json
+          _error?: string
+          _position?: Json
+          _status: string
+        }
+        Returns: undefined
+      }
+      ducati_catalog_batch_start: {
+        Args: { _company: string; _model_years_total: number; _scope: Json }
+        Returns: string
+      }
+      ducati_catalog_drawing_lines: {
+        Args: { _company: string; _drawing_id: string }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_is_library: boolean
+          article_mgmt_type: string
+          article_reference: string
+          article_sale_price_ht: number
+          catalog_price_ht: number
+          catalog_price_ttc: number
+          description: string
+          end_date: string
+          has_tempario: boolean
+          line_no: number
+          notes: string
+          on_order_qty: number
+          part_notes: string
+          position: string
+          price_seen_at: string
+          quantity: number
+          real_qty: number
+          reference: string
+          reference_norm: string
+          replaced: boolean
+          replaced_part: string
+          reserved_qty: number
+          start_date: string
+        }[]
+      }
+      ducati_catalog_import_state: { Args: never; Returns: Json }
+      ducati_catalog_ingest_drawings: {
+        Args: {
+          _batch: string
+          _complete?: boolean
+          _drawings: Json
+          _model_year_id: string
+        }
+        Returns: Json
+      }
+      ducati_catalog_ingest_model_year: {
+        Args: { _batch: string; _groups: Json; _model_year_id: string }
+        Returns: Json
+      }
+      ducati_catalog_ingest_products: {
+        Args: { _batch: string; _products: Json }
+        Returns: Json
+      }
+      ducati_catalog_ingest_tree: {
+        Args: { _batch: string; _tree: Json }
+        Returns: Json
+      }
+      ducati_catalog_is_staff: { Args: never; Returns: boolean }
+      ducati_catalog_known_products: {
+        Args: { _batch: string; _codes: string[]; _kind: string }
+        Returns: string[]
+      }
+      ducati_catalog_norm_ref: { Args: { _ref: string }; Returns: string }
+      ducati_catalog_product_for_reference: {
+        Args: { _reference: string }
+        Returns: {
+          category_label: string
+          collection_year: number
+          color: string
+          description: string
+          gender: string
+          image_url: string
+          images: Json
+          kind: string
+          models: string[]
+          price_ht: number
+          price_seen_at: string
+          price_ttc: number
+          product_code: string
+          product_name: string
+          size: string
+          sku: string
+        }[]
+      }
+      ducati_catalog_stats: { Args: never; Returns: Json }
       enqueue_label: {
         Args: {
           _article: string

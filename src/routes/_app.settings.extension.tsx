@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Download, Chrome, MousePointerClick, ListChecks } from 'lucide-react';
+import { ArrowLeft, Download, Chrome, MousePointerClick, ListChecks, BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
@@ -63,6 +63,22 @@ function ExtensionPage() {
           <div className="mt-4 flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
             <ListChecks className="mt-0.5 size-4 shrink-0" />
             <span>{t('settings.extNote')}</span>
+          </div>
+        </div>
+
+        {/* Import du catalogue Ducati (mission 06) */}
+        <div className="rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] lg:col-span-3">
+          <div className="flex items-center gap-2"><BookOpen className="size-5 text-primary" /><h2 className="font-ui text-[15px] font-bold">{t('settings.extCatalog')}</h2></div>
+          <ol className="mt-3 space-y-2.5">
+            <Step n={1}>{t('settings.extCatalog1')}</Step>
+            <Step n={2}>{t('settings.extCatalog2')}</Step>
+            <Step n={3}>{t('settings.extCatalog3')}</Step>
+            <Step n={4}>{t('settings.extCatalog4')}</Step>
+            <Step n={5}>{t('settings.extCatalog5')}</Step>
+          </ol>
+          <div className="mt-4 flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
+            <ListChecks className="mt-0.5 size-4 shrink-0" />
+            <span>{t('settings.extCatalogNote')}</span>
           </div>
         </div>
       </div>

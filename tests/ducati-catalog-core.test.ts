@@ -5,12 +5,11 @@
  * Exécution : `bun test`.
  */
 import { test, expect, describe } from 'bun:test';
-import { createRequire } from 'node:module';
 import { normalizeCatalogReference } from '../src/modules/catalog/reference';
+import '../tools/myducati-extension/catalog-core.js';
 
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const core = require('../tools/myducati-extension/catalog-core.js');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const core = (globalThis as any).DmsCatalogCore;
 
 describe('filtre Europe (décision M-15)', () => {
   test('les modèles sans suffixe de marché sont européens', () => {
@@ -117,6 +116,7 @@ describe('réponses de l’e-catalog', () => {
   test('401 / 403 / redirection de connexion / page HTML = session à refaire', () => {
     expect(core.classifyResponse({ status: 401 })).toBe('auth');
     expect(core.classifyResponse({ status: 403 })).toBe('auth');
+    expect(core.classifyResponse({ status: 0, type: 'opaqueredirect' })).toBe('auth');
     expect(core.classifyResponse({ status: 200, redirected: true, url: 'https://idp.ducati.com/x/oauth2/v2.0/authorize', contentType: 'text/html' })).toBe('auth');
     expect(core.classifyResponse({ status: 200, url: 'https://e-catalog.ducati.com/EPC/api/x', contentType: 'text/html' })).toBe('auth');
   });

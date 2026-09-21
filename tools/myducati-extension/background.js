@@ -97,3 +97,48 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 });
+
+/* ===== Import du catalogue Ducati (mission 06) =====
+ * catalog.js (onglet e-catalog) → { type:'catalog-dms', fn, args } → ce relais → onglet du DMS
+ * (dms-bridge.js → l'application, qui enregistre sous la session DMS) → réponse renvoyée telle quelle.
+ * On retrouve l'onglet du DMS en lui demandant « hello » (seul le DMS y répond). */
+let catalogDmsTabId = null;
+
+function callDmsTab(tabId, fn, args) {
+  return new Promise((resolve) => {
+    try {
+      chrome.tabs.sendMessage(tabId, { type: 'catalog-call', fn, args: args || {} }, (resp) => {
+        if (chrome.runtime.lastError) { resolve(null); return; }
+        resolve(resp || null);
+      });
+    } catch (_) { resolve(null); }
+  });
+}
+
+async function findCatalogDmsTab() {
+  const tabs = await new Promise((r) => chrome.tabs.query({ url: DMS_MATCH }, (t) => r(t || [])));
+  tabs.sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0));
+  for (const t of tabs) {
+    const r = await callDmsTab(t.id, 'hello');
+    if (r && r.ok) { catalogDmsTabId = t.id; return t.id; }
+  }
+  catalogDmsTabId = null;
+  return null;
+}
+
+async function relayCatalog(msg) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const tabId = catalogDmsTabId != null ? catalogDmsTabId : await findCatalogDmsTab();
+    if (tabId == null) return { ok: false, code: 'no-dms', error: 'Onglet du DMS introuvable.' };
+    const resp = await callDmsTab(tabId, msg.fn, msg.args);
+    if (resp) return resp;
+    catalogDmsTabId = null; // onglet fermé ou rechargé : on cherche à nouveau
+  }
+  return { ok: false, code: 'no-dms', error: 'Onglet du DMS introuvable.' };
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.type !== 'catalog-dms') return;
+  relayCatalog(msg).then(sendResponse);
+  return true;
+});

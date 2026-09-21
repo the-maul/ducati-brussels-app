@@ -180,7 +180,7 @@
 
   // ---------------------------------------------------------------------------------------
   // 5. Réponses de l'e-catalog : quand faut-il s'arrêter ?
-  //    r = { status, redirected, url, contentType }
+  //    r = { status, type, redirected, url, contentType }
   //    'ok' | 'auth' (401/403, ou redirection vers la connexion Ducati, ou page HTML = session
   //    expirée) | 'rate' (429) | 'notfound' (404 : on saute) | 'server' (5xx, réessai) | 'other'
   // ---------------------------------------------------------------------------------------
@@ -188,6 +188,7 @@
     var status = r && r.status;
     var url = String((r && r.url) || '');
     var ct = String((r && r.contentType) || '').toLowerCase();
+    if (r && r.type === 'opaqueredirect') return 'auth'; // redirection (vers la connexion Ducati) bloquée
     if (status === 401 || status === 403) return 'auth';
     if (status === 429) return 'rate';
     if ((r && r.redirected && /idp\.ducati\.com|oauth2|login/i.test(url)) || /idp\.ducati\.com/i.test(url)) return 'auth';
