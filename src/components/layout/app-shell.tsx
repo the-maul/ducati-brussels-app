@@ -3,7 +3,7 @@
  * Sidebar noire repliable + topbar 56px + zone de travail (fond gray-50, padding 24px).
  * Utilisé par la route layout `_app`.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -19,8 +19,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Bouton menu : ouvre le tiroir sur smartphone, replie la sidebar sur desktop.
   const onMenu = () => (isMobile ? setMobileOpen((o) => !o) : setCollapsed((c) => !c));
 
+  // Seule la zone de travail défile : on bloque le défilement de la page entière,
+  // sinon un élément caché hors de l'écran laisse « scroller sous l'app » (fond vide).
+  useEffect(() => {
+    const els = [document.documentElement, document.body];
+    const prev = els.map((el) => el.style.overflow);
+    els.forEach((el) => { el.style.overflow = 'hidden'; });
+    return () => els.forEach((el, i) => { el.style.overflow = prev[i]; });
+  }, []);
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="fixed inset-0 flex h-dvh w-full overflow-hidden bg-background">
       <AppSidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
