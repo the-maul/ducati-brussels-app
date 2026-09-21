@@ -4,7 +4,7 @@
 # client_id est rempli automatiquement par `npx @shopify/cli@latest app config link`.
 # Il n'est PAS secret. Le Client secret, lui, ne va JAMAIS ici : il va dans les secrets
 # des fonctions Supabase (SHOPIFY_CLIENT_SECRET).
-client_id = ""
+client_id = "606259a362cbc504a191539e239bacc3"
 name = "DMS Ducati Bruxelles"
 application_url = "https://ducatilive.netlify.app"
 embedded = false
@@ -31,4 +31,3 @@ topics = [ "orders/create", "orders/paid", "orders/cancelled", "refunds/create" 
 uri = "https://ujmrosbgkvgvwfnuryna.supabase.co/functions/v1/shopify-orders"
 
 [build]
-include_config_on_deploy = true
