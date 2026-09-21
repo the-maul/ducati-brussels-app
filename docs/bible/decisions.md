@@ -46,6 +46,11 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   de Simon, cloche vendeurs + admins) ; acompte versé = encaissé ; alerte impayés = vendeur + admins ;
   e-catalog Ducati = coller la référence. *Client · 19/09.*
   [mission 04](missions/mission-04-fiche-client-moto.md), [mission 05](missions/mission-05-devis-preparation.md)
+- **S-7** — **Cartes ERP : pièces jointes et scission** (Simon, 21/09). Les notes peuvent porter
+  des fichiers (images, documents, vidéos, audio) : ils sont toujours ouverts et compris avant de coder
+  (vidéo/audio transcrits). Quand une note ajoute un besoin qui dépasse la carte, une **nouvelle carte**
+  est créée (proposée par l'agent, créée par l'agent principal) plutôt que de gonfler l'existante.
+  Détail : [`missions/README.md`](missions/README.md) §« Le cycle d'une carte ». *Client · 21/09.*
 - **S-6** — **Sauvegarde du code du 19/09 01:15** (accord de Simon dans le chat) : tag `backup-20260919-011526` sur le dépôt `ducati-backup` et branche `backup/20260919-011526` sur le dépôt principal (commit 6be3d89). Code seulement : la base n'est pas copiée par cette procédure. *Client · 19/09.*
 - **M-7** — **Vidéos : écouter la parole, pas seulement les images.** Domenico y dit ce qu'il voudrait
   que le DMS fasse et que G8 ne fait pas (« idéalement… », « ce serait bien… », « c'est un petit bug »).

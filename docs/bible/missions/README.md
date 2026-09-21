@@ -29,6 +29,19 @@ service « Updates & Modifs »). Chaque changement est une **carte** (activité)
 4. **Tout échange sur une carte (modification, discussion, choix) met la bible à jour** : le
    chapitre du module (ce qu'on a, règles, historique), la mission, et le journal des décisions.
 5. Le commit reprend le **titre exact de la carte** : l'ERP met à jour la carte au lieu d'en créer une.
+6. **Pièces jointes des notes** (images, fichiers, vidéos, audio — ajoutées par Simon ou le client
+   depuis le 21/09) : elles font partie du retour et sont **toujours ouvertes** avant de coder.
+   Image ou PDF → lu tel quel ; vidéo → images clés (ffmpeg) + parole transcrite (whisper, modèle
+   `C:\Users\simon\whisper-models\ggml-small.bin`) ; audio → transcrit. Téléchargées dans le dossier de
+   travail de la session, jamais commitées ; données personnelles jamais recopiées dans le dépôt.
+   Ce qu'on y a compris est résumé dans la note « [Claude] En cours » (et cité dans la bible).
+7. **Scinder le travail** : si une note ajoute un besoin qui dépasse la carte (nouvelle tâche,
+   autre écran, autre thématique), on ne gonfle pas la carte : **une nouvelle carte** est créée dans
+   la même liste, titre court et concret, avec une note « [Claude] Née de la carte « … » : pourquoi,
+   ce qu'il faut faire, Fait quand », assignée à Simon ; la carte d'origine reçoit une note qui la cite.
+   Si le nouveau besoin demande une décision de Simon, la carte naît avec « À CONFIRMER » et la
+   ronde ne la traite pas avant sa réponse. Les agents ne créent pas les cartes eux-mêmes : ils
+   les **proposent** dans leur rapport, l'agent principal les crée (une seule source, pas de doublon).
 
 ## Créer une nouvelle mission à partir d'une vidéo
 
