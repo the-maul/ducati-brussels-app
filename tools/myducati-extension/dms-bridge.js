@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   let done = false;
   const onReply = (ev) => {
     const d = ev.data;
-    if (ev.source !== window || !d || d.source !== 'dms-ducati' || d.action !== 'catalog-reply' || d.id !== id) return;
+    if (ev.origin !== location.origin || !d || d.source !== 'dms-ducati' || d.action !== 'catalog-reply' || d.id !== id) return;
     done = true;
     window.removeEventListener('message', onReply);
     sendResponse(d);

@@ -51,11 +51,14 @@ export const CATALOG_CALLS: Record<string, Handler> = {
   },
 };
 
-/** Vrai si le message vient de l'extension (même fenêtre, même origine) et vise le catalogue. */
-export function isCatalogCall(ev: Pick<MessageEvent, 'data' | 'origin' | 'source'>, win: { location: { origin: string } } & object): boolean {
+/**
+ * Vrai si le message vient de l'extension (même origine que le DMS) et vise le catalogue.
+ * (ev.source n'est pas comparé : un content script poste depuis un « monde isolé ».)
+ */
+export function isCatalogCall(ev: Pick<MessageEvent, 'data' | 'origin'>, win: { location: { origin: string } }): boolean {
   const d = ev.data as Partial<CatalogCallMessage> | null;
   return !!d && d.source === 'dms-ducati-ext' && d.action === 'catalog-call' && typeof d.id === 'string'
-    && typeof d.fn === 'string' && ev.source === win && ev.origin === win.location.origin;
+    && typeof d.fn === 'string' && ev.origin === win.location.origin;
 }
 
 /** Exécute un appel de l'extension et renvoie la réponse à poster. */
