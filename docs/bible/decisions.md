@@ -71,6 +71,9 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   identifiant Ducati stocké ni saisi par Claude. [mission 06](missions/mission-06-catalogue-pieces.md),
   [mission 07](missions/mission-07-plan-entretien.md) *Client · 21/09.*
 - **M-15** — Catalogue Ducati : **Europe seulement, millésimes depuis 2000, import par extension Chrome** (lecture avec la session de l'utilisateur, aucun identifiant stocké). *Client · 21/09.* [mission 06](missions/mission-06-catalogue-pieces.md)
+- **W-7** — Shopify : **prix TVA comprise** ; **frais de port en ligne à part** dans la vente du DMS. *Client · 21/09.* [mission 03](missions/mission-03-shopify.md)
+- **W-8** — **Le DMS écrit sur le site Shopify et gère les produits** (stock, prix TTC, publication/retrait, textes et photos) : accord explicite de Simon dans le chat le 21/09 (« d'accord pour que le DMS écrive sur le site, il gère les produits »). Mise en route par un essai sur quelques produits avant l'ouverture à tous. *Client · 21/09.* [mission 03](missions/mission-03-shopify.md)
+- **M-16** — Plan d'entretien : taux horaire **HT** ; document **le plus récent fait foi** ; échéance au **premier atteint (km ou mois)** ; plans **piste/racing** gérés avec un **usage** choisi par le client. *Client · 21/09.* [mission 07](missions/mission-07-plan-entretien.md)
 - **S-7** — **Cartes ERP : pièces jointes et scission** (Simon, 21/09). Les notes peuvent porter
   des fichiers (images, documents, vidéos, audio) : ils sont toujours ouverts et compris avant de coder
   (vidéo/audio transcrits). Quand une note ajoute un besoin qui dépasse la carte, une **nouvelle carte**

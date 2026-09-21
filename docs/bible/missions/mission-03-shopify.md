@@ -84,9 +84,11 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
    - 9 SKU sont d'anciennes références remplacées dans le DMS (proposées en suggestion).
 2. ~~Combien d'emplacements de stock dans Shopify ?~~ **Un seul** : « Chaussée de Bruxelles 688 » (vérifié le 19/09).
 3. Vente en magasin avec la caisse Shopify, ou seulement en ligne ?
-4. Prix Shopify TVA comprise ?
-5. Produit Shopify sans article dans le DMS : le créer dans le DMS ou le retirer du site ?
-6. Frais de port : ligne à part sur la vente dans le DMS ?
+4. ~~Prix Shopify TVA comprise ?~~ **Oui (Simon, 21/09)** : le DMS déduit le HT par la TVA de l'article.
+5. ~~Produit Shopify sans article dans le DMS ?~~ **Décidé le 21/09** : les vêtements et accessoires Ducati (« 98… ») viennent de l'e-catalog (mission 06, carte 7), puis liaison W-6.
+6. ~~Frais de port ?~~ **Ligne à part sur la vente du DMS (Simon, 21/09).**
+
+Question 3 (caisse Shopify en magasin) : recommandation du 21/09 = **non** — la caisse Shopify n'accepte pas Bancontact en magasin (seul lecteur Belgique : WisePad 3) et doublerait caisse et stock ; encaisser au comptoir par la caisse du DMS (QR virement + terminal Bancontact au choix). En attente du feu vert de Simon, ainsi que de son accord pour que le DMS écrive sur le site (essai sur 1 à 3 produits).
 
 Décidé le 19/09 : **W-5** l'inscription du site Shopify renvoie vers `/app-client` (page « bientôt disponible ») ; **W-6** liaison des clients Shopify : correspondances exactes seulement en automatique, les autres validées à la main.
 
