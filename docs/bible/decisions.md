@@ -46,6 +46,11 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   de Simon, cloche vendeurs + admins) ; acompte versé = encaissé ; alerte impayés = vendeur + admins ;
   e-catalog Ducati = coller la référence. *Client · 19/09.*
   [mission 04](missions/mission-04-fiche-client-moto.md), [mission 05](missions/mission-05-devis-preparation.md)
+- **M-14** — **Missions 06 « Catalogue pièces Ducati » et 07 « Plan d'entretien »** ouvertes le 21/09 à la
+  demande de Simon, proposition validée (« ok »). **Ducati a donné son accord** pour remplir notre base à
+  partir de l'e-catalog (confirmé par Simon). Lecture uniquement avec la session de l'utilisateur, aucun
+  identifiant Ducati stocké ni saisi par Claude. [mission 06](missions/mission-06-catalogue-pieces.md),
+  [mission 07](missions/mission-07-plan-entretien.md) *Client · 21/09.*
 - **S-7** — **Cartes ERP : pièces jointes et scission** (Simon, 21/09). Les notes peuvent porter
   des fichiers (images, documents, vidéos, audio) : ils sont toujours ouverts et compris avant de coder
   (vidéo/audio transcrits). Quand une note ajoute un besoin qui dépasse la carte, une **nouvelle carte**

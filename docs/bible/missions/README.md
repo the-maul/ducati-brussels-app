@@ -61,5 +61,7 @@ service « Updates & Modifs »). Chaque changement est une **carte** (activité)
 | 03 | Shopify relié au stock du DMS | 🟦 accès en cours de création | [`mission-03-shopify.md`](mission-03-shopify.md) — accès et secrets au §2 |
 | 04 | Fiche client et moto au comptoir | 🟦 feu vert le 19/09 · cartes 1 à 5 faites (à valider) | [`mission-04-fiche-client-moto.md`](mission-04-fiche-client-moto.md) |
 | 05 | Devis moto, options et préparation | 🟦 feu vert le 19/09, en cours | [`mission-05-devis-preparation.md`](mission-05-devis-preparation.md) |
+| 06 | Catalogue pièces Ducati | 🟦 ouverte le 21/09 | [`mission-06-catalogue-pieces.md`](mission-06-catalogue-pieces.md) |
+| 07 | Plan d'entretien | 🟦 ouverte le 21/09 | [`mission-07-plan-entretien.md`](mission-07-plan-entretien.md) |
 
 Légende : ⬜ pas commencée · 🟦 en cours · ✅ terminée et validée par le client.
