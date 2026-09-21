@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -3920,6 +3945,442 @@ export type Database = {
           },
         ]
       }
+      maintenance_checklists: {
+        Row: {
+          columns: Json
+          footnotes: Json
+          id: string
+          note: string | null
+          source_edition: string | null
+          source_file: string | null
+          source_page: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          columns?: Json
+          footnotes?: Json
+          id: string
+          note?: string | null
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          columns?: Json
+          footnotes?: Json
+          id?: string
+          note?: string | null
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      maintenance_plan_catalog_links: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          model_year_id: string
+          origin: string
+          plan_id: string
+          proposed_at: string
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          model_year_id: string
+          origin?: string
+          plan_id: string
+          proposed_at?: string
+          reason?: string | null
+          status: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          model_year_id?: string
+          origin?: string
+          plan_id?: string
+          proposed_at?: string
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_plan_catalog_links_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_catalog_links_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_plan_services: {
+        Row: {
+          code: string
+          doc_names: string[]
+          id: string
+          name: string
+          operations_note: string | null
+          plan_id: string
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          doc_names?: string[]
+          id?: string
+          name: string
+          operations_note?: string | null
+          plan_id: string
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          doc_names?: string[]
+          id?: string
+          name?: string
+          operations_note?: string | null
+          plan_id?: string
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_plan_services_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_plans: {
+        Row: {
+          checklist_history: Json
+          checklist_id: string | null
+          content_hash: string
+          family: string
+          id: string
+          loaded_at: string
+          match_names: string[]
+          model_text: string
+          notes: Json
+          own_interval_operations: Json
+          source_files: string[]
+          updated_at: string
+          usage: string
+          variants: string[]
+          year_from: number | null
+          year_to: number | null
+        }
+        Insert: {
+          checklist_history?: Json
+          checklist_id?: string | null
+          content_hash: string
+          family: string
+          id: string
+          loaded_at?: string
+          match_names?: string[]
+          model_text: string
+          notes?: Json
+          own_interval_operations?: Json
+          source_files?: string[]
+          updated_at?: string
+          usage?: string
+          variants?: string[]
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Update: {
+          checklist_history?: Json
+          checklist_id?: string | null
+          content_hash?: string
+          family?: string
+          id?: string
+          loaded_at?: string
+          match_names?: string[]
+          model_text?: string
+          notes?: Json
+          own_interval_operations?: Json
+          source_files?: string[]
+          updated_at?: string
+          usage?: string
+          variants?: string[]
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_plans_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_service_intervals: {
+        Row: {
+          deduced: string | null
+          first_reached: boolean
+          first_reached_origin: string | null
+          id: string
+          km_column: number | null
+          km_first: number | null
+          km_interval: number | null
+          months: number | null
+          replaced_by: string | null
+          row_key: string
+          same_value: boolean | null
+          service_id: string
+          sort: number
+          source_edition: string | null
+          source_file: string | null
+          source_page: number | null
+          source_sort: string | null
+          status: string
+          text: string | null
+          years_doc: string | null
+        }
+        Insert: {
+          deduced?: string | null
+          first_reached?: boolean
+          first_reached_origin?: string | null
+          id?: string
+          km_column?: number | null
+          km_first?: number | null
+          km_interval?: number | null
+          months?: number | null
+          replaced_by?: string | null
+          row_key: string
+          same_value?: boolean | null
+          service_id: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          source_sort?: string | null
+          status: string
+          text?: string | null
+          years_doc?: string | null
+        }
+        Update: {
+          deduced?: string | null
+          first_reached?: boolean
+          first_reached_origin?: string | null
+          id?: string
+          km_column?: number | null
+          km_first?: number | null
+          km_interval?: number | null
+          months?: number | null
+          replaced_by?: string | null
+          row_key?: string
+          same_value?: boolean | null
+          service_id?: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          source_sort?: string | null
+          status?: string
+          text?: string | null
+          years_doc?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_intervals_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plan_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_service_operations: {
+        Row: {
+          id: string
+          n: number | null
+          parts_cited: Json
+          periodicity_deduced: string | null
+          periodicity_months: number | null
+          reference_mark: string | null
+          remark: string | null
+          row_key: string
+          service_id: string
+          sort: number
+          source_edition: string | null
+          source_file: string | null
+          source_page: number | null
+          text: string
+        }
+        Insert: {
+          id?: string
+          n?: number | null
+          parts_cited?: Json
+          periodicity_deduced?: string | null
+          periodicity_months?: number | null
+          reference_mark?: string | null
+          remark?: string | null
+          row_key: string
+          service_id: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          text: string
+        }
+        Update: {
+          id?: string
+          n?: number | null
+          parts_cited?: Json
+          periodicity_deduced?: string | null
+          periodicity_months?: number | null
+          reference_mark?: string | null
+          remark?: string | null
+          row_key?: string
+          service_id?: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_operations_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plan_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_service_times: {
+        Row: {
+          deduced: string | null
+          hours: number | null
+          id: string
+          interval_doc: string | null
+          model_doc: string | null
+          note: string | null
+          replaced_by: string | null
+          row_key: string
+          same_value: boolean | null
+          service_doc: string | null
+          service_id: string
+          sort: number
+          source_edition: string | null
+          source_file: string | null
+          source_page: number | null
+          source_sort: string | null
+          status: string
+          time_text: string | null
+          ut: number | null
+          years_doc: string | null
+        }
+        Insert: {
+          deduced?: string | null
+          hours?: number | null
+          id?: string
+          interval_doc?: string | null
+          model_doc?: string | null
+          note?: string | null
+          replaced_by?: string | null
+          row_key: string
+          same_value?: boolean | null
+          service_doc?: string | null
+          service_id: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          source_sort?: string | null
+          status: string
+          time_text?: string | null
+          ut?: number | null
+          years_doc?: string | null
+        }
+        Update: {
+          deduced?: string | null
+          hours?: number | null
+          id?: string
+          interval_doc?: string | null
+          model_doc?: string | null
+          note?: string | null
+          replaced_by?: string | null
+          row_key?: string
+          same_value?: boolean | null
+          service_doc?: string | null
+          service_id?: string
+          sort?: number
+          source_edition?: string | null
+          source_file?: string | null
+          source_page?: number | null
+          source_sort?: string | null
+          status?: string
+          time_text?: string | null
+          ut?: number | null
+          years_doc?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_times_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plan_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_sources: {
+        Row: {
+          edition: string | null
+          file_name: string
+          id: string
+          pages: number | null
+          sort_key: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          edition?: string | null
+          file_name: string
+          id: string
+          pages?: number | null
+          sort_key?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          edition?: string | null
+          file_name?: string
+          id?: string
+          pages?: number | null
+          sort_key?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -6507,6 +6968,7 @@ export type Database = {
           cylinders: number | null
           displacement: number | null
           display_price: number | null
+          ducati_model_year_id: string | null
           ducati_state: string | null
           ducati_usage: string | null
           energy: string | null
@@ -6529,6 +6991,7 @@ export type Database = {
           key_number: string | null
           key_number2: string | null
           legacy_state: string | null
+          maintenance_usage: string | null
           marking: string | null
           marking_date: string | null
           mileage: number | null
@@ -6584,6 +7047,7 @@ export type Database = {
           cylinders?: number | null
           displacement?: number | null
           display_price?: number | null
+          ducati_model_year_id?: string | null
           ducati_state?: string | null
           ducati_usage?: string | null
           energy?: string | null
@@ -6606,6 +7070,7 @@ export type Database = {
           key_number?: string | null
           key_number2?: string | null
           legacy_state?: string | null
+          maintenance_usage?: string | null
           marking?: string | null
           marking_date?: string | null
           mileage?: number | null
@@ -6661,6 +7126,7 @@ export type Database = {
           cylinders?: number | null
           displacement?: number | null
           display_price?: number | null
+          ducati_model_year_id?: string | null
           ducati_state?: string | null
           ducati_usage?: string | null
           energy?: string | null
@@ -6683,6 +7149,7 @@ export type Database = {
           key_number?: string | null
           key_number2?: string | null
           legacy_state?: string | null
+          maintenance_usage?: string | null
           marking?: string | null
           marking_date?: string | null
           mileage?: number | null
@@ -6734,6 +7201,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_ducati_model_year_id_fkey"
+            columns: ["ducati_model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
             referencedColumns: ["id"]
           },
         ]
@@ -7085,6 +7559,9 @@ export type Database = {
       }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
+      _mp_can_link: { Args: { _company: string }; Returns: boolean }
+      _mp_can_write: { Args: never; Returns: boolean }
+      _mp_norm: { Args: { _s: string }; Returns: string }
       _next_document_number_unchecked: {
         Args: { _company: string; _doc_type: string }
         Returns: string
@@ -8283,6 +8760,29 @@ export type Database = {
         }
         Returns: string
       }
+      maintenance_catalog_coverage: { Args: { _limit?: number }; Returns: Json }
+      maintenance_hourly_rate_ht: {
+        Args: { _company: string }
+        Returns: number
+      }
+      maintenance_ingest: {
+        Args: { _force?: boolean; _payload: Json }
+        Returns: Json
+      }
+      maintenance_link_set: {
+        Args: {
+          _company: string
+          _model_year_ids: string[]
+          _plan: string
+          _status: string
+        }
+        Returns: number
+      }
+      maintenance_propose_catalog_links: {
+        Args: { _company: string }
+        Returns: Json
+      }
+      maintenance_stats: { Args: never; Returns: Json }
       monthly_revenue: {
         Args: { _company: string }
         Returns: {
@@ -9362,6 +9862,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

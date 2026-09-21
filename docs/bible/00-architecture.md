@@ -86,6 +86,7 @@ contrôles écrits dans les fonctions SQL, pas sur le serveur Netlify.
 | `tests/` | Tests `bun test` des règles critiques (PAMP, totaux ventes / atelier, UBL, SEPA, imports, reprises…) |
 | `tools/migration/` | Scripts Python de reprise G8 (`import_g8.py`, `import_pdf_lines.py`, `import_pdf_ged.py`), voir M14 |
 | `tools/myducati-extension/` | Extension navigateur : import « My Ducati » (par VIN) **et** import du catalogue Ducati depuis l'e-catalog (`catalog-core.js` règles testées, `catalog.js` panneau et parcours ; relais `background.js` → `dms-bridge.js` → `src/modules/catalog/bridge.ts`). `public/myducati-extension.zip` = version téléchargeable (v0.10.0) |
+| `tools/maintenance-loader/` | Chargeur des plans d'entretien Ducati (`load.mjs` : lit `plans.json` + `temps.json` du dossier `entretiens-extraits`, fonction idempotente `maintenance_ingest`, clé de service lue dans l'environnement, jamais affichée ; `transform.mjs` testé ; `corrections.mjs` = corrections décidées par Simon appliquées au chargement) — mission 07 |
 | `tools/catalog-loader/` | Chargeur des fichiers d'extraction du catalogue Ducati (`load.mjs`, clé de service lue dans l'environnement, jamais affichée ; `transform.mjs` testé) — mission 06 |
 | `public/` | Fichiers statiques : polices Ducati Style (`fonts/`), zip de l'extension |
 | `seed/` | Vide ; les données de démonstration sont dans la migration `20260612150000_seed_demo_data.sql` |
@@ -264,6 +265,10 @@ npx supabase@2.117.0 gen types typescript --project-id ujmrosbgkvgvwfnuryna > sr
 
 # Catalogue Ducati : charger les fichiers d'extraction (Téléchargements) — mission 06
 node tools/catalog-loader/load.mjs --dry-run   # puis sans --dry-run ; --stats pour les compteurs
+
+# Plans d'entretien : (re)charger plans.json + temps.json — mission 07 (relançable : un plan inchangé n'est pas réécrit)
+node tools/maintenance-loader/load.mjs --dry-run   # puis sans --dry-run ; --stats ; --force réécrit tout
+#   essai en transaction annulée : --sql essai.sql --rollback, puis npx supabase@2.117.0 db query --linked -f essai.sql
 
 # Déploiement d'une Edge Function :
 npx supabase@2.117.0 functions deploy <nom> --project-ref ujmrosbgkvgvwfnuryna --use-api

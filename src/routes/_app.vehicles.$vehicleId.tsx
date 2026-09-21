@@ -9,6 +9,7 @@ import { VehicleForm } from '@/modules/vehicles/vehicle-form';
 import { getVehicle, updateVehicle, listOwners, listVehicleDocuments, vehicleLabel, type VehicleInsert, type Vehicle } from '@/modules/vehicles/api';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { DucatiInfoPanel } from '@/modules/vehicles/ducati-panel';
+import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-panel';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -140,6 +141,11 @@ function EditVehicle() {
       <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicles.secDucati')}</h2>
         <DucatiInfoPanel vehicle={vehicle} />
+      </div>
+
+      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenance.vehTitle')}</h2>
+        <VehicleMaintenancePanel vehicle={vehicle} companyId={activeCompanyId} />
       </div>
 
       <div className="mt-6 rounded-md border border-border bg-card p-4">

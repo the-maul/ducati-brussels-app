@@ -8,6 +8,14 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Mission 07, plans d'entretien (réalisation)
+
+- **M-21** — **Plans d'entretien = données de référence globales** (comme le catalogue, M-19), chargées par
+  `tools/maintenance-loader` ; **rattachement plan ↔ modèle-année du catalogue prudent** (nom exact + plage
+  d'années = lié ; le reste à valider par l'atelier) ; la moto porte son **modèle-année du catalogue**
+  (`vehicles.ducati_model_year_id`, rempli par la carte 06-4) et son **usage** (route par défaut). *Équipe · 21/09.*
+  [mission 07](missions/mission-07-plan-entretien.md), [M03](modules/M03-vehicules.md)
+
 ## 2026-09-21 — Mission 03, commandes du site (choix de réalisation)
 
 - **W-9** — **Une commande payée sur le site = une facture `FAC` validée et payée** dans le DMS (pas un bon de

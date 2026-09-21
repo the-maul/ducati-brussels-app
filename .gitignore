@@ -47,6 +47,8 @@ tools/*
 !tools/myducati-extension/
 # Exception : chargeur du catalogue Ducati (code seul ; les fichiers de données restent dans Téléchargements).
 !tools/catalog-loader/
+# Exception : chargeur des plans d'entretien (code seul ; les données restent dans entretiens-extraits).
+!tools/maintenance-loader/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 

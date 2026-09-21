@@ -31,6 +31,7 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 | Véhicules → **Motos déclarées à valider** (`/vehicles/declarations`) | Mission 04 carte 8 : motos déclarées par les clients (espace client, inscription, borne) ; moto du parc de même VIN ou plaque ; « Rattacher à cette moto », « Créer la fiche moto », « Ignorer ». Rien n'entre dans le parc sans ce choix. |
 | Paramètres → Extension My Ducati (`/settings/extension`) | Téléchargement de l'extension (`public/myducati-extension.zip`) et mode d'emploi. |
 | Pièces & Accessoires → Catalogue Ducati (`/parts/catalog`, mission 06) | Modèles Ducati par famille, cylindrée et **millésime** (Europe, depuis 2000), avec les vues éclatées de chaque modèle-année. Pas encore relié à la fiche moto (carte 4 « Reconnaître la moto par son VIN »). |
+| Véhicules → fiche → **Plan d'entretien** (mission 07) | Si la moto est rattachée à un modèle-année du catalogue Ducati (`vehicles.ducati_model_year_id`, rempli par la future carte 06-4 « Reconnaître la moto par son VIN ») : plan du modèle pour l'**usage** choisi (route par défaut ; route / piste amateur / racing enregistré dans `vehicles.maintenance_usage`), échéances au premier atteint, temps Ducati et main-d'œuvre HT. Sinon : message « pas encore rattachée au catalogue ». |
 | (fiche client) Onglet véhicules | Parc d'un client, via `vehicle_owners` (M1). Bouton My Ducati sur la fiche contact. |
 | (fiche client) Parc → **Ajouter une moto** (`/vehicles/new?contact=<id>`) | Mission 04 carte 6 : moto du client créée avec son lien propriétaire (date de début), sans article ni suivi commercial ; si le VIN existe déjà, **« Rattacher cette moto existante au client »**. |
 
@@ -137,6 +138,7 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-07-18 | Case « Papiers 100 CH » + repli sur colonne inconnue | `f01ee2c`, `20260716090000` (non appliquée au 14/09) |
 | 2026-07-26 | Matching client intéressé ↔ moto en stock | `6954757` |
 | 2026-09-11 | Retour visuel d'enregistrement, bouton grisé tant que rien ne change | `7f6ce22`, `d24c84f` |
+| 2026-09-21 | Colonnes `ducati_model_year_id` (lien au catalogue Ducati, **non rempli** : carte 06-4) et `maintenance_usage` ; panneau « Plan d'entretien » sur la fiche (mission 07 carte 1) | `20260921131000_m8_plans_entretien_catalogue.sql` |
 | 2026-09-19 | **Mission 04 carte 8** : motos déclarées par les clients → cloche (admin, vendeur) → écran « Motos déclarées à valider » | branche `lot-m4-moto`, migrations `20260919302000`, `20260919303000` (appliquées le 19/09) |
 | 2026-09-19 | **Mission 04 carte 7** : « Lire la carte grise » (photo ou PDF) → champs pré-remplis surlignés, photo rangée dans la GED de la moto | branche `lot-m4-moto`, fonction `read-id-doc` redéployée le 19/09 |
 | 2026-09-19 | **Mission 04 carte 6** : « Ajouter une moto » depuis la fiche client (propriétaire en une transaction, sans article), codes carte grise sur les libellés, contrôle du VIN, refus d'un doublon + rattachement de la moto existante | branche `lot-m4-moto`, migration `20260919300000_m3_moto_client_depuis_fiche` (appliquée le 19/09) |

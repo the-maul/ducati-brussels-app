@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Timer, CalendarDays } from 'lucide-react';
+import { Loader2, Plus, Timer, CalendarDays, BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ function WorkshopList() {
                 mais TanStack exige quand meme l'objet. */}
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning', search: { week: undefined } })}><CalendarDays /> {t('workshop.planning')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop/maintenance-plans' })}><BookOpen /> {t('workshop.maintenancePlans')}</Button>
             <Button onClick={() => navigate({ to: '/workshop/new', search: { contactId: undefined } })}><Plus /> {t('workshop.newOr')}</Button>
           </div>
         }
