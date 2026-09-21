@@ -49,7 +49,13 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 | 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | devis/OR : planches de SA variante, clic sur un repère = ligne |
 | 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | relecture ciblée (drapeau `updated` de l'API) |
 
-## 4. Questions en attente
+## 4. Décisions (Simon, 21/09)
+
+- **Europe seulement** (variantes des autres marchés exclues).
+- **Millésimes depuis 2000.**
+- **Import par une extension Chrome** (principe My Ducati : lit avec la session de l'utilisateur, aucun identifiant stocké, envoie au DMS, rythme lent, reprise après interruption).
+
+## 4 bis. Questions (répondues le 21/09)
 
 1. Périmètre : variantes Europe seulement ? *Reco : oui, les autres marchés plus tard si besoin.*
 2. Années : tout, ou 2005+ d'abord ? *Reco : les modèles du parc + la gamme actuelle d'abord, puis le reste.*

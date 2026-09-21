@@ -51,6 +51,7 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   partir de l'e-catalog (confirmé par Simon). Lecture uniquement avec la session de l'utilisateur, aucun
   identifiant Ducati stocké ni saisi par Claude. [mission 06](missions/mission-06-catalogue-pieces.md),
   [mission 07](missions/mission-07-plan-entretien.md) *Client · 21/09.*
+- **M-15** — Catalogue Ducati : **Europe seulement, millésimes depuis 2000, import par extension Chrome** (lecture avec la session de l'utilisateur, aucun identifiant stocké). *Client · 21/09.* [mission 06](missions/mission-06-catalogue-pieces.md)
 - **S-7** — **Cartes ERP : pièces jointes et scission** (Simon, 21/09). Les notes peuvent porter
   des fichiers (images, documents, vidéos, audio) : ils sont toujours ouverts et compris avant de coder
   (vidéo/audio transcrits). Quand une note ajoute un besoin qui dépasse la carte, une **nouvelle carte**
