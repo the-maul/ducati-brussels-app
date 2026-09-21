@@ -179,6 +179,24 @@ describe('plan des écritures stock + prix', () => {
     expect(p.results[0].status).toBe('erreur');
     expect(p.priceUpdates).toEqual([]);
   });
+  test('prix exact du DMS = prix du site : l’écart restant est signalé comme dû à l’arrondi société', () => {
+    const t = target({ sale_price_ttc: 118.29, sale_price_ht: 97.76, round_up: true });
+    const p = planPush([t], states(state({ price: '118.29', available: 4 })), LOC);
+    expect(p.results[0]).toMatchObject({ price_before: 118.29, price_sent: 119, write_price: true });
+    expect(p.results[0].detail).toContain('arrondi');
+    const sans = planPush([{ ...t, round_up: false }], states(state({ price: '118.29', available: 4 })), LOC);
+    expect(sans.results[0].status).toBe('deja_a_jour');
+    expect(sans.results[0].detail).toBeNull();
+  });
+  test('reprise du 21/09 : PV G8 hors TVA rangé en TTC → le site aurait baissé ; PV corrigé → site inchangé', () => {
+    // avant correction : 92,22 (HT G8 lu comme TTC) contre 118,29 sur le site
+    const avant = planPush([target({ sale_price_ttc: 92.22, round_up: false, real_qty: 1, reserved_qty: 0 })],
+      states(state({ price: '118.29', available: 1 })), LOC);
+    expect(avant.results[0].price_sent).toBe(92.22);
+    const apres = planPush([target({ sale_price_ttc: 118.29, sale_price_ht: 97.76, round_up: false, real_qty: 1, reserved_qty: 0 })],
+      states(state({ price: '118.29', available: 1 })), LOC);
+    expect(apres.results[0].status).toBe('deja_a_jour');
+  });
   test('deux variantes du même produit : une seule mutation pour le produit', () => {
     const t2 = target({ article_id: 'art-2', queue_id: 2, shopify_variant_id: 'gid://shopify/ProductVariant/101' });
     const s2 = state({ variant_id: 'gid://shopify/ProductVariant/101', inventory_item_id: 'gid://shopify/InventoryItem/1001' });

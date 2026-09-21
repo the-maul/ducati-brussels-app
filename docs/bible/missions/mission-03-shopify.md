@@ -66,6 +66,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Le stock et le prix du DMS s'affichent en direct sur le site | 🟦 21/09 — fait, livré en mode **Arrêtée** (rien n'est écrit sur le site) ; essai à lancer par Simon (§5 bis) |
 | Une vente sur le site crée la vente et la sortie de stock dans le DMS | ⬜ |
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | 🟦 21/09 — fait, soumis au même mode essai (livré Arrêtée) |
+| Reprendre le stock et vérifier les prix de vente des articles reliés au site | 🟦 21/09 — fait, à valider : reprise réelle des 300 articles reliés (§5 ter) ; bouton « Aligner le DMS sur le site (stock et prix) » |
 
 ## 4. Questions en attente
 
@@ -255,6 +256,7 @@ sur ces 300 articles (259 ont du stock sur le site, 305 pièces au total) et leu
 est environ 20 % plus bas** que le prix du site (médiane : prix site = 1,245 × prix DMS ; 293 moins chers,
 2 plus chers, 5 sans prix). Passer en « Tous » aujourd'hui mettrait le site à 0 et baisserait les prix.
 À trancher avant l'essai : reprise du stock G8 et vérification des prix de vente (TTC ou HT ?) dans le DMS.
+**→ Tranché et corrigé le 21/09 (W-10), voir §5 ter.**
 
 ### Ce qui part vers le site (carte « Le stock et le prix du DMS s'affichent en direct »)
 
@@ -304,6 +306,71 @@ Administrateurs, selon le mode (Arrêtée : rien ; Essai : article d'essai seule
 - [ ] Retirer → brouillon sur Shopify ; Remettre en ligne → actif.
 - [ ] Mettre à jour après changement du titre web / ajout d'une photo.
 - [ ] Publier une référence déjà présente sur le site → refus clair.
+
+## 5 ter. Reprise du stock et des prix des articles reliés (W-10, 21/09)
+
+Carte « Reprendre le stock et vérifier les prix de vente des articles reliés au site » (branche `lot-shopify-stock`,
+à valider). Décision de Simon : **stock de départ = stock Shopify ; prix = prix du site ; le prix G8 était HTVA**.
+
+**Ce qui était faux.** Le calcul du prix envoyé au site (`shopifyTtc`) était juste (PV TTC du DMS, sinon PV HT ×
+(1 + TVA de l'article), puis arrondi société sur le TTC). C'est la **donnée** qui était fausse : l'import G8 a rangé
+le prix de vente G8, **hors TVA**, dans `articles.sale_price_ttc` (PV HT vide). Sur les 300 articles reliés : prix
+du site = 1,245 × prix DMS pour 253 (1,21 de TVA × environ 1,03, tarif plus récent sur le site), 1,283 pour 23,
+**11 prix G8 divisés par 1 000** (séparateur de milliers mal lu : 1,74 € au lieu de 2 169,04 €), 1 prix ×5, 5 sans
+prix ; aucun mouvement de stock.
+
+**Ce qui est livré.**
+- Fonction SQL `shopify_realign(société, appliquer)` (migration `20260921140000_m2_shopify_reprise_stock_prix.sql`,
+  appliquée le 21/09) : **aperçu** (rien n'est écrit) ou **application**, réexécutable (un article déjà aligné n'est
+  pas touché). Pour chaque article relié (liaison automatique ou validée, variante encore sur le site) :
+  - **stock** : si le réel du DMS ≠ stock Shopify de l'instantané (« Relire Shopify » avant) → un mouvement
+    **inventaire** « annule et remplace » (B6) par `record_stock_move`, origine `reprise_shopify`, réf. « Reprise
+    Shopify », note « ancien → nouveau », opérateur = l'administrateur qui clique (vide pour une exécution système) ;
+    **sans prix d'achat** : le PAMP ne bouge pas (voir M05 §7) ;
+  - **prix** : PV TTC = prix du site, PV HT = prix du site ÷ (1 + TVA de l'article, 21 % à défaut), au centime,
+    par `record_price_change` (trace `price_changes`, origine `reprise_prix_shopify`), **seulement si différent** ;
+    prix verrouillé, occasion TVA marge (O) ou pas de prix sur le site : prix inchangé ;
+  - une trace de synthèse `events` (`shopify_realign`). **Rien n'est écrit sur Shopify** ; le mode reste « Arrêtée ».
+- Écran **Produits Shopify** → bouton admin **« Aligner le DMS sur le site (stock et prix) »** : compteurs, liste des
+  écarts (référence, stock DMS → site, PV HT actuel → nouveau, PV TTC actuel → prix du site, remarques), confirmation,
+  compte rendu. Code : `src/modules/articles/shopify-realign-dialog.tsx`, `shopify-sync-api.ts` (`shopifyRealign`),
+  règles miroir testées `src/modules/articles/shopify-realign-rules.ts` (`tests/shopify-realign.test.ts`).
+- Simulation de synchronisation : un écart de prix qui ne vient **que** de l'arrondi société est désormais signalé
+  « écart dû seulement à l'arrondi à l'euro supérieur de la société » (`shopify-push` redéployée le 21/09).
+
+**Reprise réelle du 21/09** (instantané Shopify relu à 12:57 UTC, testée d'abord en transaction annulée) :
+
+| Vérifié en base le 21/09 | Nombre |
+|---|---|
+| Articles reliés traités | **300** |
+| Mouvements d'inventaire « reprise Shopify » | **259** (les 41 autres sont à 0 sur le site comme dans le DMS) |
+| Pièces en stock DMS sur ces articles | **0 → 305** (221 articles à 1, 32 à 2, 4 à 3, 2 à 4) |
+| Changements de prix « reprise prix site Shopify » | **300** (dont 5 articles sans prix, 11 prix G8 divisés par 1 000, 1 prix ×5) |
+| Prix qui baissent | 2 : `480P5681CT` 436,37 → 250,00 € et `48120742AA` 649,65 → 350,00 € (prix du site, peut-être soldés) |
+| Remarques | 2 articles en **librairie** ont reçu du stock (`8291E222A`, `96880411A`) |
+| 2e exécution (aperçu) | 0 mouvement, 0 prix : idempotente |
+| PAMP modifiés | 0 |
+
+**Nouvelle simulation (lecture seule, 300 articles, 21/09 après la reprise)** : **0 écart de stock** ; **0 écart
+de prix réel** ; 3 « déjà à jour » ; **297 prix seraient arrondis à l'euro supérieur** par le réglage société
+« arrondir les prix de vente » (+0,01 à +0,99 €, +153,60 € au total), car les prix du site ne sont pas ronds.
+**À trancher par Simon avant « Tous »** : désactiver l'arrondi de la société (Paramètres → société ; il vaut aussi
+pour la caisse et les étiquettes) ou accepter des prix du site arrondis à l'euro supérieur.
+
+**À tester (Simon)**
+- [ ] Produits Shopify → « Aligner le DMS sur le site » : aperçu « déjà aligné », 0 à appliquer.
+- [ ] Fiche d'un article relié : stock réel = stock du site ; historique : mouvement « inventaire », origine reprise
+      Shopify ; PV TTC = prix du site, PV HT = TTC ÷ 1,21 ; historique des prix : origine reprise prix site Shopify.
+- [ ] Relier un nouveau produit, « Relire Shopify », puis « Aligner » : seul ce produit apparaît dans l'aperçu.
+- [ ] Simulation d'un article d'essai : prix site = prix DMS (hors arrondi), stock site = stock DMS.
+
+**Points ouverts**
+- Les **~81 000 autres articles G8** ont le même défaut probable (PV G8 hors TVA rangé en TTC, milliers mal lus) :
+  la caisse et les devis les vendent au prix G8 **comme s'il était TTC**. Non corrigé ici (hors carte) : à vérifier
+  avec Simon et à corriger par une carte dédiée.
+- PAMP : ces 305 pièces entrent **sans valeur** (PA et PAMP à 0). À la première réception avec prix d'achat, le PAMP
+  sera la moyenne pondérée avec ces pièces à 0 (ex. 1 pièce reprise + 1 reçue à 100 € → PAMP 50 €). Saisir un PA
+  (ou passer un inventaire valorisé) si la valeur de stock compte avant.
 
 ## 6. Risques
 

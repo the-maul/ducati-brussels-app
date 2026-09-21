@@ -96,6 +96,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 - **Filtre « stock dormant » des dépréciations factice** : il retient les articles à disponible > 0, pas ceux sans mouvement depuis N mois (TODO dans `src/routes/_app.stock.depreciation.tsx`).
 - **Alerte stock dormant limitée aux pièces (type A)** et écrite seulement dans `events` : personne n'est notifié, et les motos ne sont pas concernées (VEH008, voir M03).
 - Les cessions ne figent pas leur valeur (pas de `unit_cost`) : une statistique a posteriori valorisera au PAMP du moment de la consultation.
+- **Entrées sans coût et PAMP** : un mouvement positif sans `unit_cost` (inventaire, reprise Shopify W-10 du 21/09 : 305 pièces sur 259 articles, origine `reprise_shopify`) ne change pas le PAMP. Si le PAMP est à 0, la réception suivante calcule la moyenne avec ces pièces à 0 (1 pièce reprise + 1 reçue à 100 € → PAMP 50 €) : la formule ne repart du coût que si le stock avant est ≤ 0.
 - Calcul du stock à la volée (somme de tous les mouvements à chaque liste) : correct mais coûteux quand l'historique grossira ; pas d'index composite (article, réservation).
 
 ## 8. Exigences du cahier couvertes
@@ -137,3 +138,4 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | 2026-09-19 | « En commande » sans double comptage (mission 02, carte 4) : `article_on_order_for` redéfinie, une pièce de commande de pièces reliée à une ligne de CMD compte une seule fois ; CMD reçue = plus en commande. Aucun mouvement de stock | `20260919370000_m4_proposition_commande_fournisseur` |
 | 2026-09-19 | Liste de préparation sur tablette (mission 05, carte 6) : casiers (principal, second, `article_bins`) et triple stock par ligne ; **aucun mouvement de stock** au changement d'étape (commandé / préparé / monté) | `20260919310000_m6_preparation_tablette` |
 | 2026-09-19 | Gestion des listes de préparation (mission 02, carte 11) : impression A4 avec casiers, régénération depuis le document, annuler / supprimer, terminer ; **aucun mouvement de stock** | `20260919380000_m6_listes_preparation_gestion` |
+| 2026-09-21 | Reprise du stock Shopify des 300 articles reliés (mission 03, W-10) : 259 mouvements « inventaire » annule-et-remplace, origine `reprise_shopify`, 0 → 305 pièces, PAMP inchangé ; fonction réexécutable `shopify_realign` | `20260921140000_m2_shopify_reprise_stock_prix.sql` |
