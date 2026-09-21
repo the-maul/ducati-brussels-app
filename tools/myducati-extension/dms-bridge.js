@@ -17,3 +17,27 @@ chrome.runtime.onMessage.addListener((msg) => {
     window.postMessage({ source: 'dms-ducati-ext', action: msg.type, payload: msg.payload }, location.origin);
   }
 });
+
+/* Import du catalogue Ducati (mission 06) : relais extension → application → extension.
+ * L'application répond par { source:'dms-ducati', action:'catalog-reply', id, ok, data|error }. */
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.type !== 'catalog-call') return;
+  const id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  let done = false;
+  const onReply = (ev) => {
+    const d = ev.data;
+    if (ev.origin !== location.origin || !d || d.source !== 'dms-ducati' || d.action !== 'catalog-reply' || d.id !== id) return;
+    done = true;
+    window.removeEventListener('message', onReply);
+    sendResponse(d);
+  };
+  window.addEventListener('message', onReply);
+  window.postMessage({ source: 'dms-ducati-ext', action: 'catalog-call', id, fn: msg.fn, args: msg.args || {} }, location.origin);
+  // « hello » : réponse rapide attendue (sinon ce n'est pas l'onglet du DMS) ; envoi de données : 2 min.
+  setTimeout(() => {
+    if (done) return;
+    window.removeEventListener('message', onReply);
+    sendResponse(msg.fn === 'hello' ? null : { ok: false, code: 'timeout', error: 'Le DMS ne répond pas.' });
+  }, msg.fn === 'hello' ? 4000 : 120000);
+  return true;
+});

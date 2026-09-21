@@ -8,6 +8,7 @@ import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { MyDucatiListener } from '@/components/myducati-listener';
+import { CatalogImportListener } from '@/components/catalog-import-listener';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -44,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <MobileBottomNav onMore={() => setMobileOpen(true)} />
       <MyDucatiListener />
+      <CatalogImportListener />
     </div>
   );
 }

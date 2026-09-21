@@ -45,6 +45,8 @@ Info DB/
 # Exception : l'extension navigateur My Ducati, qui est du code applicatif versionné.
 tools/*
 !tools/myducati-extension/
+# Exception : chargeur du catalogue Ducati (code seul ; les fichiers de données restent dans Téléchargements).
+!tools/catalog-loader/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 

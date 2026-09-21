@@ -18,6 +18,24 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   en **client** (D2) ; plusieurs fiches avec le même e-mail : la plus ancienne fiche client, sans fusion (D3). Réglage
   « Import des commandes du site » **livré Arrêté** ; à l'activation, seules les commandes postérieures sont importées.
   *Équipe · 21/09, à valider par Simon.* [mission 03](missions/mission-03-shopify.md), [M06](modules/M06-ventes-caisse.md)
+## 2026-09-21 — Mission 06, catalogue Ducati (réalisation)
+
+- **M-17** — **Premier remplissage du catalogue par fichiers d'extraction** : l'extraction tourne dans le
+  Chrome de Simon (script piloté dans l'onglet e-catalog, avec sa session) et dépose des fichiers
+  `catalogue-ducati-*.json` dans *Téléchargements* ; le chargeur `tools/catalog-loader/load.mjs` les pousse
+  en base (clé de service de l'environnement, jamais affichée). L'extension Chrome « Importer le catalogue »
+  passe au second plan (mises à jour). *Simon avec l'agent principal · 21/09.*
+  [mission 06](missions/mission-06-catalogue-pieces.md), [guide](guides/catalogue-ducati.md)
+- **M-18** — **Accessoires et vêtements Ducati** ajoutés au périmètre du catalogue (carte 7 « Importer les
+  catalogues accessoires et vêtements Ducati », confirmée par Simon : « oui top ») : stockés avec leurs références par taille/couleur, leur
+  compatibilité modèle/année, photos (adresses) et prix Ducati à titre d'information. **Aucun article DMS
+  n'est créé** à ce stade : la création / liaison (notamment les 1 994 produits Shopify « 98… ») sera une
+  étape décidée par Simon. *Simon · 21/09.* [mission 06](missions/mission-06-catalogue-pieces.md), [M02](modules/M02-articles.md)
+- **M-19** — **Tables du catalogue Ducati globales** (sans `company_id`, comme `ducati_vds`) : donnée de
+  référence commune aux deux sociétés ; lecture réservée aux comptes de l'équipe, écriture uniquement par les
+  fonctions d'import (administrateur ou chargeur). Le **prix catalogue Ducati** est gardé pour information
+  et **ne modifie jamais** le prix des articles (`price_changes` intact). *Équipe · 21/09.*
+  [M02](modules/M02-articles.md), [M03](modules/M03-vehicules.md)
 
 ## 2026-09-19 — Mission 04, cartes 6 à 8 (choix de réalisation)
 

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store, FilePenLine } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store, FilePenLine, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -183,6 +183,9 @@ function ArticlesList() {
                 <Store /> {t('shopify.openBtn')}
               </Button>
             )}
+            <Button variant="outline" onClick={() => navigate({ to: '/parts/catalog' })}>
+              <BookOpen /> {t('catalog.openBtn')}
+            </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
               <Upload /> {t('articles.import')}
             </Button>

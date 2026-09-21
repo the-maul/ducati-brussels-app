@@ -29,3 +29,17 @@ DMS, **par VIN**, sans stocker d'identifiant Ducati côté serveur.
   Si Ducati renomme un libellé, l'ajuster dans `ducati.js` (un champ non trouvé est ignoré,
   jamais bloquant).
 - La moto doit déjà exister dans le DMS (matching par VIN).
+
+## Import du catalogue Ducati (e-catalog) — mission 06
+
+Sur `e-catalog.ducati.com`, bouton rouge **« Importer le catalogue »** (en bas à gauche) :
+lecture de la liste des modèles, filtre Europe + millésimes depuis 2000 (liste modifiable),
+puis import en série (1 page/s par défaut), pause / reprise, reprise automatique après fermeture.
+Le DMS doit être ouvert dans un autre onglet (compte administrateur).
+
+- `catalog-core.js` : règles pures (filtre, plan, état de reprise), testées par `bun test`.
+- `catalog.js` : panneau et parcours de l'e-catalog (session de l'utilisateur, aucun identifiant stocké).
+- `background.js` / `dms-bridge.js` : relais vers l'onglet du DMS (`src/modules/catalog/bridge.ts`).
+
+Guide complet : `docs/bible/guides/catalogue-ducati.md`. Premier remplissage : fichiers d'extraction
+chargés par `tools/catalog-loader/load.mjs`.

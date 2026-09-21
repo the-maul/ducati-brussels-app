@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "DMS Ducati — Import My Ducati",
-  "version": "0.9.0",
-  "description": "Importe les infos d'une moto (client, garantie, maintenance, bulletins) depuis le portail My Ducati vers le DMS Ducati Bruxelles.",
-  "permissions": ["tabs", "storage", "notifications"],
+  "name": "DMS Ducati — My Ducati et catalogue",
+  "version": "0.10.0",
+  "description": "Importe dans le DMS Ducati Bruxelles les infos d'une moto depuis My Ducati et le catalogue Ducati (modèles, vues éclatées, pièces) depuis l'e-catalog, avec la session de l'utilisateur.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "notifications"
+  ],
   "host_permissions": [
     "https://*.ducati.com/*",
     "https://*.my.site.com/*",
@@ -12,18 +16,46 @@
     "https://*.netlify.app/*",
     "http://localhost:8080/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://*.ducati.com/*", "https://*.my.site.com/*", "https://*.force.com/*"],
-      "js": ["ducati.js"],
+      "matches": [
+        "https://*.ducati.com/*",
+        "https://*.my.site.com/*",
+        "https://*.force.com/*"
+      ],
+      "js": [
+        "ducati.js"
+      ],
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "https://e-catalog.ducati.com/*"
+      ]
+    },
+    {
+      "matches": [
+        "https://e-catalog.ducati.com/*"
+      ],
+      "js": [
+        "catalog-core.js",
+        "catalog.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.netlify.app/*", "http://localhost:8080/*"],
-      "js": ["dms-bridge.js"],
+      "matches": [
+        "https://*.netlify.app/*",
+        "http://localhost:8080/*"
+      ],
+      "js": [
+        "dms-bridge.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "action": { "default_title": "DMS Ducati — Import My Ducati" }
+  "action": {
+    "default_title": "DMS Ducati — My Ducati et catalogue"
+  }
 }

@@ -53,6 +53,7 @@ import { Route as AppOrdersNewRouteImport } from './routes/_app.orders.new'
 import { Route as AppPartsIndexRouteImport } from './routes/_app.parts.index'
 import { Route as AppPartsArticleIdRouteImport } from './routes/_app.parts.$articleId'
 import { Route as AppPartsCascadeRouteImport } from './routes/_app.parts.cascade'
+import { Route as AppPartsCatalogRouteImport } from './routes/_app.parts.catalog'
 import { Route as AppPartsFamiliesRouteImport } from './routes/_app.parts.families'
 import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
 import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
@@ -324,6 +325,11 @@ const AppPartsArticleIdRoute = AppPartsArticleIdRouteImport.update({
 const AppPartsCascadeRoute = AppPartsCascadeRouteImport.update({
   id: '/cascade',
   path: '/cascade',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsCatalogRoute = AppPartsCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
   getParentRoute: () => AppPartsRoute,
 } as any)
 const AppPartsFamiliesRoute = AppPartsFamiliesRouteImport.update({
@@ -638,6 +644,7 @@ export interface FileRoutesByFullPath {
   '/orders/new': typeof AppOrdersNewRoute
   '/parts/$articleId': typeof AppPartsArticleIdRoute
   '/parts/cascade': typeof AppPartsCascadeRoute
+  '/parts/catalog': typeof AppPartsCatalogRoute
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
@@ -725,6 +732,7 @@ export interface FileRoutesByTo {
   '/orders/new': typeof AppOrdersNewRoute
   '/parts/$articleId': typeof AppPartsArticleIdRoute
   '/parts/cascade': typeof AppPartsCascadeRoute
+  '/parts/catalog': typeof AppPartsCatalogRoute
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
@@ -823,6 +831,7 @@ export interface FileRoutesById {
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/parts/$articleId': typeof AppPartsArticleIdRoute
   '/_app/parts/cascade': typeof AppPartsCascadeRoute
+  '/_app/parts/catalog': typeof AppPartsCatalogRoute
   '/_app/parts/families': typeof AppPartsFamiliesRoute
   '/_app/parts/import': typeof AppPartsImportRoute
   '/_app/parts/labels': typeof AppPartsLabelsRoute
@@ -923,6 +932,7 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/parts/$articleId'
     | '/parts/cascade'
+    | '/parts/catalog'
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
@@ -1010,6 +1020,7 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/parts/$articleId'
     | '/parts/cascade'
+    | '/parts/catalog'
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
@@ -1107,6 +1118,7 @@ export interface FileRouteTypes {
     | '/_app/orders/new'
     | '/_app/parts/$articleId'
     | '/_app/parts/cascade'
+    | '/_app/parts/catalog'
     | '/_app/parts/families'
     | '/_app/parts/import'
     | '/_app/parts/labels'
@@ -1485,6 +1497,13 @@ declare module '@tanstack/react-router' {
       path: '/cascade'
       fullPath: '/parts/cascade'
       preLoaderRoute: typeof AppPartsCascadeRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/catalog': {
+      id: '/_app/parts/catalog'
+      path: '/catalog'
+      fullPath: '/parts/catalog'
+      preLoaderRoute: typeof AppPartsCatalogRouteImport
       parentRoute: typeof AppPartsRoute
     }
     '/_app/parts/families': {
@@ -1900,6 +1919,7 @@ const AppOrdersRouteWithChildren = AppOrdersRoute._addFileChildren(
 interface AppPartsRouteChildren {
   AppPartsArticleIdRoute: typeof AppPartsArticleIdRoute
   AppPartsCascadeRoute: typeof AppPartsCascadeRoute
+  AppPartsCatalogRoute: typeof AppPartsCatalogRoute
   AppPartsFamiliesRoute: typeof AppPartsFamiliesRoute
   AppPartsImportRoute: typeof AppPartsImportRoute
   AppPartsLabelsRoute: typeof AppPartsLabelsRoute
@@ -1911,6 +1931,7 @@ interface AppPartsRouteChildren {
 const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsArticleIdRoute: AppPartsArticleIdRoute,
   AppPartsCascadeRoute: AppPartsCascadeRoute,
+  AppPartsCatalogRoute: AppPartsCatalogRoute,
   AppPartsFamiliesRoute: AppPartsFamiliesRoute,
   AppPartsImportRoute: AppPartsImportRoute,
   AppPartsLabelsRoute: AppPartsLabelsRoute,
