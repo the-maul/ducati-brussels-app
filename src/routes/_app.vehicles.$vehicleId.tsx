@@ -15,6 +15,7 @@ import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { formatPhone } from '@/lib/phone';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/vehicles/$vehicleId')({
@@ -232,7 +233,7 @@ function InterestedContactsPanel({ companyId, vehicle }: { companyId: string; ve
                     </span>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {[m.contact.email, m.contact.mobile].filter(Boolean).join(' · ') || '—'}
+                    {[m.contact.email, formatPhone(m.contact.mobile)].filter(Boolean).join(' · ') || '—'}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex gap-1">

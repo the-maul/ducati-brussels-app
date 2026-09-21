@@ -3,6 +3,13 @@
  * permis, préférences de contact. Seuls les champs de la liste blanche de
  * portal_update_profile sont envoyés ; l'e-mail de connexion n'est pas modifiable ici.
  *
+ * Retour client du 21/09 :
+ *  - l'e-mail est affiché dans son propre champ (lecture seule : c'est l'identifiant
+ *    de connexion), jamais dans le GSM ;
+ *  - GSM et téléphone fixe : menu de préfixe pays + numéro (PhoneInput), enregistrés au
+ *    format E.164 (+32470123456) ; une saisie qui n'est pas un numéro bloque l'envoi ;
+ *  - permis : deux photos, RECTO (dépôt `permis`) et VERSO (dépôt `permis_verso`).
+ *
  * TVA : le bouton « Vérifier » réutilise la vérification VIES du module Contacts
  * (Edge Function vies-check, service public sans donnée du DMS). Le résultat sert
  * seulement à préremplir : la base remet « vérifié » à vide à chaque changement de
@@ -11,7 +18,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, KeyRound, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Circle, KeyRound, Loader2, Save, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,10 +26,12 @@ import { Switch } from '@/components/ui/switch';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { checkVat, parseViesAddress, type ViesResult } from '@/modules/contacts/vies-api';
-import { isValidIban, normalizeMobile } from '@/lib/contact-normalize';
+import { isValidIban } from '@/lib/contact-normalize';
+import { toE164 } from '@/lib/phone';
+import { PhoneInput } from '@/components/phone-input';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import {
-  CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch,
+  CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch, type UploadKind,
 } from './api';
 import { Avatar, Card, ErrorBox, Loading, PortalPage, SectionTitle, UploadButtons } from './ui';
 
@@ -94,8 +103,15 @@ export function ProfileView() {
   if (error || !data || !form || !initial) return <ErrorBox error={error} />;
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm({ ...form, [k]: v });
-  const changed = (Object.keys(form) as (keyof FormState)[]).filter((k) => form[k] !== initial[k]);
+  // Téléphones : comparés au format E.164 (la remise en forme à l'écran n'est pas un changement).
+  const same = (k: keyof FormState) =>
+    (k === 'mobile' || k === 'phone')
+      ? (toE164(form[k]) ?? form[k]) === (toE164(initial[k]) ?? initial[k])
+      : form[k] === initial[k];
+  const changed = (Object.keys(form) as (keyof FormState)[]).filter((k) => !same(k));
   const ibanInvalid = !!form.iban.trim() && form.iban !== initial.iban && !isValidIban(form.iban);
+  // Seul un numéro MODIFIÉ bloque l'envoi (une ancienne valeur reprise de G8 reste affichée, signalée).
+  const phoneInvalid = (['mobile', 'phone'] as const).some((k) => !same(k) && toE164(form[k]) === null);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -105,11 +121,12 @@ export function ProfileView() {
       if (!data.is_pro && k === 'company_name') continue;
       const v = form[k];
       if (k === 'country' && !String(v).trim()) continue; // pays obligatoire en base
-      // Mission 04, carte 3 : mobile au format international (+32…), comme au comptoir.
-      const clean = k === 'mobile' && typeof v === 'string' ? normalizeMobile(v) : v;
+      // Téléphones au format E.164 (+32470123456), comme à l'inscription et au comptoir.
+      const clean = (k === 'mobile' || k === 'phone') && typeof v === 'string' ? (toE164(v) ?? v) : v;
       patch[k] = typeof clean === 'string' ? (clean.trim() === '' ? null : clean.trim()) : clean;
     }
     if (patch.iban && !isValidIban(String(patch.iban))) return; // message affiché sous le champ
+    if (phoneInvalid) return; // message affiché sous le champ
     if (Object.keys(patch).length) save.mutate(patch as ProfilePatch);
   };
 
@@ -141,8 +158,20 @@ export function ProfileView() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="pf-first_name" label={t('portal.profile.firstName')}>{input('first_name', { autoComplete: 'given-name' })}</Field>
             <Field id="pf-last_name" label={t('portal.profile.lastName')}>{input('last_name', { autoComplete: 'family-name' })}</Field>
-            <Field id="pf-mobile" label={t('portal.profile.mobile')}>{input('mobile', { type: 'tel', inputMode: 'tel', autoComplete: 'tel' })}</Field>
-            <Field id="pf-phone" label={t('portal.profile.phone')}>{input('phone', { type: 'tel', inputMode: 'tel' })}</Field>
+            {/* E-mail : champ distinct, en lecture seule (identifiant de connexion). */}
+            <Field id="pf-email" label={t('portal.profile.email')} className="sm:col-span-2">
+              <Input id="pf-email" className="h-11 bg-muted" type="email" value={data.email ?? ''} readOnly
+                aria-describedby="pf-email-hint" autoComplete="off" />
+              <p id="pf-email-hint" className="text-[12px] text-muted-foreground">{t('portal.profile.emailLoginHint')}</p>
+            </Field>
+            <Field id="pf-mobile" label={t('portal.profile.mobile')}>
+              <PhoneInput id="pf-mobile" name="tel-national" value={form.mobile} onChange={(v) => set('mobile', v)}
+                autoComplete="tel-national" className="h-11" />
+            </Field>
+            <Field id="pf-phone" label={t('portal.profile.phone')}>
+              <PhoneInput id="pf-phone" name="tel-fixe" value={form.phone} onChange={(v) => set('phone', v)}
+                autoComplete="off" placeholder="2 123 45 67" className="h-11" />
+            </Field>
             <Field id="pf-address" label={t('portal.profile.street')} className="sm:col-span-2">{input('address', { autoComplete: 'address-line1' })}</Field>
             <Field id="pf-street_number" label={t('portal.profile.number')}>{input('street_number')}</Field>
             <Field id="pf-address_complement" label={t('portal.profile.complement')}>{input('address_complement', { autoComplete: 'address-line2' })}</Field>
@@ -213,15 +242,10 @@ export function ProfileView() {
           <div id="permis" />
           <SectionTitle>{t('portal.profile.license')}</SectionTitle>
           <Field id="pf-license_number" label={t('portal.profile.licenseNumber')}>{input('license_number')}</Field>
-          <div className="mt-3 space-y-2">
-            <p className="text-[13px] text-muted-foreground">{t('portal.profile.licenseScan')}</p>
-            {data.license_path && (
-              <button type="button" className="text-[13px] font-medium text-info underline-offset-2 hover:underline"
-                onClick={() => openFile(data.license_path!)}>
-                {t('portal.profile.licenseOpen')}
-              </button>
-            )}
-            <UploadButtons kind="permis" vehicleId={null} onDone={refreshAll} compact />
+          <p className="mt-3 text-[13px] text-muted-foreground">{t('portal.profile.licenseScan')}</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <LicenseSide kind="permis" label={t('portal.profile.licenseFront')} path={data.license_path} onDone={refreshAll} />
+            <LicenseSide kind="permis_verso" label={t('portal.profile.licenseBack')} path={data.license_back_path ?? null} onDone={refreshAll} />
           </div>
         </Card>
 
@@ -249,7 +273,7 @@ export function ProfileView() {
         </Card>
 
         <div className="sticky bottom-20 z-20 md:bottom-4">
-          <Button type="submit" className="h-11 w-full shadow-[var(--shadow-card)]" disabled={changed.length === 0 || save.isPending || ibanInvalid}>
+          <Button type="submit" className="h-11 w-full shadow-[var(--shadow-card)]" disabled={changed.length === 0 || save.isPending || ibanInvalid || phoneInvalid}>
             {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('portal.profile.save')}
           </Button>
         </div>
@@ -264,5 +288,31 @@ export function ProfileView() {
         </Button>
       </Card>
     </PortalPage>
+  );
+}
+
+/**
+ * Une face du permis (recto ou verso) : état (couleur + icône + libellé), lien « Voir »
+ * et les deux boutons « Prendre une photo » / « Choisir un fichier ».
+ */
+function LicenseSide({ kind, label, path, onDone }: {
+  kind: Extract<UploadKind, 'permis' | 'permis_verso'>; label: string; path: string | null; onDone: () => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[14px] font-medium">{label}</p>
+        {path
+          ? <span className="flex items-center gap-1 text-[12px] text-success"><CheckCircle2 className="size-4" aria-hidden /> {t('portal.profile.licenseSideDone')}</span>
+          : <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><Circle className="size-4" aria-hidden /> {t('portal.profile.licenseSideMissing')}</span>}
+      </div>
+      {path && (
+        <button type="button" className="text-[13px] font-medium text-info underline-offset-2 hover:underline"
+          onClick={() => openFile(path)}>
+          {t('portal.profile.licenseSideOpen')}
+        </button>
+      )}
+      <UploadButtons kind={kind} vehicleId={null} onDone={onDone} compact />
+    </div>
   );
 }

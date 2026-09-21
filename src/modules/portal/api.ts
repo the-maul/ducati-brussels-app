@@ -92,7 +92,10 @@ export type PortalProfile = {
   license_number: string | null;
   dealer: string | null;
   avatar_path: string | null;
+  /** Photo du permis, RECTO (dépôt de type `permis`). */
   license_path: string | null;
+  /** Photo du permis, VERSO (dépôt `permis_verso`, migration 20260921160000). */
+  license_back_path?: string | null;
 };
 
 export type ContactPreference = 'email' | 'telephone' | 'sms' | 'whatsapp';
@@ -200,7 +203,7 @@ export type PortalInvoiceDetail = PortalInvoiceSummary & {
 };
 
 export type UploadKind =
-  | 'avatar' | 'permis' | 'vehicle_photo' | 'carte_grise' | 'assurance' | 'coc' | 'controle_technique' | 'autre';
+  | 'avatar' | 'permis' | 'permis_verso' | 'vehicle_photo' | 'carte_grise' | 'assurance' | 'coc' | 'controle_technique' | 'autre';
 
 /** Documents qu'un client peut déposer sur sa moto (hors photo). */
 export const VEHICLE_DOC_KINDS: UploadKind[] = ['carte_grise', 'assurance', 'coc', 'controle_technique', 'autre'];

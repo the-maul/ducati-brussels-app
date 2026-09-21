@@ -25,7 +25,7 @@ import { PhoneInput } from '@/components/phone-input';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
 import { MotoPicker, isMotoComplete, type MotoChoice } from '@/components/moto-picker';
-import { splitPhone } from '@/lib/dial-codes';
+import { isValidPhone, toE164 } from '@/lib/phone';
 import { clientAppHost, clientAppUrl } from '@/lib/client-app-url';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -40,7 +40,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Délai entre deux tentatives quand la connexion est tombée. */
 const RETRY_MS = 5_000;
 
-type Errors = Partial<Record<'first_name' | 'last_name' | 'email' | 'password' | 'confirm' | 'moto', string>>;
+type Errors = Partial<Record<'first_name' | 'last_name' | 'email' | 'phone' | 'password' | 'confirm' | 'moto', string>>;
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -112,6 +112,9 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
     if (!firstName.trim()) e.first_name = t('signup.errors.required');
     if (!lastName.trim()) e.last_name = t('signup.errors.required');
     if (!EMAIL_RE.test(email.trim())) e.email = t('signup.errors.email');
+    // Retour client du 21/09 : une adresse e-mail glissée dans le téléphone (remplissage
+    // automatique du navigateur) finissait dans le GSM de la fiche. Refusée ici et au serveur.
+    if (!isValidPhone(phone)) e.phone = t('signup.errors.phone');
     if (!isMotoComplete(moto)) e.moto = t('signup.errors.moto');
     if (!isStrongPassword(password)) e.password = t('signup.errors.passwordShort');
     else if (password !== confirm) e.confirm = t('signup.errors.passwordMismatch');
@@ -132,7 +135,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
         setTicket(tk);
         await new Promise((res) => setTimeout(res, 4_500));
       }
-      const local = splitPhone(phone).local.trim();
+      // Téléphone stocké au format E.164 (+32470123456) ; vide ou préfixe seul → rien.
+      const e164 = toE164(phone) || undefined;
       const res = await submitSignup({
         data: {
           mode,
@@ -141,7 +145,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           email: email.trim().toLowerCase(),
-          phone: local ? phone.trim() : undefined,
+          phone: e164,
           password,
           moto: moto!,
           interests: interests as (typeof SIGNUP_INTERESTS)[number][],
@@ -230,14 +234,18 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="su-email" className={labelCls}>{t('signup.email')} *</Label>
-            <Input id="su-email" type="email" inputMode="email" autoComplete={ac ?? 'email'} autoCapitalize="none"
+            {/* « username » : l'e-mail EST l'identifiant de connexion. Sans ce repère, le
+                gestionnaire de mots de passe du navigateur peut prendre le champ téléphone
+                pour l'identifiant et y écrire l'adresse e-mail (retour client du 21/09). */}
+            <Input id="su-email" name="email" type="email" inputMode="email" autoComplete={ac ?? 'username'} autoCapitalize="none"
               spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls}
               aria-invalid={!!errors.email} />
             <FieldError msg={errors.email} />
           </div>
           <div className="space-y-1.5">
-            <Label className={labelCls}>{t('signup.phone')}</Label>
-            <PhoneInput value={phone} onChange={setPhone} autoComplete={ac ?? 'tel-national'} className={inputCls} />
+            <Label htmlFor="su-phone" className={labelCls}>{t('signup.phone')}</Label>
+            {/* Le message « pas un numéro » est affiché par PhoneInput lui-même. */}
+            <PhoneInput id="su-phone" name="tel-national" value={phone} onChange={setPhone} autoComplete={ac ?? 'tel-national'} className={inputCls} />
           </div>
         </div>
       </section>
