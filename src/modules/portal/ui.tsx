@@ -103,13 +103,29 @@ export function EmptyState({ icon, text, action }: { icon?: ReactNode; text: str
   );
 }
 
-/** Barre de progression (couleur « succès » : la progression n'est pas une action). */
-export function ProgressBar({ value, label }: { value: number; label?: string }) {
+/** Couleur d'une progression : jamais le rouge Ducati (réservé aux actions). */
+export type ProgressTone = 'warning' | 'info' | 'success';
+
+/** Moins de la moitié : à faire (orange) ; en cours (bleu) ; complet (vert). */
+export function progressTone(value: number): ProgressTone {
+  if (value >= 100) return 'success';
+  if (value >= 50) return 'info';
+  return 'warning';
+}
+
+const BAR_TONES: Record<ProgressTone, string> = {
+  warning: 'bg-warning',
+  info: 'bg-info',
+  success: 'bg-success',
+};
+
+/** Barre de progression, colorée selon l'avancement (tokens de la charte). */
+export function ProgressBar({ value, label, tone }: { value: number; label?: string; tone?: ProgressTone }) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   return (
     <div>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={v} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-        <div className="h-full rounded-full bg-success transition-all" style={{ width: `${v}%` }} />
+        <div className={cn('h-full rounded-full transition-all', BAR_TONES[tone ?? progressTone(v)])} style={{ width: `${v}%` }} />
       </div>
     </div>
   );

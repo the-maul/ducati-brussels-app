@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { searchContactsForLead, linkLeadContact, type Lead, type LinkLeadResult } from './api';
 import { t } from '@/lib/i18n';
+import { formatPhone } from '@/lib/phone';
 
 const display = (c: { company_name: string | null; first_name: string | null; last_name: string | null }) =>
   c.company_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
@@ -68,7 +69,7 @@ export function LinkContactPanel({ lead, companyId, onLinked }: {
           <div key={c.id} className="flex items-center gap-2 rounded border border-border px-2 py-1">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{display(c)}{!c.is_active && <span className="text-muted-foreground"> · {t('crm.linkArchived')}</span>}</p>
-              <p className="truncate text-muted-foreground">{[c.email, c.mobile || c.phone].filter(Boolean).join(' · ') || '—'}</p>
+              <p className="truncate text-muted-foreground">{[c.email, formatPhone(c.mobile || c.phone)].filter(Boolean).join(' · ') || '—'}</p>
             </div>
             <Button size="sm" onClick={() => { setErr(null); link.mutate(c.id); }} disabled={link.isPending}>
               {t('crm.linkThis')}

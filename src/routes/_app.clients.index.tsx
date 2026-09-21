@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact, type ContactSort } from '@/modules/contacts/api';
 import { BulkActionsBar } from '@/modules/contacts/bulk-actions-bar';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
+import { formatPhone } from '@/lib/phone';
 import { t } from '@/lib/i18n';
 
 type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
@@ -250,8 +251,8 @@ function ClientsList() {
                 </td>
                 {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}
                 {visibleCols.has('city')    && <td className="px-3 py-2">{c.city ?? '—'}</td>}
-                {visibleCols.has('contact') && <td className="px-3 py-2">{c.email ?? c.mobile ?? c.phone ?? '—'}</td>}
-                {visibleCols.has('mobile')  && <td className="px-3 py-2">{c.mobile ?? '—'}</td>}
+                {visibleCols.has('contact') && <td className="px-3 py-2">{c.email ?? (formatPhone(c.mobile ?? c.phone) || '—')}</td>}
+                {visibleCols.has('mobile')  && <td className="px-3 py-2">{formatPhone(c.mobile) || '—'}</td>}
                 {visibleCols.has('email')   && <td className="px-3 py-2">{c.email ?? '—'}</td>}
                 {visibleCols.has('flags')   && <td className="px-3 py-2"><Flags c={c} /></td>}
                 {visibleCols.has('models')  && <td className="px-3 py-2">{getModelInterests(c).length ? <ModelInterestBadges models={getModelInterests(c)} max={3} /> : '—'}</td>}

@@ -36,6 +36,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { PASSWORD_MAX_LENGTH, isStrongPassword } from '@/lib/password-policy';
+import { toE164 } from '@/lib/phone';
 
 export const SIGNUP_INTERESTS = ['neuf', 'occasion', 'atelier', 'accessoires', 'evenements'] as const;
 
@@ -99,7 +100,11 @@ const signupInput = z.object({
   first_name: z.string().trim().min(1).max(80),
   last_name: z.string().trim().min(1).max(80),
   email: z.string().trim().toLowerCase().email().max(200),
-  phone: z.string().trim().max(40).optional(),
+  // Retour client du 21/09 : un e-mail est arrivé dans le GSM d'une fiche. Le téléphone
+  // n'est accepté que s'il est un numéro, et il est enregistré au format E.164.
+  phone: z.string().trim().max(40).optional()
+    .refine((v) => toE164(v) !== null, { message: 'invalid phone' })
+    .transform((v) => toE164(v) || undefined),
   password: z.string().max(PASSWORD_MAX_LENGTH).optional(),
   moto: motoSchema,
   interests: z.array(z.enum(SIGNUP_INTERESTS)).max(SIGNUP_INTERESTS.length).default([]),

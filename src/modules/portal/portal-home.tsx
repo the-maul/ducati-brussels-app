@@ -5,12 +5,19 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getHome, type CompletionStep } from './api';
-import { AppointmentStatus, Card, ErrorBox, Loading, ProgressBar, SectionTitle, dateLongFr, timeFr } from './ui';
+import {
+  AppointmentStatus, Card, ErrorBox, Loading, ProgressBar, SectionTitle, dateLongFr, progressTone, timeFr,
+  type ProgressTone,
+} from './ui';
+
+/** Statut de la complétion : couleur + icône (le libellé est le pourcentage). */
+const TONE_TEXT: Record<ProgressTone, string> = { warning: 'text-warning', info: 'text-info', success: 'text-success' };
+const TONE_ICON = { warning: AlertTriangle, info: TrendingUp, success: CheckCircle2 } as const;
 
 /** Où mène chaque étape. */
 function stepLink(s: CompletionStep): { to: string; params?: Record<string, string>; hash?: string } {
@@ -38,6 +45,11 @@ export function PortalHomeView() {
   const done = data.steps.filter((s) => s.done);
   const complete = data.steps_total > 0 && todo.length === 0;
   const next = data.next_appointment;
+  // Retour client du 21/09 : pourcentage + couleur de progression, et invitation à finaliser.
+  const pct = complete ? 100 : Math.max(0, Math.min(99, Math.round(Number(data.progress) || 0)));
+  const tone = progressTone(pct);
+  const ToneIcon = TONE_ICON[tone];
+  const firstTodo = todo[0] ? stepLink(todo[0]) : null;
 
   return (
     <div className="space-y-4">
@@ -52,16 +64,31 @@ export function PortalHomeView() {
       <Card>
         <SectionTitle>{t('portal.home.completeTitle')}</SectionTitle>
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          <p className="text-[14px] font-medium">
-            {complete ? t('portal.home.completeDone') : t('portal.home.completeLead')}
+          <p className={cn('flex items-center gap-1.5 text-[15px] font-bold', TONE_TEXT[tone])}>
+            <ToneIcon className="size-4 shrink-0 self-center" aria-hidden />
+            <span className="font-data tabular-nums">{t('portal.home.percentDone').replace('{pct}', String(pct))}</span>
           </p>
           <span className="font-data text-[13px] tabular-nums text-muted-foreground">
             {t('portal.home.stepsCount').replace('{done}', String(data.steps_done)).replace('{total}', String(data.steps_total))}
           </span>
         </div>
-        <ProgressBar value={data.progress} label={t('portal.home.completeTitle')} />
+        <ProgressBar value={pct} tone={tone} label={t('portal.home.completeTitle')} />
+        <p className="mt-2 text-[14px] font-medium">
+          {complete
+            ? t('portal.home.completeDone')
+            : todo.length === 1
+              ? t('portal.home.finishOne')
+              : t('portal.home.finishMany').replace('{n}', String(todo.length))}
+        </p>
         {!complete && (
-          <p className="mt-2 text-[12px] text-muted-foreground">{t('portal.home.completeWhy')}</p>
+          <p className="mt-1 text-[12px] text-muted-foreground">{t('portal.home.completeWhy')}</p>
+        )}
+        {!complete && firstTodo && (
+          <Button asChild variant="outline" className="mt-3 h-11 w-full sm:w-auto">
+            <Link to={firstTodo.to} params={firstTodo.params as never} hash={firstTodo.hash}>
+              {t('portal.home.finishCta')} <ArrowRight />
+            </Link>
+          </Button>
         )}
         <ul className="mt-3 divide-y divide-border">
           {[...todo, ...done].map((s) => {
