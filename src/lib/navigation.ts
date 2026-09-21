@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Wallet,
   type LucideIcon,
+  Globe,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -48,6 +49,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },
   { labelKey: 'nav.balances', to: '/sales/balances', icon: Wallet },
+  { labelKey: 'nav.webOrders', to: '/sales/web-orders', icon: Globe, roles: ['admin', 'vendeur'] },
   { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },
   { labelKey: 'nav.clients', to: '/clients', icon: Users },
   { labelKey: 'nav.crm', to: '/crm', icon: Target },

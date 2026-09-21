@@ -19,5 +19,16 @@ redirect_urls = [ "https://ducatilive.netlify.app/" ]
 [webhooks]
 api_version = "2026-07"
 
+# Mission 03 — « Une vente sur le site crée la vente et la sortie de stock dans le DMS ».
+# Shopify prévient le DMS à chaque commande ; la fonction serveur vérifie la signature
+# (X-Shopify-Hmac-Sha256, calculée avec le Client secret de l'application) puis relit la commande.
+# Publié par `npx @shopify/cli@latest app deploy` (depuis ce dossier, par Simon).
+# Prérequis Shopify : accès aux « données client protégées » accordé à l'application
+# (Dev Dashboard → application → API access requests / Protected customer data).
+# Tant que le réglage « Import des commandes du site » est Arrêté dans le DMS, les appels sont ignorés.
+[[webhooks.subscriptions]]
+topics = [ "orders/create", "orders/paid", "orders/cancelled", "refunds/create" ]
+uri = "https://ujmrosbgkvgvwfnuryna.supabase.co/functions/v1/shopify-orders"
+
 [build]
 include_config_on_deploy = true

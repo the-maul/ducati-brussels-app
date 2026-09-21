@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { ExcelThresholdAlert } from '@/modules/orders/excel-alert';
 import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-alerts';
 import { eur } from '@/modules/sales/balance-panel';
+import { listWebOrderAlerts, WEB_ORDER_ROLES } from '@/modules/sales/web-orders-api';
 import { t } from '@/lib/i18n';
 
 /**
@@ -53,6 +54,8 @@ import { t } from '@/lib/i18n';
  *   7. (mission 05, carte 10) SOLDES IMPAYÉS : facture échue avec un reste à payer (une seule alerte
  *      par document et par échéance). Pour 6 et 7 : le vendeur du document et les administrateurs
  *      (filtré en base) ; une alerte réglée (pièces commandées, solde payé) disparaît. Mènent au document.
+ *   8. (mission 03) NOUVELLE COMMANDE WEB : commande du site Shopify importée (facture créée), 7 derniers
+ *      jours ; rôles vendeur et admin (filtré aussi en base) ; mène à la facture. « Lu » propre à chacun.
  * Le badge compte uniquement ce que la personne voit : tâches + inscriptions non
  * lues + demandes de rendez-vous. Aucun e-mail ni SMS.
  */
@@ -75,6 +78,7 @@ function NotificationsBell() {
   const seesAppts = has(APPT_REQUEST_ROLES);
   const seesIban = has(IBAN_NOTIF_ROLES);
   const seesVehicleDecl = has(VEHICLE_DECL_NOTIF_ROLES);
+  const seesWebOrders = has(WEB_ORDER_ROLES);
 
   const [scope, setScopeState] = useState<BellScope>(readScope);
   const setScope = (s: BellScope) => {
@@ -137,6 +141,13 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid,
     refetchInterval: 120_000,
   });
+  const webOrderKey = ['web-order-alerts', activeCompanyId, uid];
+  const { data: webOrderData } = useQuery({
+    queryKey: webOrderKey,
+    queryFn: () => listWebOrderAlerts(activeCompanyId!, uid!),
+    enabled: !!activeCompanyId && !!uid && seesWebOrders,
+    refetchInterval: 120_000,
+  });
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -151,6 +162,7 @@ function NotificationsBell() {
       queryClient.invalidateQueries({ queryKey: vehicleDeclKey });
       queryClient.invalidateQueries({ queryKey: depositKey });
       queryClient.invalidateQueries({ queryKey: unpaidKey });
+      queryClient.invalidateQueries({ queryKey: webOrderKey });
     },
   });
 
@@ -166,9 +178,11 @@ function NotificationsBell() {
   const unreadDeposit = depositAlerts.filter((n) => !n.read);
   const unpaidAlerts = unpaidData ?? [];
   const unreadUnpaid = unpaidAlerts.filter((n) => !n.read);
+  const webOrders = seesWebOrders ? webOrderData ?? [] : [];
+  const unreadWebOrders = webOrders.filter((n) => !n.read);
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -266,6 +280,42 @@ function NotificationsBell() {
             })}
             <DropdownMenuItem asChild className="cursor-pointer">
               <Link to="/workshop/planning" search={{ week: undefined }} className="text-[12px]">{t('notif.apptSeeAll')}</Link>
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {webOrders.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('notif.webOrderTitle')}</DropdownMenuLabel>
+            {webOrders.slice(0, 8).map((n) => {
+              const body = (
+                <>
+                  <span className="flex w-full items-center gap-1.5">
+                    <Globe className={`size-3.5 shrink-0 ${n.read ? 'text-muted-foreground' : 'text-[var(--info)]'}`} />
+                    <span className={`truncate text-[13px] ${n.read ? 'text-muted-foreground' : 'font-medium'}`}>{n.title}</span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {t('notif.webOrderLine').replace('{amount}', eur(n.totalTtc))}
+                    {n.unlinked > 0 && (
+                      <span className="font-medium text-[var(--warning)]"> · {t('notif.webOrderUnlinked').replace('{n}', String(n.unlinked))}</span>
+                    )}
+                    {' · '}{fmt(n.createdAt)}
+                  </span>
+                </>
+              );
+              return (
+                <DropdownMenuItem key={n.id} asChild className="cursor-pointer" onSelect={() => { if (!n.read) markRead.mutate([n.id]); }}>
+                  {n.documentId ? (
+                    <Link to="/sales/$documentId" params={{ documentId: n.documentId }} className="flex flex-col items-start gap-0.5">{body}</Link>
+                  ) : (
+                    <div className="flex flex-col items-start gap-0.5">{body}</div>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/sales/web-orders" className="text-[12px]">{t('notif.webOrderSeeAll')}</Link>
             </DropdownMenuItem>
           </>
         )}

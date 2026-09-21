@@ -46,3 +46,8 @@ verify_jwt = false
 
 [functions.shopify-import-content]
 verify_jwt = false
+
+# Mission 03 — commandes du site : appelée par Shopify (webhooks, signature HMAC vérifiée dans le
+# code), par pg_cron (x-cron-secret) et par l'écran « Commandes du site » (utilisateur vérifié).
+[functions.shopify-orders]
+verify_jwt = false

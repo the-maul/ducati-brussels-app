@@ -69,6 +69,7 @@ import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
+import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
 import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
 import { Route as AppSettingsCommentsRouteImport } from './routes/_app.settings.comments'
@@ -405,6 +406,11 @@ const AppSalesNewRoute = AppSalesNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AppSalesRoute,
 } as any)
+const AppSalesWebOrdersRoute = AppSalesWebOrdersRouteImport.update({
+  id: '/web-orders',
+  path: '/web-orders',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -646,6 +652,7 @@ export interface FileRoutesByFullPath {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
@@ -731,6 +738,7 @@ export interface FileRoutesByTo {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
@@ -829,6 +837,7 @@ export interface FileRoutesById {
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
+  '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
   '/_app/settings/comments': typeof AppSettingsCommentsRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
@@ -928,6 +937,7 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/balances'
     | '/sales/new'
+    | '/sales/web-orders'
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
@@ -1013,6 +1023,7 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/balances'
     | '/sales/new'
+    | '/sales/web-orders'
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
@@ -1110,6 +1121,7 @@ export interface FileRouteTypes {
     | '/_app/sales/$documentId'
     | '/_app/sales/balances'
     | '/_app/sales/new'
+    | '/_app/sales/web-orders'
     | '/_app/settings/app-client'
     | '/_app/settings/comments'
     | '/_app/settings/companies'
@@ -1587,6 +1599,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesNewRouteImport
       parentRoute: typeof AppSalesRoute
     }
+    '/_app/sales/web-orders': {
+      id: '/_app/sales/web-orders'
+      path: '/web-orders'
+      fullPath: '/sales/web-orders'
+      preLoaderRoute: typeof AppSalesWebOrdersRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/settings/': {
       id: '/_app/settings/'
       path: '/'
@@ -1947,6 +1966,7 @@ interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
+  AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
 }
 
@@ -1954,6 +1974,7 @@ const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
+  AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
 }
 

@@ -27,7 +27,8 @@ retirer ; un produit publié est toujours lié à un article du stock.
 | Écran (menu → page) | Ce qu'on peut y faire |
 |---|---|
 | Fiche article → case **« Publiable e-shop »** (M2) | Marquer un article comme destiné à la vente en ligne. N'a plus d'effet dans le DMS ; donnée conservée pour la synchronisation Shopify. |
-| Ventes → filtre **Département** (Magasin / E-shop) (M6) | Inchangé. Repose sur `documents.imported_from` ; aucune vente ne correspond à « E-shop » aujourd'hui. Pourra servir aux ventes venues de Shopify. |
+| Ventes → filtre **Département** (Magasin / E-shop) (M6) | Repose sur `documents.imported_from` ; les factures créées par les commandes du site Shopify portent `imported_from = 'shopify'` et tombent donc dans « E-shop » (mission 03, 21/09). |
+| Ventes → **Commandes du site** (M6, mission 03) | Commandes Shopify reçues et leur import (facture, sortie de stock, règlement, avoirs) ; réglage « Import des commandes du site » (livré Arrêté). |
 
 Retiré le 18/09 : l'entrée de menu **E-shop** (`/eshop` : onglets Site, Produits, Commandes) et la
 vitrine publique **`/shop/{slug}`** (panier, commande, redirection Stripe).
@@ -75,7 +76,7 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 | Code | Libellé | État | Preuve |
 |---|---|---|---|
 | SIW000–SIW008 | Site web et e-commerce | hors DMS | assurés par Shopify (décision W-1 du 18/09) |
-| INV010 | Stock e-shop = stock magasin | ⬜ à refaire | future synchronisation Shopify (W-2) ; base : `articles.publishable` |
+| INV010 | Stock e-shop = stock magasin | 🟦 en cours | sens site → DMS fait le 21/09 (une vente Shopify sort le stock du DMS, mission 03) ; sens DMS → site : carte « Le stock et le prix du DMS s'affichent en direct sur le site » |
 
 ## 9. Historique
 
@@ -89,3 +90,4 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 | 2026-06-12 | Bloc Atouts : sélecteur d'icônes | `673be91` |
 | 2026-09-11 | Correctifs de typage des appels RPC | `7d31b6d` |
 | 2026-09-18 | **Module supprimé** (décision W-1) : écrans, code, fonctions Stripe, libellés ; migration de suppression écrite, non appliquée ; `articles.publishable` conservé | branche `lot-nettoyage`, migration `20260919130000` (non appliquée) |
+| 2026-09-21 | Mission 03 : une vente sur le site Shopify crée la facture et la sortie de stock dans le DMS (département E-shop), écran Ventes → Commandes du site | `20260921120000_m6_shopify_commandes_site.sql` |

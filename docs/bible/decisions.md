@@ -8,6 +8,17 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Mission 03, commandes du site (choix de réalisation)
+
+- **W-9** — **Une commande payée sur le site = une facture `FAC` validée et payée** dans le DMS (pas un bon de
+  commande : elle est déjà payée et la marchandise part), avec sortie du stock réel, règlement reçu « Shopify
+  Payments » (nouveau moyen `SHOP`, PayPal → `PPL`, « Bank Deposit » → `VIR`) et département E-shop. Une commande pas
+  encore payée n'entre pas dans le DMS ; un remboursement Shopify = un avoir (stock réintégré seulement si Shopify l'a
+  remis en stock) ; un remboursement à 0 € ou une annulation sans remboursement = « À vérifier ». Nouveau client créé
+  en **client** (D2) ; plusieurs fiches avec le même e-mail : la plus ancienne fiche client, sans fusion (D3). Réglage
+  « Import des commandes du site » **livré Arrêté** ; à l'activation, seules les commandes postérieures sont importées.
+  *Équipe · 21/09, à valider par Simon.* [mission 03](missions/mission-03-shopify.md), [M06](modules/M06-ventes-caisse.md)
+
 ## 2026-09-19 — Mission 04, cartes 6 à 8 (choix de réalisation)
 
 - **M-12** — **Moto d'un client = véhicule de réparation** : créée depuis la fiche client avec son lien
