@@ -3409,6 +3409,82 @@ export type Database = {
         }
         Relationships: []
       }
+      ducati_vin_model_specs: {
+        Row: {
+          cylinders: number | null
+          displacement_cc: number | null
+          euro: string | null
+          model_year_id: string
+          power_cv: number | null
+          power_kw: number | null
+          samples: number
+          updated_at: string
+        }
+        Insert: {
+          cylinders?: number | null
+          displacement_cc?: number | null
+          euro?: string | null
+          model_year_id: string
+          power_cv?: number | null
+          power_kw?: number | null
+          samples?: number
+          updated_at?: string
+        }
+        Update: {
+          cylinders?: number | null
+          displacement_cc?: number | null
+          euro?: string | null
+          model_year_id?: string
+          power_cv?: number | null
+          power_kw?: number | null
+          samples?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_vin_model_specs_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: true
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_vin_patterns: {
+        Row: {
+          model_year_id: string
+          pattern: string
+          samples: number
+          serial_from: number
+          serial_to: number
+          updated_at: string
+        }
+        Insert: {
+          model_year_id: string
+          pattern: string
+          samples?: number
+          serial_from?: number
+          serial_to?: number
+          updated_at?: string
+        }
+        Update: {
+          model_year_id?: string
+          pattern?: string
+          samples?: number
+          serial_from?: number
+          serial_to?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ducati_vin_patterns_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           action: string
@@ -8083,6 +8159,7 @@ export type Database = {
       }
       _shopify_reservations_expire: { Args: never; Returns: number }
       _shopify_sync_mode: { Args: { _company: string }; Returns: string }
+      _vin_identify_core: { Args: { _vin: string }; Returns: Json }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
@@ -10041,6 +10118,7 @@ export type Database = {
           vin: string
         }[]
       }
+      vin_identify: { Args: { _vin: string }; Returns: Json }
       vin_normalize: { Args: { _vin: string }; Returns: string }
       vo_margin_register: {
         Args: { _company: string; _from: string; _to: string }
