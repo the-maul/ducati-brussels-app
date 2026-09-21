@@ -48,7 +48,9 @@ export type PriceSource = {
 
 /**
  * Prix de vente TTC envoyé à Shopify : le prix de vente TTC du DMS ; à défaut, le prix HT × (1 + taux de
- * TVA de l'article) ; puis l'arrondi catalogue de la société (euro supérieur, plancher 2 €) s'il est actif.
+ * TVA de l'article). Décision de Simon (21/09, W-11) : on garde les prix du site — AUCUN arrondi n'est
+ * appliqué au prix envoyé à Shopify (le champ round_up est ignoré ici ; l'arrondi de la société reste
+ * valable pour la caisse et les étiquettes).
  * null = pas de prix de vente dans le DMS → on n'envoie aucun prix (jamais 0 € sur le site).
  */
 export function shopifyTtc(a: PriceSource): number | null {
@@ -59,7 +61,7 @@ export function shopifyTtc(a: PriceSource): number | null {
   if (Number.isFinite(ttc) && ttc > 0) base = round2(ttc);
   else if (Number.isFinite(ht) && ht > 0 && Number.isFinite(rate)) base = round2(ht * (1 + rate / 100));
   if (base == null) return null;
-  return a.round_up ? roundUpEuro(base) : base;
+  return base;
 }
 
 /** Montant au format Money de Shopify (« 12.50 »). */

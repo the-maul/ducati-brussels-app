@@ -16,11 +16,11 @@ const LOC = 'gid://shopify/Location/1';
 
 describe('prix TTC envoyé à Shopify (W-7)', () => {
   test('prend le PV TTC du DMS, arrondi à l’euro supérieur si la société l’a choisi', () => {
-    expect(shopifyTtc({ sale_price_ttc: 12.3, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(13);
+    expect(shopifyTtc({ sale_price_ttc: 12.3, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(12.3); // W-11 : pas d'arrondi vers le site
     expect(shopifyTtc({ sale_price_ttc: 12.3, sale_price_ht: null, vat_rate: 21, round_up: false })).toBe(12.3);
   });
   test('plancher de 2 € de l’arrondi existant', () => {
-    expect(shopifyTtc({ sale_price_ttc: 0.8, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(2);
+    expect(shopifyTtc({ sale_price_ttc: 0.8, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(0.8);
   });
   test('prix rond : pas d’euro de plus', () => {
     expect(shopifyTtc({ sale_price_ttc: 45, sale_price_ht: 37.19, vat_rate: 21, round_up: true })).toBe(45);
@@ -28,7 +28,7 @@ describe('prix TTC envoyé à Shopify (W-7)', () => {
   test('sans TTC : HT × (1 + taux de TVA de l’article)', () => {
     expect(shopifyTtc({ sale_price_ttc: null, sale_price_ht: 100, vat_rate: 21, round_up: false })).toBe(121);
     expect(shopifyTtc({ sale_price_ttc: 0, sale_price_ht: 100, vat_rate: 6, round_up: false })).toBe(106);
-    expect(shopifyTtc({ sale_price_ttc: null, sale_price_ht: 8.26, vat_rate: 21, round_up: true })).toBe(10);
+    expect(shopifyTtc({ sale_price_ttc: null, sale_price_ht: 8.26, vat_rate: 21, round_up: true })).toBe(9.99);
   });
   test('taux absent : 21 % par défaut ; valeurs texte (numeric Postgres) acceptées', () => {
     expect(shopifyTtc({ sale_price_ttc: null, sale_price_ht: '10.00', vat_rate: null, round_up: false })).toBe(12.1);
@@ -38,10 +38,10 @@ describe('prix TTC envoyé à Shopify (W-7)', () => {
     expect(shopifyTtc({ sale_price_ttc: null, sale_price_ht: null, vat_rate: 21, round_up: true })).toBeNull();
     expect(shopifyTtc({ sale_price_ttc: 0, sale_price_ht: 0, vat_rate: 21, round_up: true })).toBeNull();
   });
-  test('même arrondi que l’application (src/lib/pricing.ts)', () => {
+  test('arrondi de l’application inchangé, mais jamais appliqué au prix du site (W-11)', () => {
     for (const p of [0.5, 1.99, 2, 9.2, 10, 10.01, 149.5, 1234.56]) {
       expect(roundUpEuro(p)).toBe(appRoundUpEuro(p));
-      expect(shopifyTtc({ sale_price_ttc: p, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(effectiveSaleTtc(p, true));
+      expect(shopifyTtc({ sale_price_ttc: p, sale_price_ht: null, vat_rate: 21, round_up: true })).toBe(p); // W-11 : le site garde le prix exact
     }
   });
   test('format Money Shopify', () => {
@@ -125,7 +125,7 @@ describe('file d’attente (dédoublonnage)', () => {
 const target = (over: Partial<PushTarget> = {}): PushTarget => ({
   queue_id: 1, article_id: 'art-1', reference: '82411461A', mgmt_type: 'A',
   shopify_product_id: 'gid://shopify/Product/10', shopify_variant_id: 'gid://shopify/ProductVariant/100',
-  sale_price_ttc: 12.3, sale_price_ht: null, vat_rate: 21, round_up: true, real_qty: 5, reserved_qty: 1,
+  sale_price_ttc: 13, sale_price_ht: null, vat_rate: 21, round_up: true, real_qty: 5, reserved_qty: 1,
   requested_at: '2026-09-21T10:00:00Z', ...over,
 });
 const state = (over: Partial<VariantState> = {}): VariantState => ({
@@ -179,14 +179,10 @@ describe('plan des écritures stock + prix', () => {
     expect(p.results[0].status).toBe('erreur');
     expect(p.priceUpdates).toEqual([]);
   });
-  test('prix exact du DMS = prix du site : l’écart restant est signalé comme dû à l’arrondi société', () => {
+  test('prix exact du DMS = prix du site : rien n’est envoyé, même si la société arrondit (W-11)', () => {
     const t = target({ sale_price_ttc: 118.29, sale_price_ht: 97.76, round_up: true });
     const p = planPush([t], states(state({ price: '118.29', available: 4 })), LOC);
-    expect(p.results[0]).toMatchObject({ price_before: 118.29, price_sent: 119, write_price: true });
-    expect(p.results[0].detail).toContain('arrondi');
-    const sans = planPush([{ ...t, round_up: false }], states(state({ price: '118.29', available: 4 })), LOC);
-    expect(sans.results[0].status).toBe('deja_a_jour');
-    expect(sans.results[0].detail).toBeNull();
+    expect(p.results[0].status).toBe('deja_a_jour');
   });
   test('reprise du 21/09 : PV G8 hors TVA rangé en TTC → le site aurait baissé ; PV corrigé → site inchangé', () => {
     // avant correction : 92,22 (HT G8 lu comme TTC) contre 118,29 sur le site
@@ -268,13 +264,13 @@ describe('publication d’un article', () => {
     expect(publishTitle({ ...art, web_title: ' ' })).toBe('Rétroviseur gauche');
     expect(publishTitle({ ...art, web_title: null, designation: null })).toBe('82411461A');
   });
-  test('productSet : SKU = référence, prix TTC arrondi, stock disponible, photos du DMS', () => {
+  test('productSet : SKU = référence, prix TTC exact, stock disponible, photos du DMS', () => {
     const input = buildProductSetInput(art, [{ attachment_id: 'at1', url: 'https://x/signed', alt: null }], LOC) as any;
     expect(input.title).toBe('Rétroviseur Ducati Performance');
     expect(input.descriptionHtml).toBe('<p>Aluminium</p>');
     expect(input.status).toBe('ACTIVE');
     expect(input.variants[0].sku).toBe('82411461A');
-    expect(input.variants[0].price).toBe('90.00');
+    expect(input.variants[0].price).toBe('89.50'); // W-11 : prix exact, sans arrondi
     expect(input.variants[0].inventoryItem).toEqual({ tracked: true });
     expect(input.variants[0].inventoryQuantities).toEqual([{ locationId: LOC, name: 'available', quantity: 2 }]);
     expect(input.files).toEqual([{ originalSource: 'https://x/signed', alt: 'Rétroviseur Ducati Performance', contentType: 'IMAGE' }]);
