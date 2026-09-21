@@ -17,7 +17,7 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   [mission 07](missions/mission-07-plan-entretien.md), [M03](modules/M03-vehicules.md)
 ## 2026-09-21 — Mission 03, réservation du stock des commandes non payées (choix de réalisation)
 
-- **W-11** — **Une commande du site pas encore payée réserve le stock** des lignes reliées par des mouvements de
+- **W-12** — **Une commande du site pas encore payée réserve le stock** des lignes reliées par des mouvements de
   réservation append-only (comme un bon RES), **sans créer de document ni de fiche client** avant le paiement (client
   seulement retrouvé par e-mail). Au paiement, la facture FAC (W-9) libère la réservation et sort le réel dans la même
   transaction. Libération à l'annulation, au paiement abandonné, à l'**expiration après 7 jours** (réglage société 1 à 60)

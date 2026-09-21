@@ -373,7 +373,7 @@ pour la caisse et les étiquettes) ou accepter des prix du site arrondis à l'eu
   sera la moyenne pondérée avec ces pièces à 0 (ex. 1 pièce reprise + 1 reçue à 100 € → PAMP 50 €). Saisir un PA
   (ou passer un inventaire valorisé) si la valeur de stock compte avant.
 
-## 5 quater. Réservation du stock des commandes non payées (W-11, 21/09)
+## 5 quater. Réservation du stock des commandes non payées (W-12, 21/09)
 
 Carte « Réserver le stock dès qu'une commande du site est passée, même non payée » (branche `lot-shopify-resa`,
 à valider). Pourquoi : une commande payée par virement (« Bank Deposit ») n'entrait dans le DMS qu'une fois payée ;
