@@ -127,7 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = useCallback((companyId?: string) => hasRole('admin', companyId), [hasRole]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Déconnecte seulement cet appareil : le défaut « global » coupait la session
+    // du même compte ouvert ailleurs (envoi de mail refusé : « Session not found »).
+    await supabase.auth.signOut({ scope: 'local' });
   }, []);
 
   const refresh = useCallback(async () => {
