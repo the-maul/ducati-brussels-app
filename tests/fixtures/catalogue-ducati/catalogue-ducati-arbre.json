@@ -1,0 +1,7 @@
+{"families":[{"id":"106","description":"Monster"},{"id":"107","description":"Scrambler"}],
+ "superModels":[{"id":"125","family":"106","description":"937"},{"id":"130","family":"107","description":"800"}],
+ "models":[{"id":"298","family":"106","superModel":"125","description":"MONSTER","order":1},{"id":"299","family":"106","superModel":"125","description":"MONSTER +","order":2},{"id":"400","family":"107","superModel":"130","description":"ICON 2G","order":1}],
+ "modelYears":[{"id":"45968","model":"298","superModel":"125","family":"106","year":2021,"code":"M937 21","path":"106/125/298/45968","name":"MONSTER 937 21 STD"},
+               {"id":"45969","model":"298","superModel":"125","family":"106","year":2022,"code":"M937 22","path":"106/125/298/45969","name":"MONSTER 937 22 STD"},
+               {"id":"45970","model":"299","superModel":"125","family":"106","year":2022,"code":"M937P 22","path":"106/125/299/45970","name":"MONSTER + 22"},
+               {"id":"50001","model":"400","superModel":"130","family":"107","year":"2023","code":"ICON 23","path":"107/130/400/50001","name":"ICON 2G 23"}]}

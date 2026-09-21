@@ -50,7 +50,7 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
 | 03 | [Shopify](missions/mission-03-shopify.md) | 🟦 accès fait · produits Shopify rapprochés des articles (à valider) · photos et textes repris dans le DMS (à valider) · questions en attente |
 | 04 | [Fiche client et moto au comptoir](missions/mission-04-fiche-client-moto.md) | 🟦 feu vert 19/09 · cartes 1 à 8 faites (à valider) |
 | 05 | [Devis moto, options et préparation](missions/mission-05-devis-preparation.md) | 🟦 feu vert 19/09 · cartes 1 à 10 faites (à valider) |
-| 06 | [Catalogue pièces Ducati](missions/mission-06-catalogue-pieces.md) | 🟦 ouverte le 21/09 · accès et mesure faits · import en attente des réponses (périmètre, rythme) |
+| 06 | [Catalogue pièces Ducati](missions/mission-06-catalogue-pieces.md) | 🟦 ouverte le 21/09 · cartes 2 et 3 faites (à valider : tables, chargeur, écran « Catalogue Ducati », extension) · accessoires et vêtements : base prête · données à charger après l'extraction |
 | 07 | [Plan d'entretien](missions/mission-07-plan-entretien.md) | 🟦 ouverte le 21/09 · attend les documents d'entretien et la mission 06 |
 
 ## Alertes relevées par le scan du 18/09
