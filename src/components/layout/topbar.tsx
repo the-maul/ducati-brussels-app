@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import { ExcelThresholdAlert } from '@/modules/orders/excel-alert';
 import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-alerts';
 import { eur } from '@/modules/sales/balance-panel';
 import { listWebOrderAlerts, WEB_ORDER_ROLES } from '@/modules/sales/web-orders-api';
+import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
 import { t } from '@/lib/i18n';
 
 /**
@@ -523,8 +524,12 @@ function UserMenu() {
   const { profile, user, signOut, rolesForActiveCompany } = useAuth();
   const name = profile?.full_name || profile?.email || user?.email || '—';
   const topRole = rolesForActiveCompany[0];
+  // Signature des e-mails envoyés depuis son adresse personnelle (21/09) : équipe seulement.
+  const [sigOpen, setSigOpen] = useState(false);
+  const isStaff = rolesForActiveCompany.length > 0;
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger
         className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
@@ -546,12 +551,20 @@ function UserMenu() {
             {t('pwd.menu')}
           </Link>
         </DropdownMenuItem>
+        {isStaff && user && (
+          <DropdownMenuItem onSelect={() => setSigOpen(true)}>
+            <Signature className="size-4" />
+            {t('mailSignature.menu')}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut className="size-4" />
           {t('auth.signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    {sigOpen && user && <UserSignatureDialog userId={user.id} displayName={name} onClose={() => setSigOpen(false)} />}
+    </>
   );
 }
 

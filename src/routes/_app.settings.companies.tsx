@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanies, updateCompany, createCompany, type Company, type CompanyPatch } from '@/modules/settings/companies-api';
+import { MailSignatureSettings } from '@/modules/settings/mail-signature-settings';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/companies')({
@@ -46,7 +47,13 @@ function CompaniesPage() {
             </button>
           ))}
         </div>
-        {current && <CompanyForm key={current.id} company={current} onSaved={() => qc.invalidateQueries({ queryKey: ['companies-list'] })} />}
+        {current && (
+          <div className="space-y-4">
+            <CompanyForm key={current.id} company={current} onSaved={() => qc.invalidateQueries({ queryKey: ['companies-list'] })} />
+            {/* Signature des e-mails (21/09) : enregistrement séparé de la fiche société. */}
+            <MailSignatureSettings key={`sig-${current.id}`} companyId={current.id} />
+          </div>
+        )}
       </div>
       {showNew && <NewCompanyDialog onClose={() => setShowNew(false)} onCreated={(id) => { setShowNew(false); setSelected(id); qc.invalidateQueries({ queryKey: ['companies-list'] }); }} />}
     </>

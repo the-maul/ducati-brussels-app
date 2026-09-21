@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMailboxes } from '@/modules/crm/api';
 import { bytesToBase64, mailErrorLabel, plainTextToHtml } from '@/modules/sales/document-mail-api';
@@ -28,8 +29,7 @@ import { logSupplierMail } from './proposal-api';
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
 export type SupplierMailKind = 'price_request' | 'order';
-
-type Preview = { from: string; attachments: { name: string; size: number }[] };
+type Preview = { from: string; attachments: { name: string; size: number }[]; html?: string };
 
 export function SupplierMailDialog({ kind, companyId, companyName, supplierId, supplierName, supplierEmail, lines, onClose }: {
   kind: SupplierMailKind; companyId: string; companyName: string;
@@ -91,17 +91,17 @@ export function SupplierMailDialog({ kind, companyId, companyName, supplierId, s
         if (ctx && typeof ctx.json === 'function') { try { code = ((await ctx.json()) as { error?: string })?.error; } catch { /* corps illisible */ } }
         return { ok: false as const, error: code ?? error.message };
       }
-      const r = data as { ok?: boolean; error?: string; from?: string; dryRun?: boolean; attachments?: { name: string; size: number }[] };
+      const r = data as { ok?: boolean; error?: string; from?: string; dryRun?: boolean; html?: string; attachments?: { name: string; size: number }[] };
       if (!r?.ok) return { ok: false as const, error: r?.error ?? 'send_failed' };
       if (!r.dryRun) {
         await logSupplierMail({ companyId, supplierId, kind, to: to.trim(), from: r.from ?? fromBox, subject, lineIds: lines.map((l) => l.line_id), attachment: att.name })
           .catch(() => toast.warning(t('proposal.mailLogFailed')));
       }
-      return { ok: true as const, dryRun: !!r.dryRun, from: r.from ?? fromBox, attachments: r.attachments ?? [] };
+      return { ok: true as const, dryRun: !!r.dryRun, from: r.from ?? fromBox, attachments: r.attachments ?? [], html: r.html ?? '' };
     },
     onSuccess: (r) => {
       if (!r.ok) { toast.error(mailErrorLabel(r.error)); return; }
-      if (r.dryRun) { setPreview({ from: r.from, attachments: r.attachments }); return; }
+      if (r.dryRun) { setPreview({ from: r.from, attachments: r.attachments, html: r.html }); return; }
       toast.success(fill(t('proposal.mailSent'), { to: to.trim(), from: r.from }));
       onClose();
     },
@@ -110,7 +110,7 @@ export function SupplierMailDialog({ kind, companyId, companyName, supplierId, s
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{t(kind === 'order' ? 'proposal.mailTitleOrder' : 'proposal.mailTitlePrice')} · {supplierName}</DialogTitle>
           <DialogDescription>{t('proposal.mailIntro')}</DialogDescription>
@@ -162,6 +162,7 @@ export function SupplierMailDialog({ kind, companyId, companyName, supplierId, s
               })}</p>
             </div>
           )}
+          {preview?.html && <MailPreview html={preview.html} />}
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
