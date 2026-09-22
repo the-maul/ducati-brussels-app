@@ -9,7 +9,7 @@ import { ArticleForm } from '@/modules/articles/article-form';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
-import { CatalogPartUsage } from '@/modules/catalog/part-usage';
+import { ArticleLinkBadges, ArticleSourcesSummary, CompatibilityPanel } from '@/modules/articles/article-links-panel';
 import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
@@ -126,6 +126,8 @@ function EditArticle() {
           )}
         </div>
       )}
+      {/* Article DMS = pivot (M-25) : relié au catalogue Ducati / au site Shopify */}
+      <ArticleLinkBadges companyId={activeCompanyId} articleId={articleId} />
       <Tabs defaultValue="fiche">
         <TabsList>
           <TabsTrigger value="fiche">Fiche</TabsTrigger>
@@ -134,11 +136,13 @@ function EditArticle() {
           <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
           <TabsTrigger value="replacement">Remplacement</TabsTrigger>
           <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
-          <TabsTrigger value="ducati-catalog">{t('catalog.usageTitle')}</TabsTrigger>
+          <TabsTrigger value="ducati-catalog">{t('links.compatTab')}</TabsTrigger>
           <TabsTrigger value="stats">Statistiques</TabsTrigger>
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
+          {/* Tout sur une page (M-25) : catalogue Ducati et site Shopify de l'article. */}
+          <ArticleSourcesSummary companyId={activeCompanyId} articleId={articleId} publishable={!!article.publishable} />
           <ArticlePhotoCard companyId={activeCompanyId} articleId={articleId} />
           <ArticleForm
             initial={article}
@@ -159,12 +163,8 @@ function EditArticle() {
           <ApplicabilityTab articleId={articleId} companyId={activeCompanyId} reference={article.reference} />
         </TabsContent>
         <TabsContent value="ducati-catalog" className="mt-4">
-          {/* Mission 06 : motos et vues éclatées Ducati où la référence de l'article apparaît. */}
-          <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-            <h2 className="font-ui text-[15px] font-bold">{t('catalog.usageTitle')}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{t('catalog.usageSubtitle')}</p>
-            <CatalogPartUsage key={article.reference} reference={article.reference} />
-          </div>
+          {/* Missions 06 + M-25 : référence Ducati reliée (vue éclatée, prix Ducati pour information), motos et vues. */}
+          <CompatibilityPanel companyId={activeCompanyId} articleId={articleId} articleReference={article.reference} />
         </TabsContent>
         <TabsContent value="stats" className="mt-4"><StatsTab articleId={articleId} /></TabsContent>
         <TabsContent value="photos" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="article" entityId={articleId} /></TabsContent>

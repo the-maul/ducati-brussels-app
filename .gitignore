@@ -51,6 +51,8 @@ tools/*
 !tools/maintenance-loader/
 # Exception : générateur de la table des motifs de VIN (code seul ; les VIN restent dans Téléchargements).
 !tools/vin-patterns/
+# Exception : chargeur des catalogues accessoires et vêtements Ducati (code seul ; données dans Téléchargements).
+!tools/accessories-loader/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 

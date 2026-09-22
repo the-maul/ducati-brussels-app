@@ -198,6 +198,94 @@ Testée hors production (base PostgreSQL locale : même résultat que les foncti
   les VIN « plusieurs » / « inconnu », puis relance de `tools/vin-patterns/build.ts`).
 - **Champ VIN à la borne et à l'inscription en ligne** (aujourd'hui famille / modèle / année seulement).
 
+### 21-22/09 — Un seul catalogue : les articles du DMS (lot `lot-rapprochement`, décision M-25)
+
+Demande de Simon : « je veux un seul catalogue, avec le Shopify lié… si des produits n'existent pas encore on les crée
+dans la db… un seul stock… des petits logos G8, Shopify, Ducati ». Une première version (trois « vues » et un simple
+aperçu des manquants) a été refusée par Simon le 21/09 ; ce qui suit la remplace.
+
+**Réponse à « comment Shopify peut avoir des produits qui ne sont pas dans la base ? »** — Le site Shopify a été rempli
+à la main, directement dans Shopify, avant le DMS : sur 3 106 produits (variantes) du site, seuls 300 avaient un SKU
+égal à une référence du DMS. Les 2 806 autres n'avaient pas d'article : 1 994 vêtements « 98… » et 401 accessoires
+« 96/97… » que G8 n'a jamais eus, 94 produits sans SKU, 240 motos, et quelques pièces d'occasion ou SKU en double.
+Avec ce lot, chaque produit du site devient un article du DMS (2 534 créés, stock et prix du site repris), les motos
+sont proposées à leur fiche véhicule, et tout nouveau produit créé dans Shopify est signalé.
+
+**Mesure des correspondances (lecture seule, 21/09)** — inchangée par rapport à la première version :
+
+| Sens | Méthode | Liens | Faux positifs (échantillon vérifié) | Traitement |
+|---|---|---|---|---|
+| Ducati ↔ DMS | Même référence (majuscules, sans espaces / points / tirets) | 45 394 | 0/12 (désignations EN/IT = traductions) | relié |
+| Ducati ↔ DMS | Autre indice de révision (une seule réf. Ducati, hors notices) | 1 721 | une lettre ≈ 2/15, deux lettres 3/10 (couleurs) | à valider 50 / 35 |
+| Ducati ↔ DMS | Remplacée dans le DMS (chaîne G8) | 8 368 | 0/10 (lien « remplacée par ») | à valider 60 |
+| Ducati ↔ DMS | Préfixe / suffixe « /2 » · zéros · EAN | 3 · 0 · 0 | 3/3 (kits) | à valider 40 |
+| Ducati ↔ DMS | Référence à un caractère près | 19 553 | 15/15 faux | écarté |
+| Shopify ↔ DMS | SKU exact et unique (W-6) | 300 | 0/12 | relié |
+| Shopify ↔ DMS | SKU exact mais partagé par plusieurs produits | 23 | — | à valider 90 |
+| Shopify ↔ DMS | Référence dans le titre · ancienne réf. remplacée | 8 · 10 | 0/9 · 0/10 | à valider 80 · 70 |
+| Shopify ↔ DMS | Désignation + prix (trigrammes, local) | 19 | 19/20 faux | écarté |
+| Shopify ↔ Ducati | SKU = pièce · accessoires (fichier du 22/09) | 277 · 149 | 0/12 | via l'article |
+
+**Création des articles manquants — chiffres réels (transaction annulée du 22/09, base de production)**
+
+| Création | Articles | Détail |
+|---|---|---|
+| Références du catalogue pièces Ducati sans article | **4 009** | type A, librairie ; 2 693 avec prix public Ducati (price_changes `import:catalogue_ducati`), 1 316 sans prix → « à compléter » |
+| Variantes Shopify sans article | **2 534** | 2 372 avec SKU, 24 SKU partagés (« -2 »), 44 pièces d'occasion, 94 sans SKU (« SHOP-… », à compléter, lien à valider) ; 2 505 prix du site (`import:shopify`) ; **605 stocks de départ = 925 pièces** (mouvements « inventaire », origine `import:shopify`) |
+| Motos du site | **0 article** | 240 variantes ; 406 propositions de fiche véhicule à valider (VIN ou modèle) |
+| Accessoires Ducati (fichier du 22/09, chargeur pas lancé) | **≈ 1 018** à la charge | 1 937 produits, 2 613 références (1 190 distinctes), 47 434 compatibilités moto ; **149 produits Shopify** de plus reçoivent leur référence Ducati (badge Ducati) ; vêtements : fichier attendu (1 994 SKU « 98… » du site) |
+
+Après création : 88 327 articles ; **49 429 reliés au catalogue Ducati** (toutes les 49 403 références + 26 occasions),
+**2 741 reliés au site** (sur 3 106 variantes ; + 94 à confirmer), 81 473 badges G8 ; 126 produits du site restent
+signalés « sans article » (94 à confirmer, 23 SKU partagés, 9 références dans le titre). Deuxième passage : 0 créé.
+Essai d'une tranche de 60 accessoires (72 références) : 30 articles créés, 47 liens Ducati, 15 articles du site reliés.
+
+**Pour l'utilisateur**
+- **Menu** : Pièces & Accessoires et son outil **Rapprochements** ; plus d'entrées « Catalogue Ducati » ni « Produits
+  Shopify ». Boutons de la liste : Rapprochements, **Réglages du site** (synchronisation, relire Shopify).
+- **Liste** : badges **G8 / Shopify / Ducati** (infobulle), filtre **Référencé** (Shopify, pas sur le site, Ducati, G8,
+  ni Shopify ni Ducati) ; alerte **« N produit(s) du site sans article »**.
+- **Fiche article, tout sur une page** : carte **Catalogue Ducati** (photo ou vue éclatée, référence, prix public
+  Ducati pour information, remplacement, temps Ducati, candidats, « Relier à une référence Ducati ») et carte **Site
+  Shopify** (photo, prix site, stock site, en ligne / brouillon, candidats, **« Publier sur le site »**) ; onglet
+  **« Vues éclatées / motos compatibles »**. **Fiche moto** : lien « Vues éclatées de cette moto ».
+- **Rapprochements** : compteurs, correspondances à valider (accepter / rejeter en masse), **« Créer les articles
+  manquants »** (lots de 200, relançable), **Produits du site sans article** (« Créer l'article » / « Rattacher »),
+  **Motos du site ↔ fiches véhicule** (accepter / rejeter).
+
+**Technique**
+- Migrations **à appliquer, dans l'ordre** : `20260921200000_m2_rapprochement_article_pivot.sql` puis
+  `20260921201000_m2_catalogue_unique_creation_articles.sql` (la seconde crée les articles : ≈ 20 s). Essayées ensemble
+  dans une transaction annulée le 22/09 ; aucune donnée écrite.
+- `article_links` (sortes `ducati_part`, `ducati_product`, `shopify_variant`, `g8`) ; `shopify_vehicle_links` ; fonctions
+  `article_links_refresh` (4 s en administrateur), `article_links_create_missing(société, portée, limite, variante)`
+  (0,7 s pour un lot vide, une variante à la fois pour « Créer l'article »), `shopify_unlinked_products`,
+  `shopify_vehicle_links_refresh / _review / _decide`, `_shopify_is_moto`.
+- Chargeur **`tools/accessories-loader/`** (non lancé) : `node tools/accessories-loader/load.mjs --dry-run` sur le vrai
+  fichier : 1 937 produits, 2 613 références, prix HT (`price`) et TTC (`priceWithVAT`, ratio 1,21), motos compatibles
+  par `…-arbre.json`. Lancé sans `--dry-run` : catalogue chargé, articles créés, rapprochement relancé.
+- Code : `src/modules/articles/links-rules.ts`, `links-api.ts`, `links-ui.tsx` (badges), `links-tools.tsx`,
+  `unlinked-alert.tsx`, `article-links-panel.tsx` ; `src/routes/_app.parts.links.tsx`. Tests :
+  `tests/article-links.test.ts`, `tests/accessories-loader.test.ts`.
+
+**À tester (Simon)** — après application des deux migrations :
+- [ ] Pièces & Accessoires : chercher `564P7181AA` (garde-boue, nouvel article du catalogue Ducati) → badge Ducati,
+      librairie, prix 242 € TTC.
+- [ ] Chercher `981088363` (casque du site) → badges Shopify ; fiche : prix site = PV TTC, stock = stock du site.
+- [ ] Filtre Référencé « G8 » puis « Pas sur le site » : les listes changent.
+- [ ] Rapprochements → « Produits du site sans article » : « Créer l'article » sur une ligne sans SKU → l'article
+      « SHOP-… » s'ouvre ; « Motos du site » : accepter une moto → elle est reliée à sa fiche.
+- [ ] Créer un produit test dans Shopify, « Relire Shopify » (Réglages du site) → l'alerte « produit du site sans
+      article » apparaît.
+
+## 5 bis. Cartes proposées (22/09)
+
+- **Lancer le chargeur des accessoires** (≈ 1 018 articles, 149 produits du site reliés) puis celui des vêtements
+  quand le fichier arrive.
+- **Compléter les 1 316 pièces Ducati sans prix** et les **94 produits du site sans SKU** (filtre « à compléter »).
+- **Valider les 9 produits du site reliés à une référence remplacée** et les 23 SKU partagés.
+- **Relire la « référence de remplacement » du catalogue Ducati** au prochain chargement (5 724 pièces marquées remplacées).
+
 ## 6. Risques
 
 - Charge sur le portail Ducati : rythme lent, pas de parallélisme, arrêt au moindre refus.

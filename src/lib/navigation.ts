@@ -24,7 +24,7 @@ import {
   Wallet,
   type LucideIcon,
   Globe,
-  BookOpen,
+  GitMerge,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -47,8 +47,9 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
-  // Mission 06 : le catalogue Ducati, sous Pièces & Accessoires (mêmes rôles que l'entrée parente).
-  { labelKey: 'nav.partsCatalog', to: '/parts/catalog', icon: BookOpen, child: true },
+  // Un seul catalogue (décision M-25) : les articles du DMS. Les vues éclatées Ducati s'ouvrent depuis la fiche
+  // article ou la fiche moto ; l'outil « Rapprochements » (liens, articles manquants, produits du site) reste ici.
+  { labelKey: 'nav.partsLinks', to: '/parts/links', icon: GitMerge, child: true },
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
   { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },

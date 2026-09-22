@@ -68,6 +68,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Publier ou retirer un article du site depuis sa fiche dans le DMS | 🟦 21/09 — fait, soumis au même mode essai (livré Arrêtée) |
 | Reprendre le stock et vérifier les prix de vente des articles reliés au site | 🟦 21/09 — fait, à valider : reprise réelle des 300 articles reliés (§5 ter) ; bouton « Aligner le DMS sur le site (stock et prix) » |
 | Réserver le stock dès qu'une commande du site est passée, même non payée | 🟦 21/09 — fait, à valider (§5 quater) ; même réglage Arrêté / Actif que l'import des commandes (livré Arrêté) |
+| Un seul catalogue : chaque produit du site est un article du DMS (M-25) | 🟦 22/09 — fait, à valider (§5 quinquies) ; migrations `20260921200000` + `20260921201000` à appliquer |
 
 ## 4. Questions en attente
 
@@ -422,6 +423,19 @@ entre-temps la pièce pouvait être vendue au comptoir, et le DMS renvoyait au s
 - [ ] Marquer la commande payée dans Shopify : « Importée », facture FAC ; stock réel −1, réservé revenu à 0, disponible
       inchangé par rapport à l'étape précédente.
 - [ ] Une autre commande par virement puis l'annuler dans Shopify : réservation libérée (disponible revenu).
+
+## 5 quinquies. Un seul catalogue : chaque produit du site est un article du DMS (M-25, 22/09)
+
+Détail, chiffres et « À tester » : [mission 06](mission-06-catalogue-pieces.md) (§5, lot `lot-rapprochement`).
+- **Le DMS est la source ; un seul stock.** Les 2 534 variantes du site sans article deviennent des articles (un par
+  variante, référence = SKU), avec le **prix du site** (TTC) et le **stock du site comme stock de départ** (605
+  mouvements « inventaire », 925 pièces, origine `import:shopify`), reliés (`shopify_links` : exact et unique =
+  `auto_exact`, sinon `valide`). Sans SKU (94) : article « SHOP-… » à compléter, lien à valider. Pièces d'occasion :
+  articles à part. Motos (240) : propositions vers la fiche véhicule.
+- **Alerte « Produit du site sans article »** (liste Pièces & Accessoires, outil Rapprochements) pour tout produit créé
+  directement dans Shopify : « Créer l'article » / « Rattacher ».
+- L'écran « Produits Shopify » n'est plus une entrée du menu : il reste comme **Réglages du site** (mode de
+  synchronisation, relire Shopify, aligner). La fiche article montre le produit du site et « Publier sur le site ».
 
 ## 6. Risques
 

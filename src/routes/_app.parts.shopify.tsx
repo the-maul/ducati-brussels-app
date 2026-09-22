@@ -146,6 +146,7 @@ function ShopifyProductsPage() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['shopify-products', activeCompanyId] });
     qc.invalidateQueries({ queryKey: ['shopify-content-imports', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['article-links'] });
   };
 
   const importAll = useMutation({

@@ -80,7 +80,18 @@ export function stripMissingCol<T extends Record<string, unknown>>(input: T, e: 
 }
 
 /** Article + réf. de remplacement embarquée (self-join sur superseded_by_id). */
-export type ArticleWithReplacement = Article & { replacement?: { id: string; reference: string } | null };
+export type ArticleWithReplacement = Article & {
+  replacement?: { id: string; reference: string } | null;
+  /** liens « reliés » de l'article (article_links, décision M-25) ; absent tant que la migration n'est pas appliquée */
+  links?: { target_kind: string; status: string }[] | null;
+};
+
+/** Filtre « liens » de la liste : un seul catalogue, l'article DMS est le pivot (décision M-25). */
+export type ArticleLinkFilter = 'shopify' | 'not_shopify' | 'ducati' | 'g8' | 'none';
+
+export class LinkFilterUnavailableError extends Error {
+  constructor() { super('Filtre « Liens » indisponible : mise à jour de la base (rapprochement) à appliquer.'); }
+}
 
 export type SupplierAvailability = 'green' | 'yellow' | 'red';
 
@@ -108,18 +119,61 @@ export type ArticleFilters = {
   pvLocked?: boolean;
   /** articles « à compléter » (créés au vol depuis une vente, mission 05 carte 4) */
   toComplete?: boolean;
+  /** référencé : Shopify / pas sur le site / Ducati / G8 / ni Shopify ni Ducati (article_links, statut « lié ») */
+  links?: ArticleLinkFilter;
   /** plafond de lignes (défaut 500 ; élargi quand le filtre stock croise côté client) */
   limit?: number;
 };
 
 export async function listArticles(companyId: string, filters: ArticleFilters | string = {}): Promise<ArticleWithReplacement[]> {
   const f: ArticleFilters = typeof filters === 'string' ? { search: filters } : filters;
+  const res = await queryArticles(companyId, f, true);
+  if (!res.error) return (res.data ?? []) as unknown as ArticleWithReplacement[];
+  // Table des liens absente (migration du rapprochement pas encore appliquée) : liste sans les liens.
+  if (isMissingLinks(res.error)) {
+    if (f.links) throw new LinkFilterUnavailableError();
+    const plain = await queryArticles(companyId, f, false);
+    if (!plain.error) return (plain.data ?? []) as unknown as ArticleWithReplacement[];
+    throwListError(plain.error, f);
+  }
+  throwListError(res.error, f);
+}
+
+/** PGRST200 : relation article_links inconnue de l'API (table pas encore créée). */
+function isMissingLinks(e: unknown): boolean {
+  return (e as { code?: string } | null)?.code === 'PGRST200' || isMissingSchema(e);
+}
+
+function throwListError(error: unknown, f: ArticleFilters): never {
+  if (f.year != null && isMissingSchema(error)) {
+    throw new Error('Filtre « Année » indisponible : appliquez la migration SQL (bandeau sur l\'écran Importer un tarif).');
+  }
+  throw error;
+}
+
+function queryArticles(companyId: string, f: ArticleFilters, withLinks: boolean) {
+  // Liens affichés (badges) + filtre « liens » : seconde jointure sur la même table, statut « lié ».
+  let cols = '*, replacement:superseded_by_id(id, reference)';
+  if (withLinks) {
+    cols += ', links:article_links(target_kind, status)';
+    if (f.links === 'shopify' || f.links === 'ducati' || f.links === 'g8') cols += ', fl:article_links!inner(id)';
+    if (f.links === 'none' || f.links === 'not_shopify') cols += ', fl:article_links!left(id)';
+  }
   let q = supabase
     .from('articles')
-    .select('*, replacement:superseded_by_id(id, reference)')
+    .select(cols)
     .eq('company_id', companyId)
     .order('designation', { ascending: true })
     .limit(f.limit ?? 500);
+  if (withLinks) {
+    q = q.eq('links.status', 'lie');
+    if (f.links) q = q.eq('fl.status', 'lie');
+    if (f.links === 'shopify' || f.links === 'not_shopify') q = q.eq('fl.target_kind', 'shopify_variant');
+    if (f.links === 'ducati') q = q.in('fl.target_kind', ['ducati_part', 'ducati_product']);
+    if (f.links === 'g8') q = q.eq('fl.target_kind', 'g8');
+    if (f.links === 'none') q = q.in('fl.target_kind', ['ducati_part', 'ducati_product', 'shopify_variant']);
+    if (f.links === 'none' || f.links === 'not_shopify') q = q.is('fl', null);
+  }
 
   const s = f.search ? sanitize(f.search) : '';
   if (s) {
@@ -153,15 +207,7 @@ export async function listArticles(companyId: string, filters: ArticleFilters | 
       .or(`year_to.gte.${f.year},year_to.is.null`)
       .or('year_from.not.is.null,year_to.not.is.null');
   }
-
-  const { data, error } = await q;
-  if (error) {
-    if (f.year != null && isMissingSchema(error)) {
-      throw new Error('Filtre « Année » indisponible : appliquez la migration SQL (bandeau sur l\'écran Importer un tarif).');
-    }
-    throw error;
-  }
-  return (data ?? []) as unknown as ArticleWithReplacement[];
+  return q;
 }
 
 /** Valeurs distinctes pour les menus de la recherche multicritères. */

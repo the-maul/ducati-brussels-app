@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, Store, FilePenLine, BookOpen } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, FilePenLine, GitMerge, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -13,7 +13,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, listArticleFacets, getSupplierAvailability, duplicateArticle, type ArticleFilters } from '@/modules/articles/api';
+import { listArticles, listArticleFacets, getSupplierAvailability, duplicateArticle, type ArticleFilters, type ArticleLinkFilter } from '@/modules/articles/api';
+import { SourceBadges } from '@/modules/articles/links-ui';
+import { UnlinkedProductsAlert } from '@/modules/articles/unlinked-alert';
 import { yearOptions } from '@/modules/articles/article-form';
 import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/product-families';
 import { listSuppliers, supplierName, addToReorderProposal } from '@/modules/purchases/api';
@@ -49,11 +51,13 @@ type FiltersState = {
   paLocked: boolean;
   pvLocked: boolean;
   toComplete: boolean;
+  /** relié à Shopify / au catalogue Ducati / non relié (décision M-25) */
+  links: '' | ArticleLinkFilter;
 };
 
 const EMPTY_FILTERS: FiltersState = {
   supplierId: '', stock: 'all', year: '', rayon: '', sousRayon: '', categorie: '',
-  brand: '', size: '', color: '', paLocked: false, pvLocked: false, toComplete: false,
+  brand: '', size: '', color: '', paLocked: false, pvLocked: false, toComplete: false, links: '',
 };
 
 function countActive(f: FiltersState): number {
@@ -68,6 +72,7 @@ function countActive(f: FiltersState): number {
   if (f.paLocked) n++;
   if (f.pvLocked) n++;
   if (f.toComplete) n++;
+  if (f.links) n++;
   return n;
 }
 
@@ -120,6 +125,7 @@ function ArticlesList() {
     paLocked: f.paLocked || undefined,
     pvLocked: f.pvLocked || undefined,
     toComplete: f.toComplete || undefined,
+    links: f.links || undefined,
     limit,
   };
 
@@ -179,14 +185,14 @@ function ArticlesList() {
             <Button variant="outline" onClick={() => navigate({ to: '/parts/cascade' })}>
               <Wand2 /> Cascade
             </Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/parts/links' })}>
+              <GitMerge /> {t('links.toolLinks')}
+            </Button>
             {(isAdmin() || hasRole('vendeur')) && (
               <Button variant="outline" onClick={() => navigate({ to: '/parts/shopify' })}>
-                <Store /> {t('shopify.openBtn')}
+                <Store /> {t('links.toolShopify')}
               </Button>
             )}
-            <Button variant="outline" onClick={() => navigate({ to: '/parts/catalog' })}>
-              <BookOpen /> {t('catalog.openBtn')}
-            </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
               <Upload /> {t('articles.import')}
             </Button>
@@ -199,6 +205,9 @@ function ArticlesList() {
           </>
         }
       />
+
+      {/* Un seul catalogue (M-25) : le DMS est la source ; un produit du site sans article est signalé. */}
+      <UnlinkedProductsAlert />
 
       <div className="sticky top-0 z-20 flex items-center gap-2 bg-background pb-2">
         <div className="relative max-w-md flex-1">
@@ -219,6 +228,19 @@ function ArticlesList() {
                 value={f.supplierId}
                 onChange={(v) => set('supplierId', v)}
                 options={(suppliers ?? []).map((s) => ({ value: s.id, label: supplierName(s) }))}
+              />
+            </FilterField>
+            <FilterField label={t('links.filterLinks')}>
+              <FilterSelect
+                value={f.links}
+                onChange={(v) => set('links', v as FiltersState['links'])}
+                options={[
+                  { value: 'shopify', label: t('links.linksShopify') },
+                  { value: 'not_shopify', label: t('links.linksNotShopify') },
+                  { value: 'ducati', label: t('links.linksDucati') },
+                  { value: 'g8', label: t('links.linksG8') },
+                  { value: 'none', label: t('links.linksNone') },
+                ]}
               />
             </FilterField>
             <FilterField label={t('articles.filterStock')}>
@@ -371,6 +393,7 @@ function ArticlesList() {
                   <span className="inline-flex flex-wrap items-center gap-2">
                     <span className={isReplaced ? 'line-through decoration-1' : ''}>{a.designation}</span>
                     {a.to_complete && <StatusBadge tone="info" icon={FilePenLine} label={t('ecatalog.toCompleteBadge')} />}
+                    <SourceBadges links={a.links} />
                     {isReplaced && (
                       <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement?.reference ? `${t('articles.replacedBadge')} → ${a.replacement.reference}` : t('articles.replacedBadge')} />
                     )}

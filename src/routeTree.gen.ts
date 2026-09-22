@@ -57,6 +57,7 @@ import { Route as AppPartsCatalogRouteImport } from './routes/_app.parts.catalog
 import { Route as AppPartsFamiliesRouteImport } from './routes/_app.parts.families'
 import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
 import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
+import { Route as AppPartsLinksRouteImport } from './routes/_app.parts.links'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
 import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
 import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
@@ -346,6 +347,11 @@ const AppPartsImportRoute = AppPartsImportRouteImport.update({
 const AppPartsLabelsRoute = AppPartsLabelsRouteImport.update({
   id: '/labels',
   path: '/labels',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsLinksRoute = AppPartsLinksRouteImport.update({
+  id: '/links',
+  path: '/links',
   getParentRoute: () => AppPartsRoute,
 } as any)
 const AppPartsNewRoute = AppPartsNewRouteImport.update({
@@ -655,6 +661,7 @@ export interface FileRoutesByFullPath {
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
+  '/parts/links': typeof AppPartsLinksRoute
   '/parts/new': typeof AppPartsNewRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
@@ -744,6 +751,7 @@ export interface FileRoutesByTo {
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
+  '/parts/links': typeof AppPartsLinksRoute
   '/parts/new': typeof AppPartsNewRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
@@ -844,6 +852,7 @@ export interface FileRoutesById {
   '/_app/parts/families': typeof AppPartsFamiliesRoute
   '/_app/parts/import': typeof AppPartsImportRoute
   '/_app/parts/labels': typeof AppPartsLabelsRoute
+  '/_app/parts/links': typeof AppPartsLinksRoute
   '/_app/parts/new': typeof AppPartsNewRoute
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
@@ -946,6 +955,7 @@ export interface FileRouteTypes {
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
+    | '/parts/links'
     | '/parts/new'
     | '/parts/shopify'
     | '/preparation/$pickingId'
@@ -1035,6 +1045,7 @@ export interface FileRouteTypes {
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
+    | '/parts/links'
     | '/parts/new'
     | '/parts/shopify'
     | '/preparation/$pickingId'
@@ -1134,6 +1145,7 @@ export interface FileRouteTypes {
     | '/_app/parts/families'
     | '/_app/parts/import'
     | '/_app/parts/labels'
+    | '/_app/parts/links'
     | '/_app/parts/new'
     | '/_app/parts/shopify'
     | '/_app/preparation/$pickingId'
@@ -1540,6 +1552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPartsLabelsRouteImport
       parentRoute: typeof AppPartsRoute
     }
+    '/_app/parts/links': {
+      id: '/_app/parts/links'
+      path: '/links'
+      fullPath: '/parts/links'
+      preLoaderRoute: typeof AppPartsLinksRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
     '/_app/parts/new': {
       id: '/_app/parts/new'
       path: '/new'
@@ -1943,6 +1962,7 @@ interface AppPartsRouteChildren {
   AppPartsFamiliesRoute: typeof AppPartsFamiliesRoute
   AppPartsImportRoute: typeof AppPartsImportRoute
   AppPartsLabelsRoute: typeof AppPartsLabelsRoute
+  AppPartsLinksRoute: typeof AppPartsLinksRoute
   AppPartsNewRoute: typeof AppPartsNewRoute
   AppPartsShopifyRoute: typeof AppPartsShopifyRoute
   AppPartsIndexRoute: typeof AppPartsIndexRoute
@@ -1955,6 +1975,7 @@ const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsFamiliesRoute: AppPartsFamiliesRoute,
   AppPartsImportRoute: AppPartsImportRoute,
   AppPartsLabelsRoute: AppPartsLabelsRoute,
+  AppPartsLinksRoute: AppPartsLinksRoute,
   AppPartsNewRoute: AppPartsNewRoute,
   AppPartsShopifyRoute: AppPartsShopifyRoute,
   AppPartsIndexRoute: AppPartsIndexRoute,

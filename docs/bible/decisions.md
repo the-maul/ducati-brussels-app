@@ -8,6 +8,30 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
+
+- **M-25** — **Un seul catalogue, un seul stock : les articles du DMS (Pièces & Accessoires).** Il n'y a plus de
+  « Catalogue Ducati » ni de « Produits Shopify » séparés dans le menu : les vues éclatées s'ouvrent depuis la fiche
+  article (onglet « Vues éclatées / motos compatibles ») ou la fiche moto ; l'écran Shopify ne garde que les réglages
+  du site ; « Rapprochements » est un outil de Pièces & Accessoires. **Tout ce qui manque est créé dans le DMS**
+  (`article_links_create_missing`, relançable, sans doublon, tracé dans `events`) :
+  référence du catalogue Ducati sans article → article **A en librairie** (non stocké tant qu'il n'est pas reçu), désignation
+  FR, **prix public Ducati** (PV TTC = prix TTC Ducati, PV HT = prix HT, aussi en PPC ; « à compléter » sans prix) ;
+  accessoire / vêtement Ducati → idem, une référence par taille / couleur ; **variante Shopify sans article → un article
+  par variante** (référence = SKU, « -2 » si le SKU est partagé ; sans SKU : code « SHOP-… », à compléter, lien à
+  valider), prix = prix du site TTC (W-7, W-10, W-11), **stock de départ = stock Shopify** par un mouvement
+  « inventaire » append-only (origine `import:shopify`, B7), lien Shopify relié ; les pièces d'occasion (« OCC ») ont
+  leur propre article ; **les motos du site ne sont pas des articles pièces** : lien proposé vers la fiche véhicule (VIN,
+  modèle), à valider. Les prix passent par `price_changes` (déclencheur, origines `import:catalogue_ducati` /
+  `import:shopify`). **Le DMS est la source** : un produit créé directement dans Shopify est signalé
+  (« Produit du site sans article » → « Créer l'article » / « Rattacher ») ; le site affiche le stock du DMS (W-8).
+  Chaque article porte des badges **G8** (repris de G8), **Shopify** (sur le site), **Ducati** (référence du catalogue),
+  filtrables. Liens dans `article_links` (relié / à valider / rejeté, jamais reproposé) ; relié d'office seulement pour
+  les correspondances exactes (même référence normalisée ; SKU exact et unique, W-6 inchangée). *Simon (chat 21/09 :
+  « un seul catalogue avec le Shopify lié », « si des produits n'existent pas on les crée dans la db », « un seul stock
+  … des petits logos G8, Shopify, Ducati ») ; règles de réalisation : équipe.*
+  [M02](modules/M02-articles.md), [mission 03](missions/mission-03-shopify.md), [mission 06](missions/mission-06-catalogue-pieces.md)
+
 ## 2026-09-21 — Mission 06, carte 4 : reconnaître la moto par son VIN (choix de réalisation)
 
 - **M-24** — **Reconnaissance du VIN hors ligne**, par une table de correspondance tirée de 2 975 VIN du parc

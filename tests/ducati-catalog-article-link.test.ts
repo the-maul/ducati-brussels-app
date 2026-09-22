@@ -35,14 +35,12 @@ describe('recherche : proposer le catalogue seulement pour une référence', () 
   });
 });
 
-describe('menu : « Catalogue Ducati » sous Pièces & Accessoires', () => {
-  test('entrée présente juste après Pièces & Accessoires, en sous-entrée', () => {
-    const i = mainNav.findIndex((n) => n.to === '/parts');
-    expect(mainNav[i + 1].to).toBe('/parts/catalog');
-    expect(mainNav[i + 1].child).toBe(true);
+describe('menu : un seul catalogue (décision M-25)', () => {
+  test("plus d'entrée « Catalogue Ducati » : les vues éclatées s'ouvrent depuis la fiche article ou moto", () => {
+    expect(mainNav.some((n) => n.to === '/parts/catalog')).toBe(false);
   });
-  test('seule l\'entrée la plus précise est active', () => {
-    expect(activeNavTo('/parts/catalog', mainNav)).toBe('/parts/catalog');
+  test('la vue éclatée reste rattachée à Pièces & Accessoires dans le menu', () => {
+    expect(activeNavTo('/parts/catalog', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/123', mainNav)).toBe('/parts');
     expect(activeNavTo('/sales/balances', mainNav)).toBe('/sales/balances');
   });

@@ -6,7 +6,7 @@
  */
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,6 +59,10 @@ export function VehicleMaintenancePanel({ vehicle, companyId }: { vehicle: Vehic
             {my.name && <span className="ml-1 text-[12px] text-muted-foreground">{my.name}</span>}
           </p>
         )}
+        {/* Un seul catalogue (M-25) : les vues éclatées de SA moto, depuis la fiche moto. */}
+        <Link to="/parts/catalog" search={{ my: myId }} className="inline-flex items-center gap-1 text-sm font-medium underline-offset-2 hover:underline">
+          <BookOpen className="size-4" aria-hidden /> {t('links.vehicleDrawings')}
+        </Link>
         <div className="w-48 space-y-1">
           <Label>{t('maintenance.vehUsage')}</Label>
           <Select value={usage} onValueChange={(v) => save.mutate(v as MaintenanceUsage)} disabled={save.isPending}>
