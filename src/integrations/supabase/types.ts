@@ -8021,6 +8021,849 @@ export type Database = {
           },
         ]
       }
+      wsm_fluid_tables: {
+        Row: {
+          id: string
+          lines: Json
+          lines_count: number
+          manual_id: string
+          notes: Json
+          row_key: string
+          sort: number
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          title: string | null
+          warnings: Json
+        }
+        Insert: {
+          id?: string
+          lines?: Json
+          lines_count?: number
+          manual_id: string
+          notes?: Json
+          row_key: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string | null
+          warnings?: Json
+        }
+        Update: {
+          id?: string
+          lines?: Json
+          lines_count?: number
+          manual_id?: string
+          notes?: Json
+          row_key?: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string | null
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_fluid_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_images: {
+        Row: {
+          bytes: number | null
+          kind: string
+          path: string
+          sha256: string | null
+          storage_path: string | null
+          updated_at: string
+          uploaded_at: string | null
+          used_count: number
+        }
+        Insert: {
+          bytes?: number | null
+          kind?: string
+          path: string
+          sha256?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          used_count?: number
+        }
+        Update: {
+          bytes?: number | null
+          kind?: string
+          path?: string
+          sha256?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          used_count?: number
+        }
+        Relationships: []
+      }
+      wsm_manual_catalog_links: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          manual_id: string
+          model_year_id: string
+          origin: string
+          proposed_at: string
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          manual_id: string
+          model_year_id: string
+          origin?: string
+          proposed_at?: string
+          reason?: string | null
+          status: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          manual_id?: string
+          model_year_id?: string
+          origin?: string
+          proposed_at?: string
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_manual_catalog_links_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_manual_catalog_links_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_manuals: {
+        Row: {
+          content_hash: string
+          dm_family_id: string | null
+          dm_model_id: string | null
+          dm_supermodel_id: string | null
+          extracted_at: string | null
+          family: string
+          gaps: Json
+          id: string
+          loaded_at: string
+          manual_root: string | null
+          model: string
+          model_year: number
+          nodes_count: number | null
+          operations_count: number
+          procedures_count: number
+          section: string | null
+          services_count: number
+          source_file: string | null
+          supermodel: string | null
+          times_count: number
+          updated_at: string
+        }
+        Insert: {
+          content_hash: string
+          dm_family_id?: string | null
+          dm_model_id?: string | null
+          dm_supermodel_id?: string | null
+          extracted_at?: string | null
+          family: string
+          gaps?: Json
+          id: string
+          loaded_at?: string
+          manual_root?: string | null
+          model: string
+          model_year: number
+          nodes_count?: number | null
+          operations_count?: number
+          procedures_count?: number
+          section?: string | null
+          services_count?: number
+          source_file?: string | null
+          supermodel?: string | null
+          times_count?: number
+          updated_at?: string
+        }
+        Update: {
+          content_hash?: string
+          dm_family_id?: string | null
+          dm_model_id?: string | null
+          dm_supermodel_id?: string | null
+          extracted_at?: string | null
+          family?: string
+          gaps?: Json
+          id?: string
+          loaded_at?: string
+          manual_root?: string | null
+          model?: string
+          model_year?: number
+          nodes_count?: number | null
+          operations_count?: number
+          procedures_count?: number
+          section?: string | null
+          services_count?: number
+          source_file?: string | null
+          supermodel?: string | null
+          times_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wsm_operations: {
+        Row: {
+          group_label: string | null
+          id: string
+          label: string
+          manual_id: string
+          n: number | null
+          periodicity_km: number | null
+          periodicity_months: number | null
+          row_key: string
+          scope: string
+          service_codes: string[]
+          sort: number
+        }
+        Insert: {
+          group_label?: string | null
+          id?: string
+          label: string
+          manual_id: string
+          n?: number | null
+          periodicity_km?: number | null
+          periodicity_months?: number | null
+          row_key: string
+          scope?: string
+          service_codes?: string[]
+          sort?: number
+        }
+        Update: {
+          group_label?: string | null
+          id?: string
+          label?: string
+          manual_id?: string
+          n?: number | null
+          periodicity_km?: number | null
+          periodicity_months?: number | null
+          row_key?: string
+          scope?: string
+          service_codes?: string[]
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_operations_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_procedure_steps: {
+        Row: {
+          figures: Json
+          id: string
+          links: Json
+          marks: Json
+          n: number
+          phase: string | null
+          procedure_id: string
+          products: Json
+          sub_phase: string | null
+          sub_steps: Json
+          symbols: Json
+          tables: Json
+          text: string | null
+          tools: Json
+          torques: Json
+          videos: Json
+          warnings: Json
+        }
+        Insert: {
+          figures?: Json
+          id?: string
+          links?: Json
+          marks?: Json
+          n: number
+          phase?: string | null
+          procedure_id: string
+          products?: Json
+          sub_phase?: string | null
+          sub_steps?: Json
+          symbols?: Json
+          tables?: Json
+          text?: string | null
+          tools?: Json
+          torques?: Json
+          videos?: Json
+          warnings?: Json
+        }
+        Update: {
+          figures?: Json
+          id?: string
+          links?: Json
+          marks?: Json
+          n?: number
+          phase?: string | null
+          procedure_id?: string
+          products?: Json
+          sub_phase?: string | null
+          sub_steps?: Json
+          symbols?: Json
+          tables?: Json
+          text?: string | null
+          tools?: Json
+          torques?: Json
+          videos?: Json
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_procedure_steps_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_procedure_torques: {
+        Row: {
+          id: string
+          marks: string[]
+          max_nm: number | null
+          min_nm: number | null
+          procedure_id: string
+          row_key: string
+          sort: number
+          step_n: number | null
+          text: string | null
+          tolerance: string | null
+          value_nm: number | null
+        }
+        Insert: {
+          id?: string
+          marks?: string[]
+          max_nm?: number | null
+          min_nm?: number | null
+          procedure_id: string
+          row_key: string
+          sort?: number
+          step_n?: number | null
+          text?: string | null
+          tolerance?: string | null
+          value_nm?: number | null
+        }
+        Update: {
+          id?: string
+          marks?: string[]
+          max_nm?: number | null
+          min_nm?: number | null
+          procedure_id?: string
+          row_key?: string
+          sort?: number
+          step_n?: number | null
+          text?: string | null
+          tolerance?: string | null
+          value_nm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_procedure_torques_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_procedure_usages: {
+        Row: {
+          dm_id: string | null
+          dm_path: string | null
+          manual_id: string
+          operation: string | null
+          procedure_id: string
+          role: string
+          sort: number
+          source_updated_at: string | null
+          version: string | null
+        }
+        Insert: {
+          dm_id?: string | null
+          dm_path?: string | null
+          manual_id: string
+          operation?: string | null
+          procedure_id: string
+          role?: string
+          sort?: number
+          source_updated_at?: string | null
+          version?: string | null
+        }
+        Update: {
+          dm_id?: string | null
+          dm_path?: string | null
+          manual_id?: string
+          operation?: string | null
+          procedure_id?: string
+          role?: string
+          sort?: number
+          source_updated_at?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_procedure_usages_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_usages_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_procedures: {
+        Row: {
+          content_hash: string
+          figures_count: number
+          id: string
+          intervention: Json | null
+          intro_figures: Json
+          loaded_at: string
+          products: Json
+          roles: string[]
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_title: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          steps_count: number
+          times: Json
+          title: string
+          tools: Json
+          torques_count: number
+          updated_at: string
+          usages_count: number
+          warnings: Json
+        }
+        Insert: {
+          content_hash: string
+          figures_count?: number
+          id: string
+          intervention?: Json | null
+          intro_figures?: Json
+          loaded_at?: string
+          products?: Json
+          roles?: string[]
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_title?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          steps_count?: number
+          times?: Json
+          title: string
+          tools?: Json
+          torques_count?: number
+          updated_at?: string
+          usages_count?: number
+          warnings?: Json
+        }
+        Update: {
+          content_hash?: string
+          figures_count?: number
+          id?: string
+          intervention?: Json | null
+          intro_figures?: Json
+          loaded_at?: string
+          products?: Json
+          roles?: string[]
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_title?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          steps_count?: number
+          times?: Json
+          title?: string
+          tools?: Json
+          torques_count?: number
+          updated_at?: string
+          usages_count?: number
+          warnings?: Json
+        }
+        Relationships: []
+      }
+      wsm_product_tables: {
+        Row: {
+          id: string
+          manual_id: string
+          products: Json
+          products_count: number
+          row_key: string
+          sort: number
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          title: string | null
+        }
+        Insert: {
+          id?: string
+          manual_id: string
+          products?: Json
+          products_count?: number
+          row_key: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string | null
+        }
+        Update: {
+          id?: string
+          manual_id?: string
+          products?: Json
+          products_count?: number
+          row_key?: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_product_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_service_procedures: {
+        Row: {
+          id: string
+          manual_id: string
+          operation: string | null
+          procedure_id: string
+          service_code: string
+          sort: number
+        }
+        Insert: {
+          id?: string
+          manual_id: string
+          operation?: string | null
+          procedure_id: string
+          service_code: string
+          sort?: number
+        }
+        Update: {
+          id?: string
+          manual_id?: string
+          operation?: string | null
+          procedure_id?: string
+          service_code?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_service_procedures_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_service_procedures_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_services: {
+        Row: {
+          code: string
+          definition: string | null
+          first_reached: boolean
+          first_service: boolean
+          id: string
+          km: number | null
+          manual_id: string
+          mi: number | null
+          months: number | null
+          name: string
+          sort: number
+          text: string | null
+        }
+        Insert: {
+          code: string
+          definition?: string | null
+          first_reached?: boolean
+          first_service?: boolean
+          id?: string
+          km?: number | null
+          manual_id: string
+          mi?: number | null
+          months?: number | null
+          name: string
+          sort?: number
+          text?: string | null
+        }
+        Update: {
+          code?: string
+          definition?: string | null
+          first_reached?: boolean
+          first_service?: boolean
+          id?: string
+          km?: number | null
+          manual_id?: string
+          mi?: number | null
+          months?: number | null
+          name?: string
+          sort?: number
+          text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_services_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_times: {
+        Row: {
+          id: string
+          label: string
+          manual_id: string
+          minutes: number | null
+          row_key: string
+          service_code: string | null
+          sort: number
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          time_text: string | null
+          ut: number | null
+          values_doc: string[]
+        }
+        Insert: {
+          id?: string
+          label: string
+          manual_id: string
+          minutes?: number | null
+          row_key: string
+          service_code?: string | null
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          time_text?: string | null
+          ut?: number | null
+          values_doc?: string[]
+        }
+        Update: {
+          id?: string
+          label?: string
+          manual_id?: string
+          minutes?: number | null
+          row_key?: string
+          service_code?: string | null
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          time_text?: string | null
+          ut?: number | null
+          values_doc?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_times_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_tool_sets: {
+        Row: {
+          id: string
+          manual_id: string
+          row_key: string
+          sort: number
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          title: string
+          tools: Json
+          tools_count: number
+        }
+        Insert: {
+          id?: string
+          manual_id: string
+          row_key: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title: string
+          tools?: Json
+          tools_count?: number
+        }
+        Update: {
+          id?: string
+          manual_id?: string
+          row_key?: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string
+          tools?: Json
+          tools_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_tool_sets_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wsm_torque_tables: {
+        Row: {
+          id: string
+          lines: Json
+          lines_count: number
+          manual_id: string
+          row_key: string
+          sort: number
+          source_code: string | null
+          source_dm_id: string | null
+          source_dm_path: string | null
+          source_manual_root: string | null
+          source_updated_at: string | null
+          source_version: string | null
+          title: string
+        }
+        Insert: {
+          id?: string
+          lines?: Json
+          lines_count?: number
+          manual_id: string
+          row_key: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title: string
+        }
+        Update: {
+          id?: string
+          lines?: Json
+          lines_count?: number
+          manual_id?: string
+          row_key?: string
+          sort?: number
+          source_code?: string | null
+          source_dm_id?: string | null
+          source_dm_path?: string | null
+          source_manual_root?: string | null
+          source_updated_at?: string | null
+          source_version?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_torque_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       ducati_catalog_article_links: {
@@ -8375,6 +9218,10 @@ export type Database = {
       _shopify_reservations_expire: { Args: never; Returns: number }
       _shopify_sync_mode: { Args: { _company: string }; Returns: string }
       _vin_identify_core: { Args: { _vin: string }; Returns: Json }
+      _wsm_can_link: { Args: { _company: string }; Returns: boolean }
+      _wsm_can_read: { Args: never; Returns: boolean }
+      _wsm_can_write: { Args: never; Returns: boolean }
+      _wsm_norm: { Args: { _s: string }; Returns: string }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
@@ -10511,6 +11358,31 @@ export type Database = {
           work_min: number
         }[]
       }
+      wsm_ingest_images: { Args: { _payload: Json }; Returns: Json }
+      wsm_ingest_manuals: {
+        Args: { _force?: boolean; _payload: Json }
+        Returns: Json
+      }
+      wsm_ingest_procedures: {
+        Args: { _force?: boolean; _payload: Json }
+        Returns: Json
+      }
+      wsm_link_set: {
+        Args: {
+          _company: string
+          _manual: string
+          _model_year_ids: string[]
+          _status: string
+        }
+        Returns: number
+      }
+      wsm_manual_list: {
+        Args: { _family?: string; _limit?: number; _q?: string }
+        Returns: Json
+      }
+      wsm_manual_overview: { Args: { _manual: string }; Returns: Json }
+      wsm_propose_catalog_links: { Args: { _company: string }; Returns: Json }
+      wsm_stats: { Args: never; Returns: Json }
     }
     Enums: {
       app_role:
