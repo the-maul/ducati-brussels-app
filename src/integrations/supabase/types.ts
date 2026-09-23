@@ -4223,6 +4223,427 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_fluid_articles: {
+        Row: {
+          article_id: string
+          company_id: string
+          family_code: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          family_code: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          family_code?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_fluid_articles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_fluid_articles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
+            foreignKeyName: "maintenance_fluid_articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_fluid_articles_family_code_fkey"
+            columns: ["family_code"]
+            isOneToOne: false
+            referencedRelation: "maintenance_part_families"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      maintenance_fluid_rules: {
+        Row: {
+          element_re: string
+          family_code: string
+          id: string
+          sort: number
+        }
+        Insert: {
+          element_re: string
+          family_code: string
+          id?: string
+          sort?: number
+        }
+        Update: {
+          element_re?: string
+          family_code?: string
+          id?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_fluid_rules_family_code_fkey"
+            columns: ["family_code"]
+            isOneToOne: false
+            referencedRelation: "maintenance_part_families"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      maintenance_kit_items: {
+        Row: {
+          article_id: string | null
+          company_id: string
+          confidence: string
+          created_at: string
+          designation: string
+          family_code: string | null
+          fluid_product: string | null
+          fluid_spec: string | null
+          id: string
+          kind: string
+          kit_id: string
+          note: string | null
+          origin: string
+          quantity: number
+          reference: string | null
+          sort_order: number
+          unit: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          company_id: string
+          confidence?: string
+          created_at?: string
+          designation: string
+          family_code?: string | null
+          fluid_product?: string | null
+          fluid_spec?: string | null
+          id?: string
+          kind?: string
+          kit_id: string
+          note?: string | null
+          origin?: string
+          quantity?: number
+          reference?: string | null
+          sort_order?: number
+          unit?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          company_id?: string
+          confidence?: string
+          created_at?: string
+          designation?: string
+          family_code?: string | null
+          fluid_product?: string | null
+          fluid_spec?: string | null
+          id?: string
+          kind?: string
+          kit_id?: string
+          note?: string | null
+          origin?: string
+          quantity?: number
+          reference?: string | null
+          sort_order?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_kit_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_items_family_code_fkey"
+            columns: ["family_code"]
+            isOneToOne: false
+            referencedRelation: "maintenance_part_families"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_items_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_kit_model_years: {
+        Row: {
+          kit_id: string
+          model_year_id: string
+        }
+        Insert: {
+          kit_id: string
+          model_year_id: string
+        }
+        Update: {
+          kit_id?: string
+          model_year_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_kit_model_years_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_kits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_model_years_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_kit_versions: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          id: string
+          items: Json
+          kit_id: string
+          reason: string | null
+          version: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          id?: string
+          items: Json
+          kit_id: string
+          reason?: string | null
+          version: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          id?: string
+          items?: Json
+          kit_id?: string
+          reason?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_kit_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_kit_versions_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_kits: {
+        Row: {
+          company_id: string
+          content_hash: string
+          created_at: string
+          edited_at: string | null
+          edited_by: string | null
+          engine_family_key: string
+          engine_family_label: string
+          generated_at: string
+          id: string
+          note: string | null
+          service_code: string
+          service_label: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          company_id: string
+          content_hash: string
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          engine_family_key: string
+          engine_family_label: string
+          generated_at?: string
+          id?: string
+          note?: string | null
+          service_code: string
+          service_label: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          company_id?: string
+          content_hash?: string
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          engine_family_key?: string
+          engine_family_label?: string
+          generated_at?: string
+          id?: string
+          note?: string | null
+          service_code?: string
+          service_label?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_kits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_part_catalog_rules: {
+        Row: {
+          drawing_exclude_re: string | null
+          drawing_re: string | null
+          exclude_re: string | null
+          family_code: string
+          id: string
+          include_re: string
+          sort: number
+          take_all: boolean
+        }
+        Insert: {
+          drawing_exclude_re?: string | null
+          drawing_re?: string | null
+          exclude_re?: string | null
+          family_code: string
+          id?: string
+          include_re: string
+          sort?: number
+          take_all?: boolean
+        }
+        Update: {
+          drawing_exclude_re?: string | null
+          drawing_re?: string | null
+          exclude_re?: string | null
+          family_code?: string
+          id?: string
+          include_re?: string
+          sort?: number
+          take_all?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_part_catalog_rules_family_code_fkey"
+            columns: ["family_code"]
+            isOneToOne: false
+            referencedRelation: "maintenance_part_families"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      maintenance_part_families: {
+        Row: {
+          code: string
+          kind: string
+          label: string
+          optional: boolean
+          sort: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          kind: string
+          label: string
+          optional?: boolean
+          sort?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          kind?: string
+          label?: string
+          optional?: boolean
+          sort?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      maintenance_part_need_rules: {
+        Row: {
+          family_code: string
+          id: string
+          note: string | null
+          pattern: string
+          sort: number
+        }
+        Insert: {
+          family_code: string
+          id?: string
+          note?: string | null
+          pattern: string
+          sort?: number
+        }
+        Update: {
+          family_code?: string
+          id?: string
+          note?: string | null
+          pattern?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_part_need_rules_family_code_fkey"
+            columns: ["family_code"]
+            isOneToOne: false
+            referencedRelation: "maintenance_part_families"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       maintenance_plan_catalog_links: {
         Row: {
           decided_at: string | null
@@ -5019,6 +5440,7 @@ export type Database = {
           paid: boolean
           paid_at: string | null
           payment_method: string | null
+          repair_order_id: string | null
           sent_at: string | null
           source_document_id: string | null
           status_changed_at: string | null
@@ -5045,6 +5467,7 @@ export type Database = {
           paid?: boolean
           paid_at?: string | null
           payment_method?: string | null
+          repair_order_id?: string | null
           sent_at?: string | null
           source_document_id?: string | null
           status_changed_at?: string | null
@@ -5071,6 +5494,7 @@ export type Database = {
           paid?: boolean
           paid_at?: string | null
           payment_method?: string | null
+          repair_order_id?: string | null
           sent_at?: string | null
           source_document_id?: string | null
           status_changed_at?: string | null
@@ -5095,6 +5519,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_orders_repair_order_id_fkey"
+            columns: ["repair_order_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
             referencedColumns: ["id"]
           },
           {
@@ -5142,6 +5573,8 @@ export type Database = {
           designation: string | null
           document_line_id: string | null
           id: string
+          kit_item_id: string | null
+          origin: string | null
           picking_id: string
           prep_step: string | null
           prep_step_at: string | null
@@ -5152,6 +5585,7 @@ export type Database = {
           removed_at: string | null
           sort_order: number
           status: string
+          unit: string | null
         }
         Insert: {
           article_id?: string | null
@@ -5160,6 +5594,8 @@ export type Database = {
           designation?: string | null
           document_line_id?: string | null
           id?: string
+          kit_item_id?: string | null
+          origin?: string | null
           picking_id: string
           prep_step?: string | null
           prep_step_at?: string | null
@@ -5170,6 +5606,7 @@ export type Database = {
           removed_at?: string | null
           sort_order?: number
           status?: string
+          unit?: string | null
         }
         Update: {
           article_id?: string | null
@@ -5178,6 +5615,8 @@ export type Database = {
           designation?: string | null
           document_line_id?: string | null
           id?: string
+          kit_item_id?: string | null
+          origin?: string | null
           picking_id?: string
           prep_step?: string | null
           prep_step_at?: string | null
@@ -5188,6 +5627,7 @@ export type Database = {
           removed_at?: string | null
           sort_order?: number
           status?: string
+          unit?: string | null
         }
         Relationships: [
           {
@@ -5219,6 +5659,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "picking_list_items_kit_item_id_fkey"
+            columns: ["kit_item_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_kit_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "picking_list_items_picking_id_fkey"
             columns: ["picking_id"]
             isOneToOne: false
@@ -5241,6 +5688,8 @@ export type Database = {
           id: string
           location: string | null
           note: string | null
+          repair_order_id: string | null
+          service_label: string | null
           status: string
         }
         Insert: {
@@ -5256,6 +5705,8 @@ export type Database = {
           id?: string
           location?: string | null
           note?: string | null
+          repair_order_id?: string | null
+          service_label?: string | null
           status?: string
         }
         Update: {
@@ -5271,6 +5722,8 @@ export type Database = {
           id?: string
           location?: string | null
           note?: string | null
+          repair_order_id?: string | null
+          service_label?: string | null
           status?: string
         }
         Relationships: [
@@ -5286,6 +5739,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_lists_repair_order_id_fkey"
+            columns: ["repair_order_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -9121,6 +9581,15 @@ export type Database = {
         }
         Relationships: []
       }
+      wsm_service_operation_labels: {
+        Row: {
+          label: string | null
+          manual_id: string | null
+          service_code: string | null
+          source: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _account_label: {
@@ -9257,6 +9726,10 @@ export type Database = {
       }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
+      _maintenance_kit_snapshot: {
+        Args: { _kit: string; _reason: string }
+        Returns: undefined
+      }
       _motos_site_candidats: {
         Args: { _company: string }
         Returns: {
@@ -9300,6 +9773,14 @@ export type Database = {
       _recompute_paid_unchecked: {
         Args: { _document: string }
         Returns: undefined
+      }
+      _repair_order_service: {
+        Args: { _or: string }
+        Returns: {
+          model_year_id: string
+          service_code: string
+          service_label: string
+        }[]
       }
       _resolve_customer_price_unchecked: {
         Args: {
@@ -10690,6 +11171,34 @@ export type Database = {
         Returns: string
       }
       maintenance_catalog_coverage: { Args: { _limit?: number }; Returns: Json }
+      maintenance_deduce_parts: {
+        Args: { _model_year_id: string; _service_code?: string }
+        Returns: {
+          article_id: string
+          article_ref: string
+          confidence: string
+          designation: string
+          family_code: string
+          family_label: string
+          fluid_product: string
+          fluid_spec: string
+          kind: string
+          matched_labels: string[]
+          optional: boolean
+          quantity: number
+          references_: string[]
+          service_code: string
+          unit: string
+        }[]
+      }
+      maintenance_engine_family_key: {
+        Args: { _model_year_id: string }
+        Returns: string
+      }
+      maintenance_fluid_article_set: {
+        Args: { _article: string; _company: string; _family: string }
+        Returns: undefined
+      }
       maintenance_hourly_rate_ht: {
         Args: { _company: string }
         Returns: number
@@ -10697,6 +11206,81 @@ export type Database = {
       maintenance_ingest: {
         Args: { _force?: boolean; _payload: Json }
         Returns: Json
+      }
+      maintenance_kit_detail: {
+        Args: { _kit: string }
+        Returns: {
+          article_id: string
+          bins: string[]
+          confidence: string
+          designation: string
+          family_code: string
+          fluid_product: string
+          fluid_spec: string
+          id: string
+          kind: string
+          kit_id: string
+          mgmt_type: string
+          note: string
+          on_order_qty: number
+          origin: string
+          quantity: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          sort_order: number
+          unit: string
+        }[]
+      }
+      maintenance_kit_for_model_year: {
+        Args: {
+          _company: string
+          _model_year_id: string
+          _service_code: string
+        }
+        Returns: string
+      }
+      maintenance_kit_generate: {
+        Args: {
+          _company: string
+          _limit?: number
+          _model_year?: string
+          _offset?: number
+        }
+        Returns: Json
+      }
+      maintenance_kit_item_delete: {
+        Args: { _item: string }
+        Returns: undefined
+      }
+      maintenance_kit_item_save: {
+        Args: {
+          _article: string
+          _designation?: string
+          _item: string
+          _kit: string
+          _note?: string
+          _quantity: number
+        }
+        Returns: string
+      }
+      maintenance_kits_list: {
+        Args: { _company: string; _search?: string }
+        Returns: {
+          edited_at: string
+          edited_by_name: string
+          engine_family_key: string
+          engine_family_label: string
+          id: string
+          items_count: number
+          model_years_count: number
+          service_code: string
+          service_label: string
+          status: string
+          to_confirm_count: number
+          updated_at: string
+          version: number
+        }[]
       }
       maintenance_link_set: {
         Args: {
@@ -10706,6 +11290,10 @@ export type Database = {
           _status: string
         }
         Returns: number
+      }
+      maintenance_parts_coverage: {
+        Args: { _limit?: number; _offset?: number }
+        Returns: Json
       }
       maintenance_propose_catalog_links: {
         Args: { _company: string }
@@ -10779,6 +11367,17 @@ export type Database = {
         }[]
       }
       part_order_check_rules: { Args: { _order_id: string }; Returns: Json }
+      part_order_create_for_workshop: {
+        Args: {
+          _channel?: string
+          _kind?: string
+          _lines?: Json
+          _notes?: string
+          _or?: string
+          _picking?: string
+        }
+        Returns: string
+      }
       part_order_create_from_document: {
         Args: {
           _channel?: string
@@ -10960,6 +11559,29 @@ export type Database = {
       picking_open_for_document: {
         Args: { _document: string }
         Returns: string
+      }
+      picking_open_for_repair_order: { Args: { _or: string }; Returns: string }
+      picking_order_needs: {
+        Args: { _picking: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          origin: string
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
+        }[]
       }
       picking_overview: {
         Args: { _company: string; _picking?: string }
@@ -11195,6 +11817,28 @@ export type Database = {
           stock_min: number
           suggested_qty: number
           supplier_id: string
+        }[]
+      }
+      repair_order_order_needs: {
+        Args: { _or: string }
+        Returns: {
+          article_id: string
+          bin_location: string
+          designation: string
+          draft_qty: number
+          free_qty: number
+          mgmt_type: string
+          missing_qty: number
+          on_order_qty: number
+          origin: string
+          qty_needed: number
+          real_qty: number
+          reference: string
+          reserved_qty: number
+          supplier_id: string
+          supplier_name: string
+          unit_price_ht: number
+          vat_rate: number
         }[]
       }
       report_indicators: {
