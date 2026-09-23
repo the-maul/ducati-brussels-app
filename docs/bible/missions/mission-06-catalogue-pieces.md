@@ -186,6 +186,58 @@ Fichiers : `src/lib/vin-identify.ts`, `src/modules/vehicles/vin-identify-api.ts`
 mesure), `tests/vin-identify.test.ts`, migration `20260921210000_m3_vin_reconnaissance.sql` (**à appliquer**).
 Testée hors production (base PostgreSQL locale : même résultat que les fonctions TypeScript sur 3 000 VIN).
 
+### 23/09 — Accessoires et VÊTEMENTS Ducati : un article par référence (carte 7, lot `lot-vetements`)
+
+Les deux catalogues sont arrivés : `catalogue-ducati-accessoires.json` (1 937 produits, 2 613 références,
+1 190 distinctes) et `catalogue-ducati-vetements.json` (2 563 produits, **13 726 références**, 13 684 distinctes,
+dont **5 211 encore au catalogue** et 8 473 retirées). Leur `…-arbre.json` donne les motos compatibles
+(accessoires), la catégorie (« PERFORMANCE WEAR / Cuir »), le genre et les familles de motos (vêtements).
+
+**Prix** : l'e-catalog donne les deux, `price` **HT** et `priceWithVAT` / `partDetails.vatPrice` **TTC**
+(rapport 1,21 vérifié). Le DMS garde le TTC en PV TTC et le HT en PV HT (convention W-10), les deux aussi en PPC ;
+sans prix, l'article est « à compléter ». Les prix sont posés par `price_changes` (origine `import:catalogue_ducati`).
+
+**Règle d'article** : une référence vendable = **un article** (référence = SKU), type A en **librairie**
+(non stocké tant qu'il n'est pas reçu), désignation = nom du produit + taille / couleur / version
+(« Ducati Corse C7 — 46 / perforé »), note = catégorie · genre · collection · familles de motos · « hors production ».
+**Un article qui existe déjà n'est jamais modifié** (les vêtements du site gardent leur fiche et leur stock).
+Les références **retirées du catalogue** (8 473) restent consultables dans le catalogue mais ne créent pas d'article.
+
+**État au 23/09** : les deux catalogues sont déjà en base et les **4 775 articles manquants ont été créés** le matin
+du 23/09 (`article_links_create_missing`), mais **sans taille, couleur, catégorie ni genre** : le chargeur ne les
+lisait pas encore. Ce lot corrige cela.
+
+| Après le chargeur (chiffres mesurés, base de production en lecture seule) | Nombre |
+|---|---|
+| Références du catalogue accessoires + vêtements | 14 874 (6 401 encore au catalogue, 8 473 retirées) |
+| Articles à créer | **0** (déjà créés le 23/09 au matin) |
+| Articles dont la désignation est complétée (taille, couleur, version, note) | **3 866** sur 4 775 (3 663 avec une taille) |
+| Produits du site concernés par ces références | **2 093** |
+| Produits du site portant déjà le badge Ducati | **2 071** |
+| Produits du site encore sans lien Ducati | **22** (SKU porté par plusieurs produits du site : à rattacher à la main) |
+| Vêtements « 98… » du site | 1 994, dont **1 944 retrouvés** dans le fichier ; 50 absents (collections retirées du catalogue Ducati) |
+
+**Technique**
+- Chargeur `tools/accessories-loader/` (accessoires **et** vêtements) : lit `detail.accessoryVariants` ou
+  `detail.variants`, les attributs `APP_TAGLIA` / `APP_TAGLIA_CASCHI` (taille), `APP_COLOR`, `APP_VERSIONE`,
+  `APP_CODICE_MADRE`, `APP_COLLECTIONYEAR`, le statut `partStatus` et l'arbre (catégorie, genre traduit —
+  Uomo → Homme —, familles). `--dry-run` résume les fichiers **et** interroge la base (articles à créer,
+  produits du site concernés). Idempotent : l'import est un upsert, la création ne double jamais un article.
+- Migration `20260923120000_m2_vetements_ducati_articles.sql` — **à appliquer** (essayée en transaction annulée
+  le 23/09) : désignation et note enrichies dans `article_links_create_missing`, catégorie / genre / familles /
+  version / collection sur la fiche (`article_links_for_article`), aperçu `ducati_products_creation_preview`,
+  **rattrapage `ducati_products_repair_designations`** (complète les articles déjà créés, uniquement s'ils sont
+  en librairie, de marque Ducati, jamais retouchés ; ne touche ni prix ni stock ; relançable : 0 au 2e passage).
+- Fiche article → onglet « Vues éclatées / motos compatibles » : pour un accessoire ou un vêtement, catégorie,
+  genre, collection, version et **familles de motos**.
+- Tests : `tests/accessories-loader.test.ts` (format réel des deux fichiers, genre, tailles, archivées).
+
+**À lancer (Simon), après la migration**
+```
+node tools/accessories-loader/load.mjs --dry-run     # vérifie, n'écrit rien
+node tools/accessories-loader/load.mjs               # charge, complète, relance le rapprochement
+```
+
 ## 5 bis. Cartes proposées (21/09)
 
 - **Créer ou relier les articles DMS depuis le catalogue accessoires et vêtements** (les 1 994 produits
@@ -280,8 +332,8 @@ Essai d'une tranche de 60 accessoires (72 références) : 30 articles créés, 4
 
 ## 5 bis. Cartes proposées (22/09)
 
-- **Lancer le chargeur des accessoires** (≈ 1 018 articles, 149 produits du site reliés) puis celui des vêtements
-  quand le fichier arrive.
+- **Rattacher à la main les 22 produits du site** dont le SKU est porté par plusieurs produits (écran Rapprochements).
+- **Décider du sort des 8 473 références retirées du catalogue** (aujourd'hui : consultables, sans article).
 - **Compléter les 1 316 pièces Ducati sans prix** et les **94 produits du site sans SKU** (filtre « à compléter »).
 - **Valider les 9 produits du site reliés à une référence remplacée** et les 23 SKU partagés.
 - **Relire la « référence de remplacement » du catalogue Ducati** au prochain chargement (5 724 pièces marquées remplacées).

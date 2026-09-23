@@ -3,7 +3,7 @@
  * Extraits au format réel de catalogue-ducati-accessoires.json (22/09). Exécution : `bun test`.
  */
 import { test, expect, describe } from 'bun:test';
-import { num, prices, toProduct, toProducts, entries, treeIndex, attrValue } from '../tools/accessories-loader/transform.mjs';
+import { num, prices, toProduct, toProducts, entries, treeIndex, attrValue, apparelIndex, gender } from '../tools/accessories-loader/transform.mjs';
 
 const ENTRY = {
   list: {
@@ -76,5 +76,63 @@ describe('produits (format réel)', () => {
     expect(r.variants).toBe(2);
     expect(r.skipped).toBe(1);
     expect([...r.skus]).toEqual(['111111111', '222222222']);
+  });
+});
+
+describe('vêtements (catalogue-ducati-vetements.json du 23/09)', () => {
+  const TREE = {
+    cats: [{ path: '0/402', description: 'PERFORMANCE WEAR', categories: [{ path: '0/402/404', description: 'Cuir', categories: null }] }],
+    genders: ['Uomo'],
+    families: [{ code: 'PAN', description: 'PANIGALE' }, { code: 'M', description: 'MONSTER' }],
+    appl: [['APP003088', { categoryPath: '0' }], ['APP003088', { categoryPath: '0/402/404', gender: 'Uomo' }],
+      ['APP003088', { applicabilityPath: 'PAN' }], ['APP003088', { applicabilityPath: 'M', discontinued: true }]],
+  };
+  const ENTRY = {
+    list: { id: '65408', code: 'APP003088', name: 'Ducati Corse C7', price: '1 351,64 €', priceWithVAT: '1 635,48 €', imageUrl: 'https://x/y.th.jpg' },
+    detail: {
+      description: 'Combinaison une pièce racing',
+      variants: [
+        { sku: '981091746', price: '1 351,64 €', partDetails: { vatPrice: '1 635,48 €', partStatus: 'F' }, isArchived: 0, disabled: true,
+          attributes: [{ attributeCode: 'APP_TAGLIA', attributeValueList: [{ attributeValue: '46' }] },
+            { attributeCode: 'APP_VERSIONE', attributeValueList: [{ attributeValueDesc: 'perforé' }] },
+            { attributeCode: 'APP_COLLECTIONYEAR', attributeValueList: [{ attributeValue: '2026' }] }] },
+        { sku: '981091748', price: '-', partDetails: { vatPrice: '-' }, isArchived: 1,
+          attributes: [{ attributeCode: 'APP_TAGLIA_CASCHI', attributeValueList: [{ attributeValue: 'XL' }] }] },
+      ],
+    },
+  };
+  test('genre traduit', () => {
+    expect(gender('Uomo')).toBe('Homme');
+    expect(gender('Donna')).toBe('Femme');
+    expect(gender('Bambino')).toBe('Enfant');
+    expect(gender('Unisex')).toBe('Unisexe');
+    expect(gender(null)).toBeNull();
+  });
+  test('arbre : catégorie la plus précise, genre, familles de motos', () => {
+    const info = apparelIndex(TREE).get('APP003088');
+    expect(info.categoryPath).toBe('0/402/404');
+    expect(info.categoryLabel).toBe('PERFORMANCE WEAR / Cuir');
+    expect(info.gender).toBe('Homme');
+    expect(info.familyCodes).toEqual(['PANIGALE', 'MONSTER']);
+    expect(info.discontinued).toBe(true);
+  });
+  test('une référence par taille, prix HT et TTC, version et statut gardés', () => {
+    const p = toProduct(ENTRY, 'apparel', { info: apparelIndex(TREE) });
+    expect(p.categoryLabel).toBe('PERFORMANCE WEAR / Cuir');
+    expect(p.gender).toBe('Homme');
+    expect(p.familyCodes).toEqual(['PANIGALE', 'MONSTER']);
+    expect(p.variants).toHaveLength(2);
+    const [a, b] = p.variants;
+    expect([a.sku, a.size, a.priceHt, a.priceTtc, a.collectionYear]).toEqual(['981091746', '46', 1351.64, 1635.48, 2026]);
+    expect(a.attributes).toEqual({ version: 'perforé', partStatus: 'F', disabled: true });
+    expect(a.archived).toBe(false);
+    // taille de casque, prix repris du produit faute de prix propre, archivée (plus d'article créé pour elle)
+    expect([b.sku, b.size, b.priceHt, b.archived]).toEqual(['981091748', 'XL', 1351.64, true]);
+  });
+  test('compteurs : références distinctes et références encore au catalogue', () => {
+    const r = toProducts([ENTRY], 'apparel', { info: apparelIndex(TREE) });
+    expect(r.variants).toBe(2);
+    expect([...r.skus]).toEqual(['981091746', '981091748']);
+    expect([...r.live]).toEqual(['981091746']);
   });
 });

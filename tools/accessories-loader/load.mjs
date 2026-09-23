@@ -25,7 +25,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { toProducts, treeIndex } from './transform.mjs';
+import { toProducts, treeIndex, apparelIndex } from './transform.mjs';
 
 // Règle Europe du catalogue (décision M-15), la même que l'extension et les pièces.
 const { isEuropeModel } = createRequire(import.meta.url)('../myducati-extension/catalog-core.js');
@@ -82,16 +82,33 @@ async function main() {
     const path = join(DIR, f.file);
     if (!existsSync(path)) { log(`- ${f.file} : absent (ignoré)`); continue; }
     const treePath = join(DIR, f.tree);
-    const tree = existsSync(treePath) ? treeIndex(readJson(treePath)) : new Map();
-    const r = toProducts(readJson(path), f.kind, { tree, isEurope: isEuropeModel });
+    const raw = existsSync(treePath) ? readJson(treePath) : null;
+    // accessoires : arbre des modèles (paths) ; vêtements : catégories, genres, familles (appl)
+    const tree = raw?.paths ? treeIndex(raw) : new Map();
+    const info = raw?.appl ? apparelIndex(raw) : new Map();
+    const r = toProducts(readJson(path), f.kind, { tree, info, isEurope: isEuropeModel });
     const applic = r.products.reduce((n, p) => n + p.variants.reduce((m, v) => m + v.applicabilities.length, 0), 0);
-    log(`- ${f.file} : ${r.products.length} produits, ${r.variants} références vendables (${r.skus.size} distinctes), ` +
-        `${applic} compatibilités moto, ${r.skipped} entrées inutilisables${tree.size ? '' : ' (arbre absent : modèles non traduits)'}`);
+    log(`- ${f.file} : ${r.products.length} produits, ${r.variants} références vendables (${r.skus.size} distinctes, ` +
+        `${r.live.size} encore au catalogue), ${applic} compatibilités moto, ${r.skipped} entrées inutilisables` +
+        `${raw ? '' : ' (arbre absent : catégories et modèles non traduits)'}`);
     for (const p of r.products.slice(0, 3)) log(`    ${p.code} ${p.name} — ${p.variants.length} réf., ${p.priceHt ?? '?'} HT / ${p.priceTtc ?? '?'} TTC`);
     loaded.push({ ...f, ...r });
   }
   if (!loaded.length) { log('Aucun fichier à charger.'); return; }
-  if (DRY) { log("Essai à blanc (--dry-run) : rien n'est écrit."); return; }
+  if (DRY) {
+    // Si la clé de service est là, on dit aussi ce que la base ferait (lecture seule).
+    try {
+      const db = api();
+      for (const c of await db.companies()) {
+        const p = await db.rpc('ducati_products_creation_preview', { _company: c.id });
+        log(`  ${c.name} : ${p.articles_a_creer} article(s) à créer, ${p.articles_existants} déjà là, ` +
+            `${p.archivees} référence(s) archivée(s) sans article, ${p.shopify_concernes} produit(s) du site concernés ` +
+            `(${p.shopify_sans_lien_ducati} sans lien Ducati aujourd'hui).`);
+      }
+    } catch (e) { log(`  (aperçu base non disponible : ${e.message ?? e})`); }
+    log("Essai à blanc (--dry-run) : rien n'est écrit.");
+    return;
+  }
 
   const db = api();
   const batch = await db.rpc('ducati_catalog_batch_start_loader', { _scope: { source: 'accessoires-vetements' }, _model_years_total: 0 });
@@ -111,6 +128,9 @@ async function main() {
   for (const c of await db.companies()) {
     const r = await db.rpc('article_links_create_missing', { _company: c.id, _scope: 'ducati_products', _limit: null, _variant: null });
     log(`Société ${c.name} : ${r.ducati_products} articles créés (accessoires / vêtements), ${r.prix} prix posés.`);
+    // Articles créés avant ce chargeur : taille, couleur, version, catégorie et genre complétés.
+    const fix = await db.rpc('ducati_products_repair_designations', { _company: c.id, _limit: 20000 });
+    log(`  détails complétés sur ${fix.completes} article(s) déjà créé(s).`);
     const rf = await db.rpc('article_links_refresh', { _company: c.id });
     log(`  rapprochement : ${rf.ducati} articles reliés au catalogue Ducati, ${rf.new} liens nouveaux.`);
   }

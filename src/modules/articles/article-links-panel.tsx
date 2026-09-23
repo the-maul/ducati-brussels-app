@@ -196,7 +196,11 @@ export function DucatiCard({ companyId, articleId }: { companyId: string; articl
 export function CompatibilityPanel({ companyId, articleId, articleReference }: { companyId: string; articleId: string; articleReference: string }) {
   const q = useArticleLinks(companyId, articleId);
   const linked = (q.data ?? []).find((l) => isDucati(l) && l.status === 'lie');
-  const info = linked?.info as (DucatiPartInfo & DucatiProductInfo & { models?: { family: string | null; model: string | null; model_year: number | null }[] }) | null | undefined;
+  const info = linked?.info as (DucatiPartInfo & DucatiProductInfo & {
+    models?: { family: string | null; model: string | null; model_year: number | null }[];
+    category?: string | null; gender?: string | null; families?: string[] | null;
+    version?: string | null; collection_year?: number | null;
+  }) | null | undefined;
   // Les vues éclatées suivent la référence Ducati reliée (qui peut différer de la référence de l'article).
   const usageRef = linked ? (info?.reference ?? linked.target_ref) : articleReference;
   return (
@@ -204,11 +208,27 @@ export function CompatibilityPanel({ companyId, articleId, articleReference }: {
       <h2 className="font-ui text-[15px] font-bold">{t('links.compatTitle')}</h2>
       <p className="mb-3 text-sm text-muted-foreground">{t('catalog.usageSubtitle')}</p>
       {linked?.target_kind === 'ducati_product' ? (
-        info?.models?.length ? (
-          <ul className="grid gap-1 text-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {info.models.map((m, i) => <li key={i}>{[m.family, m.model, m.model_year].filter(Boolean).join(' · ')}</li>)}
-          </ul>
-        ) : <p className="text-sm text-muted-foreground">{t('links.compatNone')}</p>
+        <div className="space-y-3 text-[13px]">
+          {/* Accessoires / vêtements : catégorie, genre, collection, familles de motos (mission 06, carte 7) */}
+          {(info?.category || info?.gender || info?.collection_year || info?.version) && (
+            <p className="text-muted-foreground">
+              {[info?.category, info?.gender, info?.version,
+                info?.collection_year ? fill(t('links.compatCollection'), { year: info.collection_year }) : null]
+                .filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {info?.families?.length ? (
+            <div>
+              <div className="font-bold">{t('links.compatFamilies')}</div>
+              <p>{info.families.join(' · ')}</p>
+            </div>
+          ) : null}
+          {info?.models?.length ? (
+            <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {info.models.map((m, i) => <li key={i}>{[m.family, m.model, m.model_year].filter(Boolean).join(' · ')}</li>)}
+            </ul>
+          ) : (!info?.families?.length && <p className="text-muted-foreground">{t('links.compatNone')}</p>)}
+        </div>
       ) : (
         <CatalogPartUsage key={usageRef} reference={usageRef} />
       )}

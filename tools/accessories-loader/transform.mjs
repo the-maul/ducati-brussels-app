@@ -8,8 +8,16 @@
  *     detail: { description, imageAttributes[].accImage{…}, accessoryVariants[] } }
  * accessoryVariants[] : { sku, descr, price (HT), partDetails.vatPrice (TTC), isKit, isArchived, isActive,
  *   replaced, accessoryAttributes[] (taille / couleur des vêtements), applicabilities[].hierarchyPath }.
- * Le fichier « …-arbre.json » ({ paths: [{ path, label « FAMILLE / CYLINDRÉE / MODÈLE / ANNÉE » }] })
+ * Le fichier « …-arbre.json » des ACCESSOIRES ({ paths: [{ path, label « FAMILLE / CYLINDRÉE / MODÈLE / ANNÉE » }] })
  * traduit les hierarchyPath en modèle et millésime (motos compatibles).
+ *
+ * Format des VÊTEMENTS (catalogue-ducati-vetements.json, 23/09 : 2 563 produits, 13 726 variantes) :
+ *   { list: { code, name, price (HT), priceWithVAT (TTC), imageUrl, … },
+ *     detail: { …, variants: [{ sku, price, partDetails.vatPrice / partStatus, isArchived,
+ *                               attributes[] : APP_TAGLIA (ou APP_TAGLIA_CASCHI), APP_COLOR, APP_VERSIONE,
+ *                               APP_CODICE_MADRE, APP_COLLECTIONYEAR, APP_SAP_CODE }] } }
+ * Son arbre ({ cats, genders, families, appl: [[code, { categoryPath, gender, applicabilityPath, discontinued }]] })
+ * donne la catégorie (« PERFORMANCE WEAR / Cuir »), le genre (Homme, Femme…) et les familles de motos.
  * Tolérant : une liste à la racine ou sous items / products / list ; accessoire sans variante = partRef vendable.
  * Testé par tests/accessories-loader.test.ts.
  */
@@ -73,6 +81,45 @@ export function treeIndex(tree) {
   return idx;
 }
 
+/** Genre Ducati (italien) → français, pour la fiche article. */
+const GENDERS = { uomo: 'Homme', donna: 'Femme', bambino: 'Enfant', unisex: 'Unisexe' };
+export const gender = (v) => (v == null ? null : GENDERS[String(v).trim().toLowerCase()] ?? txt(v));
+
+/**
+ * Arbre des vêtements → { code produit : { categoryPath, categoryLabel, gender, familyCodes, discontinued } }.
+ * cats = arborescence des catégories (path → description), appl = une ligne par info du produit.
+ */
+export function apparelIndex(tree) {
+  const labels = new Map();
+  (function walk(list, prefix) {
+    for (const c of list ?? []) {
+      const label = prefix ? prefix + ' / ' + c.description : String(c.description ?? '');
+      labels.set(String(c.path), label);
+      walk(c.categories, label);
+    }
+  })(tree?.cats, '');
+  const families = new Map((tree?.families ?? []).map((f) => [String(f.code), txt(f.description) ?? String(f.code)]));
+  const idx = new Map();
+  for (const [code, info] of tree?.appl ?? []) {
+    const cur = idx.get(String(code)) ?? { categoryPath: null, categoryLabel: null, gender: null, familyCodes: [], discontinued: false };
+    const path = txt(info?.categoryPath);
+    // on garde la catégorie la plus précise (chemin le plus long)
+    if (path && path !== '0' && (!cur.categoryPath || path.length > cur.categoryPath.length)) {
+      cur.categoryPath = path;
+      cur.categoryLabel = labels.get(path) ?? null;
+    }
+    if (!cur.gender && txt(info?.gender)) cur.gender = gender(info.gender);
+    const fam = txt(info?.applicabilityPath);
+    if (fam) {
+      const label = families.get(fam) ?? fam;
+      if (!cur.familyCodes.includes(label)) cur.familyCodes.push(label);
+    }
+    if (info?.discontinued) cur.discontinued = true;
+    idx.set(String(code), cur);
+  }
+  return idx;
+}
+
 function images(detail, list) {
   const out = [];
   for (const a of detail?.imageAttributes ?? []) {
@@ -97,6 +144,8 @@ export function toProduct(entry, kind, opts = {}) {
   const p = prices(list);
   const isEurope = opts.isEurope ?? (() => true);
   const raw = detail.accessoryVariants ?? detail.variants ?? list.accessoryVariants ?? list.variants ?? [];
+  // Vêtements : catégorie, genre et familles de motos viennent de l'arbre (opts.info), pas de la fiche.
+  const info = opts.info?.get(code ?? '') ?? null;
   const seen = new Set();
   const variants = [];
   for (const v of Array.isArray(raw) ? raw : []) {
@@ -105,6 +154,7 @@ export function toProduct(entry, kind, opts = {}) {
     if (!k || seen.has(k)) continue;
     seen.add(k);
     const vp = prices(v);
+    const attrs = v.accessoryAttributes ?? v.attributes;
     const texts = Array.isArray(v.applicabilitiesText) ? v.applicabilitiesText : [];
     const applicabilities = (v.applicabilities ?? []).map((a, i) => {
       const path = txt(a.hierarchyPath);
@@ -119,10 +169,15 @@ export function toProduct(entry, kind, opts = {}) {
       code: txt(v.code),
       name: txt(v.name) ?? txt(list.name ?? detail.name),
       description: txt(v.descr ?? v.description),
-      size: txt(v.size) ?? attrValue(v.accessoryAttributes, ['APP_TAGLIA', 'SIZE']),
-      color: txt(v.color) ?? attrValue(v.accessoryAttributes, ['APP_COLOR', 'COLOR']),
-      motherCode: attrValue(v.accessoryAttributes, ['APP_CODICE_MADRE']),
-      collectionYear: num(attrValue(v.accessoryAttributes, ['APP_COLLECTIONYEAR'])),
+      size: txt(v.size) ?? attrValue(attrs, ['APP_TAGLIA', 'APP_TAGLIA_CASCHI', 'SIZE']),
+      color: txt(v.color) ?? attrValue(attrs, ['APP_COLOR', 'COLOR']),
+      motherCode: attrValue(attrs, ['APP_CODICE_MADRE']),
+      collectionYear: num(attrValue(attrs, ['APP_COLLECTIONYEAR'])),
+      attributes: {
+        ...(attrValue(attrs, ['APP_VERSIONE']) ? { version: attrValue(attrs, ['APP_VERSIONE']) } : {}),
+        ...(txt(v.partDetails?.partStatus) ? { partStatus: txt(v.partDetails.partStatus) } : {}),
+        ...(v.disabled === true ? { disabled: true } : {}),
+      },
       priceHt: vp.priceHt ?? p.priceHt,
       priceTtc: vp.priceTtc ?? p.priceTtc,
       isKit: v.isKit === 1 || v.isKit === true,
@@ -145,14 +200,17 @@ export function toProduct(entry, kind, opts = {}) {
     ducatiId: txt(list.id ?? detail.id),
     name: txt(list.name ?? detail.name),
     description: txt(detail.description ?? list.description),
-    gender: attrValue(detail.accessoryAttributes, ['APP_GENDER', 'APP_SESSO']),
+    categoryPath: info?.categoryPath ?? txt(list.categoryPath),
+    categoryLabel: info?.categoryLabel ?? txt(list.categoryLabel),
+    familyCodes: info?.familyCodes ?? [],
+    gender: info?.gender ?? gender(attrValue(detail.accessoryAttributes ?? detail.attributes, ['APP_GENDER', 'APP_GENDER_APPLICABILITY', 'APP_SESSO'])),
     imageUrl: imgs[0]?.thumb ?? imgs[0]?.url ?? null,
     images: imgs,
     priceHt: p.priceHt,
     priceTtc: p.priceTtc,
     discountGroup: txt(list.discountCode),
     lastChance: list.lastChance === '1' || list.lastChance === true,
-    archived: false,
+    archived: info?.discontinued === true,
     variants,
   };
 }
@@ -172,5 +230,7 @@ export function toProducts(json, kind, opts = {}) {
   }
   const products = [...byCode.values()];
   const skus = new Set(products.flatMap((p) => p.variants.map((v) => normRef(v.sku))));
-  return { products, skipped, variants: products.reduce((n, p) => n + p.variants.length, 0), skus };
+  // Un article n'est créé que pour une référence encore au catalogue (les archivées restent consultables).
+  const live = new Set(products.flatMap((p) => p.variants.filter((v) => !v.archived).map((v) => normRef(v.sku))));
+  return { products, skipped, variants: products.reduce((n, p) => n + p.variants.length, 0), skus, live };
 }
