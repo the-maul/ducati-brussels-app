@@ -8,7 +8,7 @@
  */
 import { test, expect } from 'bun:test';
 import {
-  parcKind, needsArticle, canPublish, isCustomerBike, articleMgmtType, articleVatRate,
+  parcKind, needsArticle, canPublish, canInvoice, isCustomerBike, articleMgmtType, articleVatRate,
 } from '../src/modules/vehicles/parc';
 import { VEHICLE_STATUSES } from '../src/modules/vehicles/api';
 
@@ -43,17 +43,26 @@ test('needsArticle : une moto en stock ou en dépôt-vente porte un article, pas
   expect(needsArticle('courtoisie')).toBe(false);
 });
 
-test('canPublish : « Publier sur le site » seulement pour En stock (VN/VO) et Dépôt-vente', () => {
-  expect(canPublish('stock_vn')).toBe(true);
-  expect(canPublish('stock_vo')).toBe(true);
-  expect(canPublish('depot_vente')).toBe(true);
-  // Réservée, démo, en commande, reprise, courtoisie : jamais proposées.
-  for (const s of ['reserve', 'demo', 'en_commande', 'repris', 'courtoisie'] as const) {
+test('canPublish : tout le parc vendable est publiable (retour Simon du 23/09)', () => {
+  // En stock, y compris Réservée et Démo (elles sont bien à nous), et Dépôt-vente.
+  for (const s of ['stock_vn', 'stock_vo', 'reserve', 'demo', 'depot_vente', 'depot_agent'] as const) {
+    expect(canPublish(s)).toBe(true);
+  }
+  // Jamais : en commande, demande de reprise, courtoisie.
+  for (const s of ['en_commande', 'repris', 'courtoisie'] as const) {
     expect(canPublish(s)).toBe(false);
   }
   // Une moto vendue est retirée du site.
   expect(canPublish('vendu')).toBe(false);
   expect(canPublish('livre')).toBe(false);
+});
+
+test('canInvoice : une moto sans VIN ne peut pas être facturée (M-40)', () => {
+  expect(canInvoice('ZDMAA12BBCC345678')).toBe(true);
+  expect(canInvoice(null)).toBe(false);
+  expect(canInvoice(undefined)).toBe(false);
+  expect(canInvoice('')).toBe(false);
+  expect(canInvoice('   ')).toBe(false);
 });
 
 test('canPublish n’est jamais vrai sans article (cohérence avec needsArticle)', () => {

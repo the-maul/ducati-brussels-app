@@ -42,12 +42,24 @@ export function needsArticle(status: VehicleStatus): boolean {
 }
 
 /**
- * Le bouton « Publier sur le site » n'est proposé que pour En stock et Dépôt-vente.
- * « Réservée » et « Démo » restent au parc mais ne sont pas proposées à la publication ;
- * une moto vendue ou une moto de client ne l'est jamais.
+ * Le bouton « Publier sur le site » est proposé pour TOUT le parc vendable : « En stock »
+ * (y compris « Réservée » et « Démo », qui sont bien à nous) et « Dépôt-vente ».
+ * Retour de Simon du 23/09 : « si tu as des motos dans G8 et pas sur Shopify, pas grave, tu
+ * permets de les publier » — plus rien n'est grisé à tort. Une moto vendue ou une moto de
+ * client ne l'est jamais.
  */
 export function canPublish(status: VehicleStatus): boolean {
-  return status === 'stock_vn' || status === 'stock_vo' || status === 'depot_vente';
+  return needsArticle(status);
+}
+
+/**
+ * M-40 — Une moto sans VIN ne peut pas être facturée (dérogation assumée à B9 : la fiche est
+ * créée depuis l'annonce du site pour ne rien laisser à faire à la main, mais la vente est
+ * bloquée tant que le numéro de châssis n'est pas saisi). Miroir du déclencheur SQL
+ * `trg_moto_sans_vin_bloque_la_vente` sur `document_lines`.
+ */
+export function canInvoice(vin: string | null | undefined): boolean {
+  return !!(vin ?? '').trim();
 }
 
 /** Une moto de client (décision M-12) : statut « Vendu » et aucun article. */

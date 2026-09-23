@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
+import { MotosDuSitePanel } from '@/modules/vehicles/motos-site-panel-admin';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,6 +210,8 @@ function ShopifyProductsPage() {
           </>
         }
       />
+
+      {activeCompanyId && <MotosDuSitePanel companyId={activeCompanyId} />}
 
       <p className="mb-3 text-[13px] text-muted-foreground">
         {t('shopify.rule')}{' '}

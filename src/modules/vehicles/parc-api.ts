@@ -86,6 +86,36 @@ export type ParcAnomaly = {
 export const listParcAnomalies = (companyId: string) =>
   call<ParcAnomaly[]>('vehicles_parc_check', { _company: companyId }).then((r) => r ?? []);
 
+export type MotosCreerReport = {
+  applique: boolean; motos_creees: number; avec_annee: number; rattachees_au_catalogue: number;
+  en_depot_vente: number; neuves: number; reste_en_ligne_sans_fiche: number;
+};
+
+/** M-40 : crée la fiche moto + l'article des annonces en ligne qu'aucune moto du parc ne reconnaît. */
+export const creerMotosDepuisLeSite = (companyId: string, apply: boolean) =>
+  call<MotosCreerReport>('motos_site_creer_fiches', { _company: companyId, _apply: apply, _limit: 200 });
+
+export type PurifierReport = {
+  applique: boolean; acceptees: number; rejetees_doublon: number; rejetees_annonce_obsolete: number;
+  rejetees_ambigues: number; annonces_obsoletes_a_retirer: number; restant_a_valider: number;
+};
+
+/** Purifie les propositions : accepte le sûr, rejette le reste avec sa raison. Objectif zéro en attente. */
+export const purifierPropositions = (companyId: string, apply: boolean) =>
+  call<PurifierReport>('motos_site_purifier', { _company: companyId, _apply: apply });
+
+export type AnnonceObsolete = {
+  shopify_variant_id: string; product_title: string | null; price: number | null;
+  shop_status: string | null; image_url: string | null; state: 'obsolete' | 'a_retirer'; reason: string | null;
+};
+
+export const listAnnoncesObsoletes = (companyId: string) =>
+  call<AnnonceObsolete[]>('motos_site_annonces_obsoletes', { _company: companyId }).then((r) => r ?? []);
+
+/** Marque les annonces obsolètes « à retirer ». N'écrit RIEN sur Shopify (accord de Simon requis). */
+export const demanderRetraitAnnonces = (companyId: string) =>
+  call<{ annonces_a_retirer: number; shopify_ecrit: boolean }>('motos_site_demander_retrait', { _company: companyId });
+
 export type MotoSiteACreer = {
   shopify_variant_id: string; product_title: string | null; variant_title: string | null;
   sku: string | null; price: number | null; shop_status: string | null;
