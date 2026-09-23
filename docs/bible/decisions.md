@@ -35,6 +35,49 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   créées à la main. *Équipe · 23/09.* Mission 03, M03.
 
 ---
+## 2026-09-23 — Rapprochement : la machine décide, l'humain ne trie plus (missions 03 et 06)
+
+- **M-40** — **Le rapprochement décide seul, par faisceau d'indices.** Simon (23/09, chat) :
+  « pour les 10 250 rapprochements proposés, tu dois toi-même les vérifier et accepter si c'est
+  raisonnablement bon… il faut trouver un moyen de purifier tous ces éléments sans validation
+  humaine, c'est intenable. » La fonction `article_links_autoresolve(société)` (relançable,
+  appelée à la fin de chaque `article_links_refresh`) tranche :
+  **relié d'office** quand (1) le SKU du site est **exactement** la référence d'un seul article
+  actif et qu'un seul produit porte ce SKU (règle W-6, désormais appliquée **en base** et plus
+  seulement pendant la lecture Shopify) ; (2) la référence de l'article est le **premier mot du
+  titre** du produit **et** la désignation se retrouve dans ce titre (70 % des mots) **ou** le
+  prix colle à **5 %** près, sans SKU concurrent et sans autre candidat qualifié des deux côtés ;
+  (3) l'article « SHOP-… » a été créé depuis ce produit même.
+  **Rejeté d'office, avec la raison** quand la référence Ducati est **déjà reliée** à un autre
+  article (une référence du catalogue = un article, M-25) ou quand la variante du site est déjà
+  reliée par son SKU exact. Une décision humaine n'est jamais écrasée ; un lien rejeté n'est
+  jamais recréé. **Résultat en production le 23/09 : 10 251 à valider → 2.**
+  *Simon (chat 23/09) ; règles de réalisation : équipe.*
+  [M02](modules/M02-articles.md), [mission 03](missions/mission-03-shopify.md), [mission 06](missions/mission-06-catalogue-pieces.md)
+
+- **M-41** — **La chaîne « remplacée par » ne crée pas de second lien au catalogue.** Les
+  8 368 candidats « remplacement_dms » et les 1 743 « révision » visaient **tous** (100 %) une
+  référence Ducati déjà reliée — pour le remplacement, à l'article de remplacement lui-même.
+  Les accepter aurait mis deux articles (ou plus) sur la même référence du catalogue, contre
+  M-25, sans rien apprendre : le lien ancien → nouveau est déjà porté par le champ
+  « remplacée par » de l'article. L'indice de révision, lui, est une **devinette** : l'audit a
+  trouvé des variantes de couleur et de marché (50221612AB « JANTE ROUE AR. » proposée pour
+  50221612AA « JANTE ROUE AR. **ROUGE** », 57312391AA « USA MUFFLER » pour 57312391CA). Les deux
+  méthodes sont **rejetées en masse** et ne sont plus proposées. *Équipe · 23/09.*
+  [M02](modules/M02-articles.md)
+
+- **M-42** — **SKU partagé par plusieurs produits du site : on prend le produit ACTIF.** Demande
+  de Simon (23/09). Un seul produit actif (ni brouillon ni archivé) → c'est lui qui est relié ;
+  **plusieurs produits actifs** → seul cas laissé à une personne. Les 12 SKU partagés
+  d'aujourd'hui (24 produits, vêtements et casques) ont déjà été traités par M-25, qui a créé un
+  article « …-2 » par produit : ils ne sont pas dans la file. La règle vaut pour la suite.
+  *Client · 23/09.* [mission 03](missions/mission-03-shopify.md)
+
+- **M-43** — **Une moto du site n'est jamais un candidat d'article pièce.** Deux motos neuves
+  (SKU « DESERTX », « PANIGALEV4R ») remontaient en « à valider » parce que leur SKU est aussi
+  la référence d'un article. Le rapprochement écarte désormais les produits reconnus comme motos
+  (`_shopify_is_moto`), comme le fait déjà la création des articles manquants : les motos du site
+  passent par `shopify_vehicle_links`. *Équipe · 23/09.* [mission 03](missions/mission-03-shopify.md)
 
 ## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
 

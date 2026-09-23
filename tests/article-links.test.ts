@@ -7,6 +7,7 @@ import { test, expect, describe } from 'bun:test';
 import {
   normRef, refBase, revisionCandidate, isUsedPart, isCopiedProduct, titleRefTokens,
   candidateScore, initialStatus, scoreTone, classifyShopifyForCreation, isProposedForCreation, METHOD_SCORE,
+  normDesignation, designationRatio, firstToken, priceGap, bundleQualifies, pickSharedSkuVariant,
 } from '../src/modules/articles/links-rules';
 import { activeNavTo, mainNav } from '../src/lib/navigation';
 
@@ -128,5 +129,70 @@ describe('menu : un seul catalogue, Rapprochements comme outil', () => {
     expect(activeNavTo('/parts/links', mainNav)).toBe('/parts/links');
     expect(activeNavTo('/parts/shopify', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/abc', mainNav)).toBe('/parts');
+  });
+});
+
+describe("faisceau d'indices : decision automatique sans validation humaine (23/09)", () => {
+  test('designation normalisee : accents, casse et ponctuation ignores', () => {
+    expect(normDesignation('Rétroviseur DROIT  (alu)')).toBe('RETROVISEUR DROIT ALU');
+    expect(normDesignation(null)).toBe('');
+  });
+
+  test('part des mots de la designation retrouves dans le titre du site', () => {
+    expect(designationRatio('GARDE-BOUE AVANT ROUGE', '56410772AA - GARDE BOUE AVANT ROUGE | MTS1200')).toBe(1);
+    expect(designationRatio('Support moteur.', '97180961AB - SUPPORT MOTEUR NOIR | MONSTER 937')).toBe(1);
+    expect(designationRatio('NUMBER PLATE HOLDER-CREAMID', '56113651A -')).toBe(0);
+  });
+
+  test('premier mot du titre : les boutiques prefixent par la reference', () => {
+    expect(firstToken('46010383A -  PROTECTION PIED DROIT | 1000/400/900')).toBe('46010383A');
+    expect(firstToken('Sac Souple Top Case - 96792210B')).toBe('SAC');
+    expect(firstToken(null)).toBe('');
+  });
+
+  test('ecart de prix relatif', () => {
+    expect(priceGap(176.78, 176.78)).toBe(0);
+    expect(priceGap(304.21, 295.35)).toBeCloseTo(0.03, 2);
+    expect(priceGap(null, 10)).toBeNull();
+  });
+
+  test("etalon de Simon : SKU exact, meme designation, meme prix -> relie d'office", () => {
+    expect(bundleQualifies({
+      articleRef: '46010383A', designation: 'PROTECTION PIED DROIT', salePriceTtc: 176.78,
+      sku: '46010383A', productTitle: '46010383A -  PROTECTION PIED DROIT | 1000/400/900/S4/620',
+      variantTitle: 'Default Title', shopPrice: 176.78,
+    })).toBe(true);
+  });
+
+  test("reference en tete du titre, sans SKU, designation retrouvee -> relie d'office", () => {
+    expect(bundleQualifies({
+      articleRef: '56410772AA', designation: 'GARDE-BOUE AVANT ROUGE', salePriceTtc: 202.21,
+      sku: null, productTitle: '56410772AA - GARDE BOUE AVANT ROUGE | MTS1200', shopPrice: 100,
+    })).toBe(true);
+  });
+
+  test('titre sans designation et prix trop loin -> laisse a une personne', () => {
+    expect(bundleQualifies({
+      articleRef: '56113651A', designation: 'NUMBER PLATE HOLDER-CREAMID', salePriceTtc: 50.53,
+      sku: null, productTitle: '56113651A -', shopPrice: 162.25,
+    })).toBe(false);
+  });
+
+  test("un SKU qui designe un autre article l'emporte : on ne devine pas", () => {
+    expect(bundleQualifies({
+      articleRef: '59510601D', designation: 'SELLE', salePriceTtc: 159.33,
+      sku: '969A08503B', productTitle: '59510601D - Selle origine', shopPrice: 203.97,
+      skuOfAnotherArticle: true,
+    })).toBe(false);
+  });
+
+  test('SKU partage : on prend le seul produit ACTIF, jamais deux actifs', () => {
+    const brouillon = { variantId: 'v1', shopStatus: 'DRAFT' };
+    const actif = { variantId: 'v2', shopStatus: 'ACTIVE' };
+    expect(pickSharedSkuVariant([actif])).toBe(actif);
+    expect(pickSharedSkuVariant([brouillon, actif])).toBe(actif);
+    expect(pickSharedSkuVariant([actif, { variantId: 'v3', shopStatus: 'ACTIVE' }])).toBeNull();
+    expect(pickSharedSkuVariant([brouillon, { variantId: 'v4', shopStatus: 'ARCHIVED' }])).toBeNull();
+    expect(pickSharedSkuVariant([])).toBeNull();
   });
 });
