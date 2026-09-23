@@ -2,7 +2,7 @@
 chapitre: M8
 titre: Atelier & SAV
 etat: 🟦
-verifie_le: 2026-09-18
+verifie_le: 2026-09-23
 missions: []
 mots_cles: [OR, ordre de réparation, atelier, garantie, refus partiel, planning, rendez-vous, RDV, chronos, pointeuse, présence, temps passé, mécanicien, véhicule de prêt, moto accidentée, aide réparation Ducati, expert]
 ---
@@ -42,8 +42,10 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Planning / RDV | `src/modules/workshop/planning-api.ts` |
 | Frais de devis atelier (accident / diagnostic) | `src/modules/workshop/quote-fees.ts` (calcul pur), `src/modules/workshop/quote-fees-api.ts` (lecture des paramètres) ; utilisés par `src/modules/sales/document-editor.tsx` |
 | Plans d'entretien (mission 07) | `src/modules/workshop/maintenance-plans.ts` (règles pures : premier atteint `nextDue`, valeur en vigueur `pickCurrent`, prix `labourPriceHt`, usage), `maintenance-api.ts`, `maintenance-plans-screen.tsx` (écran), `maintenance-plan-view.tsx` (échéances), `vehicle-maintenance-panel.tsx` (fiche moto) ; route `src/routes/_app.workshop.maintenance-plans.tsx` ; chargeur `tools/maintenance-loader/` (`load.mjs`, `transform.mjs`, `corrections.mjs`) |
+| Manuels d'atelier Ducati (mission 07, carte 3) | `src/modules/workshop/wsm-api.ts` (lecture, libellé d'échéance, temps en UT), `wsm-manuals-panel.tsx` (onglet « Manuels d'atelier » de l'écran Plans d'entretien) ; chargeur `tools/wsm-loader/` (`transform.mjs` pur et testé, `load.mjs`, `images.mjs`, `env.mjs`) ; données source dans `Desktop/ducati/manuels-extraits` (hors dépôt) |
 | Moto accidentée (aide Ducati 15 %) | `src/modules/workshop/accident-form.ts`, `src/modules/workshop/accident-help-dialog.tsx` |
 | Tables plans d'entretien (globales, sans `company_id`, comme le catalogue Ducati) | `maintenance_sources` (30 documents), `maintenance_checklists` (listes des contrôles), `maintenance_plans` (modèle, années, usage, `match_names`, empreinte), `maintenance_plan_services` (échéances), `maintenance_service_intervals` / `_operations` / `_times` (avec source et `status` en_vigueur / historique), `maintenance_plan_catalog_links` (plan ↔ modèle-année du catalogue : lie / a_valider / rejete) ; fonctions `maintenance_ingest`, `maintenance_stats`, `maintenance_hourly_rate_ht`, `maintenance_propose_catalog_links`, `maintenance_link_set`, `maintenance_catalog_coverage` |
+| Tables manuels d'atelier (globales, décision M-26) | `wsm_manuals` (469 modèles-années), `wsm_manual_catalog_links` (↔ catalogue : lie / a_valider / rejete), `wsm_services` + `wsm_operations` (programme officiel), `wsm_procedures` **dédupliquées** + `wsm_procedure_usages` + `wsm_procedure_steps` + `wsm_procedure_torques`, `wsm_service_procedures`, `wsm_torque_tables` / `wsm_tool_sets` / `wsm_fluid_tables` / `wsm_product_tables` (lignes en jsonb, lues en bloc), `wsm_times` (UT), `wsm_images` (inventaire et envoi vers le bucket `wsm-images`) ; fonctions `wsm_ingest_procedures`, `wsm_ingest_manuals`, `wsm_ingest_images`, `wsm_propose_catalog_links`, `wsm_link_set`, `wsm_stats`, `wsm_manual_list`, `wsm_manual_overview` |
 | Tables | `repair_orders` (en-tête OR, statut, `warranty_status`, expert, totaux, `invoice_document_id`), `repair_order_lines` (lignes `kind` piece/mo/texte, `is_warranty`), `workshop_time_entries` (pointages `presence` / `travail`, `minutes`), `workshop_appointments` (RDV, `loaner_vehicle`, `notify_sms`, `or_id`) ; **en base mais sans écran** : `workshop_operations` (40 opérations types), `repair_order_operations` (checklist cochée sur un OR), `workshop_tasks` (tâches hors facturation) |
 | Fonctions SQL (RPC) | `next_document_number` (type `OR`), `or_worked_minutes`, `workshop_productivity` (M13) ; **sans appelant** : `workshop_load` (taux de charge du planning) |
 | Fonctions serveur (Edge) | `supabase/functions/dispatch-notifications` (rappels RDV, inactif) |
@@ -135,3 +137,4 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-09-11 | Correction du type `OrPayload` (import cassé depuis l'origine) et typage | `c1dd2b7` |
 | 2026-09-19 | Frais de devis atelier : accident 125 €, diagnostic au tarif horaire (4 h max), bouton « Devis de pièces » sur l'OR (mission 02) | `20260919230000_m8_frais_devis_atelier.sql` |
 | 2026-09-21 | **Plans d'entretien par modèle et par année** (mission 07 carte 1, ATE014) : tables, chargeur, écran Atelier → Plans d'entretien, rattachement au catalogue Ducati, plan sur la fiche moto | `20260921130000_m8_plans_entretien.sql`, `20260921131000_m8_plans_entretien_catalogue.sql` (appliquées le 21/09) |
+| 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |

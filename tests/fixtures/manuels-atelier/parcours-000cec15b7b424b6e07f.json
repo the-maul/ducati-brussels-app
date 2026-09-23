@@ -1,0 +1,308 @@
+{
+ "schema": "ducati-parcours/1",
+ "id": "000cec15b7b424b6e07f",
+ "titre": "Vidange du liquide du circuit de l'embrayage",
+ "roles": [
+  "procedure"
+ ],
+ "source": {
+  "manualRoot": "290747",
+  "dmPath": "290747/303545/303549/303557",
+  "dmId": "303557",
+  "titre": "Vidange du liquide du circuit de l'embrayage",
+  "code": "WSM.160.004.1737",
+  "version": "1.0",
+  "updateDate": "Thu Jul 09 00:00:00 CEST 2026"
+ },
+ "nbModelesAnnees": 4,
+ "utiliseDans": [
+  {
+   "modele": "HYPERMOTARD V2",
+   "annee": "2027",
+   "famille": "HYPERMOTARD",
+   "manualRoot": "290747",
+   "dmPath": "290747/303545/303549/303557",
+   "dmId": "303557",
+   "updateDate": "Thu Jul 09 00:00:00 CEST 2026",
+   "version": "1.0"
+  },
+  {
+   "modele": "HYPERMOTARD V2",
+   "annee": "2026",
+   "famille": "HYPERMOTARD",
+   "manualRoot": "264680",
+   "dmPath": "264680/265379/265383/265391",
+   "dmId": "265391",
+   "updateDate": "Thu Jul 09 00:00:00 CEST 2026",
+   "version": "1.0"
+  },
+  {
+   "modele": "HYPERMOTARD V2 SP",
+   "annee": "2027",
+   "famille": "HYPERMOTARD",
+   "manualRoot": "290748",
+   "dmPath": "290748/303725/303729/303737",
+   "dmId": "303737",
+   "updateDate": "Thu Jul 09 00:00:00 CEST 2026",
+   "version": "1.0"
+  },
+  {
+   "modele": "HYPERMOTARD V2 SP",
+   "annee": "2026",
+   "famille": "HYPERMOTARD",
+   "manualRoot": "264681",
+   "dmPath": "264681/265433/265437/265445",
+   "dmId": "265445",
+   "updateDate": "Thu Jul 09 00:00:00 CEST 2026",
+   "version": "1.0"
+  }
+ ],
+ "intervention": {
+  "operation": "Contrôle niveau huile du circuit d'embrayage",
+  "services": [
+   "Oil Service 1000",
+   "Oil Service",
+   "Service Check (tous les 12 mois)",
+   "Tous les 24 mois"
+  ],
+  "tempsMois": null,
+  "operations": [
+   {
+    "operation": "Contrôle niveau huile du circuit d'embrayage",
+    "services": [
+     "Oil Service 1000"
+    ]
+   },
+   {
+    "operation": "Contrôle niveau huile du circuit d'embrayage",
+    "services": [
+     "Oil Service"
+    ]
+   },
+   {
+    "operation": "Contrôle niveau huile du circuit d'embrayage",
+    "services": [
+     "Service Check (tous les 12 mois)"
+    ]
+   },
+   {
+    "operation": "Vidange de l'huile du circuit de l'embrayage",
+    "services": [
+     "Tous les 24 mois"
+    ]
+   }
+  ],
+  "echeances": [],
+  "lignes": [
+   [
+    "Contrôle niveau huile du circuit d'embrayage",
+    "Oil Service 1000"
+   ],
+   [
+    "Contrôle niveau huile du circuit d'embrayage",
+    "Oil Service"
+   ],
+   [
+    "Contrôle niveau huile du circuit d'embrayage",
+    "Service Check (tous les 12 mois)"
+   ],
+   [
+    "Vidange de l'huile du circuit de l'embrayage",
+    "Tous les 24 mois"
+   ]
+  ]
+ },
+ "outilsSpecifiques": [],
+ "produits": [],
+ "couples": [
+  {
+   "etape": 8,
+   "valeurNm": 6,
+   "min": 5,
+   "max": 7,
+   "tolerance": null,
+   "reperes": [
+    "5"
+   ],
+   "texte": "Serrer le raccord de purge (5) du cylindre-récepteur d'embrayage au couple de 6 Nm (Min. 5 Nm - Max. 7 Nm)"
+  },
+  {
+   "etape": 13,
+   "valeurNm": 1.85,
+   "min": 1.7,
+   "max": 2,
+   "tolerance": null,
+   "reperes": [
+    "1"
+   ],
+   "texte": "Serrer le couvercle (1) au couple de 1,85 Nm (Min. 1,7 Nm - Max. 2 Nm)."
+  }
+ ],
+ "temps": [],
+ "avertissementsGeneraux": [
+  {
+   "type": "attention",
+   "titre": "Attention",
+   "texte": "Le liquide utilisé dans le circuit d'embrayage attaque la peinture de la moto et est extrêmement nocif s'il entre en contact avec les yeux ou la peau ; en cas de contact accidentel, laver immédiatement et abondamment à l'eau claire la partie intéressée."
+  },
+  {
+   "type": "attention",
+   "titre": "Attention",
+   "texte": "Ne pas jeter l'huile usagée et/ou les cartouches de filtre dans l'environnement."
+  },
+  {
+   "type": "elimination",
+   "titre": "Élimination",
+   "texte": "Ne pas jeter le fluide éliminé dans l'environnement ; ne pas déverser le produit, aussi bien neuf qu'usagé, dans les égouts et dans les cours d'eau ni sur le sol. Ramasser et remettre les déchets à des centres de collecte autorisés. Éliminer les déchets conformément aux réglementations locale et nationale.\nRéférences du Catalogue Européen des Déchets conseillées pour l'élimination des déchets conformément au règlement 2001/118/CE : EWC 13 02 05* (Déchets d'huile minérale pour moteurs, engrenages, pignons et graissage, non chlorurés)."
+  },
+  {
+   "type": "remarque",
+   "titre": "Remarques",
+   "texte": "On précise que la référence EWC susmentionnée constitue une indication générale et non pas contraignante, fournie en considération de la composition originale du produit et de l'usage prévu ; le choix de la référence EWC plus appropriée au cas concret est donc exclusivement du ressort de l'utilisateur en raison de l'utilisation effective du produit, d'éventuelles altérations et/ou contaminations et d'éventuelles modifications de la réglementation en vigueur en matière d'élimination des déchets."
+  }
+ ],
+ "figuresIntroduction": [],
+ "etapes": [
+  {
+   "n": 1,
+   "phase": "CONTRÔLE NIVEAU HUILE DU CIRCUIT D'EMBRAYAGE",
+   "texte": "Vérifier que le niveau d'huile dans le réservoir liquide d'embrayage est compris entre les repères MIN et MAX.",
+   "sousEtapes": [],
+   "figures": [
+    {
+     "src": "/edocdmimages/0E/0ECBDC485DD4A1DE7E52EB522191E978.DMBI.png",
+     "zoom": "/edocdmimages/0E/0ECBDC485DD4A1DE7E52EB522191E978.png",
+     "local": "images/edocdmimages/0E/0ECBDC485DD4A1DE7E52EB522191E978.png",
+     "localMiniature": "images/edocdmimages/0E/0ECBDC485DD4A1DE7E52EB522191E978.DMBI.png"
+    }
+   ],
+   "symboles": [],
+   "videos": [],
+   "tableaux": [],
+   "outils": [],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "reperes": [],
+   "avertissements": [],
+   "liens": [],
+   "sousPhase": null
+  },
+  {
+   "n": 2,
+   "phase": "VIDANGE DE L'HUILE DU CIRCUIT DE L'EMBRAYAGE",
+   "texte": "Avant toute opération, il est conseillé de protéger les pièces proches et en dessous du réservoir.\nRetirer le couvercle (1) du réservoir liquide d'embrayage (2).",
+   "sousEtapes": [],
+   "figures": [
+    {
+     "src": "/edocdmimages/3B/3BB7DABC266A1D08DBC1ADCF12E5D7B3.DMBI.png",
+     "zoom": "/edocdmimages/3B/3BB7DABC266A1D08DBC1ADCF12E5D7B3.png",
+     "local": "images/edocdmimages/3B/3BB7DABC266A1D08DBC1ADCF12E5D7B3.png",
+     "localMiniature": "images/edocdmimages/3B/3BB7DABC266A1D08DBC1ADCF12E5D7B3.DMBI.png"
+    }
+   ],
+   "symboles": [],
+   "videos": [],
+   "tableaux": [],
+   "outils": [],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "reperes": [
+    "1",
+    "2"
+   ],
+   "avertissements": [],
+   "liens": [],
+   "sousPhase": null
+  },
+  {
+   "n": 3,
+   "phase": "VIDANGE DE L'HUILE DU CIRCUIT DE L'EMBRAYAGE",
+   "texte": "Retirer le joint (3) et la membrane (4) du réservoir liquide d'embrayage (2).",
+   "sousEtapes": [],
+   "figures": [
+    {
+     "src": "/edocdmimages/46/46B88B86F19AB572BDE97C5F12FB59BD.DMBI.png",
+     "zoom": "/edocdmimages/46/46B88B86F19AB572BDE97C5F12FB59BD.png",
+     "local": "images/edocdmimages/46/46B88B86F19AB572BDE97C5F12FB59BD.png",
+     "localMiniature": "images/edocdmimages/46/46B88B86F19AB572BDE97C5F12FB59BD.DMBI.png"
+    },
+    {
+     "src": "/edocdmimages/55/5562E5F6FAA17E09280CDBBD5D4090FE.DMBI.png",
+     "zoom": "/edocdmimages/55/5562E5F6FAA17E09280CDBBD5D4090FE.png",
+     "local": "images/edocdmimages/55/5562E5F6FAA17E09280CDBBD5D4090FE.png",
+     "localMiniature": "images/edocdmimages/55/5562E5F6FAA17E09280CDBBD5D4090FE.DMBI.png"
+    }
+   ],
+   "symboles": [],
+   "videos": [],
+   "tableaux": [],
+   "outils": [],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "reperes": [
+    "3",
+    "4",
+    "2"
+   ],
+   "avertissements": [],
+   "liens": [],
+   "sousPhase": null
+  },
+  {
+   "n": 4,
+   "phase": "VIDANGE DE L'HUILE DU CIRCUIT DE L'EMBRAYAGE",
+   "texte": "Aspirer l'huile à l'intérieur du réservoir (2) avec un équipement approprié.",
+   "sousEtapes": [],
+   "figures": [
+    {
+     "src": "/edocdmimages/F4/F4E1E0935386AEAB72350EE4943E7E70.DMBI.png",
+     "zoom": "/edocdmimages/F4/F4E1E0935386AEAB72350EE4943E7E70.png",
+     "local": "images/edocdmimages/F4/F4E1E0935386AEAB72350EE4943E7E70.png",
+     "localMiniature": "images/edocdmimages/F4/F4E1E0935386AEAB72350EE4943E7E70.DMBI.png"
+    }
+   ],
+   "symboles": [],
+   "videos": [],
+   "tableaux": [],
+   "outils": [],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "reperes": [
+    "2"
+   ],
+   "avertissements": [],
+   "liens": [],
+   "sousPhase": null
+  },
+  {
+   "n": 5,
+   "phase": "VIDANGE DE L'HUILE DU CIRCUIT DE L'EMBRAYAGE",
+   "texte": "Verser de l'huile neuve prescrite à l'intérieur du réservoir liquide d'embrayage jusqu'au niveau MAX.",
+   "sousEtapes": [],
+   "figures": [
+    {
+     "src": "/edocdmimages/A1/A104E0B11695380E5C67B96387E428BC.DMBI.png",
+     "zoom": "/edocdmimages/A1/A104E0B11695380E5C67B96387E428BC.png",
+     "local": "images/edocdmimages/A1/A104E0B11695380E5C67B96387E428BC.png",
+     "localMiniature": "images/edocdmimages/A1/A104E0B11695380E5C67B96387E428BC.DMBI.png"
+    }
+   ],
+   "symboles": [],
+   "videos": [],
+   "tableaux": [],
+   "outils": [],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "reperes": [],
+   "avertissements": [],
+   "liens": [],
+   "sousPhase": null
+  }
+ ],
+ "remarque": "Les liens pointent vers le parcours du premier modèle source ; pour un modèle donné, utiliser procedures[].liens du fichier entretien du modèle."
+}

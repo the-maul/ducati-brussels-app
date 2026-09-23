@@ -26,6 +26,7 @@ import {
 } from './maintenance-api';
 import { MAINTENANCE_USAGES } from './maintenance-plans';
 import { PlanServices, UsageBadge, yearsLabel } from './maintenance-plan-view';
+import { WsmManualsPanel } from './wsm-manuals-panel';
 
 const LINK_STATUS: Record<string, { tone: StatusTone; icon: typeof CheckCircle2 }> = {
   lie: { tone: 'success', icon: CheckCircle2 },
@@ -81,9 +82,11 @@ export function MaintenancePlansScreen() {
         <TabsList>
           <TabsTrigger value="plans">{t('maintenance.tabPlans')}</TabsTrigger>
           <TabsTrigger value="coverage">{t('maintenance.tabCoverage')}</TabsTrigger>
+          <TabsTrigger value="wsm">{t('wsm.tab')}</TabsTrigger>
         </TabsList>
         <TabsContent value="plans" className="mt-3"><PlansBrowser rate={rateHt} canEdit={canEdit} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="coverage" className="mt-3"><CoveragePanel /></TabsContent>
+        <TabsContent value="wsm" className="mt-3"><WsmManualsPanel /></TabsContent>
       </Tabs>
     </div>
   );
