@@ -348,16 +348,22 @@ begin
    group by c.target_ref, c.article_id
   having count(distinct r.article_id) = 1;
 
+  -- Le stock à transférer est calculé AVANT le premier mouvement : sinon la sortie que l'on vient
+  -- d'écrire ramène la somme à zéro et l'entrée sur le vrai article n'est jamais faite.
+  drop table if exists pg_temp._ar_dup_stock;
+  create temp table _ar_dup_stock on commit drop as
+  select d.shop_article, d.vrai_article, sum(m.qty_delta) as qte
+    from _ar_dup d join public.stock_moves m on m.article_id = d.shop_article and m.company_id = _company
+   group by d.shop_article, d.vrai_article having sum(m.qty_delta) <> 0;
+
   insert into public.stock_moves (company_id, article_id, move_type, qty_delta, unit_cost, origin, ref, note, operator_id, occurred_at)
-  select _company, d.shop_article, 'inventaire'::public.stock_move_type, -sum(m.qty_delta), null, 'import:shopify', 'autoresolve',
+  select _company, x.shop_article, 'inventaire'::public.stock_move_type, -x.qte, null, 'import:shopify', 'autoresolve',
          'Doublon de produit du site sans SKU : stock transféré vers l''article de la référence', null, now()
-    from _ar_dup d join public.stock_moves m on m.article_id = d.shop_article and m.company_id = _company
-   group by d.shop_article having sum(m.qty_delta) <> 0;
+    from _ar_dup_stock x;
   insert into public.stock_moves (company_id, article_id, move_type, qty_delta, unit_cost, origin, ref, note, operator_id, occurred_at)
-  select _company, d.vrai_article, 'inventaire'::public.stock_move_type, sum(m.qty_delta), null, 'import:shopify', 'autoresolve',
+  select _company, x.vrai_article, 'inventaire'::public.stock_move_type, sum(x.qte), null, 'import:shopify', 'autoresolve',
          'Stock repris du doublon sans SKU créé depuis le même produit du site', null, now()
-    from _ar_dup d join public.stock_moves m on m.article_id = d.shop_article and m.company_id = _company
-   group by d.vrai_article having sum(m.qty_delta) <> 0;
+    from _ar_dup_stock x group by x.vrai_article;
 
   update public.article_links l
      set status = 'rejete', is_auto = true, updated_at = now(),
