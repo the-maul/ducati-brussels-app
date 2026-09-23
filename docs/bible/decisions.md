@@ -8,6 +8,45 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-23 — Le stock réel de G8 entre dans le DMS (lot inventaire)
+
+- **M-44** — **L'inventaire G8 fait foi à sa date ; tout écart ultérieur passe par un mouvement
+  tracé.** L'export « Inventaire du stock réel par RAYON » du 23/09/2026 17h10 (4 249 lignes,
+  911 707,31 €) est la **photo de référence** du stock à cette date : quantités, PAMP et casiers du
+  fichier écrasent ce que le DMS croyait savoir. Après cette date, plus aucun alignement en masse :
+  une différence se corrige par une **entrée, une sortie ou un comptage d'inventaire** dans
+  `stock_moves`, jamais par un UPDATE (B7). Le prochain inventaire se rejouera avec le même outil,
+  sur une nouvelle origine datée. *Simon · 23/09.* [M05](modules/M05-stock.md), [M14](modules/M14-migration-g8.md)
+- **M-45** — **Un seul mouvement par ligne d'inventaire : l'écart, pas la quantité.** Chaque ligne
+  produit **un** mouvement `inventaire` de quantité `stock du fichier − stock calculé`, avec
+  l'origine `import:g8-inventaire-AAAAMMJJ`, le n° d'inventaire en référence et le rayon en note.
+  Conséquence voulue : **relancer l'import à l'identique n'écrit rien** (les écarts retombent à zéro),
+  et l'historique de l'article montre une seule ligne lisible au lieu d'une remise à zéro suivie
+  d'une réintégration. Les **174 quantités négatives** du fichier sont reprises telles quelles : elles
+  viennent de G8 et disparaîtront au comptage, on ne les maquille pas. *Équipe · 23/09.* M05
+- **M-46** — **Le PAMP suit la porte officielle quand elle tombe juste, et est aligné en clair
+  sinon.** Une entrée valorisée sur un stock de départ ≤ 0 fait repartir le PAMP du coût (B5,
+  `record_stock_move`) : c'est le cas de la quasi-totalité des articles, le PAMP du fichier est donc
+  posé par le mécanisme normal. Pour un article qui avait **déjà** du stock (reprise Shopify du 21/09,
+  PAMP à 0), la moyenne pondérée mélangerait un PAMP périmé avec la valeur G8 : le PAMP est alors
+  **aligné explicitement sur l'inventaire**, l'ancienne valeur étant écrite dans `events`
+  (`inventory_pamp_set`). Le **prix d'achat** (`purchase_price`), lui, passe toujours par
+  `record_price_change` → `price_changes`, et **seulement s'il était encore vide** : on ne remplace
+  jamais un prix d'achat réel par une moyenne. Le **casier** du fichier fait foi, son changement est
+  tracé (`inventory_bin_set`). *Équipe · 23/09.* M05, M02
+- **M-47** — **Une ligne à châssis ne touche que la moto qui porte déjà ce VIN — aucune fiche moto
+  n'est créée ni dupliquée par un inventaire.** Le rapprochement des motos se fait **par VIN**, jamais
+  par référence (dans G8 une même référence — `SCRAMBLER800ICONDARK 2G` — porte trois châssis
+  différents). Une moto du fichier dont le châssis est inconnu du parc, ou dont la fiche existe sans
+  article stocké (véhicule de prêt, déjà vendu), est **écartée avec sa raison** et remonte dans le
+  rapport : c'est une décision de parc (M03), pas un import de stock. *Équipe · 23/09.* M03, M05
+- **M-48** — **Le châssis des motos du site ne se devine pas.** Les 25 motos créées depuis les
+  annonces (référence `WEB-…`, M-40) restent « à compléter » : le seul prix connu de l'annonce est un
+  **prix de vente**, celui de l'inventaire un **PAMP** — deux natures différentes. L'outil ne retient
+  un châssis que si le modèle et le prix concordent **et** qu'il n'existe qu'un seul candidat de
+  chaque côté. Mesuré le 23/09 : **8 rapprochements possibles, 0 retenu** (tous ambigus). On laisse
+  « à compléter » plutôt que de poser un VIN faux sur une moto facturable. *Équipe · 23/09.* M03
+
 ## 2026-09-23 — Motos à vendre : du stock du DMS au site (mission 03)
 
 - **M-36** — **Pas de faux client « Italbike Store ».** Une moto est **à la fois** une fiche véhicule

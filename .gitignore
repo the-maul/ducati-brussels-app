@@ -56,6 +56,8 @@ tools/*
 # Exception : données de démonstration des parcours d'entretien (code seul ; les manuels restent
 # dans Desktop/ducati/manuels-extraits).
 !tools/journey-demo/
+# Exception : outils de reprise G8 (code seul ; les exports du client restent hors du dépôt).
+!tools/migration/
 # Figures des manuels d'atelier copiées pour la démonstration (~300 Mo) — hors repo.
 # Les regénérer : node tools/journey-demo/copy-images.mjs
 public/manuels/

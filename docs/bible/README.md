@@ -37,7 +37,7 @@ chaque chapitre. Rechercher un sujet : `grep -ril "<mot>" docs/bible/modules`.
 | [M11 Site & e-shop](modules/M11-site-eshop.md) | 🟡 | Vitrine, boutique, paiement Stripe |
 | [M12 Compta](modules/M12-compta.md) | 🟡 | Journaux, registre TVA, Winbooks, Peppol, SEPA |
 | [M13 Reporting](modules/M13-reporting.md) | ✅ | Tableau de bord, CA, marges, productivité |
-| [M14 Migration G8](modules/M14-migration-g8.md) | 🟦 | Reprise des données de G8 |
+| [M14 Migration G8](modules/M14-migration-g8.md) | 🟦 | Reprise des données de G8, dont le stock réel (inventaire) |
 
 Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé ou une décision · 🔴 cassé en production.
 

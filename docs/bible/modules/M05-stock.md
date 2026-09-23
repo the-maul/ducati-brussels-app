@@ -2,7 +2,7 @@
 chapitre: M05
 titre: Stock & inventaire
 etat: 🟦
-verifie_le: 2026-09-18
+verifie_le: 2026-09-23
 missions: []
 mots_cles: [stock, mouvement de stock, stock réel, stock réservé, stock disponible, triple stock, arrêté, copie datée, PAMP, valeur de stock, inventaire, comptage, réajustement, annule et remplace, cumul, casier, réintégration, remise à zéro, écarts, inventaire tournant, cession interne, dépréciation, stock dormant, étiquetage différé, réappro]
 ---
@@ -38,12 +38,13 @@ Menu latéral : **Stock & inventaire** (`/stock`).
 |---|---|
 | Écrans (routes) | `src/routes/_app.stock.tsx`, `_app.stock.index.tsx`, `_app.stock.inventory.tsx`, `_app.stock.cessions.tsx`, `_app.stock.depreciation.tsx` |
 | Logique métier | `src/modules/stock/` : `api.ts` (triple stock d'un article, mouvements, `recordMove`, transfert au remplacement, `computePamp` de référence), `stock-api.ts` (liste valorisée, historique, cessions), `inventory-api.ts` (sessions, arrêté, comptage, remise à zéro, réintégration, écarts, **et** fonctions sans écran : comptage par casier, tournant, file d'étiquettes), `inventory-screen.tsx`, `depreciation-api.ts`, `stock-export.ts` |
-| Tables | `stock_moves` (mouvements, **append-only**), `inventory_sessions` (inventaires), `stock_snapshots` + `stock_snapshot_lines` (arrêtés et copies datées, qté + PAMP), `label_queue` (file d'étiquettes différée), `stock_depreciations` (provisions de décote, annulables jamais supprimées) ; `articles.pamp` (PAMP courant, M02) |
-| Fonctions SQL (RPC) | `record_stock_move` (**porte d'entrée unique** : insère le mouvement et recalcule le PAMP), `article_stock`, `article_stock_list` (**filtrable et paginée depuis le 23/09** : `_stock` = `all` / `actif` / `pos` / `neg` / `zero`, `_search`, `_limit`, `_offset`), `article_stock_history`, `bin_stock`, `generate_stock_snapshot`, `record_inventory_count` (modes `annule_remplace`, `cumul`, `casier`), `reset_real_stock`, `reintegrate_snapshot`, `inventory_gaps`, `cycle_count_candidates`, `enqueue_label`, `transfer_stock_on_replace`, `dormant_stock`, `stock_value_owned` (hors dépôt-vente, M7), `_cron_stock_copies`, `_cron_maybe_stock_copy`, `_cron_dormant_alert` |
+| Tables | `stock_moves` (mouvements, **append-only**), `inventory_imports` + `inventory_import_lines` (inventaires **importés** de G8 : le fichier tel que lu, son rapprochement et le mouvement produit — depuis le 23/09), `inventory_sessions` (inventaires), `stock_snapshots` + `stock_snapshot_lines` (arrêtés et copies datées, qté + PAMP), `label_queue` (file d'étiquettes différée), `stock_depreciations` (provisions de décote, annulables jamais supprimées) ; `articles.pamp` (PAMP courant, M02) |
+| Fonctions SQL (RPC) | `record_stock_move` (**porte d'entrée unique** : insère le mouvement et recalcule le PAMP), `article_stock`, `article_stock_list` (**filtrable et paginée depuis le 23/09** : `_stock` = `all` / `actif` / `pos` / `neg` / `zero`, `_search`, `_limit`, `_offset`), `article_stock_history`, `bin_stock`, `generate_stock_snapshot`, `record_inventory_count` (modes `annule_remplace`, `cumul`, `casier`), `reset_real_stock`, `reintegrate_snapshot`, `inventory_gaps`, `cycle_count_candidates`, `enqueue_label`, `transfer_stock_on_replace`, `dormant_stock`, `stock_value_owned` (hors dépôt-vente, M7), `_cron_stock_copies`, `_cron_maybe_stock_copy`, `_cron_dormant_alert` ; **import d'inventaire** (23/09) : `inventory_import_open`, `inventory_import_stage`, `inventory_import_resolve`, `inventory_import_preview` (dry-run), `inventory_import_apply` (par lots), `inventory_import_report` (contrôles), `inventory_import_vin_candidates` / `inventory_import_complete_vins` |
 | Fonctions serveur (Edge) | aucune |
 | Tâches planifiées | `stock-copies-daily` (tous les jours 22:30 UTC → copie datée si on est le 15 ou le dernier jour du mois), `dormant-stock-alert` (le 1er du mois 05:00 UTC → trace dans `events` le nombre et la valeur des articles A sans mouvement depuis 4 mois). Présence dans `cron.job` : à vérifier. |
-| Migrations clés | `supabase/migrations/20260610200000_m5_stock_moves.sql` (fondation, PAMP), `20260610310000_m5_stock_views.sql`, `20260923170000_m2_liste_articles_stock_vignettes.sql` (pagination et filtre de `article_stock_list`, appliquée le 23/09), `20260610320000_m5_inventory.sql`, `20260612170000_pg_cron_stock.sql`, `20260612220000_m5_inventory_b12.sql` (mode casier, tournant, étiquettes), `20260726110000_m5_stock_depreciations.sql` |
-| Tests | `tests/pamp.test.ts` (formule PAMP côté JS uniquement) |
+| Migrations clés | `supabase/migrations/20260610200000_m5_stock_moves.sql` (fondation, PAMP), `20260610310000_m5_stock_views.sql`, `20260923170000_m2_liste_articles_stock_vignettes.sql` (pagination et filtre de `article_stock_list`, appliquée le 23/09), `20260610320000_m5_inventory.sql`, `20260612170000_pg_cron_stock.sql`, `20260612220000_m5_inventory_b12.sql` (mode casier, tournant, étiquettes), `20260726110000_m5_stock_depreciations.sql`, `20260923190000_m5_inventaire_import.sql` (outil d'import d'inventaire, appliquée le 23/09) |
+| Outil de reprise | `tools/migration/import_inventaire_g8.py` — lit l'export G8 « Inventaire du stock réel par RAYON » (.xlsx, sans dépendance), dépose, rapproche, `--apply`, `--rapport`, `--vins` ; modes hors ligne `--lire` / `--deltas` pour les tests |
+| Tests | `tests/pamp.test.ts` (formule PAMP côté JS uniquement), `tests/inventaire-g8.test.ts` (lecture du fichier d'inventaire et calcul des écarts, fixture anonyme `tests/fixtures/inventaire-g8/`) |
 | Libellés | `src/lib/i18n/fr.ts`, bloc `stock` |
 
 ## 4. Règles métier et décisions
@@ -65,6 +66,16 @@ Menu latéral : **Stock & inventaire** (`/stock`).
   **`actif`** = les articles qui ont **au moins un mouvement** OU un **stock mini renseigné** (1 241 lignes au
   23/09, contre 93 104 articles). Les autres sont à zéro partout et ne changent aucun total ni aucune valeur de
   stock. Au-delà de 20 000 lignes, `listStock` lève une erreur lisible plutôt que de renvoyer une liste fausse.
+- **Importer un inventaire** (M-44 à M-48, 23/09) : l'export G8 « Inventaire du stock réel par
+  RAYON » est déposé tel quel dans `inventory_import_lines`, puis rapproché — **par VIN** pour les
+  lignes à châssis, par **référence normalisée** (majuscules, sans espace ni ponctuation) sinon.
+  Chaque ligne produit **un seul** mouvement `inventaire` de quantité `cible − stock calculé`,
+  origine `import:g8-inventaire-AAAAMMJJ`, n° d'inventaire en `ref`, rayon en note, casier en
+  `bin_location`. Les réservations ne sont **jamais** touchées, et relancer l'import à l'identique
+  n'écrit rien. Le PAMP passe par `record_stock_move` quand le stock de départ est ≤ 0 (B5) et est
+  aligné en clair sinon (trace `events.inventory_pamp_set`) ; le prix d'achat passe par
+  `record_price_change` et seulement s'il était vide ; le changement de casier est tracé
+  (`events.inventory_bin_set`). Aucune fiche moto n'est créée ni dupliquée (M-47).
 - **Multi-société** : toutes les tables ont `company_id` (lignes d'arrêté via l'en-tête) + RLS `is_member`.
 
 ## 5. État en production
@@ -102,10 +113,32 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 - **Alerte stock dormant limitée aux pièces (type A)** et écrite seulement dans `events` : personne n'est notifié, et les motos ne sont pas concernées (VEH008, voir M03).
 - Les cessions ne figent pas leur valeur (pas de `unit_cost`) : une statistique a posteriori valorisera au PAMP du moment de la consultation.
 - **Entrées sans coût et PAMP** : un mouvement positif sans `unit_cost` (inventaire, reprise Shopify W-10 du 21/09 : 305 pièces sur 259 articles, origine `reprise_shopify`) ne change pas le PAMP. Si le PAMP est à 0, la réception suivante calcule la moyenne avec ces pièces à 0 (1 pièce reprise + 1 reçue à 100 € → PAMP 50 €) : la formule ne repart du coût que si le stock avant est ≤ 0.
-- **Le stock de G8 n'est pas en base** (constat du 23/09, question Q19) : `stock_moves` ne contient que
-  1 093 mouvements, aucun d'origine G8. Sur les 81 473 articles repris de G8, **260 ont un stock**, venu de
-  la reprise Shopify. Tant que l'export de stock G8 n'est pas importé, la liste affichera 0 partout : c'est
-  la donnée qui manque, pas l'écran.
+- **~~Le stock de G8 n'est pas en base~~ — résolu le 23/09** : l'inventaire G8 du 23/09 17h10 est
+  importé (4 249 lignes lues, 4 232 appliquées, 3 627 mouvements d'origine
+  `import:g8-inventaire-20260923`, 560 articles créés). `stock_moves` passe de 1 119 à 4 746
+  mouvements, la portée `actif` de 1 241 à **4 808** lignes, la valeur de stock de ~0 à
+  **689 303 €**. Les écarts connus qui restent sont listés juste en dessous.
+- **17 motos du fichier d'inventaire sans article stocké (249 875 €)** — écart assumé du 23/09 :
+  8 châssis absents du parc (motos neuves jamais saisies dans le DMS) et 9 motos dont la fiche existe
+  mais **sans article**, parce que leur statut de parc n'en crée pas (véhicule de prêt
+  « courtoisie », « vendu », « repris »). L'import **n'a rien créé** pour elles (M-47). Deux
+  décisions attendent Simon : saisir les 8 fiches manquantes, et dire si une moto « véhicule de
+  prêt » doit porter du stock valorisé.
+- **175 articles à stock négatif** après import : **174 viennent du fichier G8 tel quel** (M-45) et
+  **1 est antérieur** (référence `85245scsc`, « pneu moto », −1, PAMP 0 — donnée d'essai). Ils
+  disparaîtront au prochain comptage ; aucun n'a été créé par l'import.
+- **46 motos attendent encore leur prix d'achat** (contre 66 avant le 23/09) : l'inventaire a
+  renseigné les **20** motos qu'il contenait. Les 46 autres ne sont pas dans le stock G8 (vendues ou
+  hors parc) : leur prix d'achat ne peut venir que d'une facture d'achat.
+- **25 motos du site attendent toujours leur châssis** (M-48) : 8 rapprochements étaient possibles,
+  **aucun sans ambiguïté**. Elles restent bloquées à la facturation, comme prévu par M-40.
+- **126 lignes du fichier sans PAMP** : leur valeur de stock est 0 dans G8 comme dans le DMS. Les
+  articles créés pour elles portent le marqueur « à compléter »
+  (`to_complete_source = 'inventaire_g8'`).
+- **La valeur du stock du DMS n'est pas celle du fichier, et c'est normal** : 689 303 € contre
+  911 707 € au fichier. L'écart se décompose en −249 875 € (les 17 motos écartées) et +27 470 € de
+  stock que G8 ne connaît pas : **25 470 € de données de démonstration** (`SEED-A-…`, règle 8),
+  2 000 € d'une moto hors inventaire, et 232 pièces reprises de Shopify le 21/09 valorisées 0.
 - **Toute réponse est coupée à 1 000 lignes (PostgREST `max_rows`)** — silencieusement. Avant le 23/09,
   `listStock` demandait tout le stock en un appel : sur 93 104 articles les écrans ne recevaient que les
   1 000 premières **références**, dont aucune n'a de mouvement. Conséquences constatées : filtre « stock positif »
@@ -146,6 +179,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 
 | Date | Changement | Commit ou migration |
 |---|---|---|
+| 2026-09-23 | **Stock réel de G8 importé** (M-44 à M-48) : 4 249 lignes lues, 4 232 appliquées, 3 627 mouvements `inventaire` origine `import:g8-inventaire-20260923`, 560 articles créés, 4 106 PAMP posés, 4 067 prix d'achat tracés, 3 295 casiers, 20 motos rapprochées par VIN ; 17 motos écartées (249 875 €) | `20260923190000_m5_inventaire_import.sql` |
 | 2026-06-11 | Fondation : mouvements append-only, triple stock, PAMP + 5 tests, transfert au remplacement | `1f36698`, `20260610200000_m5_stock_moves` |
 | 2026-06-11 | Écran Stock valorisé + historique ; inventaire (arrêté, comptage 2 modes, remise à zéro, écarts, réintégration) | `d93d21e`, `20260610310000`, `20260610320000` |
 | 2026-06-11 | Cessions internes typées | `eef6cdc` |
