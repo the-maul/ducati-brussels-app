@@ -658,6 +658,7 @@ export type Database = {
           to_complete_source: string | null
           updated_at: string
           vat_rate: number
+          vehicle_id: string | null
           web_description: string | null
           web_title: string | null
           weight_volume_length: number | null
@@ -720,6 +721,7 @@ export type Database = {
           to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
+          vehicle_id?: string | null
           web_description?: string | null
           web_title?: string | null
           weight_volume_length?: number | null
@@ -782,6 +784,7 @@ export type Database = {
           to_complete_source?: string | null
           updated_at?: string
           vat_rate?: number
+          vehicle_id?: string | null
           web_description?: string | null
           web_title?: string | null
           weight_volume_length?: number | null
@@ -849,6 +852,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ducati_catalog_article_links"
             referencedColumns: ["article_id"]
+          },
+          {
+            foreignKeyName: "articles_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -8078,6 +8088,13 @@ export type Database = {
             foreignKeyName: "wsm_fluid_tables_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_fluid_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
             referencedColumns: ["id"]
           },
@@ -8155,6 +8172,13 @@ export type Database = {
             foreignKeyName: "wsm_manual_catalog_links_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_manual_catalog_links_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
             referencedColumns: ["id"]
           },
@@ -8170,6 +8194,7 @@ export type Database = {
       wsm_manuals: {
         Row: {
           content_hash: string
+          covers_model_year_ids: string[]
           dm_family_id: string | null
           dm_model_id: string | null
           dm_supermodel_id: string | null
@@ -8193,6 +8218,7 @@ export type Database = {
         }
         Insert: {
           content_hash: string
+          covers_model_year_ids?: string[]
           dm_family_id?: string | null
           dm_model_id?: string | null
           dm_supermodel_id?: string | null
@@ -8216,6 +8242,7 @@ export type Database = {
         }
         Update: {
           content_hash?: string
+          covers_model_year_ids?: string[]
           dm_family_id?: string | null
           dm_model_id?: string | null
           dm_supermodel_id?: string | null
@@ -8280,6 +8307,13 @@ export type Database = {
           sort?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "wsm_operations_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
           {
             foreignKeyName: "wsm_operations_manual_id_fkey"
             columns: ["manual_id"]
@@ -8352,6 +8386,13 @@ export type Database = {
             foreignKeyName: "wsm_procedure_steps_procedure_id_fkey"
             columns: ["procedure_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_procedures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_steps_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
             referencedRelation: "wsm_procedures"
             referencedColumns: ["id"]
           },
@@ -8402,6 +8443,13 @@ export type Database = {
             foreignKeyName: "wsm_procedure_torques_procedure_id_fkey"
             columns: ["procedure_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_procedures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_torques_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
             referencedRelation: "wsm_procedures"
             referencedColumns: ["id"]
           },
@@ -8446,7 +8494,21 @@ export type Database = {
             foreignKeyName: "wsm_procedure_usages_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_usages_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_usages_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_procedures"
             referencedColumns: ["id"]
           },
           {
@@ -8587,6 +8649,13 @@ export type Database = {
             foreignKeyName: "wsm_product_tables_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_product_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
             referencedColumns: ["id"]
           },
@@ -8622,7 +8691,21 @@ export type Database = {
             foreignKeyName: "wsm_service_procedures_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_service_procedures_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_service_procedures_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_procedures"
             referencedColumns: ["id"]
           },
           {
@@ -8678,6 +8761,13 @@ export type Database = {
           text?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wsm_services_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
           {
             foreignKeyName: "wsm_services_manual_id_fkey"
             columns: ["manual_id"]
@@ -8747,6 +8837,13 @@ export type Database = {
             foreignKeyName: "wsm_times_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_times_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
             referencedColumns: ["id"]
           },
@@ -8799,6 +8896,13 @@ export type Database = {
           tools_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "wsm_tool_sets_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
           {
             foreignKeyName: "wsm_tool_sets_manual_id_fkey"
             columns: ["manual_id"]
@@ -8859,6 +8963,13 @@ export type Database = {
             foreignKeyName: "wsm_torque_tables_manual_id_fkey"
             columns: ["manual_id"]
             isOneToOne: false
+            referencedRelation: "ducati_manual_programs"
+            referencedColumns: ["manual_id"]
+          },
+          {
+            foreignKeyName: "wsm_torque_tables_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
             referencedRelation: "wsm_manuals"
             referencedColumns: ["id"]
           },
@@ -8885,6 +8996,131 @@ export type Database = {
           },
         ]
       }
+      ducati_manual_procedure_steps: {
+        Row: {
+          avertissements: Json | null
+          couples: Json | null
+          figures: Json | null
+          liens: Json | null
+          n: number | null
+          outils: Json | null
+          phase: string | null
+          procedure_id: string | null
+          produits: Json | null
+          reperes: Json | null
+          sousEtapes: Json | null
+          sousPhase: string | null
+          texte: string | null
+        }
+        Insert: {
+          avertissements?: Json | null
+          couples?: Json | null
+          figures?: never
+          liens?: Json | null
+          n?: number | null
+          outils?: Json | null
+          phase?: string | null
+          procedure_id?: string | null
+          produits?: Json | null
+          reperes?: Json | null
+          sousEtapes?: Json | null
+          sousPhase?: string | null
+          texte?: string | null
+        }
+        Update: {
+          avertissements?: Json | null
+          couples?: Json | null
+          figures?: never
+          liens?: Json | null
+          n?: number | null
+          outils?: Json | null
+          phase?: string | null
+          procedure_id?: string | null
+          produits?: Json | null
+          reperes?: Json | null
+          sousEtapes?: Json | null
+          sousPhase?: string | null
+          texte?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wsm_procedure_steps_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_manual_procedures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wsm_procedure_steps_procedure_id_fkey"
+            columns: ["procedure_id"]
+            isOneToOne: false
+            referencedRelation: "wsm_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ducati_manual_procedures: {
+        Row: {
+          avertissements: Json | null
+          couples: Json | null
+          etapes: Json | null
+          figuresIntro: Json | null
+          id: string | null
+          intervention: Json | null
+          nbEtapes: number | null
+          nbModelesAnnees: number | null
+          outils: Json | null
+          produits: Json | null
+          source: Json | null
+          titre: string | null
+        }
+        Insert: {
+          avertissements?: never
+          couples?: never
+          etapes?: never
+          figuresIntro?: never
+          id?: string | null
+          intervention?: never
+          nbEtapes?: number | null
+          nbModelesAnnees?: number | null
+          outils?: never
+          produits?: never
+          source?: never
+          titre?: string | null
+        }
+        Update: {
+          avertissements?: never
+          couples?: never
+          etapes?: never
+          figuresIntro?: never
+          id?: string | null
+          intervention?: never
+          nbEtapes?: number | null
+          nbModelesAnnees?: number | null
+          outils?: never
+          produits?: never
+          source?: never
+          titre?: string | null
+        }
+        Relationships: []
+      }
+      ducati_manual_programs: {
+        Row: {
+          annee: string | null
+          echeances: Json | null
+          famille: string | null
+          manual_id: string | null
+          manualRoot: string | null
+          model_year_id: string | null
+          modele: string | null
+          modelYearId: string | null
+          proceduresParService: Json | null
+          services: Json | null
+          superModele: string | null
+          temps: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _account_label: {
@@ -8892,9 +9128,19 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _al_desig_ratio: { Args: { _a: string; _b: string }; Returns: number }
+      _al_first_token: { Args: { _t: string }; Returns: string }
+      _al_norm_desig: { Args: { _t: string }; Returns: string }
       _article_links_can_write: { Args: { _company: string }; Returns: boolean }
       _article_links_stats: { Args: { _company: string }; Returns: Json }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
+      _article_thumbnail: {
+        Args: { _article: string; _company: string }
+        Returns: {
+          src: string
+          url: string
+        }[]
+      }
       _brussels_today: { Args: never; Returns: string }
       _can_edit_user_signature: { Args: { _user: string }; Returns: boolean }
       _contact_haystack: {
@@ -9011,6 +9257,17 @@ export type Database = {
       }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
+      _motos_site_candidats: {
+        Args: { _company: string }
+        Returns: {
+          method: string
+          reason: string
+          score: number
+          sure: boolean
+          variant_id: string
+          vehicle_id: string
+        }[]
+      }
       _mp_can_link: { Args: { _company: string }; Returns: boolean }
       _mp_can_write: { Args: never; Returns: boolean }
       _mp_norm: { Args: { _s: string }; Returns: string }
@@ -9217,15 +9474,32 @@ export type Database = {
       }
       _shopify_reservations_expire: { Args: never; Returns: number }
       _shopify_sync_mode: { Args: { _company: string }; Returns: string }
+      _vehicle_article_reference: {
+        Args: {
+          _company: string
+          _vehicle: Database["public"]["Tables"]["vehicles"]["Row"]
+        }
+        Returns: string
+      }
       _vin_identify_core: { Args: { _vin: string }; Returns: Json }
       _wsm_can_link: { Args: { _company: string }; Returns: boolean }
       _wsm_can_read: { Args: never; Returns: boolean }
       _wsm_can_write: { Args: never; Returns: boolean }
+      _wsm_fam: { Args: { _f: string }; Returns: string }
+      _wsm_figure: { Args: { _e: Json }; Returns: Json }
+      _wsm_figures: { Args: { _a: Json }; Returns: Json }
+      _wsm_keys: {
+        Args: { _fam: string; _mod: string; _sm: string }
+        Returns: string[]
+      }
       _wsm_norm: { Args: { _s: string }; Returns: string }
+      _wsm_tools: { Args: { _a: Json }; Returns: Json }
+      _wsm_up: { Args: { _s: string }; Returns: string }
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
       }
+      article_links_autoresolve: { Args: { _company: string }; Returns: Json }
       article_links_counts: { Args: { _company: string }; Returns: Json }
       article_links_create_missing: {
         Args: {
@@ -9299,6 +9573,49 @@ export type Database = {
           total_count: number
         }[]
       }
+      article_list_page: {
+        Args: {
+          _brand?: string
+          _categorie?: string
+          _color?: string
+          _company: string
+          _limit?: number
+          _links?: string
+          _offset?: number
+          _pa_locked?: boolean
+          _pv_locked?: boolean
+          _rayon?: string
+          _search?: string
+          _size?: string
+          _sous_rayon?: string
+          _stock?: string
+          _supplier?: string
+          _to_complete?: boolean
+          _year?: number
+        }
+        Returns: {
+          available_qty: number
+          bin_location: string
+          bin_location2: string
+          designation: string
+          id: string
+          image_source: string
+          image_url: string
+          link_ducati: boolean
+          link_g8: boolean
+          link_shopify: boolean
+          mgmt_type: string
+          real_qty: number
+          reference: string
+          replacement_reference: string
+          reserved_qty: number
+          sale_price_ttc: number
+          superseded_by_id: string
+          supplier_availability: string
+          to_complete: boolean
+          total_count: number
+        }[]
+      }
       article_on_order_for: {
         Args: { _article: string; _contact?: string; _document?: string }
         Returns: number
@@ -9336,7 +9653,13 @@ export type Database = {
         }
       }
       article_stock_list: {
-        Args: { _company: string }
+        Args: {
+          _company: string
+          _limit?: number
+          _offset?: number
+          _search?: string
+          _stock?: string
+        }
         Returns: {
           article_id: string
           available_qty: number
@@ -9352,6 +9675,10 @@ export type Database = {
           stock_value: number
           supplier_id: string
         }[]
+      }
+      articles_a_completer_controle: {
+        Args: { _company: string }
+        Returns: Json
       }
       be_structured_ref_ok: { Args: { _ref: string }; Returns: boolean }
       bin_stock: { Args: { _article: string; _bin: string }; Returns: number }
@@ -10393,6 +10720,27 @@ export type Database = {
           revenue_ttc: number
         }[]
       }
+      motos_parc_creer_articles: {
+        Args: { _apply?: boolean; _company: string; _limit?: number }
+        Returns: Json
+      }
+      motos_site_a_creer: {
+        Args: { _company: string; _en_ligne_seulement?: boolean }
+        Returns: {
+          image_url: string
+          price: number
+          product_title: string
+          propositions: number
+          shop_status: string
+          shopify_variant_id: string
+          sku: string
+          variant_title: string
+        }[]
+      }
+      motos_site_rattacher: {
+        Args: { _apply?: boolean; _company: string }
+        Returns: Json
+      }
       next_contact_code: { Args: { _company: string }; Returns: string }
       next_document_number: {
         Args: { _company: string; _doc_type: string }
@@ -11278,6 +11626,13 @@ export type Database = {
           vat_rate: number
         }[]
       }
+      vehicle_article_mgmt_type: {
+        Args: {
+          _reference?: string
+          _status: Database["public"]["Enums"]["vehicle_status"]
+        }
+        Returns: Database["public"]["Enums"]["article_mgmt_type"]
+      }
       vehicle_attach_owner: {
         Args: {
           _contact: string
@@ -11296,6 +11651,31 @@ export type Database = {
         }
         Returns: string
       }
+      vehicle_ensure_article: {
+        Args: {
+          _mgmt?: string
+          _unit_cost?: number
+          _vehicle: string
+          _with_stock?: boolean
+        }
+        Returns: string
+      }
+      vehicle_needs_article: {
+        Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
+        Returns: boolean
+      }
+      vehicle_parc_kind: {
+        Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
+        Returns: string
+      }
+      vehicle_parc_publishable: {
+        Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
+        Returns: boolean
+      }
+      vehicle_site_status: {
+        Args: { _company: string; _vehicle: string }
+        Returns: Json
+      }
       vehicles_find_by_vin: {
         Args: { _company: string; _exclude?: string; _vin: string }
         Returns: {
@@ -11306,6 +11686,17 @@ export type Database = {
           owner_name: string
           plate: string
           status: Database["public"]["Enums"]["vehicle_status"]
+          vin: string
+        }[]
+      }
+      vehicles_parc_check: {
+        Args: { _company: string }
+        Returns: {
+          anomalie: string
+          detail: string
+          model: string
+          statut: string
+          vehicle_id: string
           vin: string
         }[]
       }
