@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronLeft, ChevronRight, ImageOff, Loader2, RefreshCw, Search, X, PackagePlus } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search, X, PackagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
 import type { LinkStatus } from '@/modules/articles/links-rules';
 import { fill, fmtEur, fmtInt, LinkStatusBadge, methodLabel, ScoreBadge } from '@/modules/articles/links-ui';
 import { CreateMissingButton, UnlinkedProductsSection, VehicleLinksSection } from '@/modules/articles/links-tools';
+import { ArticleThumb } from '@/modules/articles/article-thumb';
 
 export const Route = createFileRoute('/_app/parts/links')({
   head: () => ({ meta: [{ title: 'Rapprochements — Ducati Bruxelles' }] }),
@@ -360,9 +361,13 @@ function ReviewLine({ r, admin, checked, onToggle, busy, onDecide }: {
       </td>
       <td className="px-3 py-2">
         <div className="flex gap-2">
-          {shop && (x.image_url
-            ? <img src={x.image_url} alt="" className="size-10 shrink-0 rounded-[4px] border border-border object-cover" loading="lazy" />
-            : <span className="grid size-10 shrink-0 place-items-center rounded-[4px] border border-border text-muted-foreground"><ImageOff className="size-4" /></span>)}
+          {/* Image de la cible — site Shopify, photo Ducati du produit ou vue éclatée. */}
+          <ArticleThumb
+            url={x.image_url}
+            source={shop ? 'shopify' : r.target_kind === 'ducati_product' ? 'ducati_product' : 'ducati_drawing'}
+            alt={r.target_label}
+            size={40}
+          />
           <div className="min-w-0">
             <div className="text-[12px] text-muted-foreground">{shop ? t('links.kindShopify') : t('links.kindDucati')}</div>
             {shop ? <div className="font-medium">{r.target_label}</div> : (

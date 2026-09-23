@@ -8,6 +8,39 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-23 — Liste Pièces & Accessoires : images, provenance, filtre stock
+
+- **M-26** — **Logos officiels pour la provenance d'un article.** La colonne « Référencé sur » de la liste
+  Pièces & Accessoires et l'en-tête de la fiche article montrent le **logo Ducati** (référence du catalogue
+  Ducati) et le **logo Shopify** (vendu sur le site) au lieu des badges texte. **G8 n'a pas de logo** et garde
+  un badge texte sobre (fond noir Ducati, texte clair), validé tel quel. Hauteur unique **18 px**, ratio
+  d'origine conservé (`object-contain`, jamais de logo déformé), texte alternatif et infobulle explicites
+  (« Référence du catalogue Ducati », « Vendu sur le site (Shopify) », « Repris de G8 »). Plusieurs logos
+  possibles sur une même ligne ; le filtre « Référencé » par source ne change pas. Fichiers servis par
+  l'application (`public/brands/ducati.webp`, `public/brands/shopify.png`) — usage interne d'une concession
+  Ducati officielle, comme indicateur de provenance. *Simon (maquette validée) · 23/09.* M02.
+  **Ceci remplace** la règle « pas de logo de marque » qui était écrite dans `links-ui.tsx`.
+
+- **M-27** — **Ordre de préférence des images d'un article.** Une seule règle pour tout l'écran :
+  **photo Ducati du produit** (`ducati_catalog_products.image_url`, accessoires et vêtements) >
+  **photo du site** (`shopify_products.image_url`) > **vue éclatée du catalogue Ducati**
+  (`ducati_catalog_drawings.thumbnail_url` / `image_url` / `original_image_url`) > **rien**
+  (emplacement vide sobre, jamais d'icône cassée). Les URL sont **externes** (e-catalog.ducati.com,
+  cdn.shopify.com) : rien n'est téléchargé ni recopié, et une image qui ne se charge pas retombe sur
+  l'emplacement vide. Les **photos du magasin** (GED du DMS) ne sont pas candidates en liste : elles
+  exigent une URL signée par photo, impossible sur une page de 200 lignes — elles restent la galerie de
+  la fiche article. Sur la fiche, une image en grand + une galerie quand plusieurs sources en ont une.
+  La règle est écrite deux fois : `_article_thumbnail` (SQL, fait foi) et `sourceImages`
+  (TypeScript, testée dans `tests/article-images.test.ts`). *Équipe · 23/09.* M02.
+
+- **M-28** — **Les filtres d'une liste se calculent en base, jamais dans le navigateur.** PostgREST est réglé
+  sur **`max_rows = 1000`** : toute réponse est coupée à 1 000 lignes **sans erreur ni avertissement**. Charger
+  un référentiel entier pour croiser une donnée côté client donne donc un résultat faux et silencieux (c'est
+  ce qui faisait afficher « 0 ligne » au filtre « stock positif » sur 93 104 articles). Toute liste d'écran
+  passe par une fonction SQL qui **filtre, trie, pagine et compte** (`article_list_page`), avec un **total
+  exact** et un **message d'erreur lisible** en cas d'échec — jamais une liste vide. Toute lecture
+  volumineuse boucle par pages de 1 000. *Équipe · 23/09.* M02, M05.
+
 ## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
 
 - **M-25** — **Un seul catalogue, un seul stock : les articles du DMS (Pièces & Accessoires).** Il n'y a plus de

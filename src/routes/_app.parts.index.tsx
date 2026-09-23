@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, FilePenLine, GitMerge, Store } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, FilePenLine, GitMerge, Store, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -13,13 +13,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, listArticleFacets, getSupplierAvailability, duplicateArticle, type ArticleFilters, type ArticleLinkFilter } from '@/modules/articles/api';
-import { SourceBadges } from '@/modules/articles/links-ui';
+import { listArticleFacets, duplicateArticle, type ArticleLinkFilter } from '@/modules/articles/api';
+import { listArticlesPage, ArticleListUnavailableError, type ArticleListRow, type StockChoice } from '@/modules/articles/list-api';
+import { SourceLogos } from '@/modules/articles/links-ui';
+import { ArticleThumb } from '@/modules/articles/article-thumb';
 import { UnlinkedProductsAlert } from '@/modules/articles/unlinked-alert';
 import { yearOptions } from '@/modules/articles/article-form';
 import { RAYONS_SORTED, sousRayonsFor, categoriesFor } from '@/modules/articles/product-families';
 import { listSuppliers, supplierName, addToReorderProposal } from '@/modules/purchases/api';
-import { listStock } from '@/modules/stock/stock-api';
 import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
 import { CatalogSearchHint } from '@/modules/catalog/catalog-search-hint';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
@@ -30,12 +31,17 @@ export const Route = createFileRoute('/_app/parts/')({
   component: ArticlesList,
 });
 
+/** Taille d'une page. Le plafond PostgREST du projet est de 1 000 lignes. */
+const PAGE_SIZE = 200;
+
 function fmtEur(n: number): string {
   const s = (Math.round(n * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!,))/g, ' ');
   return `${s} €`;
 }
 
-type StockChoice = 'all' | 'pos' | 'neg' | 'zero';
+function fill(s: string, vars: Record<string, string | number>): string {
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(String(v)), s);
+}
 
 /** Filtres multicritères de la liste (état écran). */
 type FiltersState = {
@@ -86,6 +92,7 @@ function ArticlesList() {
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [f, setF] = useState<FiltersState>(EMPTY_FILTERS);
+  const [page, setPage] = useState(0);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
 
@@ -109,10 +116,14 @@ function ArticlesList() {
   // Changement de société : les filtres de l'ancienne société (uuid fournisseur,
   // marques…) n'ont plus de sens — remise à zéro.
   useEffect(() => { setF(EMPTY_FILTERS); }, [activeCompanyId]);
+  // Tout changement de critère ramène à la première page.
+  useEffect(() => { setPage(0); }, [debounced, f, activeCompanyId]);
 
-  // Le filtre Stocks croise côté client : plafond serveur élargi pour limiter la troncature.
-  const limit = f.stock !== 'all' ? 5000 : 500;
-  const filters: ArticleFilters = {
+  // TOUT est filtré en base, stock compris (fonction `article_list_page`).
+  // Avant le 23/09/2026 le stock était croisé dans le navigateur à partir de la
+  // liste complète des articles : PostgREST la coupait à 1 000 lignes sans le
+  // dire et le filtre « stock positif » ne trouvait jamais rien.
+  const query = useMemo(() => ({
     search: debounced,
     supplierId: f.supplierId || undefined,
     year: f.year ? Number(f.year) : undefined,
@@ -126,14 +137,17 @@ function ArticlesList() {
     pvLocked: f.pvLocked || undefined,
     toComplete: f.toComplete || undefined,
     links: f.links || undefined,
-    limit,
-  };
+    stock: f.stock,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  }), [debounced, f, page]);
 
-  const { data, isLoading, error } = useQuery({
-    // clé = filtres SERVEUR uniquement (f.stock ne change pas la requête : croisement client)
-    queryKey: ['articles', activeCompanyId, filters],
-    queryFn: () => listArticles(activeCompanyId!, filters),
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['articles', activeCompanyId, query],
+    queryFn: () => listArticlesPage(activeCompanyId!, query),
     enabled: !!activeCompanyId,
+    placeholderData: (prev) => prev,   // pagination sans clignotement
+    retry: false,
   });
 
   // Options des menus déroulants (valeurs réellement présentes dans le référentiel)
@@ -149,27 +163,10 @@ function ArticlesList() {
     enabled: !!activeCompanyId && filtersOpen,
     staleTime: 5 * 60 * 1000,
   });
-  // Stock réel/réservé/disponible (somme de stock_moves) — chargé en permanence pour
-  // alimenter les colonnes du tableau ET le filtre Stocks (croisement client).
-  const { data: stockRows, error: stockError } = useQuery({
-    queryKey: ['stock-for-filter', activeCompanyId],
-    queryFn: () => listStock(activeCompanyId!),
-    enabled: !!activeCompanyId,
-    staleTime: 60 * 1000,
-  });
-  const stockById = useMemo(() => new Map(stockRows?.map((r) => [r.article_id, r]) ?? []), [stockRows]);
 
-  const rows = useMemo(() => {
-    if (!data) return data;
-    if (f.stock === 'all') return data;
-    if (stockError) return data; // stock indisponible : liste non filtrée + bandeau d'erreur
-    if (!stockRows) return undefined; // stock en cours de chargement
-    return data.filter((a) => {
-      const q = stockById.get(a.id)?.real_qty ?? 0;
-      return f.stock === 'pos' ? q > 0 : f.stock === 'neg' ? q < 0 : q === 0;
-    });
-  }, [data, stockRows, stockById, stockError, f.stock]);
-
+  const rows = data?.rows;
+  const total = data?.total ?? 0;
+  const lastPage = Math.max(Math.ceil(total / PAGE_SIZE) - 1, 0);
   const yearsList = facets?.years?.length ? facets.years : yearOptions();
 
   return (
@@ -217,7 +214,18 @@ function ArticlesList() {
         <Button variant={active > 0 ? 'default' : 'outline'} onClick={() => setFiltersOpen((o) => !o)}>
           <SlidersHorizontal /> {t('articles.filters')}{active > 0 ? ` (${active})` : ''}
         </Button>
-        {rows && <span className="text-sm text-muted-foreground">{rows.length}</span>}
+        {data && !error && (
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {total === 0
+              ? t('articles.pageNone')
+              : fill(t('articles.pageRange'), {
+                from: page * PAGE_SIZE + 1,
+                to: page * PAGE_SIZE + (rows?.length ?? 0),
+                n: total.toLocaleString('fr-BE'),
+              })}
+          </span>
+        )}
+        {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
       </div>
 
       {filtersOpen && (
@@ -326,16 +334,13 @@ function ArticlesList() {
         </div>
       )}
 
-      {(error || stockError) && (
+      {/* Repli lisible : jamais une liste vide silencieuse quand la requête échoue. */}
+      {error && (
         <div className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">
-          <p>{t('articles.errLoad')}</p>
-          <p className="mt-1 font-mono text-[11px] opacity-80">{((error || stockError) as Error).message}</p>
-        </div>
-      )}
-
-      {data && data.length >= limit && (
-        <div className="mb-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
-          {t('articles.truncated').replace('{n}', String(limit))}
+          <p>{error instanceof ArticleListUnavailableError ? t('articles.listUnavailable') : t('articles.errLoad')}</p>
+          {!(error instanceof ArticleListUnavailableError) && (
+            <p className="mt-1 font-mono text-[11px] opacity-80">{(error as Error).message}</p>
+          )}
         </div>
       )}
 
@@ -343,8 +348,10 @@ function ArticlesList() {
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="sticky top-11 z-10 bg-muted">
             <tr>
+              <Th className="w-14">{t('articles.colImage')}</Th>
               <Th>{t('articles.colRef')}</Th>
               <Th>{t('articles.colDesignation')}</Th>
+              <Th>{t('articles.colSources')}</Th>
               <Th>{t('articles.colSupplierAvail')}</Th>
               <Th className="text-right">{t('articles.colRealStock')}</Th>
               <Th className="text-right">{t('articles.colReserved')}</Th>
@@ -358,87 +365,123 @@ function ArticlesList() {
             </tr>
           </thead>
           <tbody>
-            {(isLoading || (data && !rows)) && (
-              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
+            {isLoading && (
+              <tr><td colSpan={14} className="px-3 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>
             )}
-            {rows && rows.length === 0 && (
-              <tr><td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">
+            {!isLoading && !error && rows && rows.length === 0 && (
+              <tr><td colSpan={14} className="px-3 py-6 text-center text-muted-foreground">
                 {t('articles.empty')}
                 {/* Mission 06 : la référence n'est pas un article du DMS mais peut exister chez Ducati. */}
                 {activeCompanyId && debounced.trim() && <CatalogSearchHint companyId={activeCompanyId} q={debounced} />}
               </td></tr>
             )}
-            {rows?.map((a) => {
-              const isReplaced = !!a.superseded_by_id;
-              const replTitle = a.replacement?.reference
-                ? t('articles.replacedBy').replace('{ref}', a.replacement.reference)
-                : t('articles.replacedBadge');
-              const avail = getSupplierAvailability(a);
-              const availTone = avail === 'green' ? 'bg-success' : avail === 'yellow' ? 'bg-warning' : avail === 'red' ? 'bg-danger' : 'bg-neutral-bg';
-              const availLabel = avail === 'green' ? t('articles.availGreen') : avail === 'yellow' ? t('articles.availYellow') : avail === 'red' ? t('articles.availRed') : t('articles.availUnknown');
-              const stock = stockById.get(a.id);
-              const realQty = stock?.real_qty;
-              const reservedQty = stock?.reserved_qty;
-              const availableQty = stock ? (reservedQty != null ? stock.real_qty - reservedQty : stock.real_qty) : undefined;
-              const bin2 = (a as { bin_location2?: string | null }).bin_location2;
-              return (
-              <tr
+            {rows?.map((a) => (
+              <ArticleRow
                 key={a.id}
-                onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: a.id } })}
-                title={isReplaced ? replTitle : undefined}
-                className={`cursor-pointer border-b border-border last:border-0 hover:bg-accent ${isReplaced ? 'opacity-55' : ''}`}
-              >
-                <td className="px-3 py-2 font-mono text-[12px]">{a.reference}</td>
-                <td className="px-3 py-2 font-medium">
-                  <span className="inline-flex flex-wrap items-center gap-2">
-                    <span className={isReplaced ? 'line-through decoration-1' : ''}>{a.designation}</span>
-                    {a.to_complete && <StatusBadge tone="info" icon={FilePenLine} label={t('ecatalog.toCompleteBadge')} />}
-                    <SourceBadges links={a.links} />
-                    {isReplaced && (
-                      <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement?.reference ? `${t('articles.replacedBadge')} → ${a.replacement.reference}` : t('articles.replacedBadge')} />
-                    )}
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <span className={`inline-block size-2.5 rounded-full ${availTone}`} title={availLabel} />
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">{realQty != null ? realQty : '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{reservedQty != null ? reservedQty : '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{availableQty != null ? availableQty : '—'}</td>
-                <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location ?? '—'}</td>
-                <td className="px-3 py-2 font-mono text-[12px]">{bin2 || '—'}</td>
-                {/* TODO: brancher quantités en proposition/commande (M4 achats) */}
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmtEur(effectiveSaleTtc(a.sale_price_ttc, roundUp))}</td>
-                <td className="px-1 py-2 text-right">
-                  <Button
-                    variant="ghost" size="sm" title={t('articles.proposeOrder')} aria-label={t('articles.proposeOrder')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast.info(t('articles.proposedToOrder'));
-                      navigate(addToReorderProposal(activeCompanyId!, a.id));
-                    }}
-                  >
-                    <ShoppingCart className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost" size="sm" title={t('articles.duplicate')} aria-label={t('articles.duplicate')}
-                    disabled={duplicate.isPending}
-                    onClick={(e) => { e.stopPropagation(); duplicate.mutate(a.id); }}
-                  >
-                    <Copy className="size-4" />
-                  </Button>
-                </td>
-              </tr>
-              );
-            })}
+                a={a}
+                roundUp={roundUp}
+                duplicating={duplicate.isPending}
+                onOpen={() => navigate({ to: '/parts/$articleId', params: { articleId: a.id } })}
+                onDuplicate={() => duplicate.mutate(a.id)}
+                onPropose={() => {
+                  toast.info(t('articles.proposedToOrder'));
+                  navigate(addToReorderProposal(activeCompanyId!, a.id));
+                }}
+              />
+            ))}
           </tbody>
         </table>
       </div>
 
+      {total > PAGE_SIZE && (
+        <div className="mt-2 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" disabled={page === 0 || isFetching} onClick={() => setPage((p) => Math.max(p - 1, 0))}>
+            <ChevronLeft /> {t('articles.pagePrev')}
+          </Button>
+          <Button variant="outline" size="sm" disabled={page >= lastPage || isFetching} onClick={() => setPage((p) => Math.min(p + 1, lastPage))}>
+            {t('articles.pageNext')} <ChevronRight />
+          </Button>
+        </div>
+      )}
+
       <LabelsBatchDialog open={labelsOpen} onOpenChange={setLabelsOpen} companyId={activeCompanyId} />
     </>
+  );
+}
+
+function ArticleRow({ a, roundUp, duplicating, onOpen, onDuplicate, onPropose }: {
+  a: ArticleListRow;
+  roundUp: boolean;
+  duplicating: boolean;
+  onOpen: () => void;
+  onDuplicate: () => void;
+  onPropose: () => void;
+}) {
+  const isReplaced = !!a.superseded_by_id;
+  const replTitle = a.replacement_reference
+    ? t('articles.replacedBy').replace('{ref}', a.replacement_reference)
+    : t('articles.replacedBadge');
+  const avail = a.supplier_availability;
+  const availTone = avail === 'green' ? 'bg-success' : avail === 'yellow' ? 'bg-warning' : avail === 'red' ? 'bg-danger' : 'bg-neutral-bg';
+  const availLabel = avail === 'green' ? t('articles.availGreen') : avail === 'yellow' ? t('articles.availYellow') : avail === 'red' ? t('articles.availRed') : t('articles.availUnknown');
+  // Prix de vente manquant (article créé au vol, reprise G8 incomplète) : on le DIT.
+  const price = effectiveSaleTtc(a.sale_price_ttc, roundUp);
+  const priceMissing = a.sale_price_ttc == null || Number(a.sale_price_ttc) === 0;
+
+  return (
+    <tr
+      onClick={onOpen}
+      title={isReplaced ? replTitle : undefined}
+      className={`cursor-pointer border-b border-border last:border-0 hover:bg-accent ${isReplaced ? 'opacity-55' : ''}`}
+    >
+      <td className="px-3 py-1.5">
+        <ArticleThumb url={a.image_url} source={a.image_source} alt={a.designation} size={40} />
+      </td>
+      <td className="px-3 py-2 font-mono text-[12px]">{a.reference}</td>
+      <td className="px-3 py-2 font-medium">
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <span className={isReplaced ? 'line-through decoration-1' : ''}>{a.designation}</span>
+          {a.to_complete && <StatusBadge tone="info" icon={FilePenLine} label={t('ecatalog.toCompleteBadge')} />}
+          {isReplaced && (
+            <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement_reference ? `${t('articles.replacedBadge')} → ${a.replacement_reference}` : t('articles.replacedBadge')} />
+          )}
+        </span>
+      </td>
+      <td className="px-3 py-2">
+        <SourceLogos flags={{ g8: a.link_g8, shopify: a.link_shopify, ducati: a.link_ducati }} />
+      </td>
+      <td className="px-3 py-2">
+        <span className={`inline-block size-2.5 rounded-full ${availTone}`} title={availLabel} />
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">{a.real_qty}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{a.reserved_qty}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{a.available_qty}</td>
+      <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location ?? '—'}</td>
+      <td className="px-3 py-2 font-mono text-[12px]">{a.bin_location2 || '—'}</td>
+      {/* TODO: brancher quantités en proposition/commande (M4 achats) */}
+      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {priceMissing
+          ? <span className="text-warning">{t('articles.priceToComplete')}</span>
+          : fmtEur(price)}
+      </td>
+      <td className="px-1 py-2 text-right">
+        <Button
+          variant="ghost" size="sm" title={t('articles.proposeOrder')} aria-label={t('articles.proposeOrder')}
+          onClick={(e) => { e.stopPropagation(); onPropose(); }}
+        >
+          <ShoppingCart className="size-4" />
+        </Button>
+        <Button
+          variant="ghost" size="sm" title={t('articles.duplicate')} aria-label={t('articles.duplicate')}
+          disabled={duplicating}
+          onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+        >
+          <Copy className="size-4" />
+        </Button>
+      </td>
+    </tr>
   );
 }
 

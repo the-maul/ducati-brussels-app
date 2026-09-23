@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, Check, ImageOff, Link2, Loader2, PackagePlus, Search, X } from 'lucide-react';
+import { Bike, Check, Link2, Loader2, PackagePlus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import {
   createMissingArticles, decideVehicleLinks, listUnlinkedProducts, listVehicleLinks, LinksUnavailableError,
   type CreateMissingResult, type UnlinkedProduct,
 } from './links-api';
+import { ArticleThumb } from './article-thumb';
 import { fill, fmtEur, fmtInt, ScoreBadge } from './links-ui';
 
 const card = 'mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]';
@@ -101,9 +102,7 @@ export function UnlinkedProductsSection({ companyId, admin }: { companyId: strin
         <ul className="divide-y divide-border rounded-md border border-border">
           {rows.map((r) => (
             <li key={r.shopify_variant_id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-[13px]">
-              {r.image_url
-                ? <img src={r.image_url} alt="" className="size-9 rounded-[4px] border border-border object-cover" loading="lazy" />
-                : <span className="grid size-9 place-items-center rounded-[4px] border border-border text-muted-foreground"><ImageOff className="size-4" /></span>}
+              <ArticleThumb url={r.image_url} source="shopify" alt={r.product_title ?? r.sku ?? ''} size={36} />
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{r.product_title}{r.variant_title && r.variant_title !== 'Default Title' ? ` — ${r.variant_title}` : ''}</div>
                 <div className="text-[12px] tabular-nums text-muted-foreground">
