@@ -39,10 +39,10 @@ Menu latéral : **Stock & inventaire** (`/stock`).
 | Écrans (routes) | `src/routes/_app.stock.tsx`, `_app.stock.index.tsx`, `_app.stock.inventory.tsx`, `_app.stock.cessions.tsx`, `_app.stock.depreciation.tsx` |
 | Logique métier | `src/modules/stock/` : `api.ts` (triple stock d'un article, mouvements, `recordMove`, transfert au remplacement, `computePamp` de référence), `stock-api.ts` (liste valorisée, historique, cessions), `inventory-api.ts` (sessions, arrêté, comptage, remise à zéro, réintégration, écarts, **et** fonctions sans écran : comptage par casier, tournant, file d'étiquettes), `inventory-screen.tsx`, `depreciation-api.ts`, `stock-export.ts` |
 | Tables | `stock_moves` (mouvements, **append-only**), `inventory_sessions` (inventaires), `stock_snapshots` + `stock_snapshot_lines` (arrêtés et copies datées, qté + PAMP), `label_queue` (file d'étiquettes différée), `stock_depreciations` (provisions de décote, annulables jamais supprimées) ; `articles.pamp` (PAMP courant, M02) |
-| Fonctions SQL (RPC) | `record_stock_move` (**porte d'entrée unique** : insère le mouvement et recalcule le PAMP), `article_stock`, `article_stock_list`, `article_stock_history`, `bin_stock`, `generate_stock_snapshot`, `record_inventory_count` (modes `annule_remplace`, `cumul`, `casier`), `reset_real_stock`, `reintegrate_snapshot`, `inventory_gaps`, `cycle_count_candidates`, `enqueue_label`, `transfer_stock_on_replace`, `dormant_stock`, `stock_value_owned` (hors dépôt-vente, M7), `_cron_stock_copies`, `_cron_maybe_stock_copy`, `_cron_dormant_alert` |
+| Fonctions SQL (RPC) | `record_stock_move` (**porte d'entrée unique** : insère le mouvement et recalcule le PAMP), `article_stock`, `article_stock_list` (**filtrable et paginée depuis le 23/09** : `_stock` = `all` / `actif` / `pos` / `neg` / `zero`, `_search`, `_limit`, `_offset`), `article_stock_history`, `bin_stock`, `generate_stock_snapshot`, `record_inventory_count` (modes `annule_remplace`, `cumul`, `casier`), `reset_real_stock`, `reintegrate_snapshot`, `inventory_gaps`, `cycle_count_candidates`, `enqueue_label`, `transfer_stock_on_replace`, `dormant_stock`, `stock_value_owned` (hors dépôt-vente, M7), `_cron_stock_copies`, `_cron_maybe_stock_copy`, `_cron_dormant_alert` |
 | Fonctions serveur (Edge) | aucune |
 | Tâches planifiées | `stock-copies-daily` (tous les jours 22:30 UTC → copie datée si on est le 15 ou le dernier jour du mois), `dormant-stock-alert` (le 1er du mois 05:00 UTC → trace dans `events` le nombre et la valeur des articles A sans mouvement depuis 4 mois). Présence dans `cron.job` : à vérifier. |
-| Migrations clés | `supabase/migrations/20260610200000_m5_stock_moves.sql` (fondation, PAMP), `20260610310000_m5_stock_views.sql`, `20260610320000_m5_inventory.sql`, `20260612170000_pg_cron_stock.sql`, `20260612220000_m5_inventory_b12.sql` (mode casier, tournant, étiquettes), `20260726110000_m5_stock_depreciations.sql` |
+| Migrations clés | `supabase/migrations/20260610200000_m5_stock_moves.sql` (fondation, PAMP), `20260610310000_m5_stock_views.sql`, `20260923170000_m2_liste_articles_stock_vignettes.sql` (pagination et filtre de `article_stock_list`, appliquée le 23/09), `20260610320000_m5_inventory.sql`, `20260612170000_pg_cron_stock.sql`, `20260612220000_m5_inventory_b12.sql` (mode casier, tournant, étiquettes), `20260726110000_m5_stock_depreciations.sql` |
 | Tests | `tests/pamp.test.ts` (formule PAMP côté JS uniquement) |
 | Libellés | `src/lib/i18n/fr.ts`, bloc `stock` |
 
@@ -60,6 +60,11 @@ Menu latéral : **Stock & inventaire** (`/stock`).
 - **Dépréciation** (angle mort G8) : provision de **valeur** (`base_value × taux`), **sans** mouvement de stock ni changement de PAMP ; annulable (`is_active = false`), jamais supprimée (B7).
 - **Étiquetage** (B12) : quantité par défaut = stock réel ; file différée cumulable par opérateur (`label_queue`, `enqueue_label`).
 - **Dépôt-vente hors valorisation** : `stock_value_owned` exclut le type D (voir M07).
+- **Lire le stock, c'est paginer** (M-28, 23/09) : `article_stock_list` prend `_stock`, `_search`, `_limit`,
+  `_offset` et `listStock` (TypeScript) boucle par pages de 1 000. Portée par défaut des écrans Stock :
+  **`actif`** = les articles qui ont **au moins un mouvement** OU un **stock mini renseigné** (1 241 lignes au
+  23/09, contre 93 104 articles). Les autres sont à zéro partout et ne changent aucun total ni aucune valeur de
+  stock. Au-delà de 20 000 lignes, `listStock` lève une erreur lisible plutôt que de renvoyer une liste fausse.
 - **Multi-société** : toutes les tables ont `company_id` (lignes d'arrêté via l'en-tête) + RLS `is_member`.
 
 ## 5. État en production
@@ -97,7 +102,23 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 - **Alerte stock dormant limitée aux pièces (type A)** et écrite seulement dans `events` : personne n'est notifié, et les motos ne sont pas concernées (VEH008, voir M03).
 - Les cessions ne figent pas leur valeur (pas de `unit_cost`) : une statistique a posteriori valorisera au PAMP du moment de la consultation.
 - **Entrées sans coût et PAMP** : un mouvement positif sans `unit_cost` (inventaire, reprise Shopify W-10 du 21/09 : 305 pièces sur 259 articles, origine `reprise_shopify`) ne change pas le PAMP. Si le PAMP est à 0, la réception suivante calcule la moyenne avec ces pièces à 0 (1 pièce reprise + 1 reçue à 100 € → PAMP 50 €) : la formule ne repart du coût que si le stock avant est ≤ 0.
-- Calcul du stock à la volée (somme de tous les mouvements à chaque liste) : correct mais coûteux quand l'historique grossira ; pas d'index composite (article, réservation).
+- **Le stock de G8 n'est pas en base** (constat du 23/09, question Q19) : `stock_moves` ne contient que
+  1 093 mouvements, aucun d'origine G8. Sur les 81 473 articles repris de G8, **260 ont un stock**, venu de
+  la reprise Shopify. Tant que l'export de stock G8 n'est pas importé, la liste affichera 0 partout : c'est
+  la donnée qui manque, pas l'écran.
+- **Toute réponse est coupée à 1 000 lignes (PostgREST `max_rows`)** — silencieusement. Avant le 23/09,
+  `listStock` demandait tout le stock en un appel : sur 93 104 articles les écrans ne recevaient que les
+  1 000 premières **références**, dont aucune n'a de mouvement. Conséquences constatées : filtre « stock positif »
+  de Pièces à **0 ligne**, **valeur totale du stock à 0 €** sur `/stock`, inventaire et étiquettes tronqués,
+  disponibilité fausse dans Ventes. Corrigé par la pagination + la portée `actif`.
+- **Écrans Stock encore à revoir** (hors lot du 23/09) : `/stock`, `/stock/inventory`, `/stock/depreciation`,
+  `/parts/labels` et Ventes chargent toujours **toute** la portée `actif` dans le navigateur puis filtrent côté
+  client. C'est juste et rapide aujourd'hui (1 241 lignes), mais il faudra les passer au même motif que Pièces
+  (filtre + pagination en base) quand le stock réel sera repris. Conséquence de la portée `actif` : un article
+  **sans aucun mouvement et sans mini** n'apparaît plus dans la liste d'inventaire ni dans l'impression
+  d'étiquettes en masse (il reste accessible par sa fiche).
+- Calcul du stock à la volée (somme de tous les mouvements à chaque liste) : correct mais coûteux quand l'historique grossira. **Index ajouté le 23/09** : `idx_stockmoves_article_cover (article_id) include (is_reservation, qty_delta)` (lecture par index seul).
+- **Copies datées et cron** : `article_stock_list` exige `is_member(_company)`, donc `auth.uid()` non nul. Sous `pg_cron` (aucun utilisateur connecté) elle renvoie **zéro ligne** : les copies du 15 et de fin de mois générées par `_cron_stock_copies` sont probablement **vides**. Constat du 23/09, **antérieur** au lot (le contrôle existait déjà) — à vérifier et corriger.
 
 ## 8. Exigences du cahier couvertes
 
@@ -139,4 +160,5 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | 2026-09-19 | Liste de préparation sur tablette (mission 05, carte 6) : casiers (principal, second, `article_bins`) et triple stock par ligne ; **aucun mouvement de stock** au changement d'étape (commandé / préparé / monté) | `20260919310000_m6_preparation_tablette` |
 | 2026-09-19 | Gestion des listes de préparation (mission 02, carte 11) : impression A4 avec casiers, régénération depuis le document, annuler / supprimer, terminer ; **aucun mouvement de stock** | `20260919380000_m6_listes_preparation_gestion` |
 | 2026-09-21 | Reprise du stock Shopify des 300 articles reliés (mission 03, W-10) : 259 mouvements « inventaire » annule-et-remplace, origine `reprise_shopify`, 0 → 305 pièces, PAMP inchangé ; fonction réexécutable `shopify_realign` | `20260921140000_m2_shopify_reprise_stock_prix.sql` |
+| 2026-09-23 | `article_stock_list` filtrable et paginée (`_stock` / `_search` / `_limit` / `_offset`, portée `actif`), `listStock` boucle par pages de 1 000 : fin de la troncature silencieuse à 1 000 lignes | `20260923170000_m2_liste_articles_stock_vignettes.sql` |
 | 2026-09-21 | Réservation du stock par les commandes du site non payées (mission 03, W-12) : mouvements `reservation` / `liberation` origine `shopify` ; libération au paiement (avant la sortie de la facture, même transaction), à l'annulation, à l'expiration (7 jours, réglable) et à l'arrêt de l'import | `20260921150000_m6_shopify_reservation_commandes.sql` |

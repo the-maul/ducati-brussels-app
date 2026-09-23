@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
+import { ArticleSourceImages } from '@/modules/articles/article-source-images';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { ArticleLinkBadges, ArticleSourcesSummary, CompatibilityPanel } from '@/modules/articles/article-links-panel';
@@ -143,6 +144,8 @@ function EditArticle() {
         <TabsContent value="fiche" className="mt-4">
           {/* Tout sur une page (M-25) : catalogue Ducati et site Shopify de l'article. */}
           <ArticleSourcesSummary companyId={activeCompanyId} articleId={articleId} publishable={!!article.publishable} />
+          {/* Images venues des catalogues (Ducati, site) — les photos du magasin sont juste en dessous. */}
+          <ArticleSourceImages companyId={activeCompanyId} articleId={articleId} designation={article.designation} />
           <ArticlePhotoCard companyId={activeCompanyId} articleId={articleId} />
           <ArticleForm
             initial={article}

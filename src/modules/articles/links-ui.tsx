@@ -2,7 +2,7 @@
  * Un seul catalogue (décision M-25) — éléments d'écran partagés : badges G8 / Shopify / Ducati,
  * libellés de méthode, formats.
  */
-import { BookOpen, CheckCircle2, CircleDashed, Database, Store, XCircle } from 'lucide-react';
+import { CheckCircle2, CircleDashed, XCircle } from 'lucide-react';
 import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import { scoreTone, type LinkMethod, type LinkStatus } from './links-rules';
@@ -71,17 +71,52 @@ export function sourceFlags(links?: { target_kind: string; status: string }[] | 
 }
 
 /**
- * Petits badges sobres « G8 », « Shopify », « Ducati » (charte : badge 4 px, couleur + icône + libellé,
- * infobulle), plusieurs possibles. Pas de logo de marque.
+ * « Référencé sur » — provenance de l'article, plusieurs sources possibles.
+ *
+ * Logos officiels validés par le client (23/09/2026, décision M-26) pour le
+ * catalogue Ducati et le site Shopify ; G8 n'a pas de logo et garde un badge
+ * texte sobre. Hauteur unique de 18 px, ratio d'origine conservé
+ * (`object-contain`, jamais de logo déformé), infobulle et texte alternatif
+ * explicites. Les fichiers sont servis par l'application (`public/brands/`).
  */
-export function SourceBadges({ links }: { links?: { target_kind: string; status: string }[] | null }) {
-  const f = sourceFlags(links);
-  if (!f.g8 && !f.shopify && !f.ducati) return null;
+const LOGO_H = 18;
+
+function BrandLogo({ src, alt, tip }: { src: string; alt: string; tip: string }) {
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {f.g8 && <span title={t('links.tipG8')}><StatusBadge tone="neutral" icon={Database} label={t('links.badgeG8')} /></span>}
-      {f.shopify && <span title={t('links.tipShopify')}><StatusBadge tone="success" icon={Store} label={t('links.badgeShopify')} /></span>}
-      {f.ducati && <span title={t('links.tipDucati')}><StatusBadge tone="info" icon={BookOpen} label={t('links.badgeDucati')} /></span>}
+    <img
+      src={src} alt={alt} title={tip} loading="lazy" decoding="async"
+      className="w-auto shrink-0 object-contain align-middle"
+      style={{ height: LOGO_H }}
+    />
+  );
+}
+
+/** Badge texte sobre pour G8 (pas de logo) — fond sombre, texte clair. */
+function G8Badge() {
+  return (
+    <span
+      title={t('links.tipG8')}
+      className="inline-flex items-center rounded-[4px] bg-sidebar px-1.5 font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-sidebar-foreground"
+      style={{ height: LOGO_H }}
+    >
+      {t('links.badgeG8')}
     </span>
   );
+}
+
+/** Rendu à partir des drapeaux déjà calculés (liste paginée : `article_list_page`). */
+export function SourceLogos({ flags }: { flags: SourceFlags }) {
+  if (!flags.g8 && !flags.shopify && !flags.ducati) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {flags.ducati && <BrandLogo src="/brands/ducati.webp" alt={t('links.badgeDucati')} tip={t('links.tipDucati')} />}
+      {flags.shopify && <BrandLogo src="/brands/shopify.png" alt={t('links.badgeShopify')} tip={t('links.tipShopify')} />}
+      {flags.g8 && <G8Badge />}
+    </span>
+  );
+}
+
+/** Même rendu à partir des liens bruts (fiche article). */
+export function SourceBadges({ links }: { links?: { target_kind: string; status: string }[] | null }) {
+  return <SourceLogos flags={sourceFlags(links)} />;
 }
