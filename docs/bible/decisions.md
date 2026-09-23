@@ -8,7 +8,6 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
-<<<<<<< HEAD
 ## 2026-09-23 — Motos à vendre : du stock du DMS au site (mission 03)
 
 - **M-36** — **Pas de faux client « Italbike Store ».** Une moto est **à la fois** une fiche véhicule
@@ -36,7 +35,6 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   créées à la main. *Équipe · 23/09.* Mission 03, M03.
 
 ---
-=======
 ## 2026-09-23 — Liste Pièces & Accessoires : images, provenance, filtre stock
 
 - **M-26** — **Logos officiels pour la provenance d'un article.** La colonne « Référencé sur » de la liste
@@ -69,7 +67,6 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   passe par une fonction SQL qui **filtre, trie, pagine et compte** (`article_list_page`), avec un **total
   exact** et un **message d'erreur lisible** en cas d'échec — jamais une liste vide. Toute lecture
   volumineuse boucle par pages de 1 000. *Équipe · 23/09.* M02, M05.
->>>>>>> origin/lot-liste-articles
 
 ## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
 
