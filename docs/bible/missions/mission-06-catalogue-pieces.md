@@ -203,19 +203,23 @@ sans prix, l'article est « à compléter ». Les prix sont posés par `price_ch
 **Un article qui existe déjà n'est jamais modifié** (les vêtements du site gardent leur fiche et leur stock).
 Les références **retirées du catalogue** (8 473) restent consultables dans le catalogue mais ne créent pas d'article.
 
-**État au 23/09** : les deux catalogues sont déjà en base et les **4 775 articles manquants ont été créés** le matin
-du 23/09 (`article_links_create_missing`), mais **sans taille, couleur, catégorie ni genre** : le chargeur ne les
-lisait pas encore. Ce lot corrige cela.
+**Fait le 23/09 (chargement réel en production)** : les deux catalogues sont chargés (4 500 produits,
+16 339 références, 47 434 compatibilités moto) et les **4 775 articles manquants avaient été créés le matin**
+(`article_links_create_missing`). Le chargeur a ensuite **complété 3 866 articles** (taille, couleur, version,
+catégorie, genre, collection, « hors production ») : 208 au premier passage, 3 658 après correction (voir §5 ter).
 
-| Après le chargeur (chiffres mesurés, base de production en lecture seule) | Nombre |
+| Vérifié en base le 23/09 | Nombre |
 |---|---|
-| Références du catalogue accessoires + vêtements | 14 874 (6 401 encore au catalogue, 8 473 retirées) |
-| Articles à créer | **0** (déjà créés le 23/09 au matin) |
-| Articles dont la désignation est complétée (taille, couleur, version, note) | **3 866** sur 4 775 (3 663 avec une taille) |
-| Produits du site concernés par ces références | **2 093** |
-| Produits du site portant déjà le badge Ducati | **2 071** |
-| Produits du site encore sans lien Ducati | **22** (SKU porté par plusieurs produits du site : à rattacher à la main) |
-| Vêtements « 98… » du site | 1 994, dont **1 944 retrouvés** dans le fichier ; 50 absents (collections retirées du catalogue Ducati) |
+| Articles du DMS | 93 103 |
+| Articles reliés à une pièce du catalogue Ducati | 49 429 |
+| Articles reliés à un accessoire / vêtement Ducati | **6 880** |
+| Articles complétés par le chargeur (taille) / (note catégorie·genre·familles) | **3 663** / **3 865** |
+| Références du catalogue avec une taille / produits avec une catégorie | 13 250 / 512 |
+| Variantes du site portant le badge Ducati | **2 352** sur 3 106 |
+| Produits du site concernés par ces catalogues | 2 093, dont **2 071 reliés** |
+| Produits du site encore sans lien Ducati | **22** (11 ont déjà une correspondance à valider, 11 sont à rattacher) |
+| Prix (price_changes `import:catalogue_ducati`) / mouvements de stock touchés | 7 341 (inchangé) / 0 |
+| Articles créés pendant ce chargement | 0 (déjà créés le matin) |
 
 **Technique**
 - Chargeur `tools/accessories-loader/` (accessoires **et** vêtements) : lit `detail.accessoryVariants` ou
@@ -223,8 +227,8 @@ lisait pas encore. Ce lot corrige cela.
   `APP_CODICE_MADRE`, `APP_COLLECTIONYEAR`, le statut `partStatus` et l'arbre (catégorie, genre traduit —
   Uomo → Homme —, familles). `--dry-run` résume les fichiers **et** interroge la base (articles à créer,
   produits du site concernés). Idempotent : l'import est un upsert, la création ne double jamais un article.
-- Migration `20260923120000_m2_vetements_ducati_articles.sql` — **à appliquer** (essayée en transaction annulée
-  le 23/09) : désignation et note enrichies dans `article_links_create_missing`, catégorie / genre / familles /
+- Migrations `20260923120000` (appliquée le 23/09), `20260923121000` et `20260923122000` (appliquées le 23/09
+  après le premier chargement) : désignation et note enrichies dans `article_links_create_missing`, catégorie / genre / familles /
   version / collection sur la fiche (`article_links_for_article`), aperçu `ducati_products_creation_preview`,
   **rattrapage `ducati_products_repair_designations`** (complète les articles déjà créés, uniquement s'ils sont
   en librairie, de marque Ducati, jamais retouchés ; ne touche ni prix ni stock ; relançable : 0 au 2e passage).
@@ -232,11 +236,24 @@ lisait pas encore. Ce lot corrige cela.
   genre, collection, version et **familles de motos**.
 - Tests : `tests/accessories-loader.test.ts` (format réel des deux fichiers, genre, tailles, archivées).
 
-**À lancer (Simon), après la migration**
-```
-node tools/accessories-loader/load.mjs --dry-run     # vérifie, n'écrit rien
-node tools/accessories-loader/load.mjs               # charge, complète, relance le rapprochement
-```
+**Lancé le 23/09** (`node tools/accessories-loader/load.mjs`, ≈ 4 min) ; relançable sans risque :
+le journal `catalogue-ducati-produits-chargement.json` (dossier des fichiers) évite de réimporter ce qui est
+déjà passé, `--force` le rejoue, `--dry-run` ne fait que lire.
+
+### 5 ter. Le chargeur coupait à 8 secondes (corrigé le 23/09)
+
+Le premier chargeur échouait sur « fetch failed », puis sur `57014 canceling statement due to statement timeout`.
+**Cause** : PostgREST se connecte avec le rôle `authenticator`, qui a `statement_timeout = 8 s` — même avec la
+clé de service. Un import de 50 produits (jusqu'à 700 références) ou une création de 4 775 articles ne tient
+pas dans ces 8 s, et la connexion est coupée sans message utile.
+
+**Corrigé** : import par lots de 25 produits (1 Mo maximum par appel), création et rattrapage **en boucle avec
+`_limit`** (300 articles, 500 rattrapages par appel) jusqu'à épuisement, délai explicite par requête (60 s),
+**4 réessais** avec attente doublée, message d'erreur complet (statut HTTP + corps), progression et durée de
+chaque lot, **reprise** par journal. Côté base : `article_links_create_missing` ne relance le rapprochement
+(≈ 4 s) qu'au **dernier** lot (migration `20260923121000`), et le rattrapage ne prend que des articles qui ont
+vraiment quelque chose à compléter — sinon le même lot revenait et la boucle s'arrêtait à 208 articles
+(migration `20260923122000`). Les tailles Ducati contenant des retours à la ligne sont remises au propre.
 
 ## 5 bis. Cartes proposées (21/09)
 

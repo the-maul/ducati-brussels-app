@@ -22,7 +22,8 @@
  * Testé par tests/accessories-loader.test.ts.
  */
 
-const txt = (v) => (v == null ? null : String(v).trim() || null);
+/** Texte propre : espaces multiples et retours à la ligne ramenés à une espace (tailles Ducati). */
+const txt = (v) => (v == null ? null : String(v).replace(/\s+/g, ' ').trim() || null);
 
 /** Montant « 474,59 € », « 1.234,50 », 12.5 → nombre ; null si illisible. */
 export function num(v) {
