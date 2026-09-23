@@ -8,9 +8,10 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import {
   AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ChevronRight, ClipboardCheck, FileText,
-  Loader2, NotebookPen, Package, Play, RotateCcw, Square, Timer,
+  Loader2, NotebookPen, Package, Play, RotateCcw, ShoppingCart, Square, Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -23,6 +24,8 @@ import { clearJourney, loadJourney, persistenceMode, saveJourney } from './store
 import { FigureZoom } from './figure-view';
 import { FindingDialog, type NewFinding } from './finding-dialog';
 import { ProcedureView } from './procedure-view';
+import { openPickingForRepairOrder } from '../kits/api';
+import { OrderFromWorkshopDialog } from '../kits/order-from-workshop-dialog';
 import {
   buildOperations, dueServices, fmtMinutes, isOperationDone, journeyProgress,
   officialMinutes, operationMinutes, resumePoint, runningOperationId, spentMinutes, startChrono,
@@ -39,7 +42,11 @@ type View = 'choose' | 'ops' | 'procedure' | 'summary';
 export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; companyId: string; onBackToOr: () => void }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const navigate = useNavigate();
 
+  // Mission 07 carte 2 : préparation et commande des pièces depuis le parcours.
+  const [picking, setPicking] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
   const [state, setState] = useState<JourneyState | null>(null);
   const [view, setView] = useState<View>('ops');
   const [openOpId, setOpenOpId] = useState<string | null>(null);
@@ -393,8 +400,35 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
           >
             <FileText /> {state.reportedToOr ? t('journey.reported') : t('journey.reportToOr')}
           </Button>
+          {/* Mission 07 carte 2 : la préparation reprend le kit de l'échéance + les pièces relevées. */}
+          <Button
+            variant="outline" className="h-13 min-h-[52px] text-[15px]" disabled={picking}
+            onClick={async () => {
+              try {
+                setError(null);
+                setPicking(true);
+                const id = await openPickingForRepairOrder(orId);
+                navigate({ to: '/preparation/$pickingId', params: { pickingId: id } });
+              } catch (e) {
+                setError(e instanceof Error ? e.message : t('journey.errSave'));
+              } finally {
+                setPicking(false);
+              }
+            }}
+          >
+            <ClipboardCheck /> {t('workshop.createPicking')}
+          </Button>
+          <Button variant="outline" className="h-13 min-h-[52px] text-[15px]" onClick={() => setOrderOpen(true)}>
+            <ShoppingCart /> {t('workshop.orderMissing')}
+          </Button>
           <Button variant="outline" className="h-13 min-h-[52px] text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
         </div>
+        {orderOpen && (
+          <OrderFromWorkshopDialog
+            orId={orId} companyId={companyId} label={`OR ${ro.or.number ?? ''}`.trim()}
+            onClose={() => setOrderOpen(false)}
+          />
+        )}
         <p className="mt-2 text-[12px] text-muted-foreground">{t('journey.reportedHint')}</p>
       </div>
     );

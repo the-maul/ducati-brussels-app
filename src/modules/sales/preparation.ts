@@ -89,6 +89,8 @@ export function pickingActions(p: { status: string; document_id: string | null; 
     regenerate: open && !!p.document_id,
     finish: open && p.lines_total > 0 && p.lines_prepared === p.lines_total,
     editSteps: open,
+    // mission 07 carte 2 : commander ce qui manque, depuis la liste elle-même
+    order: open && p.lines_total > 0,
   };
 }
 

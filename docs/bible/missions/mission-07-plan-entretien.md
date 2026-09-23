@@ -33,7 +33,7 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | # | Carte | Dépend de |
 |---|---|---|
 | 1 | Plans d'entretien par modèle et par année — 🟦 fait le 21/09, à valider (§5) | 06-2 |
-| 2 | Forfaits d'entretien avec pièces, temps et devis automatique | 07-1, 06-3 |
+| 2 | Forfaits d'entretien avec pièces, temps et devis automatique — 🟦 fait 23/09 (kits, picking list, commande) | 07-1, 06-3 |
 | 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
 | 4 | Prochain entretien de chaque moto | 07-1, 06-4 |
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
@@ -202,6 +202,104 @@ catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
   `tests/fixtures/manuels-atelier/` — un manuel à révisions nommées, un manuel en grille
   kilométrique, une procédure ; aucune donnée personnelle).
 
+### 23/09 — Carte 2 « Kits de pièces d'entretien » (ATE013 + ATE014, M-20)
+
+> Demande de Simon (23/09), mot pour mot : « relier les entretiens au pièces.. on doit pouvoir aussi
+> créer une picking list a partir de ce qui a été prévu comme entretien. et pouvoir commander depuis
+> l'or ou la picking list (en choisissant le type de commande). »
+
+**1. Relier un entretien aux pièces (M-38, M-39).** Pour un modèle-année et une échéance, les pièces
+sont **déduites** des libellés d'opérations des manuels d'atelier, puis retrouvées dans les **vues
+éclatées du catalogue Ducati de ce modèle-année**, donc dans les articles du DMS. Les consommables
+(huile moteur, liquide de refroidissement, liquide de frein, huile de fourche) viennent des
+**tableaux de ravitaillements** avec leur quantité et leur spécification. « Remplacement des
+bougies » réclame des bougies ; « Contrôle et nettoyage du filtre à air » ne réclame rien. Les
+quantités viennent de la colonne « quantité » de la vue éclatée : **2 bougies sur un bicylindre,
+4 sur un V4, 2 courroies**. Treize familles de pièces, trois jeux de règles **en table** (donc
+corrigeables sans migration).
+
+**Couverture mesurée le 23/09** (sur les 370 modèles-années reliés à un manuel d'atelier) :
+
+| Mesure | Valeur |
+|---|---|
+| Modèles-années reliés à un manuel et au catalogue | 370 |
+| Modèles-années dont l'entretien donne des pièces | 284 |
+| Couples (modèle-année × échéance) | 1 355 |
+| Besoins fermes déduits | 4 629 |
+| **Besoins fermes résolus jusqu'à l'article du DMS** | **4 529 — 97,8 %** |
+| Besoins « à confirmer par l'atelier » | 100 (78 filtres à huile, 18 courroies, 2 courroies de pompe à eau) |
+| Lignes optionnelles résolues en plus (bouchon de vidange, joint de bougie, crépine) | 1 374 |
+| Lignes de kit utilisables au total | 5 903 |
+| Familles de moteur distinctes | 44 |
+| Kits (famille de moteur × échéance × contenu) | 385 |
+
+Par famille : filtre à huile 1 128/1 206 · huile moteur 1 206/1 206 · bougies 630/630 · filtre à air
+443/445 · courroies de distribution 428/446 · liquide de refroidissement 294/294 · huile de fourche
+278/278 · liquide de frein 64/64 · joints de pompe à eau 32/32 · courroie de pompe à eau 26/28.
+
+Les 86 modèles-années sans pièce déduite sont ceux dont la grille du manuel n'est pas balisée par
+échéance (M-30 : 235 des 469 manuels n'ont qu'une grille kilométrique reconstruite) : **rien n'est
+inventé pour eux**, l'atelier composera le kit à la main.
+
+Exemples vérifiés à la main dans les vues éclatées :
+
+| Moto | Échéance | Pièces déduites |
+|---|---|---|
+| MONSTER / MONSTER + 2027 | Oil Service | filtre à huile `44440441A` ×1 · bouchon de vidange `89310153A` ×1 · huile moteur 3,8 l (SHELL Advance 15W-50) |
+| MONSTER / MONSTER + 2027 | Valve Check | bougies `67040581B` **×2** · joints de bougie `78812031B` ×2 · liquide de refroidissement 2,25 l |
+| MONSTER 821 2016 | 30 000 km | filtre à huile `44440035A` · bouchon `89320062A` · bougies `67040451A` **×2** · filtre à air `42610191A` · **courroies `73740252A` ×2** · huile moteur · huile de fourche |
+| MONSTER 821 2016 | 1 000 km | filtre à huile + bouchon + huile moteur **seulement** (ni bougie ni filtre à air : c'est bien la révision des 1 000 km) |
+| PANIGALE V4 S 2024 | Desmo Service | bougies `67040511A` **×4** · **aucune courroie** (V4 à chaîne de distribution) |
+
+**2. Les kits (M-40, M-41).** Un kit par **famille de moteur × échéance**, proposé automatiquement
+et **corrigeable par l'atelier** : ajout, retrait, quantité. Chaque correction fait une **nouvelle
+version** avec une photo complète du contenu ; une nouvelle proposition **ne retouche jamais** un kit
+déjà corrigé. Écran **Atelier → Kits d'entretien** (`/workshop/kits`), accessible aussi depuis
+Atelier → Plans d'entretien.
+
+**3. La picking list depuis l'entretien prévu (M-42).** Bouton **« Créer la picking list »** sur la
+fiche OR et au récapitulatif du parcours technicien : la liste reprend **les pièces du kit de
+l'échéance en cours** et **les pièces ajoutées par le technicien** (lignes « pièce » de l'OR, que le
+bouton « Reporter sur l'OR » du parcours remplit déjà). Chaque ligne porte son **stock disponible**,
+son **casier** et ce qui **manque**. C'est la liste de préparation existante, pas une nouvelle :
+mêmes statuts, même écran tablette, même impression.
+
+**4. Commander les pièces manquantes (M-43).** Bouton **« Commander les pièces manquantes »** sur la
+fiche OR, au récapitulatif du parcours et sur la liste de préparation elle-même. La fenêtre ne
+propose que ce qui manque (besoin − libre − en commande − déjà en brouillon) et demande le **type de
+commande** (standard / urgente / accident, avec ses règles de Paramètres et le seuil en direct). La
+commande est créée **en brouillon**, reliée à l'OR, et repart dans la proposition de commande
+fournisseur puis le fichier DCS (ACH001 : seule « urgente » sort en URGENTE). **Aucun mouvement de
+stock.**
+
+- Migrations **écrites, testées en transaction annulée, PAS appliquées** :
+  `20260923160000_m8_entretien_pieces_regles.sql`, `20260923161000_m8_kits_entretien.sql`,
+  `20260923162000_m8_picking_depuis_or.sql`, `20260923163000_m8_commande_depuis_or.sql`.
+- Code : `src/modules/workshop/kits/` (`rules.ts` règles pures, `api.ts`, `kits-screen.tsx`,
+  `order-from-workshop-dialog.tsx`), route `src/routes/_app.workshop.kits.tsx`, boutons sur
+  `src/routes/_app.workshop.$orId.tsx`, `src/modules/workshop/journey/journey-screen.tsx` et
+  `src/modules/sales/picking-actions.tsx`.
+- Tests : `tests/maintenance-kits.test.ts` (28 tests, cas de référence issus des vraies vues
+  éclatées Monster 821 / Monster + 2027 / Panigale V4 S).
+
+### À tester (carte 2)
+
+1. Atelier → Plans d'entretien → **Kits d'entretien** → **« Proposer les kits »**. Attendre la fin
+   (le compteur avance par lots). Des kits « famille de moteur — échéance » apparaissent.
+2. Ouvrir un kit : les pièces, leur quantité, leur casier et le disponible. Les lignes **« À
+   confirmer »** sont celles où plusieurs références sont possibles, ou dont l'article n'est pas
+   encore désigné (huile, liquides).
+3. Changer une quantité, ajouter une pièce, en retirer une : le numéro de **version** monte.
+   Relancer « Proposer les kits » : **le kit corrigé ne bouge pas**.
+4. Ouvrir un OR dont la moto est reliée au catalogue Ducati, démarrer le **parcours d'entretien** et
+   choisir une échéance. Revenir sur l'OR → **« Créer la picking list »** : la liste s'ouvre avec les
+   pièces du kit (+ celles reportées par le technicien), avec casiers et disponible.
+5. Sur la liste (ou sur l'OR) → **« Commander les pièces manquantes »** : seules les pièces qui
+   manquent sont proposées, choisir **urgente** ou **standard**, créer. La commande s'ouvre en
+   brouillon et porte le lien vers l'OR.
+6. Relancer « Commander les pièces manquantes » : la fenêtre doit dire **« Rien à commander »**
+   (ce qui est déjà en brouillon n'est pas recommandé).
+
 ## 5 bis. Cartes proposées (21/09)
 
 - **Prochain entretien de chaque moto** (= carte 4) : la règle `nextDue` (premier atteint, rythme de
@@ -225,3 +323,15 @@ catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
   chercher dans les articles (mission 06) pour sortir un devis complémentaire (ATE009).
 - **Derniers entretiens de la moto** : le choix de l'entretien dû part de la mise en service ; avec
   l'historique des OR et My Ducati (carte 4), il partirait du dernier entretien réel.
+- **Trancher les 100 besoins « à confirmer »** (carte 2) : surtout des filtres à huile (deux
+  références sur le même modèle-année, vues « CARTER HUILE » et « POMPE A HUILE COMPLETE ») et des
+  courroies. À faire une fois par famille de moteur, pas par moto : 44 familles au total.
+- **Désigner les articles des consommables** (carte 2) : huile moteur, liquide de refroidissement,
+  liquide de frein, huile de fourche. Le manuel donne le produit et la quantité, l'atelier choisit
+  l'article du DMS **une fois pour toutes** (`maintenance_fluid_article_set`) ; toutes les lignes de
+  kit non corrigées suivent.
+- **Prix des kits et devis automatique** (reste de la carte 2) : les pièces sont là, le temps Ducati
+  aussi (carte 1) ; il reste à sortir un **devis d'entretien** complet (pièces + main-d'œuvre) depuis
+  le kit, ce qui achève ATE013.
+- **Écran de couverture entretien → pièces** : la fonction `maintenance_parts_coverage` existe et
+  est appelable par lots ; un onglet la rendrait visible sans passer par SQL.

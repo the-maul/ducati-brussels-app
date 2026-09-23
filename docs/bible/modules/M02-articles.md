@@ -186,7 +186,7 @@ Ce qui marche : liste, recherche, fiche (hors années), onglets, familles, casca
 | INV007 | Étiquettes personnalisées (partagé avec M5) | ✅ fait | `/parts/labels`, `src/modules/articles/labels/` |
 | B1 | Types de gestion A–R + T | ✅ fait | enum `article_mgmt_type` |
 | Angle mort « modification en cascade + recalcul PA/PV + arrondis » | | ✅ fait | `/parts/cascade`, arrondis `round_up_euro` |
-| Angle mort « fabrication / démontage » | | ⬜ manquant | nomenclature `article_kit_items` saisissable mais aucune décomposition en stock à la vente ni montage/démontage |
+| Angle mort « fabrication / démontage » | | ⬜ manquant | nomenclature `article_kit_items` saisissable mais aucune décomposition en stock à la vente ni montage/démontage. **Les kits d'entretien (mission 07 carte 2, M-40/M-41) sont une notion distincte** : ils vivent dans `maintenance_kits` / `maintenance_kit_items` (par famille de moteur et par échéance, versionnés), ils **ne consomment pas de stock** et ne remplacent pas la nomenclature d'article |
 
 ## 9. Historique
 

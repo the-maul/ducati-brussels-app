@@ -1826,6 +1826,38 @@ export const fr = {
     noRdv: 'Aucun rendez-vous.', changeStatus: 'Statut',
     // parcours d'entretien (mission 07)
     journey: 'Parcours d’entretien', startJourney: 'Démarrer le parcours d’entretien', resumeJourney: 'Reprendre le parcours d’entretien',
+    // Mission 07 carte 2 : kit d’entretien → liste de préparation → commande
+    createPicking: 'Créer la picking list', orderMissing: 'Commander les pièces manquantes',
+  },
+
+  // Kits de pièces d'entretien par famille de moteur (M8, mission 07 carte 2, M-20, ATE013)
+  kits: {
+    title: 'Kits d’entretien',
+    subtitle: 'Un kit de pièces par famille de moteur et par entretien, proposé depuis les manuels et le catalogue Ducati, corrigeable par l’atelier.',
+    intro: 'Les pièces sont déduites des opérations du manuel d’atelier puis retrouvées dans les vues éclatées du modèle-année. Ce qui n’est pas sûr est marqué « à confirmer » : rien n’est inventé.',
+    searchPlaceholder: 'Famille de moteur ou entretien…',
+    generate: 'Proposer les kits', generating: '{n} modèles-années parcourus, {c} kits créés…',
+    generated: '{c} kit(s) créé(s), {l} modèle(s)-année(s) rattaché(s).',
+    errGenerate: 'La proposition des kits a échoué.', errSave: 'Enregistrement impossible.',
+    empty: 'Aucun kit pour l’instant : cliquez sur « Proposer les kits ».',
+    pick: 'Choisissez un kit à gauche pour voir et corriger son contenu.',
+    itemsCount: '{n} pièce(s)', modelYears: '{n} modèle(s)-année(s)', version: 'Version {n}',
+    edited: 'Corrigé par l’atelier', toConfirm: '{n} à confirmer', badgeToConfirm: 'À confirmer',
+    toConfirmHint: '{n} ligne(s) attendent une confirmation : plusieurs références possibles, ou l’article du DMS reste à désigner (huile, liquides).',
+    noItems: 'Ce kit n’a encore aucune pièce.',
+    colPart: 'Pièce', colOrigin: 'Origine', colQty: 'Quantité', colStock: 'Disponible',
+    origin_deduit: 'Déduit du manuel', origin_ajoute: 'Ajouté par l’atelier',
+    addTitle: 'Ajouter une pièce au kit', addPlaceholder: 'Référence, désignation ou code-barres…', add: 'Ajouter',
+  },
+
+  // Commander les pièces manquantes depuis un OR ou sa liste de préparation (mission 07 carte 2)
+  workshopOrder: {
+    title: 'Commander les pièces manquantes — {label}',
+    rule: 'Seules les pièces qui manquent sont proposées : besoin de l’entretien moins le stock libre, moins ce qui est déjà en commande. Choisissez le type de commande.',
+    nothingMissing: 'Rien à commander : tout est en stock ou déjà commandé.',
+    colOrigin: 'Origine', origin_kit: 'Kit d’entretien', origin_atelier: 'Ajouté en atelier', origin_document: 'Document',
+    create: 'Créer la commande', created: 'Commande de pièces créée (brouillon).',
+    afterHint: 'La commande est créée en brouillon et reliée à l’ordre de réparation. Elle part ensuite dans la proposition de commande fournisseur et le fichier DCS. Aucun mouvement de stock.',
   },
 
   // Parcours d'entretien pas à pas — écran technicien, pensé tablette (M8, mission 07)

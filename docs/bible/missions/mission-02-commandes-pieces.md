@@ -279,6 +279,21 @@ classement G8 Stock / Dépannage / Garantie est abandonné.
 3. Crayon : modifier une quantité ; corbeille : supprimer (confirmation). Totaux HTVA / TVA / TVAC à jour.
 4. Valider la commande : les crayons et corbeilles disparaissent (« les pièces ne se modifient plus »).
 
+### 23/09 — Deux ajouts venus de la mission 07 (carte 2)
+
+- **Commander depuis l'atelier** (M-43) : en plus de « Commander les pièces » depuis un document de
+  vente (carte 3), on commande désormais **depuis un ordre de réparation ou depuis sa liste de
+  préparation**, avec **le même choix de type** (standard / urgente / accident ; la commande Excel
+  garde son classeur). La commande créée porte `part_orders.repair_order_id` et repart dans la
+  proposition de commande fournisseur puis le fichier DCS, sans rien changer à ce circuit.
+  Fonctions : `repair_order_order_needs`, `picking_order_needs`, `part_order_create_for_workshop`
+  (migration `20260923163000_m8_commande_depuis_or.sql`, **non appliquée**).
+- **La picking list a une deuxième origine** (M-42, carte 11 complétée) : un OR, pas seulement un
+  document. Mêmes statuts, même écran tablette, même impression ; le bouton « Régénérer depuis le
+  document » reste réservé aux listes d'un document (pour un OR, on re-clique « Créer la picking
+  list » sur l'OR). Un bouton **« Commander les pièces manquantes »** est posé sur la liste elle-même.
+  Migration `20260923162000_m8_picking_depuis_or.sql` (**non appliquée**).
+
 ## 6. Risques et points d'attention
 
 - Le **disponible** compte « en commande » les commandes fournisseur (CMD) validées sans réception
