@@ -3900,6 +3900,169 @@ export type Database = {
           },
         ]
       }
+      inventory_import_lines: {
+        Row: {
+          applied_delta: number | null
+          article_id: string | null
+          avail_qty: number | null
+          barcode: string | null
+          bin_location: string | null
+          categorie: string | null
+          designation: string | null
+          id: number
+          import_id: string
+          last_in: string | null
+          last_out: string | null
+          line_no: number
+          match_kind: string | null
+          message: string | null
+          move_id: number | null
+          pamp: number | null
+          rayon: string | null
+          real_qty: number
+          reference: string
+          reference_norm: string
+          sous_rayon: string | null
+          state: string
+          stock_value: number | null
+          supplier: string | null
+          vehicle_id: string | null
+          vin: string | null
+        }
+        Insert: {
+          applied_delta?: number | null
+          article_id?: string | null
+          avail_qty?: number | null
+          barcode?: string | null
+          bin_location?: string | null
+          categorie?: string | null
+          designation?: string | null
+          id?: never
+          import_id: string
+          last_in?: string | null
+          last_out?: string | null
+          line_no: number
+          match_kind?: string | null
+          message?: string | null
+          move_id?: number | null
+          pamp?: number | null
+          rayon?: string | null
+          real_qty: number
+          reference: string
+          reference_norm: string
+          sous_rayon?: string | null
+          state?: string
+          stock_value?: number | null
+          supplier?: string | null
+          vehicle_id?: string | null
+          vin?: string | null
+        }
+        Update: {
+          applied_delta?: number | null
+          article_id?: string | null
+          avail_qty?: number | null
+          barcode?: string | null
+          bin_location?: string | null
+          categorie?: string | null
+          designation?: string | null
+          id?: never
+          import_id?: string
+          last_in?: string | null
+          last_out?: string | null
+          line_no?: number
+          match_kind?: string | null
+          message?: string | null
+          move_id?: number | null
+          pamp?: number | null
+          rayon?: string | null
+          real_qty?: number
+          reference?: string
+          reference_norm?: string
+          sous_rayon?: string | null
+          state?: string
+          stock_value?: number | null
+          supplier?: string | null
+          vehicle_id?: string | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_import_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_import_lines_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
+            foreignKeyName: "inventory_import_lines_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_import_lines_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_imports: {
+        Row: {
+          applied_at: string | null
+          company_id: string
+          counted_at: string
+          created_at: string
+          created_by: string | null
+          id: string
+          origin: string
+          ref: string | null
+          source_file: string | null
+          stats: Json | null
+        }
+        Insert: {
+          applied_at?: string | null
+          company_id: string
+          counted_at?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          origin: string
+          ref?: string | null
+          source_file?: string | null
+          stats?: Json | null
+        }
+        Update: {
+          applied_at?: string | null
+          company_id?: string
+          counted_at?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          origin?: string
+          ref?: string | null
+          source_file?: string | null
+          stats?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_imports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_sessions: {
         Row: {
           closed_at: string | null
@@ -11192,6 +11355,49 @@ export type Database = {
           real_qty: number
           reference: string
           snapshot_qty: number
+        }[]
+      }
+      inventory_import_apply: {
+        Args: { _import: string; _limit?: number }
+        Returns: Json
+      }
+      inventory_import_complete_vins: {
+        Args: { _apply?: boolean; _import: string }
+        Returns: Json
+      }
+      inventory_import_open: {
+        Args: {
+          _company: string
+          _counted_at?: string
+          _origin: string
+          _ref?: string
+          _source_file?: string
+        }
+        Returns: string
+      }
+      inventory_import_preview: { Args: { _import: string }; Returns: Json }
+      inventory_import_report: { Args: { _import: string }; Returns: Json }
+      inventory_import_resolve: { Args: { _import: string }; Returns: Json }
+      inventory_import_stage: {
+        Args: { _import: string; _lines: Json }
+        Returns: number
+      }
+      inventory_import_vin_candidates: {
+        Args: { _import: string }
+        Returns: {
+          file_designation: string
+          file_reference: string
+          line_no: number
+          marge_pct: number
+          n_candidats_ligne: number
+          n_candidats_moto: number
+          pamp: number
+          retenu: boolean
+          sale_price_ttc: number
+          vehicle_id: string
+          vehicle_model: string
+          vehicle_reference: string
+          vin: string
         }[]
       }
       is_admin: { Args: { _company: string }; Returns: boolean }
