@@ -360,3 +360,31 @@ Essai d'une tranche de 60 accessoires (72 références) : 30 articles créés, 4
 - Charge sur le portail Ducati : rythme lent, pas de parallélisme, arrêt au moindre refus.
 - Session Ducati expirée pendant l'import : reprise là où on s'est arrêté.
 - Images des vues éclatées : volume de stockage (garder le lien, ou copier seulement les planches utilisées).
+
+## Purge du rapprochement — 23/09 (à valider)
+
+Simon, 23/09 : « il faut trouver un moyen de purifier tous ces éléments sans validation humaine,
+c'est intenable. » La file des rapprochements « à valider » est passée de **10 251 à 2**.
+
+| Méthode | Avant | Relié d'office | Rejeté (avec la raison) | Reste |
+|---|---:|---:|---:|---:|
+| `remplacement_dms` (catalogue Ducati) | 8 368 | 0 | 8 368 | 0 |
+| `revision` (catalogue Ducati) | 1 743 | 0 | 1 743 | 0 |
+| `prefixe_suffixe` (catalogue Ducati) | 3 | 0 | 3 | 0 |
+| `creation_sans_sku` (site) | 95 | 93 | 2 | 0 |
+| `sku_ambigu` (site) | 23 | 23 | 0 | 0 |
+| `remplacement_dms` (site) | 10 | 0 | 9 | 1 |
+| `ref_dans_titre` (site) | 9 | 8 | 0 | 1 |
+| **Total** | **10 251** | **124** | **10 125** | **2** |
+
+Les causes ont été corrigées, pas seulement les lignes : la règle W-6 est appliquée **en base**
+(elle n'existait que dans la lecture Shopify, donc un article créé après la dernière lecture ne
+pouvait jamais être relié d'office) ; une référence du catalogue ne reçoit plus de second
+candidat ; « sku_ambigu » ne sort que si plusieurs produits portent vraiment le SKU ; les motos du
+site ne sont plus proposées à un article pièce. Décisions **M-40 à M-43**,
+migrations `20260923140000`, `20260923141000`, `20260923142000` (**appliquées en production**).
+
+Les **2 restants** sont un seul produit du site, en brouillon, dont le titre se réduit à
+« 56113651A - » (aucune désignation, prix 162,25 € contre 50,53 € côté DMS) : deux articles se
+le disputent (56113651A, cité dans le titre, et 56113033A, son remplacement). C'est le seul cas
+où la machine refuse de trancher.

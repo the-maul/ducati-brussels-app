@@ -138,6 +138,90 @@ export function titleRefTokens(title: string | null | undefined, variantTitle?: 
   return [...out];
 }
 
+/**
+ * Désignation « nue » pour comparaison : majuscules, sans accent, séparateurs réduits à un espace.
+ * Miroir de la fonction SQL _al_norm_desig (migration 20260923140000).
+ */
+export function normDesignation(text: string | null | undefined): string {
+  return (text ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Part des mots de `a` (3 lettres et plus) que l'on retrouve dans `b`, de 0 à 1.
+ * Miroir de _al_desig_ratio. Asymétrique : on cherche la désignation DANS le titre du site.
+ */
+export function designationRatio(a: string | null | undefined, b: string | null | undefined): number {
+  const words = (t: string | null | undefined) =>
+    new Set(normDesignation(t).split(' ').filter((w) => w.length > 2));
+  const wa = words(a);
+  const wb = words(b);
+  if (wa.size === 0 || wb.size === 0) return 0;
+  let n = 0;
+  for (const w of wa) if (wb.has(w)) n += 1;
+  return Math.round((n / wa.size) * 1000) / 1000;
+}
+
+/** Premier mot d'un titre de produit (les boutiques préfixent le titre par la référence). */
+export function firstToken(title: string | null | undefined): string {
+  return (title ?? '').toUpperCase().split(/[^A-Z0-9]+/).find((w) => w !== '') ?? '';
+}
+
+/** Écart de prix relatif (0,03 = 3 %). `null` si l'un des deux prix manque. */
+export function priceGap(a: number | null | undefined, b: number | null | undefined): number | null {
+  if (!a || !b) return null;
+  return Math.abs(a - b) / b;
+}
+
+/**
+ * Faisceau d'indices d'un candidat Shopify (miroir de la règle R2 d'article_links_autoresolve,
+ * migration 20260923140000). Étalon donné par Simon le 23/09 : référence 46010383A, SKU
+ * 46010383A, même désignation, même prix → relié d'office, sans validation humaine.
+ *
+ * Relié d'office si : (SKU exact OU référence en tête du titre)
+ *   ET (désignation retrouvée à 70 % dans le titre OU prix à 5 % près)
+ *   ET aucun SKU ne désigne un autre article du DMS.
+ * L'unicité (un seul candidat qualifié par variante et par article) est vérifiée par la base.
+ */
+export function bundleQualifies(v: {
+  articleRef: string;
+  designation?: string | null;
+  salePriceTtc?: number | null;
+  sku?: string | null;
+  productTitle?: string | null;
+  variantTitle?: string | null;
+  shopPrice?: number | null;
+  /** Un AUTRE article du DMS porte exactement ce SKU : le SKU l'emporte, on ne devine pas. */
+  skuOfAnotherArticle?: boolean;
+}): boolean {
+  const ref = normRef(v.articleRef);
+  if (!ref || v.skuOfAnotherArticle) return false;
+  const bySku = !!normRef(v.sku) && normRef(v.sku) === ref;
+  const byTitle = firstToken(v.productTitle) === ref;
+  if (!bySku && !byTitle) return false;
+  const ratio = designationRatio(v.designation, `${v.productTitle ?? ''} ${v.variantTitle ?? ''}`);
+  const gap = priceGap(v.salePriceTtc, v.shopPrice);
+  return ratio >= 0.7 || (gap !== null && gap <= 0.05);
+}
+
+/**
+ * Arbitrage d'un SKU partagé par plusieurs produits du site (demande de Simon, 23/09) :
+ * on prend le produit ACTIF s'il est le seul ; plusieurs produits actifs → à une personne.
+ * Miroir de la règle R1 d'article_links_autoresolve.
+ */
+export function pickSharedSkuVariant<T extends { variantId: string; shopStatus?: string | null }>(
+  variants: readonly T[],
+): T | null {
+  if (variants.length === 0) return null;
+  if (variants.length === 1) return variants[0];
+  const active = variants.filter((v) => (v.shopStatus ?? '').toUpperCase() === 'ACTIVE');
+  return active.length === 1 ? active[0] : null;
+}
+
 /** Familles de l'aperçu « créer les articles manquants » (miroir d'article_links_creation_preview). */
 export type CreationFamily =
   | 'moto'
