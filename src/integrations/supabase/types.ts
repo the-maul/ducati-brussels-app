@@ -7824,6 +7824,70 @@ export type Database = {
           },
         ]
       }
+      workshop_journeys: {
+        Row: {
+          company_id: string
+          created_at: string
+          finished_at: string | null
+          id: string
+          model_year_id: string | null
+          or_id: string
+          reported_to_or: boolean
+          service_label: string
+          started_at: string
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          model_year_id?: string | null
+          or_id: string
+          reported_to_or?: boolean
+          service_label: string
+          started_at?: string
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          model_year_id?: string | null
+          or_id?: string
+          reported_to_or?: boolean
+          service_label?: string
+          started_at?: string
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_journeys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_journeys_model_year_id_fkey"
+            columns: ["model_year_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_model_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_journeys_or_id_fkey"
+            columns: ["or_id"]
+            isOneToOne: true
+            referencedRelation: "repair_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshop_operations: {
         Row: {
           code: string
@@ -7903,6 +7967,7 @@ export type Database = {
           created_at: string
           ended_at: string | null
           id: string
+          journey_operation: string | null
           kind: string
           mechanic_id: string | null
           mechanic_name: string | null
@@ -7916,6 +7981,7 @@ export type Database = {
           created_at?: string
           ended_at?: string | null
           id?: string
+          journey_operation?: string | null
           kind?: string
           mechanic_id?: string | null
           mechanic_name?: string | null
@@ -7929,6 +7995,7 @@ export type Database = {
           created_at?: string
           ended_at?: string | null
           id?: string
+          journey_operation?: string | null
           kind?: string
           mechanic_id?: string | null
           mechanic_name?: string | null
@@ -9233,6 +9300,14 @@ export type Database = {
         Returns: Json
       }
       ducati_catalog_stats: { Args: never; Returns: Json }
+      ducati_products_creation_preview: {
+        Args: { _company: string }
+        Returns: Json
+      }
+      ducati_products_repair_designations: {
+        Args: { _company: string; _limit?: number }
+        Returns: Json
+      }
       enqueue_label: {
         Args: {
           _article: string
@@ -9476,6 +9551,7 @@ export type Database = {
         Args: { _company: string; _doc_type: string }
         Returns: string
       }
+      or_journey_minutes: { Args: { _or: string }; Returns: number }
       or_worked_minutes: { Args: { _or: string }; Returns: number }
       part_order_allocate: {
         Args: { _document: string; _line: string; _note?: string; _qty: number }
