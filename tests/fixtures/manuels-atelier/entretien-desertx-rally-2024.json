@@ -1,0 +1,2041 @@
+{
+ "schema": "ducati-entretien/1",
+ "genereLe": "2026-09-21T16:04:21.584Z",
+ "modele": {
+  "famille": "DESERT X",
+  "famId": "2",
+  "superModele": "DESERT X",
+  "smId": "22",
+  "modele": "DESERTX RALLY",
+  "modelId": "96",
+  "annee": "2024",
+  "myId": "406",
+  "manualRoot": "870",
+  "nbNoeuds": 404,
+  "sectionEntretien": "Opérations d'entretien"
+ },
+ "programme": {
+  "services": [
+   {
+    "service": "First Service 1000",
+    "texte": "La révision First Service 1000 doit être effectuée après les premiers 1 000 km/600 mi ou avant six mois de la date de livraison de la moto au client.",
+    "km": 1000,
+    "mi": 600,
+    "mois": null,
+    "premiereEcheance": true,
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "service": "Oil Service",
+    "texte": "La révision Oil Service doit être effectuée tous les 15 000 km/9 000 mi.",
+    "km": 15000,
+    "mi": 9000,
+    "mois": null,
+    "premiereEcheance": false,
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "service": "Desmo Service",
+    "texte": "La révision Desmo Service doit être effectuée tous les 30 000 km/18 000 mi.",
+    "km": 30000,
+    "mi": 18000,
+    "mois": null,
+    "premiereEcheance": false,
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "service": "Annual Service",
+    "texte": "La révision Annual Service doit être effectuée tous les 12 mois.",
+    "km": null,
+    "mi": null,
+    "mois": 12,
+    "premiereEcheance": false,
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   }
+  ],
+  "echeances": [
+   {
+    "echeance": "First Service 1000",
+    "type": "service",
+    "km": 1000,
+    "mi": 600,
+    "mois": null,
+    "definition": "La révision First Service 1000 doit être effectuée après les premiers 1 000 km/600 mi ou avant six mois de la date de livraison de la moto au client.",
+    "nbOperations": 16,
+    "operations": [
+     "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+     "Vidange de l'huile moteur et remplacement du filtre",
+     "Contrôle visuel des éléments d'étanchéité fourche avant et amortisseur arrière",
+     "Contrôle du niveau d'huile de freins et d'embrayage"
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "echeance": "Oil Service",
+    "type": "service",
+    "km": 15000,
+    "mi": 9000,
+    "mois": null,
+    "definition": "La révision Oil Service doit être effectuée tous les 15 000 km/9 000 mi.",
+    "nbOperations": 23,
+    "operations": [
+     "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+     "Vidange de l'huile moteur et remplacement du filtre",
+     "Contrôle et nettoyage du filtre à air",
+     "Contrôle visuel des éléments d'étanchéité fourche avant et amortisseur arrière"
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "echeance": "Desmo Service",
+    "type": "service",
+    "km": 30000,
+    "mi": 18000,
+    "mois": null,
+    "definition": "La révision Desmo Service doit être effectuée tous les 30 000 km/18 000 mi.",
+    "nbOperations": 13,
+    "operations": [
+     "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+     "Remplacement du filtre à air",
+     "Remplacement courroies distribution",
+     "Contrôle et/ou réglage du jeu aux soupapes"
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "echeance": "Annual Service",
+    "type": "service",
+    "km": null,
+    "mi": null,
+    "mois": 12,
+    "definition": "La révision Annual Service doit être effectuée tous les 12 mois.",
+    "nbOperations": 26,
+    "operations": [
+     "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+     "Vidange de l'huile moteur et remplacement du filtre",
+     "Contrôle et nettoyage du filtre à air",
+     "Remplacement courroies distribution"
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   }
+  ],
+  "liste1000km": [
+   "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+   "Vidange de l'huile moteur et remplacement du filtre",
+   "Contrôle visuel des éléments d'étanchéité fourche avant et amortisseur arrière",
+   "Contrôle du niveau d'huile de freins et d'embrayage"
+  ],
+  "operationsConcessionnaire": [
+   {
+    "libelle": "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+    "groupe": null,
+    "echeances": [
+     "First Service 1000",
+     "Oil Service",
+     "Desmo Service",
+     "Annual Service"
+    ],
+    "valeurs": {
+     "First Service 1000": "•",
+     "Oil Service": "•",
+     "Desmo Service": "•",
+     "Annual Service": "12"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "libelle": "Vidange de l'huile moteur et remplacement du filtre",
+    "groupe": null,
+    "echeances": [
+     "First Service 1000",
+     "Oil Service",
+     "Annual Service"
+    ],
+    "valeurs": {
+     "First Service 1000": "•",
+     "Oil Service": "•",
+     "Annual Service": "24"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [
+     {
+      "parcoursId": "1da22961705e679b8277",
+      "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+      "score": 1
+     }
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "libelle": "Contrôle et nettoyage du filtre à air",
+    "groupe": null,
+    "echeances": [
+     "Oil Service",
+     "Annual Service"
+    ],
+    "valeurs": {
+     "Oil Service": "•",
+     "Annual Service": "24"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [
+     {
+      "parcoursId": "382efa786bebee5a46ff",
+      "titre": "Remplacement et nettoyage des filtres à air",
+      "score": 1
+     }
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "libelle": "Remplacement du filtre à air",
+    "groupe": null,
+    "echeances": [
+     "Desmo Service"
+    ],
+    "valeurs": {
+     "Desmo Service": "•"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [
+     {
+      "parcoursId": "382efa786bebee5a46ff",
+      "titre": "Remplacement et nettoyage des filtres à air",
+      "score": 1
+     }
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "libelle": "Remplacement courroies distribution",
+    "groupe": null,
+    "echeances": [
+     "Desmo Service",
+     "Annual Service"
+    ],
+    "valeurs": {
+     "Desmo Service": "•",
+     "Annual Service": "60"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [
+     {
+      "parcoursId": "73bb177c7b79a2c490dc",
+      "titre": "Remplacement des courroies de distribution",
+      "score": 1
+     }
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   },
+   {
+    "libelle": "Contrôle et/ou réglage du jeu aux soupapes",
+    "groupe": null,
+    "echeances": [
+     "Desmo Service"
+    ],
+    "valeurs": {
+     "Desmo Service": "•"
+    },
+    "periodicite": null,
+    "periodiciteMois": null,
+    "proceduresLiees": [
+     {
+      "parcoursId": "d32ece935dc2d3711df3",
+      "titre": "Contrôle du jeu aux soupapes",
+      "score": 1
+     },
+     {
+      "parcoursId": "9aad4b6f335f159b6dd5",
+      "titre": "Contrôle et réglage jeu aux soupapes",
+      "score": 1
+     }
+    ],
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   }
+  ],
+  "pointsGraissage": [],
+  "concessionnaire": [
+   {
+    "titre": "Opérations à effectuer par le concessionnaire",
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143147",
+     "dmId": "143147",
+     "titre": "Opérations à effectuer par le concessionnaire",
+     "code": "WSM.160.004.0098",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    },
+    "avertissements": [
+     {
+      "type": "attention",
+      "texte": "Le plan d'entretien en objet prévoit une utilisation routière de la Multistrada. En cas d'utilisation du motocycle sur piste, même en dehors des compétitions sportives, tous les organes de la moto sont plus lourdement sollicités et les interventions d'entretien ordinaire devront être plus fréquentes."
+     },
+     {
+      "type": "attention",
+      "texte": "Il est conseillé de remplacer le kit de chaîne de transmission finale sans dépasser 20 000 km/12 000 mi."
+     }
+    ],
+    "notes": [
+     "* La révision First Service 1000 doit être effectuée après les premiers 1 000 km/600 mi ou avant six mois de la date de livraison de la moto au client.",
+     "* La révision Oil Service doit être effectuée tous les 15 000 km/9 000 mi.",
+     "* La révision Desmo Service doit être effectuée tous les 30 000 km/18 000 mi.",
+     "* La révision Annual Service doit être effectuée tous les 12 mois.",
+     "En cas d'utilisation tout-terrain de la moto, il faut raccourcir les échéances des intervalles d'entretien par rapport à ceux prescrits."
+    ],
+    "figures": [],
+    "definitionsServices": [
+     {
+      "service": "First Service 1000",
+      "texte": "La révision First Service 1000 doit être effectuée après les premiers 1 000 km/600 mi ou avant six mois de la date de livraison de la moto au client.",
+      "km": 1000,
+      "mi": 600,
+      "mois": null,
+      "premiereEcheance": true
+     },
+     {
+      "service": "Oil Service",
+      "texte": "La révision Oil Service doit être effectuée tous les 15 000 km/9 000 mi.",
+      "km": 15000,
+      "mi": 9000,
+      "mois": null,
+      "premiereEcheance": false
+     },
+     {
+      "service": "Desmo Service",
+      "texte": "La révision Desmo Service doit être effectuée tous les 30 000 km/18 000 mi.",
+      "km": 30000,
+      "mi": 18000,
+      "mois": null,
+      "premiereEcheance": false
+     },
+     {
+      "service": "Annual Service",
+      "texte": "La révision Annual Service doit être effectuée tous les 12 mois.",
+      "km": null,
+      "mi": null,
+      "mois": 12,
+      "premiereEcheance": false
+     }
+    ],
+    "tableaux": [
+     {
+      "format": "services",
+      "colonnes": [
+       {
+        "id": "c1",
+        "label": "First Service 1000",
+        "labelBrut": "First Service 1000*",
+        "type": "service",
+        "km": 1000,
+        "mi": 600,
+        "mois": null,
+        "definition": "La révision First Service 1000 doit être effectuée après les premiers 1 000 km/600 mi ou avant six mois de la date de livraison de la moto au client."
+       },
+       {
+        "id": "c2",
+        "label": "Oil Service",
+        "labelBrut": "Oil Service*",
+        "type": "service",
+        "km": 15000,
+        "mi": 9000,
+        "mois": null,
+        "definition": "La révision Oil Service doit être effectuée tous les 15 000 km/9 000 mi."
+       },
+       {
+        "id": "c3",
+        "label": "Desmo Service",
+        "labelBrut": "Desmo Service*",
+        "type": "service",
+        "km": 30000,
+        "mi": 18000,
+        "mois": null,
+        "definition": "La révision Desmo Service doit être effectuée tous les 30 000 km/18 000 mi."
+       },
+       {
+        "id": "c4",
+        "label": "Annual Service",
+        "labelBrut": "Annual Service*",
+        "type": "service",
+        "km": null,
+        "mi": null,
+        "mois": 12,
+        "definition": "La révision Annual Service doit être effectuée tous les 12 mois."
+       }
+      ],
+      "operations": [
+       {
+        "libelle": "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+        "groupe": null,
+        "valeurs": {
+         "c1": "•",
+         "c2": "•",
+         "c3": "•",
+         "c4": "12"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c1",
+         "c2",
+         "c3",
+         "c4"
+        ]
+       },
+       {
+        "libelle": "Vidange de l'huile moteur et remplacement du filtre",
+        "groupe": null,
+        "valeurs": {
+         "c1": "•",
+         "c2": "•",
+         "c4": "24"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c1",
+         "c2",
+         "c4"
+        ]
+       },
+       {
+        "libelle": "Contrôle et nettoyage du filtre à air",
+        "groupe": null,
+        "valeurs": {
+         "c2": "•",
+         "c4": "24"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c2",
+         "c4"
+        ]
+       },
+       {
+        "libelle": "Remplacement du filtre à air",
+        "groupe": null,
+        "valeurs": {
+         "c3": "•"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c3"
+        ]
+       }
+      ],
+      "grille": [
+       [
+        "Annual Service*",
+        "Annual Service*",
+        "Annual Service*",
+        "Annual Service*",
+        ""
+       ],
+       [
+        "Desmo Service*",
+        "Desmo Service*",
+        "Desmo Service*",
+        "",
+        ""
+       ],
+       [
+        "Oil Service*",
+        "Oil Service*",
+        "",
+        "",
+        ""
+       ],
+       [
+        "First Service 1000*",
+        "",
+        "",
+        "",
+        ""
+       ],
+       [
+        "Lecture mémoire des pannes avec DDS et vérification des mises à jour techniques et campagnes de rappel sur DCS",
+        "•",
+        "•",
+        "•",
+        "12"
+       ],
+       [
+        "Vidange de l'huile moteur et remplacement du filtre",
+        "•",
+        "•",
+        "",
+        "24"
+       ],
+       [
+        "Contrôle et nettoyage du filtre à air",
+        "",
+        "•",
+        "",
+        "24"
+       ],
+       [
+        "Remplacement du filtre à air",
+        "",
+        "",
+        "•",
+        ""
+       ],
+       [
+        "Remplacement courroies distribution",
+        "",
+        "",
+        "•",
+        "60"
+       ],
+       [
+        "Contrôle et/ou réglage du jeu aux soupapes",
+        "",
+        "",
+        "•",
+        ""
+       ],
+       [
+        "Remplacement des bougies",
+        "",
+        "",
+        "•",
+        ""
+       ],
+       [
+        "Vidange du liquide de refroidissement",
+        "",
+        "",
+        "•",
+        "48"
+       ],
+       [
+        "Vidange de l'huile de fourche avant",
+        "tous les 15000 km / 9000mi",
+        "tous les 15000 km / 9000mi",
+        "tous les 15000 km / 9000mi",
+        "tous les 15000 km / 9000mi"
+       ],
+       [
+        "Contrôle visuel des éléments d'étanchéité fourche avant et amortisseur arrière",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du niveau d'huile de freins et d'embrayage",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Vidange du liquide de freins et d'embrayage",
+        "",
+        "",
+        "",
+        "24"
+       ],
+       [
+        "Contrôle de l'usure des plaquettes et des disques de frein avant et arrière",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du serrage des vis des étriers de frein et des vis des disques de frein avant et arrière",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du serrage des vis disque de frein arrière (avec dépose de l'axe de roue arrière en présence de vis de fixation du disque de frein avec prise de clé à six pans)",
+        "",
+        "",
+        "•",
+        ""
+       ],
+       [
+        "Contrôle des roues à branches en conformité avec le manuel d'atelier",
+        "•",
+        "•",
+        "•",
+        "12"
+       ],
+       [
+        "Contrôle du serrage des écrous de roue avant et arrière écrou couronne",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du serrage des fixations cadre au moteur, bras oscillant et amortisseur arrière",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle des roulements des moyeux de roue",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle amortisseur de couple sur la couronne et graissage axe de roue arrière",
+        "",
+        "",
+        "•",
+        ""
+       ],
+       [
+        "Contrôle de l'usure de chaîne, couronne et pignon, et contrôle de tension, graissage et relâchement chaîne de transmission finale. Valeur allongement mesurée :___________ (cm) (in)\nAttention\nIl est conseillé de remplacer le kit de chaîne de transmission finale sans dépasser 20 000 km/12 000 mi.",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du jeu des roulements de la colonne de direction",
+        "",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle de la liberté de mouvement et des serrages de la béquille latérale",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Vérifier que tous les soufflets et les tuyaux flexibles à vue (par ex. tubulures carburant, durites de frein et d'embrayage, circuit de refroidissement, purge, drainage, etc.) sont exempts de fissures, étanches et correctement placés",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle de la course à vide du levier de frein arrière et graissage des leviers au guidon et commandes à la pédale",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle de la pression et de l'usure des pneus",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle du fonctionnement des dispositifs électriques de sécurité (capteur béquille latérale et embrayage, contacteurs de freins avant et arrière, contacteur d'arrêt moteur, capteur de marche/point mort)",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Contrôle fonctionnement des dispositifs d'éclairage, clignotants, avertisseur sonore et commandes",
+        "•",
+        "•",
+        "",
+        "12"
+       ],
+       [
+        "Test final et essai sur route, avec contrôle du bon fonctionnement des dispositifs de sécurité (exemple : ABS et DTC), des électroventilateurs et du régime de ralenti",
+        "•",
+        "•",
+        "•",
+        "12"
+       ],
+       [
+        "Contrôle visuel du niveau de liquide de refroidissement et de l'étanchéité du circuit",
+        "•",
+        "•",
+        "•",
+        "12"
+       ],
+       [
+        "Nettoyage doux du véhicule",
+        "•",
+        "•",
+        "•",
+        "12"
+       ],
+       [
+        "Enregistrement de la révision et extinction du témoin Service sur le tableau de bord avec DDS ainsi que le remplissage du coupon de révision dans la documentation de bord (Livret de Service)",
+        "•",
+        "•",
+        "•",
+        "12"
+       ]
+      ]
+     }
+    ]
+   }
+  ],
+  "client": [
+   {
+    "titre": "Opérations à effectuer par le client",
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143146/143148",
+     "dmId": "143148",
+     "titre": "Opérations à effectuer par le client",
+     "code": "WSM.160.004.0002",
+     "version": "1.0",
+     "updateDate": "Sat May 09 00:00:00 CEST 2026"
+    },
+    "avertissements": [
+     {
+      "type": "important",
+      "texte": "L’utilisation du motocycle en conditions extrêmes, par exemple sur des routes mouillées ou boueuses, dans des environnements poussiéreux et secs, peut comporter une usure supérieure à la moyenne pour certains composants comme le système de transmission, les freins ou le filtre à air. Si le filtre à air est sale, le moteur peut subir des dommages. Par conséquent, la révision ou le remplacement des composants les plus exposés à l'usure pourrait s'avérer nécessaire avant d'atteindre l'intervalle prescrit dans le plan d'entretien programmé."
+     }
+    ],
+    "notes": [
+     "Plan d'entretien programmé : opérations à effectuer par le client",
+     "* Effectuer l'intervention d'entretien à l'échéance qui arrive en premier d'entre les deux (km/MI ou mois)."
+    ],
+    "tableaux": [
+     {
+      "format": "grille-km",
+      "colonnes": [
+       {
+        "id": "c2",
+        "label": "1000 km",
+        "type": "echeance",
+        "km": 1000,
+        "mi": 600,
+        "mois": 6
+       }
+      ],
+      "operations": [
+       {
+        "libelle": "Contrôle du niveau d'huile moteur",
+        "groupe": null,
+        "valeurs": {
+         "c2": "•"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c2"
+        ]
+       },
+       {
+        "libelle": "Contrôle du niveau d'huile de freins et d'embrayage",
+        "groupe": null,
+        "valeurs": {
+         "c2": "•"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c2"
+        ]
+       },
+       {
+        "libelle": "Contrôle de la pression et de l'usure des pneus",
+        "groupe": null,
+        "valeurs": {
+         "c2": "•"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c2"
+        ]
+       },
+       {
+        "libelle": "Contrôle de la tension et de la lubrification de la chaîne.",
+        "groupe": null,
+        "valeurs": {
+         "c2": "•"
+        },
+        "periodicite": null,
+        "echeances": [
+         "c2"
+        ]
+       }
+      ],
+      "grille": [
+       [
+        "Liste des opérations avec type d'intervention\n(échéance kilométrique / milles ou temporelle *)",
+        "km x 1 000",
+        "1"
+       ],
+       [
+        "Liste des opérations avec type d'intervention\n(échéance kilométrique / milles ou temporelle *)",
+        "MI x 1000",
+        "0,6"
+       ],
+       [
+        "Liste des opérations avec type d'intervention\n(échéance kilométrique / milles ou temporelle *)",
+        "Mois",
+        "6"
+       ],
+       [
+        "Contrôle du niveau d'huile moteur",
+        "Contrôle du niveau d'huile moteur",
+        "•"
+       ],
+       [
+        "Contrôle du niveau d'huile de freins et d'embrayage",
+        "Contrôle du niveau d'huile de freins et d'embrayage",
+        "•"
+       ],
+       [
+        "Contrôle de la pression et de l'usure des pneus",
+        "Contrôle de la pression et de l'usure des pneus",
+        "•"
+       ],
+       [
+        "Contrôle de la tension et de la lubrification de la chaîne.",
+        "Contrôle de la tension et de la lubrification de la chaîne.",
+        "•"
+       ],
+       [
+        "Contrôle des plaquettes de frein. Si elles sont usées, demander au concessionnaire de les remplacer",
+        "Contrôle des plaquettes de frein. Si elles sont usées, demander au concessionnaire de les remplacer",
+        "•"
+       ]
+      ]
+     }
+    ]
+   }
+  ],
+  "tableauxProgrammes": [],
+  "preLivraison": [
+   {
+    "parcoursId": "5eb1cbbd6810384cda9a",
+    "titre": "Pré-livraison du véhicule",
+    "source": {
+     "manualRoot": "870",
+     "dmPath": "870/143143/143144/143145",
+     "dmId": "143145",
+     "titre": "Pré-livraison du véhicule",
+     "code": "WSM.160.004.0214",
+     "version": "2.0",
+     "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+    }
+   }
+  ]
+ },
+ "proceduresParService": {
+  "First Service 1000": [
+   {
+    "parcoursId": "1da22961705e679b8277",
+    "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+    "operation": "Vidange de l'huile moteur et remplacement du filtre"
+   },
+   {
+    "parcoursId": "73a22b37648f0d2545f8",
+    "titre": "Contrôle du niveau du liquide de refroidissement",
+    "operation": "Contrôle du niveau du liquide de refroidissement"
+   },
+   {
+    "parcoursId": "c6591b32d0ca7f693192",
+    "titre": "Vidange liquide du circuit de freinage arrière",
+    "operation": "Contrôle du niveau d'huile des freins"
+   }
+  ],
+  "Oil Service": [
+   {
+    "parcoursId": "1da22961705e679b8277",
+    "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+    "operation": "Vidange de l'huile moteur et remplacement du filtre"
+   },
+   {
+    "parcoursId": "73a22b37648f0d2545f8",
+    "titre": "Contrôle du niveau du liquide de refroidissement",
+    "operation": "Contrôle du niveau du liquide de refroidissement"
+   },
+   {
+    "parcoursId": "c6591b32d0ca7f693192",
+    "titre": "Vidange liquide du circuit de freinage arrière",
+    "operation": "Contrôle du niveau d'huile des freins"
+   }
+  ],
+  "Annual Service (24)": [
+   {
+    "parcoursId": "1da22961705e679b8277",
+    "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+    "operation": "Vidange de l'huile moteur et remplacement du filtre"
+   },
+   {
+    "parcoursId": "c6591b32d0ca7f693192",
+    "titre": "Vidange liquide du circuit de freinage arrière",
+    "operation": "Contrôle du niveau d'huile des freins"
+   },
+   {
+    "parcoursId": "382efa786bebee5a46ff",
+    "titre": "Remplacement et nettoyage des filtres à air",
+    "operation": "Contrôle et nettoyage du filtre à air"
+   }
+  ],
+  "Desmo Service": [
+   {
+    "parcoursId": "73bb177c7b79a2c490dc",
+    "titre": "Remplacement des courroies de distribution",
+    "operation": "Remplacement des courroies de distribution"
+   },
+   {
+    "parcoursId": "d32ece935dc2d3711df3",
+    "titre": "Contrôle du jeu aux soupapes",
+    "operation": "Contrôle et réglage du jeu aux soupapes"
+   },
+   {
+    "parcoursId": "73a22b37648f0d2545f8",
+    "titre": "Contrôle du niveau du liquide de refroidissement",
+    "operation": "Contrôle du niveau du liquide de refroidissement"
+   }
+  ],
+  "Annual Service (60)": [
+   {
+    "parcoursId": "73bb177c7b79a2c490dc",
+    "titre": "Remplacement des courroies de distribution",
+    "operation": "Remplacement des courroies de distribution"
+   }
+  ],
+  "Annual Service (12)": [
+   {
+    "parcoursId": "73a22b37648f0d2545f8",
+    "titre": "Contrôle du niveau du liquide de refroidissement",
+    "operation": "Contrôle du niveau du liquide de refroidissement"
+   },
+   {
+    "parcoursId": "c6591b32d0ca7f693192",
+    "titre": "Vidange liquide du circuit de freinage arrière",
+    "operation": "Contrôle du niveau d'huile des freins"
+   },
+   {
+    "parcoursId": "ad954fa032da42f5840e",
+    "titre": "Vidange liquide du circuit de freinage avant",
+    "operation": "Contrôle du niveau d'huile des freins"
+   }
+  ],
+  "Annual Service (48)": [
+   {
+    "parcoursId": "3381b482ebcaa093e8e9",
+    "titre": "Vidange du liquide de refroidissement",
+    "operation": "Vidange du liquide de refroidissement"
+   }
+  ]
+ },
+ "procedures": [
+  {
+   "parcoursId": "a53882173c0aefcbb85c",
+   "role": "procedure",
+   "titre": "Contrôle du niveau d'huile moteur",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143149/143150",
+    "dmId": "143150",
+    "titre": "Contrôle du niveau d'huile moteur",
+    "code": "WSM.160.004.0207",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "intervention": null,
+   "nbEtapes": 7,
+   "outils": [],
+   "produits": [
+    "SHELL Advance DUCATI 15W-50 Fully Synthetic",
+    "SAE 15W-50",
+    "JASO MA2",
+    "SHELL Advance 4T Ultra 15W-50"
+   ],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "temps": [],
+   "liens": []
+  },
+  {
+   "parcoursId": "1da22961705e679b8277",
+   "role": "procedure",
+   "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143149/230188",
+    "dmId": "230188",
+    "titre": "Vidange de l'huile moteur et remplacement de la cartouche de filtre",
+    "code": "WSM.160.004.0942",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "intervention": {
+    "operation": "Vidange de l'huile moteur et remplacement du filtre",
+    "operations": [
+     {
+      "operation": "Vidange de l'huile moteur et remplacement du filtre",
+      "services": [
+       "First Service 1000"
+      ]
+     },
+     {
+      "operation": "Vidange de l'huile moteur et remplacement du filtre",
+      "services": [
+       "Oil Service"
+      ]
+     },
+     {
+      "operation": "Vidange de l'huile moteur et remplacement du filtre",
+      "services": [
+       "Annual Service (24)"
+      ]
+     }
+    ],
+    "services": [
+     "First Service 1000",
+     "Oil Service",
+     "Annual Service (24)"
+    ],
+    "tempsMois": null,
+    "echeances": []
+   },
+   "nbEtapes": 12,
+   "outils": [
+    {
+     "reference": "88713.2906",
+     "description": "Clé de serrage cartouche à huile"
+    }
+   ],
+   "produits": [],
+   "produitIndiqueSurFigure": true,
+   "couples": [
+    {
+     "etape": 4,
+     "valeurNm": 20,
+     "min": 18,
+     "max": 22,
+     "tolerance": null,
+     "reperes": [
+      "1"
+     ],
+     "texte": "Serrer le bouchon de vidange (1) au couple de 20 Nm (Min. 18 Nm - Max. 22 Nm)."
+    },
+    {
+     "etape": 6,
+     "valeurNm": 13,
+     "min": 12,
+     "max": 14,
+     "tolerance": null,
+     "reperes": [
+      "2"
+     ],
+     "texte": "Visser la cartouche (2) dans le siège relatif et la serrer au couple de 13 Nm (Min. 12 Nm - Max. 14 Nm)"
+    },
+    {
+     "etape": 8,
+     "valeurNm": 10,
+     "min": 9,
+     "max": 11,
+     "tolerance": null,
+     "reperes": [
+      "5"
+     ],
+     "texte": "Serrer la crépine de filtration (5) au couple de 10 Nm (Min. 9 Nm - Max. 11 Nm)"
+    },
+    {
+     "etape": 8,
+     "valeurNm": 42,
+     "min": 38,
+     "max": 46,
+     "tolerance": null,
+     "reperes": [
+      "3"
+     ],
+     "texte": "Serrer le bouchon (3) au couple de 42 Nm (Min. 38 Nm - Max. 46 Nm)."
+    },
+    {
+     "etape": 9,
+     "valeurNm": 42,
+     "min": 38,
+     "max": 46,
+     "tolerance": null,
+     "reperes": [
+      "6"
+     ],
+     "texte": "Serrer le bouchon de vidange (6) au couple de 42 Nm (Min. 38 Nm - Max. 46 Nm)."
+    }
+   ],
+   "temps": [],
+   "liens": [
+    {
+     "titre": "Dépose du sous-carter d'huile",
+     "dmPath": "870/143160/143170/143173",
+     "parcoursId": "9cfdba66dbe360b4f8e9"
+    },
+    {
+     "titre": "Dépose du système d'échappement",
+     "dmPath": "870/143248/143255/230316",
+     "parcoursId": "f30d4473c6d3d7d82778"
+    },
+    {
+     "titre": "Repose du système d'échappement",
+     "dmPath": "870/143248/143255/230317",
+     "parcoursId": "86d6a1c8d9e263eeee0d"
+    },
+    {
+     "titre": "Repose du sous-carter d'huile",
+     "dmPath": "870/143160/143170/143174",
+     "parcoursId": "188dc90706040ffdb3be"
+    }
+   ]
+  },
+  {
+   "parcoursId": "73bb177c7b79a2c490dc",
+   "role": "procedure",
+   "titre": "Remplacement des courroies de distribution",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143149/230190",
+    "dmId": "230190",
+    "titre": "Remplacement des courroies de distribution",
+    "code": "WSM.160.004.0332",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "intervention": {
+    "operation": "Remplacement des courroies de distribution",
+    "operations": [
+     {
+      "operation": "Remplacement des courroies de distribution",
+      "services": [
+       "Desmo Service"
+      ]
+     },
+     {
+      "operation": "Remplacement des courroies de distribution",
+      "services": [
+       "Annual Service (60)"
+      ]
+     }
+    ],
+    "services": [
+     "Desmo Service",
+     "Annual Service (60)"
+    ],
+    "tempsMois": null,
+    "echeances": []
+   },
+   "nbEtapes": 1,
+   "outils": [
+    {
+     "reference": "88765.1635",
+     "description": "Outil porte disque gradué pour contrôle avance avec disque"
+    },
+    {
+     "reference": "88765.1623",
+     "description": "Outil de calage poulies distribution"
+    },
+    {
+     "reference": "97900.0253",
+     "description": "Mise en tension courroies"
+    },
+    {
+     "reference": "88713.2011",
+     "description": "Outil pour blocage vilebrequin au PMH (point mort haut)"
+    }
+   ],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [],
+   "temps": [],
+   "liens": [
+    {
+     "titre": "Dépose du tendeur mobile/courroie de distribution",
+     "dmPath": "870/143262/143270/230340",
+     "parcoursId": "98be20ceab0ea30a3eee"
+    },
+    {
+     "titre": "Repose tendeur mobile/courroie de distribution",
+     "dmPath": "870/143262/143270/230349",
+     "parcoursId": "ffec11708568b9c7913c"
+    }
+   ]
+  },
+  {
+   "parcoursId": "d32ece935dc2d3711df3",
+   "role": "procedure",
+   "titre": "Contrôle du jeu aux soupapes",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143149/230189",
+    "dmId": "230189",
+    "titre": "Contrôle du jeu aux soupapes",
+    "code": "WSM.160.004.1207",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "intervention": {
+    "operation": "Contrôle et réglage du jeu aux soupapes",
+    "operations": [
+     {
+      "operation": "Contrôle et réglage du jeu aux soupapes",
+      "services": [
+       "Desmo Service"
+      ]
+     }
+    ],
+    "services": [
+     "Desmo Service"
+    ],
+    "tempsMois": null,
+    "echeances": []
+   },
+   "nbEtapes": 14,
+   "outils": [
+    {
+     "reference": "88713.2011",
+     "description": "Outil pour blocage vilebrequin au PMH (point mort haut)"
+    },
+    {
+     "reference": "88765.1635",
+     "description": "Outil calage du moteur et contrôle de calage"
+    }
+   ],
+   "produits": [],
+   "produitIndiqueSurFigure": false,
+   "couples": [
+    {
+     "etape": 13,
+     "valeurNm": 5,
+     "min": 4.5,
+     "max": 5.5,
+     "tolerance": null,
+     "reperes": [
+      "1"
+     ],
+     "texte": "Serrer les vis (1) au couple de 5 Nm (Min. 4,5 Nm - Max. 5,5 Nm)."
+    }
+   ],
+   "temps": [],
+   "liens": [
+    {
+     "titre": "Dépose de la selle",
+     "dmPath": "870/143160/143165/143166",
+     "parcoursId": "bbb1368d79f2618e6aa8"
+    },
+    {
+     "titre": "Dépose réservoir de carburant",
+     "dmPath": "870/143248/143249/230305",
+     "parcoursId": "dae01e76fd2f9439ab22"
+    },
+    {
+     "titre": "Dépose du boîtier de filtre et du corps à papillons",
+     "dmPath": "870/143248/143253/230310",
+     "parcoursId": "a2d61ebe775a99c61db5"
+    },
+    {
+     "titre": "Dépose des couvercles extérieurs de la distribution",
+     "dmPath": "870/143262/143270/230339",
+     "parcoursId": "b137aff8ad145021b1c3"
+    },
+    {
+     "titre": "Dépose sous-carter",
+     "dmPath": "870/143160/143170/143173",
+     "parcoursId": "9cfdba66dbe360b4f8e9"
+    },
+    {
+     "titre": "Dépose du radiateur eau",
+     "dmPath": "870/143262/143266/230330",
+     "parcoursId": "19fd708ccea3c9bd0678"
+    },
+    {
+     "titre": "Remplacement des bougies",
+     "dmPath": "870/143143/143149/230191",
+     "parcoursId": "9c7255b12ea633d9d2a7"
+    },
+    {
+     "titre": "Dépose du système air secondaire",
+     "dmPath": "870/143248/143254/230314",
+     "parcoursId": "e6fe2e24eca4a0c86ae7"
+    },
+    {
+     "titre": "Dépose des arbres à cames",
+     "dmPath": "870/143262/143272/230350",
+     "parcoursId": "dcb9bc32413b64ed652d"
+    },
+    {
+     "titre": "Dépose tendeur mobile/courroie de distribution",
+     "dmPath": "870/143262/143270/230340",
+     "parcoursId": "98be20ceab0ea30a3eee"
+    },
+    {
+     "titre": "Dépose des soupapes",
+     "dmPath": "870/143262/143273/230356",
+     "parcoursId": "e772bde5ae489dedffbd"
+    },
+    {
+     "titre": "Dépose des soupapes",
+     "dmPath": "870/143262/143273/230356",
+     "parcoursId": "e772bde5ae489dedffbd"
+    },
+    {
+     "titre": "Repose des arbres à cames",
+     "dmPath": "870/143262/143272/230352",
+     "parcoursId": "4f01cc85caeeb2313d5d"
+    },
+    {
+     "titre": "Repose du système air secondaire",
+     "dmPath": "870/143248/143254/230315",
+     "parcoursId": "b0a7a39632a3d544ea37"
+    },
+    {
+     "titre": "Remplacement des bougies",
+     "dmPath": "870/143143/143149/230191",
+     "parcoursId": "9c7255b12ea633d9d2a7"
+    },
+    {
+     "titre": "Repose radiateur d'eau",
+     "dmPath": "870/143262/143266/230331",
+     "parcoursId": "56fb99110c1dfe4dfc8b"
+    },
+    {
+     "titre": "Repose sous-carter",
+     "dmPath": "870/143160/143170/143174",
+     "parcoursId": "188dc90706040ffdb3be"
+    },
+    {
+     "titre": "Repose des couvercles extérieurs de la distribution",
+     "dmPath": "870/143262/143270/230347",
+     "parcoursId": "c2193c40442a68440974"
+    },
+    {
+     "titre": "Repose du boîtier de filtre et du corps à papillons",
+     "dmPath": "870/143248/143253/230311",
+     "parcoursId": "cd0882475ede29ce1101"
+    },
+    {
+     "titre": "Repose réservoir de carburant",
+     "dmPath": "870/143248/143249/230308",
+     "parcoursId": "1de77c32bc91b243e214"
+    },
+    {
+     "titre": "Repose de la selle",
+     "dmPath": "870/143160/143165/143169",
+     "parcoursId": "8f2dbe87442ee9c125a0"
+    }
+   ]
+  }
+ ],
+ "proceduresLiees": [
+  {
+   "parcoursId": "42a6a83fed90994cb724",
+   "titre": "Ravitaillements et lubrifiants",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143134/143135",
+    "dmId": "143135",
+    "titre": "Ravitaillements et lubrifiants",
+    "code": "WSM.140.002.1250",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "nbEtapes": 4,
+   "couples": 0
+  },
+  {
+   "parcoursId": "9792b1badf785660dd18",
+   "titre": "Dépose demi-carénage avant",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143160/143164/230199",
+    "dmId": "230199",
+    "titre": "Dépose demi-carénage avant",
+    "code": "WSM.190.099.0161",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "nbEtapes": 7,
+   "couples": 0
+  },
+  {
+   "parcoursId": "5f96d1cb659bd4d2d3d8",
+   "titre": "Repose demi-carénage avant",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143160/143164/230200",
+    "dmId": "230200",
+    "titre": "Repose demi-carénage avant",
+    "code": "WSM.190.099.0104",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "nbEtapes": 11,
+   "couples": 4
+  }
+ ],
+ "ravitaillements": [
+  {
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143134/143135",
+    "dmId": "143135",
+    "titre": "Ravitaillements et lubrifiants",
+    "code": "WSM.140.002.1250",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "lignes": [
+    {
+     "element": "Réservoir à carburant, avec réserve de 4 litres (0.88 UK gal)",
+     "specification": "– Ducati recommande l'utilisation du carburant super sans plomb SHELL V-Power avec un taux d'octane minimum de 95 RON\n– Pour le marché USA, SHELL V-Power avec indice d'octanes minimum d'au moins 90 (RON+MON)/2",
+     "quantiteTexte": "21 litres (4.62 UK gal)",
+     "quantites": [
+      {
+       "valeur": 21,
+       "tolerance": null,
+       "unite": "l",
+       "type": "volume",
+       "condition": null
+      }
+     ],
+     "produits": [
+      "SHELL V-Power"
+     ]
+    },
+    {
+     "element": "Circuit de graissage USA, CANADA, ITALIE",
+     "specification": "Ducati prescrit l'utilisation de l'huile SAE 15W-50/JASO MA2 uniquement et suggère l'utilisation de l'huile Shell Advance DUCATI 15W-50 Fully Synthetic Oil",
+     "quantiteTexte": "3,1 litres (0.68 UK gal)",
+     "quantites": [
+      {
+       "valeur": 3.1,
+       "tolerance": null,
+       "unite": "l",
+       "type": "volume",
+       "condition": null
+      }
+     ],
+     "produits": [
+      "SHELL Advance DUCATI 15W-50 Fully Synthetic",
+      "SAE 15W-50",
+      "JASO MA2"
+     ]
+    },
+    {
+     "element": "Circuit de graissage autres pays",
+     "specification": "Ducati prescrit l'utilisation de l'huile SAE 15W-50/JASO MA2 uniquement et suggère l'utilisation de l'huile Shell Advance 4T Ultra 15W-50 (JASO : MA2 et API : SN)",
+     "quantiteTexte": "3,1 litres (0.68 UK gal)",
+     "quantites": [
+      {
+       "valeur": 3.1,
+       "tolerance": null,
+       "unite": "l",
+       "type": "volume",
+       "condition": null
+      }
+     ],
+     "produits": [
+      "SHELL Advance 4T Ultra 15W-50",
+      "SAE 15W-50",
+      "JASO MA2"
+     ]
+    }
+   ],
+   "avertissements": [
+    {
+     "type": "attention",
+     "texte": "Le non-respect des limites de charge pourrait influencer négativement la maniabilité et le rendement du motocycle, ainsi que provoquer la perte de contrôle du motocycle."
+    },
+    {
+     "type": "important",
+     "texte": "L'emploi d'additifs dans le carburant ou dans les lubrifiants est à proscrire. L’utilisation de ces carburants peut gravement endommager le moteur et les composants du motocycle."
+    },
+    {
+     "type": "attention",
+     "texte": "Le motocycle est compatible seulement avec des carburants ayant un contenu maximum d'éthanol de 10 % (E10). L’utilisation de carburants avec des pourcentages d'éthanol supérieurs à 10 % est interdite. L’utilisation de ces carburants peut gravement endommager le moteur et les composants du motocycle. L’utilisation de carburants avec des pourcentages d'éthanol supérieurs à 10 % entraîne l'annulation de la garantie."
+    },
+    {
+     "type": "important",
+     "texte": "Ces références indiquent le carburant conseillé pour ce motocycle comme prévu par le règlement européen EN228."
+    }
+   ],
+   "notes": [
+    "Huile moteur",
+    "Une bonne huile moteur possède certaines qualités particulières. Utiliser exclusivement de l'huile moteur détergente de qualité supérieure, au moins certifiée « pour entretien SE, SF ou SG ».",
+    "Conseils sur l'huile",
+    "Il est conseillé d'utiliser une huile conforme aux spécifications suivantes :",
+    "Viscosité SAE 15W-50.",
+    "Spécification API : SN.",
+    "Spécification JASO : MA2.",
+    "SAE 15W-50 est le code alphanumérique identifiant la classification des huiles sur la base de leur viscosité : deux chiffres intercalés d'un W (« winter ») ; le premier chiffre indique la viscosité de l'huile à des températures plus rigoureuses ; le second chiffre, supérieur, indique la viscosité à des températures élevées. API (classification américaine) et JASO (standard japonais) sont des indications sur les caractéristiques que l'huile doit avoir."
+   ]
+  }
+ ],
+ "couplesSerrageGeneraux": [
+  {
+   "titre": "Couples de serrage moteur",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143136/143138",
+    "dmId": "143138",
+    "titre": "Couples de serrage moteur",
+    "code": "WSM.140.002.0892",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "nbLignes": 5,
+   "lignes": [
+    {
+     "groupe": "SÉLECTEUR DE VITESSE",
+     "description": "Vis du rochet sélecteur de vitesse",
+     "reperes": [],
+     "quantite": null,
+     "filetage": "M8x1,25",
+     "pas": "M8x1,25",
+     "longueur": null,
+     "valeurNm": 36,
+     "valeurTexte": "36",
+     "min": null,
+     "max": 38,
+     "produits": null,
+     "remarques": "FREIN-FILET PRÉ-APPLIQUÉ"
+    },
+    {
+     "groupe": "SÉLECTEUR DE VITESSE",
+     "description": "Vis fixation came barillet sélecteur",
+     "reperes": [],
+     "quantite": null,
+     "filetage": "M8x1,25",
+     "pas": "M8x1,25",
+     "longueur": null,
+     "valeurNm": 25,
+     "valeurTexte": "25",
+     "min": null,
+     "max": 28,
+     "produits": null,
+     "remarques": "LOCK 2"
+    },
+    {
+     "groupe": "SÉLECTEUR DE VITESSE",
+     "description": "Vis du rochet sélecteur de vitesse",
+     "reperes": [],
+     "quantite": null,
+     "filetage": "M6x1",
+     "pas": "M6x1",
+     "longueur": null,
+     "valeurNm": 16,
+     "valeurTexte": "16",
+     "min": null,
+     "max": 17,
+     "produits": null,
+     "remarques": "FREIN-FILET PRÉ-APPLIQUÉ"
+    },
+    {
+     "groupe": "BOÎTE DE VITESSES / EMBRAYAGE",
+     "description": "Écrou tambour d'embrayage",
+     "reperes": [],
+     "quantite": null,
+     "filetage": "M25x1,5",
+     "pas": "M25x1,5",
+     "longueur": null,
+     "valeurNm": 190,
+     "valeurTexte": "190",
+     "min": null,
+     "max": 200,
+     "produits": null,
+     "remarques": "GREASE B"
+    },
+    {
+     "groupe": "BOÎTE DE VITESSES / EMBRAYAGE",
+     "description": "Vis ressort embrayage à bain d'huile - FCC",
+     "reperes": [],
+     "quantite": null,
+     "filetage": "M6x1",
+     "pas": "M6x1",
+     "longueur": null,
+     "valeurNm": 10,
+     "valeurTexte": "10",
+     "min": null,
+     "max": 11,
+     "produits": null,
+     "remarques": null
+    }
+   ]
+  },
+  {
+   "titre": "Couples de serrage du cadre",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143136/143137",
+    "dmId": "143137",
+    "titre": "Couples de serrage du cadre",
+    "code": "WSM.140.002.1067",
+    "version": "2.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "nbLignes": 5,
+   "lignes": [
+    {
+     "groupe": "ACCESSOIRES",
+     "description": "Fixation rétroviseur gauche",
+     "reperes": [],
+     "quantite": "1",
+     "filetage": "M10x1,25",
+     "pas": null,
+     "longueur": null,
+     "valeurNm": 40,
+     "valeurTexte": "40",
+     "min": null,
+     "max": null,
+     "produits": null,
+     "remarques": null
+    },
+    {
+     "groupe": "ACCESSOIRES",
+     "description": "Fixation rétroviseur droit",
+     "reperes": [],
+     "quantite": "1",
+     "filetage": "M10x1,25",
+     "pas": null,
+     "longueur": null,
+     "valeurNm": 40,
+     "valeurTexte": "40",
+     "min": null,
+     "max": null,
+     "produits": null,
+     "remarques": null
+    },
+    {
+     "groupe": "BÉQUILLE",
+     "description": "Serrage contre-écrou axe de rotation béquille latérale",
+     "reperes": [],
+     "quantite": "1",
+     "filetage": "M10x1,25",
+     "pas": null,
+     "longueur": null,
+     "valeurNm": 35,
+     "valeurTexte": "35*",
+     "min": null,
+     "max": null,
+     "produits": null,
+     "remarques": "LOCK 3"
+    },
+    {
+     "groupe": "BÉQUILLE",
+     "description": "Fixation capteur béquille",
+     "reperes": [],
+     "quantite": "1",
+     "filetage": "M6x1",
+     "pas": null,
+     "longueur": null,
+     "valeurNm": 5,
+     "valeurTexte": "5",
+     "min": null,
+     "max": null,
+     "produits": null,
+     "remarques": null
+    },
+    {
+     "groupe": "BÉQUILLE",
+     "description": "Fixation axe de rotation béquille latérale",
+     "reperes": [],
+     "quantite": "1",
+     "filetage": "M10x1,25",
+     "pas": null,
+     "longueur": null,
+     "valeurNm": 35,
+     "valeurTexte": "35*",
+     "min": null,
+     "max": null,
+     "produits": null,
+     "remarques": "GREASE A + LOCK 3"
+    }
+   ]
+  }
+ ],
+ "outilsService": [
+  {
+   "titre": "Équipement spécifique cadre",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143139/143141",
+    "dmId": "143141",
+    "titre": "Équipement spécifique cadre",
+    "code": "WSM.150.001.0113",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "outils": [
+    {
+     "reference": "80007.0139",
+     "description": "Clé axe de roue avant",
+     "image": {
+      "src": "/edocdmimages/2A/2AC5D6C9E1082C533973DC8D669C284E.png",
+      "zoom": "/edocdmimages/2A/2AC5D6C9E1082C533973DC8D669C284E.png",
+      "local": "images/edocdmimages/2A/2AC5D6C9E1082C533973DC8D669C284E.png",
+      "localMiniature": "images/edocdmimages/2A/2AC5D6C9E1082C533973DC8D669C284E.png"
+     }
+    },
+    {
+     "reference": "88713.0025",
+     "description": "Outil de dépose / repose bouchon de fourche",
+     "image": {
+      "src": "/edocdmimages/0F/0F1FD1F9AB6A479127723206F5A948F2.png",
+      "zoom": "/edocdmimages/0F/0F1FD1F9AB6A479127723206F5A948F2.png",
+      "local": "images/edocdmimages/0F/0F1FD1F9AB6A479127723206F5A948F2.png",
+      "localMiniature": "images/edocdmimages/0F/0F1FD1F9AB6A479127723206F5A948F2.png"
+     }
+    },
+    {
+     "reference": "88713.0030",
+     "description": "Outil d'introduction bague/rondelle de calage",
+     "image": {
+      "src": "/edocdmimages/FE/FEA8AB00BDE6EA7B3E51E97884A3F9D3.png",
+      "zoom": "/edocdmimages/FE/FEA8AB00BDE6EA7B3E51E97884A3F9D3.png",
+      "local": "images/edocdmimages/FE/FEA8AB00BDE6EA7B3E51E97884A3F9D3.png",
+      "localMiniature": "images/edocdmimages/FE/FEA8AB00BDE6EA7B3E51E97884A3F9D3.png"
+     }
+    }
+   ]
+  },
+  {
+   "titre": "Équipement spécifique moteur",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143139/143140",
+    "dmId": "143140",
+    "titre": "Équipement spécifique moteur",
+    "code": "WSM.150.001.0093",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "outils": [
+    {
+     "reference": "88713.0137",
+     "description": "Clé de blocage d'engrenage vilebrequin",
+     "image": {
+      "src": "/edocdmimages/43/43627D42A6C2461D7BCF9EFD24183DA5.png",
+      "zoom": "/edocdmimages/43/43627D42A6C2461D7BCF9EFD24183DA5.png",
+      "local": "images/edocdmimages/43/43627D42A6C2461D7BCF9EFD24183DA5.png",
+      "localMiniature": "images/edocdmimages/43/43627D42A6C2461D7BCF9EFD24183DA5.png"
+     }
+    },
+    {
+     "reference": "88713.2676",
+     "description": "Clé pour blocage écrous culasse (M10)",
+     "image": {
+      "src": "/edocdmimages/B5/B5F3A1225D4E0B27709E13E0112F61DF.png",
+      "zoom": "/edocdmimages/B5/B5F3A1225D4E0B27709E13E0112F61DF.png",
+      "local": "images/edocdmimages/B5/B5F3A1225D4E0B27709E13E0112F61DF.png",
+      "localMiniature": "images/edocdmimages/B5/B5F3A1225D4E0B27709E13E0112F61DF.png"
+     }
+    },
+    {
+     "reference": "88713.2103",
+     "description": "Base pour pose culasses",
+     "image": {
+      "src": "/edocdmimages/48/4840354384BD5B043A9A0F4BA00D3927.png",
+      "zoom": "/edocdmimages/48/4840354384BD5B043A9A0F4BA00D3927.png",
+      "local": "images/edocdmimages/48/4840354384BD5B043A9A0F4BA00D3927.png",
+      "localMiniature": "images/edocdmimages/48/4840354384BD5B043A9A0F4BA00D3927.png"
+     }
+    }
+   ]
+  },
+  {
+   "titre": "Équipement spécifique diagnostic",
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143113/143139/143142",
+    "dmId": "143142",
+    "titre": "Équipement spécifique diagnostic",
+    "code": "WSM.150.001.0081",
+    "version": "1.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   },
+   "outils": [
+    {
+     "reference": "97900.0281",
+     "description": "Clé « HASP DDS3.0 »",
+     "image": {
+      "src": "/edocdmimages/3F/3F30F83CD0AACF103FA1B04BBD27401D.png",
+      "zoom": "/edocdmimages/3F/3F30F83CD0AACF103FA1B04BBD27401D.png",
+      "local": "images/edocdmimages/3F/3F30F83CD0AACF103FA1B04BBD27401D.png",
+      "localMiniature": "images/edocdmimages/3F/3F30F83CD0AACF103FA1B04BBD27401D.png"
+     }
+    },
+    {
+     "reference": "97900.0279",
+     "description": "DDS 3 (Ducati Diagnosis System 3.0)",
+     "image": {
+      "src": "/edocdmimages/94/947F959BA62D93F16269B58B6FAACA46.png",
+      "zoom": "/edocdmimages/94/947F959BA62D93F16269B58B6FAACA46.png",
+      "local": "images/edocdmimages/94/947F959BA62D93F16269B58B6FAACA46.png",
+      "localMiniature": "images/edocdmimages/94/947F959BA62D93F16269B58B6FAACA46.png"
+     }
+    },
+    {
+     "reference": "97900.0253",
+     "description": "Mise en tension courroies",
+     "image": {
+      "src": "/edocdmimages/36/36DE9C5B50D092167ED416C0159778CB.png",
+      "zoom": "/edocdmimages/36/36DE9C5B50D092167ED416C0159778CB.png",
+      "local": "images/edocdmimages/36/36DE9C5B50D092167ED416C0159778CB.png",
+      "localMiniature": "images/edocdmimages/36/36DE9C5B50D092167ED416C0159778CB.png"
+     }
+    }
+   ]
+  }
+ ],
+ "produitsCatalogue": [
+  {
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143104/143105/265794",
+    "dmId": "265794",
+    "titre": "Caractéristiques des produits",
+    "code": "WSM.000.000.0064",
+    "version": "2.0",
+    "updateDate": "Tue Mar 17 00:00:00 CET 2026"
+   },
+   "produits": [
+    {
+     "categorie": "LOCTITE",
+     "code": "LOCK 1",
+     "caracteristiques": "Frein-filet à faible résistance mécanique.",
+     "produit": "Loctite 222",
+     "symboles": [
+      {
+       "src": "/edocdmimages/8C/8C2A615E3E644522A454777159571E59.png",
+       "zoom": "/edocdmimages/8C/8C2A615E3E644522A454777159571E59.png",
+       "local": "images/edocdmimages/8C/8C2A615E3E644522A454777159571E59.png",
+       "localMiniature": "images/edocdmimages/8C/8C2A615E3E644522A454777159571E59.png"
+      }
+     ]
+    },
+    {
+     "categorie": "LOCTITE",
+     "code": "LOCK 2",
+     "caracteristiques": "Frein-filet à moyenne résistance mécanique, compatible avec l'huile.",
+     "produit": "Loctite 243 (Ou bien THREE BOND TB1324)",
+     "symboles": [
+      {
+       "src": "/edocdmimages/26/26599C0B948086426F3FFFF0C2C21223.png",
+       "zoom": "/edocdmimages/26/26599C0B948086426F3FFFF0C2C21223.png",
+       "local": "images/edocdmimages/26/26599C0B948086426F3FFFF0C2C21223.png",
+       "localMiniature": "images/edocdmimages/26/26599C0B948086426F3FFFF0C2C21223.png"
+      }
+     ]
+    },
+    {
+     "categorie": "LOCTITE",
+     "code": "LOCK 3",
+     "caracteristiques": "Frein-filet à haute résistance mécanique pour blocage parties filetées.",
+     "produit": "Loctite 270",
+     "symboles": [
+      {
+       "src": "/edocdmimages/91/91352017B79F1911B5A2D8CE89D50620.png",
+       "zoom": "/edocdmimages/91/91352017B79F1911B5A2D8CE89D50620.png",
+       "local": "images/edocdmimages/91/91352017B79F1911B5A2D8CE89D50620.png",
+       "localMiniature": "images/edocdmimages/91/91352017B79F1911B5A2D8CE89D50620.png"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "temps": [
+  {
+   "intitule": "OIL SERVICE 1000",
+   "tempsTexte": "1h:06min (11 UT)",
+   "minutes": 66,
+   "ut": 11,
+   "valeurs": [
+    "OIL SERVICE 1000",
+    "1h:06min (11 UT)"
+   ],
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143144/143145",
+    "dmId": "143145",
+    "titre": "Pré-livraison du véhicule",
+    "code": "WSM.160.004.0214",
+    "version": "2.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   }
+  },
+  {
+   "intitule": "OIL SERVICE 15000",
+   "tempsTexte": "1h:42min (17 UT)",
+   "minutes": 102,
+   "ut": 17,
+   "valeurs": [
+    "OIL SERVICE 15000",
+    "1h:42min (17 UT)"
+   ],
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143144/143145",
+    "dmId": "143145",
+    "titre": "Pré-livraison du véhicule",
+    "code": "WSM.160.004.0214",
+    "version": "2.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   }
+  },
+  {
+   "intitule": "ANNUAL SERVICE",
+   "tempsTexte": "30min (5 UT)",
+   "minutes": 30,
+   "ut": 5,
+   "valeurs": [
+    "ANNUAL SERVICE",
+    "30min (5 UT)"
+   ],
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143144/143145",
+    "dmId": "143145",
+    "titre": "Pré-livraison du véhicule",
+    "code": "WSM.160.004.0214",
+    "version": "2.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   }
+  },
+  {
+   "intitule": "Interventions DESMO SERVICE",
+   "tempsTexte": "3h:00min (30 UT)",
+   "minutes": 180,
+   "ut": 30,
+   "valeurs": [
+    "Interventions DESMO SERVICE",
+    "3h:00min (30 UT)"
+   ],
+   "source": {
+    "manualRoot": "870",
+    "dmPath": "870/143143/143144/143145",
+    "dmId": "143145",
+    "titre": "Pré-livraison du véhicule",
+    "code": "WSM.160.004.0214",
+    "version": "2.0",
+    "updateDate": "Tue Sep 16 00:00:00 CEST 2025"
+   }
+  }
+ ],
+ "manques": []
+}

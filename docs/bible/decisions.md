@@ -31,6 +31,52 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   « un seul catalogue avec le Shopify lié », « si des produits n'existent pas on les crée dans la db », « un seul stock
   … des petits logos G8, Shopify, Ducati ») ; règles de réalisation : équipe.*
   [M02](modules/M02-articles.md), [mission 03](missions/mission-03-shopify.md), [mission 06](missions/mission-06-catalogue-pieces.md)
+## 2026-09-23 — Mission 07, carte 3 : manuels d'atelier Ducati (réalisation)
+
+- **M-26** — **Les manuels d'atelier vivent dans leurs propres tables `wsm_*`**, à côté des
+  `maintenance_*`, pas dedans. Deux sources différentes : `maintenance_*` vient des fiches PDF
+  « Entretien Transparent » (59 plans, temps commerciaux, par plage d'années), `wsm_*` vient des
+  manuels d'atelier du DM Ducati (469 modèles-années exacts, le geste technique, 3 336 procédures,
+  36 326 étapes, temps réels en UT). Granularités, cycles de mise à jour et usages différents : on
+  ne les mélange pas, **on les rapproche par le modèle-année du catalogue**
+  (`ducati_catalog_model_years`). Les écrans existants de la carte 07-1 ne bougent pas.
+  *Équipe · 23/09.* [mission 07](missions/mission-07-plan-entretien.md), [M08](modules/M08-atelier.md)
+
+- **M-27** — **Déduplication des procédures conservée en base** : une procédure partagée par
+  plusieurs modèles-années n'est stockée **qu'une fois** (`wsm_procedures`, clé = identifiant de
+  parcours de l'extraction), ses usages sont dans `wsm_procedure_usages` avec le **chemin du DM
+  propre à chaque modèle-année**. 3 336 procédures pour 23 211 usages : sans déduplication il y
+  aurait 253 000 étapes au lieu de 36 326. Chaque valeur garde sa source (manuel, chemin du DM,
+  titre, code WSM, version, date de mise à jour). *Équipe · 23/09.*
+  [M08](modules/M08-atelier.md)
+
+- **M-28** — **Rattachement manuel ↔ catalogue en deux règles, jamais deviné** : (1) identifiant du
+  DM égal à l'identifiant e-catalog → **lié** (138 modèles-années) ; (2) même famille, même
+  millésime et même nom normalisé → **lié** s'il n'y a qu'un candidat (288), **à valider** s'il y
+  en a plusieurs (9, typiquement ABS / non-ABS ou 2G / 3G). **34 modèles-années n'ont aucune
+  correspondance** : le catalogue e-catalog ne les a pas encore (Panigale V4 SP2 / Superleggera,
+  Scrambler 2G 2023+, Streetfighter V4 3G…). Soit 426 rattachés fermement sur 469. Un rattachement
+  décidé à l'écran (`origin = 'manuel'`) n'est **jamais** écrasé par une proposition automatique.
+  *Équipe · 23/09.* [mission 07](missions/mission-07-plan-entretien.md)
+
+- **M-29** — **Les 52 Go d'images des manuels ne vont ni dans le dépôt ni en base.** Seules les
+  **26 384 images citées par les procédures d'entretien** comptent (**12,75 Go** : 13 198 figures
+  pleine taille = 8,10 Go, 13 186 miniatures = 4,65 Go) — le reste de l'extraction concerne des
+  sections hors entretien. Destination : **bucket Supabase Storage privé `wsm-images`**, lecture par
+  URL signée pour les comptes de l'équipe, dédoublonnage par nom de fichier (les noms de
+  l'extraction sont déjà des empreintes du contenu). `wsm_images` tient l'inventaire et l'état
+  d'envoi, l'envoi est repris là où il s'est arrêté. **Recommandation : n'envoyer que les
+  13 198 figures pleine taille (8,10 Go)** et afficher la vignette par redimensionnement à la volée
+  de Storage, plutôt que de stocker deux fois la même image. *Équipe · 23/09.*
+  [M08](modules/M08-atelier.md)
+
+- **M-30** — **Deux formats de programme d'entretien dans les manuels, les deux sont chargés.** Les
+  manuels récents nomment leurs révisions (Oil Service, Desmo Service, Annual Service…) ; **235 des
+  469** n'ont qu'une **grille kilométrique** (« 1000 km », « 15000 km »…). Les échéances des seconds
+  sont reconstruites depuis la grille : sans cela la moitié du parc arriverait sans aucune échéance.
+  Échéance **au premier atteint** (km ou mois) partout, conformément à M-16. Les en-têtes de colonne
+  qui ne sont pas des échéances (« km x 1000 », « Temps (mois) ») sont écartés.
+  *Équipe · 23/09.* [M08](modules/M08-atelier.md)
 
 ## 2026-09-21 — Mission 06, carte 4 : reconnaître la moto par son VIN (choix de réalisation)
 

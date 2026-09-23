@@ -51,17 +51,17 @@ tools/*
 !tools/maintenance-loader/
 # Exception : générateur de la table des motifs de VIN (code seul ; les VIN restent dans Téléchargements).
 !tools/vin-patterns/
-<<<<<<< HEAD
 # Exception : chargeur des catalogues accessoires et vêtements Ducati (code seul ; données dans Téléchargements).
 !tools/accessories-loader/
-=======
 # Exception : données de démonstration des parcours d'entretien (code seul ; les manuels restent
 # dans Desktop/ducati/manuels-extraits).
 !tools/journey-demo/
 # Figures des manuels d'atelier copiées pour la démonstration (~300 Mo) — hors repo.
 # Les regénérer : node tools/journey-demo/copy-images.mjs
 public/manuels/
->>>>>>> origin/lot-parcours
+# Exception : chargeur des manuels d'atelier (code seul ; l'extraction et ses 52 Go d'images
+# restent dans Desktop/ducati/manuels-extraits).
+!tools/wsm-loader/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 

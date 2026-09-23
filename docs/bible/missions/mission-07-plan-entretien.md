@@ -34,7 +34,7 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 |---|---|---|
 | 1 | Plans d'entretien par modèle et par année — 🟦 fait le 21/09, à valider (§5) | 06-2 |
 | 2 | Forfaits d'entretien avec pièces, temps et devis automatique | 07-1, 06-3 |
-| 3 | Lier nos documents d'entretien au modèle | 06-2 |
+| 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
 | 4 | Prochain entretien de chaque moto | 07-1, 06-4 |
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
 | 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé | 07-2 |
@@ -160,6 +160,47 @@ utilisable.
 - Outils : `tools/journey-demo/build.mjs` (fabrique `public/demo/parcours-entretien.json`, 213 Ko)
   et `tools/journey-demo/copy-images.mjs` (figures d'un service).
 - Tests : `tests/workshop-journey.test.ts` — 55 tests, dont 8 sur les **vraies données** des manuels.
+### 23/09 — Carte 3 « Lier nos documents d'entretien au modèle » (ATE014) — manuels d'atelier
+
+**Pour l'utilisateur**
+- **Atelier → Plans d'entretien**, nouvel onglet **Manuels d'atelier** : la liste des **469
+  modèles-années** couverts par un manuel d'atelier Ducati (filtre famille + recherche), et pour
+  chacun son **programme d'entretien officiel** — les échéances avec leur km / mi / mois **au premier
+  atteint**, le nombre d'opérations, le nombre de procédures et le **temps réel du manuel en UT**
+  (1 UT = 6 min) —, les **modèles du catalogue rattachés** et la source (fichier de l'extraction).
+- C'est un **écran de vérification**, pas encore le parcours technicien : les étapes, les figures et
+  les couples pas à pas viendront sur une autre branche.
+
+**Données prêtes à charger** (extraction locale `Desktop/ducati/manuels-extraits`, accord Ducati) :
+**469 modèles-années** (2012–2027) · **1 984 échéances** · **29 403 opérations** ·
+**3 336 procédures uniques** (**36 326 étapes**, **5 764 couples**) pour **23 211 usages** ·
+**14 681 procédures rattachées à une échéance** · **1 843 temps en UT** ·
+933 tableaux de couples généraux (**150 356 lignes**) · 1 297 jeux d'outils (21 610 lignes) ·
+468 tableaux de ravitaillements (3 123 lignes) · 414 tableaux de produits (19 939 lignes) ·
+**26 384 images citées (12,75 Go)**, hors dépôt et hors base.
+
+**Rattachement au catalogue** : 138 par identifiant e-catalog + 288 par nom et millésime = **426
+rattachés fermement**, **9 à valider** (ABS / non-ABS, 2G / 3G), **34 sans correspondance** (le
+catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
+
+**Technique**
+- Migrations **écrites, testées en transaction annulée, PAS appliquées** :
+  `supabase/migrations/20260923100000_m8_manuels_atelier.sql` (15 tables `wsm_*` globales, RLS
+  lecture équipe, écriture par clé de service ou administrateur) et
+  `supabase/migrations/20260923101000_m8_manuels_atelier_chargement.sql` (`wsm_ingest_procedures`,
+  `wsm_ingest_manuals`, `wsm_ingest_images`, `wsm_propose_catalog_links`, `wsm_link_set`,
+  `wsm_stats`, `wsm_manual_list`, `wsm_manual_overview`). Une ligne `events` par appel du chargeur,
+  jamais par ligne (`wsm_procedures_loaded`, `wsm_manuals_loaded`, `wsm_images_indexed`,
+  `wsm_links_proposed`, `wsm_manual_linked` / `_unlinked`).
+- **Chargeur** `tools/wsm-loader/` (`transform.mjs` pur et testé, `load.mjs`, `images.mjs`,
+  `env.mjs`) : lecture en flux (un fichier à la fois), idempotent — empreinte par modèle-année et
+  par procédure, clé de contenu par ligne. Essai à blanc complet en **6 s** sur les vrais fichiers.
+- **Vitesse mesurée aux volumes réels** (jeu complet simulé, transaction annulée) :
+  `wsm_manual_list` 38 ms sur les 469, 7 ms filtrée · `wsm_manual_overview` 11 ms · `wsm_stats` 15 ms.
+  Très en dessous du `statement_timeout` de 8 s.
+- Tests : `tests/wsm-loader.test.ts` (26 tests, extraits **réels** en fixture dans
+  `tests/fixtures/manuels-atelier/` — un manuel à révisions nommées, un manuel en grille
+  kilométrique, une procédure ; aucune donnée personnelle).
 
 ## 5 bis. Cartes proposées (21/09)
 
