@@ -83,11 +83,19 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
   dépôt-vente **doit** avoir un article ; `vehicle_ensure_article` le crée avec le VIN comme
   référence à défaut (B9), le régime TVA (B2) et le coût de revient (B3), et l'entrée de stock de 1
   (B5, B7). Lien **dans les deux sens** : `vehicles.article_id` ↔ `articles.vehicle_id`, uniques.
-- **Publication sur le site** (M-37) : le bouton « Publier sur le site » n'est proposé que pour
-  `stock_vn`, `stock_vo` et `depot_vente`. **À la facturation**, un déclencheur sur `stock_moves`
+- **Publication sur le site** (M-37, élargi par M-40) : le bouton « Publier sur le site » est proposé
+  pour **tout le parc vendable** — « En stock » (`stock_vn`, `stock_vo`, `reserve`, `demo`) et
+  « Dépôt-vente » (`depot_vente`, `depot_agent`). Plus rien n'est grisé à tort. **À la facturation**, un déclencheur sur `stock_moves`
   passe la moto en « Vendu », remplit `sold_date`, vide le prix affiché, inscrit l'acheteur dans
   `vehicle_owners` et dépublie l'article (trace `events` `moto_vendue`). Couvre le comptoir, la
   caisse et les commandes du site.
+- **Moto créée depuis une annonce du site** (décision **M-40** du 23/09) : une moto en ligne sur le
+  site qu'aucune fiche du parc ne reconnaît reçoit **sa fiche et son article**, lus dans l'annonce
+  (marque, modèle, année, prix, statut de parc), référence `WEB-…`. La fiche est créée **sans VIN** —
+  **dérogation assumée à B9** — avec `vehicles.to_complete` et `to_complete_reason`. **Garde-fou : la
+  moto ne peut pas être facturée tant que le VIN n'est pas saisi** (déclencheur
+  `trg_moto_sans_vin_bloque_la_vente` sur `document_lines`, documents FAC et TIK ; miroir TypeScript
+  `canInvoice`). Badge « À compléter » sur la fiche et filtre dans la liste des motos.
 - **Statuts parc** (VEH007) — énumération `vehicle_status` : `en_commande`, `stock_vn`, `stock_vo`, `depot_vente`, `reserve`, `vendu`, `livre`, `courtoisie`, `demo`, `depot_agent`, `repris` (affiché « Demande de reprise »).
 - **Coût de revient** (glossaire, B3) : `PA ou prix de reprise + ORO + frais`, recalculé par `recompute_oro_and_vehicle` à chaque ligne d'ORO (M07). Le champ est **aussi saisissable** dans le formulaire (voir §7).
 - **Historique des propriétaires** (VEH003, B9) : table `vehicle_owners` datée (`from_date`, `to_date`, `is_current`). Alimentée par l'import G8, la reprise (vendeur = ancien propriétaire) et lue par My Ducati pour mettre à jour le contact.
@@ -174,4 +182,5 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-09-19 | **Mission 04 carte 6** : « Ajouter une moto » depuis la fiche client (propriétaire en une transaction, sans article), codes carte grise sur les libellés, contrôle du VIN, refus d'un doublon + rattachement de la moto existante | branche `lot-m4-moto`, migration `20260919300000_m3_moto_client_depuis_fiche` (appliquée le 19/09) |
 | 2026-09-21 | **Mission 06, carte 4** : reconnaissance hors ligne de la moto par son VIN (797 motifs, précision mesurée par validation croisée), remplissage automatique des champs vides sur la fiche moto, la reprise et « Ajouter ma moto », liste des versions à choisir, rattachement au catalogue si confiance unique | branche `lot-vin`, migration `20260921210000_m3_vin_reconnaissance` (**à appliquer**) |
 | 2026-09-23 | **Mission 03, « Motos à vendre »** (M-36 à M-39) : lien véhicule ↔ article dans les deux sens, statut de parc, `vehicle_ensure_article`, vente → moto vendue + propriétaire + dépublication, contrôle de cohérence, encart « Moto à vendre » sur la fiche ; **68 articles de moto créés et 30 motos du site rattachées en production** | branche `lot-motos`, migrations `20260923150000` + `20260923151000` (**appliquées le 23/09**) |
+| 2026-09-23 | **Mission 03, « Motos à vendre » — zéro travail manuel** (M-40) : les 25 motos en ligne sans fiche créées automatiquement depuis l'annonce (VIN vide + « à compléter », vente bloquée sans VIN), annonces obsolètes écartées, propositions purifiées à **zéro**, publication ouverte à tout le parc vendable, photos des annonces rapatriées | branche `lot-motos`, migration `20260923180000` (**appliquée le 23/09**) |
 | 2026-09-21 | **Mission 06, carte 2** : modèles Ducati par année (familles, cylindrées, modèles, millésimes ; filtre Europe par nom de modèle, depuis 2000) importés par fichiers d'extraction ou par l'extension ; extension My Ducati v0.10.0 (section catalogue) | branche `lot-catalogue`, migration `20260921100000_m3_catalogue_ducati_modeles` (appliquée le 21/09) |

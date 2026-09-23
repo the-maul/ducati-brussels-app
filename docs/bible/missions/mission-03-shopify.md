@@ -70,6 +70,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Réserver le stock dès qu'une commande du site est passée, même non payée | 🟦 21/09 — fait, à valider (§5 quater) ; même réglage Arrêté / Actif que l'import des commandes (livré Arrêté) |
 | Un seul catalogue : chaque produit du site est un article du DMS (M-25) | 🟦 22/09 — fait, à valider (§5 quinquies) ; migrations `20260921200000` + `20260921201000` à appliquer |
 | **Motos à vendre : du stock du DMS au site** (M-36) | 🟦 23/09 — fait, à valider (§5 septies) ; migrations `20260923150000` + `20260923151000` **appliquées en production le 23/09** |
+| **Motos à vendre : zéro travail manuel** (M-40) | 🟦 23/09 — fait, à valider (§5 octies) ; migration `20260923180000` **appliquée en production le 23/09** |
 
 ## 4. Questions en attente
 
@@ -545,16 +546,58 @@ fantômes. `motos_site_a_creer(société)` liste les **25 motos en ligne** à cr
    les 458 propositions restent à valider (les « titre » sont les plus utiles, elles ne visent que
    des motos encore au parc).
 
+## 5 octies. Zéro travail manuel (M-40, 23/09, second passage)
+
+Retour de Simon le même jour : « je ne veux rien avoir à faire *à la main* ». Les points ouverts
+ci-dessous ont donc été repris et traités automatiquement (migration `20260923180000`, appliquée en
+production le 23/09). Rien n'est écrit sur Shopify : la synchronisation reste **Arrêtée**.
+
+| Vérifié en base le 23/09 | Avant | Après |
+|---|---|---|
+| Motos **en ligne** sur le site sans fiche au parc | **25** | **0** |
+| Fiches moto au parc | 3 335 | **3 360** (25 créées depuis les annonces) |
+| Fiches moto avec un article | 74 | **99** |
+| Articles de moto **publiables** (bouton actif) | 56 | **99** (plus rien de grisé) |
+| Propositions **à valider** | **458** | **0** |
+| dont rejetées « annonce obsolète » / « doublon » / « ambiguïté » | — | **376 / 82 / 0** |
+| Annonces obsolètes listées à part (motos déjà vendues) | — | **185**, avec un bouton unique de retrait |
+| Fiches moto marquées « à compléter » | 0 | **91** (25 sans VIN + 66 sans prix d'achat) |
+| Photos d'annonce rapatriées sur les articles de moto | 0 | **412** (19 motos sur 25 ; les 6 dernières par le bouton « Reprendre photos et textes ») |
+| Stock des articles de moto | 74 | **99**, toutes à 1, **0 négatif**, **0 anomalie** |
+| Écritures sur Shopify | aucune | **aucune** (mode « Arrêtée », journal des envois vide) |
+| 2ᵉ exécution | — | 0 création, 0 rejet : **idempotente** |
+
+**Comment la moto est lue dans l'annonce** : le modèle est le titre privé de son slogan (« Multistrada
+V4 S Radars - "TVA 21 % et Garantie 4 ans" » → « Multistrada V4 S Radars ») ; l'année est le premier
+`19xx`/`20xx` du titre (aucun des 25 titres n'en portait) ; la marque est Ducati sauf si le titre
+commence par une autre marque (1 cas : une Alfa Romeo Tonale d'occasion) ; le statut de parc est
+« Dépôt-vente » si le titre le dit (5 cas), « En stock (neuf) » si l'annonce est de type « Moto
+neuve » (4 cas), « En stock (occasion) » sinon (16 cas). 1 moto a pu être rattachée au catalogue
+Ducati par son nom de modèle.
+
+**Le garde-fou du VIN.** La dérogation à B9 porte sur la création, jamais sur la vente : un
+déclencheur sur `document_lines` refuse toute ligne de **facture (FAC)** ou de **ticket (TIK)**
+portant une moto sans VIN, avec le message « Numéro de châssis (VIN) manquant sur la moto « … » :
+complétez-le sur la fiche moto avant de la facturer. » La fiche affiche l'avertissement, la liste des
+motos a un filtre **« À compléter »** et un badge.
+
+**Ce qui reste, et pourquoi c'est irréductible.** Les 185 annonces obsolètes correspondent à des motos
+**déjà vendues** dont l'annonce est restée en brouillon sur le site : il n'y a rien à créer ni à
+rattacher côté DMS. Elles ne sont plus dans la file « à valider » ; le seul geste possible est de les
+retirer du site, ce qui est une **écriture Shopify** et attend l'accord explicite de Simon (un bouton
+unique le fait d'un coup). Les 82 propositions rejetées en « doublon » visaient des produits ou des
+motos déjà rattachés ailleurs. **Aucune proposition n'est restée « ambiguë »** : la file est à zéro.
+
 ### Points ouverts
 
 - **60 articles de moto sur 68 entrent sans coût de revient** : le parc repris de G8 n'a ni prix
   d'achat ni coût de revient. La marge de ces motos sera fausse tant qu'un PA n'est pas saisi.
   Même effet que les 305 pièces de la reprise Shopify (§5 ter).
-- **25 des 26 motos en ligne sur le site n'ont pas de fiche moto reconnue** alors que le parc compte
-  74 motos vendables : les titres du site sont des noms commerciaux (« Multistrada V4 S Radars —
-  "TVA 21 % et Garantie 4 ans" ») et plusieurs motos identiques cohabitent au parc. À trancher avec
-  Simon : soit il renseigne le **SKU = référence de la moto** sur chaque annonce du site (le
-  rattachement devient alors automatique), soit il valide les propositions une à une.
+- ~~25 des 26 motos en ligne n'ont pas de fiche moto reconnue~~ — **traité le 23/09 par M-40**
+  (§5 octies) : les 25 fiches ont été créées automatiquement depuis les annonces. Elles portent un
+  **VIN vide** à compléter et ne peuvent pas être facturées en l'état. **Doublon possible** : si l'une
+  de ces 25 motos existait déjà au parc sous une autre référence, la saisie du VIN le révélera (le
+  contrôle de doublon de VIN joue à l'enregistrement, M03 §4).
 - **Le retrait automatique du site à la facturation** dépublie l'article et remet le stock à 0, mais
   ne passe pas le produit Shopify en brouillon : `shopify-publish` n'accepte que l'appel d'un
   administrateur. Sans effet aujourd'hui (mode « Arrêtée ») ; à reprendre quand la synchronisation
