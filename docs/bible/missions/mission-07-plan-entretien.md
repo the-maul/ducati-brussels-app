@@ -117,17 +117,17 @@ source (fichier, page, édition). Catalogue Ducati vide ce jour → **0 rattache
 - C'est un **écran de vérification**, pas encore le parcours technicien : les étapes, les figures et
   les couples pas à pas viendront sur une autre branche.
 
-**Données prêtes à charger** (extraction locale `Desktop/ducati/manuels-extraits`, accord Ducati) :
-**469 modèles-années** (2012–2027) · **1 984 échéances** · **29 403 opérations** ·
-**3 336 procédures uniques** (**36 326 étapes**, **5 764 couples**) pour **23 211 usages** ·
-**14 681 procédures rattachées à une échéance** · **1 843 temps en UT** ·
-933 tableaux de couples généraux (**150 356 lignes**) · 1 297 jeux d'outils (21 610 lignes) ·
-468 tableaux de ravitaillements (3 123 lignes) · 414 tableaux de produits (19 939 lignes) ·
-**26 384 images citées (12,75 Go)**, hors dépôt et hors base.
+**Données chargées en production le 23/09** (extraction locale `Desktop/ducati/manuels-extraits`,
+accord Ducati) : **461 manuels d'atelier couvrant 469 modèles-années** (2012-2027) ·
+**1 949 échéances** · **28 988 opérations** · **3 336 procédures uniques** (**36 326 étapes**,
+**5 764 couples**) pour **22 864 usages** · **14 363 procédures rattachées à une échéance** ·
+**1 783 temps en UT** · 917 tableaux de couples généraux (**147 976 lignes**) · 1 273 jeux d'outils
+(21 291 lignes) · 460 tableaux de ravitaillements (3 068 lignes) · 406 tableaux de produits
+(19 514 lignes) · **26 384 images citées (12,75 Go)**, hors dépôt et hors base.
 
-**Rattachement au catalogue** : 138 par identifiant e-catalog + 288 par nom et millésime = **426
-rattachés fermement**, **9 à valider** (ABS / non-ABS, 2G / 3G), **34 sans correspondance** (le
-catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
+**Rattachement au catalogue** : 138 par identifiant e-catalog + 280 par nom et millésime = **418
+rattachés fermement sur 461**, **9 à valider** (ABS / non-ABS, 2G / 3G), **34 sans correspondance**
+(le catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
 
 **Technique**
 - Migrations **écrites, testées en transaction annulée, PAS appliquées** :
@@ -147,6 +147,34 @@ catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
 - Tests : `tests/wsm-loader.test.ts` (26 tests, extraits **réels** en fixture dans
   `tests/fixtures/manuels-atelier/` — un manuel à révisions nommées, un manuel en grille
   kilométrique, une procédure ; aucune donnée personnelle).
+
+### 23/09 (soir) — Chargement en production et branchement du parcours technicien
+
+**Chargement fait.** Le premier chargement s'arrêtait sur « fetch failed » : PostgREST coupe toute
+requête à 8 s, même avec la clé de service (décision M-32). Le chargeur borne désormais ses lots,
+**coupe en deux** un lot trop long, réessaie avec attente doublée, affiche l'erreur complète et tient
+un **journal de reprise**. Vérifié : les 3 175 procédures déjà écrites avaient toutes la bonne
+empreinte, rien à nettoyer, la reprise a simplement ajouté les 161 manquantes.
+
+**En base aujourd'hui** : 461 manuels · 3 336 procédures · 36 326 étapes · 5 764 couples ·
+22 864 usages · 1 949 échéances · 28 988 opérations · 14 363 procédures par échéance ·
+1 783 temps UT · 917 tableaux de couples (147 976 lignes) · 1 273 jeux d'outils · 460
+ravitaillements · 406 tableaux de produits.
+
+**Reste à appliquer** (migrations écrites et vérifiées en transaction annulée, **non appliquées**) :
+`20260923102000_m8_manuels_atelier_modeles_couverts.sql` (un manuel couvre plusieurs
+modèles-années, M-31, + la règle de rapprochement des noms qui donne 418 rattachements au lieu de
+253) et `20260923103000_m8_manuels_atelier_vues_parcours.sql` (les trois vues du parcours
+technicien, M-33). Puis :
+`node tools/wsm-loader/load.mjs --only manuals --force` et
+`node tools/wsm-loader/load.mjs --links --company 3d9f0f13-a691-4d07-ad58-34590df86e33`.
+
+**Branchement de l'écran « parcours technicien »** (branche `lot-manuels-branchement`) : les trois
+vues portent exactement les noms de `MANUAL_TABLES` et les formes de `journey/types.ts`, donc
+`source.ts` bascule tout seul de la démonstration à la base. Deux corrections y sont faites :
+`getProcedure` lit `etapes` directement dans la vue (plus de ressource imbriquée PostgREST), et
+`listPrograms` ne prend que l'identité des modèles-années — le `select('*')` d'origine ramenait
+**6,47 Mo** pour 461 lignes alors que la liste n'est affichée qu'en mode démonstration.
 
 ## 5 bis. Cartes proposées (21/09)
 

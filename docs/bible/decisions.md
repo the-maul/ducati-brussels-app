@@ -28,13 +28,38 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   [M08](modules/M08-atelier.md)
 
 - **M-28** — **Rattachement manuel ↔ catalogue en deux règles, jamais deviné** : (1) identifiant du
-  DM égal à l'identifiant e-catalog → **lié** (138 modèles-années) ; (2) même famille, même
-  millésime et même nom normalisé → **lié** s'il n'y a qu'un candidat (288), **à valider** s'il y
-  en a plusieurs (9, typiquement ABS / non-ABS ou 2G / 3G). **34 modèles-années n'ont aucune
-  correspondance** : le catalogue e-catalog ne les a pas encore (Panigale V4 SP2 / Superleggera,
-  Scrambler 2G 2023+, Streetfighter V4 3G…). Soit 426 rattachés fermement sur 469. Un rattachement
-  décidé à l'écran (`origin = 'manuel'`) n'est **jamais** écrasé par une proposition automatique.
-  *Équipe · 23/09.* [mission 07](missions/mission-07-plan-entretien.md)
+  DM égal à l'identifiant e-catalog → **lié** (138 manuels) ; (2) même famille, même millésime et
+  même écriture de modèle → **lié** s'il n'y a qu'un candidat (280), **à valider** s'il y en a
+  plusieurs (9, typiquement ABS / non-ABS ou 2G / 3G). **34 manuels n'ont aucune correspondance** :
+  le catalogue e-catalog ne les a pas encore (Panigale V4 SP2 / Superleggera, Scrambler 2G 2023+,
+  Streetfighter V4 3G…). Soit **418 rattachés fermement sur 461**. La règle d'écriture des noms est
+  la même dans le chargeur et dans le bouton « Proposer les rattachements » (fonctions SQL
+  `_wsm_up` / `_wsm_fam` / `_wsm_keys`) : l'écran et le chargeur donnent le même résultat.
+  Un rattachement décidé à l'écran (`origin = 'manuel'`) n'est **jamais** écrasé par une proposition
+  automatique. *Équipe · 23/09.* [mission 07](missions/mission-07-plan-entretien.md)
+
+- **M-31** — **Un manuel peut couvrir plusieurs modèles-années.** L'extraction liste 469
+  modèles-années pour **461 fichiers** : Ducati ne publie qu'un manuel pour deux versions
+  (MONSTER 797 et 797 + en 2017-2019, MONSTER 937 et 937 + en 2021-2025). Le manuel est donc stocké
+  **une fois**, avec la liste des modèles-années qu'il couvre (`wsm_manuals.covers_model_year_ids`),
+  et le rattachement au catalogue est proposé pour **chacun** d'eux. Sans cela ces 8 modèles-années
+  disparaissaient silencieusement. *Équipe · 23/09.* [M08](modules/M08-atelier.md)
+
+- **M-32** — **PostgREST coupe toute requête à 8 s**, y compris avec la clé de service (le rôle
+  `authenticator` porte `statement_timeout = 8 s`) ; côté Node cela se voit seulement comme
+  « fetch failed ». Tout chargeur du projet doit donc : borner ses lots (nombre, octets et lignes
+  filles), **couper un lot trop long en deux** et réessayer, poser un délai explicite par requête
+  (60 s) avec réessais à attente doublée, afficher l'erreur complète (statut HTTP + corps + code
+  réseau), et tenir un **journal de reprise** pour repartir où il s'est arrêté. Chaque appel
+  d'ingestion est une transaction : un appel coupé ne laisse rien à moitié écrit.
+  *Équipe · 23/09.* [M08](modules/M08-atelier.md)
+
+- **M-33** — **L'écran « parcours technicien » lit les tables `wsm_*` par trois vues** nommées
+  `ducati_manual_programs` / `ducati_manual_procedures` / `ducati_manual_procedure_steps`, aux
+  formes exactes de `journey/types.ts`. On publie des vues plutôt que de renommer les tables ou de
+  réécrire l'écran : la bascule « démonstration → base » de `source.ts` se fait toute seule.
+  `security_invoker = true` : la RLS des tables `wsm_*` s'applique, les vues n'ouvrent aucune porte.
+  *Équipe · 23/09.* [M08](modules/M08-atelier.md)
 
 - **M-29** — **Les 52 Go d'images des manuels ne vont ni dans le dépôt ni en base.** Seules les
   **26 384 images citées par les procédures d'entretien** comptent (**12,75 Go** : 13 198 figures

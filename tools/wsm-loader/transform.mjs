@@ -169,7 +169,12 @@ export function procedureImages(j) {
  * Un modèle-année : identité, programme officiel (échéances + opérations), usages de procédures,
  * procédures par échéance, annexes et temps en UT.
  * @param j       contenu du fichier d'entretien
- * @param opts    { sourceFile, extractedAt }
+ * @param opts    { sourceFile, extractedAt, coversModelYearIds }
+ *
+ * `coversModelYearIds` : les modèles-années du DM que CE manuel couvre. Ducati publie parfois un
+ * seul manuel pour deux versions (Monster 797 et 797 +, Monster 937 et 937 +) : l'index de
+ * l'extraction liste alors 469 modèles-années pour 461 fichiers. Sans cette liste, les 8 versions
+ * en double seraient perdues au lieu d'être rattachées au catalogue.
  */
 export function buildManual(j, opts = {}) {
   const m = (j && j.modele) || {};
@@ -380,6 +385,7 @@ export function buildManual(j, opts = {}) {
     gaps: arr(j.manques),
     source_file: opts.sourceFile ?? null,
     extracted_at: opts.extractedAt ?? j.genereLe ?? null,
+    covers_model_year_ids: [...new Set([String(m.myId), ...arr(opts.coversModelYearIds).map(String)])].sort(),
     services,
     operations: uniqueOperations,
     usages,
