@@ -8,6 +8,34 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-23 — Motos à vendre : du stock du DMS au site (mission 03)
+
+- **M-36** — **Pas de faux client « Italbike Store ».** Une moto est **à la fois** une fiche véhicule
+  (VIN, propriétaires, entretiens) **et** un article (**V** neuf, **O** occasion particulier → TVA
+  marge, **P** occasion professionnel, **D** dépôt-vente). Ce qui la rend vendable est son **statut de
+  parc**, déjà porté par `vehicles.status` (11 valeurs, **réutilisé**, aucun nouveau statut) :
+  « En stock » (à nous, aucun propriétaire, visible sur le site) · « Dépôt-vente » (propriétaire =
+  client déposant, visible sur le site) · « Vendue » (propriétaire = acheteur, retirée du site) ·
+  « Moto client » (statut « Vendu » **sans article**, décision M-12 : jamais sur le site).
+  *Simon · 23/09.* M03, M07, mission 03.
+- **M-37** — **Le bouton « Publier sur le site » n'est proposé que pour « En stock » et
+  « Dépôt-vente ».** « Réservée » et « Démo » restent au parc mais ne sont pas proposées ; à la
+  **facturation**, la moto sort du stock, change de propriétaire et est dépubliée automatiquement
+  (déclencheur sur `stock_moves`, donc aussi depuis la caisse et les commandes du site).
+  *Équipe · 23/09.* M03, M06.
+- **M-38** — **Une moto du site n'est rattachée automatiquement que si la correspondance est sûre** :
+  VIN cité dans le produit (score 95) ou **SKU du site = référence G8 de la moto**, unique des deux
+  côtés (score 90). Le reste — nom de modèle, titre approchant — reste **à valider à la main**.
+  Mesuré le 23/09 : **aucune** correspondance par VIN possible (l'instantané Shopify ne reprend pas
+  la description des produits), 30 rattachements sûrs par référence, 458 propositions à valider.
+  *Équipe · 23/09.* Mission 03, M03.
+- **M-39** — **On ne crée pas de fiche moto à partir d'une annonce du site.** Une fiche sans VIN est
+  contraire à B9 et polluerait le parc (le site garde 213 annonces en brouillon d'anciennes motos
+  vendues). Les **25 motos en ligne** qu'aucune fiche du parc ne reconnaît sont listées pour être
+  créées à la main. *Équipe · 23/09.* Mission 03, M03.
+
+---
+
 ## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
 
 - **M-25** — **Un seul catalogue, un seul stock : les articles du DMS (Pièces & Accessoires).** Il n'y a plus de

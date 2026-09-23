@@ -57,6 +57,14 @@ Menu latéral : **Reprises motos clients** (`/tradein`). Le dépôt-vente (`/con
 - **Coût de revient** (glossaire) = `prix de reprise + Σ ORO` (`recompute_oro_and_vehicle`). Une ligne « pièce » liée à un article sort la pièce du stock en **cession** (origine `oro`), pas en vente. Marge potentielle affichée = prix de vente − coût de revient.
 - **TVA sur marge** (B2, VEN006, COM006, art. 58 §4 CTVA) : pour les articles **O** vendus (FAC, TIK non annulés), marge = max(PV TTC − PA, 0) ; TVA marge = marge × 21/121 ; base = marge / 1,21. Le **PA** est `articles.purchase_price` (prix de reprise, sans l'ORO). Type **P** = TVA 21 % normale, hors registre. La facture d'une vente O porte la mention légale du régime de la marge. Décision client (CLAUDE.md §5) : le comptable corrige après coup, tout doit rester paramétrable et auditable.
 - **Dépôt-vente** (type D, glossaire) : le véhicule reste la propriété du déposant et **n'entre pas** dans la valeur de stock (`stock_value_owned` exclut D). À la vente : commission (% du prix TTC ou montant fixe) et reversement = prix − commission.
+- **Depuis le 23/09 (décision M-36, mission 03)** : une moto au statut de parc « Dépôt-vente »
+  (`depot_vente`, `depot_agent`) reçoit **bien un article de type D** et une entrée de stock de 1
+  **sans valeur** (`vehicle_ensure_article`, M03) — 7 motos en production. L'écran `/consignment`
+  (dépôt-vente « simple », sans article ni véhicule) n'est pas relié à ce flux : les deux coexistent,
+  à unifier dans une carte dédiée.
+- **Vente d'une occasion** : depuis le 23/09, la facturation passe la moto en « Vendu », inscrit
+  l'acheteur dans `vehicle_owners` et dépublie l'article (déclencheur `trg_moto_sortie_de_stock`,
+  M03 §4). Le point « la vente d'une occasion ne passe pas la moto en vendu » de §7 est corrigé.
 - **Numérotation** : séquence `REP` par société ; les préfixes `ORO-`, `OCC-` et `DEP-` prévus par CLAUDE.md §4.3 **ne sont pas utilisés** (l'ORO est le dossier REP lui-même ; l'article occasion prend la référence REP ; le n° de dépôt-vente est saisi à la main).
 - **Multi-société + audit** : `company_id` + RLS `is_member` sur toutes les tables (lignes d'ORO via l'en-tête) ; triggers `audit_row` sur `oro`, `oro_lines`, `consignments`.
 
@@ -115,7 +123,7 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 - **Fuite possible du registre** : `vo_margin_register` saute le contrôle de société quand l'appelant n'est pas connecté (`auth.uid() is null`). Si l'exécution est ouverte au rôle `anon` (audit Supabase, `etat-projet.md` §5), le registre VO d'une société (VIN, prix, marges) est lisible sans connexion. Idem `settle_consignment` en écriture. **À vérifier en priorité.**
 - **Dépôt-vente minimal** : aucun article D ni fiche véhicule créés, n° saisi à la main, pas de statut « restitué » dans l'écran, `settle_consignment` ne vérifie pas que le dépôt est encore `en_depot` (un second règlement écrase le premier), la commission n'est ni facturée ni ventilée en TVA. Écran sans entrée de menu.
 - **ORO et reprise confondus** dans la table `oro` : il n'est pas possible d'ouvrir un ORO sur une occasion achetée hors reprise, ni plusieurs ORO pour une même moto depuis l'écran (le calcul SQL, lui, les additionne).
-- La vente d'une occasion ne passe pas la moto en « vendu » (voir M03 §7).
+- ~~La vente d'une occasion ne passe pas la moto en « vendu »~~ — **corrigé le 23/09** (M-37, déclencheur sur `stock_moves`, voir M03 §4).
 - Les tables récentes sont appelées par un client non typé (`supabase as any`) : les fautes de colonnes ne sont pas détectées à la compilation.
 
 ## 8. Exigences du cahier couvertes
@@ -145,3 +153,4 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 | 2026-07-19 | Workflow Collecté → Envoyé → Accepté → Repris, offre acceptée, synchro CRM, filtres | `1550ca5`, `f312a06`, `f716cc5`, `20260720090000_m7_reprise_workflow` (non appliquée au 14/09) |
 | 2026-08-01 | Usure détaillée, galerie photos avec retouche, PDF allégé, édition à tout moment | `777d0f8` |
 | 2026-09-14 | Constat : tout le chantier reprises est « complet dans le code et mort en production » | `docs/etat-projet.md` §2 |
+| 2026-09-23 | **Mission 03, « Motos à vendre »** (M-36) : article de type **D** créé pour les motos en dépôt-vente, vente → moto vendue + nouveau propriétaire + dépublication | branche `lot-motos`, migrations `20260923150000` + `20260923151000` (appliquées le 23/09) |

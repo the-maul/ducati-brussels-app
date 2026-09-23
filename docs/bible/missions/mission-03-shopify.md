@@ -69,6 +69,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 | Reprendre le stock et vérifier les prix de vente des articles reliés au site | 🟦 21/09 — fait, à valider : reprise réelle des 300 articles reliés (§5 ter) ; bouton « Aligner le DMS sur le site (stock et prix) » |
 | Réserver le stock dès qu'une commande du site est passée, même non payée | 🟦 21/09 — fait, à valider (§5 quater) ; même réglage Arrêté / Actif que l'import des commandes (livré Arrêté) |
 | Un seul catalogue : chaque produit du site est un article du DMS (M-25) | 🟦 22/09 — fait, à valider (§5 quinquies) ; migrations `20260921200000` + `20260921201000` à appliquer |
+| **Motos à vendre : du stock du DMS au site** (M-36) | 🟦 23/09 — fait, à valider (§5 septies) ; migrations `20260923150000` + `20260923151000` **appliquées en production le 23/09** |
 
 ## 4. Questions en attente
 
@@ -446,6 +447,119 @@ dont le SKU est porté par plusieurs produits du site, à rattacher à la main (
 collections retirées du catalogue. Aucun article existant n'est modifié : les fiches venues du site gardent leur
 désignation, leur prix et leur stock ; seuls les articles créés depuis le catalogue reçoivent taille, couleur,
 version, catégorie et genre (voir [mission 06](mission-06-catalogue-pieces.md), 23/09).
+
+## 5 septies. Motos à vendre : du stock du DMS au site (M-36 à M-39, 23/09)
+
+Carte ERP « Motos à vendre : du stock du DMS au site » (branche `lot-motos`, à valider).
+Décision de Simon : **pas de faux client « Italbike Store »**. Une moto est **à la fois** une fiche
+véhicule (VIN, propriétaires, entretiens) **et** un article V/O/P/D ; ce qui la rend vendable est son
+**statut de parc** (M-36). Rien n'est écrit sur Shopify : la synchronisation reste **Arrêtée**.
+
+### Le modèle
+
+- **Statut de parc** : `vehicles.status` **existait déjà** (11 valeurs) et est réutilisé tel quel.
+  Regroupement métier (`vehicle_parc_kind`, miroir TypeScript `src/modules/vehicles/parc.ts`) :
+  « En stock » = `stock_vn`, `stock_vo`, `reserve`, `demo` · « Dépôt-vente » = `depot_vente`,
+  `depot_agent` · « Vendue » = `vendu`, `livre` · hors vente = `en_commande`, `repris`, `courtoisie`.
+  **Moto de client** = `vendu` **sans article** (décision M-12) : jamais publiée.
+- **Lien véhicule ↔ article dans les deux sens** : `vehicles.article_id` (existant) **+ nouveau
+  `articles.vehicle_id`**, tenus synchronisés par déclencheur, avec deux index uniques (une moto = un
+  article, un article = une moto). Les 6 liens déjà posés par la reprise ont été repris.
+- **Règles de cohérence** : `vehicles_parc_check(société)` liste les anomalies (moto vendable sans
+  article, moto vendue encore publiable, stock ≠ 1, stock négatif, type de gestion incohérent). Rien
+  n'est corrigé tout seul.
+
+### L'article de la moto
+
+- `vehicle_ensure_article(moto)` crée l'article manquant : type **V** (neuf) / **O** (occasion
+  particulier, TVA marge, taux 0 sur la ligne) / **P** (occasion pro, 21 %) / **D** (dépôt-vente),
+  déduit du statut **et de la référence G8** (`DEP…` → D, `OCC…` → O, nom de modèle → V : le statut
+  « Réservée » ne dit pas, à lui seul, si la moto est neuve ou d'occasion) ; référence = référence de
+  la fiche, sinon le **VIN** (B9) ; désignation = marque + modèle + VIN ; **entrée de stock de 1**
+  par `record_stock_move` (append-only B7, origine `moto_parc`), au coût de revient (B3) ; le
+  dépôt-vente entre **sans valeur** (il n'est pas à nous). Idempotente.
+- `motos_parc_creer_articles(société, appliquer)` met tout le parc en règle en une fois (aperçu ou
+  application, administrateurs). La réception châssis (M04) et la validation de reprise (M07) gardent
+  leurs flux existants, inchangés.
+
+### À la facturation
+
+Déclencheur sur `stock_moves` (donc **tous** les chemins : comptoir, caisse, commandes du site) :
+une sortie de stock réelle sur l'article d'une moto → statut **« Vendu »**, `sold_date`, prix affiché
+retiré, **nouveau propriétaire** = client de la facture (`vehicle_owners`, VEH003), article
+**dépublié** et remis en file Shopify (le site voit le stock à 0), trace `events` `moto_vendue`.
+Cela corrige le trou signalé dans [M03](../modules/M03-vehicules.md) §7 (« une vente ne met pas à
+jour la moto »).
+
+### La fiche moto
+
+Nouvel encart **« Moto à vendre »** (`src/modules/vehicles/moto-site-panel.tsx`) : statut de parc
+(couleur + icône + libellé), article relié (référence, type, prix TTC, stock) avec lien vers sa
+fiche, bouton **« Créer l'article de la moto »** si elle est en stock sans article, et l'encart
+**« Sur le site Shopify »** existant (publier / retirer / mettre à jour) **uniquement** pour
+« En stock » et « Dépôt-vente » (M-37). Sinon : message explicatif.
+
+### Les 240 motos du site
+
+Le rapprochement du 22/09 (`shopify_vehicle_links`) ne savait faire que « VIN cité dans le produit »
+(95) et « nom de modèle dans le titre » (50). **Mesuré le 23/09 : aucune correspondance par VIN
+n'est possible** — l'instantané `shopify_products` ne reprend pas la description des produits, seul
+endroit où un VIN pourrait figurer, et 198 des 240 motos n'ont pas de SKU. Deux méthodes ajoutées :
+**« reference »** (SKU du site = référence G8 de la moto, unique des deux côtés → 90, **rattachement
+automatique**) et **« titre »** (titre sans le slogan ≈ début de la référence d'une moto encore au
+parc → 70, **jamais automatique** : le site garde des annonces d'anciennes motos vendues au même nom).
+
+**Exécution réelle du 23/09** (mesurée d'abord en transaction annulée, puis appliquée) :
+
+| Vérifié en base le 23/09 | Avant | Après |
+|---|---|---|
+| Motos du site (`shopify_products`) | 240 (26 en ligne, 213 brouillons, 1 archivée) | 240 |
+| Fiches moto avec un article | **6** | **74** |
+| Articles créés pour le parc | — | **68** (22 V, 39 O, 7 D ; 0 P) |
+| dont **sans coût de revient** (PA et PAMP à 0) | — | **60** |
+| Mouvements de stock « moto_parc » | 0 | **68** (chaque moto entre à 1) |
+| Stock des articles de moto | — | **74 au total, toutes à 1, aucun négatif** |
+| Motos du site rattachées automatiquement | 0 | **30** (toutes par référence G8) |
+| dont motos **encore vendables** (article + lien produit posés) | — | **2** (les 28 autres sont des motos déjà vendues, annonces en brouillon) |
+| Propositions restant **à valider** | 406 | **458** (4 référence, 161 titre, 293 modèle) |
+| Motos **en ligne** qu'aucune fiche du parc ne reconnaît | — | **25** sur 26 |
+| Anomalies de cohérence (`vehicles_parc_check`) | — | **0** |
+| Écritures sur Shopify | — | **aucune** (mode « Arrêtée », journal des envois vide) |
+| 2ᵉ exécution | — | 0 article, 0 rattachement, 0 lien : **idempotente** |
+
+**Fiches moto créées : aucune** (M-39). Une fiche sans VIN est contraire à B9 et le site garde
+213 annonces en brouillon d'anciennes motos vendues : les créer aurait doublé le parc avec des motos
+fantômes. `motos_site_a_creer(société)` liste les **25 motos en ligne** à créer à la main.
+
+### À tester (Simon)
+
+1. Véhicules → une moto **« En stock (occasion) »** → encart **« Moto à vendre »** : badge « En
+   stock », article `OCC…` de type O, stock 1, bouton « Publier sur le site » (grisé tant que la
+   synchronisation est « Arrêtée »).
+2. Une moto **« Vendu »** d'un client : badge « Moto de client », pas d'article, pas de publication.
+3. Une moto **« Dépôt-vente »** : article de type D, stock 1, **prix d'achat 0** (elle n'est pas à nous).
+4. Facturer une moto en stock (devis → facture) : la fiche passe **« Vendu »**, date de sortie
+   remplie, prix affiché vidé, l'acheteur apparaît dans **Propriétaires**, l'article n'est plus
+   publiable et le stock tombe à 0.
+5. Pièces & Accessoires → **Produits Shopify** : les 30 motos rattachées apparaissent reliées ;
+   les 458 propositions restent à valider (les « titre » sont les plus utiles, elles ne visent que
+   des motos encore au parc).
+
+### Points ouverts
+
+- **60 articles de moto sur 68 entrent sans coût de revient** : le parc repris de G8 n'a ni prix
+  d'achat ni coût de revient. La marge de ces motos sera fausse tant qu'un PA n'est pas saisi.
+  Même effet que les 305 pièces de la reprise Shopify (§5 ter).
+- **25 des 26 motos en ligne sur le site n'ont pas de fiche moto reconnue** alors que le parc compte
+  74 motos vendables : les titres du site sont des noms commerciaux (« Multistrada V4 S Radars —
+  "TVA 21 % et Garantie 4 ans" ») et plusieurs motos identiques cohabitent au parc. À trancher avec
+  Simon : soit il renseigne le **SKU = référence de la moto** sur chaque annonce du site (le
+  rattachement devient alors automatique), soit il valide les propositions une à une.
+- **Le retrait automatique du site à la facturation** dépublie l'article et remet le stock à 0, mais
+  ne passe pas le produit Shopify en brouillon : `shopify-publish` n'accepte que l'appel d'un
+  administrateur. Sans effet aujourd'hui (mode « Arrêtée ») ; à reprendre quand la synchronisation
+  passera en « Essai » ou « Tous ».
+- **TVA du dépôt-vente (type D)** : taux 0 posé sur l'article, à confirmer avec le comptable.
 
 ## 6. Risques
 
