@@ -9,6 +9,7 @@ import { VehicleForm } from '@/modules/vehicles/vehicle-form';
 import { getVehicle, updateVehicle, listOwners, listVehicleDocuments, vehicleLabel, type VehicleInsert, type Vehicle } from '@/modules/vehicles/api';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { DucatiInfoPanel } from '@/modules/vehicles/ducati-panel';
+import { MotoSitePanel } from '@/modules/vehicles/moto-site-panel';
 import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-panel';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
@@ -138,6 +139,11 @@ function EditVehicle() {
         onSubmit={(p) => { setError(null); m.mutate(p); }}
         onCancel={() => navigate({ to: '/vehicles' })}
       />
+
+      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('motoParc.title')}</h2>
+        <MotoSitePanel companyId={activeCompanyId} vehicle={vehicle} />
+      </div>
 
       <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicles.secDucati')}</h2>
