@@ -471,6 +471,85 @@ export type Database = {
           },
         ]
       }
+      article_links: {
+        Row: {
+          article_id: string
+          company_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          details: Json
+          id: string
+          is_auto: boolean
+          method: string
+          reason: string | null
+          score: number
+          status: string
+          target_kind: string
+          target_ref: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          company_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          details?: Json
+          id?: string
+          is_auto?: boolean
+          method: string
+          reason?: string | null
+          score?: number
+          status: string
+          target_kind: string
+          target_ref: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          company_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          details?: Json
+          id?: string
+          is_auto?: boolean
+          method?: string
+          reason?: string | null
+          score?: number
+          status?: string
+          target_kind?: string
+          target_ref?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "ducati_catalog_article_links"
+            referencedColumns: ["article_id"]
+          },
+          {
+            foreignKeyName: "article_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_suppliers: {
         Row: {
           article_id: string
@@ -6794,6 +6873,69 @@ export type Database = {
           },
         ]
       }
+      shopify_vehicle_links: {
+        Row: {
+          company_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          is_auto: boolean
+          method: string
+          reason: string | null
+          score: number
+          shopify_variant_id: string
+          status: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          is_auto?: boolean
+          method: string
+          reason?: string | null
+          score?: number
+          shopify_variant_id: string
+          status: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          is_auto?: boolean
+          method?: string
+          reason?: string | null
+          score?: number
+          shopify_variant_id?: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_vehicle_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_vehicle_links_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signup_settings: {
         Row: {
           client_app_open: boolean
@@ -7840,6 +7982,8 @@ export type Database = {
         Returns: string
       }
       _accounting_cutover: { Args: { _company: string }; Returns: string }
+      _article_links_can_write: { Args: { _company: string }; Returns: boolean }
+      _article_links_stats: { Args: { _company: string }; Returns: Json }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
       _brussels_today: { Args: never; Returns: string }
       _can_edit_user_signature: { Args: { _user: string }; Returns: boolean }
@@ -8075,6 +8219,10 @@ export type Database = {
         Args: { _article: string; _company: string; _reason: string }
         Returns: boolean
       }
+      _shopify_is_moto: {
+        Args: { _price: number; _product_type: string; _sku: string }
+        Returns: boolean
+      }
       _shopify_order_apply: {
         Args: { _company: string; _payload: Json }
         Returns: Json
@@ -8163,6 +8311,79 @@ export type Database = {
       append_lead_exchange_note: {
         Args: { _comm: string; _lead: string; _text: string }
         Returns: boolean
+      }
+      article_links_counts: { Args: { _company: string }; Returns: Json }
+      article_links_create_missing: {
+        Args: {
+          _company: string
+          _limit?: number
+          _scope?: string
+          _variant?: string
+        }
+        Returns: Json
+      }
+      article_links_creation_preview: {
+        Args: { _company: string; _limit?: number }
+        Returns: Json
+      }
+      article_links_decide: {
+        Args: {
+          _company: string
+          _decision: string
+          _ids: string[]
+          _note?: string
+        }
+        Returns: Json
+      }
+      article_links_for_article: {
+        Args: { _article: string; _company: string }
+        Returns: {
+          decided_at: string
+          decision_note: string
+          id: string
+          info: Json
+          is_auto: boolean
+          method: string
+          reason: string
+          score: number
+          status: string
+          target_kind: string
+          target_ref: string
+        }[]
+      }
+      article_links_link_ducati: {
+        Args: { _article: string; _company: string; _reference: string }
+        Returns: string
+      }
+      article_links_refresh: { Args: { _company: string }; Returns: Json }
+      article_links_review: {
+        Args: {
+          _company: string
+          _kind?: string
+          _limit?: number
+          _method?: string
+          _offset?: number
+          _q?: string
+          _status?: string
+        }
+        Returns: {
+          article_designation: string
+          article_id: string
+          article_reference: string
+          article_sale_price_ttc: number
+          decided_at: string
+          decision_note: string
+          id: string
+          method: string
+          reason: string
+          score: number
+          status: string
+          target_extra: Json
+          target_kind: string
+          target_label: string
+          target_ref: string
+          total_count: number
+        }[]
       }
       article_on_order_for: {
         Args: { _article: string; _contact?: string; _document?: string }
@@ -9984,6 +10205,53 @@ export type Database = {
       shopify_sync_trial_remove: {
         Args: { _article: string; _company: string }
         Returns: undefined
+      }
+      shopify_unlinked_products: {
+        Args: { _company: string; _limit?: number; _offset?: number }
+        Returns: {
+          candidates: number
+          image_url: string
+          pending_article_id: string
+          pending_article_reference: string
+          price: number
+          product_title: string
+          qty: number
+          shop_status: string
+          shopify_variant_id: string
+          sku: string
+          total_count: number
+          variant_title: string
+        }[]
+      }
+      shopify_vehicle_links_decide: {
+        Args: { _company: string; _decision: string; _ids: string[] }
+        Returns: Json
+      }
+      shopify_vehicle_links_refresh: {
+        Args: { _company: string }
+        Returns: Json
+      }
+      shopify_vehicle_links_review: {
+        Args: { _company: string; _status?: string }
+        Returns: {
+          color: string
+          id: string
+          image_url: string
+          method: string
+          model: string
+          model_year: number
+          price: number
+          product_title: string
+          reason: string
+          score: number
+          shop_status: string
+          shopify_variant_id: string
+          status: string
+          variant_title: string
+          vehicle_id: string
+          vehicle_status: string
+          vin: string
+        }[]
       }
       signup_precheck: {
         Args: { _company: string; _email: string }
