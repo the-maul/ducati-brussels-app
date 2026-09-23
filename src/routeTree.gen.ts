@@ -108,6 +108,7 @@ import { Route as AppPurchasesSuppliersSupplierIdRouteImport } from './routes/_a
 import { Route as AppPurchasesSuppliersNewRouteImport } from './routes/_app.purchases.suppliers.new'
 import { Route as AppSettingsTablesIndexRouteImport } from './routes/_app.settings.tables.index'
 import { Route as AppSettingsTablesTableKeyRouteImport } from './routes/_app.settings.tables.$tableKey'
+import { Route as AppWorkshopJourneyOrIdRouteImport } from './routes/_app.workshop.journey.$orId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -609,6 +610,11 @@ const AppSettingsTablesTableKeyRoute =
     path: '/$tableKey',
     getParentRoute: () => AppSettingsTablesRoute,
   } as any)
+const AppWorkshopJourneyOrIdRoute = AppWorkshopJourneyOrIdRouteImport.update({
+  id: '/journey/$orId',
+  path: '/journey/$orId',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -707,6 +713,7 @@ export interface FileRoutesByFullPath {
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
   '/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables/': typeof AppSettingsTablesIndexRoute
 }
@@ -794,6 +801,7 @@ export interface FileRoutesByTo {
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables': typeof AppSettingsTablesIndexRoute
 }
@@ -896,6 +904,7 @@ export interface FileRoutesById {
   '/_app/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/_app/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
+  '/_app/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
   '/_app/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/_app/settings/tables/': typeof AppSettingsTablesIndexRoute
 }
@@ -998,6 +1007,7 @@ export interface FileRouteTypes {
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
+    | '/workshop/journey/$orId'
     | '/purchases/suppliers/'
     | '/settings/tables/'
   fileRoutesByTo: FileRoutesByTo
@@ -1085,6 +1095,7 @@ export interface FileRouteTypes {
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
+    | '/workshop/journey/$orId'
     | '/purchases/suppliers'
     | '/settings/tables'
   id:
@@ -1186,6 +1197,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/suppliers/$supplierId'
     | '/_app/purchases/suppliers/new'
     | '/_app/settings/tables/$tableKey'
+    | '/_app/workshop/journey/$orId'
     | '/_app/purchases/suppliers/'
     | '/_app/settings/tables/'
   fileRoutesById: FileRoutesById
@@ -1897,6 +1909,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsTablesTableKeyRouteImport
       parentRoute: typeof AppSettingsTablesRoute
     }
+    '/_app/workshop/journey/$orId': {
+      id: '/_app/workshop/journey/$orId'
+      path: '/journey/$orId'
+      fullPath: '/workshop/journey/$orId'
+      preLoaderRoute: typeof AppWorkshopJourneyOrIdRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
   }
 }
 
@@ -2127,6 +2146,7 @@ interface AppWorkshopRouteChildren {
   AppWorkshopNewRoute: typeof AppWorkshopNewRoute
   AppWorkshopPlanningRoute: typeof AppWorkshopPlanningRoute
   AppWorkshopIndexRoute: typeof AppWorkshopIndexRoute
+  AppWorkshopJourneyOrIdRoute: typeof AppWorkshopJourneyOrIdRoute
 }
 
 const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
@@ -2136,6 +2156,7 @@ const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
   AppWorkshopNewRoute: AppWorkshopNewRoute,
   AppWorkshopPlanningRoute: AppWorkshopPlanningRoute,
   AppWorkshopIndexRoute: AppWorkshopIndexRoute,
+  AppWorkshopJourneyOrIdRoute: AppWorkshopJourneyOrIdRoute,
 }
 
 const AppWorkshopRouteWithChildren = AppWorkshopRoute._addFileChildren(

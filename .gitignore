@@ -51,6 +51,12 @@ tools/*
 !tools/maintenance-loader/
 # Exception : générateur de la table des motifs de VIN (code seul ; les VIN restent dans Téléchargements).
 !tools/vin-patterns/
+# Exception : données de démonstration des parcours d'entretien (code seul ; les manuels restent
+# dans Desktop/ducati/manuels-extraits).
+!tools/journey-demo/
+# Figures des manuels d'atelier copiées pour la démonstration (~300 Mo) — hors repo.
+# Les regénérer : node tools/journey-demo/copy-images.mjs
+public/manuels/
 # Manuel utilisateur généré (captures pouvant contenir des données client) — hors repo pour l'instant.
 docs/manuel/
 

@@ -86,6 +86,15 @@ Vérifié le 18/09/2026 (code + base).
 - **Chronos sans rôle** : un pointage est rattaché à l'utilisateur connecté (`mechanic_id`) avec un nom libre ; un poste partagé pointera tout le monde sous le même compte.
 - **Productivité** : `workshop_productivity` compare présence et travail, **pas** temps passé et temps facturé (B11 incomplet).
 - **Liste limitée à 100 OR**, sans pagination.
+- **Parcours d'entretien sur données de démonstration** : l'écran technicien lit
+  `public/demo/parcours-entretien.json` (2 motos, 19 procédures) tant que le lot `lot-manuels` n'est
+  pas en base ; les **figures ne sont pas dans le dépôt** (≈ 300 Mo) et se copient à la main
+  (`node tools/journey-demo/copy-images.mjs`).
+- **Avancement d'un parcours dans la tablette seulement** : la migration
+  `20260923110000_m8_parcours_entretien.sql` n'est pas appliquée ; en attendant, l'avancement vit
+  dans le navigateur du technicien (un autre poste ne le voit pas) et l'écran l'affiche clairement.
+- **Photos du parcours hors GED** : elles restent dans l'avancement (base64), elles ne rejoignent pas
+  les pièces jointes de l'OR.
 - **Pas d'historique OR sur la fiche véhicule** : seules `src/modules/contacts/api.ts` (fiche client) et le module atelier lisent `repair_orders` ; la fiche véhicule (M3) ne liste pas les OR du VIN.
 
 ## 8. Exigences du cahier couvertes
@@ -104,21 +113,21 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Atelier, 24 exigences
 | ATE008 | Signature client sur l'OR + envoi | manquant | Pas d'impression ni de signature d'OR |
 | ATE009 | Devis complémentaire avec accord client | manquant | Aucun workflow de devis sur l'OR |
 | ATE010 | États personnalisés et codes couleur | partiel | 5 statuts fixes avec badge couleur + icône ; non paramétrables |
-| ATE011 | Checklists par type de véhicule | partiel | Tables `workshop_operations` / `repair_order_operations` en base, sans écran |
+| ATE011 | Checklists par type de véhicule | partiel (23/09) | **Parcours d'entretien pas à pas** : opérations de l'entretien cochables, procédures du manuel étape par étape (`/workshop/journey/$orId`, mission 07 carte 8), sur données de démonstration ; tables `workshop_operations` / `repair_order_operations` toujours sans écran |
 | ATE012 | Notes internes non visibles du client | partiel | Colonne `repair_orders.notes` en base, non exposée par l'éditeur (`or-editor.tsx` ne gère que `reception_notes`) |
 | ATE013 | Kits / combos de pièces | manquant (M2) | Type N (composant de forfait) défini en B1, pas d'insertion de kit sur l'OR |
-| ATE014 | Nomenclatures d'entretien auto (modèle + km) | partiel (21/09) | Plans d'entretien par modèle / années / usage avec échéances, opérations et temps (mission 07 carte 1) ; reste le prochain entretien de chaque moto (07-4) et les forfaits avec pièces (07-2) |
+| ATE014 | Nomenclatures d'entretien auto (modèle + km) | partiel (23/09) | Plans d'entretien par modèle / années / usage (mission 07 carte 1) **+ parcours technicien : entretien dû, opérations, procédures, couples, temps UT** (carte 8) ; reste le prochain entretien de chaque moto (07-4) et les forfaits avec pièces (07-2) |
 | ATE015 | Pointage du temps par intervention | fait | `chrono-api.ts`, `/workshop/chrono` |
 | ATE016 | Suivi garantie Ducati / magasin | partiel | `warranty_status` + lignes garantie ; pas de distinction Ducati / magasin ni de dossier de garantie |
 | ATE017 | Recherche VIN avec tout l'historique | partiel | Recherche VIN globale (M0) et sur l'OR ; historique des OR absent de la fiche véhicule |
 | ATE018 | Notification de fin de travaux programmable | manquant | Pas de déclencheur au passage `pret` |
-| ATE019 | Tableau de bord productivité par mécanicien | partiel (M13) | Présence / travail ; pas de temps facturé |
+| ATE019 | Tableau de bord productivité par mécanicien | partiel (M13) | Présence / travail ; le **récapitulatif du parcours** rapproche temps passé / temps Ducati (UT) / temps facturé sur un OR (23/09), pas encore agrégé par mécanicien |
 | ATE020 | Facturation interne garantie et productivité | manquant | Voir §7 |
 | ATE021 | Planification des essais démo | manquant | — |
 | ATE022 | Parc de motos prêtées et démo | partiel (M3) | Statuts véhicule `demo` / `courtoisie` |
 | ATE023 | Accès rapide aux accessoires en stock (upselling) | partiel | Recherche d'articles dans l'éditeur d'OR (`searchSaleArticles`), sans stock affiché |
 
-Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acceptation / refus total / refus partiel ligne par ligne, sans cession garantie) ; **B11** partiel (présence et travail pointés, rapprochement avec le temps facturé absent).
+Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acceptation / refus total / refus partiel ligne par ligne, sans cession garantie) ; **B11** partiel (présence et travail pointés ; depuis le 23/09 le **parcours d'entretien** compare temps passé, temps officiel Ducati et temps facturé sur un OR — mais ses chronos ne sont pas encore versés dans `workshop_time_entries`, la colonne `journey_operation` est prête et la migration non appliquée).
 
 ## 9. Historique
 
@@ -135,3 +144,4 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-09-11 | Correction du type `OrPayload` (import cassé depuis l'origine) et typage | `c1dd2b7` |
 | 2026-09-19 | Frais de devis atelier : accident 125 €, diagnostic au tarif horaire (4 h max), bouton « Devis de pièces » sur l'OR (mission 02) | `20260919230000_m8_frais_devis_atelier.sql` |
 | 2026-09-21 | **Plans d'entretien par modèle et par année** (mission 07 carte 1, ATE014) : tables, chargeur, écran Atelier → Plans d'entretien, rattachement au catalogue Ducati, plan sur la fiche moto | `20260921130000_m8_plans_entretien.sql`, `20260921131000_m8_plans_entretien_catalogue.sql` (appliquées le 21/09) |
+| 2026-09-23 | **Parcours d'entretien pas à pas** pour le technicien sur tablette (mission 07 carte 8, ATE011 + ATE014) : entretien dû, opérations, procédures du manuel, figures zoomables, couples, chronos, récapitulatif vers l'OR | `20260923110000_m8_parcours_entretien.sql` (**non appliquée**) |

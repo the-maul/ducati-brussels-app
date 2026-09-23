@@ -39,6 +39,7 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
 | 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé | 07-2 |
 | 7 | Relances d'entretien (cloche d'abord ; mail/SMS quand les services seront choisis) | 07-4 |
+| 8 | Parcours d'entretien pas à pas pour le technicien (tablette atelier) — 🟦 fait le 23/09, à valider (§5) | 07-1, 06-4, lot-manuels |
 
 ## 4. Décisions (Simon, 21/09)
 
@@ -106,6 +107,60 @@ source (fichier, page, édition). Catalogue Ducati vide ce jour → **0 rattache
 - Tests : `tests/maintenance-plans.test.ts` (premier atteint, valeur en vigueur, prix = heures × taux HT,
   usage), `tests/maintenance-loader.test.ts` (extrait réel de 6 plans, `tests/fixtures/plans-entretien`).
 
+### 23/09 — Carte 8 « Parcours d'entretien pas à pas » (ATE011 + ATE014, B11 étage 3)
+
+**Pour l'utilisateur**
+- **Fiche OR → bouton « Démarrer le parcours d'entretien »** (`/workshop/journey/$orId`) : écran
+  plein cadre pensé pour une **tablette à l'atelier** (boutons ≥ 44 px, texte 15–16 px, portrait ou
+  paysage, barre d'action au pouce).
+- **Choix de l'entretien dû** : les entretiens du programme de la moto (Oil Service, Desmo Service,
+  Annual Service…) avec l'échéance **au premier atteint** (km ou mois), le nombre d'opérations et le
+  **temps officiel Ducati** (UT). Le plus urgent est proposé en premier.
+- **Liste des opérations** de l'entretien : chacune se coche, ouvre sa **procédure du manuel** et a
+  son **chrono** (un seul tourne à la fois). Une opération **sans procédure** reste dans la liste avec
+  une simple case — elle ne bloque jamais.
+- **Procédure pas à pas** : étapes numérotées et cochables, **figures grandes et zoomables**
+  (plein écran, ×2,5), **couples de serrage mis en avant** (valeur Nm + repère de la figure),
+  **Attention / Important / Remarque / Élimination** distingués par couleur et icône, outils
+  spéciaux, produits, sous-étapes, renvois vers les procédures liées, et la **source** du manuel
+  (code, version, date).
+- **Observation, pièce à remplacer, photo** à tout moment (sur une étape ou sur le parcours) ; la
+  photo est réduite avant enregistrement.
+- **Reprise après coupure** : l'avancement est enregistré à chaque geste ; à la réouverture, l'écran
+  revient sur l'opération et l'étape non terminées (« Reprendre ici »).
+- **Récapitulatif** : opérations faites / restantes, **temps passé**, **temps Ducati (UT)**, **temps
+  facturé** et les deux écarts (B11 étage 3), pièces, observations, photos. Le bouton
+  **« Reporter sur l'OR »** ajoute les pièces (**à 0 €**) et les observations en lignes d'OR et note
+  l'entretien dans les travaux. **Rien n'est facturé automatiquement.**
+
+**Données**
+Écran alimenté par des **données de démonstration** extraites des manuels d'atelier Ducati :
+**2 motos** (DESERTX 2023 — modèle-année 398 —, PANIGALE V4 S 2024 — 1190), **19 procédures**,
+**315 étapes**, couples, outils, produits, avertissements et **temps UT**. Aucune valeur inventée :
+chaque procédure garde son manuel, son code WSM, sa version et sa date. Les **figures** (≈ 300 Mo)
+ne sont pas dans le dépôt : `node tools/journey-demo/copy-images.mjs` les copie dans
+`public/manuels/` (ignoré par git) ; sans elles l'écran affiche « figure non disponible » et reste
+utilisable.
+
+**Technique**
+- Couche d'accès `src/modules/workshop/journey/source.ts` : **bascule automatique**
+  démonstration ↔ base. Dès que les tables du lot `lot-manuels` existent (`MANUAL_TABLES`, sondées
+  une fois par session), l'écran lit la base sans autre changement. **À brancher** : les trois
+  fonctions de `baseSource` et les noms de colonnes.
+- Règles pures `journey/rules.ts` (aucun accès base) : familles d'entretien (« First Service 1000 »
+  = « Oil Service 1000 » = « Service 1000 » ; « Temporel » = « Annual Service »), entretien dû
+  (réutilise `nextDue`), construction du parcours opérations ↔ procédures, avancement, chronos,
+  **1 UT = 6 minutes**, comparaison des temps, lignes proposées à l'OR.
+- Avancement : écrit **dans la tablette à chaque geste** (résiste à une coupure) et **recopié en
+  base** quand elle répond ; à la reprise, la version la plus récente gagne.
+- Migration **non appliquée** `20260923110000_m8_parcours_entretien.sql` : table
+  `workshop_journeys` (un parcours par OR, état complet en jsonb, `company_id` + RLS + audit),
+  colonne `workshop_time_entries.journey_operation` (B11 étage 3), fonction `or_journey_minutes(or)`.
+  Tant qu'elle n'est pas appliquée, l'écran le dit et tout vit dans la tablette.
+- Outils : `tools/journey-demo/build.mjs` (fabrique `public/demo/parcours-entretien.json`, 213 Ko)
+  et `tools/journey-demo/copy-images.mjs` (figures d'un service).
+- Tests : `tests/workshop-journey.test.ts` — 55 tests, dont 8 sur les **vraies données** des manuels.
+
 ## 5 bis. Cartes proposées (21/09)
 
 - **Prochain entretien de chaque moto** (= carte 4) : la règle `nextDue` (premier atteint, rythme de
@@ -114,3 +169,18 @@ source (fichier, page, édition). Catalogue Ducati vide ce jour → **0 rattache
   rattachements » puis valider les « à valider » (écran prêt).
 - **Temps pour les plans sans temps** (Monster V2, DesertX V2, Hypermotard V2, MY26) : poster
   « Entretien Transparent » 2026 à demander à Ducati quand il sortira.
+
+## 5 ter. Cartes proposées (23/09)
+
+- **Brancher le parcours sur les manuels complets** (dès que `lot-manuels` est en base) : trois
+  fonctions à écrire dans `journey/source.ts`, plus le stockage des figures (`VITE_MANUELS_BASE`).
+- **Appliquer la migration des parcours** (`20260923110000_m8_parcours_entretien.sql`) pour que
+  l'avancement d'un technicien soit visible par le chef d'atelier et suive la tablette.
+- **Photos du parcours dans la GED** : aujourd'hui elles restent dans le parcours ; les verser dans
+  les pièces jointes de l'OR (`AttachmentsPanel`, ATE007).
+- **Rapprochement B11 complet** : brancher les chronos du parcours sur `workshop_time_entries`
+  (colonne `journey_operation` prête) pour que la pointeuse et le parcours ne comptent qu'une fois.
+- **Pièces à remplacer reliées au catalogue** : aujourd'hui référence + texte libre à 0 € ; les
+  chercher dans les articles (mission 06) pour sortir un devis complémentaire (ATE009).
+- **Derniers entretiens de la moto** : le choix de l'entretien dû part de la mise en service ; avec
+  l'historique des OR et My Ducati (carte 4), il partirait du dernier entretien réel.
