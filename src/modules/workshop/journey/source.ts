@@ -5,23 +5,25 @@
  *
  *  - **démonstration** (aujourd'hui) : `public/demo/parcours-entretien.json`, extrait des manuels
  *    Ducati par `tools/journey-demo/build.mjs` ;
- *  - **base** (lot `lot-manuels`) : les tables des manuels d'atelier, dès qu'elles existent.
+ *  - **base** (lot `lot-manuels`, branché le 23/09) : les manuels d'atelier Ducati chargés en
+ *    production — 461 manuels couvrant 469 modèles-années, 3 336 procédures, 36 326 étapes —, lus
+ *    par les trois vues `ducati_manual_*` posées au-dessus des tables `wsm_*` (décision M-33).
  *
- * La bascule est automatique : au premier appel on regarde si les tables sont là (`probeManualTables`).
+ * La bascule est automatique : au premier appel on regarde si les vues sont là (`probeManualTables`).
  * Tant qu'elles ne le sont pas, l'écran affiche un bandeau « données de démonstration ».
- *
- * À BRANCHER quand `lot-manuels` sera en base : les trois fonctions de `baseSource` ci-dessous.
- * Les noms de tables et de colonnes attendus sont ceux de `MANUAL_TABLES` — à ajuster en une seule
- * ligne si le lot en choisit d'autres.
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { MaintenanceProgram, Procedure } from './types';
 
-/** Tables attendues du lot `lot-manuels` (un seul endroit à corriger si les noms changent). */
+/**
+ * Vues publiées par le lot `lot-manuels` au-dessus des tables `wsm_*`
+ * (migration `20260923103000_m8_manuels_atelier_vues_parcours.sql`, décision M-33).
+ * Les noms et les formes sont exactement ceux attendus ici : rien d'autre à ajuster.
+ */
 export const MANUAL_TABLES = {
-  /** Programme d'entretien par modèle-année : échéances, opérations, temps UT. */
+  /** Programme d'entretien par modèle-année : échéances, opérations, temps UT. Une ligne par modèle-année. */
   program: 'ducati_manual_programs',
-  /** Procédures dédoublonnées : titre, source, outils, produits, couples, avertissements. */
+  /** Procédures dédoublonnées : titre, source, outils, produits, couples, avertissements — et `etapes`. */
   procedure: 'ducati_manual_procedures',
   /** Étapes d'une procédure : texte, figures, outils, produits, couples, avertissements, liens. */
   steps: 'ducati_manual_procedure_steps',
@@ -90,12 +92,23 @@ type LooseQuery = {
 };
 const loose = supabase as unknown as { from: (table: string) => LooseQuery };
 
+/**
+ * Colonnes d'identité d'un programme. La vue porte AUSSI tout le programme (échéances, opérations,
+ * procédures par échéance, temps) : un `select('*')` sur les 461 manuels ramènerait **6,47 Mo**,
+ * alors que la liste ne sert qu'à choisir une moto en mode démonstration. On ne prend donc que
+ * l'identité (32 Ko) ; le programme complet arrive avec `getProgram`, moto par moto.
+ */
+const PROGRAM_ID_COLS = 'model_year_id,"modelYearId",famille,modele,annee,"manualRoot"';
+
 const baseSource: JourneySource = {
   kind: 'base',
   async listPrograms() {
-    const { data, error } = await loose.from(MANUAL_TABLES.program).select('*').order('model_year_id').limit(2000);
+    const { data, error } = await loose.from(MANUAL_TABLES.program).select(PROGRAM_ID_COLS).order('model_year_id').limit(2000);
     if (error) throw new Error(error.message);
-    return (data as MaintenanceProgram[] | null) ?? [];
+    // Les listes absentes de la projection sont rendues vides : la liste n'affiche que le modèle.
+    return ((data as Partial<MaintenanceProgram>[] | null) ?? []).map((p) => ({
+      services: [], echeances: [], proceduresParService: {}, temps: [], ...p,
+    })) as MaintenanceProgram[];
   },
   async getProgram(modelYearId) {
     const { data, error } = await loose.from(MANUAL_TABLES.program).select('*').eq('model_year_id', modelYearId).maybeSingle();
@@ -103,7 +116,9 @@ const baseSource: JourneySource = {
     return (data as MaintenanceProgram | null) ?? null;
   },
   async getProcedure(parcoursId) {
-    const { data, error } = await loose.from(MANUAL_TABLES.procedure).select('*, etapes:' + MANUAL_TABLES.steps + '(*)').eq('id', parcoursId).maybeSingle();
+    // `etapes` est déjà une colonne de la vue : pas de ressource imbriquée à demander (PostgREST ne
+    // sait pas toujours déduire la relation entre deux vues, et l'aller-retour serait inutile).
+    const { data, error } = await loose.from(MANUAL_TABLES.procedure).select('*').eq('id', parcoursId).maybeSingle();
     if (error) throw new Error(error.message);
     return (data as Procedure | null) ?? null;
   },
