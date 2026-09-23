@@ -6,6 +6,21 @@ disparaît d'ici.
 
 ---
 
+## Stock (23/09)
+
+- **Q19 — Le stock de G8 n'a jamais été repris.** Constat en base le 23/09 : `stock_moves` ne contient
+  que **1 093 mouvements**, tous postérieurs au projet (reprise Shopify des 21 et 23/09, motos du parc,
+  6 réceptions, 1 vente, 1 ORO). Il n'existe **aucun** mouvement d'origine G8, aucune table d'import G8
+  et aucune colonne de quantité dans l'import des articles G8 (`src/modules/migration/articles-import.ts`) :
+  l'import de juillet a repris les **fiches** (81 473 articles) et les **prix**, pas les quantités.
+  Résultat : sur les 81 473 articles venus de G8, **260 seulement ont un stock** — et ils le tiennent de
+  la reprise Shopify, pas de G8. Les articles créés depuis le catalogue Ducati sont bien à 0 sans prix
+  (8 760, conforme) et ceux créés depuis Shopify ont bien le stock et le prix du site (2 559, 927 pièces).
+  **Ce n'est donc pas un problème d'affichage** (corrigé le 23/09, M-28) mais une **donnée absente**.
+  Il faut un export de stock depuis G8 (référence + quantité + casier, idéalement PA pour le PAMP) puis
+  un import en mouvements `inventaire` append-only, comme la reprise Shopify (B7).
+  *Reco : demander l'export G8 à Domenico et planifier la reprise avant le go-live.*
+
 ## Mission 01 — Nouveau client
 
 - **Q14 — Adresses e-mail partagées.** 84 adresses sont portées par plusieurs fiches de personnes

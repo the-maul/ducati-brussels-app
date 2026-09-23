@@ -102,6 +102,10 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 - **Alerte stock dormant limitée aux pièces (type A)** et écrite seulement dans `events` : personne n'est notifié, et les motos ne sont pas concernées (VEH008, voir M03).
 - Les cessions ne figent pas leur valeur (pas de `unit_cost`) : une statistique a posteriori valorisera au PAMP du moment de la consultation.
 - **Entrées sans coût et PAMP** : un mouvement positif sans `unit_cost` (inventaire, reprise Shopify W-10 du 21/09 : 305 pièces sur 259 articles, origine `reprise_shopify`) ne change pas le PAMP. Si le PAMP est à 0, la réception suivante calcule la moyenne avec ces pièces à 0 (1 pièce reprise + 1 reçue à 100 € → PAMP 50 €) : la formule ne repart du coût que si le stock avant est ≤ 0.
+- **Le stock de G8 n'est pas en base** (constat du 23/09, question Q19) : `stock_moves` ne contient que
+  1 093 mouvements, aucun d'origine G8. Sur les 81 473 articles repris de G8, **260 ont un stock**, venu de
+  la reprise Shopify. Tant que l'export de stock G8 n'est pas importé, la liste affichera 0 partout : c'est
+  la donnée qui manque, pas l'écran.
 - **Toute réponse est coupée à 1 000 lignes (PostgREST `max_rows`)** — silencieusement. Avant le 23/09,
   `listStock` demandait tout le stock en un appel : sur 93 104 articles les écrans ne recevaient que les
   1 000 premières **références**, dont aucune n'a de mouvement. Conséquences constatées : filtre « stock positif »
