@@ -141,6 +141,11 @@ Ce qui marche : liste, recherche, fiche (hors années), onglets, familles, casca
 - **PV G8 hors TVA rangé en TTC** (constaté le 21/09, W-10) : l'import G8 a mis le prix de vente G8, hors TVA, dans `sale_price_ttc` (PV HT vide) pour ~81 000 articles, et certains prix au-delà de 1 000 € ont été lus divisés par 1 000 (séparateur de milliers). Corrigé seulement pour les 300 articles reliés au site (prix du site repris). Les autres : à vérifier avec Simon avant toute correction de masse.
 - **Aligner le DMS sur le site** (`shopify_realign`, W-10) : prend le prix du site comme PV TTC et en déduit le PV HT ; relancer après chaque nouvelle liaison (instantané relu d'abord), sinon le premier envoi vers le site écrasera le prix du site par le prix G8.
 - **Lien article ↔ catalogue Ducati = la référence normalisée** (majuscules, uniquement A-Z0-9 ; `ducati_catalog_norm_ref`, index `idx_articles_ref_compact`). **Depuis M-25** (migration `20260921200000`) la table `article_links` porte en plus les liens validés à la main (révision, remplacement, lien manuel) ; la vue éclatée du catalogue et la recherche restent sur la référence normalisée (un lien accepté par révision n'y apparaît pas encore). Mesuré le 21/09 : **45 394 articles actifs reliés sur 81 785**. Si deux articles portent la même référence normalisée, le catalogue montre l'article stocké (hors librairie), puis le plus ancien.
+- **8 secondes par appel (PostgREST)** : le rôle `authenticator` porte `statement_timeout = 8 s`, **même avec la
+  clé de service**. Toute fonction longue (`article_links_create_missing`, `ducati_products_repair_designations`,
+  import du catalogue) s'appelle **par lots avec `_limit`, en boucle** ; au-delà, l'appel est coupé (57014) et,
+  vu du client, ressemble à un « fetch failed ». Le chargeur `tools/accessories-loader` montre le motif à suivre
+  (lots, réessais, reprise).
 - **Rapprochement (M-25)** : `article_links_refresh` prend 3,4 s en administrateur quand peu de choses changent, 6,5 s au
   premier passage. Après un **gros chargement du catalogue** (des milliers de nouveaux liens), le lancer depuis la base
   (clé de service ou SQL) plutôt que depuis l'écran (limite de 8 s). Les 9 produits Shopify reliés à une référence

@@ -437,6 +437,16 @@ Détail, chiffres et « À tester » : [mission 06](mission-06-catalogue-pieces.
 - L'écran « Produits Shopify » n'est plus une entrée du menu : il reste comme **Réglages du site** (mode de
   synchronisation, relire Shopify, aligner). La fiche article montre le produit du site et « Publier sur le site ».
 
+## 5 sexies. Vêtements et accessoires Ducati reliés au site (23/09)
+
+Le catalogue accessoires + vêtements Ducati (14 874 références) donne leur **référence Ducati** aux produits du
+site : **2 093 produits du site** sont concernés, **2 071 portent déjà le badge Ducati** ; il reste **22 produits**
+dont le SKU est porté par plusieurs produits du site, à rattacher à la main (écran Rapprochements). Sur les
+1 994 vêtements « 98… » du site, **1 944 sont retrouvés** dans le fichier Ducati ; les 50 autres sont des
+collections retirées du catalogue. Aucun article existant n'est modifié : les fiches venues du site gardent leur
+désignation, leur prix et leur stock ; seuls les articles créés depuis le catalogue reçoivent taille, couleur,
+version, catégorie et genre (voir [mission 06](mission-06-catalogue-pieces.md), 23/09).
+
 ## 6. Risques
 
 - Double vérité sur le stock pendant la reprise : figer les modifications côté Shopify le temps de la reprise.

@@ -4015,6 +4015,8 @@ export const fr = {
     compatTab: 'Vues éclatées / motos compatibles',
     compatTitle: 'Vues éclatées et motos compatibles',
     compatNone: 'Aucune moto compatible connue pour cette référence.',
+    compatFamilies: 'Familles de motos',
+    compatCollection: 'collection {year}',
     unlink: 'Délier',
     // Liste Pièces & Accessoires
     filterLinks: 'Référencé',
