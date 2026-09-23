@@ -8,6 +8,75 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-09-23 — Mission 07, carte 2 : relier les entretiens aux pièces (réalisation)
+
+- **M-38** — **Les pièces d'un entretien se déduisent, elles ne se saisissent pas** : pour un
+  modèle-année et une échéance (Oil Service, Desmo Service…), on part des **libellés d'opérations
+  des manuels d'atelier** (`wsm_operations` balisées par échéance ∪ `wsm_service_procedures`), on
+  en tire un **besoin par famille de pièce**, puis on cherche la référence dans les **vues éclatées
+  du catalogue Ducati de CE modèle-année**, donc l'article du DMS (`ducati_catalog_article_links`).
+  Les consommables (huile moteur, liquide de refroidissement, liquide de frein, huile de fourche)
+  viennent des **tableaux de ravitaillements** (`wsm_fluid_tables`) avec leur quantité et leur
+  spécification. Les quantités viennent de la **colonne « quantité » de la vue éclatée** (2 bougies
+  sur un bicylindre, 4 sur un V4, 2 courroies), jamais d'une supposition. Les trois jeux de règles
+  sont **en table** (`maintenance_part_need_rules`, `maintenance_part_catalog_rules`,
+  `maintenance_fluid_rules`) : on corrige une règle sans migration.
+  *Simon (chat 23/09 : « relier les entretiens au pièces.. ») ; règles de réalisation : équipe.*
+  [mission 07](missions/mission-07-plan-entretien.md), [M08](modules/M08-atelier.md)
+
+- **M-39** — **Ce qui n'est pas sûr est marqué « à confirmer », jamais inventé.** Trois niveaux :
+  `sur` (une seule référence trouvée dans le catalogue du modèle-année, ou le produit du manuel) ;
+  `a_confirmer` (plusieurs références possibles, ou aucune alors que l'opération l'exige, ou
+  l'article du DMS du consommable pas encore désigné) ; `non_applicable` (famille **optionnelle**
+  absente du catalogue : joint de bougie, crépine — le modèle n'en a pas). Deux comportements
+  distincts quand plusieurs références sortent, portés par `maintenance_part_catalog_rules.take_all` :
+  **toutes nécessaires** (2 courroies, 2 joints de pompe à eau) ou **variantes à trancher**
+  (plusieurs filtres à air). **Couverture mesurée le 23/09 sur les 370 modèles-années reliés à un
+  manuel : 4 529 besoins fermes résolus sur 4 629, soit 97,8 %** ; 100 lignes « à confirmer »
+  (78 filtres à huile, 18 courroies, 2 courroies de pompe à eau) ; 1 374 lignes optionnelles
+  résolues en plus. *Équipe · 23/09.* [mission 07](missions/mission-07-plan-entretien.md)
+
+- **M-40** — **« Famille de moteur » (M-20) = la signature des pièces moteur d'entretien.** La
+  famille de moteur n'existe nulle part en base : on la calcule à partir de ce qui la caractérise
+  vraiment pour l'entretien — **filtre à huile + bougie + courroie de distribution** du modèle-année
+  (`maintenance_engine_family_key`). Deux modèles-années qui partagent ces références partagent le
+  moteur (vérifié à la main sur MONSTER 821 2016, MONSTER + 2027 et PANIGALE V4 S 2024). Un kit =
+  **(famille de moteur × échéance × contenu)** : quand deux motos du même moteur n'ont pas le même
+  filtre à air, deux kits distincts sortent plutôt qu'un kit faux. **44 familles de moteur, 385 kits
+  pour 1 355 couples modèle-année × entretien** (mesure du 23/09). *Équipe · 23/09, application de
+  M-20.* [mission 07](missions/mission-07-plan-entretien.md), [M02](modules/M02-articles.md)
+
+- **M-41** — **Le kit appartient à l'atelier : proposé, puis corrigé, versionné, jamais écrasé.**
+  Le contenu est proposé par la déduction, puis l'atelier ajoute, retire et change les quantités.
+  Chaque correction **incrémente la version** et enregistre une **photo complète du contenu**
+  (`maintenance_kit_versions`) ; une nouvelle génération **ne retouche jamais** un kit déjà corrigé
+  (`edited_at` non nul), elle se contente d'y rattacher les modèles-années manquants. Les tables de
+  kits portent `company_id` + RLS (les règles de déduction, elles, restent **globales** comme
+  `maintenance_*` et `wsm_*`, M-19/M-21/M-26). **Aucun mouvement de stock** : un kit décrit ce qu'il
+  faut, il ne sort rien. *Équipe · 23/09, application de M-20.* [M08](modules/M08-atelier.md)
+
+- **M-42** — **Une seule notion de liste de préparation, deux origines.** La picking list existante
+  (mission 02, carte 11) n'est pas doublée : `picking_lists` gagne `repair_order_id` et la fonction
+  `picking_open_for_repair_order` la remplit avec **les pièces du kit de l'échéance en cours**
+  (parcours technicien : `workshop_journeys.model_year_id` + `service_label`) **et les pièces
+  ajoutées par le technicien** (lignes « pièce » de l'OR). Mêmes statuts, même écran tablette, même
+  impression, mêmes casiers et même disponible. *Simon (chat 23/09 : « créer une picking list a
+  partir de ce qui a été prévu comme entretien ») ; réalisation : équipe.*
+  [M05](modules/M05-stock.md), [M08](modules/M08-atelier.md)
+
+- **M-43** — **Commander depuis l'OR ou depuis la liste, en choisissant le type.** On ne recrée pas
+  le circuit d'achat : le bouton ouvre une **commande de pièces** (`part_orders`) avec son
+  `order_kind` (**standard / urgente / accident** ; la commande **Excel garde son circuit propre**,
+  le classeur Ducati, et n'est pas proposée ici), reliée à l'OR par `part_orders.repair_order_id`.
+  Elle repart ensuite dans la proposition de commande fournisseur puis le fichier DCS
+  (ACH001 : seule « urgente » sort en URGENTE). **Manquant = besoin − libre (réel − réservé) −
+  en commande pour ce client − déjà lancé en brouillon**, même arithmétique que la commande depuis
+  un document (mission 02, carte 3). Pièces seulement (types A et N). **Aucun mouvement de stock** :
+  la commande ne réserve pas ; le « en commande » alimente le disponible par `article_on_order_for`
+  (B4), comme déjà en place. *Simon (chat 23/09 : « pouvoir commander depuis l'or ou la picking list
+  (en choisissant le type de commande) ») ; réalisation : équipe.*
+  [M04](modules/M04-achats.md), [M08](modules/M08-atelier.md)
+
 ## 2026-09-21 — Un seul catalogue : les articles du DMS (missions 03 et 06)
 
 - **M-25** — **Un seul catalogue, un seul stock : les articles du DMS (Pièces & Accessoires).** Il n'y a plus de

@@ -97,11 +97,15 @@ test('statut affiché d\'une liste', () => {
 
 test('actions possibles selon le statut', () => {
   const base = { document_id: 'd1', lines_total: 2, lines_prepared: 2 };
-  expect(pickingActions({ ...base, status: 'pret' })).toEqual({ cancel: true, reopen: false, regenerate: true, finish: true, editSteps: true });
+  // `order` : mission 07 carte 2 — commander les pièces manquantes depuis la liste elle-même.
+  expect(pickingActions({ ...base, status: 'pret' })).toEqual({ cancel: true, reopen: false, regenerate: true, finish: true, editSteps: true, order: true });
   expect(pickingActions({ ...base, status: 'en_cours', lines_prepared: 1 }).finish).toBe(false);
-  expect(pickingActions({ ...base, status: 'annulee' })).toEqual({ cancel: false, reopen: true, regenerate: false, finish: false, editSteps: false });
+  expect(pickingActions({ ...base, status: 'annulee' })).toEqual({ cancel: false, reopen: true, regenerate: false, finish: false, editSteps: false, order: false });
   expect(pickingActions({ ...base, status: 'livre' })).toMatchObject({ cancel: true, reopen: true, editSteps: false });
   expect(pickingActions({ ...base, status: 'en_cours', document_id: null }).regenerate).toBe(false);
+  // une liste ouverte depuis un OR n'a pas de document : elle se commande quand même
+  expect(pickingActions({ ...base, status: 'en_cours', document_id: null }).order).toBe(true);
+  expect(pickingActions({ ...base, status: 'en_cours', lines_total: 0 }).order).toBe(false);
 });
 
 const row = (p: Partial<PickingFilterRow>): PickingFilterRow => ({

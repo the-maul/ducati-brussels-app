@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ type OrPayload = Omit<RoInput, 'companyId'>;
 import { OrEditor } from '@/modules/workshop/or-editor';
 import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
+import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -33,6 +35,7 @@ function OrView() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [accidentOpen, setAccidentOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
 
@@ -48,6 +51,13 @@ function OrView() {
   const toInvoice = useMutation({
     mutationFn: () => transformToInvoice(orId),
     onSuccess: (docId) => navigate({ to: '/sales/$documentId', params: { documentId: docId } }),
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
+  // Mission 07 carte 2 : la liste de préparation reprend le kit d'entretien de l'échéance
+  // en cours (parcours technicien) + les pièces ajoutées par le technicien sur l'OR.
+  const toPicking = useMutation({
+    mutationFn: () => openPickingForRepairOrder(orId),
+    onSuccess: (pickingId) => navigate({ to: '/preparation/$pickingId', params: { pickingId } }),
     onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
   });
 
@@ -77,6 +87,12 @@ function OrView() {
             {!invoiced && <Button onClick={() => toInvoice.mutate()} disabled={toInvoice.isPending || pending}><FileText /> {t('workshop.toInvoice')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })}><ListChecks /> {t('workshop.startJourney')}</Button>}
+            {!invoiced && (
+              <Button variant="outline" onClick={() => { setError(null); toPicking.mutate(); }} disabled={toPicking.isPending}>
+                {toPicking.isPending ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {t('workshop.createPicking')}
+              </Button>
+            )}
+            {!invoiced && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
             <Button variant="outline" onClick={() => setAccidentOpen(true)}><LifeBuoy /> {t('accident.btn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
@@ -94,6 +110,12 @@ function OrView() {
         <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
       </div>
       <AccidentHelpDialog key={String(accidentOpen)} open={accidentOpen} onOpenChange={setAccidentOpen} orFull={data} />
+      {orderOpen && (
+        <OrderFromWorkshopDialog
+          orId={orId} companyId={activeCompanyId!} label={`OR ${or.number ?? ''}`.trim()}
+          onClose={() => setOrderOpen(false)}
+        />
+      )}
     </>
   );
 }

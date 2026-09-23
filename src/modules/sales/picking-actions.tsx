@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Ban, CheckCheck, ClipboardList, Hourglass, Loader2, MoreHorizontal, PackageCheck, Printer, RefreshCw,
-  RotateCcw, Trash2, Wrench, type LucideIcon,
+  RotateCcw, ShoppingCart, Trash2, Wrench, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
@@ -29,6 +29,7 @@ import {
   regeneratePicking, reopenPicking, type PickingOverviewRow, type PickingCounts, type PickingListStatus,
 } from './picking-api';
 import { printPicking } from './print-picking';
+import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
 
 /** Statut d'une liste : couleur + icône + libellé (charte). */
 export const PICKING_STATUS_META: Record<PickingListStatus, { tone: StatusTone; icon: LucideIcon }> = {
@@ -46,7 +47,7 @@ export function PickingStatusBadge({ row, className }: { row: PickingCounts; cla
   return <StatusBadge tone={m.tone} icon={m.icon} label={t(`picking.listStatus_${s}`)} className={className} />;
 }
 
-type Dlg = null | 'cancel' | 'regenerate' | 'finish';
+type Dlg = null | 'cancel' | 'regenerate' | 'finish' | 'order';
 
 const errMsg = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
@@ -88,6 +89,13 @@ export function PickingActions({ row, variant, onDeleted }: {
       {dlg === 'cancel' && <CancelDialog row={row} onClose={() => setDlg(null)} onDone={(r) => { refresh(); if (r === 'deleted') onDeleted?.(); }} />}
       {dlg === 'regenerate' && <RegenerateDialog row={row} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === 'finish' && <FinishDialog row={row} onClose={() => setDlg(null)} onDone={refresh} />}
+      {dlg === 'order' && (
+        <OrderFromWorkshopDialog
+          pickingId={row.id} companyId={row.company_id}
+          label={row.doc_number ?? t('picking.title')}
+          onClose={() => { setDlg(null); refresh(); }}
+        />
+      )}
     </>
   );
 
@@ -100,6 +108,11 @@ export function PickingActions({ row, variant, onDeleted }: {
         {can.regenerate && (
           <Button variant="outline" className={big} onClick={() => setDlg('regenerate')}>
             <RefreshCw /> {t('picking.actionRegenerate')}
+          </Button>
+        )}
+        {can.order && (
+          <Button variant="outline" className={big} onClick={() => setDlg('order')}>
+            <ShoppingCart /> {t('workshop.orderMissing')}
           </Button>
         )}
         {can.finish && (
@@ -131,6 +144,7 @@ export function PickingActions({ row, variant, onDeleted }: {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
           {can.regenerate && <DropdownMenuItem className="py-2.5" onSelect={() => setDlg('regenerate')}><RefreshCw /> {t('picking.actionRegenerate')}</DropdownMenuItem>}
+          {can.order && <DropdownMenuItem className="py-2.5" onSelect={() => setDlg('order')}><ShoppingCart /> {t('workshop.orderMissing')}</DropdownMenuItem>}
           {can.finish && <DropdownMenuItem className="py-2.5" onSelect={() => setDlg('finish')}><CheckCheck /> {t('picking.actionFinish')}</DropdownMenuItem>}
           {can.reopen && <DropdownMenuItem className="py-2.5" onSelect={() => reopen.mutate()}><RotateCcw /> {t('picking.actionReopen')}</DropdownMenuItem>}
           {can.cancel && (

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Boxes } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { MaintenancePlansScreen } from '@/modules/workshop/maintenance-plans-screen';
@@ -18,7 +18,12 @@ function MaintenancePlansPage() {
       <PageHeader
         title={t('maintenance.title')}
         description={t('maintenance.subtitle')}
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('maintenance.back')}</Button>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop/kits' })}><Boxes /> {t('kits.title')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('maintenance.back')}</Button>
+          </div>
+        }
       />
       <MaintenancePlansScreen />
     </>

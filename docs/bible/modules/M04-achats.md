@@ -147,6 +147,23 @@ select count(*) from public.excel_catalog;
 | INV009 | Arrondi au conditionnement fournisseur | ⬜ manquant | `pack_qty` non utilisé dans `reorder_proposals` ni l'écran |
 | B5 | PAMP recalculé à chaque entrée | 🟦 partiel | fait via `record_stock_move` ; frais d'approche non intégrés |
 
+### Commander les pièces d'un entretien (mission 07, carte 2 — M-43)
+
+Le circuit d'achat n'est pas doublé : depuis un **ordre de réparation** ou depuis sa **liste de
+préparation**, le bouton « Commander les pièces manquantes » crée une **commande de pièces**
+(`part_orders`) en brouillon avec le **type choisi par l'utilisateur** (`order_kind` : standard /
+urgente / accident ; la commande **Excel garde son circuit propre**, le classeur Ducati, et n'est pas
+proposée par ce chemin), reliée à l'OR par la nouvelle colonne `part_orders.repair_order_id`. Elle
+repart ensuite dans la **proposition de commande fournisseur** (`supplier_order_from_proposal`) puis
+dans le **fichier DCS** (ACH001 : seule « urgente » sort en URGENTE).
+
+Le manquant est calculé côté serveur (`repair_order_order_needs`, `picking_order_needs`) avec la même
+arithmétique que la commande depuis un document (carte 3) : **besoin − libre (réel − réservé) −
+en commande pour ce client (`article_on_order_for`) − déjà lancé en brouillon**, pièces de type A et N
+seulement. Les seuils et le supplément s'appliquent **à la validation**, comme partout. **Aucun
+mouvement de stock** : la commande ne réserve pas ; le « en commande » alimente le disponible (B4)
+par le chemin déjà en place.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
