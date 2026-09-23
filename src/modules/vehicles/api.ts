@@ -4,7 +4,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
 
-export type Vehicle = Database['public']['Tables']['vehicles']['Row'];
+/**
+ * Mission 03, M-40 : `to_complete` / `to_complete_reason` sont ajoutés par la migration
+ * 20260923180000 ; `types.ts` n'a pas encore été régénéré, d'où l'extension locale.
+ */
+export type Vehicle = Database['public']['Tables']['vehicles']['Row'] & {
+  to_complete?: boolean | null;
+  to_complete_reason?: string | null;
+};
 export type VehicleInsert = Database['public']['Tables']['vehicles']['Insert'];
 export type VehicleUpdate = Database['public']['Tables']['vehicles']['Update'];
 export type VehicleStatus = Database['public']['Enums']['vehicle_status'];
@@ -57,12 +64,18 @@ async function vehicleIdsByOwnerName(companyId: string, search: string): Promise
 /** Véhicule + son éventuel dossier de reprise (référence REP cliquable en liste). */
 export type VehicleWithRep = Vehicle & { oro?: { id: string; number: string | null }[] };
 
-export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all'): Promise<VehicleWithRep[]> {
+/**
+ * Mission 03, M-40 : `toComplete` ne garde que les motos « à compléter » (fiche créée depuis une
+ * annonce du site sans VIN, ou prix d'achat manquant) — elles ne peuvent pas être facturées.
+ */
+export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all', toComplete?: boolean): Promise<VehicleWithRep[]> {
   // Jointure oro(id, number) : affiche la référence REP des demandes de reprise.
   // Repli sans jointure si elle échoue (la liste ne doit jamais casser).
   const build = (select: string) => {
     let q = supabase.from('vehicles').select(select as '*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(500);
     if (status && status !== 'all') q = q.eq('status', status);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (toComplete) q = (q as any).eq('to_complete', true);
     return q;
   };
   const s = search ? sanitize(search) : '';

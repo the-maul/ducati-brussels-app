@@ -9,14 +9,14 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Bike, Loader2, Package, PlusCircle } from 'lucide-react';
+import { AlertTriangle, Bike, Loader2, Package, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { ShopifyPublishPanel } from '@/modules/articles/shopify-publish-panel';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
-import { canPublish, isCustomerBike, parcKind, type ParcKind } from './parc';
+import { canInvoice, canPublish, isCustomerBike, parcKind, type ParcKind } from './parc';
 import { ensureMotoArticle, getMotoSiteStatus, ParcUnavailableError } from './parc-api';
 import type { Vehicle } from './api';
 
@@ -76,6 +76,18 @@ export function MotoSitePanel({ companyId, vehicle }: { companyId: string; vehic
 
       {clientBike && (
         <p className="text-[13px] text-muted-foreground">{t('motoParc.clientBikeHint')}</p>
+      )}
+
+      {/* M-40 : fiche créée depuis une annonce du site, sans VIN → vente bloquée. */}
+      {!canInvoice(vehicle.vin) && !clientBike && (
+        <div className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-medium">{t('motoParc.vinMissing')}</p>
+            <p>{t('motoParc.vinMissingHint')}</p>
+            {vehicle.to_complete_reason ? <p className="mt-1 opacity-80">{vehicle.to_complete_reason}</p> : null}
+          </div>
+        </div>
       )}
 
       {!clientBike && !article && (

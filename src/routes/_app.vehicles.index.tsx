@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Bike } from 'lucide-react';
+import { Search, Loader2, Plus, Bike, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,8 @@ function VehiclesList() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState<VehicleStatus | 'all'>('all');
+  // Mission 03, M-40 : motos « à compléter » (VIN ou prix d'achat manquant) — non facturables.
+  const [toComplete, setToComplete] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search), 300);
@@ -38,8 +40,8 @@ function VehiclesList() {
   }, [search]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['vehicles', activeCompanyId, debounced, status],
-    queryFn: () => listVehicles(activeCompanyId!, debounced, status),
+    queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete],
+    queryFn: () => listVehicles(activeCompanyId!, debounced, status, toComplete),
     enabled: !!activeCompanyId,
   });
 
@@ -86,6 +88,9 @@ function VehiclesList() {
             ))}
           </SelectContent>
         </Select>
+        <Button variant={toComplete ? 'default' : 'outline'} onClick={() => setToComplete((v) => !v)}>
+          <AlertTriangle /> {t('motoParc.filterToComplete')}
+        </Button>
         {data && <span className="text-sm text-muted-foreground">{data.length}</span>}
       </div>
 
@@ -126,6 +131,7 @@ function VehiclesList() {
                 <td className="px-3 py-2">
                   <span className="inline-flex flex-wrap items-center gap-1.5">
                     <StatusBadge tone={toneOf(v.status)} label={t(`vehicles.status_${v.status}`)} />
+                    {v.to_complete ? <StatusBadge tone="warning" label={t('motoParc.badgeToComplete')} /> : null}
                     {(v.oro ?? []).filter((o) => o.number).slice(0, 1).map((o) => (
                       <button
                         key={o.id}

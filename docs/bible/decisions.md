@@ -29,10 +29,32 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   Mesuré le 23/09 : **aucune** correspondance par VIN possible (l'instantané Shopify ne reprend pas
   la description des produits), 30 rattachements sûrs par référence, 458 propositions à valider.
   *Équipe · 23/09.* Mission 03, M03.
-- **M-39** — **On ne crée pas de fiche moto à partir d'une annonce du site.** Une fiche sans VIN est
-  contraire à B9 et polluerait le parc (le site garde 213 annonces en brouillon d'anciennes motos
-  vendues). Les **25 motos en ligne** qu'aucune fiche du parc ne reconnaît sont listées pour être
-  créées à la main. *Équipe · 23/09.* Mission 03, M03.
+- **M-39** — ~~On ne crée pas de fiche moto à partir d'une annonce du site.~~ **Remplacée le même
+  jour par M-40** après le retour de Simon. Constat d'origine conservé : une fiche sans VIN est
+  contraire à B9, et le site garde 213 annonces en brouillon d'anciennes motos vendues.
+- **M-40** — **Zéro travail manuel : les motos du site sont créées automatiquement, VIN vide assumé.**
+  Simon, 23/09 : « soit on a des motos à vendre, soit pas… si tu as des motos dans G8 et pas sur
+  Shopify, pas grave, tu permets de les publier ; si elles viennent de Shopify et ne sont pas dans la
+  base de G8, tu les crées » et « je ne veux rien avoir à faire *à la main* ». Donc :
+  1. chaque moto **en ligne** sur le site sans fiche au parc reçoit **sa fiche moto et son article**,
+     créés depuis l'annonce (marque, modèle et année lus dans le titre, prix du site, statut de parc
+     déduit, référence `WEB-…`, image et texte de l'annonce rapatriés dans la GED) ;
+  2. **dérogation assumée à B9** (numéro de série obligatoire sur les types V/O/P) : la fiche est
+     créée **sans VIN**, avec le marqueur « à compléter » (badge sur la fiche, filtre dans la liste).
+     **Garde-fou : la moto ne peut pas être facturée tant que son VIN n'est pas saisi** — refus en
+     base (déclencheur sur `document_lines`, documents FAC et TIK) avec un message clair, et
+     avertissement sur la fiche. La dérogation porte donc sur la *création*, jamais sur la *vente* ;
+  3. les **annonces obsolètes** (motos déjà vendues, annonces en brouillon) ne restent plus « à
+     valider » : elles sont marquées « annonce obsolète » avec leur raison, avec un bouton unique
+     « Retirer ces annonces du site » qui **n'écrit rien sur Shopify** (accord explicite de Simon
+     requis avant toute écriture) ;
+  4. les **motos du parc sans annonce** ont simplement « Publier sur le site » actif dès qu'elles
+     sont En stock ou Dépôt-vente — « Réservée » et « Démo » comprises, plus rien n'est grisé ;
+  5. les **propositions à valider** sont purifiées automatiquement (accepté ce qui est sûr, rejeté le
+     reste **avec sa raison**) : objectif et résultat **zéro proposition en attente** ;
+  6. **prix d'achat manquant** : 0 assumé + marqueur « prix d'achat à compléter », pour que la marge
+     soit *visiblement* fausse au lieu d'être *silencieusement* fausse.
+  *Simon · 23/09.* M03, M06, M07, mission 03.
 
 ---
 ## 2026-09-23 — Liste Pièces & Accessoires : images, provenance, filtre stock

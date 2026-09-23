@@ -6636,6 +6636,50 @@ export type Database = {
           },
         ]
       }
+      shopify_moto_annonces: {
+        Row: {
+          company_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          reason: string | null
+          shopify_variant_id: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          reason?: string | null
+          shopify_variant_id: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          reason?: string | null
+          shopify_variant_id?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_moto_annonces_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shopify_order_lines: {
         Row: {
           article_id: string | null
@@ -8001,6 +8045,8 @@ export type Database = {
           ship_date: string | null
           sold_date: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
+          to_complete: boolean
+          to_complete_reason: string | null
           tpms_ar: string | null
           tpms_av: string | null
           type_mine: string | null
@@ -8080,6 +8126,8 @@ export type Database = {
           ship_date?: string | null
           sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
+          to_complete?: boolean
+          to_complete_reason?: string | null
           tpms_ar?: string | null
           tpms_av?: string | null
           type_mine?: string | null
@@ -8159,6 +8207,8 @@ export type Database = {
           ship_date?: string | null
           sold_date?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
+          to_complete?: boolean
+          to_complete_reason?: string | null
           tpms_ar?: string | null
           tpms_av?: string | null
           type_mine?: string | null
@@ -9600,6 +9650,13 @@ export type Database = {
       _al_desig_ratio: { Args: { _a: string; _b: string }; Returns: number }
       _al_first_token: { Args: { _t: string }; Returns: string }
       _al_norm_desig: { Args: { _t: string }; Returns: string }
+      _annonce_annee: { Args: { _title: string }; Returns: number }
+      _annonce_marque: { Args: { _title: string }; Returns: string }
+      _annonce_modele: { Args: { _title: string }; Returns: string }
+      _annonce_statut: {
+        Args: { _product_type: string; _title: string }
+        Returns: Database["public"]["Enums"]["vehicle_status"]
+      }
       _article_links_can_write: { Args: { _company: string }; Returns: boolean }
       _article_links_stats: { Args: { _company: string }; Returns: Json }
       _article_on_order_qty: { Args: { _article: string }; Returns: number }
@@ -11324,6 +11381,27 @@ export type Database = {
           sku: string
           variant_title: string
         }[]
+      }
+      motos_site_annonces_obsoletes: {
+        Args: { _company: string }
+        Returns: {
+          image_url: string
+          price: number
+          product_title: string
+          reason: string
+          shop_status: string
+          shopify_variant_id: string
+          state: string
+        }[]
+      }
+      motos_site_creer_fiches: {
+        Args: { _apply?: boolean; _company: string; _limit?: number }
+        Returns: Json
+      }
+      motos_site_demander_retrait: { Args: { _company: string }; Returns: Json }
+      motos_site_purifier: {
+        Args: { _apply?: boolean; _company: string }
+        Returns: Json
       }
       motos_site_rattacher: {
         Args: { _apply?: boolean; _company: string }
