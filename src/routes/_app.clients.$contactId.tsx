@@ -24,6 +24,7 @@ import { MergeSummary, useMergePreviews } from '@/modules/contacts/merge-summary
 import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
+import { sendAccountInvitation } from '@/modules/settings/users-api';
 import { t } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
@@ -60,6 +61,19 @@ function EditClient() {
   const { data: portalVisit, isSuccess: portalVisitLoaded } = useQuery({
     queryKey: ['contact-portal-visit', contactId],
     queryFn: () => getContactPortalVisit(contactId),
+  });
+
+  // Renvoyer au client le lien « choisir mon mot de passe » (Simon, 05/10) : utile quand
+  // le mail d'inscription n'est pas arrivé, ou quand le client ne l'a jamais ouvert.
+  const resendInvite = useMutation({
+    mutationFn: async () => {
+      if (!activeCompanyId || !portalVisit?.user_id) throw new Error('missing');
+      const r = await sendAccountInvitation(activeCompanyId, portalVisit.user_id);
+      if (r.error) throw new Error(r.error);
+      return r;
+    },
+    onSuccess: (r) => toast.success(t('contacts.portalResendOk').replace('{email}', r.to ?? contact?.email ?? '')),
+    onError: (e) => toast.error(t('contacts.portalResendErr').replace('{code}', e instanceof Error ? e.message : 'erreur')),
   });
 
   useEffect(() => {
@@ -292,6 +306,18 @@ function EditClient() {
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
                   }),
                 )}
+          {portalVisit?.user_id && isAdmin() && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-3 h-7 align-middle"
+              title={t('contacts.portalResendHint')}
+              onClick={() => resendInvite.mutate()}
+              disabled={resendInvite.isPending}
+            >
+              {resendInvite.isPending ? <Loader2 className="animate-spin" /> : null} {t('contacts.portalResend')}
+            </Button>
+          )}
         </p>
       )}
       <EncoursBar contactId={contactId} />

@@ -89,16 +89,16 @@ export async function getContact(id: string): Promise<Contact | null> {
  * venu sur /mon-espace ? `null` = aucun compte client. Lu par la politique
  * contact_accounts_member_read (membres de la société).
  */
-export type ContactPortalVisit = { first_visit_at: string | null; last_visit_at: string | null };
+export type ContactPortalVisit = { first_visit_at: string | null; last_visit_at: string | null; user_id: string | null };
 
 export async function getContactPortalVisit(contactId: string): Promise<ContactPortalVisit | null> {
   const { data, error } = await supabase
     .from('contact_accounts')
-    .select('first_portal_visit_at, last_portal_visit_at')
+    .select('user_id, first_portal_visit_at, last_portal_visit_at')
     .eq('contact_id', contactId)
     .maybeSingle();
   if (error) throw error;
-  return data ? { first_visit_at: data.first_portal_visit_at, last_visit_at: data.last_portal_visit_at } : null;
+  return data ? { first_visit_at: data.first_portal_visit_at, last_visit_at: data.last_portal_visit_at, user_id: data.user_id ?? null } : null;
 }
 
 export async function createContact(input: ContactInsert): Promise<Contact> {

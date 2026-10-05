@@ -715,6 +715,10 @@ export const fr = {
     // Espace client (P-6) : visite de /mon-espace, visible sur la fiche
     portalSpace: 'Espace client',
     portalNoAccount: 'pas de compte',
+    portalResend: 'Renvoyer l’invitation',
+    portalResendHint: 'Envoie au client un lien pour choisir son mot de passe et ouvrir son espace.',
+    portalResendOk: 'Invitation envoyée à {email}.',
+    portalResendErr: 'L’invitation n’est pas partie : {code}. Réessayez ou prévenez l’équipe technique.',
     portalNeverOpened: 'compte créé, jamais ouvert',
     portalLastVisit: 'dernière visite le {date}',
     portalNeverHint: 'Tant que le client n’est jamais venu, les e-mails qu’on lui envoie l’invitent à se connecter.',
