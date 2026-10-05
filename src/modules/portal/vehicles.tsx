@@ -1,19 +1,28 @@
 /**
  * « Mes motos » : liste et fiche (infos, photo, entretiens et réparations,
  * documents du véhicule déposés par le client, factures liées).
+ *
+ * Retour client du 05/10 (migration 20261005130000) :
+ *  - chaque document du véhicule (carte grise, assurance, COC, contrôle technique)
+ *    demande RECTO ET VERSO, avec « ce document n'a pas de verso » pour les
+ *    documents qui n'en ont réellement qu'une face ;
+ *  - « Autres documents » accepte plusieurs fichiers, chacun avec son libellé ;
+ *  - un fichier déposé est montré par une MINIATURE (pas son nom seul), ouvrable
+ *    en plein écran et supprimable par le client (confirmation + trace dans events) ;
+ *  - limite de 10 Mo annoncée avant l'envoi, images réduites à 1 200 px.
  */
 import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, ImageIcon, Plus, Wrench } from 'lucide-react';
-import { toast } from 'sonner';
+import { Bike, CalendarClock, ChevronRight, FileText, ImageIcon, Plus, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
-import { getVehicle, listVehicles, openFile, VEHICLE_DOC_KINDS, type PortalFile, type UploadKind } from './api';
+import { getVehicle, listVehicles, VEHICLE_DOC_KINDS } from './api';
 import {
   Card, EmptyState, ErrorBox, Loading, PortalPage, RepairStatus, SectionTitle, SignedImage, UploadButtons,
-  dateFr, eur, km, vehicleName,
+  UploadLimitHint, dateFr, eur, km, useDocViewer, vehicleName,
 } from './ui';
+import { DocumentCard, OtherDocsCard } from './doc-slot';
 import { DeclareVehicleForm, DeclaredVehiclesCard } from './declare-vehicle';
 
 export function VehicleListView() {
@@ -81,12 +90,11 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
     qc.invalidateQueries({ queryKey: ['portal', 'vehicles'] });
     qc.invalidateQueries({ queryKey: ['portal', 'home'] });
   };
+  // Consultation d'un document : image en plein écran, PDF dans un onglet.
+  const { open: viewDoc, viewer } = useDocViewer();
 
   if (isLoading) return <Loading />;
   if (error || !v) return <ErrorBox error={error} />;
-
-  const lastOf = (kind: UploadKind) => v.files.find((f) => f.kind === kind);
-  const open = (f: PortalFile) => openFile(f.path).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
 
   return (
     <PortalPage title={vehicleName(v)} subtitle={[v.model_year, v.plate].filter(Boolean).join(' · ')}>
@@ -102,6 +110,7 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
           </p>
           <UploadButtons kind="vehicle_photo" vehicleId={v.id} onDone={refresh} photoOnly compact />
         </div>
+        <div className="px-3 pb-3"><UploadLimitHint photoOnly /></div>
       </Card>
 
       <Button asChild className="w-full">
@@ -128,31 +137,20 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
         </dl>
       </Card>
 
-      {/* Documents du véhicule */}
+      {/* Documents du véhicule : chacun recto ET verso, plus « autres documents » */}
       <Card>
         <SectionTitle>{t('portal.vehicles.documents')}</SectionTitle>
         <p className="mb-3 text-[12px] text-muted-foreground">{t('portal.vehicles.documentsHint')}</p>
         <ul className="space-y-3">
-          {VEHICLE_DOC_KINDS.map((kind) => {
-            const f = lastOf(kind);
-            return (
-              <li key={kind} id={kind} className="rounded-md border border-border p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  {f ? <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden /> : <Circle className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
-                  <span className="flex-1 text-[14px] font-medium">{t(`portal.docKinds.${kind}`)}</span>
-                  {f && (
-                    <button type="button" onClick={() => open(f)} className="text-[13px] font-medium text-info underline-offset-2 hover:underline">
-                      {t('portal.common.open')}
-                    </button>
-                  )}
-                </div>
-                {f && <p className="mb-2 truncate text-[12px] text-muted-foreground">{f.file_name} · {dateFr(f.created_at)}</p>}
-                <UploadButtons kind={kind} vehicleId={v.id} onDone={refresh} compact />
-              </li>
-            );
-          })}
+          {VEHICLE_DOC_KINDS.map((kind) => (
+            <DocumentCard key={kind} kind={kind} vehicleId={v.id} files={v.files}
+              noBack={v.no_back} onDone={refresh} onView={viewDoc} />
+          ))}
+          <OtherDocsCard vehicleId={v.id} files={v.files} onDone={refresh} onView={viewDoc} />
         </ul>
       </Card>
+
+      {viewer}
 
       {/* Entretiens et réparations */}
       <Card>

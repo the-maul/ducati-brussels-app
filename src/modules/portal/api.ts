@@ -30,7 +30,7 @@ export type PortalWhoami = {
 };
 
 export type StepKey =
-  | 'coordonnees' | 'avatar' | 'preferences' | 'permis' | 'societe'
+  | 'coordonnees' | 'avatar' | 'preferences' | 'permis' | 'carte_identite' | 'societe'
   | 'vehicle_photo' | 'carte_grise' | 'assurance';
 
 export type CompletionStep = {
@@ -96,6 +96,13 @@ export type PortalProfile = {
   license_path: string | null;
   /** Photo du permis, VERSO (dépôt `permis_verso`, migration 20260921160000). */
   license_back_path?: string | null;
+  /** Carte d'identité, recto et verso (retour Simon 05/10, migration 20261005130000). */
+  id_card_path?: string | null;
+  id_card_back_path?: string | null;
+  /** Tous ses dépôts vivants rangés sur sa fiche (miniature, ouverture, suppression). */
+  files?: PortalFile[];
+  /** Types pour lesquels il a déclaré « pas de verso ». */
+  no_back?: DocKind[];
 };
 
 export type ContactPreference = 'email' | 'telephone' | 'sms' | 'whatsapp';
@@ -146,8 +153,11 @@ export type PortalFile = {
   id: string;
   kind: UploadKind;
   file_name: string;
+  /** Libellé saisi par le client (type « autre »). */
+  label?: string | null;
   content_type: string;
   path: string;
+  size_bytes?: number | null;
   created_at: string;
 };
 
@@ -163,6 +173,8 @@ export type PortalVehicleDetail = Omit<PortalVehicleSummary, 'has_registration' 
   repairs: PortalRepair[];
   maintenance: PortalMaintenance[];
   files: PortalFile[];
+  /** Types pour lesquels le client a déclaré « pas de verso ». */
+  no_back?: DocKind[];
   invoices: { id: string; doc_type: string; number: string | null; issue_date: string; total_ttc: number }[];
 };
 
@@ -202,11 +214,33 @@ export type PortalInvoiceDetail = PortalInvoiceSummary & {
   payments: { method: string | null; amount: number; paid_at: string | null; status: string | null }[];
 };
 
+/**
+ * Types de dépôt acceptés par la base (contrainte portal_uploads.kind).
+ * Retour Simon 05/10 : carte d'identité ajoutée, et une face VERSO pour chaque
+ * document d'identité ou de véhicule.
+ */
 export type UploadKind =
-  | 'avatar' | 'permis' | 'permis_verso' | 'vehicle_photo' | 'carte_grise' | 'assurance' | 'coc' | 'controle_technique' | 'autre';
+  | 'avatar'
+  | 'permis' | 'permis_verso'
+  | 'carte_identite' | 'carte_identite_verso'
+  | 'vehicle_photo'
+  | 'carte_grise' | 'carte_grise_verso'
+  | 'assurance' | 'assurance_verso'
+  | 'coc' | 'coc_verso'
+  | 'controle_technique' | 'controle_technique_verso'
+  | 'autre';
 
-/** Documents qu'un client peut déposer sur sa moto (hors photo). */
-export const VEHICLE_DOC_KINDS: UploadKind[] = ['carte_grise', 'assurance', 'coc', 'controle_technique', 'autre'];
+/** Document à deux faces : on nomme la face RECTO, le verso est `${kind}_verso`. */
+export type DocKind = 'permis' | 'carte_identite' | 'carte_grise' | 'assurance' | 'coc' | 'controle_technique';
+
+/** Documents de la fiche du client, chacun recto + verso. */
+export const CONTACT_DOC_KINDS: DocKind[] = ['permis', 'carte_identite'];
+
+/** Documents à deux faces qu'un client peut déposer sur sa moto (hors photo et « autre »). */
+export const VEHICLE_DOC_KINDS: DocKind[] = ['carte_grise', 'assurance', 'coc', 'controle_technique'];
+
+/** Le verso d'un document à deux faces. */
+export const backKind = (kind: DocKind): UploadKind => `${kind}_verso` as UploadKind;
 
 export type AppointmentSlot = 'matin' | 'apres_midi';
 
@@ -216,6 +250,7 @@ export function portalErrorMessage(err: unknown): string {
   const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : String(err ?? '');
   const map: [string, string][] = [
     ['file too large', 'portal.errors.fileTooLarge'],
+    ['upload not found', 'portal.errors.notFound'],
     ['file type not allowed', 'portal.errors.fileType'],
     ['a photo is expected', 'portal.errors.photoExpected'],
     ['too many uploads', 'portal.errors.tooManyUploads'],
@@ -287,7 +322,11 @@ export const touchPortal = () => rpc<null>('portal_touch').catch(() => null);
  *   2. envoi dans le bucket, autorisé par la politique ged_portal_insert pour ce seul chemin ;
  *   3. portal_complete_upload : la base contrôle le fichier reçu et l'indexe dans la GED.
  */
-export async function uploadPortalFile(kind: UploadKind, vehicleId: string | null, original: File): Promise<void> {
+export async function uploadPortalFile(
+  kind: UploadKind, vehicleId: string | null, original: File, label?: string | null,
+): Promise<string> {
+  // Réduction et contrôle de taille AVANT tout appel réseau : un fichier trop
+  // lourd est refusé avec un message clair, pas une erreur technique.
   const file = await prepareFileForUpload(original);
   const prepared = await rpc<{ upload_id: string; path: string }>('portal_prepare_upload', {
     p_kind: kind, p_vehicle_id: vehicleId, p_file_name: original.name,
@@ -298,7 +337,28 @@ export async function uploadPortalFile(kind: UploadKind, vehicleId: string | nul
   });
   if (error) throw new Error(portalErrorMessage(error));
   await rpc('portal_complete_upload', { p_upload_id: prepared.upload_id });
+  // Libellé d'un « autre document » : jamais bloquant (le nom du fichier reste affiché).
+  const clean = label?.trim();
+  if (clean) await rpc('portal_set_upload_label', { p_upload_id: prepared.upload_id, p_label: clean }).catch(() => null);
+  return prepared.upload_id;
 }
+
+/**
+ * Suppression d'un document par le client.
+ *   1. portal_delete_upload : la base marque le dépôt supprimé, retire l'entrée de
+ *      la GED du personnel et trace dans events ; elle renvoie le chemin ;
+ *   2. le fichier est effacé du stockage, autorisé par la politique ged_portal_delete
+ *      pour ce seul chemin et pendant une heure. Si cet effacement échoue, le dépôt
+ *      reste marqué supprimé : plus personne ne le voit ni ne peut le relire.
+ */
+export async function deletePortalUpload(uploadId: string): Promise<void> {
+  const { path } = await rpc<{ path: string }>('portal_delete_upload', { p_upload_id: uploadId });
+  if (path) await supabase.storage.from(BUCKET).remove([path]).catch(() => null);
+}
+
+/** « Ce document n'a pas de verso » : l'étape est complète sans la seconde face. */
+export const setDocNoBack = (kind: DocKind, vehicleId: string | null, noBack: boolean) =>
+  rpc<null>('portal_set_doc_no_back', { p_kind: kind, p_vehicle_id: vehicleId, p_no_back: noBack });
 
 /** URL signée courte (5 min) pour afficher ou ouvrir un fichier du client. */
 export async function signedFileUrl(path: string): Promise<string> {

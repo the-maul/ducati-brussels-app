@@ -10,6 +10,13 @@
  *    format E.164 (+32470123456) ; une saisie qui n'est pas un numéro bloque l'envoi ;
  *  - permis : deux photos, RECTO (dépôt `permis`) et VERSO (dépôt `permis_verso`).
  *
+ * Retour client du 05/10 (migration 20261005130000) :
+ *  - « Mes documents » rassemble le permis ET la carte d'identité, chacun recto
+ *    ET verso, avec « ce document n'a pas de verso » pour ne bloquer personne ;
+ *  - chaque fichier déposé est montré par une MINIATURE, consultable en plein
+ *    écran et supprimable par le client lui-même (avec confirmation) ;
+ *  - limite de 10 Mo annoncée avant l'envoi, images réduites à 1 200 px.
+ *
  * TVA : le bouton « Vérifier » réutilise la vérification VIES du module Contacts
  * (Edge Function vies-check, service public sans donnée du DMS). Le résultat sert
  * seulement à préremplir : la base remet « vérifié » à vide à chaque changement de
@@ -18,7 +25,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Circle, KeyRound, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, KeyRound, Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,10 +38,15 @@ import { isValidIban } from '@/lib/contact-normalize';
 import { toE164 } from '@/lib/phone';
 import { PhoneInput } from '@/components/phone-input';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
+import { useConfirm } from '@/components/confirm-provider';
 import {
-  CONTACT_PREFERENCES, getProfile, openFile, updateProfile, type PortalProfile, type ProfilePatch, type UploadKind,
+  CONTACT_DOC_KINDS, CONTACT_PREFERENCES, deletePortalUpload, getProfile, updateProfile,
+  type PortalProfile, type ProfilePatch,
 } from './api';
-import { Avatar, Card, ErrorBox, Loading, PortalPage, SectionTitle, UploadButtons } from './ui';
+import {
+  Avatar, Card, ErrorBox, Loading, PortalPage, SectionTitle, UploadButtons, UploadLimitHint, useDocViewer,
+} from './ui';
+import { DocumentCard, lastFileOf } from './doc-slot';
 
 type FormState = Required<{ [K in keyof ProfilePatch]: NonNullable<ProfilePatch[K]> }>;
 
@@ -63,6 +76,8 @@ export function ProfileView() {
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'profile'], queryFn: getProfile });
   const [form, setForm] = useState<FormState | null>(null);
   const [vies, setVies] = useState<ViesResult | null>(null);
+  // Consultation d'un document : image en plein écran, PDF dans un onglet.
+  const { open: viewDoc, viewer } = useDocViewer();
 
   useEffect(() => { if (data) setForm(toForm(data)); }, [data]);
   const initial = useMemo(() => (data ? toForm(data) : null), [data]);
@@ -145,7 +160,11 @@ export function ProfileView() {
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-[15px] font-bold">{name}</p>
             <p className="text-[13px] text-muted-foreground">{data.email}</p>
-            <UploadButtons kind="avatar" vehicleId={null} onDone={refreshAll} photoOnly compact />
+            <div className="flex flex-wrap items-center gap-2">
+              <UploadButtons kind="avatar" vehicleId={null} onDone={refreshAll} photoOnly compact />
+              <AvatarDelete profile={data} onDone={refreshAll} />
+            </div>
+            <UploadLimitHint photoOnly />
           </div>
         </div>
       </Card>
@@ -237,16 +256,10 @@ export function ProfileView() {
           </Card>
         )}
 
-        {/* Permis */}
+        {/* Permis : le numéro. Les deux faces sont dans « Mes documents », hors formulaire. */}
         <Card>
-          <div id="permis" />
           <SectionTitle>{t('portal.profile.license')}</SectionTitle>
           <Field id="pf-license_number" label={t('portal.profile.licenseNumber')}>{input('license_number')}</Field>
-          <p className="mt-3 text-[13px] text-muted-foreground">{t('portal.profile.licenseScan')}</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <LicenseSide kind="permis" label={t('portal.profile.licenseFront')} path={data.license_path} onDone={refreshAll} />
-            <LicenseSide kind="permis_verso" label={t('portal.profile.licenseBack')} path={data.license_back_path ?? null} onDone={refreshAll} />
-          </div>
         </Card>
 
         {/* Préférences de contact */}
@@ -279,6 +292,20 @@ export function ProfileView() {
         </div>
       </form>
 
+      {/* Mes documents : permis et carte d'identité, recto ET verso (retour 05/10). */}
+      <Card>
+        <SectionTitle>{t('portal.profile.documents')}</SectionTitle>
+        <p className="mb-3 text-[12px] text-muted-foreground">{t('portal.profile.documentsHint')}</p>
+        <ul className="space-y-3">
+          {CONTACT_DOC_KINDS.map((kind) => (
+            <DocumentCard key={kind} kind={kind} vehicleId={null} files={data.files}
+              noBack={data.no_back} onDone={refreshAll} onView={viewDoc} />
+          ))}
+        </ul>
+      </Card>
+
+      {viewer}
+
       {/* Compte */}
       <Card>
         <SectionTitle>{t('portal.profile.account')}</SectionTitle>
@@ -292,27 +319,31 @@ export function ProfileView() {
 }
 
 /**
- * Une face du permis (recto ou verso) : état (couleur + icône + libellé), lien « Voir »
- * et les deux boutons « Prendre une photo » / « Choisir un fichier ».
+ * « Supprimer la photo » : le client peut retirer sa photo de profil comme
+ * n'importe lequel de ses dépôts (retour Simon 05/10, point 4).
  */
-function LicenseSide({ kind, label, path, onDone }: {
-  kind: Extract<UploadKind, 'permis' | 'permis_verso'>; label: string; path: string | null; onDone: () => void;
-}) {
+function AvatarDelete({ profile, onDone }: { profile: PortalProfile; onDone: () => void }) {
+  const confirm = useConfirm();
+  const file = lastFileOf(profile.files, 'avatar');
+  const del = useMutation({
+    mutationFn: (id: string) => deletePortalUpload(id),
+    meta: { success: false },
+    onSuccess: () => { toast.success(t('portal.upload.deleted')); onDone(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('portal.errors.generic')),
+  });
+  if (!file) return null;
+  const ask = async () => {
+    const ok = await confirm({
+      variant: 'delete',
+      title: t('portal.upload.deleteTitle'),
+      message: t('portal.upload.deleteText').replace('{name}', t('portal.docKinds.avatar')),
+      confirmLabel: t('portal.upload.deleteConfirm'),
+    });
+    if (ok) del.mutate(file.id);
+  };
   return (
-    <div className="space-y-2 rounded-md border border-border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[14px] font-medium">{label}</p>
-        {path
-          ? <span className="flex items-center gap-1 text-[12px] text-success"><CheckCircle2 className="size-4" aria-hidden /> {t('portal.profile.licenseSideDone')}</span>
-          : <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><Circle className="size-4" aria-hidden /> {t('portal.profile.licenseSideMissing')}</span>}
-      </div>
-      {path && (
-        <button type="button" className="text-[13px] font-medium text-info underline-offset-2 hover:underline"
-          onClick={() => openFile(path)}>
-          {t('portal.profile.licenseSideOpen')}
-        </button>
-      )}
-      <UploadButtons kind={kind} vehicleId={null} onDone={onDone} compact />
-    </div>
+    <Button type="button" variant="ghost" size="sm" className="text-danger" disabled={del.isPending} onClick={ask}>
+      {del.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} {t('portal.upload.delete')}
+    </Button>
   );
 }

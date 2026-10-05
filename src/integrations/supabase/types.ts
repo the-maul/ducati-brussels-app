@@ -5921,11 +5921,14 @@ export type Database = {
           contact_id: string
           content_type: string
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           entity_id: string
           entity_type: string
           file_name: string
           id: string
           kind: string
+          label: string | null
           size_bytes: number | null
           storage_path: string
           user_id: string
@@ -5937,11 +5940,14 @@ export type Database = {
           contact_id: string
           content_type: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           entity_id: string
           entity_type: string
           file_name: string
           id?: string
           kind: string
+          label?: string | null
           size_bytes?: number | null
           storage_path: string
           user_id: string
@@ -5953,11 +5959,14 @@ export type Database = {
           contact_id?: string
           content_type?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           entity_id?: string
           entity_type?: string
           file_name?: string
           id?: string
           kind?: string
+          label?: string | null
           size_bytes?: number | null
           storage_path?: string
           user_id?: string
@@ -12060,6 +12069,7 @@ export type Database = {
       }
       plate_normalize: { Args: { _plate: string }; Returns: string }
       portal_appointments: { Args: never; Returns: Json }
+      portal_can_delete_object: { Args: { p_name: string }; Returns: boolean }
       portal_can_read_object: { Args: { p_name: string }; Returns: boolean }
       portal_can_write_object: { Args: { p_name: string }; Returns: boolean }
       portal_cancel_appointment_request: {
@@ -12078,6 +12088,7 @@ export type Database = {
         Returns: string
       }
       portal_declared_vehicles: { Args: never; Returns: Json }
+      portal_delete_upload: { Args: { p_upload_id: string }; Returns: Json }
       portal_home: { Args: never; Returns: Json }
       portal_invoice: { Args: { p_document_id: string }; Returns: Json }
       portal_invoices: { Args: never; Returns: Json }
@@ -12109,6 +12120,14 @@ export type Database = {
           p_vehicle_id: string
         }
         Returns: string
+      }
+      portal_set_doc_no_back: {
+        Args: { p_kind: string; p_no_back: boolean; p_vehicle_id: string }
+        Returns: undefined
+      }
+      portal_set_upload_label: {
+        Args: { p_label: string; p_upload_id: string }
+        Returns: undefined
       }
       portal_touch: { Args: never; Returns: undefined }
       portal_update_profile: { Args: { p: Json }; Returns: Json }
