@@ -27,6 +27,8 @@ export const MAIL_STYLE = {
   rule: '#d9d9d9',
   brand: '#c8102e',
   link: '#1d5fa8',
+  /** Fond du bloc d'invitation (gris très clair, lisible partout). */
+  panel: '#f7f7f8',
 } as const;
 
 // Style du pied de mail (invitation à l'application).
@@ -54,17 +56,36 @@ export type MailContact = {
 export function footerHtml(kind: 'join' | 'login', origin: string, to: string, contact?: MailContact | null): string {
   const join = kind === 'join';
   const link = join ? `${origin}/inscription?email=${encodeURIComponent(to)}` : `${origin}/login`;
+  // Texte validé par Simon (05/10) : court, orienté bénéfice, puis l'appel à l'action.
   const text = join
-    ? 'Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l’application Ducati Bruxelles.'
-    : 'Votre espace Ducati Bruxelles est prêt : retrouvez la vie de votre moto (photos, entretiens, pièces, documents) et vos bonus de fidélité.';
-  // Retour client du 21/09 : dire ce que l'espace client apporte en plus.
-  const perks = 'Vous y retrouvez aussi vos factures, le suivi de vos interventions à l’atelier et le contact direct avec notre équipe pour toute demande commerciale.';
-  const label = join ? 'Créer mon compte' : 'Me connecter';
+    ? 'Retrouvez tous vos documents et le suivi de votre moto grâce à l’application Ducati Bruxelles.'
+    : 'Votre espace Ducati Bruxelles est prêt : tous vos documents et le suivi de votre moto, au même endroit.';
+  // Reprend les mots demandés par le client le 21/09 (factures, atelier, demande commerciale).
+  const perks = 'Vos factures, le suivi de vos interventions à l’atelier, les photos de votre moto, et notre équipe joignable pour toute demande commerciale.';
+  const nudge = join ? 'Pas encore de compte ? Créez-le gratuitement :' : 'Votre compte vous attend :';
+  // Même libellé dans les deux cas (Simon, 05/10) : le bouton mène au compte,
+  // vers l'inscription si la personne n'en a pas encore, vers la connexion sinon.
+  const label = 'Mon espace Ducati Bruxelles';
+  // Bloc encadré avec un vrai bouton : tableau + styles en ligne, seule mise en page
+  // que tous les logiciels de messagerie rendent correctement (Outlook compris).
   return `
 <div style="${FOOTER_STYLE}">
-  <p style="margin:0 0 6px 0">${esc(text)}</p>
-  <p style="margin:0 0 6px 0">${esc(perks)}</p>
-  <p style="margin:0"><a href="${esc(link)}" style="color:${MAIL_STYLE.brand}">${label}</a></p>${contactHtml(contact)}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:4px 0 0 0">
+    <tr>
+      <td style="background:${MAIL_STYLE.panel};border:1px solid ${MAIL_STYLE.rule};border-left:4px solid ${MAIL_STYLE.brand};border-radius:6px;padding:16px 18px">
+        <p style="margin:0 0 4px 0;font-size:15px;line-height:21px;color:${MAIL_STYLE.text};font-weight:bold">${esc(text)}</p>
+        <p style="margin:0 0 12px 0;font-size:13px;line-height:19px;color:${MAIL_STYLE.muted}">${esc(perks)}</p>
+        <p style="margin:0 0 10px 0;font-size:13px;line-height:19px;color:${MAIL_STYLE.text}">${esc(nudge)}</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+          <tr>
+            <td style="background:${MAIL_STYLE.brand};border-radius:6px">
+              <a href="${esc(link)}" style="display:inline-block;padding:11px 20px;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none">${label}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>${contactHtml(contact)}
 </div>`;
 }
 

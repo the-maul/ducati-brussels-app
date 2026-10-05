@@ -35,7 +35,7 @@ test('le PDF du document part en pièce jointe, avec le pied de mail sous le mes
   expect(msg.message.toRecipients[0].emailAddress.address).toBe('client@exemple.be');
   expect(msg.message.body.content.startsWith('Bonjour,<br>&lt;b&gt;merci&lt;/b&gt;')).toBe(true);
   expect(msg.message.body.content).toContain('inscription?email=client%40exemple.be');
-  expect(msg.message.body.content).toContain('Créer mon compte');
+  expect(msg.message.body.content).toContain('Mon espace Ducati Bruxelles');
   expect(msg.message.attachments?.[0].contentBytes).toBe(b64);
 
   const summary = attachmentsSummary(atts);
@@ -46,7 +46,7 @@ test('le PDF du document part en pièce jointe, avec le pied de mail sous le mes
 test('variante « Me connecter » et message sans pièce jointe (appelants existants inchangés)', () => {
   const footer = footerHtml('login', 'https://app.example.be', 'a@b.be');
   expect(footer).toContain('/login');
-  expect(footer).toContain('Me connecter');
+  expect(footer).toContain('Mon espace Ducati Bruxelles');
   const msg = buildGraphMessage({ subject: 's', bodyHtml: '<p>x</p>', footer: '', to: 'a@b.be', attachments: toGraphAttachments(undefined) });
   expect(msg.message.body.content).toBe('<p>x</p>');
   expect('attachments' in msg.message).toBe(false);
