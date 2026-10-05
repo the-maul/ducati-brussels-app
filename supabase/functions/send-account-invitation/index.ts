@@ -166,6 +166,32 @@ function welcomeBlock(o: string): string {
     <p>Vous pourrez désormais retrouver vos informations et celles de vos achats et de vos véhicules directement sur <a href="${esc(o)}">${esc(host)}</a>.</p>`;
 }
 
+
+/**
+ * Trace d'un mail de compte dans `events` (05/10) : qui, quand, quel type, vers quelle
+ * adresse, depuis quelle boîte, accepté ou non par Microsoft. Sans cela, un client qui
+ * ne reçoit rien laisse l'équipe sans aucun élément.
+ */
+async function trace(
+  companyId: string | null, userId: string | null, kind: string,
+  to: string, from: string, ok: boolean, detail: string | null,
+): Promise<void> {
+  try {
+    await db('events', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        company_id: companyId,
+        action: ok ? 'account_mail_sent' : 'account_mail_failed',
+        entity_type: 'auth_users',
+        entity_id: userId,
+        origin: 'screen',
+        new_data: { kind, to, from, ...(detail ? { detail } : {}) },
+      }),
+    });
+  } catch { /* une trace manquante ne doit jamais empêcher l'envoi */ }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!TENANT || !CID || !CSECRET) return J({ error: 'graph_not_configured' }, 501);
@@ -318,6 +344,12 @@ Deno.serve(async (req) => {
       saveToSentItems: true,
     }),
   });
-  if (!send.ok) return J({ error: 'send_failed', detail: (await send.text()).slice(0, 200) }, 502);
+  if (!send.ok) {
+    const detail = (await send.text()).slice(0, 200);
+    // Trace de l'échec : sans elle, personne ne sait qu'un client n'a jamais reçu son lien.
+    await trace(companyId, userId, kind, email, sender, false, detail);
+    return J({ error: 'send_failed', detail }, 502);
+  }
+  await trace(companyId, userId, kind, email, sender, true, null);
   return J({ ok: true, kind, to: email, from: sender });
 });
