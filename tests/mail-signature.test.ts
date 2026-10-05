@@ -37,7 +37,7 @@ test('adresse personnelle : nom en gras, fonction en gris italique, concession e
   expect(html).toContain('Chaussée de l’Essai 12 – 1400 Nivelles');
   expect(html).toContain('T :&nbsp;+32 (0) 2 385 32 82');
   expect(html).toContain('E :&nbsp;<a href="mailto:vendeur@example.be"');
-  expect(html).toContain('<a href="https://site.example.be" style="color:' + MAIL_STYLE.link + ';text-decoration:underline">Concession Test - Store officiel</a>');
+  expect(html).toContain('<a href="https://site.example.be" style="color:' + MAIL_STYLE.brand + ';text-decoration:underline">Concession Test - Store officiel</a>');
   // Ordre des lignes du modèle client.
   const order = ['Prénom Nom', 'Sales Manager', 'CONCESSION TEST', 'Chaussée', 'T :', 'E :', 'Store officiel'].map((x) => html.indexOf(x));
   expect([...order].sort((a, b) => a - b)).toEqual(order);
