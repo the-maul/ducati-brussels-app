@@ -14,13 +14,13 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, CalendarClock, ChevronRight, FileText, ImageIcon, Plus, Wrench } from 'lucide-react';
+import { Bike, CalendarClock, ChevronRight, ImageIcon, Plus, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { getVehicle, listVehicles, VEHICLE_DOC_KINDS } from './api';
 import {
   Card, EmptyState, ErrorBox, Loading, PortalPage, RepairStatus, SectionTitle, SignedImage, UploadButtons,
-  UploadLimitHint, dateFr, eur, km, useDocViewer, vehicleName,
+  UploadLimitHint, dateFr, km, useDocViewer, vehicleName,
 } from './ui';
 import { DocumentCard, OtherDocsCard } from './doc-slot';
 import { DeclareVehicleForm, DeclaredVehiclesCard } from './declare-vehicle';
@@ -193,23 +193,8 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
         </ul>
       </Card>
 
-      {/* Factures liées */}
-      {v.invoices.length > 0 && (
-        <Card>
-          <SectionTitle>{t('portal.vehicles.invoices')}</SectionTitle>
-          <ul className="divide-y divide-border">
-            {v.invoices.map((d) => (
-              <li key={d.id}>
-                <Link to="/mon-espace/factures/$documentId" params={{ documentId: d.id }} className="flex items-center gap-3 py-3">
-                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1 text-[14px]">{t(`portal.docTypes.${d.doc_type}`)} {d.number} · {dateFr(d.issue_date)}</span>
-                  <span className="font-data text-[14px] tabular-nums">{eur(d.total_ttc)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {/* Les factures de la moto ne sont plus listées ici : l'onglet « Mes
+          factures » se filtre par moto (retour de Simon du 05/10). */}
     </PortalPage>
   );
 }
