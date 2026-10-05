@@ -5,13 +5,15 @@
  */
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, ImageIcon, Loader2, Upload, User } from 'lucide-react';
+import { Camera, FileText, ImageIcon, Loader2, Upload, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { signedFileUrl, uploadPortalFile, type UploadKind } from './api';
+import { openFile, signedFileUrl, uploadPortalFile, type PortalFile, type UploadKind } from './api';
+import { MAX_UPLOAD_LABEL } from './image';
 
 // ---------------------------------------------------------------- formats
 export const eur = (n: number | null | undefined) =>
@@ -166,8 +168,12 @@ export function Avatar({ path, name, size = 'md' }: { path: string | null | unde
  * Bouton de dépôt : « Prendre une photo » (appareil photo du téléphone) et
  * « Choisir un fichier » (galerie ou fichiers). onDone est appelé après indexation.
  */
-export function UploadButtons({ kind, vehicleId, onDone, photoOnly, compact }: {
-  kind: UploadKind; vehicleId: string | null; onDone: () => void; photoOnly?: boolean; compact?: boolean;
+export function UploadButtons({ kind, vehicleId, onDone, photoOnly, compact, label, disabled }: {
+  kind: UploadKind; vehicleId: string | null; onDone: () => void;
+  photoOnly?: boolean; compact?: boolean;
+  /** Libellé saisi par le client (type « autre »). */
+  label?: string | null;
+  disabled?: boolean;
 }) {
   const camRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -177,7 +183,9 @@ export function UploadButtons({ kind, vehicleId, onDone, photoOnly, compact }: {
     if (!f) return;
     setBusy(true);
     try {
-      await uploadPortalFile(kind, vehicleId, f);
+      // Les fichiers trop lourds et les formats refusés lèvent une erreur dont le
+      // message est déjà le texte à montrer au client (portal/image.ts).
+      await uploadPortalFile(kind, vehicleId, f, label);
       toast.success(t('portal.upload.done'));
       onDone();
     } catch (e) {
@@ -195,12 +203,74 @@ export function UploadButtons({ kind, vehicleId, onDone, photoOnly, compact }: {
         onChange={(e) => onFile(e.target.files?.[0])} />
       <input ref={fileRef} type="file" accept={photoOnly ? 'image/*' : 'image/*,application/pdf'} className="sr-only"
         onChange={(e) => onFile(e.target.files?.[0])} />
-      <Button type="button" size={compact ? 'sm' : 'default'} variant="outline" disabled={busy} onClick={() => camRef.current?.click()}>
+      <Button type="button" size={compact ? 'sm' : 'default'} variant="outline" disabled={busy || disabled} onClick={() => camRef.current?.click()}>
         {busy ? <Loader2 className="animate-spin" /> : <Camera />} {t('portal.upload.camera')}
       </Button>
-      <Button type="button" size={compact ? 'sm' : 'default'} variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
+      <Button type="button" size={compact ? 'sm' : 'default'} variant="outline" disabled={busy || disabled} onClick={() => fileRef.current?.click()}>
         {photoOnly ? <ImageIcon /> : <Upload />} {photoOnly ? t('portal.upload.gallery') : t('portal.upload.file')}
       </Button>
     </div>
   );
+}
+
+/** Rappel de la limite de taille, AVANT le choix du fichier (retour Simon 05/10). */
+export function UploadLimitHint({ photoOnly }: { photoOnly?: boolean }) {
+  return (
+    <p className="text-[12px] text-muted-foreground">
+      {t(photoOnly ? 'portal.upload.limitPhoto' : 'portal.upload.limit').replace('{max}', MAX_UPLOAD_LABEL)}
+    </p>
+  );
+}
+
+// ---------------------------------------------------------------- miniatures et plein écran
+const isImageFile = (f: PortalFile) => (f.content_type ?? '').startsWith('image/');
+
+/**
+ * Miniature d'un document déposé (retour Simon 05/10 : une vignette, pas le nom
+ * du fichier). Image : la photo réduite. PDF : l'icône de son type — pdf.js n'est
+ * pas une dépendance du projet, la première page n'est pas « faisable simplement ».
+ */
+export function DocThumb({ file, className }: { file: PortalFile; className?: string }) {
+  const box = cn('flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border bg-muted', className);
+  if (!isImageFile(file)) {
+    return (
+      <div className={box} aria-hidden>
+        <FileText className="size-6 text-muted-foreground" />
+        <span className="max-w-full truncate px-1 text-[10px] font-bold uppercase text-muted-foreground">{t('portal.upload.pdf')}</span>
+      </div>
+    );
+  }
+  return (
+    <div className={box}>
+      <SignedImage path={file.path} alt={file.label || file.file_name} className="size-full object-cover"
+        fallback={<ImageIcon className="size-6 text-muted-foreground" aria-hidden />} />
+    </div>
+  );
+}
+
+/**
+ * Consultation d'un document : une image s'ouvre en plein écran dans l'application,
+ * un PDF dans un nouvel onglet (lecteur du téléphone ou du navigateur).
+ */
+export function useDocViewer() {
+  const [shown, setShown] = useState<PortalFile | null>(null);
+  const open = (f: PortalFile) => {
+    if (isImageFile(f)) setShown(f);
+    else openFile(f.path).catch((e) => toast.error(e instanceof Error ? e.message : t('portal.errors.generic')));
+  };
+  const viewer = (
+    <Dialog open={!!shown} onOpenChange={(o) => !o && setShown(null)}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="truncate text-[15px]">{shown?.label || shown?.file_name}</DialogTitle>
+        </DialogHeader>
+        {shown && (
+          <SignedImage path={shown.path} alt={shown.label || shown.file_name}
+            className="max-h-[70vh] w-full rounded-md object-contain"
+            fallback={<p className="text-[13px] text-muted-foreground">{t('portal.errors.fileUnavailable')}</p>} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+  return { open, viewer };
 }

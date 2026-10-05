@@ -16,6 +16,8 @@ export const IMAGE_PRESETS = {
   pdf: { maxPx: 1400, quality: 0.72 },
   /** Aperçu (vignette hero du PDF). */
   thumb: { maxPx: 900, quality: 0.78 },
+  /** Espace client : photo prise au téléphone, envoyée en 4G (retour Simon 05/10). */
+  portal: { maxPx: 1200, quality: 0.80 },
 } as const;
 
 export type ImagePreset = keyof typeof IMAGE_PRESETS;

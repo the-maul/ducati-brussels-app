@@ -30,6 +30,7 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | Où le panneau apparaît | Clients → fiche → onglet GED · Véhicules → fiche · Pièces → fiche article → onglet Photos · Ventes → document · Atelier → OR · CRM → carte d'une demande → onglet Documents (pièces du **client**) · Améliorations → tâche |
 | Ventes → document → Imprimer | Facture / devis / ticket / BL / avoir au format de la concession, avec les **CGV au verso** si la société en a (M6, `print-document.ts`). |
 | Ventes → document → **Aperçu PDF** / **Envoyer par e-mail** (19/09) | PDF du devis / proforma, bon de commande, réservation, BL, facture… ; à l'envoi, le PDF est rangé dans la GED du **client** (dossier « Documents de vente ») et dans celle du **document**, avec la note « Envoyé par e-mail à … depuis … le … ». |
+| Espace client → **Mon profil** → « Mes documents » et **fiche moto** → « Documents du véhicule » (05/10) | Permis, carte d’identité, carte grise, assurance, COC, contrôle technique : un emplacement **recto** et un **verso** par document, « Complet / À compléter », interrupteur « Ce document n’a pas de verso ». « Autres documents » : plusieurs fichiers, chacun avec un libellé saisi par le client. Chaque fichier déposé apparaît en **miniature** (image réduite ; icône PDF sinon), « Voir en grand » et « Supprimer » avec confirmation. Limite **10 Mo** annoncée avant le dépôt, photos réduites à 1 200 px par le navigateur. |
 | Reprises → validation (M7) | Signature manuscrite du client sur l'attestation « TVA régime de la marge », PDF d'archive de la reprise déposé en GED sur la moto et sur le client, fiche de reprise PDF. ⚠️ Module M7 inopérant en production (voir chapitre M7). |
 
 ## 3. Où trouver quoi
@@ -43,14 +44,15 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | PDF des documents de vente (M6) | `src/modules/sales/document-pdf.ts`, `document-pdf-data.ts`, `pdf-print-style.ts` ; envoi + archivage `document-mail-api.ts` |
 | Texte des PDF (jsPDF) | `src/modules/documents/pdf-text.ts` (`sanitizePdfText`, `patchPdfText`) |
 | Générateurs de documents existants (hors module) | `src/modules/sales/print-document.ts` (M6, HTML imprimable), `src/modules/tradein/attestation-pdf.ts`, `reprise-pdf.ts`, `validation-pdf.ts`, `sheet-builder.ts` (M7, jsPDF) |
+| Espace client (portail) | Écrans `src/modules/portal/profile.tsx` et `vehicles.tsx` ; briques recto-verso, miniature, consultation et suppression : `src/modules/portal/doc-slot.tsx` et `ui.tsx` (`DocThumb`, `useDocViewer`, `UploadLimitHint`) ; appels `src/modules/portal/api.ts` (`uploadPortalFile`, `deletePortalUpload`, `setDocNoBack`) ; réduction d’image et contrôle de poids `src/modules/portal/image.ts` (préréglage `portal` de `src/lib/image-tools.ts`, 1 200 px) |
 | Tables | `attachments` (index des pièces : entité, chemin, type, taille, dossier, empreinte), `document_signatures` (prévue pour les signatures, **inutilisée**), `companies.cgv_text` / `invoice_footer` (CGV et pied de facture) |
 | Stockage | bucket privé `ged` (13 191 objets), bucket public `shop-assets` (M11) |
-| Fonctions SQL (RPC) | aucune propre ; politique `ged_public_products` pour les photos d'articles publiés (M11) |
+| Fonctions SQL (RPC) | aucune propre ; politique `ged_public_products` pour les photos d'articles publiés (M11). Portail client (migration `20261005130000`) : `portal_prepare_upload`, `portal_complete_upload`, `portal_set_upload_label`, `portal_set_doc_no_back`, `portal_delete_upload` ; prédicats `portal_can_read_object` / `portal_can_write_object` / `portal_can_delete_object` et politiques `ged_portal_select` / `ged_portal_insert` / `ged_portal_delete` |
 | Fonctions serveur (Edge) | `supabase/functions/outlook-poll` dépose les pièces jointes des mails (dossier « E-mails », dédoublonnées par empreinte `content_hash`) ; `supabase/functions/read-id-doc` lit les scans d'identité (M1) et, en mode `carte_grise`, la carte grise d'une moto (M3, mission 04 carte 7 : photo rangée dans la GED du véhicule, dossier « Carte grise ») |
 | Tâches planifiées | `outlook-poll` (toutes les 5 min, voir M10) |
-| Migrations clés | `supabase/migrations/20260610370000_m9_ged.sql`, `20260612260000_m9_cgv_signatures.sql`, `20260612370000_m9_ged_folders.sql` |
+| Migrations clés | `supabase/migrations/20260610370000_m9_ged.sql`, `20260612260000_m9_cgv_signatures.sql`, `20260612370000_m9_ged_folders.sql`, `20260919120000_m0_portail_client.sql` (dépôts du portail), `20261005130000_m9_portail_documents_recto_verso.sql` (recto-verso, suppression, 10 Mo, libellés) |
 | Libellés | `src/lib/i18n/fr.ts`, bloc `ged` |
-| Tests | `tests/pdf-text.test.ts` |
+| Tests | `tests/pdf-text.test.ts`, `tests/portal-documents.test.ts` (recto-verso, suppression tracée, limite de 10 Mo), `tests/portal-etancheite.test.ts` |
 
 ## 4. Règles métier et décisions
 
@@ -86,7 +88,9 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 - **Signature du PDF de vente** : une case « Bon pour accord » vide, à signer à la main ; pas de signature électronique (VEN003).
 - La GED d'une entité est lue par `entity_type` + `entity_id` sans filtre `company_id` côté requête (la RLS s'en charge).
 - Les dossiers vides n'existent que dans l'écran (état local) : un dossier sans fichier disparaît au rechargement.
-- Aucune limite de taille sur le bucket `ged` (`file_size_limit` nul).
+- Aucune limite de taille sur le bucket `ged` lui-même (`storage.buckets.file_size_limit` est nul : la limite réelle est celle du projet Supabase). Pour les dépôts du **portail client**, c’est la base qui fait foi : **10 Mo**, vérifiés dans `portal_prepare_upload` et `portal_complete_upload` (M-61). Le panneau GED du personnel, lui, n’a toujours aucune limite.
+- Un document supprimé par un client depuis son espace **disparaît aussi de la GED du personnel** : la ligne `attachments` est retirée, le fichier est effacé du stockage, et seule la trace `events` (`portal_upload_deleted`) et la ligne `portal_uploads` marquée `deleted_at` subsistent (M-60).
+- **Pas de miniature de la première page d’un PDF** : pdf.js n’est pas une dépendance du projet, on affiche l’icône du type de fichier avec le nom en petit (M-61).
 - Les CGV, le pied de facture et le logo n'ont **pas d'écran de saisie** (`companies.cgv_text`, `invoice_footer`, `logo_url`) : modification en base uniquement.
 - `signature-pad.tsx` contient une couleur d'encre en dur (`#1a1a1a`), assumée comme contenu imprimé.
 
@@ -123,4 +127,5 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | 2026-07-19 | Bloc de signature et PDF de validation de reprise (M7) ; assainissement du texte des PDF | `b7ed89c`, `cf8ee9a` |
 | 2026-09-14 | La carte CRM affiche les pièces du client | `0e60be2` |
 | 2026-09-19 | PDF des documents de vente (jsPDF) : aperçu, pièce jointe du mail, archivé en GED client + document (mission 05 carte 8, mission 02 carte 6) | code seul |
+| 2026-10-05 | **Espace client, retour de Simon du 05/10** : carte d’identité ajoutée, **recto et verso** pour tous les documents (avec « pas de verso »), consultation plein écran et **suppression par le client** (tracée, fichier effacé), limite ramenée à **10 Mo** annoncée avant l’envoi et images réduites à 1 200 px, **plusieurs « autres documents »** avec libellé, **miniatures** à la place du nom de fichier (M-58 à M-62) | branche `lot-portail-docs`, migration `20261005130000_m9_portail_documents_recto_verso` (**appliquée le 05/10**) |
 | 2026-09-19 | Carte grise lue par `read-id-doc` (mode `carte_grise`) et rangée dans la GED de la moto (mission 04, carte 7) | branche `lot-m4-moto` |

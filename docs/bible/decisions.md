@@ -39,6 +39,60 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   `contact_links` et non une fois par contact. *Agence · 05/10.* [M01](modules/M01-contacts.md)
 
 ---
+## 2026-10-05 — Espace client : documents recto-verso, suppression, poids, moto déjà enregistrée
+
+Retour de Simon du 05/10 sur la carte « Espace client : mes motos, entretiens et factures ».
+Migration `20261005130000_m9_portail_documents_recto_verso.sql` (**appliquée le 05/10**).
+
+- **M-58** — **Tout document d’identité ou de véhicule se dépose RECTO ET VERSO, et la carte
+  d’identité rejoint le permis.** Nouveaux types de dépôt : `carte_identite`,
+  `carte_identite_verso`, `carte_grise_verso`, `assurance_verso`, `coc_verso`,
+  `controle_technique_verso`. Un emplacement par face ; l’étape du profil n’est complète que
+  si les deux faces sont là. *Client · 05/10.* [M01](modules/M01-contacts.md), [M09](modules/M09-documents.md)
+- **M-59** — **« Ce document n’a pas de verso » plutôt que bloquer.** Certains documents n’ont
+  réellement qu’une face. Le client le déclare lui-même (table `portal_doc_no_back`, fonction
+  `portal_set_doc_no_back`) et l’étape est alors complète. On ne laisse jamais un client coincé
+  devant un emplacement qu’il ne peut pas remplir. *Agence · 05/10.* [M09](modules/M09-documents.md)
+- **M-60** — **Le client voit et supprime ses propres documents ; la suppression efface vraiment le
+  fichier.** « Voir en grand » (image en plein écran, PDF dans un onglet) et « Supprimer » avec
+  confirmation. `portal_delete_upload` marque le dépôt supprimé (`deleted_at`, `deleted_by`), retire
+  l’entrée de la GED du personnel (un lien mort serait pire qu’une ligne en moins) et trace dans
+  `events` (`portal_upload_deleted`, avec le nom et le chemin d’origine). Le navigateur efface
+  ensuite l’objet du stockage, autorisé pour ce seul chemin et pendant une heure (politique
+  `ged_portal_delete`). Si cet effacement échoue, le dépôt reste marqué supprimé : plus personne ne
+  le voit ni ne peut le relire. *Client · 05/10.* [M09](modules/M09-documents.md)
+- **M-61** — **10 Mo au maximum, annoncé AVANT l’envoi, et les photos réduites à 1 200 px.**
+  Un PDF de 15 Mo passait. La limite descend à 10 Mo, écrite au-dessus des boutons de dépôt,
+  vérifiée dans le navigateur avant tout appel réseau et re-vérifiée en base
+  (`portal_prepare_upload`, `portal_complete_upload`, `portal_prepare_declaration_upload`). Les
+  images sont réduites à **1 200 px** et recompressées en JPEG par le navigateur (préréglage
+  `portal` de `src/lib/image-tools.ts`, comme la photo du parcours technicien) : une photo de
+  téléphone ne pose plus jamais problème. Un PDF trop lourd reçoit un message clair (« Ce PDF pèse
+  14,3 Mo : la limite est de 10 Mo… »), jamais une erreur technique. **Le bucket `ged` n’a
+  aucune limite propre** (`storage.buckets.file_size_limit` est nul) : la limite réelle est celle
+  du projet Supabase, c’est donc la base qui fait foi. *Client · 05/10.* [M09](modules/M09-documents.md)
+- **M-62** — **« Autres documents » : autant de fichiers que voulu, chacun avec son libellé.**
+  Le type `autre` n’est plus un emplacement unique : le client nomme son document (colonne
+  `portal_uploads.label`, fonction `portal_set_upload_label`) puis le dépose, et recommence.
+  *Client · 05/10.* [M09](modules/M09-documents.md)
+- **M-63** — **Une moto déclarée qui est DÉJÀ au nom du client est validée d’office.** Cause du
+  « en attente de validation » alors que la fiche DMS était complète : `declared_vehicles_pending`
+  ne rapprochait une déclaration d’une moto existante que par **VIN** ou **plaque**, or les
+  déclarations venues du questionnaire d’inscription (`source = 'web'`) n’ont ni l’un ni
+  l’autre ; et le modèle du parc porte la couleur (« STREETFIGHTER V2 S | RED »), ce qui faisait
+  échouer toute comparaison brute. Correctif : `vehicle_model_normalize` (majuscules, on coupe à
+  « | », lettres et chiffres) et `_declared_vehicle_owned_match`, qui ne regarde **que les motos
+  déjà au nom du client déclarant** (`vehicle_owners.is_current`) — jamais celle d’un autre
+  client, c’est là toute la sûreté — et rapproche par VIN, par plaque, ou par marque + modèle
+  normalisé (+ année quand elle est connue). La déclaration passe en `rattachee`, la carte grise
+  déposée rejoint la moto, et c’est tracé dans `events`
+  (`vehicle_declaration_auto_attached`, origine `system`). Deux déclencheurs : à l’insertion
+  d’une déclaration, **et** dès qu’une moto passe au nom d’un client (la fiche DMS est
+  souvent complétée APRÈS la déclaration — c’est le cas rencontré). La cloche ne sonne plus pour
+  une déclaration validée d’office. Rattrapage du 05/10 : **1 déclaration sur 6** était dans ce
+  cas et a été corrigée ; les 5 autres restent à valider, à juste titre (ces clients n’ont
+  aucune moto à leur nom, ou la moto est au nom de quelqu’un d’autre).
+  *Client · 05/10.* [M03](modules/M03-vehicules.md), [M09](modules/M09-documents.md)
 
 ## 2026-10-05 — Marques et modèles toutes marques, pied de mail complété (retours du 21/09)
 
