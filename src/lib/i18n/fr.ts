@@ -3003,6 +3003,12 @@ export const fr = {
     declIgnored: 'Déclaration ignorée.',
     declAttachConfirm: 'Au nom de : ',
     // carte 8 : espace client
+    // File « marques à valider » (retour client du 21/09).
+    brandQueueTitle: 'Marques à valider',
+    brandQueueHint: 'Marques et modèles tapés par des clients que la liste officielle ne connaît pas encore. Rien n’est ajouté automatiquement.',
+    brandQueueOrigin_inscription: 'Inscription en ligne',
+    brandQueueOrigin_borne: 'Borne du comptoir',
+    brandQueueOrigin_portail: 'Espace client',
     portalAdd: 'Ajouter ma moto',
     portalAddTitle: 'Ajouter ma moto',
     portalAddHint: 'Notre équipe vérifie chaque moto avant de l’ajouter à votre espace.',

@@ -84,3 +84,30 @@ export function declarationPrefill(d: Pick<PendingDeclaration, 'brand' | 'model'
   if (fam && families.includes(fam)) out.category = fam;
   return out;
 }
+
+/**
+ * File « marques à valider » (retour client du 21/09, décision M-50).
+ * Quand un client tape lui-même une marque ou un modèle que la liste officielle ne
+ * connaît pas (« Je ne trouve pas ma moto »), un déclencheur en base dépose une ligne
+ * ici. Lecture seule pour l'équipe : rien n'entre dans `vehicle_brands` sans décision.
+ */
+export type PendingBrand = {
+  id: string;
+  brand: string;
+  model: string | null;
+  model_year: number | null;
+  origin: 'inscription' | 'borne' | 'portail';
+  created_at: string;
+};
+
+export async function listPendingBrands(companyId: string): Promise<PendingBrand[]> {
+  const { data, error } = await supabase
+    .from('vehicle_brand_submissions')
+    .select('id,brand,model,model_year,origin,created_at')
+    .eq('company_id', companyId)
+    .eq('status', 'a_valider')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PendingBrand[];
+}

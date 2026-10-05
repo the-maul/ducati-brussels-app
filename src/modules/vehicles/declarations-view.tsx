@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, Clock, EyeOff, FileText, Link2, Loader2, Plus, User } from 'lucide-react';
+import { Bike, Clock, EyeOff, FileText, Link2, Loader2, Plus, Tags, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,8 @@ import { signedUrl } from '@/modules/documents/ged-api';
 import { t } from '@/lib/i18n';
 import { vehicleLabel } from './api';
 import {
-  attachDeclaration, ignoreDeclaration, listPendingDeclarations, type PendingDeclaration,
+  attachDeclaration, ignoreDeclaration, listPendingDeclarations, listPendingBrands,
+  type PendingDeclaration,
 } from './declarations-api';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
@@ -64,7 +65,12 @@ export function DeclaredVehiclesView({ companyId }: { companyId: string }) {
   if (isLoading) return <div className="grid place-items-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
   if (error) return <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error instanceof Error ? error.message : String(error)}</p>;
   if (!data || data.length === 0) {
-    return <div className="rounded-md border border-dashed border-border bg-card py-10 text-center text-sm text-muted-foreground">{t('motoClient.declEmpty')}</div>;
+    return (
+      <div className="space-y-3">
+        <div className="rounded-md border border-dashed border-border bg-card py-10 text-center text-sm text-muted-foreground">{t('motoClient.declEmpty')}</div>
+        <PendingBrandsCard companyId={companyId} />
+      </div>
+    );
   }
 
   return (
@@ -158,6 +164,42 @@ export function DeclaredVehiclesView({ companyId }: { companyId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PendingBrandsCard companyId={companyId} />
     </div>
+  );
+}
+
+/**
+ * Carte « Marques à valider » (retour client du 21/09, décision M-50).
+ * Ce qu'un client a tapé lui-même et que la liste officielle ne connaît pas. Lecture
+ * seule : l'équipe décide ensuite d'ajouter la marque à la liste, aucune marque n'y
+ * entre toute seule. File vide = carte masquée.
+ */
+function PendingBrandsCard({ companyId }: { companyId: string }) {
+  const { data } = useQuery({
+    queryKey: ['pending-brands', companyId],
+    queryFn: () => listPendingBrands(companyId),
+  });
+  if (!data || data.length === 0) return null;
+  return (
+    <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      <div className="mb-2 flex items-center gap-2">
+        <Tags className="size-4 text-muted-foreground" aria-hidden />
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.04em]">{t('motoClient.brandQueueTitle')}</h2>
+        <span className="tabular-nums text-[13px] text-muted-foreground">({data.length})</span>
+      </div>
+      <p className="mb-3 text-[12px] text-muted-foreground">{t('motoClient.brandQueueHint')}</p>
+      <ul className="divide-y divide-border">
+        {data.map((b) => (
+          <li key={b.id} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
+            <span className="font-medium">{[b.brand, b.model].filter(Boolean).join(' ')}</span>
+            {b.model_year ? <span className="tabular-nums text-muted-foreground">· {b.model_year}</span> : null}
+            <span className="ml-auto text-[12px] text-muted-foreground">
+              {t(`motoClient.brandQueueOrigin_${b.origin}`)} · {fmtDate(b.created_at)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
