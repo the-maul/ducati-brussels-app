@@ -21,7 +21,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Circle, FileQuestion, Loader2, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,10 +43,11 @@ export function DocFileTile({ file, onView, onDone, compact }: {
   file: PortalFile; onView: (f: PortalFile) => void; onDone: () => void; compact?: boolean;
 }) {
   const confirm = useConfirm();
+  // Le toast vient du MutationCache global (`meta`) : ne pas en émettre un second ici.
   const del = useMutation({
     mutationFn: () => deletePortalUpload(file.id),
-    onSuccess: () => { toast.success(t('portal.upload.deleted')); onDone(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('portal.errors.generic')),
+    meta: { success: t('portal.upload.deleted') },
+    onSuccess: onDone,
   });
 
   const remove = async () => {
@@ -116,10 +116,11 @@ export function DocumentCard({ kind, vehicleId, files, noBack, onDone, onView }:
   const declaredNoBack = !!noBack?.includes(kind);
   const complete = !!front && (!!back || declaredNoBack);
 
+  // L'emplacement du verso change à vue : pas de notification de succès.
   const flag = useMutation({
     mutationFn: (v: boolean) => setDocNoBack(kind, vehicleId, v),
+    meta: { success: false },
     onSuccess: onDone,
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('portal.errors.generic')),
   });
 
   return (

@@ -231,12 +231,12 @@ const isImageFile = (f: PortalFile) => (f.content_type ?? '').startsWith('image/
  * pas une dépendance du projet, la première page n'est pas « faisable simplement ».
  */
 export function DocThumb({ file, className }: { file: PortalFile; className?: string }) {
-  const box = cn('grid size-16 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted', className);
+  const box = cn('flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border bg-muted', className);
   if (!isImageFile(file)) {
     return (
       <div className={box} aria-hidden>
         <FileText className="size-6 text-muted-foreground" />
-        <span className="text-[10px] font-bold uppercase text-muted-foreground">{t('portal.upload.pdf')}</span>
+        <span className="max-w-full truncate px-1 text-[10px] font-bold uppercase text-muted-foreground">{t('portal.upload.pdf')}</span>
       </div>
     );
   }

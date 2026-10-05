@@ -26,7 +26,6 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, KeyRound, Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -325,11 +324,11 @@ export function ProfileView() {
 function AvatarDelete({ profile, onDone }: { profile: PortalProfile; onDone: () => void }) {
   const confirm = useConfirm();
   const file = lastFileOf(profile.files, 'avatar');
+  // Le toast vient du MutationCache global (`meta`) : pas de second toast ici.
   const del = useMutation({
     mutationFn: (id: string) => deletePortalUpload(id),
-    meta: { success: false },
-    onSuccess: () => { toast.success(t('portal.upload.deleted')); onDone(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('portal.errors.generic')),
+    meta: { success: t('portal.upload.deleted') },
+    onSuccess: onDone,
   });
   if (!file) return null;
   const ask = async () => {
