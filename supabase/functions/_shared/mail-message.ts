@@ -99,7 +99,7 @@ export function contactHtml(c: MailContact | null | undefined): string {
   const parts: string[] = [];
   if (address) parts.push(esc(address));
   if (phone) parts.push(`T :&nbsp;${esc(phone)}`);
-  if (url) parts.push(`<a href="${esc(url)}" style="color:${MAIL_STYLE.link}">${esc(label)}</a>`);
+  if (url) parts.push(`<a href="${esc(url)}" style="color:${MAIL_STYLE.brand}">${esc(label)}</a>`);
   if (parts.length === 0) return '';
   return `
   <p style="margin:8px 0 0 0;color:${MAIL_STYLE.subtle}">${parts.join(' &middot; ')}</p>`;
@@ -185,7 +185,7 @@ export function signatureHtml(p: SignatureInput): string {
   if (address) block(esc(address));
   if (phone) block(`T :&nbsp;${esc(phone)}`);
   if (mail) block(`E :&nbsp;<a href="mailto:${esc(mail)}" style="color:${S.link}">${esc(mail)}</a>`);
-  if (url) block(`<a href="${esc(url)}" style="color:${S.link};text-decoration:underline">${esc(label)}</a>`);
+  if (url) block(`<a href="${esc(url)}" style="color:${S.brand};text-decoration:underline">${esc(label)}</a>`);
 
   return `
 <div style="margin-top:24px;font-family:${S.font};font-size:13px;line-height:18px;color:${S.text}">
