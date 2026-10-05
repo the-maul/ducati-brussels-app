@@ -214,6 +214,23 @@ export const submitSignup = createServerFn({ method: 'POST' })
     } catch (e) {
       console.error('[signup] mail', mail, e instanceof Error ? e.message : e);
     }
+    // Mail non parti : l'équipe doit le voir (cloche) pour renvoyer l'invitation depuis la
+    // fiche client. Sans cela, le client repart sans mail et personne ne le sait (05/10).
+    if (!mailSent) {
+      try {
+        await supabaseAdmin.from('team_notifications').insert({
+          company_id: companyId,
+          kind: 'account_mail_failed',
+          contact_id: row.contact_id,
+          title: `Mail d'inscription non envoyé à ${data.email} — renvoyer l'invitation depuis la fiche client`,
+          origin: 'signup',
+          payload: { email: data.email, kind: mail },
+          dedupe_key: `account_mail_failed:${data.email}`,
+        });
+      } catch (e) {
+        console.error('[signup] notif', e instanceof Error ? e.message : e);
+      }
+    }
 
     return {
       status: 'ok',
