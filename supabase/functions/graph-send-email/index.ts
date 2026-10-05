@@ -52,6 +52,7 @@
 // deno-lint-ignore-file
 import {
   footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary, signatureHtml, signatureFor,
+  contactFromCompany, type MailContact,
   type SignatureCompany,
 } from '../_shared/mail-message.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
@@ -118,8 +119,11 @@ async function first<T>(path: string): Promise<T | null> {
   } catch { return null; }
 }
 
-/** HTML de la signature pour cette boîte d'envoi ('' si rien à signer). Jamais d'exception. */
-async function signatureBlock(companyId: string, mailbox: string, shared: boolean, userId: string): Promise<string> {
+/**
+ * Signature de cette boîte d'envoi ('' si rien à signer) et coordonnées du magasin pour le
+ * pied de mail, lues sur la même fiche société (retour client 21/09). Jamais d'exception.
+ */
+async function signatureBlock(companyId: string, mailbox: string, shared: boolean, userId: string): Promise<{ html: string; contact: MailContact | null }> {
   const company = await first<SignatureCompany>(`companies?select=name,address,zip,city,mail_signature_brand,mail_signature_address,mail_signature_phone,mail_signature_site_url,mail_signature_site_label&id=eq.${companyId}`)
     ?? await first<SignatureCompany>(`companies?select=name,address,zip,city&id=eq.${companyId}`);
   let user: { full_name: string | null; job_title?: string | null } | null = null;
@@ -135,7 +139,10 @@ async function signatureBlock(companyId: string, mailbox: string, shared: boolea
     user = await first<{ full_name: string | null; job_title: string | null }>(`profiles?select=full_name,job_title&id=eq.${userId}`)
       ?? await first<{ full_name: string | null }>(`profiles?select=full_name&id=eq.${userId}`);
   }
-  return signatureHtml(signatureFor({ from: mailbox, shared, user, mailboxName, company }));
+  return {
+    html: signatureHtml(signatureFor({ from: mailbox, shared, user, mailboxName, company })),
+    contact: contactFromCompany(company),
+  };
 }
 
 const toText = (html: string) => html
@@ -195,10 +202,15 @@ Deno.serve(async (req) => {
   const single = /^[^\s@,;]+@[^\s@,;]+$/.test(recipient);
   const internalAddress = domains.has(domainOf(recipient)) || shared.has(recipient);
   const kind = validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
-  const footer = kind ? footerHtml(kind, o, recipient) : '';
 
-  // Signature selon l'adresse d'envoi (21/09).
-  const signature = await signatureBlock(companyId, mailbox, shared.has(mailbox), user.id);
+  // Signature selon l'adresse d'envoi (21/09) ; les mêmes coordonnées complètent le pied de mail.
+  const { html: signature, contact } = await signatureBlock(companyId, mailbox, shared.has(mailbox), user.id);
+  // Retour client du 21/09 : l'invitation porte l'adresse et le téléphone du magasin — mais
+  // la signature (ajoutée juste au-dessus, mêmes colonnes `mail_signature_*`) les porte déjà.
+  // On ne les écrit donc qu'UNE fois : dans le pied de mail seulement quand il n'y a pas de
+  // signature (fiche société sans coordonnées). Compléter la fiche société suffit dans les
+  // deux cas, rien n'est en dur dans le code.
+  const footer = kind ? footerHtml(kind, o, recipient, signature ? null : contact) : '';
 
   // Corps déjà en HTML (éditeur enrichi) + signature + pied de mail.
   const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), signature, footer, to, attachments: atts });

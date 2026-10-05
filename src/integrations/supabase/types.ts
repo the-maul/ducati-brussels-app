@@ -7981,6 +7981,101 @@ export type Database = {
           },
         ]
       }
+      vehicle_brand_submissions: {
+        Row: {
+          brand: string
+          brand_slug: string
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          model: string | null
+          model_slug: string | null
+          model_year: number | null
+          origin: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          brand: string
+          brand_slug: string
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          model_slug?: string | null
+          model_year?: number | null
+          origin: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          brand?: string
+          brand_slug?: string
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          model_slug?: string | null
+          model_year?: number | null
+          origin?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_brand_submissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_brands: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          model_count: number
+          name: string
+          slug: string
+          source: string
+          source_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          model_count?: number
+          name: string
+          slug: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          model_count?: number
+          name?: string
+          slug?: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vehicle_bulletins: {
         Row: {
           bulletin_id: string | null
@@ -8091,6 +8186,59 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_models: {
+        Row: {
+          brand_id: string
+          created_at: string
+          displacement_cc: number | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          source: string
+          source_ref: string | null
+          updated_at: string
+          year_from: number | null
+          year_to: number | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          displacement_cc?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          displacement_cc?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_models_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_brands"
             referencedColumns: ["id"]
           },
         ]
@@ -12570,6 +12718,32 @@ export type Database = {
         }
         Returns: Json
       }
+      vehicle_brand_search: {
+        Args: { _limit?: number; _q?: string }
+        Returns: {
+          id: string
+          model_count: number
+          name: string
+        }[]
+      }
+      vehicle_brand_submit: {
+        Args: {
+          _brand: string
+          _company: string
+          _contact?: string
+          _model?: string
+          _origin?: string
+          _year?: number
+        }
+        Returns: string
+      }
+      vehicle_catalog_load: {
+        Args: { _rows: Json }
+        Returns: {
+          brands: number
+          models: number
+        }[]
+      }
       vehicle_create_for_contact: {
         Args: {
           _company: string
@@ -12588,6 +12762,16 @@ export type Database = {
         }
         Returns: string
       }
+      vehicle_model_search: {
+        Args: { _brand: string; _limit?: number; _q?: string }
+        Returns: {
+          displacement_cc: number
+          id: string
+          name: string
+          year_from: number
+          year_to: number
+        }[]
+      }
       vehicle_needs_article: {
         Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
         Returns: boolean
@@ -12604,6 +12788,7 @@ export type Database = {
         Args: { _company: string; _vehicle: string }
         Returns: Json
       }
+      vehicle_slug: { Args: { _v: string }; Returns: string }
       vehicles_find_by_vin: {
         Args: { _company: string; _exclude?: string; _vin: string }
         Returns: {

@@ -5,8 +5,11 @@
  * par l'équipe ; en attendant, elle est listée « En attente de validation ».
  * Mission 06, carte 4 : le VIN en premier ; dès qu'il est complet, la moto est reconnue et
  * marque, modèle et année sont proposés (le client choisit sa version s'il y en a plusieurs).
+ * Retour client du 21/09 : marque et modèle proposent au fur et à mesure la liste toutes
+ * marques (`vehicle_brands` / `vehicle_models`) ; la saisie libre reste possible et alimente
+ * la file « marques à valider » (déclencheur en base, rien à appeler ici).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bike, Clock, FileText, Loader2, Plus, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,7 +18,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
-import { declareVehicle, listDeclaredVehicles, uploadDeclarationScan } from './api';
+import {
+  declareVehicle, listDeclaredVehicles, uploadDeclarationScan,
+  searchVehicleBrandHints, searchVehicleModelHints,
+} from './api';
 import { Card, SectionTitle, dateFr, vehicleName } from './ui';
 import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
@@ -57,6 +63,31 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Suggestions toutes marques (21/09). Jamais bloquant : une erreur = aucune suggestion.
+  const [brandHints, setBrandHints] = useState<{ id: string; name: string }[]>([]);
+  const [modelHints, setModelHints] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      searchVehicleBrandHints(brand.trim())
+        .then((r) => { if (live) setBrandHints(r ?? []); })
+        .catch(() => { if (live) setBrandHints([]); });
+    }, 250);
+    return () => { live = false; clearTimeout(timer); };
+  }, [brand]);
+  // Le modèle n'est proposé que si la marque tapée correspond exactement à une marque connue.
+  const brandMatch = brandHints.find((b) => b.name.toLowerCase() === brand.trim().toLowerCase());
+  useEffect(() => {
+    if (!brandMatch) { setModelHints([]); return; }
+    let live = true;
+    const timer = setTimeout(() => {
+      searchVehicleModelHints(brandMatch.id, model.trim())
+        .then((r) => { if (live) setModelHints((r ?? []).map((m) => m.name)); })
+        .catch(() => { if (live) setModelHints([]); });
+    }, 250);
+    return () => { live = false; clearTimeout(timer); };
+  }, [brandMatch, model]);
 
   const send = useMutation({
     mutationFn: async () => {
@@ -108,12 +139,20 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
               }} />
           </div>
           <div className="space-y-1.5">
-            <Label className={field}>{t('motoClient.portalBrand')}</Label>
-            <Input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} autoComplete="off" />
+            <Label className={field} htmlFor="decl-brand">{t('motoClient.portalBrand')}</Label>
+            <Input id="decl-brand" list="decl-brand-list" value={brand}
+              onChange={(e) => setBrand(e.target.value)} maxLength={60} autoComplete="off" />
+            <datalist id="decl-brand-list">
+              {brandHints.map((b) => <option key={b.id} value={b.name} />)}
+            </datalist>
           </div>
           <div className="space-y-1.5">
-            <Label className={field}>{t('motoClient.portalModel')}</Label>
-            <Input value={model} onChange={(e) => setModel(e.target.value)} maxLength={100} autoComplete="off" />
+            <Label className={field} htmlFor="decl-model">{t('motoClient.portalModel')}</Label>
+            <Input id="decl-model" list="decl-model-list" value={model}
+              onChange={(e) => setModel(e.target.value)} maxLength={100} autoComplete="off" />
+            <datalist id="decl-model-list">
+              {modelHints.map((m) => <option key={m} value={m} />)}
+            </datalist>
           </div>
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalYear')}</Label>

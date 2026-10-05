@@ -32,19 +32,56 @@ export const MAIL_STYLE = {
 // Style du pied de mail (invitation à l'application).
 const FOOTER_STYLE = `margin-top:24px;padding-top:12px;border-top:1px solid ${MAIL_STYLE.rule};font-size:13px;line-height:18px;color:${MAIL_STYLE.muted}`;
 
-/** Pied de mail P-5 / P-6, sous le message. Textes validés par le client (18/09, 19/09). */
-export function footerHtml(kind: 'join' | 'login', origin: string, to: string): string {
+/**
+ * Coordonnées du magasin affichées sous l'invitation. Elles viennent TOUJOURS de la base
+ * (colonnes `mail_signature_*` de `companies`, voir `contactFromCompany`) : aucune adresse
+ * ni téléphone en dur ici, pour qu'une seule correction en base suffise (retour client 21/09).
+ */
+export type MailContact = {
+  address?: string | null;
+  /** Téléphone E.164 (+3223853282) ou texte libre. */
+  phone?: string | null;
+  siteUrl?: string | null;
+  siteLabel?: string | null;
+};
+
+/**
+ * Pied de mail P-5 / P-6, sous le message. Textes validés par le client (18/09, 19/09),
+ * complétés le 21/09 (retour client) : l'espace client donne accès aux factures, au suivi
+ * des interventions à l'atelier et au contact direct avec l'équipe pour toute demande
+ * commerciale. Les coordonnées du magasin (`contact`) sont lues en base, jamais écrites ici.
+ */
+export function footerHtml(kind: 'join' | 'login', origin: string, to: string, contact?: MailContact | null): string {
   const join = kind === 'join';
   const link = join ? `${origin}/inscription?email=${encodeURIComponent(to)}` : `${origin}/login`;
   const text = join
     ? 'Retrouvez facilement la vie de votre moto (photos, entretiens, pièces, documents) et bénéficiez de bonus de fidélité en rejoignant notre communauté de clients sur l’application Ducati Bruxelles.'
     : 'Votre espace Ducati Bruxelles est prêt : retrouvez la vie de votre moto (photos, entretiens, pièces, documents) et vos bonus de fidélité.';
+  // Retour client du 21/09 : dire ce que l'espace client apporte en plus.
+  const perks = 'Vous y retrouvez aussi vos factures, le suivi de vos interventions à l’atelier et le contact direct avec notre équipe pour toute demande commerciale.';
   const label = join ? 'Créer mon compte' : 'Me connecter';
   return `
 <div style="${FOOTER_STYLE}">
   <p style="margin:0 0 6px 0">${esc(text)}</p>
-  <p style="margin:0"><a href="${esc(link)}" style="color:${MAIL_STYLE.brand}">${label}</a></p>
+  <p style="margin:0 0 6px 0">${esc(perks)}</p>
+  <p style="margin:0"><a href="${esc(link)}" style="color:${MAIL_STYLE.brand}">${label}</a></p>${contactHtml(contact)}
 </div>`;
+}
+
+/** Ligne « adresse · T : téléphone · site » du pied de mail ; '' si la base ne dit rien. */
+export function contactHtml(c: MailContact | null | undefined): string {
+  if (!c) return '';
+  const address = oneLine(c.address);
+  const phone = signaturePhone(oneLine(c.phone));
+  const url = safeUrl(c.siteUrl);
+  const label = oneLine(c.siteLabel) || url.replace(/^https?:\/\//i, '');
+  const parts: string[] = [];
+  if (address) parts.push(esc(address));
+  if (phone) parts.push(`T :&nbsp;${esc(phone)}`);
+  if (url) parts.push(`<a href="${esc(url)}" style="color:${MAIL_STYLE.link}">${esc(label)}</a>`);
+  if (parts.length === 0) return '';
+  return `
+  <p style="margin:8px 0 0 0;color:${MAIL_STYLE.subtle}">${parts.join(' &middot; ')}</p>`;
 }
 
 // ------------------------------------------------------------------ Signature (21/09)
@@ -169,6 +206,25 @@ export function signatureFor(p: {
     siteUrl: c.mail_signature_site_url ?? null,
     siteLabel: c.mail_signature_site_label ?? null,
   };
+}
+
+/**
+ * Coordonnées du magasin pour le pied de mail, lues sur la fiche société :
+ * `mail_signature_address` (sinon adresse, code postal et ville de la fiche),
+ * `mail_signature_phone`, `mail_signature_site_url` / `_site_label`.
+ * Compléter ces colonnes suffit : rien à redéployer.
+ */
+export function contactFromCompany(c: SignatureCompany | null | undefined): MailContact | null {
+  if (!c) return null;
+  const cityLine = [c.zip, c.city].map((x) => oneLine(x)).filter(Boolean).join(' ');
+  const fallbackAddress = [oneLine(c.address), cityLine].filter(Boolean).join(' – ');
+  const contact: MailContact = {
+    address: oneLine(c.mail_signature_address) || fallbackAddress || null,
+    phone: c.mail_signature_phone ?? null,
+    siteUrl: c.mail_signature_site_url ?? null,
+    siteLabel: c.mail_signature_site_label ?? null,
+  };
+  return contactHtml(contact) ? contact : null;
 }
 
 /** Pièces jointes au format Graph ; entrées sans nom ou sans contenu ignorées. */

@@ -6,6 +6,7 @@
 import { test, expect } from 'bun:test';
 import {
   signatureHtml, signatureFor, signaturePhone, buildGraphMessage, footerHtml, MAIL_STYLE,
+  contactFromCompany, contactHtml,
 } from '../supabase/functions/_shared/mail-message.ts';
 
 const company = {
@@ -94,4 +95,59 @@ test('message Graph : signature entre le texte et le pied de mail', () => {
   expect(c.indexOf('<p>Bonjour</p>')).toBe(0);
   expect(c.indexOf('Prénom Nom')).toBeGreaterThan(0);
   expect(c.indexOf('Prénom Nom')).toBeLessThan(c.indexOf('Créer mon compte'));
+});
+
+// --------------------------------------------- Pied de mail completé (retour client 21/09)
+
+test('pied de mail : factures, atelier, demandes commerciales', () => {
+  for (const kind of ['join', 'login'] as const) {
+    const html = footerHtml(kind, 'https://app.example.be', 'client@exemple.be');
+    expect(html).toContain('factures');
+    expect(html).toContain('atelier');
+    expect(html).toContain('demande commerciale');
+  }
+});
+
+test('coordonnées du magasin : lues sur la fiche société, jamais en dur', () => {
+  const contact = contactFromCompany(company);
+  expect(contact).not.toBeNull();
+  const html = footerHtml('join', 'https://app.example.be', 'client@exemple.be', contact);
+  expect(html).toContain('Chaussée de l’Essai 12 – 1400 Nivelles');
+  expect(html).toContain('+32 (0) 2 385 32 82');          // téléphone remis en forme
+  expect(html).toContain('https://site.example.be');
+  expect(html).toContain('Concession Test - Store officiel');
+  // Sans coordonnées : pied de mail inchangé pour les appelants existants.
+  expect(footerHtml('join', 'https://app.example.be', 'client@exemple.be')).not.toContain('Nivelles');
+});
+
+test('coordonnées : repli sur adresse + code postal + ville, et rien si la base est vide', () => {
+  expect(contactFromCompany({ address: 'Rue A 1', zip: '1000', city: 'Bruxelles' })?.address)
+    .toBe('Rue A 1 – 1000 Bruxelles');
+  expect(contactFromCompany({ name: 'X' })).toBeNull();
+  expect(contactFromCompany(null)).toBeNull();
+  expect(contactHtml(null)).toBe('');
+});
+
+test('coordonnées : pas d’injection HTML ni de lien non http', () => {
+  const html = contactHtml({
+    address: '<script>x</script> "A" & B', phone: '+3223853282',
+    siteUrl: 'javascript:alert(1)', siteLabel: '<b>lien</b>',
+  });
+  expect(html).not.toContain('<script>');
+  expect(html).not.toContain('javascript:');
+  expect(html).toContain('&lt;script&gt;');
+  expect(html).toContain('&amp;');
+});
+
+test('coordonnées écrites une seule fois : signature OU pied de mail, jamais les deux', () => {
+  // Règle appliquée par graph-send-email : contact passé au pied de mail seulement sans signature.
+  const signature = signatureHtml(signatureFor({ from: 'info@exemple.be', shared: true, mailboxName: 'Boîte', company }));
+  const contact = contactFromCompany(company);
+  const avecSignature = footerHtml('join', 'https://app.example.be', 'c@exemple.be', signature ? null : contact);
+  const sansSignature = footerHtml('join', 'https://app.example.be', 'c@exemple.be', contact);
+  expect(signature).not.toBe('');
+  expect(avecSignature).not.toContain('Nivelles');
+  expect(sansSignature).toContain('Nivelles');
+  // Dans les deux cas, le texte complété est bien là.
+  for (const html of [avecSignature, sansSignature]) expect(html).toContain('factures');
 });

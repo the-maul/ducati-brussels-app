@@ -1630,6 +1630,16 @@ export const fr = {
       chooseYear: 'Année du modèle',
       families: 'Familles',
       modelsCount: 'modèles',
+      // Toutes marques, avec recherche (retour client du 21/09).
+      brandSearchPlaceholder: 'Rechercher une marque (ex. : CF Moto)',
+      modelSearchPlaceholder: 'Rechercher un modèle',
+      backToBrands: 'Marques',
+      notFound: 'Je ne trouve pas ma moto',
+      modelNotFound: 'Je ne trouve pas mon modèle',
+      freeHint: 'Tapez la marque et le modèle : notre équipe les vérifie et les ajoute à la liste.',
+      loading: 'Chargement…',
+      noBrand: 'Aucune marque ne correspond à votre recherche.',
+      noModel: 'Aucun modèle ne correspond à votre recherche.',
     },
   },
 

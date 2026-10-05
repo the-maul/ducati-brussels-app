@@ -352,6 +352,21 @@ export const declareVehicle = (d: VehicleDeclaration) =>
     p_brand: d.brand, p_model: d.model, p_model_year: d.modelYear, p_vin: d.vin, p_plate: d.plate,
   });
 
+/**
+ * Marques et modèles de motos toutes marques, pour les suggestions de « Ajouter ma moto »
+ * (retour client du 21/09). Lecture seule : `vehicle_brand_search` / `vehicle_model_search`
+ * sont ouvertes à tout compte connecté, client du portail compris. Le client garde la
+ * saisie libre : ce qu'il tape est enregistré tel quel, et un déclencheur en base le met
+ * dans la file « marques à valider » (il n'entre pas dans la liste officielle).
+ */
+export type VehicleBrandHint = { id: string; name: string };
+
+export const searchVehicleBrandHints = (q: string) =>
+  rpc<VehicleBrandHint[]>('vehicle_brand_search', { _q: q || null, _limit: 12 });
+
+export const searchVehicleModelHints = (brandId: string, q: string) =>
+  rpc<{ name: string }[]>('vehicle_model_search', { _brand: brandId, _q: q || null, _limit: 12 });
+
 /** Photo de la carte grise d'une déclaration : même dépôt en 3 temps que les autres fichiers. */
 export async function uploadDeclarationScan(declarationId: string, original: File): Promise<void> {
   const file = await prepareFileForUpload(original);

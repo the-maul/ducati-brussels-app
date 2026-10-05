@@ -8,6 +8,40 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-05 — Marques et modèles toutes marques, pied de mail complété (retours du 21/09)
+
+- **M-49** — **On ne recopie pas motoplanete.com : la liste des marques vient d'un jeu de données
+  réutilisable.** Le client demandait de « scraper » https://www.motoplanete.com/ pour enrichir le
+  champ « Autre marque ». Vérification faite : le `robots.txt` du site **n'interdit pas** le passage
+  d'un robot sur les pages de motos (`Allow: /`, `Crawl-delay: 10` ; seules des rubriques comme
+  `/essais/`, `/mecanique/`, `/boutique/`, `/forums/` sont en `Disallow`), **mais** ses Conditions
+  Générales d'Utilisation réservent son contenu, et reprendre une partie substantielle d'une base de
+  données est interdit sans l'accord de son producteur (droit *sui generis*, art. XI.306 du Code de
+  droit économique belge). Robots autorisés ≠ reprise autorisée : **on ne copie pas**. Source
+  retenue : **vPIC**, le catalogue véhicules de la NHTSA (ministère des transports des États-Unis),
+  API publique sans clé, **domaine public**, donc librement réutilisable et redéployable ;
+  complétée par les marques et modèles déjà présents dans nos propres fiches moto. Chaque ligne
+  porte sa `source`. *Agence · 05/10, retour client du 21/09.*
+  [M03](modules/M03-vehicules.md), [M01](modules/M01-contacts.md)
+- **M-50** — **La saisie libre d'un client n'entre jamais dans la liste officielle.** « Je ne trouve
+  pas ma moto » reste possible partout (inscription, borne, « Ajouter ma moto ») : ce que le client
+  tape est enregistré tel quel sur sa fiche, **et** déposé dans la file `vehicle_brand_submissions`
+  (« marques à valider »). Un déclencheur sur `contact_declared_vehicles` s'en charge : aucun appel
+  à ajouter dans le code, et les trois parcours sont couverts d'un coup. L'équipe relit la file ;
+  rien n'est ajouté automatiquement à `vehicle_brands`. *Agence · 05/10.*
+  [M03](modules/M03-vehicules.md)
+- **M-51** — **Les coordonnées du magasin dans les e-mails sont une donnée, pas du code, et
+  n'apparaissent qu'une fois.** Le pied d'invitation ajouté à chaque e-mail dit désormais que
+  l'espace client donne accès aux **factures**, au **suivi des interventions atelier** et au
+  **contact direct avec l'équipe pour toute demande commerciale** (retour du 21/09). L'adresse, le
+  téléphone et le site viennent des colonnes `companies.mail_signature_*` (celles de la signature,
+  remplies le 21/09) : **aucune coordonnée en dur**, compléter la fiche société suffit. Comme la
+  signature, juste au-dessus, porte déjà ces mêmes coordonnées, le pied de mail ne les répète pas :
+  il ne les affiche que si la fiche société ne produit aucune signature. *Agence · 05/10, retour
+  client du 21/09.* [M10](modules/M10-crm.md)
+
+---
+
 ## 2026-09-23 — Le stock réel de G8 entre dans le DMS (lot inventaire)
 
 - **M-44** — **L'inventaire G8 fait foi à sa date ; tout écart ultérieur passe par un mouvement
