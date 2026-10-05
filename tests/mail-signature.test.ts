@@ -33,9 +33,10 @@ test('adresse personnelle : nom en gras, fonction en gris italique, concession e
   expect(html).toContain('font-weight:bold;font-size:14px');
   expect(html).toContain('>Prénom Nom</p>');
   expect(html).toContain(`font-style:italic;font-size:12px;color:${MAIL_STYLE.subtle}">Sales Manager</p>`);
-  expect(html).toContain(`margin-top:12px;font-weight:bold;color:${MAIL_STYLE.brand}">CONCESSION TEST</p>`);
+  expect(html).toContain(`color:${MAIL_STYLE.brand};text-decoration:none">CONCESSION TEST</a>`);
   expect(html).toContain('Chaussée de l’Essai 12 – 1400 Nivelles');
-  expect(html).toContain('T :&nbsp;+32 (0) 2 385 32 82');
+  expect(html).toContain('T :&nbsp;<a href="tel:+3223853282"');
+  expect(html).toContain('+32 (0) 2 385 32 82');
   expect(html).toContain('E :&nbsp;<a href="mailto:vendeur@example.be"');
   expect(html).toContain('<a href="https://site.example.be" style="color:' + MAIL_STYLE.brand + ';text-decoration:underline">Concession Test - Store officiel</a>');
   // Ordre des lignes du modèle client.

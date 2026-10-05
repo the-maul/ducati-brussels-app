@@ -181,10 +181,22 @@ export function signatureHtml(p: SignatureInput): string {
     gap = 'margin-top:12px';
   }
   const block = (html: string, style = '') => { line(html, [gap, style].filter(Boolean).join(';')); gap = ''; };
-  if (brand) block(esc(brand.toUpperCase()), `font-weight:bold;color:${S.brand}`);
-  if (address) block(esc(address));
-  if (phone) block(`T :&nbsp;${esc(phone)}`);
-  if (mail) block(`E :&nbsp;<a href="mailto:${esc(mail)}" style="color:${S.link}">${esc(mail)}</a>`);
+  // Gmail transforme tout seul une adresse, un téléphone ou un nom de ville en lien bleu
+  // souligné quand le texte n'est PAS déjà un lien (vu le 05/10). On pose donc nous-mêmes
+  // le lien, avec notre couleur et sans soulignement : Gmail n'y touche plus.
+  const noAuto = (html: string, href: string, color: string) =>
+    `<a href="${esc(href)}" style="color:${color};text-decoration:none">${html}</a>`;
+  if (brand) {
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([brand, address].filter(Boolean).join(' '))}`;
+    block(noAuto(esc(brand.toUpperCase()), maps, S.brand), 'font-weight:bold');
+  }
+  if (address) {
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    block(noAuto(esc(address), maps, S.text));
+  }
+  const telHref = (oneLine(p.phone) || phone).replace(/\(0\)/g, '').replace(/[^+0-9]/g, '');
+  if (phone) block(`T :&nbsp;${noAuto(esc(phone), `tel:${telHref}`, S.text)}`);
+  if (mail) block(`E :&nbsp;<a href="mailto:${esc(mail)}" style="color:${S.text};text-decoration:none">${esc(mail)}</a>`);
   if (url) block(`<a href="${esc(url)}" style="color:${S.brand};text-decoration:underline">${esc(label)}</a>`);
 
   return `
