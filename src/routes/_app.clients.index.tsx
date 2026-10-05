@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone, Link2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -242,6 +242,11 @@ function ClientsList() {
                     {contactDisplayName(c)}
                     {/* title sur un <span> : les icones lucide ne l'acceptent pas,
                         l'infobulle ne s'affichait donc pas. */}
+                    {(linkedByContact.get(c.id)?.length ?? 0) > 0 && (
+                      <span title={t('contacts.linkedFlag')} className="inline-flex">
+                        <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+                      </span>
+                    )}
                     {c.is_vip && (
                       <span title={t('contacts.flagVip')} className="inline-flex">
                         <Star className="size-3.5 shrink-0 fill-current text-warning" />

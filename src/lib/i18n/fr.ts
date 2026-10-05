@@ -722,6 +722,7 @@ export const fr = {
     modelInterestsTitle: "Modèles d'intérêt",
     // Espace client (P-6) : visite de /mon-espace, visible sur la fiche
     portalSpace: 'Espace client',
+    linkedFlag: 'Cette fiche est liée à une autre',
     portalNoAccount: 'pas de compte',
     portalResend: 'Renvoyer l’invitation',
     portalResendHint: 'Envoie au client un lien pour choisir son mot de passe et ouvrir son espace.',

@@ -9,7 +9,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { User, Building2, CornerDownRight } from 'lucide-react';
+import { User, Building2, Link2 } from 'lucide-react';
 import { listLinkedBrief, type LinkedBrief } from './subobjects-api';
 import { t } from '@/lib/i18n';
 
@@ -53,7 +53,7 @@ export function LinkedLines({
       {links.map((l) => {
         const inner = (
           <>
-            <CornerDownRight className="size-3 shrink-0 opacity-70" />
+            <Link2 className="size-3 shrink-0 opacity-70" />
             <TypeIcon type={l.type} />
             <span className="truncate">{l.name}</span>
             <span className="shrink-0 rounded bg-muted px-1 text-[10px]">{t(`contacts.type_${l.type}`)}</span>
