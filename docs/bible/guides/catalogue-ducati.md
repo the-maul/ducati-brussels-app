@@ -62,7 +62,7 @@ recalcule cet état à la fin de chaque passage.
 2. Chrome : ouvrir `chrome://extensions`, activer **Mode développeur** (en haut à droite).
 3. **Charger l'extension non empaquetée** → choisir le dossier. Si une ancienne version est déjà
    installée : bouton **Actualiser** (flèche ronde) sur sa carte.
-4. La même extension sert à My Ducati et au catalogue (version 0.10.0 ou plus).
+4. La même extension sert à My Ducati et au catalogue (version **0.11.0** ou plus — la mise à jour ciblée du 05/10 a besoin de 0.11.0).
 
 ### Lancer un import
 
@@ -91,6 +91,76 @@ Dans le navigateur (`chrome.storage.local`) : la liste à lire, l'avancement et 
 enregistre sous votre session DMS.
 
 ---
+
+---
+
+## C. Mettre le catalogue à jour (tous les mois) — la procédure exacte
+
+> Depuis le 05/10 (mission 06, carte 6). Le DMS **ne va jamais chercher** les données chez Ducati :
+> il dit seulement **quoi relire**, et c'est votre Chrome qui lit. Rien à installer de plus que
+> l'extension (version 0.11.0 ou plus).
+
+### À quelle fréquence
+
+| Quand | Pourquoi |
+|---|---|
+| **Une fois par mois**, délai « 30 jours » | le rythme normal : nouveaux millésimes, références remplacées, prix |
+| **En janvier et en juillet**, délai « 30 jours » | c'est là que Ducati sort les nouveaux millésimes et révise ses tarifs |
+| **Tout de suite**, délai « 7 jours » | si l'atelier signale une référence « introuvable » ou un prix qui ne colle plus |
+
+Un passage mensuel prend en général **quelques minutes à une petite heure** : seules les planches
+réellement à relire sont lues, pas les 36 700.
+
+### Les 6 clics
+
+1. Dans le DMS : **Pièces & Accessoires → Catalogue Ducati → onglet « Mise à jour »**.
+   Vous y voyez la **date du dernier import** et **ce qui a changé au dernier passage**.
+2. Laissez le choix **« Relire ce qui n'a pas été vu depuis »** sur **30 jours**. La ligne en dessous
+   vous dit combien de modèles-années ça représente. Si elle affiche « Rien à relire », c'est que tout
+   a été vu plus récemment : raccourcissez le délai (15 ou 7 jours) ou revenez plus tard.
+3. Cliquez **« Mettre à jour »**. Rien ne part : le DMS **prépare la liste**. Un encadré bleu apparaît
+   avec la marche à suivre et le nombre de modèles-années à relire.
+4. **Laissez cet onglet du DMS ouvert** (connecté avec votre compte administrateur, société choisie).
+5. Dans un **autre onglet Chrome**, ouvrez `https://e-catalog.ducati.com/EPC/` et connectez-vous.
+   Cliquez le bouton rouge **« Importer le catalogue »** (en bas à gauche), puis
+   **« Lire la liste des modèles »** (≈ 3 min) : un **bandeau bleu** confirme
+   « Mise à jour ciblée demandée par le DMS ». Cliquez **« Lancer l'import »**.
+6. Vous pouvez fermer le navigateur : l'import **reprend tout seul** à la réouverture de l'e-catalog.
+   Quand c'est fini, revenez sur l'onglet **« Mise à jour »** du DMS : la date est à jour et la liste
+   **« Ce qui a changé au dernier passage »** montre, référence par référence, les nouvelles pièces,
+   celles qui sont **remplacées par** une autre, et les prix qui ont bougé.
+
+Si vous changez d'avis avant de lancer : bouton **« Annuler la mise à jour »** dans le DMS.
+
+### Si ça s'arrête
+
+Mêmes messages que pour un import complet (chapitre B, point 7) : session Ducati expirée →
+se reconnecter puis **Reprendre** ; e-catalog qui demande de ralentir → attendre dix minutes,
+augmenter le délai, **Reprendre** ; onglet du DMS fermé → le rouvrir, **Reprendre**.
+
+### Variante par fichiers (PC de développement)
+
+Si l'extraction a déposé des fichiers `catalogue-ducati-*.json` dans *Téléchargements* :
+
+```
+node tools/catalog-loader/load.mjs --refresh-days 30 --changes
+```
+
+`--refresh-days 30` redemande les planches vues il y a plus de 30 jours ; `--changes` affiche à la
+fin ce qui a changé (le même journal que l'écran du DMS).
+
+### Ce que la mise à jour sait détecter
+
+- **nouveaux modèles-années** et **nouvelles planches** ;
+- **planches modifiées** (code ou désignation) ;
+- **nouvelles références** ;
+- **références remplacées** (« remplacée par … ») **et remplacements levés** — une pièce qui cesse
+  d'être remplacée cesse de l'être, ce qui n'était pas le cas avant le 05/10 ;
+- **prix Ducati changés** (avant → après).
+
+> **Avant le premier passage** : la migration `20261005120000` doit être appliquée sur Supabase.
+> Tant qu'elle ne l'est pas, l'onglet « Mise à jour » affiche « pas encore disponible » ; le reste du
+> catalogue (Parcourir, État de l'import, vue éclatée dans les devis et les OR) fonctionne déjà.
 
 ## Durées (estimations au 21/09)
 

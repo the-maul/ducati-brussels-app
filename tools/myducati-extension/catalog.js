@@ -239,7 +239,9 @@
 
   // ---------------------------------------------------------------- interface (panneau flottant)
   let panel = null, plan = null, treeCache = null;
-  const sel = { minYear: 2000, excludedFamilies: [], excludedModels: [], includedModels: [] };
+  // `onlyModelYears` : plan de mise à jour armé dans le DMS (carte 6). Vide = périmètre complet.
+  const sel = { minYear: 2000, excludedFamilies: [], excludedModels: [], includedModels: [], onlyModelYears: [] };
+  let dmsPlan = null;
   let delaySec = 1;
   let treeProgress = null;
   let autoResumeTimer = null;
@@ -281,7 +283,10 @@
     const s = plan.summary;
     const hours = C.estimateHours(s.modelYearsKept, delaySec * 1000, 76, 1);
     const hoursShared = C.estimateHours(s.modelYearsKept, delaySec * 1000, 76, 4);
-    let h = `<p><b>${s.modelsKept}</b> modèles gardés (Europe, depuis ${sel.minYear}) · <b>${s.modelYearsKept}</b> modèles-années à lire.<br>`
+    let h = dmsPlan
+      ? `<p style="background:#eef6ff;border:1px solid #9cc2e8;border-radius:6px;padding:8px"><b>Mise à jour ciblée demandée par le DMS</b><br><small>${dmsPlan.counts.total} modèles-années à relire · planches vues il y a plus de ${dmsPlan.staleDays} jours. Les autres ne seront pas lus.</small></p>`
+      : '';
+    h += `<p><b>${s.modelsKept}</b> modèles gardés (Europe, depuis ${sel.minYear}) · <b>${s.modelYearsKept}</b> modèles-années à lire.<br>`
       + `<small>${s.modelsOutsideEurope} modèles hors Europe exclus · ${s.modelYearsBeforeMin} millésimes avant ${sel.minYear} exclus`
       + (s.modelYearsNoYear ? ` · ${s.modelYearsNoYear} sans année (gardés)` : '') + `</small></p>`
       + `<p>Délai entre deux pages : <input data-f="delay" type="number" min="0.5" step="0.5" value="${delaySec}" style="width:60px"> s`
@@ -323,6 +328,24 @@
 
   function rebuildPlan() { if (treeCache) plan = C.buildPlan(treeOf(treeCache), sel); }
 
+  /**
+   * Demande au DMS s'il a armé une mise à jour (bouton « Mettre à jour » de l'écran Catalogue).
+   * Si oui, l'import se limite aux modèles-années du plan. Le DMS n'appelle jamais Ducati :
+   * il dit seulement quoi relire, c'est nous qui lisons avec la session de l'utilisateur.
+   */
+  async function loadDmsPlan() {
+    try {
+      const hello = await dms('hello');
+      const up = hello && hello.state && hello.state.update;
+      const list = (up && up.plan && up.plan.modelYears) || [];
+      dmsPlan = list.length ? up.plan : null;
+      sel.onlyModelYears = list.map(function (x) { return String(x.modelYearId); });
+    } catch (e) {
+      dmsPlan = null; sel.onlyModelYears = [];
+    }
+    rebuildPlan();
+  }
+
   async function onClick(ev) {
     const a = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-a');
     if (!a) return;
@@ -333,6 +356,7 @@
       try {
         treeCache = await readTree(delaySec * 1000, (n, total, label) => { treeProgress = { n, total, label }; render(); });
         treeProgress = null; rebuildPlan();
+        await loadDmsPlan();
       } catch (e) { treeProgress = null; alert((e && e.message) || String(e)); }
       render();
     }
@@ -375,6 +399,8 @@
     ensurePanel();
     if (!state) state = (await store.get(STATE_KEY)) || null;
     if (!treeCache) { const t = await store.get(TREE_KEY); if (t && t.done) { treeCache = t; rebuildPlan(); } }
+    // Le DMS a peut-être armé une mise à jour depuis la dernière ouverture (carte 6).
+    if (treeCache && (!state || state.status === 'ready' || state.status === 'done' || state.status === 'stopped')) await loadDmsPlan();
     render();
   });
   document.documentElement.appendChild(launcher);

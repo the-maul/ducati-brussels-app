@@ -1,11 +1,17 @@
 /**
  * Catalogue Ducati — une vue éclatée : image Ducati avec les repères cliquables (hotspots) et la
  * liste des pièces, avec pour chaque pièce l'article du DMS correspondant et sa disponibilité.
+ *
+ * Deux usages, le même composant (mission 06, cartes 3 et 5) :
+ *   - écran « Catalogue Ducati » : consultation, chaque pièce renvoie à sa fiche article ;
+ *   - devis / facture / OR (`onAdd` fourni) : une colonne « Ajouter » pose la pièce en ligne du
+ *     document en un clic ; `CreateArticleButton` est alors remplacé par le même bouton, qui crée
+ *     l'article à la volée (c'est l'appelant qui décide, voir drawing-picker.tsx).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ImageOff, Loader2, Timer, Replace } from 'lucide-react';
+import { ArrowLeft, ImageOff, Loader2, Timer, Replace, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SaleStockBadge } from '@/modules/sales/availability-badge';
@@ -17,7 +23,15 @@ import { fill, fmtMoney, hotspotBox } from './format';
 import { normalizeCatalogReference } from './reference';
 import { CreateArticleButton } from './create-article-button';
 
-export function DrawingView({ drawingId, companyId, highlightRef = null, onBack }: { drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void }) {
+export type DrawingAddState = { lineNo: number | null; error: string | null };
+
+export function DrawingView({ drawingId, companyId, highlightRef = null, onBack, onAdd, addState }: {
+  drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void;
+  /** Fourni par un devis / une facture / un OR : pose la pièce en ligne du document. */
+  onAdd?: (l: CatalogLine) => void;
+  /** Ligne en cours d'ajout et dernière erreur, pour le retour visuel. */
+  addState?: DrawingAddState;
+}) {
   const drawing = useQuery({ queryKey: ['ducati-catalog', 'drawing', drawingId], queryFn: () => getCatalogDrawing(drawingId) });
   const lines = useQuery({
     queryKey: ['ducati-catalog', 'lines', companyId, drawingId],
@@ -121,12 +135,14 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
                   <TableHead>{t('catalog.colArticle')}</TableHead>
                   <TableHead className="text-right" title={t('catalog.salePriceHint')}>{t('catalog.colSalePrice')}</TableHead>
                   <TableHead>{t('catalog.colDispo')}</TableHead>
+                  {onAdd && <TableHead className="w-24" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(lines.data ?? []).map((l) => (
                   <LineRow key={l.line_no} l={l} selected={(!!selected && l.position === selected) || (!!target && l.reference_norm === target)}
                     onPick={() => l.position && setSelected(l.position)}
+                    onAdd={onAdd} adding={addState?.lineNo === l.line_no}
                     refCb={(el) => { rowRefs.current[String(l.line_no)] = el; }} />
                 ))}
               </TableBody>
@@ -134,11 +150,17 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
           )}
         </div>
       </div>
+
+      {addState?.error && <p className="text-sm text-destructive">{addState.error}</p>}
     </div>
   );
 }
 
-function LineRow({ l, selected, onPick, refCb }: { l: CatalogLine; selected: boolean; onPick: () => void; refCb: (el: HTMLTableRowElement | null) => void }) {
+function LineRow({ l, selected, onPick, onAdd, adding, refCb }: {
+  l: CatalogLine; selected: boolean; onPick: () => void;
+  onAdd?: (l: CatalogLine) => void; adding?: boolean;
+  refCb: (el: HTMLTableRowElement | null) => void;
+}) {
   const status = l.article_id
     ? saleStockStatus({ mgmt_type: l.article_mgmt_type, real_qty: l.real_qty ?? 0, reserved_qty: l.reserved_qty ?? 0, on_order_qty: l.on_order_qty ?? 0 }, Number(l.quantity) || 1)
     : null;
@@ -164,14 +186,28 @@ function LineRow({ l, selected, onPick, refCb }: { l: CatalogLine; selected: boo
           <Link to="/parts/$articleId" params={{ articleId: l.article_id }} className="text-info hover:underline" onClick={(e) => e.stopPropagation()}>
             {l.article_reference} · {l.article_designation}
           </Link>
-        ) : l.reference ? (
+        ) : l.reference && !onAdd ? (
           <CreateArticleButton reference={l.reference} designation={l.description} />
+        ) : l.reference ? (
+          <span className="text-muted-foreground">{t('catalog.pickWillCreate')}</span>
         ) : (
           <span className="text-muted-foreground">{t('catalog.noArticle')}</span>
         )}
       </TableCell>
       <TableCell className="whitespace-nowrap text-right tabular-nums">{l.article_id ? fmtMoney(l.article_sale_price_ht) : ''}</TableCell>
       <TableCell>{status && <SaleStockBadge status={status} free={free} />}</TableCell>
+      {onAdd && (
+        <TableCell className="text-right">
+          {l.reference && (
+            <Button type="button" size="sm" variant={l.article_id ? 'default' : 'outline'} disabled={adding}
+              title={l.article_id ? t('catalog.pickAddHint') : t('catalog.pickCreateAddHint')}
+              onClick={(e) => { e.stopPropagation(); onAdd(l); }}>
+              {adding ? <Loader2 className="animate-spin" /> : <Plus />}
+              {l.article_id ? t('catalog.pickAdd') : t('catalog.pickCreateAdd')}
+            </Button>
+          )}
+        </TableCell>
+      )}
     </TableRow>
   );
 }

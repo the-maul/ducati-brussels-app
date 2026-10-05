@@ -77,6 +77,31 @@ describe('arbre et plan d’import', () => {
     expect(core.buildPlan(tree, { includedModels: ['502'] }).jobs.map((j: { modelYearId: string }) => j.modelYearId)).toEqual(['9001', '9003', '9101', '9102']);
   });
 
+  // Carte 6 — mise à jour ciblée : le DMS arme un plan, l'extension ne lit que ça.
+  test('un plan du DMS limite l’import aux modèles-années demandés', () => {
+    const plan = core.buildPlan(tree, { minYear: 2000, onlyModelYears: ['9102'] });
+    expect(plan.jobs.map((j: { modelYearId: string }) => j.modelYearId)).toEqual(['9102']);
+    expect(plan.summary).toMatchObject({ planned: 1, modelYearsKept: 1, modelsKept: 1 });
+    expect(plan.summary.modelYearsOutsidePlan).toBeGreaterThan(0);
+    // Le modèle dont aucun millésime n’est au plan est écarté pour cette raison, pas « years ».
+    const reasons = Object.fromEntries(plan.models.map((m: { id: string; reason: string | null }) => [m.id, m.reason]));
+    expect(reasons['501']).toBe('plan');
+    expect(reasons['701']).toBe(null);
+  });
+
+  test('un plan vide ne change rien au périmètre habituel', () => {
+    const a = core.buildPlan(tree, { minYear: 2000 });
+    const b = core.buildPlan(tree, { minYear: 2000, onlyModelYears: [] });
+    expect(b.jobs.map((j: { modelYearId: string }) => j.modelYearId))
+      .toEqual(a.jobs.map((j: { modelYearId: string }) => j.modelYearId));
+    expect(b.summary.modelYearsOutsidePlan).toBe(0);
+  });
+
+  test('un plan qui ne vise que du hors-Europe ne force pas la lecture', () => {
+    const plan = core.buildPlan(tree, { minYear: 2000, onlyModelYears: ['9103'] });
+    expect(plan.jobs).toEqual([]);
+  });
+
   test('millésime lu dans le champ year ou, à défaut, dans le code', () => {
     expect(core.yearOf({ year: 2021 })).toBe(2021);
     expect(core.yearOf({ year: '2019' })).toBe(2019);

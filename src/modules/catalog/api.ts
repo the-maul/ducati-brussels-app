@@ -150,6 +150,38 @@ export async function getArticleLinkCount(companyId: string): Promise<{ articles
   return data as unknown as { articles: number; linked: number };
 }
 
+/**
+ * Moto du DMS → son modèle-année du catalogue Ducati (mission 06, carte 5).
+ * Sert au bouton « Choisir sur la vue éclatée » d'un devis, d'une facture ou d'un OR :
+ * renvoie null si la moto n'est pas reliée au catalogue (le bouton ne s'affiche pas).
+ */
+export type VehicleCatalogRef = {
+  modelYearId: string; year: number | null; code: string | null;
+  modelDescription: string; familyDescription: string | null;
+};
+
+export async function getVehicleCatalogRef(vehicleId: string): Promise<VehicleCatalogRef | null> {
+  const { data, error } = await supabase.from('vehicles')
+    .select('ducati_model_year_id, my:ducati_catalog_model_years(id, code, year, model:ducati_catalog_models(description, family:ducati_catalog_families(description)))')
+    .eq('id', vehicleId).maybeSingle();
+  if (error) throw error;
+  const my = (data as unknown as {
+    my: { id: string; code: string | null; year: number | null;
+      model: { description: string; family: { description: string } | null } | null } | null;
+  } | null)?.my;
+  if (!my) return null;
+  return {
+    modelYearId: my.id, year: my.year, code: my.code,
+    modelDescription: my.model?.description ?? '',
+    familyDescription: my.model?.family?.description ?? null,
+  };
+}
+
+/** Libellé court d'une moto du catalogue : « Monster — 696 — 2009 ». */
+export function vehicleCatalogLabel(r: VehicleCatalogRef): string {
+  return [r.familyDescription, r.modelDescription, r.year ?? r.code].filter(Boolean).join(' — ');
+}
+
 /** Modèle-année → modèle et famille (ouverture directe d'une vue éclatée depuis un lien). */
 export async function getModelYearContext(modelYearId: string): Promise<{ model_id: string; family_id: string } | null> {
   const { data, error } = await supabase.from('ducati_catalog_model_years')
@@ -159,6 +191,94 @@ export async function getModelYearContext(modelYearId: string): Promise<{ model_
   if (!data) return null;
   const m = (data as unknown as { model_id: string; model: { family_id: string } | null });
   return m.model ? { model_id: m.model_id, family_id: m.model.family_id } : null;
+}
+
+// ------------------------------------------------------------------------------------------
+// Tenir le catalogue à jour (mission 06, carte 6)
+// ------------------------------------------------------------------------------------------
+
+/**
+ * Passe-plat vers les fonctions SQL de la migration `20261005120000` (carte 6). Elles ne sont pas
+ * encore dans `src/integrations/supabase/types.ts`, qui est GÉNÉRÉ depuis le schéma de production :
+ * tant que Simon n'a pas appliqué la migration, leurs noms y sont inconnus. Le cast est concentré
+ * ici, une seule fois, et disparaît dès que les types sont régénérés.
+ *
+ * Si la migration n'est pas appliquée, l'appel échoue proprement (PGRST202) et l'écran « Mise à
+ * jour » affiche « pas encore disponible ».
+ */
+type SupabaseRpcName = Parameters<typeof supabase.rpc>[0];
+async function rpcCatalogUpdate<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  const { data, error } = await supabase.rpc(fn as SupabaseRpcName, args as Record<string, never>);
+  if (error) throw error;
+  return data as T;
+}
+
+export type CatalogChangeKind =
+  | 'model_year_new' | 'drawing_new' | 'drawing_changed'
+  | 'part_new' | 'part_replaced' | 'part_unreplaced' | 'part_price';
+
+export type CatalogChange = {
+  kind: CatalogChangeKind; key: string; label: string | null;
+  detail: { price?: number | null; replacedBy?: string | null; wasReplacedBy?: string | null;
+    before?: unknown; after?: unknown; drawings?: number | null; modelYearId?: string | null } | null;
+};
+
+export type CatalogUpdatePlan = {
+  mode: string; staleDays: number; refreshBefore: string;
+  modelYears: { modelYearId: string; year: number | null; model: string | null; family: string | null;
+    reason: 'never' | 'incomplete' | 'stale'; owned: boolean }[];
+  counts: { never: number; incomplete: number; stale: number; owned: number; listed: number; total: number };
+};
+
+export type CatalogUpdateRequest = {
+  id: string; requestedAt: string; plan: CatalogUpdatePlan;
+  /** Renseignés dès qu'un lot d'import a pris le plan en charge. */
+  batchId: string | null; consumedAt: string | null;
+};
+
+export type CatalogUpdateSummary = {
+  lastImportAt: string | null;
+  lastBatch: {
+    id: string; status: string; startedAt: string; finishedAt: string | null; scope: Json;
+    modelYearsDone: number; modelYearsNew: number; drawingsImported: number; drawingsSkipped: number;
+    drawingsNew: number; drawingsChanged: number; linesImported: number;
+    partsNew: number; partsReplaced: number; partsPriceChanged: number; lastError: string | null;
+  } | null;
+  lastChanges: CatalogChange[];
+  lastChangeCounts: Partial<Record<CatalogChangeKind, number>>;
+  replacedTotal: number; replacedToday: number;
+  totals: { modelYears: number; modelYearsComplete: number; drawings: number; parts: number; lines: number };
+  pending: CatalogUpdateRequest | null;
+};
+
+/** Date du dernier import, ce qui a changé au dernier passage, et la demande en cours. */
+export async function getCatalogUpdateSummary(changesLimit = 50): Promise<CatalogUpdateSummary> {
+  return rpcCatalogUpdate<CatalogUpdateSummary>('ducati_catalog_update_summary', { _changes_limit: changesLimit });
+}
+
+/** Ce qu'il faudrait relire (aperçu, sans rien armer). */
+export async function getCatalogUpdatePlan(staleDays = 30, limit = 400): Promise<CatalogUpdatePlan> {
+  return rpcCatalogUpdate<CatalogUpdatePlan>('ducati_catalog_update_plan', { _stale_days: staleDays, _limit: limit });
+}
+
+/**
+ * « Mettre à jour » : arme le plan. Le DMS n'appelle jamais Ducati — c'est l'extension, avec la
+ * session Chrome de l'utilisateur, qui viendra chercher ce plan et déposer les données.
+ */
+export async function requestCatalogUpdate(companyId: string, staleDays = 30): Promise<{ id: string; plan: CatalogUpdatePlan }> {
+  return rpcCatalogUpdate<{ id: string; plan: CatalogUpdatePlan }>('ducati_catalog_update_request', { _company: companyId, _stale_days: staleDays });
+}
+
+export async function cancelCatalogUpdate(companyId: string): Promise<number> {
+  return Number(await rpcCatalogUpdate<number>('ducati_catalog_update_cancel', { _company: companyId }) ?? 0);
+}
+
+export async function catalogUpdatePending(): Promise<CatalogUpdateRequest | null> {
+  return (await rpcCatalogUpdate<CatalogUpdateRequest | null>('ducati_catalog_update_pending')) ?? null;
+}
+
+export async function catalogUpdateConsume(requestId: string, batchId: string): Promise<void> {
+  await rpcCatalogUpdate<null>('ducati_catalog_update_consume', { _request: requestId, _batch: batchId });
 }
 
 // ------------------------------------------------------------------------------------------
@@ -192,8 +312,15 @@ export async function catalogIngestTree(batchId: string, tree: Json): Promise<Js
   return data;
 }
 
-export async function catalogIngestModelYear(batchId: string, modelYearId: string, groups: Json): Promise<Json> {
-  const { data, error } = await supabase.rpc('ducati_catalog_ingest_model_year', { _batch: batchId, _model_year_id: modelYearId, _groups: groups });
+/**
+ * `refreshBefore` (carte 6) : les planches lues avant cette date sont redemandées à l'extension,
+ * les autres restent sautées. Null = comportement d'origine (seules les planches sans pièces).
+ */
+export async function catalogIngestModelYear(batchId: string, modelYearId: string, groups: Json, refreshBefore: string | null = null): Promise<Json> {
+  const { data, error } = await supabase.rpc('ducati_catalog_ingest_model_year', {
+    _batch: batchId, _model_year_id: modelYearId, _groups: groups,
+    ...(refreshBefore ? { _refresh_before: refreshBefore } : {}),
+  });
   if (error) throw error;
   return data;
 }

@@ -30,7 +30,8 @@ import type { SaleArticle } from './write-api';
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : NaN; };
 
-export type EcatalogPick = { article: SaleArticle; catalogUrl: string | null; created: boolean; unitPriceHt?: number };
+/** `quantity` : quantité imposée par la source (quantité Ducati d'une vue éclatée, carte 5). */
+export type EcatalogPick = { article: SaleArticle; catalogUrl: string | null; created: boolean; unitPriceHt?: number; quantity?: number };
 
 export function EcatalogPasteButton({ companyId, priceMode, onPick }: {
   companyId: string; priceMode: 'ht' | 'ttc'; onPick: (p: EcatalogPick) => void;

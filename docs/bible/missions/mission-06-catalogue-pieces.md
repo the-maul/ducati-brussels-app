@@ -46,9 +46,9 @@ temps ça va prendre, le devis… et quand le client s'inscrit, tout est immédi
 | 2 | Importer les modèles Ducati par année | « connaître à 100 % la moto » | 🟦 fait le 21/09, à valider : tables, fonctions, chargeur, écran (§5) ; données à charger après l'extraction. Le lien avec le décodage VIN (`ducati_vds`, `ducati_vin_facts`) relève de la carte 4 |
 | 3 | Importer les vues éclatées et les pièces de chaque modèle | savoir quelles pièces vont sur quelle moto | 🟦 fait le 21/09, à valider : planches + repères + pièces, article du DMS retrouvé par la référence (sans créer d'article) ; le prix du tarif importé fait foi (§5) |
 | 4 | Reconnaître exactement la moto du client par son VIN | « quand le client s'inscrit, tout est lié » | 🟦 fait le 21/09, à valider (§5, migration `20260921210000` à appliquer) : reconnaissance hors ligne, remplissage sur fiche moto, reprise, espace client ; 2 974 motos déjà rattachées par l'e-catalog |
-| 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | devis/OR : planches de SA variante, clic sur un repère = ligne |
+| 5 | Choisir les pièces sur la vue éclatée de la moto dans le devis et l'OR | remplace le copier-coller e-catalog (mission 05, carte 4) | 🟦 fait le 05/10, à valider (§5 « 05/10 ») : bouton « Choisir sur la vue éclatée » dans le devis/la facture et l'OR, repères cliquables, ajout en un clic (article existant ou créé à la volée) |
 | 7 | Importer les catalogues accessoires et vêtements Ducati | 1 994 produits Shopify « 98… » absents du DMS (mission 03, Q5) | 🟦 base prête le 21/09 (tables, fonctions, recherche par référence, §5) ; API relevée (listes `POST …/product/list`, fiches `POST …/product/detail/{code}`) ; chargeur à brancher sur le format de fichier annoncé ; relier les produits Shopify = carte proposée (W-6) |
-| 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | relecture ciblée (drapeau `updated` de l'API) |
+| 6 | Tenir le catalogue à jour | nouveaux millésimes, remplacements | 🟦 fait le 05/10, à valider (§5 « 05/10 », migration `20261005120000` **à appliquer**) : journal des changements, relecture ciblée par date, onglet « Mise à jour » avec bouton, plan remis à l'extension |
 
 ## 4. Décisions (Simon, 21/09)
 
@@ -254,6 +254,123 @@ chaque lot, **reprise** par journal. Côté base : `article_links_create_missing
 (≈ 4 s) qu'au **dernier** lot (migration `20260923121000`), et le rattrapage ne prend que des articles qui ont
 vraiment quelque chose à compléter — sinon le même lot revenait et la boucle s'arrêtait à 208 articles
 (migration `20260923122000`). Les tailles Ducati contenant des retours à la ligne sont remises au propre.
+
+### 05/10 — Cartes 5 et 6 (lot `lot-eclatee`)
+
+#### Carte 5 — choisir les pièces sur la vue éclatée depuis un devis, une facture ou un OR
+
+**Pour l'utilisateur**
+- Un devis, une facture ou un OR qui porte une **moto reliée au catalogue** (colonne
+  `vehicles.ducati_model_year_id`, carte 4) affiche un bouton **« Choisir sur la vue éclatée »**
+  à côté de « Ajouter une ligne ». Sans moto, ou moto non reconnue, **le bouton ne s'affiche pas** :
+  rien à montrer, donc rien à cliquer.
+- Il ouvre les **groupes et les planches de CE modèle-année** (vignettes, filtre par nom / code /
+  groupe), puis la **vue éclatée Ducati avec ses repères cliquables** — exactement l'écran
+  « Catalogue Ducati », le même composant.
+- Chaque pièce porte un bouton d'ajout :
+  - **« Ajouter »** quand l'article du DMS existe (lien par référence normalisée) : la ligne est posée
+    avec la **quantité Ducati**, le **prix de vente de l'article** et sa **disponibilité** (même calcul
+    que les ventes) ;
+  - **« Créer et ajouter »** sinon : l'article est créé à la volée par le **chemin déjà en place**
+    (`createToCompleteArticle`, mission 05 carte 4) — librairie, marque Ducati, type A,
+    « à compléter », prix de vente = **prix public Ducati HT** de la planche, création tracée dans
+    `events`. Le magasin complète ensuite PA, fournisseur et famille.
+- On peut enchaîner plusieurs pièces sans fermer la fenêtre (le compteur « n pièces ajoutées » suit).
+- **Limite connue** : pour un devis ou une facture, les lignes ne se modifient qu'à la **création**
+  (c'est vrai de tout le module Ventes aujourd'hui, pas de ce lot) — un document déjà enregistré se
+  reprend par « Dupliquer » / « Convertir ». L'**OR**, lui, se modifie aussi après enregistrement.
+
+**Technique**
+- `src/modules/catalog/drawing-picker.tsx` (nouveau) : bouton + fenêtre. `DrawingView` **n'est pas
+  réécrit** : il reçoit deux propriétés facultatives (`onAdd`, `addState`) qui ajoutent une colonne
+  d'ajout ; sans elles, l'écran Catalogue est inchangé.
+- `src/modules/catalog/api.ts` : `getVehicleCatalogRef(vehicleId)` -> modèle-année de la moto (null
+  si non reliée), `vehicleCatalogLabel`.
+- Branchements : `src/modules/sales/document-editor.tsx` (réutilise `addEcatalogLine`, qui accepte
+  désormais une `quantity` imposée) et `src/modules/workshop/or-editor.tsx` (`addDrawingLine`).
+- **Aucune migration** : les tables et la fonction `ducati_catalog_drawing_lines` existaient déjà.
+
+**Mesures (05/10, production)**
+- **Planches d'une moto type : 70** (médiane sur les 857 modèles-années) ; **71** pour les
+  modèles-années réellement portés par une moto du parc ; de 38 à 152 selon le modèle.
+  Exemples : Monster 696 2009 (64 motos) 50 planches, Monster 821 2015 70, Panigale 899 2014 72.
+- **Temps de chargement** : liste des groupes et planches d'un modèle-année **15,6 ms** ;
+  pièces d'une planche (avec article, prix et disponibilité) **57 ms** pour une planche médiane
+  (20 lignes) et **451 ms** pour la plus chargée du catalogue (271 lignes). **Sous la seconde dans
+  tous les cas.**
+- **Aucun index à ajouter** : vérifié par `explain analyze`, la requête utilise déjà
+  `ducati_catalog_model_year_drawings_pkey` (préfixe `model_year_id`),
+  `ducati_catalog_drawing_lines_drawing_id_line_no_key` (préfixe `drawing_id`),
+  `idx_dc_parts_ref_prefix` et `idx_articles_ref_compact`. Le temps restant est celui de
+  `article_stock` et `_article_on_order_qty`, eux-mêmes indexés (`stock_moves(article_id)`,
+  `part_order_lines(article_id)`, `purchase_lines(article_id)`, `purchase_orders(source_order_id)`).
+- **Portée immédiate** : **6 325 documents** et **2 976 motos** portent une moto reliée au catalogue.
+
+#### Carte 6 — tenir le catalogue à jour
+
+**Le problème trouvé d'abord.** Avant ce lot, une mise à jour était **impossible** : une planche
+dont les pièces étaient déjà connues n'était **jamais** redemandée (`ingest_model_year` ne rendait
+que les planches sans pièces). Aucun remplacement, aucun changement de prix ne pouvait être vu.
+Et aucune des **5 724** références marquées « remplacée » ne portait **par quoi** elle est remplacée
+(`replaced_part` : 0 sur 5 724), parce que `coalesce(excluded.x, t.x)` empêchait aussi tout retour en
+arrière : une pièce qui cessait d'être remplacée restait marquée à vie.
+
+**Pour l'utilisateur**
+- **Pièces & Accessoires -> Catalogue Ducati -> onglet « Mise à jour »** (`/parts/catalog?tab=update`) :
+  - **date du dernier import**, modèles-années complets, références au catalogue, **remplacements vus
+    aujourd'hui** ;
+  - **ce qui a changé au dernier passage** : pastilles comptées (nouveaux modèles-années, nouvelles
+    planches, planches modifiées, nouvelles références, références remplacées, remplacements levés,
+    prix changés) **et la liste détaillée** (référence, désignation, prix avant -> après, remplacée par) ;
+  - un choix **« relire ce qui n'a pas été vu depuis »** (7 / 15 / 30 / 90 / 180 jours), un aperçu
+    chiffré de ce que ça représente, et le bouton **« Mettre à jour »**.
+- **Le DMS n'appelle jamais Ducati.** Le bouton **prépare** un plan ; la marche à suivre (4 étapes)
+  s'affiche juste en dessous. C'est l'**extension Chrome**, avec la session e-catalog de Simon, qui
+  lit et dépose les données ; elle reçoit le plan quand elle se présente.
+- Dans l'extension, un bandeau bleu annonce « Mise à jour ciblée demandée par le DMS » et l'import
+  **se limite** aux modèles-années du plan.
+
+**Technique** — migration `20261005120000_m2_catalogue_ducati_mise_a_jour.sql`, **à appliquer**
+(essayée deux fois en transaction annulée le 05/10, dont un essai fonctionnel complet) :
+- `ducati_catalog_changes` : le **journal** (lot, nature, clé, libellé, détail avant/après).
+  Lecture équipe, écriture par les fonctions d'import seulement. Index par lot, par nature, par date.
+- Compteurs sur `ducati_catalog_import_batches` : `model_years_new`, `drawings_new`,
+  `drawings_changed`, `parts_new`, `parts_replaced`, `parts_price_changed`.
+- `ducati_catalog_ingest_model_year(..., _refresh_before timestamptz)` : **relecture ciblée**. Les
+  planches lues avant cette date sont redemandées, les autres restent sautées — « sans tout
+  recharger ». C'est le seul endroit qui en décide. Les signatures à 3 arguments sont supprimées
+  (garder les deux créerait une ambiguïté d'appel) ; les appelants existants tombent sur la nouvelle
+  avec `_refresh_before` à null, donc **comportement inchangé par défaut**.
+- `ducati_catalog_ingest_drawings` : prend une **photo de l'état d'avant** pour les seules références
+  du lot, puis écrit le journal (nouvelle référence / remplacée / remplacement levé / prix changé).
+  **Correctif** : `replaced`, `replaced_part` et `replacement_tree` suivent désormais le catalogue
+  **dans les deux sens**.
+- `ducati_catalog_update_plan(_stale_days, _limit)` : ce qu'il faut relire — jamais lu, incomplet, ou
+  vu avant la date. Les modèles-années **portés par une moto du parc passent devant**.
+- `ducati_catalog_update_requests` + `ducati_catalog_update_request` / `_cancel` / `_pending` /
+  `_consume` : le plan armé. Une seule demande ouverte à la fois ; elle reste vivante tant que le lot
+  qui l'a prise en charge tourne. `ducati_catalog_import_state` la remet à l'extension.
+- `ducati_catalog_update_summary` : tout l'écran en un appel.
+- Code : `src/modules/catalog/update-panel.tsx` (nouveau), `api.ts`, `bridge.ts` (le DMS applique
+  lui-même la date de relecture : **l'extension n'a rien à décider**),
+  `src/routes/_app.parts.catalog.tsx` (3e onglet).
+- Extension **0.11.0** (zip reconstruit) : `catalog-core.js` accepte `onlyModelYears` dans
+  `buildPlan` (pur, testé), `catalog.js` va chercher le plan à l'ouverture du panneau et après la
+  lecture de l'arbre.
+- Chargeur : `node tools/catalog-loader/load.mjs --refresh-days 30 --changes`.
+- Tests : 3 cas de plus dans `tests/ducati-catalog-core.test.ts` (plan ciblé, plan vide, plan qui ne
+  vise que du hors-Europe). **724 tests verts.**
+
+**Mesures (05/10, production)**
+- Catalogue en base : **857 modèles-années tous complets**, **36 700 planches** toutes avec leurs
+  pièces, **61 143** liaisons planche <-> modèle-année, **822 775 lignes**, **49 403 références**.
+- **Références marquées remplacées : 5 724** (112 110 lignes de planche) ; **0 vue aujourd'hui**
+  (aucun passage depuis le 21/09) ; **0 portait son remplacement** avant ce lot.
+- Essai fonctionnel du 05/10 (transaction annulée, planche 17780 du Monster 696 2009) :
+  relecture ciblée **0 planche sur 50 sans date, 50 sur 50 avec date** ; journal écrit
+  **1 nouvelle référence, 1 remplacement posé avec sa référence remplaçante, 10 prix changés,
+  5 remplacements levés** — ces 5 sont précisément des références que l'ancien import avait
+  marquées à tort et que le correctif nettoie.
 
 ## 5 bis. Cartes proposées (21/09)
 

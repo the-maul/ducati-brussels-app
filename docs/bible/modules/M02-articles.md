@@ -104,6 +104,24 @@ Menu latéral : **Pièces & Accessoires** (`/parts`).
 - **Étiquetage** (B12) : quantité par défaut = stock réel, avec/sans code-barres, avec/sans prix. L'édition **différée cumulable** relève de M5 (voir M05).
 - **Multi-société** : `articles.company_id` + RLS `is_member` ; suppression réservée à l'administrateur (`articles_delete` → `is_admin`). Les autres rôles (vendeur, magasinier…) ne sont **pas distingués** par la RLS.
 
+### Tenir le catalogue Ducati à jour (M-58 à M-60, 05/10)
+
+**Pièces & Accessoires -> Catalogue Ducati -> onglet « Mise à jour »** (`/parts/catalog?tab=update`,
+`src/modules/catalog/update-panel.tsx`) : date du dernier import, **ce qui a changé au dernier
+passage** (journal `ducati_catalog_changes` : nouvelle référence, remplacée, remplacement levé, prix
+changé, planche nouvelle ou modifiée) et un bouton **« Mettre à jour »**.
+
+Le bouton **n'appelle pas Ducati** : il arme un plan (`ducati_catalog_update_requests`) que
+l'extension Chrome vient chercher avec la session e-catalog de l'utilisateur. La **relecture ciblée**
+passe par `ducati_catalog_ingest_model_year(..., _refresh_before)` : les planches vues avant cette
+date sont redemandées, les autres sautées. Sans date, comportement d'origine (seules les planches
+sans pièces). Migration `20261005120000` — **à appliquer**.
+
+**Piège corrigé le 05/10** : `replaced` / `replaced_part` / `replacement_tree` ne pouvaient pas
+revenir en arrière (`coalesce(excluded.x, t.x)`) et `replaced_part` n'était jamais renseigné —
+**5 724 références marquées remplacées, 0 avec son remplaçant**. Au prochain passage d'import, ces
+trois colonnes se remettront d'aplomb.
+
 ## 5. État en production
 
 Vérifié le 18/09/2026 **dans le code uniquement**. La vérification en base n'a pas pu être faite : le connecteur
@@ -217,3 +235,5 @@ Ce qui marche : liste, recherche, fiche (hors années), onglets, familles, casca
 | 2026-09-22 | **Un seul catalogue, un seul stock** (M-25, missions 03 et 06) : création des articles manquants (4 009 pièces Ducati, 2 534 variantes du site), badges G8 / Shopify / Ducati, fiche article sur une page, alerte produit du site sans article, motos → véhicules, chargeur accessoires ; première version : : table `article_links`, rapprochement relançable (méthodes mesurées), écran Rapprochements (accepter / rejeter en masse), onglets Catalogue Ducati et Site Shopify de la fiche, filtre Liens, barre de vues, aperçu des articles manquants | branche `lot-rapprochement`, migration `20260921200000_m2_rapprochement_article_pivot.sql` (**à appliquer**, essayée en transaction annulée) |
 | 2026-09-23 | **Liste Pièces & Accessoires réparée** : filtre stock calculé en base, pagination par 200 et total exact (`article_list_page`) ; **vignettes** (Ducati > site > vue éclatée) en liste, sur la fiche et dans Rapprochements ; **logos Ducati / Shopify** et badge G8 dans « Référencé sur » ; prix « à compléter » | branche `lot-liste-articles`, `20260923170000_m2_liste_articles_stock_vignettes.sql` (appliquée le 23/09) |
 | 2026-09-21 | **Reprise du stock et des prix des articles reliés au site** (mission 03, W-10) : fonction `shopify_realign` (aperçu / application, réexécutable), bouton « Aligner le DMS sur le site (stock et prix) » sur Produits Shopify ; appliquée en production sur les 300 articles reliés (300 prix, 259 mouvements, 305 pièces) | `20260921140000_m2_shopify_reprise_stock_prix.sql` (appliquée le 21/09) |
+| 2026-10-05 | Vue éclatée réutilisable (`onAdd`) et création d'article « à compléter » depuis une planche (M-56, M-57) | lot `lot-eclatee` |
+| 2026-10-05 | Mise à jour du catalogue : journal des changements, relecture ciblée par date, onglet « Mise à jour », correctif des remplacements (M-58 à M-60) | `20261005120000_m2_catalogue_ducati_mise_a_jour.sql` (**à appliquer**) |

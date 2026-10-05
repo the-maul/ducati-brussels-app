@@ -94,6 +94,23 @@ de façon traçable. L'atelier (M8) passe par ce module pour transformer un OR e
 - **Purge des devis** : seuls les DEV brouillon / validés antérieurs à la date sont supprimés, jamais un devis converti (décision backlog Italobike VTE-09, commit `f4710e3`).
 - **Période clôturée** : aucun document ne peut être créé à une date couverte par une clôture d'exercice (M12, trigger `trg_documents_closed_period`).
 
+### Choisir les pièces sur la vue éclatée de la moto (M-55 à M-57, 05/10)
+
+Quand le document porte une moto reliée au catalogue Ducati
+(`documents.vehicle_id` -> `vehicles.ducati_model_year_id`), l'éditeur affiche
+**« Choisir sur la vue éclatée »** à côté de « Coller une référence e-catalog »
+(`src/modules/catalog/drawing-picker.tsx`, branché dans `src/modules/sales/document-editor.tsx`).
+Sans moto reconnue, **le bouton est absent**.
+
+La fenêtre ouvre les planches de ce modèle-année, puis la vue éclatée avec ses repères cliquables.
+Un clic pose la ligne avec la **quantité Ducati**, le **prix de vente de l'article** et sa
+**disponibilité** ; si la référence n'a pas d'article, il est créé « à compléter »
+(`createToCompleteArticle`, librairie / Ducati / type A / prix public Ducati HT) puis posé.
+`EcatalogPick` accepte désormais une `quantity` imposée.
+
+**Limite** : comme pour tout le module, les lignes ne se modifient **qu'à la création** du document
+(§7) — un devis déjà enregistré se reprend par « Dupliquer » ou « Convertir ».
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base `ujmrosbgkvgvwfnuryna`).
 - **Tous les objets utilisés par le code existent en base** : tables `documents`, `document_lines`, `document_payments`, `cash_sessions`, `cash_movements`, `picking_lists`, `picking_list_items`, `notifications`, `reference_values` et toutes leurs colonnes écrites par `write-api.ts` / `cash-api.ts` ; fonctions `next_document_number`, `record_stock_move`, `recompute_document_paid`, `contact_encours`, `cash_z_report`. RLS active sur toutes ces tables.
@@ -183,3 +200,4 @@ Invariants : B4 fait (réservé / réel selon type), B7 partiel (mouvements de s
 | 2026-09-19 | Mission 02 carte 11 « picking list » : page des listes refondue (statut, document, client, moto, vendeur, avancement, emplacement ; filtres, tri) ; annuler / supprimer (supprimée seulement si rien n'est préparé ni monté, sinon annulée avec motif), rouvrir, régénérer depuis le document (états gardés, lignes retirées signalées), imprimer (A4), terminer ; mêmes actions sur la tablette ; plus d'écriture directe dans les tables | `20260919380000_m6_listes_preparation_gestion.sql` |
 | 2026-09-21 | Mission 03 : **commandes du site Shopify** → facture FAC payée, port en ligne à part, sortie de stock, règlement « Shopify Payments », avoirs des remboursements ; écran « Commandes du site », cloche « Nouvelle commande web », webhooks signés + rattrapage 15 min ; import livré Arrêté | `20260921120000_m6_shopify_commandes_site.sql` |
 | 2026-09-21 | Mission 03 : **réservation du stock des commandes du site non payées** (W-12) : réservée à la commande, libérée au paiement (facture), à l'annulation, après 7 jours (réglable) ou à l'arrêt de l'import ; statut « Réservée (en attente de paiement) » | `20260921150000_m6_shopify_reservation_commandes.sql` |
+| 2026-10-05 | « Choisir sur la vue éclatée » dans le devis et la facture : repères cliquables, ligne en un clic, article créé à la volée (M-55 à M-57) | lot `lot-eclatee` |

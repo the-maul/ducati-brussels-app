@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DMS Ducati — My Ducati et catalogue",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Importe dans le DMS Ducati Bruxelles les infos d'une moto depuis My Ducati et le catalogue Ducati (modèles, vues éclatées, pièces) depuis l'e-catalog, avec la session de l'utilisateur.",
   "permissions": [
     "tabs",

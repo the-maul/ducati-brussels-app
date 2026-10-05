@@ -8,6 +8,51 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-05 — Mission 06, cartes 5 et 6 : la vue éclatée dans les documents, et la mise à jour du catalogue
+
+- **M-55** — **Le bouton « Choisir sur la vue éclatée » n'apparaît que si le document porte une moto
+  reconnue.** Le point d'entrée est la moto du document (`documents.vehicle_id`,
+  `repair_orders.vehicle_id`) et son lien catalogue (`vehicles.ducati_model_year_id`, carte 4) : on
+  n'ouvre jamais « tout le catalogue » depuis un devis, seulement **les planches de CE
+  modèle-année**. Sans moto, ou moto non rattachée, le bouton est **absent** plutôt que grisé : un
+  bouton qui ne peut rien faire n'a pas à être montré. Les 2 976 motos déjà rattachées couvrent
+  **6 325 documents** existants. *Équipe · 05/10.* [M06](modules/M06-ventes-caisse.md),
+  [M08](modules/M08-atelier.md), [M03](modules/M03-vehicules.md)
+- **M-56** — **Un clic = une ligne ; si l'article n'existe pas, il est créé « à compléter » par le
+  chemin déjà en place.** La pièce choisie devient une ligne avec la **quantité Ducati**, le **prix de
+  vente de l'article** et sa **disponibilité**. Quand aucune référence du DMS ne correspond, on ne
+  renvoie **pas** le vendeur vers l'écran de création d'article (il perdrait son devis) : l'article est
+  créé à la volée par `createToCompleteArticle` (mission 05 carte 4) — **librairie, marque Ducati,
+  type A, `to_complete`, prix de vente = prix public Ducati HT**, création tracée dans `events`. Le
+  magasin complète PA, fournisseur et famille ensuite. *Équipe · 05/10.* M06, M08,
+  [M02](modules/M02-articles.md)
+- **M-57** — **La vue éclatée existante est étendue, pas dupliquée.** `DrawingView` reçoit deux
+  propriétés facultatives (`onAdd`, `addState`) ; sans elles l'écran Catalogue est **au bit près
+  celui d'avant**. Conséquence voulue : une correction d'affichage des repères profite aux deux
+  usages, et il n'existe qu'un seul rendu de planche dans l'application. *Équipe · 05/10.* M02, M06
+- **M-58** — **La mise à jour du catalogue se décide dans le DMS, mais c'est l'extension qui lit.**
+  Le bouton « Mettre à jour » **arme un plan** (quels modèles-années, à partir de quelle date) dans
+  `ducati_catalog_update_requests` ; **aucun appel à Ducati ne part du serveur**, jamais. L'extension
+  Chrome, avec la session e-catalog de Simon, vient chercher ce plan
+  (`ducati_catalog_import_state`) et dépose les données. Corollaire : **l'extension n'a rien à
+  décider** — c'est le DMS qui applique la date de relecture à chaque modèle-année
+  (`bridge.ts`), donc la règle se corrige sans réinstaller l'extension. *Équipe · 05/10.* M02, M14
+- **M-59** — **« Relecture ciblée » veut dire : par date de dernière lecture.** Une planche déjà
+  chargée n'était jamais redemandée — donc **aucune mise à jour n'était possible** avant ce lot.
+  Désormais `ducati_catalog_ingest_model_year(..., _refresh_before)` redemande les planches vues
+  avant cette date et **saute les autres**. Sans date (chargeur, premier remplissage), le
+  comportement d'origine est conservé : seules les planches sans pièces. Le délai est un **réglage
+  de l'écran** (7 / 15 / 30 / 90 / 180 jours), pas une constante du code. *Équipe · 05/10.* M02
+- **M-60** — **Le remplacement d'une référence suit le catalogue dans les deux sens, et chaque
+  passage laisse un journal.** L'ancien import ne pouvait **que** poser un drapeau : `coalesce` le
+  rendait irréversible, et `replaced_part` n'était jamais renseigné — mesuré le 05/10 :
+  **5 724 références marquées remplacées, 0 avec son remplaçant**. Maintenant `replaced`,
+  `replaced_part` et `replacement_tree` sont écrits tels que Ducati les donne (une pièce qui cesse
+  d'être remplacée **cesse de l'être**), et `ducati_catalog_changes` garde, passage par passage,
+  nouvelle référence / remplacée / remplacement levé / prix changé / planche nouvelle ou modifiée.
+  C'est ce journal que l'écran affiche : **on ne demande pas à l'utilisateur de deviner ce qui a
+  bougé**. *Équipe · 05/10.* M02
+
 ## 2026-09-23 — Le stock réel de G8 entre dans le DMS (lot inventaire)
 
 - **M-44** — **L'inventaire G8 fait foi à sa date ; tout écart ultérieur passe par un mouvement

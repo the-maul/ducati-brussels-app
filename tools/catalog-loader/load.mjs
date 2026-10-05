@@ -9,6 +9,9 @@
  *   node tools/catalog-loader/load.mjs --dir "D:\export"    # autre dossier
  *   node tools/catalog-loader/load.mjs --dry-run            # vérifie les fichiers, n'écrit rien
  *   node tools/catalog-loader/load.mjs --force              # recharge aussi les fichiers déjà chargés
+ *   node tools/catalog-loader/load.mjs --refresh-days 30 --changes   # mise à jour : relit les planches
+ *                                                           # vues il y a plus de 30 jours et liste
+ *                                                           # ce qui a changé (carte 6)
  *   node tools/catalog-loader/load.mjs --stats              # affiche seulement ce qui est en base
  *   node tools/catalog-loader/load.mjs --sql out.sql [--rollback]
  *        # écrit le SQL au lieu d'appeler l'API (à passer avec npx supabase db query -f) ;
@@ -38,6 +41,12 @@ const SQL_OUT = opt('--sql', null);
 const ROLLBACK = flag('--rollback');
 const DRAWINGS_PER_CALL = Number(opt('--chunk', 25));
 const MODEL_YEARS_PER_CALL = Number(opt('--items', 20));
+// Carte 6 — mise à jour : --refresh-days N redemande aussi les planches lues il y a plus de N
+// jours (sinon seules les planches sans pièces sont reprises) ; --changes affiche le journal.
+const REFRESH_DAYS = opt('--refresh-days', null) == null ? null : Number(opt('--refresh-days', null));
+const SHOW_CHANGES = flag('--changes');
+const REFRESH_BEFORE = REFRESH_DAYS == null || !Number.isFinite(REFRESH_DAYS)
+  ? null : new Date(Date.now() - Math.max(REFRESH_DAYS, 0) * 86400000).toISOString();
 const LEDGER = join(DIR, 'catalogue-ducati-chargement.json');
 const PROJECT_URL = 'https://ujmrosbgkvgvwfnuryna.supabase.co';
 
@@ -165,7 +174,8 @@ async function main() {
       const items = slimGroupsFile(readJson(f));
       const unknown = [];
       for (const part of chunk(items, MODEL_YEARS_PER_CALL)) {
-        const r = await target.call('ducati_catalog_ingest_model_years', { _batch: batchId, _items: part });
+        const r = await target.call('ducati_catalog_ingest_model_years', {
+          _batch: batchId, _items: part, ...(REFRESH_BEFORE ? { _refresh_before: REFRESH_BEFORE } : {}) });
         if (r && r.unknownModelYears) unknown.push(...r.unknownModelYears);
       }
       log(`${f} : ${items.length} modèles-années${unknown.length ? ` (${unknown.length} absents de l'arbre, ignorés : ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? '…' : ''})` : ''}`);
@@ -186,6 +196,12 @@ async function main() {
     }
     const c = await target.call('ducati_catalog_refresh_completeness', { _batch: batchId });
     if (!SQL_OUT) log(`Modèles-années complets : ${JSON.stringify(c)}`);
+    // Ce qui a changé à ce passage (même journal que l'écran « Mise à jour » du DMS).
+    if (!SQL_OUT && SHOW_CHANGES) {
+      const sum = await target.call('ducati_catalog_update_summary', { _changes_limit: 20 }).catch(() => null);
+      if (sum && sum.lastChangeCounts) log(`Changements : ${JSON.stringify(sum.lastChangeCounts)}`);
+      for (const ch of (sum && sum.lastChanges) || []) log(`  ${ch.kind} ${ch.key} ${ch.label || ''}`);
+    }
     await target.call('ducati_catalog_batch_progress', { _batch: batchId, _status: 'done', _position: { files: 'all' } });
     if (!SQL_OUT) log(`Catalogue en base : ${JSON.stringify(await target.call('ducati_catalog_stats', {}))}`);
   } catch (e) {

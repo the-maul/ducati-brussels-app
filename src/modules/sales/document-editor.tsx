@@ -31,6 +31,7 @@ import { ReplacementHint } from './replacement-hint';
 import { StatusBadge } from '@/components/status-badge';
 import { EcatalogPasteButton, EcatalogLink, type EcatalogPick } from './ecatalog-paste';
 import { looksLikeDucatiReference } from './ecatalog';
+import { DrawingPickButton } from '@/modules/catalog/drawing-picker';
 
 const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -113,12 +114,13 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   });
   const addLine = (type: LineType, designation = '') => setLines((ls) => [...ls, blankLine(type, designation)]);
   // Article collé depuis l'e-catalog (carte 4) : remplit la dernière ligne article vide, sinon en ajoute une.
-  const addEcatalogLine = ({ article: a, catalogUrl, unitPriceHt }: EcatalogPick) => setLines((ls) => {
+  const addEcatalogLine = ({ article: a, catalogUrl, unitPriceHt, quantity }: EcatalogPick) => setLines((ls) => {
     const last = ls[ls.length - 1];
     const reuse = last && last.line_type === 'article' && !last.article_id && !last._fee && !last.designation.trim();
     const base = reuse ? last : blankLine();
     const line: EditLine = {
       ...base, article_id: a.id, designation: a.designation, reference: a.reference,
+      quantity: quantity && quantity > 0 ? quantity : base.quantity,
       unit_price_ht: unitPriceHt ?? effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
       line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: catalogUrl,
     };
@@ -271,6 +273,8 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         <Button type="button" variant="outline" onClick={() => addLine('vide')}><Minus /> {t('sales.addBlank')}</Button>
         <Button type="button" variant="outline" onClick={() => setRecallOpen(true)}><MessageSquareText /> {t('sales.recallComment')}</Button>
         <EcatalogPasteButton companyId={companyId} priceMode={priceMode} onPick={addEcatalogLine} />
+        {/* Carte 5 : planches de la moto du document (rien si la moto n'est pas reliée au catalogue). */}
+        <DrawingPickButton companyId={companyId} vehicleId={initialVehicleId ?? null} onPick={addEcatalogLine} />
       </div>
       {recallOpen && <RecallCommentDialog companyId={companyId} onClose={() => setRecallOpen(false)} onPick={(body) => { addLine('texte', body); setRecallOpen(false); }} />}
 

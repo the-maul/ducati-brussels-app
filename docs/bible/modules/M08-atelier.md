@@ -92,6 +92,18 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
   `part_orders.repair_order_id`, puis proposition fournisseur puis fichier DCS. Manquant = besoin −
   libre − en commande pour ce client − déjà en brouillon ; pièces seulement (types A et N).
 
+### Choisir les pièces sur la vue éclatée de la moto de l'OR (M-55 à M-57, 05/10)
+
+Dès que l'OR porte une moto reliée au catalogue Ducati
+(`repair_orders.vehicle_id` -> `vehicles.ducati_model_year_id`), le bouton
+**« Choisir sur la vue éclatée »** s'affiche à côté de « Ajouter une ligne »
+(`src/modules/workshop/or-editor.tsx`, `addDrawingLine`). Contrairement au devis, l'OR se modifie
+**aussi après enregistrement** : le mécanicien peut compléter son OR en cours de travail.
+
+Un clic sur un repère, puis sur « Ajouter », pose une ligne `piece` avec la **quantité Ducati** et le
+prix de vente de l'article ; si la référence n'existe pas dans le DMS, l'article est créé
+« à compléter » puis posé. Remplace le copier-coller depuis l'e-catalog.
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
 - **Tous les objets utilisés par le code existent** : `repair_orders`, `repair_order_lines`, `workshop_time_entries`, `workshop_appointments` avec toutes les colonnes écrites (y compris `price_mode` lu à la facturation), fonctions `or_worked_minutes`, `next_document_number`. RLS active et triggers d'audit (`trg_ro_audit`, `trg_rolines_audit`, `trg_appt_audit`, `trg_wte_audit`) présents.
@@ -200,3 +212,4 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-09-23 | **Parcours d'entretien pas à pas** pour le technicien sur tablette (mission 07 carte 8, ATE011 + ATE014) : entretien dû, opérations, procédures du manuel, figures zoomables, couples, chronos, récapitulatif vers l'OR | `20260923110000_m8_parcours_entretien.sql` (**non appliquée**) |
 | 2026-09-23 | **Kits de pièces d'entretien** (mission 07 carte 2, ATE013 + ATE014, M-20) : déduction entretien → pièces depuis les manuels et le catalogue (97,8 % des 4 629 besoins fermes résolus, 44 familles de moteur, 385 kits), écran Atelier → Kits d'entretien, picking list depuis l'OR, commande des pièces manquantes avec choix du type | `20260923160000_m8_entretien_pieces_regles.sql`, `20260923161000_m8_kits_entretien.sql`, `20260923162000_m8_picking_depuis_or.sql`, `20260923163000_m8_commande_depuis_or.sql` (**non appliquées**) |
 | 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |
+| 2026-10-05 | « Choisir sur la vue éclatée » dans l'OR : repères cliquables, ligne pièce en un clic (M-55 à M-57) | lot `lot-eclatee` |

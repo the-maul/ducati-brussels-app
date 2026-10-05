@@ -106,9 +106,13 @@
     sel = sel || {};
     var minYear = sel.minYear == null ? 2000 : sel.minYear;
     var exFam = toSet(sel.excludedFamilies), exMod = toSet(sel.excludedModels), inMod = toSet(sel.includedModels);
+    // Mise à jour ciblée (mission 06, carte 6) : quand le DMS a armé un plan, on ne lit QUE les
+    // modèles-années qu'il demande. Liste vide = tout le périmètre habituel.
+    var only = toSet(sel.onlyModelYears);
     var jobs = [], models = [];
     var summary = { families: 0, models: 0, modelsKept: 0, modelsOutsideEurope: 0, modelsUnchecked: 0,
-                    modelYears: 0, modelYearsKept: 0, modelYearsBeforeMin: 0, modelYearsNoYear: 0 };
+                    modelYears: 0, modelYearsKept: 0, modelYearsBeforeMin: 0, modelYearsNoYear: 0,
+                    modelYearsOutsidePlan: 0, planned: only.size };
     ((tree && tree.families) || []).forEach(function (f) {
       summary.families++;
       (f.superModels || []).forEach(function (s) {
@@ -120,13 +124,15 @@
           else if (exMod.has(m.id)) reason = 'unchecked';
           else if (!europe && !inMod.has(m.id)) reason = 'market';
           var years = (m.modelYears || []).map(function (y) { return { y: y, year: y.year != null ? y.year : yearOf(y) }; });
-          var keptYears = years.filter(function (x) { return x.year == null || x.year >= minYear; });
+          var inMinYear = years.filter(function (x) { return x.year == null || x.year >= minYear; });
+          var keptYears = only.size ? inMinYear.filter(function (x) { return only.has(String(x.y.id)); }) : inMinYear;
           summary.modelYears += years.length;
-          summary.modelYearsBeforeMin += years.length - keptYears.length;
+          summary.modelYearsBeforeMin += years.length - inMinYear.length;
+          summary.modelYearsOutsidePlan += inMinYear.length - keptYears.length;
           if (!europe) summary.modelsOutsideEurope++;
           if (reason === 'unchecked') summary.modelsUnchecked++;
           var kept = !reason && keptYears.length > 0;
-          if (!reason && keptYears.length === 0) reason = 'years';
+          if (!reason && keptYears.length === 0) reason = only.size ? 'plan' : 'years';
           models.push({ familyId: f.id, family: f.description, superModelId: s.id, superModel: s.description,
                         id: m.id, description: m.description, market: m.market || marketOf(m.description),
                         isEurope: europe, kept: kept, reason: reason,

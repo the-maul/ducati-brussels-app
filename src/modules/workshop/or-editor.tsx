@@ -14,6 +14,7 @@ import { searchSaleArticles, type SaleArticle } from '@/modules/sales/write-api'
 import { searchVehicles, type VehicleLite, type RepairOrderFull } from './api';
 import { computeRoTotals, type RoLineInput } from './write-api';
 import { t } from '@/lib/i18n';
+import { DrawingPickButton, type CatalogDrawingPick } from '@/modules/catalog/drawing-picker';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -58,6 +59,20 @@ export function OrEditor({ companyId, initial, busy, error, onSubmit }: {
   useEffect(() => { if (preContact) setContact(preContact); }, [preContact]);
 
   const setLine = (k: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === k ? { ...l, ...patch } : l)));
+
+  // Carte 5 : pièce choisie sur la vue éclatée de la moto de l'OR. Remplit la dernière ligne
+  // « pièce » restée vide, sinon en ajoute une.
+  const addDrawingLine = ({ article: a, unitPriceHt, quantity }: CatalogDrawingPick) => setLines((ls) => {
+    const last = ls[ls.length - 1];
+    const reuse = !!last && last.kind === 'piece' && !last.article_id && !last.designation.trim();
+    const base = reuse ? last : blankLine();
+    const line: EditLine = {
+      ...base, article_id: a.id, designation: a.designation,
+      quantity: quantity > 0 ? quantity : base.quantity,
+      unit_price_ht: unitPriceHt, vat_rate: a.vat_rate,
+    };
+    return reuse ? [...ls.slice(0, -1), line] : [...ls, line];
+  });
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const totals = computeRoTotals(lines.map(({ _key, ...l }) => l));
 
@@ -141,7 +156,10 @@ export function OrEditor({ companyId, initial, busy, error, onSubmit }: {
       </div>
 
       <div className="flex items-center justify-between">
-        <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
+          <DrawingPickButton companyId={companyId} vehicleId={vehicle?.id ?? null} onPick={addDrawingLine} />
+        </div>
         <div className="flex gap-5 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
           <span>{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>
           <span className="text-muted-foreground">{t('workshop.totalVat')} {eur(totals.total_vat)}</span>
