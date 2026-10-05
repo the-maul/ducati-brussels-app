@@ -2755,6 +2755,7 @@ export const fr = {
       subtitle: 'Vos factures, avoirs et tickets de caisse.',
       empty: 'Aucune facture pour le moment.',
       openPdf: 'Ouvrir le PDF',
+      onBehalf: 'Au nom de',
       print: 'Imprimer / enregistrer en PDF',
       importedHint: 'Le détail de cette facture est dans le PDF d’origine.',
       billedTo: 'Facturé à',

@@ -118,8 +118,10 @@ function ClientsList() {
         }
       />
 
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative max-w-md flex-1">
+      {/* flex-wrap : sur un petit écran les filtres passent à la ligne
+          au lieu de sortir de l'écran. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[11rem] max-w-md flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -190,8 +192,9 @@ function ClientsList() {
         />
       )}
 
-      <div className="overflow-hidden rounded-md border border-border">
-        <table className="w-full border-collapse font-data text-[13px]">
+      {/* overflow-x-auto : le tableau large se fait défiler, il ne sort pas de l'écran. */}
+      <div className="overflow-x-auto rounded-md border border-border">
+        <table className="w-full min-w-[42rem] border-collapse font-data text-[13px]">
           <thead className="bg-muted">
             <tr>
               <th className="w-10 px-3 py-2">

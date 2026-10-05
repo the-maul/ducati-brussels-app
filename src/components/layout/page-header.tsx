@@ -29,7 +29,7 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <Breadcrumb className="mb-1.5">
             <BreadcrumbList>
@@ -57,7 +57,10 @@ export function PageHeader({
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {/* Pas de shrink-0 : avec 6 boutons (facture), le bloc d'actions prenait
+          toute la largeur et le titre se retrouvait a 60px, une lettre par ligne.
+          Les boutons passent maintenant a la ligne. */}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
     </div>
   );
 }

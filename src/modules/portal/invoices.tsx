@@ -38,6 +38,14 @@ export function InvoiceListView() {
                     <p className="truncate text-[12px] text-muted-foreground">
                       {[dateFr(d.issue_date), d.vehicle_label].filter(Boolean).join(' · ')}
                     </p>
+                    {/* Facture au nom d'une autre fiche (fiche liée, organisme de
+                        financement de la moto) : on le dit, sinon le client ne
+                        comprend pas pourquoi elle est dans sa liste. */}
+                    {d.on_behalf && (
+                      <p className="truncate text-[12px] text-muted-foreground">
+                        {t('portal.invoices.onBehalf')} {d.on_behalf}
+                      </p>
+                    )}
                     <div className="mt-1"><InvoiceStatus status={d.status} docType={d.doc_type} due={due} /></div>
                   </div>
                   <span className="shrink-0 font-data text-[15px] font-bold tabular-nums">{eur(d.total_ttc)}</span>

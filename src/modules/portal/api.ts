@@ -189,6 +189,8 @@ export type PortalInvoiceSummary = {
   paid_amount: number;
   vehicle_label: string | null;
   imported: boolean;
+  /** Rempli quand la facture est au nom d'une AUTRE fiche (fiche liee, organisme de financement). */
+  on_behalf?: string | null;
   pdf_path: string | null;
 };
 
