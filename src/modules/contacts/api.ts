@@ -16,9 +16,16 @@ export type ContactStatus = Database['public']['Enums']['contact_status'];
 export type SaleVatType = Database['public']['Enums']['sale_vat_type'];
 
 /** Nom d'affichage d'un contact (raison sociale ou nom complet). */
-export function contactDisplayName(c: Pick<Contact, 'company_name' | 'first_name' | 'last_name'>): string {
+export function contactDisplayName(
+  c: Pick<Contact, 'company_name' | 'first_name' | 'last_name'> & { type?: string | null },
+): string {
+  const person = [c.first_name, c.last_name].filter(Boolean).join(' ');
+  // Un particulier s'affiche par son nom de personne (Simon, 05/10) : les fiches reprises
+  // de G8 portent souvent le nom de famille aussi en raison sociale, ce qui affichait
+  // « FONTEIO » au lieu de « DOMENICO FONTEIO ».
+  if (c.type === 'particulier' && person) return person;
   if (c.company_name) return c.company_name;
-  return [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
+  return person || '—';
 }
 
 /**
