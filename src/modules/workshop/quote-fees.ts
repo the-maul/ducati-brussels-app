@@ -37,10 +37,14 @@ const pos = (v: unknown): number | null => {
  * Lit les paramètres (lignes reference_values 'workshop_quote_fee') ; toute valeur absente
  * retombe sur le défaut. Le tarif horaire vient du paramètre `diagnostic.hourly_rate_ht` ;
  * s'il vaut 0 ou est vide, on reprend le prix de vente de l'article « MO » (main-d'œuvre, type T).
+ *
+ * Le code de la ligne est comparé **sans tenir compte de la casse** : mesuré le 05/10, la
+ * production porte 'ACCIDENT' et 'DIAGNOSTIC' en majuscules, si bien que le tarif horaire
+ * n'était jamais trouvé et retombait en silence sur l'article MO (mission 07, carte 6).
  */
 export function resolveQuoteFeeParams(rows: RefLike[], moArticlePriceHt?: number | null): QuoteFeeParams {
   const extra = (code: string): Record<string, unknown> => {
-    const r = rows.find((x) => x.code === code && x.is_active !== false);
+    const r = rows.find((x) => x.code?.toLowerCase() === code && x.is_active !== false);
     return r && r.extra && typeof r.extra === 'object' ? (r.extra as Record<string, unknown>) : {};
   };
   const acc = extra('accident');

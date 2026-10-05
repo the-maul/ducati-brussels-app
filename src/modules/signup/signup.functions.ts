@@ -107,6 +107,14 @@ const signupInput = z.object({
     .transform((v) => toE164(v) || undefined),
   password: z.string().max(PASSWORD_MAX_LENGTH).optional(),
   moto: motoSchema,
+  // Mission 07, carte 5 : kilométrage actuel et derniers entretiens connus, tous deux
+  // facultatifs — « je ne sais pas » est la réponse la plus fréquente.
+  moto_km: z.number().int().min(0).max(2_000_000).optional(),
+  moto_last_services: z.array(z.object({
+    label: z.string().trim().min(1).max(80),
+    km: z.number().int().min(0).max(2_000_000).nullable().optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  })).max(12).default([]),
   interests: z.array(z.enum(SIGNUP_INTERESTS)).max(SIGNUP_INTERESTS.length).default([]),
   marketing_consent: z.boolean(),
   recontact: z.boolean(),
@@ -195,6 +203,24 @@ export const submitSignup = createServerFn({ method: 'POST' })
       return { status: 'error', code: 'generic' };
     }
     const row = Array.isArray(reg) ? reg[0] : reg;
+
+    // 5 bis. Mission 07, carte 5 : le kilométrage et les derniers entretiens déclarés
+    //        rejoignent la moto déclarée. Fonction séparée pour ne pas toucher à la
+    //        signature de `signup_register`, vérifiée par les tests d'étanchéité.
+    //        Un échec ici ne doit jamais faire échouer l'inscription.
+    if (data.moto.kind !== 'none' && (data.moto_km != null || data.moto_last_services.length > 0)) {
+      try {
+        const { error: mErr } = await supabaseAdmin.rpc('signup_declare_vehicle_maintenance', {
+          _company: companyId,
+          _contact: row.contact_id,
+          _mileage_km: data.moto_km,
+          _services: data.moto_last_services,
+        });
+        if (mErr) console.error('[signup] maintenance', mErr.message);
+      } catch (e) {
+        console.error('[signup] maintenance', e instanceof Error ? e.message : String(e));
+      }
+    }
     await supabaseAdmin.from('profiles').upsert({ id: userId, email: data.email, full_name: fullName, is_active: true });
 
     // 6. E-mail par Outlook : bienvenue (mot de passe choisi) ou invitation

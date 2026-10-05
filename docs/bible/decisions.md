@@ -8,6 +8,67 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-05 — Mission 07, cartes 4 à 7 : le prochain entretien de chaque moto
+
+- **M-50** — **Deux niveaux de certitude, et on ne crie jamais au retard sans savoir.** Une échéance
+  n'est un **retard** que si le **dernier entretien de cette famille est connu** (parcours terminé
+  chez nous, My Ducati, déclaré par le client, importé) *et* qu'elle est dépassée : c'est
+  `confidence = 'exact'`. Sinon, c'est `confidence = 'estime'` : on annonce la **prochaine
+  occurrence après le compteur et après aujourd'hui**, et jamais un retard. Mesuré sur les vraies
+  données : une moto de 2007 affichant 24 538 km se voyait réclamer son « Oil Service des
+  15 000 km » et sa « révision des 1 000 km » — faux et inutilisable. Elle annonce désormais son
+  Oil Service à 30 000 km et son entretien annuel au 25/04/2027. *Équipe · 05/10. M08, M03.*
+
+- **M-51** — **Le premier entretien (1 000 km) et les jalons kilométriques ne se répètent pas.** Le
+  « First Service 1000 » arrive une fois : enregistré, ou jalon largement dépassé au compteur, il
+  sort de la liste et sa date ne se reporte pas. Même règle pour les **grilles kilométriques
+  reconstruites** (M-30 : 232 des 461 manuels), dont les `km` sont des **jalons absolus au
+  compteur** et non des intervalles : un jalon déjà passé est réputé fait, seul le prochain est
+  annoncé. *Équipe · 05/10. M08.*
+
+- **M-52** — **Le manuel d'atelier d'abord, le plan PDF en repli — sauf piste et racing.** Le
+  programme d'une moto vient du **manuel d'atelier** de son modèle-année (le plus détaillé, le seul
+  à donner un temps UT réel) ; le **plan PDF** sert de repli. Le manuel ne connaît pas l'usage :
+  dès que l'usage choisi est **piste amateur** ou **racing** (M-20), c'est le plan de cet usage qui
+  gagne. Mesuré le 05/10 : 1 320 motos par le manuel, 107 par le plan. *Équipe · 05/10. M08, M03.*
+
+- **M-53** — **Le kilométrage est la donnée qui manque, on la demande partout.** 350 motos ont un
+  programme connu et un compteur inconnu : rien n'est calculable pour elles. Le kilométrage et les
+  derniers entretiens sont donc demandés **à l'inscription en ligne** et dans **« Ajouter ma moto »**
+  (carte 5), sans jargon, **tout facultatif** (« je ne sais pas » est la réponse la plus fréquente),
+  et sont **modifiables sur la fiche moto**. Quand l'équipe valide la déclaration, ils **suivent
+  jusqu'à la moto** par un trigger — sans jamais écraser un relevé déjà présent.
+  *Équipe · 05/10. M01, M03, M08.*
+
+- **M-54** — **Le temps officiel Ducati est bloqué au planning existant, pas dans un second
+  planning.** Le RDV d'entretien est une ligne de `workshop_appointments` (le planning et les
+  demandes du portail de M08), avec `planned_minutes` = **temps UT × 6 minutes** (M-33) et
+  `source = 'entretien'`. Sans temps au manuel, le créneau reste à **60 minutes** : on ne bloque
+  jamais un temps inventé. *Équipe · 05/10. M08.*
+
+- **M-55** — **Un devis estimé partiel se dit partiel ; il ne devient jamais un devis.** Devis
+  estimé = main-d'œuvre (temps officiel × taux horaire HT) + pièces du kit d'entretien, au prix de
+  vente HT de l'article du DMS. Une pièce sans prix compte pour **0 €** et est **signalée**
+  (`partsWithoutPrice`), un temps absent laisse la main-d'œuvre à **null** : l'atelier voit ce qui
+  manque au lieu d'un total faux. `complete = false` tant que tout n'est pas là. **Rien n'est
+  facturé, aucun devis n'est créé.** *Équipe · 05/10. M08, M06.*
+
+- **M-56** — **Relances : la cloche, le message préparé, et l'envoi désactivé.** Les relances
+  d'entretien posent une **cloche par rôle** (`team_notifications.kind = 'maintenance_due'`, vue par
+  commercial et atelier) et **préparent** l'objet et le corps du message. **Aucun envoi d'e-mail ni
+  de SMS** : le bouton « Envoyer » est désactivé avec sa mention, et rien n'est écrit dans la file
+  d'envoi `notifications`. L'envoi réel demande l'**accord explicite de Simon dans le chat**
+  (alerte 5 du scan du 18/09). *Simon · 05/10. M08, M10.*
+
+- **M-57** — **Correctif : le tarif horaire atelier n'était jamais lu.** Mesuré le 05/10 en
+  production : la ligne de réglage porte le code **`DIAGNOSTIC`** (majuscules), alors que
+  `maintenance_hourly_rate_ht` (SQL) et `resolveQuoteFeeParams` (TypeScript) la cherchaient en
+  **`diagnostic`**. Le tarif horaire était donc introuvable, le repli silencieux sur l'article MO
+  s'appliquait, et l'écran des plans d'entretien affichait « Taux horaire HT : À saisir » alors
+  qu'une valeur existait. Les deux lectures comparent désormais **sans tenir compte de la casse**,
+  et le **90 € HTVA** de la décision M-20 est enregistré dans `hourly_rate_ht` (seulement s'il était
+  vide ou nul ; `amount_ht` n'est pas touché). *Équipe · 05/10. M08, M06.*
+
 ## 2026-09-23 — Le stock réel de G8 entre dans le DMS (lot inventaire)
 
 - **M-44** — **L'inventaire G8 fait foi à sa date ; tout écart ultérieur passe par un mouvement

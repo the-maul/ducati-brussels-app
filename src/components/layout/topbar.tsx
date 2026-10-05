@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Wrench } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
 import {
   dueState, listBellTasks, listCompanyMembers, listSignupNotifications, listTeamNotifications, markSignupNotificationsRead,
+  MAINTENANCE_DUE_NOTIF_ROLES,
   SIGNUP_NOTIF_ROLES, IBAN_NOTIF_ROLES, type BellScope,
 } from '@/modules/crm/api';
 import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/workshop/planning-api';
@@ -80,6 +81,7 @@ function NotificationsBell() {
   const seesIban = has(IBAN_NOTIF_ROLES);
   const seesVehicleDecl = has(VEHICLE_DECL_NOTIF_ROLES);
   const seesWebOrders = has(WEB_ORDER_ROLES);
+  const seesMaintenanceDue = has(MAINTENANCE_DUE_NOTIF_ROLES);
 
   const [scope, setScopeState] = useState<BellScope>(readScope);
   const setScope = (s: BellScope) => {
@@ -149,6 +151,14 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid && seesWebOrders,
     refetchInterval: 120_000,
   });
+  // Mission 07, carte 7 : entretien dû (cloche seulement, aucun envoi).
+  const maintDueKey = ['maintenance-due-notifications', activeCompanyId, uid];
+  const { data: maintDueData } = useQuery({
+    queryKey: maintDueKey,
+    queryFn: () => listTeamNotifications(activeCompanyId!, uid!, 'maintenance_due'),
+    enabled: !!activeCompanyId && !!uid && seesMaintenanceDue,
+    refetchInterval: 120_000,
+  });
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -164,6 +174,7 @@ function NotificationsBell() {
       queryClient.invalidateQueries({ queryKey: depositKey });
       queryClient.invalidateQueries({ queryKey: unpaidKey });
       queryClient.invalidateQueries({ queryKey: webOrderKey });
+      queryClient.invalidateQueries({ queryKey: maintDueKey });
     },
   });
 
@@ -175,6 +186,8 @@ function NotificationsBell() {
   const unreadIbans = ibans.filter((n) => !n.read);
   const vehicleDecls = seesVehicleDecl ? vehicleDeclData ?? [] : [];
   const unreadVehicleDecls = vehicleDecls.filter((n) => !n.read);
+  const maintDues = seesMaintenanceDue ? maintDueData ?? [] : [];
+  const unreadMaintDues = maintDues.filter((n) => !n.read);
   const depositAlerts = depositData ?? [];
   const unreadDeposit = depositAlerts.filter((n) => !n.read);
   const unpaidAlerts = unpaidData ?? [];
@@ -183,7 +196,7 @@ function NotificationsBell() {
   const unreadWebOrders = webOrders.filter((n) => !n.read);
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadMaintDues.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -400,6 +413,34 @@ function NotificationsBell() {
             })}
             <DropdownMenuItem asChild className="cursor-pointer">
               <Link to="/vehicles/declarations" className="text-[12px]">{t('notif.vehicleDeclSeeAll')}</Link>
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {/* Mission 07, carte 7 : entretien dû — cloche par rôle (commercial + atelier).
+            Aucun e-mail, aucun SMS : l'envoi demande l'accord explicite du client. */}
+        {maintDues.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('maintenanceDue.remindersTitle')}</DropdownMenuLabel>
+            {maintDues.slice(0, 8).map((n) => (
+              <DropdownMenuItem key={n.id} asChild className="cursor-pointer" onSelect={() => { if (!n.read) markRead.mutate([n.id]); }}>
+                <Link to="/workshop/maintenance-due" className="flex flex-col items-start gap-0.5">
+                  <span className="flex w-full items-center gap-1.5">
+                    <Wrench className={`size-3.5 shrink-0 ${n.read ? 'text-muted-foreground' : 'text-[var(--warning)]'}`} />
+                    <span className={`truncate text-[13px] ${n.read ? 'text-muted-foreground' : 'font-medium'}`}>
+                      {n.title}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {!n.read && <span className="font-medium text-[var(--warning)]">{t('maintenanceDue.remindersBellKind')} · </span>}
+                    {fmt(n.created_at)}
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/workshop/maintenance-due" className="text-[12px]">{t('maintenanceDue.openBtn')}</Link>
             </DropdownMenuItem>
           </>
         )}

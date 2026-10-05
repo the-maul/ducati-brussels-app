@@ -35,10 +35,10 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 1 | Plans d'entretien par modèle et par année — 🟦 fait le 21/09, à valider (§5) | 06-2 |
 | 2 | Forfaits d'entretien avec pièces, temps et devis automatique — 🟦 fait 23/09 (kits, picking list, commande) | 07-1, 06-3 |
 | 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
-| 4 | Prochain entretien de chaque moto | 07-1, 06-4 |
-| 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
-| 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé | 07-2 |
-| 7 | Relances d'entretien (cloche d'abord ; mail/SMS quand les services seront choisis) | 07-4 |
+| 4 | Prochain entretien de chaque moto — 🟦 fait le 05/10, à valider (§5) | 07-1, 06-4 |
+| 5 | Demander km et derniers entretiens quand une moto est enregistrée — 🟦 fait le 05/10, à valider (§5) | 07-4 |
+| 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé — 🟦 fait le 05/10, à valider (§5) | 07-2 |
+| 7 | Relances d'entretien (cloche d'abord ; mail/SMS quand les services seront choisis) — 🟦 fait le 05/10, à valider (§5) : **envoi désactivé** | 07-4 |
 | 8 | Parcours d'entretien pas à pas pour le technicien (tablette atelier) — 🟦 fait le 23/09, à valider (§5) | 07-1, 06-4, lot-manuels |
 
 ## 4. Décisions (Simon, 21/09)
@@ -299,6 +299,203 @@ stock.**
    brouillon et porte le lien vers l'OR.
 6. Relancer « Commander les pièces manquantes » : la fenêtre doit dire **« Rien à commander »**
    (ce qui est déjà en brouillon n'est pas recommandé).
+
+### 05/10 — Cartes 4, 5, 6 et 7 : le prochain entretien, le RDV, le devis, les relances
+
+> Les quatre cartes sont livrées **ensemble** : elles se tiennent. La carte 4 calcule l'entretien dû,
+> la carte 5 va chercher la donnée qui lui manque, la carte 6 en fait un rendez-vous chiffré, la
+> carte 7 prévient.
+
+#### Carte 4 — « Prochain entretien de chaque moto »
+
+**Pour l'utilisateur**
+- **Fiche moto → panneau « Prochain entretien »** : l'entretien dû **au premier atteint** (km ou
+  mois), avec son **km ou sa date prévisionnels**, le **temps officiel Ducati** (UT → minutes) et le
+  **devis estimé**. En dessous, **toutes les échéances** du programme, et l'**historique connu** de
+  la moto. Le **kilométrage se corrige ici** en un geste.
+- **Deux badges, toujours** (décision M-50) : l'**urgence** (en retard / imminent / bientôt / à
+  suivre) et la **certitude** — « Dernier entretien connu » ou « Estimation ». Une estimation n'est
+  jamais annoncée comme un retard, et le panneau dit pourquoi : « demandez-le au client ».
+- **Fiche client → onglet « Entretiens de ses motos »** : une ligne par moto du client, avec son
+  entretien dû.
+- **Atelier → Entretiens à venir** (`/workshop/maintenance-due`, bouton sur l'écran Atelier) :
+  cinq compteurs (calculable, en retard, à l'horizon choisi, sans kilométrage, taux horaire HT) et
+  cinq listes — **En retard**, **Bientôt**, **À confirmer** (les estimations : les clients à
+  appeler), **Sans kilométrage**, **Relances**. Filtre texte (VIN, modèle, plaque), horizon
+  30 jours à 1 an, et sur chaque ligne le propriétaire, le RDV déjà prévu, le bouton « Proposer un
+  rendez-vous » et le message de relance.
+
+**Chiffres réels mesurés en production le 05/10**
+
+| Mesure | Valeur |
+|---|---|
+| Motos actives | 3 363 |
+| Rattachées à un modèle-année du catalogue Ducati | 2 976 |
+| **Entretien calculable** | **1 364** |
+| dont avec un kilométrage relevé | 1 014 |
+| Programme connu mais **kilométrage inconnu** | 350 |
+| Échéance **exacte** (dernier entretien connu) | **0** |
+| Échéance **estimée** (dernier entretien inconnu) | 1 364 |
+| **En retard certain** | **0** |
+| Échéance dans les 60 jours | 73 |
+| Échéance dans les 180 jours | 248 |
+| Dont le **kilométrage** arrive en premier | 812 |
+| Dont la **durée** arrive en premier | 552 |
+| Avec un **temps officiel Ducati** (UT) | 231 |
+| Programme venant du **manuel d'atelier** | 1 320 motos |
+| Programme venant du **plan PDF** | 107 motos |
+| Rattachées au catalogue mais **sans programme** | 1 549 |
+| **Sans modèle-année** du catalogue | 387 |
+
+**Les deux zéros sont la vraie information** : aucun entretien n'est connu pour aucune moto
+(`vehicle_maintenance` est vide, aucun parcours n'a été terminé, aucun historique importé). Il n'y a
+donc **aucun retard certain**, et les 1 364 échéances sont des **estimations**. C'est exactement ce
+que la carte 5 vient corriger, et pourquoi l'onglet « À confirmer » est celui qui s'ouvre par défaut.
+
+**Technique**
+- Migration **appliquée en production le 05/10** `20261005110000_m8_prochain_entretien.sql` :
+  table `vehicle_service_history` (entretiens déclarés, saisis au comptoir, importés, My Ducati —
+  `company_id` + RLS équipe), fonctions miroir des règles TypeScript
+  `maintenance_service_family` / `maintenance_is_real_service` / `maintenance_contact_name`,
+  vues `maintenance_vehicle_program` (une ligne par moto × échéance, manuel d'abord, plan en repli),
+  `maintenance_vehicle_last_service` (parcours terminé + My Ducati + déclaré, le plus récent gagne),
+  `maintenance_vehicle_due` (le calcul) et `maintenance_vehicle_next` (l'entretien dû), plus
+  `maintenance_due_for_vehicle`, `maintenance_due_list`, `maintenance_due_stats`,
+  `vehicle_service_history_add` / `_delete` et `vehicle_mileage_set`. Une ligne `events` par geste.
+- **Vitesse mesurée aux volumes réels** : vue complète des 1 364 entretiens dus **708 ms**, page de
+  50 triée **691 ms**, une seule moto **14 ms**. Très en dessous du `statement_timeout` de 8 s.
+- Règles pures `src/modules/workshop/maintenance-due.ts` (premier atteint, certitude, rythme de
+  roulage, devis estimé) — **l'écran ne recalcule rien**, il lit la base ; les règles servent de
+  référence et de tests.
+- Code : `maintenance-due-api.ts`, `maintenance-due-view.tsx` (badges, libellés),
+  `maintenance-due-panel.tsx` (fiche moto + fiche client), `maintenance-due-screen.tsx`,
+  `maintenance-due-contact-tab.tsx`, route `src/routes/_app.workshop.maintenance-due.tsx`.
+- Tests : `tests/maintenance-due.test.ts` — **32 tests** sur les vrais programmes chargés
+  (DESERTX 2023/2025, DESERTX V2 2027, MONSTER 2021 en grille kilométrique, 1098 de 2007) : premier
+  atteint, fin de mois, estimation sans historique, premier entretien qui ne revient pas, jalons
+  kilométriques, rythme de roulage, devis estimé.
+
+#### Carte 5 — « Demander km et derniers entretiens quand une moto est enregistrée »
+
+**Pour l'utilisateur**
+- **Inscription en ligne** (et **borne** du comptoir, même formulaire) : dès que le client a indiqué
+  une moto, deux questions s'ajoutent à la section « Moto » — son **kilométrage actuel** (« même
+  approximatif ») et, **replié par défaut**, ses **derniers entretiens faits** : une liste courte et
+  sans jargon (Révision des 1 000 km, Oil Service, Desmo Service, Entretien annuel) où il donne la
+  **date ou le kilométrage**, au choix.
+- **Espace client → « Ajouter ma moto »** : les mêmes deux questions.
+- **Tout est facultatif.** « Je ne sais pas » est une réponse valable et c'est la plus fréquente :
+  rien ne bloque l'inscription ni la déclaration.
+- **Quand l'équipe valide la déclaration** (rattachement à une moto existante ou création d'une
+  fiche), le kilométrage et les entretiens déclarés **suivent jusqu'à la moto** et l'échéance passe
+  d'« Estimation » à « Dernier entretien connu ». Un kilométrage déjà relevé n'est jamais écrasé.
+- **Au comptoir**, la fiche moto permet d'ajouter un entretien connu à la main (même liste courte,
+  issue cette fois du **programme réel du modèle**).
+
+**Technique**
+- Composant partagé `src/components/moto-maintenance-fields.tsx` (`MotoMaintenanceFields`,
+  `cleanDeclaredServices`, `isMaintenanceKmValid`), monté dans
+  `src/modules/signup/signup-form.tsx` et `src/modules/portal/declare-vehicle.tsx`.
+- Colonnes `contact_declared_vehicles.mileage_km` et `.last_services` (jsonb `[{label, km, date}]`).
+- **Les signatures de `signup_register` et `portal_declare_vehicle` ne changent pas** (elles sont
+  vérifiées nominativement par `tests/portal-etancheite.test.ts` et
+  `supabase/tests/m4_motos_declarees_etancheite.sql`) : deux fonctions séparées,
+  `signup_declare_vehicle_maintenance` (clé de service) et `portal_declare_vehicle_maintenance`
+  (client connecté ou équipe), appelées juste après — comme le dépôt de la carte grise.
+  Un échec n'y fait jamais échouer l'inscription.
+- Report vers la moto : trigger `trg_declared_vehicle_carry_maintenance` sur
+  `contact_declared_vehicles` (`after update of vehicle_id`), donc les deux chemins existants
+  `declared_vehicle_attach` et `declared_vehicle_create` en profitent sans être réécrits.
+- Liste courte du programme réel : `maintenance_declarable_services(_model_year)`.
+- Normalisation serveur `_maintenance_clean_declared_services` : libellé non reconnu refusé, km et
+  dates bornés, ligne sans km **et** sans date jetée, 12 lignes au maximum.
+
+#### Carte 6 — « Rendez-vous d'entretien avec temps bloqué et devis estimé »
+
+**Pour l'utilisateur**
+- Depuis l'entretien dû (fiche moto ou liste « Entretiens à venir »), **« Proposer un
+  rendez-vous »** : la fenêtre affiche le **temps officiel Ducati** qui sera **bloqué au planning**,
+  demande la date, l'heure, le mécanicien et une note, et montre le **devis estimé** avant de poser
+  le RDV.
+- Le rendez-vous apparaît dans le **planning existant** (Atelier → Planning), au statut **prévu**,
+  avec l'entretien et le montant estimé. Le bouton « créer OR » du planning fonctionne comme avant.
+- **Devis estimé** = **main-d'œuvre** (temps officiel × **taux horaire 90 € HT**) + **pièces du kit
+  d'entretien** (les kits livrés le 23/09), au prix de vente HT de l'article du DMS. L'écran dit
+  **« Estimation complète »** ou **« Estimation partielle »**, et nomme ce qui manque : temps absent
+  au manuel, taux horaire non saisi, aucun kit, pièces sans prix. **Rien n'est facturé, aucun devis
+  n'est créé.**
+
+**Vérifié sur les vraies données (05/10)** : DUCATI DESERTX 2025, Annual Service — **5 UT = 30
+minutes**, 0,5 h × 90 € = **45,00 € HT** de main-d'œuvre ; RDV posé au planning avec **30 minutes
+bloquées**, statut `prevu`, source `entretien`. Kit d'entretien testé sur un Scrambler 1100 : les
+trois pièces du Oil Service (bouchon de vidange `89320062A`, filtre à huile `44440038A`, huile
+moteur 3,8 l) sont bien retrouvées et reliées aux articles du DMS — **sans prix de vente**, donc
+l'estimation se déclare partielle au lieu d'afficher un total faux.
+
+**Technique**
+- 4 colonnes sur `workshop_appointments` : `maintenance_service_code`, `maintenance_service_label`,
+  `maintenance_estimate_ht`, `maintenance_estimate` (photo jsonb du devis au moment du RDV).
+- `maintenance_estimate_for_vehicle(_vehicle, _service)` et
+  `maintenance_appointment_create(_vehicle, _starts_at, _service, _mechanic, _notes)` :
+  `planned_minutes` = **UT × 6** (M-33), **60 minutes** par défaut si le manuel ne donne pas de temps.
+- Devis côté règles pures : `estimateService()` de `maintenance-due.ts`.
+
+#### Carte 7 — « Relances d'entretien » — **envoi désactivé**
+
+**Pour l'utilisateur**
+- **Atelier → Entretiens à venir → onglet « Relances »** : la liste des motos dont l'entretien
+  arrive ou est dépassé, et le bouton **« Mettre à jour les cloches »**.
+- **Cloche par rôle** : une notification « Entretien dû » dans la cloche de l'en-tête, visible par
+  le **commercial** et par l'**atelier** (admin, vendeur, mécanicien, chef d'atelier). Elle mène
+  directement à la liste.
+- **« Préparer le message »** sur chaque ligne : l'**objet** et le **corps** du message sont écrits
+  en français, avec le bon entretien, son échéance, et le montant estimé **seulement si
+  l'estimation est complète**. Si l'échéance est une estimation, le message le dit au client et lui
+  propose de corriger. Un bouton **« Copier le message »** le met dans le presse-papiers.
+- **Le bouton « Envoyer » est désactivé**, avec sa mention : « l'envoi réel d'e-mails et de SMS de
+  relance demande votre accord explicite. Le message est prêt, il ne part pas. » **Aucune ligne
+  n'est écrite dans la file d'envoi `notifications`**, aucune fonction serveur d'envoi n'est
+  appelée (décision M-56, alerte 5 du scan du 18/09).
+
+**Technique**
+- `maintenance_reminder_message(_vehicle, _service)` : renvoie `subject`, `body`, l'estimation, et
+  **toujours `sendingEnabled: false`** avec sa raison.
+- `maintenance_reminders_refresh(_company, _days, _limit)` : pose les cloches
+  (`team_notifications.kind = 'maintenance_due'`), **dédoublonnées** par
+  `maintenance_due:<moto>:<échéance>:<km>:<date>` — relancer la fonction ne crée rien de nouveau
+  tant que l'échéance n'a pas bougé. Réservée à l'administrateur, au chef d'atelier ou au
+  commercial. Une ligne `events` avec `sent: false`.
+- `can_see_team_notification` recréée avec tous ses cas existants **plus** `maintenance_due` ;
+  contrainte `team_notifications_kind_check` élargie ; constante
+  `MAINTENANCE_DUE_NOTIF_ROLES` côté TypeScript ; section de cloche dans
+  `src/components/layout/topbar.tsx`.
+- Formatage fr-BE des nombres générés en base : `maintenance_fmt_int`, `maintenance_fmt_money`
+  (séparateur de milliers = espace, décimale = virgule).
+
+#### Correctif livré au passage — le taux horaire atelier n'était jamais lu (M-57)
+
+La ligne de réglage porte le code **`DIAGNOSTIC`** en production, alors que
+`maintenance_hourly_rate_ht` (SQL) et `resolveQuoteFeeParams` (TypeScript) la cherchaient en
+**`diagnostic`**. Conséquence silencieuse : le tarif horaire était introuvable, le repli sur
+l'article MO s'appliquait, et l'écran des plans d'entretien annonçait « Taux horaire HT : À saisir »
+depuis le 21/09. Les deux lectures comparent désormais sans tenir compte de la casse, et le
+**90 € HTVA** de la décision M-20 est enregistré dans `hourly_rate_ht` (uniquement s'il était vide
+ou nul ; `amount_ht` n'est pas modifié). Vérifié après correction : le devis estimé chiffre
+la main-d'œuvre.
+
+### À tester (cartes 4 à 7)
+
+1. **Carte 4** — Atelier → **Entretiens à venir** → onglet **« À confirmer »** : les motos avec leur
+   prochain entretien, son km ou sa date, et le badge **« Estimation »**. Ouvrir une moto : le
+   panneau **« Prochain entretien »** sur sa fiche.
+2. **Carte 5** — Sur la fiche d'une moto, **« Ajouter un entretien fait »** (par exemple Oil Service
+   à un kilométrage plus bas que le compteur) : l'échéance passe à **« Dernier entretien connu »**
+   et le retard, s'il y en a un, devient réel.
+3. **Carte 6** — Sur l'entretien dû, **« Proposer un rendez-vous »** : le temps Ducati bloqué et le
+   devis estimé s'affichent ; poser le RDV, puis le retrouver dans **Atelier → Planning**.
+4. **Carte 7** — Onglet **« Relances »** → **« Mettre à jour les cloches »** : la cloche de
+   l'en-tête se remplit ; **« Préparer le message »** montre le texte, et le bouton **« Envoyer »
+   doit rester grisé**.
 
 ## 5 bis. Cartes proposées (21/09)
 

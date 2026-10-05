@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -1538,6 +1563,8 @@ export type Database = {
           family: string | null
           id: string
           kind: string
+          last_services: Json
+          mileage_km: number | null
           model: string | null
           model_year: number | null
           plate: string | null
@@ -1558,6 +1585,8 @@ export type Database = {
           family?: string | null
           id?: string
           kind: string
+          last_services?: Json
+          mileage_km?: number | null
           model?: string | null
           model_year?: number | null
           plate?: string | null
@@ -1578,6 +1607,8 @@ export type Database = {
           family?: string | null
           id?: string
           kind?: string
+          last_services?: Json
+          mileage_km?: number | null
           model?: string | null
           model_year?: number | null
           plate?: string | null
@@ -7981,6 +8012,101 @@ export type Database = {
           },
         ]
       }
+      vehicle_brand_submissions: {
+        Row: {
+          brand: string
+          brand_slug: string
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          model: string | null
+          model_slug: string | null
+          model_year: number | null
+          origin: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          brand: string
+          brand_slug: string
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          model_slug?: string | null
+          model_year?: number | null
+          origin: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          brand?: string
+          brand_slug?: string
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          model_slug?: string | null
+          model_year?: number | null
+          origin?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_brand_submissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_brands: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          model_count: number
+          name: string
+          slug: string
+          source: string
+          source_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          model_count?: number
+          name: string
+          slug: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          model_count?: number
+          name?: string
+          slug?: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vehicle_bulletins: {
         Row: {
           bulletin_id: string | null
@@ -8095,6 +8221,59 @@ export type Database = {
           },
         ]
       }
+      vehicle_models: {
+        Row: {
+          brand_id: string
+          created_at: string
+          displacement_cc: number | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          source: string
+          source_ref: string | null
+          updated_at: string
+          year_from: number | null
+          year_to: number | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          displacement_cc?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          displacement_cc?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          year_from?: number | null
+          year_to?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_models_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_owners: {
         Row: {
           contact_id: string
@@ -8133,6 +8312,63 @@ export type Database = {
           },
           {
             foreignKeyName: "vehicle_owners_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_service_history: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          event_date: string | null
+          id: string
+          km: number | null
+          note: string | null
+          service_family: string
+          service_label: string
+          source: string
+          vehicle_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          id?: string
+          km?: number | null
+          note?: string | null
+          service_family: string
+          service_label: string
+          source: string
+          vehicle_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          id?: string
+          km?: number | null
+          note?: string | null
+          service_family?: string
+          service_label?: string
+          source?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_service_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_service_history_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
@@ -8422,6 +8658,10 @@ export type Database = {
           created_at: string
           id: string
           loaner_vehicle: string | null
+          maintenance_estimate: Json | null
+          maintenance_estimate_ht: number | null
+          maintenance_service_code: string | null
+          maintenance_service_label: string | null
           mechanic_name: string | null
           notify_sms: boolean
           or_id: string | null
@@ -8442,6 +8682,10 @@ export type Database = {
           created_at?: string
           id?: string
           loaner_vehicle?: string | null
+          maintenance_estimate?: Json | null
+          maintenance_estimate_ht?: number | null
+          maintenance_service_code?: string | null
+          maintenance_service_label?: string | null
           mechanic_name?: string | null
           notify_sms?: boolean
           or_id?: string | null
@@ -8462,6 +8706,10 @@ export type Database = {
           created_at?: string
           id?: string
           loaner_vehicle?: string | null
+          maintenance_estimate?: Json | null
+          maintenance_estimate_ht?: number | null
+          maintenance_service_code?: string | null
+          maintenance_service_label?: string | null
           mechanic_name?: string | null
           notify_sms?: boolean
           or_id?: string | null
@@ -9794,6 +10042,105 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_vehicle_due: {
+        Row: {
+          company_id: string | null
+          confidence: string | null
+          days_left: number | null
+          due_date: string | null
+          due_km: number | null
+          first_registration_date: string | null
+          first_trigger: string | null
+          has_last: boolean | null
+          interval_km: number | null
+          interval_months: number | null
+          is_first: boolean | null
+          is_grid: boolean | null
+          km_per_day: number | null
+          km_reached_on: string | null
+          last_date: string | null
+          last_km: number | null
+          last_origin: string | null
+          mileage: number | null
+          model_year_id: string | null
+          reached: boolean | null
+          reached_by: string | null
+          service_code: string | null
+          service_family: string | null
+          service_label: string | null
+          sort: number | null
+          source: string | null
+          usage: string | null
+          ut: number | null
+          vehicle_id: string | null
+        }
+        Relationships: []
+      }
+      maintenance_vehicle_last_service: {
+        Row: {
+          event_date: string | null
+          km: number | null
+          origin: string | null
+          service_family: string | null
+          vehicle_id: string | null
+        }
+        Relationships: []
+      }
+      maintenance_vehicle_next: {
+        Row: {
+          company_id: string | null
+          confidence: string | null
+          days_left: number | null
+          due_date: string | null
+          due_km: number | null
+          first_registration_date: string | null
+          first_trigger: string | null
+          has_last: boolean | null
+          interval_km: number | null
+          interval_months: number | null
+          is_first: boolean | null
+          is_grid: boolean | null
+          km_per_day: number | null
+          km_reached_on: string | null
+          last_date: string | null
+          last_km: number | null
+          last_origin: string | null
+          mileage: number | null
+          model_year_id: string | null
+          reached: boolean | null
+          reached_by: string | null
+          service_code: string | null
+          service_family: string | null
+          service_label: string | null
+          sort: number | null
+          source: string | null
+          usage: string | null
+          ut: number | null
+          vehicle_id: string | null
+        }
+        Relationships: []
+      }
+      maintenance_vehicle_program: {
+        Row: {
+          company_id: string | null
+          first_registration_date: string | null
+          is_first: boolean | null
+          is_grid: boolean | null
+          km_value: number | null
+          mileage: number | null
+          model_year_id: string | null
+          months: number | null
+          service_code: string | null
+          service_family: string | null
+          service_label: string | null
+          sort: number | null
+          source: string | null
+          usage: string | null
+          ut: number | null
+          vehicle_id: string | null
+        }
+        Relationships: []
+      }
       wsm_service_operation_labels: {
         Row: {
           label: string | null
@@ -9895,6 +10242,8 @@ export type Database = {
           family: string | null
           id: string
           kind: string
+          last_services: Json
+          mileage_km: number | null
           model: string | null
           model_year: number | null
           plate: string | null
@@ -9946,6 +10295,10 @@ export type Database = {
       }
       _eur_fr: { Args: { _n: number }; Returns: string }
       _jnum: { Args: { _j: Json; _k: string }; Returns: number }
+      _maintenance_clean_declared_services: {
+        Args: { _in: Json }
+        Returns: Json
+      }
       _maintenance_kit_snapshot: {
         Args: { _kit: string; _reason: string }
         Returns: undefined
@@ -11433,7 +11786,22 @@ export type Database = {
         }
         Returns: string
       }
+      maintenance_appointment_create: {
+        Args: {
+          _mechanic?: string
+          _notes?: string
+          _service?: string
+          _starts_at: string
+          _vehicle: string
+        }
+        Returns: string
+      }
       maintenance_catalog_coverage: { Args: { _limit?: number }; Returns: Json }
+      maintenance_contact_name: { Args: { _contact: string }; Returns: string }
+      maintenance_declarable_services: {
+        Args: { _model_year?: string }
+        Returns: Json
+      }
       maintenance_deduce_parts: {
         Args: { _model_year_id: string; _service_code?: string }
         Returns: {
@@ -11454,14 +11822,36 @@ export type Database = {
           unit: string
         }[]
       }
+      maintenance_due_for_vehicle: { Args: { _vehicle: string }; Returns: Json }
+      maintenance_due_list: {
+        Args: {
+          _company: string
+          _days?: number
+          _limit?: number
+          _offset?: number
+          _q?: string
+          _scope?: string
+        }
+        Returns: Json
+      }
+      maintenance_due_stats: {
+        Args: { _company: string; _days?: number }
+        Returns: Json
+      }
       maintenance_engine_family_key: {
         Args: { _model_year_id: string }
         Returns: string
+      }
+      maintenance_estimate_for_vehicle: {
+        Args: { _service?: string; _vehicle: string }
+        Returns: Json
       }
       maintenance_fluid_article_set: {
         Args: { _article: string; _company: string; _family: string }
         Returns: undefined
       }
+      maintenance_fmt_int: { Args: { _n: number }; Returns: string }
+      maintenance_fmt_money: { Args: { _n: number }; Returns: string }
       maintenance_hourly_rate_ht: {
         Args: { _company: string }
         Returns: number
@@ -11470,6 +11860,7 @@ export type Database = {
         Args: { _force?: boolean; _payload: Json }
         Returns: Json
       }
+      maintenance_is_real_service: { Args: { _s: string }; Returns: boolean }
       maintenance_kit_detail: {
         Args: { _kit: string }
         Returns: {
@@ -11562,6 +11953,15 @@ export type Database = {
         Args: { _company: string }
         Returns: Json
       }
+      maintenance_reminder_message: {
+        Args: { _service?: string; _vehicle: string }
+        Returns: Json
+      }
+      maintenance_reminders_refresh: {
+        Args: { _company: string; _days?: number; _limit?: number }
+        Returns: Json
+      }
+      maintenance_service_family: { Args: { _s: string }; Returns: string }
       maintenance_stats: { Args: never; Returns: Json }
       monthly_revenue: {
         Args: { _company: string }
@@ -11928,6 +12328,14 @@ export type Database = {
           p_vin: string
         }
         Returns: string
+      }
+      portal_declare_vehicle_maintenance: {
+        Args: {
+          p_declaration: string
+          p_mileage_km?: number
+          p_services?: Json
+        }
+        Returns: undefined
       }
       portal_declared_vehicles: { Args: never; Returns: Json }
       portal_home: { Args: never; Returns: Json }
@@ -12452,6 +12860,15 @@ export type Database = {
           vin: string
         }[]
       }
+      signup_declare_vehicle_maintenance: {
+        Args: {
+          _company: string
+          _contact: string
+          _mileage_km?: number
+          _services?: Json
+        }
+        Returns: string
+      }
       signup_precheck: {
         Args: { _company: string; _email: string }
         Returns: string
@@ -12570,6 +12987,32 @@ export type Database = {
         }
         Returns: Json
       }
+      vehicle_brand_search: {
+        Args: { _limit?: number; _q?: string }
+        Returns: {
+          id: string
+          model_count: number
+          name: string
+        }[]
+      }
+      vehicle_brand_submit: {
+        Args: {
+          _brand: string
+          _company: string
+          _contact?: string
+          _model?: string
+          _origin?: string
+          _year?: number
+        }
+        Returns: string
+      }
+      vehicle_catalog_load: {
+        Args: { _rows: Json }
+        Returns: {
+          brands: number
+          models: number
+        }[]
+      }
       vehicle_create_for_contact: {
         Args: {
           _company: string
@@ -12588,6 +13031,20 @@ export type Database = {
         }
         Returns: string
       }
+      vehicle_mileage_set: {
+        Args: { _km: number; _vehicle: string }
+        Returns: undefined
+      }
+      vehicle_model_search: {
+        Args: { _brand: string; _limit?: number; _q?: string }
+        Returns: {
+          displacement_cc: number
+          id: string
+          name: string
+          year_from: number
+          year_to: number
+        }[]
+      }
       vehicle_needs_article: {
         Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
         Returns: boolean
@@ -12600,10 +13057,26 @@ export type Database = {
         Args: { _status: Database["public"]["Enums"]["vehicle_status"] }
         Returns: boolean
       }
+      vehicle_service_history_add: {
+        Args: {
+          _date?: string
+          _km?: number
+          _label: string
+          _note?: string
+          _source?: string
+          _vehicle: string
+        }
+        Returns: string
+      }
+      vehicle_service_history_delete: {
+        Args: { _id: string }
+        Returns: undefined
+      }
       vehicle_site_status: {
         Args: { _company: string; _vehicle: string }
         Returns: Json
       }
+      vehicle_slug: { Args: { _v: string }; Returns: string }
       vehicles_find_by_vin: {
         Args: { _company: string; _exclude?: string; _vin: string }
         Returns: {
@@ -12889,6 +13362,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

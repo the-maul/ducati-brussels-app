@@ -15,6 +15,7 @@ import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
+import { ContactMaintenanceTab } from '@/modules/workshop/maintenance-due-contact-tab';
 import {
   getContact, updateContact, archiveContact, unarchiveContact, mergeContacts, mergeErrorMessage, listContacts,
   contactDisplayName, getModelInterests, getWatchNote, contactDependencies, deleteContact, getContactPortalVisit,
@@ -299,6 +300,7 @@ function EditClient() {
         <TabsList>
           <TabsTrigger value="fiche">Fiche</TabsTrigger>
           <TabsTrigger value="parc">Parc</TabsTrigger>
+          <TabsTrigger value="entretiens">{t('maintenanceDue.contactTitle')}</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="echeances">Échéances</TabsTrigger>
           <TabsTrigger value="livraisons">Livraisons</TabsTrigger>
@@ -319,6 +321,8 @@ function EditClient() {
           />
         </TabsContent>
         <TabsContent value="parc" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
+        {/* Mission 07, carte 4 : l'entretien dû de chacune de ses motos. */}
+        <TabsContent value="entretiens" className="mt-4"><ContactMaintenanceTab contactId={contactId} /></TabsContent>
         <TabsContent value="documents" className="mt-4"><DocumentsTab contactId={contactId} /></TabsContent>
         <TabsContent value="echeances" className="mt-4"><DueItemsTab contactId={contactId} /></TabsContent>
         <TabsContent value="livraisons" className="mt-4"><DeliveryTab contactId={contactId} /></TabsContent>

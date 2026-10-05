@@ -323,7 +323,9 @@ export type SignupNotification = {
 export const IBAN_NOTIF_ROLES = ['admin', 'comptable', 'vendeur'] as const;
 
 /** Mission 04, carte 8 : 'vehicle_declared' (moto déclarée par un client), rôles admin + vendeur. */
-export type TeamNotificationKind = 'signup' | 'client_iban_changed' | 'vehicle_declared';
+/** Mission 07, carte 7 : 'maintenance_due' (entretien qui arrive ou dépassé), commercial + atelier. */
+export type TeamNotificationKind = 'signup' | 'client_iban_changed' | 'vehicle_declared' | 'maintenance_due';
+export const MAINTENANCE_DUE_NOTIF_ROLES = ['admin', 'vendeur', 'mecanicien', 'chef_atelier'] as const;
 
 export async function listSignupNotifications(companyId: string, userId: string): Promise<SignupNotification[]> {
   return listTeamNotifications(companyId, userId, 'signup');

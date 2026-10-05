@@ -15,7 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
-import { declareVehicle, listDeclaredVehicles, uploadDeclarationScan } from './api';
+import {
+  MotoMaintenanceFields, EMPTY_MAINTENANCE, cleanDeclaredServices, isMaintenanceKmValid,
+  type MotoMaintenanceValue,
+} from '@/components/moto-maintenance-fields';
+import { declareVehicle, declareVehicleMaintenance, listDeclaredVehicles, uploadDeclarationScan } from './api';
 import { Card, SectionTitle, dateFr, vehicleName } from './ui';
 import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
@@ -56,6 +60,8 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
   const [plate, setPlate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Mission 07, carte 5 : kilométrage et derniers entretiens, facultatifs.
+  const [maint, setMaint] = useState<MotoMaintenanceValue>(EMPTY_MAINTENANCE);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const send = useMutation({
@@ -65,6 +71,11 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
         modelYear: year.trim() ? Number(year) : null,
         vin: vin.trim() || null, plate: plate.trim() || null,
       });
+      // Kilométrage et derniers entretiens : un refus ici ne perd pas la déclaration.
+      const services = cleanDeclaredServices(maint);
+      if (maint.km != null || services.length > 0) {
+        try { await declareVehicleMaintenance(id, maint.km, services); } catch { /* la moto est déclarée */ }
+      }
       if (file) {
         try { await uploadDeclarationScan(id, file); } catch { return 'scan_failed' as const; }
       }
@@ -83,6 +94,7 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setErr(null);
     if (!brand.trim() || !model.trim()) { setErr(t('motoClient.portalRequired')); return; }
+    if (!isMaintenanceKmValid(maint)) { setErr(t('motoMaintenance.kmInvalid')); return; }
     send.mutate();
   };
 
@@ -123,6 +135,10 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalPlate')}</Label>
             <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} maxLength={15} className="font-mono" />
+          </div>
+          {/* Mission 07, carte 5 : kilométrage et derniers entretiens connus. */}
+          <div className="sm:col-span-2">
+            <MotoMaintenanceFields value={maint} onChange={setMaint} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className={field}>{t('motoClient.portalCg')}</Label>

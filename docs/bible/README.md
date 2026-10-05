@@ -55,7 +55,7 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
 | 07 | [Plan d'entretien](missions/mission-07-plan-entretien.md) | 🟦 ouverte le 21/09 · carte 1 faite (à valider) : 59 plans chargés, écran Atelier → Plans d'entretien, plan sur la fiche moto · rattachement au catalogue dès qu'il sera chargé |
 | 06 | [Catalogue pièces Ducati](missions/mission-06-catalogue-pieces.md) | 🟦 ouverte le 21/09 · carte 4 « reconnaître la moto par son VIN » faite (à valider, migration `20260921210000` à appliquer) · cartes 2 et 3 faites (à valider : tables, chargeur, écran « Catalogue Ducati », extension) · catalogue dans le menu et relié aux articles (à valider, migration `20260921170000` à appliquer) · accessoires et vêtements : base prête · données à charger après l'extraction · **un seul catalogue = les articles du DMS** (M-25, à valider, migrations `20260921200000` + `20260921201000` à appliquer) : 4 009 pièces Ducati et 2 534 produits du site deviennent des articles, chargeur accessoires prêt |
 | 06 | [Catalogue pièces Ducati](missions/mission-06-catalogue-pieces.md) | 🟦 ouverte le 21/09 · carte 4 « reconnaître la moto par son VIN » faite (à valider, migration `20260921210000` à appliquer) · cartes 2 et 3 faites (à valider : tables, chargeur, écran « Catalogue Ducati », extension) · catalogue dans le menu et relié aux articles (à valider, migration `20260921170000` à appliquer) · accessoires et vêtements : base prête · données à charger après l'extraction |
-| 07 | [Plan d'entretien](missions/mission-07-plan-entretien.md) | 🟦 carte 1 faite le 21/09 (59 plans, écran Atelier → Plans d'entretien) · cartes 3 et 8 faites le 23/09 (manuels d'atelier, parcours technicien) · **carte 2 faite le 23/09, à valider** : kits de pièces par famille de moteur (97,8 % des besoins résolus, 385 kits), picking list depuis l'OR, commande des manquantes avec choix du type · migrations écrites **non appliquées** |
+| 07 | [Plan d'entretien](missions/mission-07-plan-entretien.md) | 🟦 carte 1 faite le 21/09 (59 plans, écran Atelier → Plans d'entretien) · cartes 3 et 8 faites le 23/09 (manuels d'atelier, parcours technicien) · carte 2 faite le 23/09 (kits par famille de moteur, 97,8 % des besoins résolus, picking list et commande depuis l'OR) — **schéma en base, mais « Proposer les kits » jamais lancé : 0 kit** · **cartes 4, 5, 6 et 7 faites le 05/10, à valider** : prochain entretien de chaque moto (**1 364 calculables sur 3 363**, 350 sans kilométrage, **0 retard certain faute d'historique**), km et derniers entretiens demandés à l'inscription et dans « Ajouter ma moto », RDV avec le temps Ducati bloqué et devis estimé, relances par **cloche seulement — envoi d'e-mail et de SMS désactivé** · migrations `20261005110000` + `20261005111000` **appliquées le 05/10** |
 
 ## Alertes relevées par le scan du 18/09
 
@@ -76,7 +76,9 @@ Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé 
    la première vente d'occasion. *M06, M07, M12.*
 4. **E-shop : une commande peut passer « payée » sans paiement.** *M11.*
 5. **Envois automatiques prêts à partir.** Relances de factures et rappels de rendez-vous partiront
-   dès qu'une clé Resend ou SMS sera posée. *M08, M12.*
+   dès qu'une clé Resend ou SMS sera posée. *M08, M12.* **Les relances d'entretien (mission 07,
+   carte 7) ne sont PAS dans ce cas** : elles posent une cloche et préparent le message, le bouton
+   « Envoyer » est désactivé et rien n'est écrit dans la file d'envoi (décision M-56).
 6. **Désactiver un compte ne coupe pas son accès.** *M00.*
 7. **Les anciens documents surestiment l'avancement** (ex. inventaire tournant annoncé, sans écran).
    La bible fait foi.

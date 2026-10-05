@@ -2,9 +2,9 @@
 chapitre: M03
 titre: Véhicules & parc
 etat: 🟦
-verifie_le: 2026-09-18
+verifie_le: 2026-10-05
 missions: [04]
-mots_cles: [véhicule, moto, VIN, châssis, parc, statut parc, propriétaire, historique propriétaires, plaque, carte grise, bridage, A2, garantie, My Ducati, extension, bulletin technique, maintenance, coût de revient, prix affiché, jours en stock, décodage VIN]
+mots_cles: [véhicule, moto, VIN, châssis, parc, statut parc, propriétaire, historique propriétaires, plaque, carte grise, bridage, A2, garantie, My Ducati, extension, bulletin technique, maintenance, coût de revient, prix affiché, jours en stock, décodage VIN, prochain entretien, entretien dû, kilométrage, derniers entretiens déclarés]
 ---
 
 # M03 — Véhicules & parc
@@ -33,6 +33,7 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 | Pièces & Accessoires → Catalogue Ducati (`/parts/catalog`, mission 06) | Modèles Ducati par famille, cylindrée et **millésime** (Europe, depuis 2000), avec les vues éclatées de chaque modèle-année. Relié à la fiche moto par `vehicles.ducati_model_year_id` (carte 4 : lien « Vues éclatées » dans l'encart du VIN). |
 | Véhicules → fiche → **Moto à vendre** (mission 03, M-36) | Statut de parc (En stock / Dépôt-vente / Vendue / Moto de client), **article V/O/P/D relié** (référence, type, prix TTC, stock) avec lien vers sa fiche, bouton **« Créer l'article de la moto »** si elle est en stock sans article, et encart **« Sur le site Shopify »** (publier / retirer / mettre à jour) **uniquement** pour « En stock » et « Dépôt-vente ». |
 | Véhicules → fiche → **Plan d'entretien** (mission 07) | Si la moto est rattachée à un modèle-année du catalogue Ducati (`vehicles.ducati_model_year_id`, rempli par la future carte 06-4 « Reconnaître la moto par son VIN ») : plan du modèle pour l'**usage** choisi (route par défaut ; route / piste amateur / racing enregistré dans `vehicles.maintenance_usage`), échéances au premier atteint, temps Ducati et main-d'œuvre HT. Sinon : message « pas encore rattachée au catalogue ». |
+| Véhicules → fiche → **Prochain entretien** (mission 07, carte 4) | L'entretien **dû au premier atteint** (km ou mois) avec son **km ou sa date prévisionnels**, le **temps officiel Ducati** et le **devis estimé** ; deux badges : l'urgence et la **certitude** (« Dernier entretien connu » ou « Estimation »). En dessous, **toutes les échéances** du programme et les **entretiens connus** de la moto (ajout et retrait à la main). Le **kilométrage se corrige ici** (`vehicle_mileage_set`). Bouton **« Proposer un rendez-vous »** (carte 6). Vide si la moto n'a pas de modèle-année du catalogue, ou si son modèle-année n'a pas de programme rattaché. |
 | (fiche client) Onglet véhicules | Parc d'un client, via `vehicle_owners` (M1). Bouton My Ducati sur la fiche contact. |
 | (fiche client) Parc → **Ajouter une moto** (`/vehicles/new?contact=<id>`) | Mission 04 carte 6 : moto du client créée avec son lien propriétaire (date de début), sans article ni suivi commercial ; si le VIN existe déjà, **« Rattacher cette moto existante au client »**. |
 
@@ -177,6 +178,7 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-07-26 | Matching client intéressé ↔ moto en stock | `6954757` |
 | 2026-09-11 | Retour visuel d'enregistrement, bouton grisé tant que rien ne change | `7f6ce22`, `d24c84f` |
 | 2026-09-21 | Colonnes `ducati_model_year_id` (lien au catalogue Ducati, **non rempli** : carte 06-4) et `maintenance_usage` ; panneau « Plan d'entretien » sur la fiche (mission 07 carte 1) | `20260921131000_m8_plans_entretien_catalogue.sql` |
+| 2026-10-05 | **Mission 07, cartes 4 et 5** : panneau « **Prochain entretien** » sur la fiche moto (entretien dû au premier atteint, certitude exacte / estimée, devis estimé, RDV), kilométrage modifiable, table `vehicle_service_history` (entretiens connus d'une moto), colonnes `contact_declared_vehicles.mileage_km` / `.last_services` et report automatique vers la moto à la validation d'une déclaration. **2 976 motos sur 3 363 rattachées au catalogue, 1 364 avec un entretien calculable, 350 sans kilométrage** | branche `lot-entretien-du`, migrations `20261005110000` + `20261005111000` (**appliquées le 05/10**) |
 | 2026-09-19 | **Mission 04 carte 8** : motos déclarées par les clients → cloche (admin, vendeur) → écran « Motos déclarées à valider » | branche `lot-m4-moto`, migrations `20260919302000`, `20260919303000` (appliquées le 19/09) |
 | 2026-09-19 | **Mission 04 carte 7** : « Lire la carte grise » (photo ou PDF) → champs pré-remplis surlignés, photo rangée dans la GED de la moto | branche `lot-m4-moto`, fonction `read-id-doc` redéployée le 19/09 |
 | 2026-09-19 | **Mission 04 carte 6** : « Ajouter une moto » depuis la fiche client (propriétaire en une transaction, sans article), codes carte grise sur les libellés, contrôle du VIN, refus d'un doublon + rattachement de la moto existante | branche `lot-m4-moto`, migration `20260919300000_m3_moto_client_depuis_fiche` (appliquée le 19/09) |

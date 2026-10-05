@@ -352,6 +352,20 @@ export const declareVehicle = (d: VehicleDeclaration) =>
     p_brand: d.brand, p_model: d.model, p_model_year: d.modelYear, p_vin: d.vin, p_plate: d.plate,
   });
 
+/**
+ * Mission 07, carte 5 : le kilométrage et les derniers entretiens connus de la moto
+ * qu'on vient de déclarer. Appel séparé, juste après `declareVehicle` — comme le dépôt
+ * de la carte grise — pour ne pas changer la signature de `portal_declare_vehicle`,
+ * vérifiée nominativement par les tests d'étanchéité du portail.
+ */
+export const declareVehicleMaintenance = (
+  declarationId: string,
+  km: number | null,
+  services: { label: string; km: number | null; date: string | null }[],
+) => rpc<void>('portal_declare_vehicle_maintenance', {
+  p_declaration: declarationId, p_mileage_km: km, p_services: services,
+});
+
 /** Photo de la carte grise d'une déclaration : même dépôt en 3 temps que les autres fichiers. */
 export async function uploadDeclarationScan(declarationId: string, original: File): Promise<void> {
   const file = await prepareFileForUpload(original);

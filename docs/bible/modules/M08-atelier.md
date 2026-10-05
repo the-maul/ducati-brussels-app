@@ -2,9 +2,9 @@
 chapitre: M8
 titre: Atelier & SAV
 etat: 🟦
-verifie_le: 2026-09-23
+verifie_le: 2026-10-05
 missions: [07]
-mots_cles: [OR, ordre de réparation, atelier, garantie, refus partiel, planning, rendez-vous, RDV, chronos, pointeuse, présence, temps passé, mécanicien, véhicule de prêt, moto accidentée, aide réparation Ducati, expert, kit, forfait d'entretien, famille de moteur, picking list, liste de préparation, commander les pièces]
+mots_cles: [OR, ordre de réparation, atelier, garantie, refus partiel, planning, rendez-vous, RDV, chronos, pointeuse, présence, temps passé, mécanicien, véhicule de prêt, moto accidentée, aide réparation Ducati, expert, kit, forfait d'entretien, famille de moteur, picking list, liste de préparation, commander les pièces, prochain entretien, entretien dû, entretiens à venir, échéance, premier atteint, kilométrage, relance d'entretien, devis estimé, temps officiel Ducati, UT]
 ---
 
 # M8 — Atelier & SAV
@@ -46,6 +46,9 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Tables et fonctions des kits (mission 07, carte 2) | **Règles globales** (sans `company_id`, comme `maintenance_*`) : `maintenance_part_families`, `maintenance_part_need_rules`, `maintenance_part_catalog_rules`, `maintenance_fluid_rules`, vue `wsm_service_operation_labels` ; fonctions `maintenance_deduce_parts`, `maintenance_engine_family_key`, `maintenance_parts_coverage`. **Kits de la société** (`company_id` + RLS) : `maintenance_kits`, `maintenance_kit_items`, `maintenance_kit_model_years`, `maintenance_kit_versions`, `maintenance_fluid_articles` ; fonctions `maintenance_kit_generate`, `maintenance_kits_list`, `maintenance_kit_detail`, `maintenance_kit_for_model_year`, `maintenance_kit_item_save`, `maintenance_kit_item_delete`, `maintenance_fluid_article_set`. **Préparation et commande** : `picking_lists.repair_order_id`, `part_orders.repair_order_id`, fonctions `_repair_order_service`, `picking_open_for_repair_order`, `repair_order_order_needs`, `picking_order_needs`, `part_order_create_for_workshop` |
 | Plans d'entretien (mission 07) | `src/modules/workshop/maintenance-plans.ts` (règles pures : premier atteint `nextDue`, valeur en vigueur `pickCurrent`, prix `labourPriceHt`, usage), `maintenance-api.ts`, `maintenance-plans-screen.tsx` (écran), `maintenance-plan-view.tsx` (échéances), `vehicle-maintenance-panel.tsx` (fiche moto) ; route `src/routes/_app.workshop.maintenance-plans.tsx` ; chargeur `tools/maintenance-loader/` (`load.mjs`, `transform.mjs`, `corrections.mjs`) |
 | Manuels d'atelier Ducati (mission 07, carte 3) | `src/modules/workshop/wsm-api.ts` (lecture, libellé d'échéance, temps en UT), `wsm-manuals-panel.tsx` (onglet « Manuels d'atelier » de l'écran Plans d'entretien) ; chargeur `tools/wsm-loader/` (`transform.mjs` pur et testé, `load.mjs`, `images.mjs`, `env.mjs`) ; données source dans `Desktop/ducati/manuels-extraits` (hors dépôt) |
+| **Prochain entretien de chaque moto** (mission 07, cartes 4 à 7) | `src/modules/workshop/maintenance-due.ts` (**règles pures** : premier atteint, certitude exacte / estimée, rythme de roulage, devis estimé, formats), `maintenance-due-api.ts` (accès base), `maintenance-due-view.tsx` (badges d'urgence et de certitude, libellés d'échéance, temps officiel), `maintenance-due-panel.tsx` (panneau de la fiche moto, fenêtre de RDV, devis estimé, panneau de la fiche client), `maintenance-due-screen.tsx` (écran **Entretiens à venir** + onglet Relances), `maintenance-due-contact-tab.tsx` ; route `src/routes/_app.workshop.maintenance-due.tsx` ; cloche dans `src/components/layout/topbar.tsx` |
+| **Kilométrage et derniers entretiens déclarés** (mission 07, carte 5) | `src/components/moto-maintenance-fields.tsx` (composant partagé), monté dans `src/modules/signup/signup-form.tsx` (inscription + borne) et `src/modules/portal/declare-vehicle.tsx` (espace client) ; côté serveur `src/modules/signup/signup.functions.ts`, `src/modules/portal/api.ts` (`declareVehicleMaintenance`) |
+| Tables et fonctions du prochain entretien (mission 07, cartes 4 à 7) | **Historique connu d'une moto** (`company_id` + RLS équipe) : `vehicle_service_history` (`service_family`, `km`, `event_date`, `source` declare_client / declare_comptoir / import / my_ducati). **Vues de calcul** : `maintenance_vehicle_program` (moto × échéance, manuel d'atelier d'abord, plan PDF en repli, M-52), `maintenance_vehicle_last_service` (parcours terminé + My Ducati + déclaré, le plus récent gagne), `maintenance_vehicle_due` (premier atteint, `confidence` exact / estime, `first_trigger`, `km_per_day`, `km_reached_on`, `days_left`), `maintenance_vehicle_next` (l'entretien dû). **Fonctions** : `maintenance_service_family`, `maintenance_is_real_service`, `maintenance_contact_name`, `maintenance_fmt_int`, `maintenance_fmt_money`, `maintenance_due_for_vehicle`, `maintenance_due_list`, `maintenance_due_stats`, `vehicle_service_history_add` / `_delete`, `vehicle_mileage_set`, `maintenance_declarable_services`, `_maintenance_clean_declared_services`, `portal_declare_vehicle_maintenance`, `signup_declare_vehicle_maintenance`, `maintenance_estimate_for_vehicle`, `maintenance_appointment_create`, `maintenance_reminder_message`, `maintenance_reminders_refresh`. **Colonnes ajoutées** : `contact_declared_vehicles.mileage_km` / `.last_services`, `workshop_appointments.maintenance_service_code` / `_label` / `maintenance_estimate_ht` / `maintenance_estimate`. **Trigger** : `trg_declared_vehicle_carry_maintenance` (le km et les entretiens déclarés suivent jusqu'à la moto à la validation) |
 | Moto accidentée (aide Ducati 15 %) | `src/modules/workshop/accident-form.ts`, `src/modules/workshop/accident-help-dialog.tsx` |
 | Tables plans d'entretien (globales, sans `company_id`, comme le catalogue Ducati) | `maintenance_sources` (30 documents), `maintenance_checklists` (listes des contrôles), `maintenance_plans` (modèle, années, usage, `match_names`, empreinte), `maintenance_plan_services` (échéances), `maintenance_service_intervals` / `_operations` / `_times` (avec source et `status` en_vigueur / historique), `maintenance_plan_catalog_links` (plan ↔ modèle-année du catalogue : lie / a_valider / rejete) ; fonctions `maintenance_ingest`, `maintenance_stats`, `maintenance_hourly_rate_ht`, `maintenance_propose_catalog_links`, `maintenance_link_set`, `maintenance_catalog_coverage` |
 | Tables manuels d'atelier (globales, décision M-26) | `wsm_manuals` (469 modèles-années), `wsm_manual_catalog_links` (↔ catalogue : lie / a_valider / rejete), `wsm_services` + `wsm_operations` (programme officiel), `wsm_procedures` **dédupliquées** + `wsm_procedure_usages` + `wsm_procedure_steps` + `wsm_procedure_torques`, `wsm_service_procedures`, `wsm_torque_tables` / `wsm_tool_sets` / `wsm_fluid_tables` / `wsm_product_tables` (lignes en jsonb, lues en bloc), `wsm_times` (UT), `wsm_images` (inventaire et envoi vers le bucket `wsm-images`) ; fonctions `wsm_ingest_procedures`, `wsm_ingest_manuals`, `wsm_ingest_images`, `wsm_propose_catalog_links`, `wsm_link_set`, `wsm_stats`, `wsm_manual_list`, `wsm_manual_overview` |
@@ -55,7 +58,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Tâches planifiées | `appointment-reminders` (17:00, `_cron_appointment_reminders`), `dispatch-notifications` (toutes les 10 min) |
 | Migrations clés | `supabase/migrations/20260610340000_m8_repair_orders.sql`, `…20260610350000_m8_chrono.sql`, `…20260610360000_m8_appointments.sql`, `…20260612250000_m8_workshop_extra.sql`, `…20260612240000_m10_notifications.sql` (rappels) |
 | Libellés | `src/lib/i18n/fr.ts`, blocs `workshop`, `accident`, `kits`, `workshopOrder` |
-| Tests | `tests/maintenance-kits.test.ts` (28 cas : déduction du besoin, faux amis du catalogue, quantités 2/2/4 bougies, courroies « toutes nécessaires » vs filtres « variantes », famille de moteur, picking list, manquant, type DCS), `tests/workshop-totals.test.ts` (2 cas : totaux, ligne garantie à 0), `tests/workshop-quote-fees.test.ts` (frais de devis : 125 €, plafond 4 h, pas de doublon), `tests/maintenance-plans.test.ts` (premier atteint, valeur en vigueur, prix = heures × taux HT), `tests/maintenance-loader.test.ts` (chargeur, extrait réel `tests/fixtures/plans-entretien`) |
+| Tests | `tests/maintenance-kits.test.ts` (28 cas : déduction du besoin, faux amis du catalogue, quantités 2/2/4 bougies, courroies « toutes nécessaires » vs filtres « variantes », famille de moteur, picking list, manquant, type DCS), `tests/workshop-totals.test.ts` (2 cas : totaux, ligne garantie à 0), `tests/workshop-quote-fees.test.ts` (frais de devis : 125 €, plafond 4 h, pas de doublon), `tests/maintenance-plans.test.ts` (premier atteint, valeur en vigueur, prix = heures × taux HT), `tests/maintenance-loader.test.ts` (chargeur, extrait réel `tests/fixtures/plans-entretien`), **`tests/maintenance-due.test.ts`** (32 cas sur les vrais programmes chargés : premier atteint km / mois, fin de mois, estimation sans historique, premier entretien qui ne revient pas, grille kilométrique, rythme de roulage, devis estimé 1 UT = 6 min × 90 € HT) |
 
 ## 4. Règles métier et décisions
 - **Cycle OR (B8)** : réception (observations, photos en GED) → OR → réparation → transformation en facture via M6. Statuts `a_faire`, `en_cours`, `pret`, `facture`, `annule`. Un OR facturé ne peut plus être re-facturé.
@@ -100,13 +103,39 @@ Vérifié le 18/09/2026 (code + base).
 - **Tables sans écran** : `workshop_operations` (40 lignes), `repair_order_operations`, `workshop_tasks` (0 ligne) et la fonction `workshop_load` existent en base depuis `20260612250000_m8_workshop_extra.sql` (commit `6d7b17a`, qui n'a touché que la migration et `types.ts`) mais **aucun code de `src/` ne les utilise**.
 - **Sécurité** : `or_worked_minutes` et `workshop_load` sont exécutables sans être connecté ; `workshop_load` contourne le contrôle de société pour un appel anonyme (`auth.uid() is null or …`). Voir `00-architecture.md` §9.
 
-**Kits d'entretien (23/09, non déployé).** Les quatre migrations de la carte 2 sont écrites et
-testées **en transaction annulée sur la base de production** (déduction, génération des kits, picking
-list depuis un OR, calcul du manquant, création d'une commande urgente reliée à l'OR, édition et
-versionnement d'un kit, non-écrasement d'un kit corrigé). Elles ne sont **pas appliquées** : aucun
-kit n'existe encore en base. Mesure faite sur les données réelles : 370 modèles-années reliés à un
-manuel, **4 529 des 4 629 besoins fermes résolus jusqu'à l'article du DMS (97,8 %)**, 44 familles de
-moteur, **385 kits** pour 1 355 couples modèle-année × échéance.
+**Correction du 05/10 — les migrations de septembre SONT appliquées.** Le constat « non appliquées »
+des cartes 2, 3 et 8 était périmé : vérifié en base le 05/10, les tables `wsm_*` (461 manuels,
+1 949 échéances, 1 783 temps UT), `maintenance_kit_*`, `maintenance_fluid_*`,
+`maintenance_part_*` et `workshop_journeys` **existent toutes en production**. Ce qui manque n'est
+pas le schéma mais les **données** : `maintenance_kits` compte **0 ligne** — le bouton
+« **Proposer les kits** » n'a jamais été lancé. Essai en transaction annulée le 05/10 : 60
+modèles-années traités → **123 kits créés**, pièces reliées aux articles du DMS. À lancer en vrai.
+
+**Prochain entretien (05/10, appliqué).** Migrations `20261005110000_m8_prochain_entretien.sql` et
+`20261005111000_m8_entretien_declare_rdv_relances.sql` **appliquées en production le 05/10** après
+mesure en transaction annulée. Mesuré sur les données réelles :
+
+| Mesure | Valeur |
+|---|---|
+| Motos actives | 3 363 |
+| **Entretien calculable** | **1 364** (1 320 par le manuel d'atelier, 107 par le plan PDF) |
+| dont avec un kilométrage relevé | 1 014 |
+| Programme connu, **kilométrage inconnu** | 350 |
+| Échéance **exacte** (dernier entretien connu) / **estimée** | **0** / 1 364 |
+| **En retard certain** | **0** (aucun entretien n'est connu pour aucune moto) |
+| Échéance dans 60 jours / 180 jours | 73 / 248 |
+| Premier atteint : kilométrage / durée | 812 / 552 |
+| Avec un **temps officiel Ducati** (UT) | 231 |
+| Rattachées au catalogue mais **sans programme** | 1 549 |
+| **Sans modèle-année** du catalogue | 387 |
+| Taux horaire atelier HT | **90 €** (corrigé le 05/10, M-57) |
+
+**Vitesse mesurée aux volumes réels** : vue complète des 1 364 entretiens dus **708 ms**, page de 50
+triée **691 ms**, une seule moto **14 ms** — très en dessous du `statement_timeout` de 8 s.
+
+**Relances : rien ne part.** Aucune ligne n'est écrite dans la file d'envoi `notifications` ; la
+carte 7 pose seulement une cloche `team_notifications.kind = 'maintenance_due'` et prépare le
+message. Le bouton « Envoyer » est désactivé (décision M-56).
 
 ## 6. Prévu / en cours
 - CRM atelier (onglet prévu dans M10, `docs/plan-nouveau-client.md`) : relances et suivi client côté atelier.
@@ -198,5 +227,7 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-09-19 | Frais de devis atelier : accident 125 €, diagnostic au tarif horaire (4 h max), bouton « Devis de pièces » sur l'OR (mission 02) | `20260919230000_m8_frais_devis_atelier.sql` |
 | 2026-09-21 | **Plans d'entretien par modèle et par année** (mission 07 carte 1, ATE014) : tables, chargeur, écran Atelier → Plans d'entretien, rattachement au catalogue Ducati, plan sur la fiche moto | `20260921130000_m8_plans_entretien.sql`, `20260921131000_m8_plans_entretien_catalogue.sql` (appliquées le 21/09) |
 | 2026-09-23 | **Parcours d'entretien pas à pas** pour le technicien sur tablette (mission 07 carte 8, ATE011 + ATE014) : entretien dû, opérations, procédures du manuel, figures zoomables, couples, chronos, récapitulatif vers l'OR | `20260923110000_m8_parcours_entretien.sql` (**non appliquée**) |
+| 2026-10-05 | **Prochain entretien de chaque moto** (mission 07 carte 4) : historique connu d'une moto, programme manuel-d'abord, calcul au premier atteint avec certitude exacte / estimée, panneau de la fiche moto, onglet de la fiche client, écran **Atelier → Entretiens à venir** | `20261005110000_m8_prochain_entretien.sql` (**appliquée le 05/10**) |
+| 2026-10-05 | **Km et derniers entretiens à l'enregistrement d'une moto** (carte 5), **RDV d'entretien avec temps Ducati bloqué et devis estimé** (carte 6), **relances : cloche par rôle et message préparé, envoi désactivé** (carte 7) ; correctif du **tarif horaire atelier jamais lu** (M-57) | `20261005111000_m8_entretien_declare_rdv_relances.sql` (**appliquée le 05/10**) |
 | 2026-09-23 | **Kits de pièces d'entretien** (mission 07 carte 2, ATE013 + ATE014, M-20) : déduction entretien → pièces depuis les manuels et le catalogue (97,8 % des 4 629 besoins fermes résolus, 44 familles de moteur, 385 kits), écran Atelier → Kits d'entretien, picking list depuis l'OR, commande des pièces manquantes avec choix du type | `20260923160000_m8_entretien_pieces_regles.sql`, `20260923161000_m8_kits_entretien.sql`, `20260923162000_m8_picking_depuis_or.sql`, `20260923163000_m8_commande_depuis_or.sql` (**non appliquées**) |
 | 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |

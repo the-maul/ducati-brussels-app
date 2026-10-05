@@ -98,6 +98,7 @@ import { Route as AppWorkshopIndexRouteImport } from './routes/_app.workshop.ind
 import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orId'
 import { Route as AppWorkshopChronoRouteImport } from './routes/_app.workshop.chrono'
 import { Route as AppWorkshopKitsRouteImport } from './routes/_app.workshop.kits'
+import { Route as AppWorkshopMaintenanceDueRouteImport } from './routes/_app.workshop.maintenance-due'
 import { Route as AppWorkshopMaintenancePlansRouteImport } from './routes/_app.workshop.maintenance-plans'
 import { Route as AppWorkshopNewRouteImport } from './routes/_app.workshop.new'
 import { Route as AppWorkshopPlanningRouteImport } from './routes/_app.workshop.planning'
@@ -556,6 +557,12 @@ const AppWorkshopKitsRoute = AppWorkshopKitsRouteImport.update({
   path: '/kits',
   getParentRoute: () => AppWorkshopRoute,
 } as any)
+const AppWorkshopMaintenanceDueRoute =
+  AppWorkshopMaintenanceDueRouteImport.update({
+    id: '/maintenance-due',
+    path: '/maintenance-due',
+    getParentRoute: () => AppWorkshopRoute,
+  } as any)
 const AppWorkshopMaintenancePlansRoute =
   AppWorkshopMaintenancePlansRouteImport.update({
     id: '/maintenance-plans',
@@ -707,6 +714,7 @@ export interface FileRoutesByFullPath {
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
+  '/workshop/maintenance-due': typeof AppWorkshopMaintenanceDueRoute
   '/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
@@ -797,6 +805,7 @@ export interface FileRoutesByTo {
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
+  '/workshop/maintenance-due': typeof AppWorkshopMaintenanceDueRoute
   '/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
@@ -902,6 +911,7 @@ export interface FileRoutesById {
   '/_app/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
   '/_app/workshop/kits': typeof AppWorkshopKitsRoute
+  '/_app/workshop/maintenance-due': typeof AppWorkshopMaintenanceDueRoute
   '/_app/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
   '/_app/workshop/new': typeof AppWorkshopNewRoute
   '/_app/workshop/planning': typeof AppWorkshopPlanningRoute
@@ -1007,6 +1017,7 @@ export interface FileRouteTypes {
     | '/workshop/$orId'
     | '/workshop/chrono'
     | '/workshop/kits'
+    | '/workshop/maintenance-due'
     | '/workshop/maintenance-plans'
     | '/workshop/new'
     | '/workshop/planning'
@@ -1097,6 +1108,7 @@ export interface FileRouteTypes {
     | '/workshop/$orId'
     | '/workshop/chrono'
     | '/workshop/kits'
+    | '/workshop/maintenance-due'
     | '/workshop/maintenance-plans'
     | '/workshop/new'
     | '/workshop/planning'
@@ -1201,6 +1213,7 @@ export interface FileRouteTypes {
     | '/_app/workshop/$orId'
     | '/_app/workshop/chrono'
     | '/_app/workshop/kits'
+    | '/_app/workshop/maintenance-due'
     | '/_app/workshop/maintenance-plans'
     | '/_app/workshop/new'
     | '/_app/workshop/planning'
@@ -1863,6 +1876,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkshopKitsRouteImport
       parentRoute: typeof AppWorkshopRoute
     }
+    '/_app/workshop/maintenance-due': {
+      id: '/_app/workshop/maintenance-due'
+      path: '/maintenance-due'
+      fullPath: '/workshop/maintenance-due'
+      preLoaderRoute: typeof AppWorkshopMaintenanceDueRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
     '/_app/workshop/maintenance-plans': {
       id: '/_app/workshop/maintenance-plans'
       path: '/maintenance-plans'
@@ -2183,6 +2203,7 @@ interface AppWorkshopRouteChildren {
   AppWorkshopOrIdRoute: typeof AppWorkshopOrIdRoute
   AppWorkshopChronoRoute: typeof AppWorkshopChronoRoute
   AppWorkshopKitsRoute: typeof AppWorkshopKitsRoute
+  AppWorkshopMaintenanceDueRoute: typeof AppWorkshopMaintenanceDueRoute
   AppWorkshopMaintenancePlansRoute: typeof AppWorkshopMaintenancePlansRoute
   AppWorkshopNewRoute: typeof AppWorkshopNewRoute
   AppWorkshopPlanningRoute: typeof AppWorkshopPlanningRoute
@@ -2194,6 +2215,7 @@ const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
   AppWorkshopOrIdRoute: AppWorkshopOrIdRoute,
   AppWorkshopChronoRoute: AppWorkshopChronoRoute,
   AppWorkshopKitsRoute: AppWorkshopKitsRoute,
+  AppWorkshopMaintenanceDueRoute: AppWorkshopMaintenanceDueRoute,
   AppWorkshopMaintenancePlansRoute: AppWorkshopMaintenancePlansRoute,
   AppWorkshopNewRoute: AppWorkshopNewRoute,
   AppWorkshopPlanningRoute: AppWorkshopPlanningRoute,

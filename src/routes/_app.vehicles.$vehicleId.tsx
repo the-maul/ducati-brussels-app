@@ -11,6 +11,7 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { DucatiInfoPanel } from '@/modules/vehicles/ducati-panel';
 import { MotoSitePanel } from '@/modules/vehicles/moto-site-panel';
 import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-panel';
+import { MaintenanceDuePanel } from '@/modules/workshop/maintenance-due-panel';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -153,6 +154,12 @@ function EditVehicle() {
       <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenance.vehTitle')}</h2>
         <VehicleMaintenancePanel vehicle={vehicle} companyId={activeCompanyId} />
+      </div>
+
+      {/* Mission 07, carte 4 : l'entretien dû de cette moto, au premier atteint (km ou mois). */}
+      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenanceDue.panelTitle')}</h2>
+        <MaintenanceDuePanel vehicle={vehicle} />
       </div>
 
       <div className="mt-6 rounded-md border border-border bg-card p-4">

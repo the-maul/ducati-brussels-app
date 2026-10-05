@@ -25,6 +25,10 @@ import { PhoneInput } from '@/components/phone-input';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
 import { MotoPicker, isMotoComplete, type MotoChoice } from '@/components/moto-picker';
+import {
+  MotoMaintenanceFields, EMPTY_MAINTENANCE, cleanDeclaredServices, isMaintenanceKmValid,
+  type MotoMaintenanceValue,
+} from '@/components/moto-maintenance-fields';
 import { isValidPhone, toE164 } from '@/lib/phone';
 import { clientAppHost, clientAppUrl } from '@/lib/client-app-url';
 import { cn } from '@/lib/utils';
@@ -72,6 +76,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [moto, setMoto] = useState<MotoChoice | null>(null);
+  // Mission 07, carte 5 : kilométrage et derniers entretiens, tous deux facultatifs.
+  const [maint, setMaint] = useState<MotoMaintenanceValue>(EMPTY_MAINTENANCE);
   const [interests, setInterests] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [recontact, setRecontact] = useState(false);
@@ -116,6 +122,7 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
     // automatique du navigateur) finissait dans le GSM de la fiche. Refusée ici et au serveur.
     if (!isValidPhone(phone)) e.phone = t('signup.errors.phone');
     if (!isMotoComplete(moto)) e.moto = t('signup.errors.moto');
+    if (!isMaintenanceKmValid(maint)) e.moto = t('motoMaintenance.kmInvalid');
     if (!isStrongPassword(password)) e.password = t('signup.errors.passwordShort');
     else if (password !== confirm) e.confirm = t('signup.errors.passwordMismatch');
     setErrors(e);
@@ -148,6 +155,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           phone: e164,
           password,
           moto: moto!,
+          moto_km: maint.km ?? undefined,
+          moto_last_services: cleanDeclaredServices(maint),
           interests: interests as (typeof SIGNUP_INTERESTS)[number][],
           marketing_consent: consent,
           recontact,
@@ -255,6 +264,12 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
         <SectionTitle>{t('signup.sectionMoto')} *</SectionTitle>
         <MotoPicker value={moto} onChange={setMoto} size={kiosk ? 'kiosk' : 'default'} autoComplete={ac} />
         <FieldError msg={errors.moto} />
+        {/* Mission 07, carte 5 : on ne demande le kilométrage et les derniers entretiens
+            que si le client a bien une moto. */}
+        {moto && moto.kind !== 'none' && (
+          <MotoMaintenanceFields value={maint} onChange={setMaint}
+            size={kiosk ? 'kiosk' : 'default'} inputClassName={inputCls} autoComplete={ac} />
+        )}
       </section>
 
       {/* Intérêts */}
