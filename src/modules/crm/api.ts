@@ -523,7 +523,7 @@ export type MailAttachment = { name: string; contentType: string; contentBytes: 
  * pied de mail « rejoindre l'application » (décision P-5), ajouté seulement si le
  * destinataire n'a pas encore de compte.
  */
-export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string; attachments?: MailAttachment[]; from?: string; dryRun?: boolean }): Promise<{ ok?: boolean; error?: string; dryRun?: boolean; from?: string; html?: string }> {
+export async function sendEmailViaOutlook(p: { companyId: string; contactId: string; to: string; subject: string; body: string; attachments?: MailAttachment[]; from?: string; dryRun?: boolean; invite?: boolean }): Promise<{ ok?: boolean; error?: string; dryRun?: boolean; from?: string; html?: string }> {
   const { data, error } = await supabase.functions.invoke('graph-send-email', { body: { ...p, origin: clientAppUrl() } });
   if (error) {
     // l'Edge Function renvoie un JSON d'erreur (ex. graph_not_configured) → le remonter

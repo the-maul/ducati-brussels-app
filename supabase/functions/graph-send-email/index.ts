@@ -154,6 +154,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const payload = await req.json().catch(() => ({}));
   const { companyId, contactId, to, subject, body, attachments, from, origin, trace } = payload ?? {};
+  // Case « Inviter le client à rejoindre son espace » de la fenêtre d'envoi (Simon, 05/10) :
+  // cochée par défaut ; décochée, le bloc d'invitation n'est pas ajouté.
+  const invite = payload?.invite !== false;
   const dryRun = payload?.dryRun === true;
   if (!dryRun && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
 
@@ -201,7 +204,7 @@ Deno.serve(async (req) => {
   const recipient = String(to).trim().toLowerCase();
   const single = /^[^\s@,;]+@[^\s@,;]+$/.test(recipient);
   const internalAddress = domains.has(domainOf(recipient)) || shared.has(recipient);
-  const kind = validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
+  const kind = invite && validOrigin && single && !internalAddress ? await footerKind(recipient) : null;
 
   // Signature selon l'adresse d'envoi (21/09) ; les mêmes coordonnées complètent le pied de mail.
   const { html: signature, contact } = await signatureBlock(companyId, mailbox, shared.has(mailbox), user.id);

@@ -92,7 +92,8 @@ test('message Graph : signature entre le texte et le pied de mail', () => {
   const footer = footerHtml('join', 'https://app.example.be', 'client@exemple.be');
   const msg = buildGraphMessage({ subject: 's', bodyHtml: '<p>Bonjour</p>', signature, footer, to: 'client@exemple.be', attachments: [] });
   const c = msg.message.body.content;
-  expect(c.indexOf('<p>Bonjour</p>')).toBe(0);
+  expect(c).toContain('<p>Bonjour</p>');
+  expect(c.indexOf('<p>Bonjour</p>')).toBeLessThan(c.indexOf('Mon espace Ducati Bruxelles'));
   expect(c.indexOf('Prénom Nom')).toBeGreaterThan(0);
   expect(c.indexOf('Prénom Nom')).toBeLessThan(c.indexOf('Mon espace Ducati Bruxelles'));
 });

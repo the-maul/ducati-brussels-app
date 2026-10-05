@@ -1153,6 +1153,7 @@ export const fr = {
     archiveHint: 'Après l’envoi, le PDF est rangé dans la GED du client (dossier « Documents de vente ») et dans celle de ce document ; l’envoi est noté dans l’historique.',
     dryRun: 'Vérifier sans envoyer',
     dryRunHint: 'Contrôle la boîte, le destinataire, le pied de mail et la pièce jointe sans rien envoyer.',
+      inviteBlock: 'Inviter le client à rejoindre son espace Ducati Bruxelles (bloc ajouté en bas du mail)',
     dryRunOk: 'Vérification réussie — rien n’a été envoyé.',
     dryRunDetail: 'Depuis {from} vers {to} · pièce jointe : {files} · pied de mail : {footer}.',
     footerJoin: 'invitation « Créer mon compte »', footerLogin: 'invitation « Me connecter »', footerNone: 'aucun',

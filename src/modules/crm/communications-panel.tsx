@@ -83,9 +83,11 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
   });
 
   // Envoi réel depuis Outlook (journalisé côté serveur).
+  // Case « Inviter le client à rejoindre son espace » (Simon, 05/10) : cochée par défaut.
+  const [invite, setInvite] = useState(true);
   const send = useMutation({
     mutationFn: async () => {
-      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts, from: fromBox || undefined });
+      const r = await sendEmailViaOutlook({ companyId, contactId, to, subject, body, attachments: atts, from: fromBox || undefined, invite });
       if (r.error) return r;
       // déclenche la relève pour enregistrer le mail envoyé tout de suite (best-effort)
       await new Promise((res) => setTimeout(res, 2500));
@@ -103,9 +105,9 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
   // « Vérifier sans envoyer » (mode simulation) : aperçu du message tel qu'il partira,
   // avec la signature de l'adresse choisie et le pied de mail. Rien n'est envoyé.
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  useEffect(() => { setPreviewHtml(null); }, [fromBox, to, subject, body]);
+  useEffect(() => { setPreviewHtml(null); }, [fromBox, to, subject, body, invite]);
   const check = useMutation({
-    mutationFn: () => sendEmailViaOutlook({ companyId, contactId, to, subject, body, from: fromBox || undefined, dryRun: true }),
+    mutationFn: () => sendEmailViaOutlook({ companyId, contactId, to, subject, body, from: fromBox || undefined, dryRun: true, invite }),
     onSuccess: (r) => {
       if (r.error) { setSendMsg(errLabel(r.error)); return; }
       setPreviewHtml(r.html ?? '');
@@ -233,6 +235,15 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
         {isEmail ? (
           <div className="space-y-2">
             {previewHtml !== null && <MailPreview html={previewHtml} />}
+            <label className="flex items-start gap-2 text-[13px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={invite}
+                onChange={(e) => setInvite(e.target.checked)}
+                className="mt-0.5 size-4 accent-[var(--ducati-red)]"
+              />
+              <span>{t('salesMail.inviteBlock')}</span>
+            </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button variant="outline" className="sm:flex-1" onClick={() => { setSendMsg(null); check.mutate(); }} disabled={check.isPending || send.isPending || !to.trim() || !subject.trim()} title={t('salesMail.dryRunHint')}>
                 {check.isPending ? <Loader2 className="animate-spin" /> : <ShieldCheck className="size-4" />} {t('salesMail.dryRun')}

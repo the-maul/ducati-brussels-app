@@ -20,10 +20,10 @@ const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 /** Couleurs et police du HTML des e-mails (charte : --ducati-red #C8102E, --info #1D5FA8). */
 export const MAIL_STYLE = {
-  font: 'Arial,Helvetica,sans-serif',
-  text: '#1a1a1a',
-  muted: '#5c5c5c',
-  subtle: '#8c8c8c',
+  font: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
+  text: '#202124',
+  muted: '#5f6368',
+  subtle: '#80868b',
   rule: '#d9d9d9',
   brand: '#c8102e',
   link: '#1d5fa8',
@@ -276,7 +276,12 @@ export function buildGraphMessage(p: { subject: string; bodyHtml: string; signat
   return {
     message: {
       subject: p.subject,
-      body: { contentType: 'HTML', content: String(p.bodyHtml || '') + (p.signature ?? '') + p.footer },
+      body: {
+        contentType: 'HTML',
+        // Enveloppe de mise en forme : police, taille et couleur du texte pour tout le message.
+        content: `<div style="font-family:${MAIL_STYLE.font};font-size:15px;line-height:22px;color:${MAIL_STYLE.text}">`
+          + String(p.bodyHtml || '') + (p.signature ?? '') + p.footer + '</div>',
+      },
       toRecipients: [{ emailAddress: { address: p.to } }],
       ...(p.attachments.length ? { attachments: p.attachments } : {}),
     },
