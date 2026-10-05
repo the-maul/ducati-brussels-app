@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact, type ContactSort } from '@/modules/contacts/api';
 import { BulkActionsBar } from '@/modules/contacts/bulk-actions-bar';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
+import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { formatPhone } from '@/lib/phone';
 import { t } from '@/lib/i18n';
 
@@ -89,6 +90,10 @@ function ClientsList() {
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : page * pageSize + 1;
   const to = Math.min(total, (page + 1) * pageSize);
+
+  // Fiches liées de la page affichée, en un seul appel (retour du 05/10 : la fiche
+  // liée s'affiche sous la ligne du contact, en plus clair).
+  const linkedByContact = useLinkedBrief(rows.map((c) => c.id));
 
   const selected = rows.filter((c) => selectedIds.has(c.id));
   const allOnPage = rows.length > 0 && rows.every((c) => selectedIds.has(c.id));
@@ -248,6 +253,7 @@ function ClientsList() {
                       </span>
                     )}
                   </span>
+                  <LinkedLines links={linkedByContact.get(c.id)} />
                 </td>
                 {visibleCols.has('type')    && <td className="px-3 py-2">{t(`contacts.type_${c.type}`)}</td>}
                 {visibleCols.has('city')    && <td className="px-3 py-2">{c.city ?? '—'}</td>}

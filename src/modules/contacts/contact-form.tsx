@@ -5,11 +5,12 @@
  */
 import { useState, useRef, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown } from 'lucide-react';
+import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown, Link2 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
 import { ContactLinksPanel } from './contact-links-panel';
+import { linkedNameLock } from './linked-name';
 import { ModelInterestBadges } from './model-interest-badges';
 import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
 import { IdDocsSection } from './id-docs';
@@ -437,6 +438,26 @@ export function ContactForm({
 
   const addressTitle = isPro ? t('contacts.secAddressPro') : t('contacts.secAddressPrivate');
 
+  // ── Prenom / nom repris de la fiche privee liee (retour de Simon du 05/10) ──
+  // La regle est garantie par la base (declencheurs, migration 20261005140000) ;
+  // ici on grise les champs et on dit d'ou vient le nom. Ne verrouille QUE s'il y a
+  // UNE seule fiche privee liee : pour un couple ou deux gerants, aucune ne fait
+  // autorite, les champs restent modifiables et l'ecran l'explique.
+  const nameLinksQ = useQuery({
+    queryKey: ['contact-links', initial?.id],
+    queryFn: () => listLinkedContacts(initial!.id),
+    enabled: !!initial?.id && isPro,
+  });
+  const nameLinked = (nameLinksQ.data ?? []).map((l) => l.contact);
+  const nameLock = linkedNameLock({ id: initial?.id ?? '', type: f.type }, nameLinked);
+  const nameLocked = nameLock.locked;
+  // La fiche complete (et non le sous-ensemble de `linkedNameLock`) : `contactDisplayName`
+  // en a besoin, et c'est elle qu'on ouvre par le lien.
+  const nameSource = nameLock.locked
+    ? nameLinked.find((c) => c.id === nameLock.source.id) ?? null
+    : null;
+  const severalPrivate = !nameLock.locked && nameLock.reason === 'several_private';
+
   // ── Doublons a la creation ──────────────────────────────────────────
   // Alerte non bloquante : on montre les fiches identiques et on laisse
   // l'utilisateur trancher. Jamais de refus sec (demande client, image 1).
@@ -618,11 +639,29 @@ export function ContactForm({
               </Select>
             </Field>
             <Field label={t('contacts.firstName')}>
-              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} />
+              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} disabled={nameLocked} />
             </Field>
             <Field label={t('contacts.lastName')}>
-              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} />
+              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} disabled={nameLocked} />
             </Field>
+            {nameLocked && nameSource && (
+              <p className="col-span-full flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+                <Link2 className="size-3.5 shrink-0" />
+                {t('contacts.nameFromPrivate')}
+                <Link
+                  to="/clients/$contactId"
+                  params={{ contactId: nameSource.id }}
+                  className="inline-flex items-center gap-1 font-medium text-info hover:underline"
+                >
+                  {contactDisplayName(nameSource)}
+                  <ExternalLink className="size-3" />
+                </Link>
+                <span>{t('contacts.nameFromPrivateHint')}</span>
+              </p>
+            )}
+            {severalPrivate && (
+              <p className="col-span-full text-[11px] text-muted-foreground">{t('contacts.nameSeveralPrivate')}</p>
+            )}
             {/* Mobile avec préfixe +32 par défaut */}
             <Field label={t('contacts.mobile')}>
               <PhoneInput value={f.mobile} onChange={(v) => set('mobile', v)} />

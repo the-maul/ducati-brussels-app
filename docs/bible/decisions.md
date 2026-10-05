@@ -8,6 +8,38 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-05 — Fiche liée : le nom vient de la personne, la recherche voit les deux (retour du 05/10)
+
+- **M-62** — **La personne physique est la source unique du prénom et du nom.** Quand une fiche
+  privée est liée à une fiche professionnelle, le prénom et le nom de la fiche pro sont ceux de la
+  fiche privée et **ne sont plus modifiables sur la fiche pro** (grisés, avec « Prénom et nom repris
+  de la fiche privée de … » et un lien vers elle). Ils redeviennent modifiables dès qu'on délie — la
+  déliaison ne remet pas l'ancien nom, elle rend la main. La raison sociale (`company_name`) n'est
+  jamais touchée : c'est le nom de la société, pas celui d'une personne. *Simon · 05/10.*
+  [M01](modules/M01-contacts.md)
+- **M-63** — **La règle vit dans la base, pas dans l'écran.** Trois déclencheurs (migration
+  `20261005140000`) : reprise à la liaison, propagation quand le nom change sur la fiche privée,
+  et réimposition du nom repris à toute tentative de modification de la fiche pro. Motif : l'écran
+  n'est pas le seul chemin vers `contacts` (import G8, actions groupées, fusion de doublons, espace
+  client, API) ; une règle seulement dans le formulaire aurait été contournée en silence. Chaque
+  liaison, déliaison et reprise écrit dans `events` (`contact_link_created`, `contact_link_removed`,
+  `contact_linked_name_applied`). *Agence · 05/10.* [M01](modules/M01-contacts.md)
+- **M-64** — **Plusieurs fiches privées liées = aucune reprise.** Un couple, ou une société à deux
+  gérants : aucune des deux personnes ne fait autorité sur le nom de la société. Dans ce cas les
+  champs restent modifiables et l'écran le dit (« Plusieurs fiches privées sont liées… »). Même
+  règle pour une fiche privée liée sans nom ni prénom : on ne vide jamais le nom de la fiche pro.
+  *Agence · 05/10.* [M01](modules/M01-contacts.md)
+- **M-65** — **La recherche de contacts trouve une fiche par le nom de sa fiche liée.** Chercher
+  « AGM FISC » remonte aussi la personne liée, et chercher la personne remonte la société
+  (migration `20261005141000`). Sous la ligne du contact, la fiche liée s'affiche sur une deuxième
+  ligne atténuée et en retrait, avec son type ; un clic ouvre la fiche liée dans la liste des
+  clients. Dans un sélecteur de contact d'un document, cette deuxième ligne est un repère **non
+  cliquable** : quitter l'écran perdrait le document en cours. Mesuré : la liste reste sous la
+  seconde (≤ 132 ms sur 8 141 fiches), parce que le nom des fiches liées est calculé une fois sur
+  `contact_links` et non une fois par contact. *Agence · 05/10.* [M01](modules/M01-contacts.md)
+
+---
+
 ## 2026-10-05 — Marques et modèles toutes marques, pied de mail complété (retours du 21/09)
 
 - **M-49** — **On ne recopie pas motoplanete.com : la liste des marques vient d'un jeu de données

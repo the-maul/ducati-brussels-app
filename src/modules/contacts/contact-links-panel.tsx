@@ -15,6 +15,7 @@ import { contactDisplayName, contactDependencies, deleteContact, archiveContact,
 import { useConfirm } from '@/components/confirm-provider';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
+import { linkedNameLock } from './linked-name';
 import { t } from '@/lib/i18n';
 
 export function ContactLinksPanel({ companyId, contact }: { companyId: string; contact: Contact }) {
@@ -22,12 +23,23 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
   const navigate = useNavigate();
   const key = ['contact-links', contact.id];
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => listLinkedContacts(contact.id) });
-  const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['client-parc', contact.id] }); };
+  // Lier / delier change le prenom et le nom de la fiche pro en base (reprise depuis
+  // la fiche privee, migration 20261005140000) : on recharge aussi la fiche elle-meme
+  // et les listes, sinon l'ecran garderait l'ancien nom jusqu'au prochain rechargement.
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ queryKey: ['client-parc', contact.id] });
+    qc.invalidateQueries({ queryKey: ['contact', contact.id] });
+    qc.invalidateQueries({ queryKey: ['contacts'] });
+    qc.invalidateQueries({ queryKey: ['contacts-linked-brief'] });
+  };
   const [q, setQ] = useState('');
   const searchQ = useQuery({ queryKey: ['link-search', companyId, q], queryFn: () => searchContactsToLink(companyId, q, contact.id), enabled: q.trim().length >= 2 });
   const isPro = contact.type === 'professionnel' || contact.type === 'fournisseur' || contact.type === 'banque_leasing';
   const targetType: 'particulier' | 'professionnel' = isPro ? 'particulier' : 'professionnel';
   const limitReached = (data ?? []).length >= LINK_LIMIT;
+  // Reprise du prenom / nom : verrouillee seulement s'il y a UNE fiche privee liee.
+  const nameLock = linkedNameLock(contact, (data ?? []).map((l) => l.contact));
 
   const [inheritDialogOpen, setInheritDialogOpen] = useState(false);
   const [inheritContact, setInheritContact] = useState(true);
@@ -92,6 +104,15 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <p className="text-[13px] text-muted-foreground">{t('contacts.linksHint')}</p>
+      {isPro && (
+        <p className="text-[12px] text-muted-foreground">
+          {nameLock.locked
+            ? t('contacts.nameLockedHint')
+            : nameLock.reason === 'several_private'
+              ? t('contacts.nameSeveralPrivate')
+              : t('contacts.nameLockFreeHint')}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={() => setInheritDialogOpen(true)} disabled={create.isPending || limitReached}>
@@ -157,6 +178,10 @@ export function ContactLinksPanel({ companyId, contact }: { companyId: string; c
                   <Icon className="size-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 truncate font-medium">{contactDisplayName(c)}</span>
                   <span className="rounded bg-muted px-1.5 text-[10px] text-muted-foreground">{t(`contacts.type_${c.type}`)}</span>
+                  {/* Retour du 05/10 : dire a l'ecran laquelle des fiches liees donne le nom. */}
+                  {nameLock.locked && nameLock.source.id === c.id && (
+                    <span className="rounded bg-info-bg px-1.5 text-[10px] text-info">{t('contacts.nameSourceBadge')}</span>
+                  )}
                   <Button type="button" size="sm" variant="ghost" onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })} title={t('contacts.openFiche')}><ExternalLink className="size-4 text-info" /></Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => unlink.mutate(linkId)} disabled={unlink.isPending} title={t('contacts.unlink')}><Unlink className="size-4 text-danger" /></Button>
                   {/* Suppression physique reservee aux admins (policy RLS contacts_delete). */}

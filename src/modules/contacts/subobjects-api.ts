@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import type { Vehicle } from '@/modules/vehicles/api';
 import type { Contact, ContactInsert } from './api';
+import { contactDisplayName } from './api';
+import { linkedNameLock } from './linked-name';
 import { personCivility } from './civility';
 
 export type DeliveryAddress = Database['public']['Tables']['delivery_addresses']['Row'];
@@ -96,6 +98,85 @@ export async function listLinkedContacts(contactId: string): Promise<ContactLink
   const byId = new Map((contacts ?? []).map((c) => [c.id, c as Contact]));
   return rows.map((r) => ({ linkId: r.id, contact: byId.get(r.contact_a === contactId ? r.contact_b : r.contact_a)! }))
     .filter((x) => x.contact);
+}
+
+/**
+ * Fiche liée résumée, pour l'afficher sous la ligne d'un contact dans une liste
+ * ou un sélecteur (retour de Simon du 05/10).
+ * `isNameSource` : cette fiche liée est celle dont le prénom/nom est repris.
+ */
+export type LinkedBrief = {
+  contactId: string;
+  linkedId: string;
+  name: string;
+  type: string;
+  isNameSource: boolean;
+};
+
+/**
+ * Fiches liées de TOUTE une page de contacts en UN appel (RPC `contacts_linked_brief`,
+ * migration 20261005141000). Un appel par ligne affichée aurait coûté 50 à 200 requêtes
+ * par page ; ici c'est une seule, et la liste reste sous la seconde sur 8 141 fiches.
+ */
+export async function listLinkedBrief(ids: string[]): Promise<Map<string, LinkedBrief[]>> {
+  const out = new Map<string, LinkedBrief[]>();
+  if (ids.length === 0) return out;
+  // Fonction ajoutée après la dernière génération de types.ts : appel non typé localisé.
+  // `.bind(supabase)` obligatoire : `rpc` lit `this.rest` (voir tests/rpc-bound.test.ts).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rpc = supabase.rpc.bind(supabase) as any;
+  const { data, error } = await rpc('contacts_linked_brief', { _ids: ids });
+  // La migration peut ne pas encore être appliquée (le front est déployé par Lovable,
+  // les migrations à part — piège connu, voir la bible). Dans ce cas on recalcule en
+  // deux lectures plutôt que de casser l'écran.
+  if (error) return linkedBriefFallback(ids);
+  type Row = { contact_id: string; linked_id: string; linked_name: string; linked_type: string; is_name_source: boolean };
+  for (const r of (data ?? []) as Row[]) {
+    const list = out.get(r.contact_id) ?? [];
+    list.push({ contactId: r.contact_id, linkedId: r.linked_id, name: r.linked_name, type: r.linked_type, isNameSource: r.is_name_source });
+    out.set(r.contact_id, list);
+  }
+  return out;
+}
+
+/** Repli sans la RPC : deux lectures (liens, puis fiches liées) et la règle appliquée ici. */
+async function linkedBriefFallback(ids: string[]): Promise<Map<string, LinkedBrief[]>> {
+  const out = new Map<string, LinkedBrief[]>();
+  const [a, b] = await Promise.all([
+    supabase.from('contact_links').select('contact_a, contact_b').in('contact_a', ids),
+    supabase.from('contact_links').select('contact_a, contact_b').in('contact_b', ids),
+  ]);
+  if (a.error || b.error) return out;
+  const pairs: { cid: string; oid: string }[] = [
+    ...(a.data ?? []).map((r) => ({ cid: r.contact_a as string, oid: r.contact_b as string })),
+    ...(b.data ?? []).map((r) => ({ cid: r.contact_b as string, oid: r.contact_a as string })),
+  ];
+  if (pairs.length === 0) return out;
+  const { data: others, error } = await supabase.from('contacts').select('*')
+    .in('id', [...new Set(pairs.map((p) => p.oid))]);
+  if (error) return out;
+  const byId = new Map((others ?? []).map((c) => [c.id, c as Contact]));
+  const selfById = new Map<string, Contact>();
+  const { data: selves } = await supabase.from('contacts').select('*').in('id', [...new Set(pairs.map((p) => p.cid))]);
+  for (const c of selves ?? []) selfById.set(c.id, c as Contact);
+  const linkedOf = new Map<string, Contact[]>();
+  for (const p of pairs) {
+    const o = byId.get(p.oid);
+    if (!o) continue;
+    linkedOf.set(p.cid, [...(linkedOf.get(p.cid) ?? []), o]);
+  }
+  for (const [cid, linked] of linkedOf) {
+    const self = selfById.get(cid);
+    const lock = self ? linkedNameLock(self, linked) : { locked: false as const, reason: 'not_pro' as const };
+    out.set(cid, linked.map((o) => ({
+      contactId: cid,
+      linkedId: o.id,
+      name: contactDisplayName(o),
+      type: o.type as string,
+      isNameSource: lock.locked && lock.source.id === o.id,
+    })));
+  }
+  return out;
 }
 
 /** Lie deux fiches (paire non ordonnée ; ignore le doublon). */

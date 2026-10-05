@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { createDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount, type LineInput, type LineType, type SaleArticle, type PiedInput } from './write-api';
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
@@ -392,6 +393,9 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
   const { data } = useQuery({ queryKey: ['contact-pick', companyId, deb], queryFn: () => listContacts(companyId, deb), enabled: deb.length >= 2 });
+  // Fiches liees des resultats affiches, en un appel (retour du 05/10).
+  const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
+
   return (
     <div className="relative">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -399,7 +403,11 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.slice(0, 8).map((c) => (
-            <button key={c.id} type="button" onClick={() => onPick(c)} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
+            <div key={c.id} className="border-b border-border last:border-0">
+              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
+              {/* Fiche liee sous la ligne, en plus clair (retour du 05/10). */}
+              <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
+            </div>
           ))}
         </div>
       )}
