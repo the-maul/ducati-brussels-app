@@ -45,14 +45,15 @@ function FilterChip({
       <SelectTrigger
         aria-label={name}
         title={name}
-        className={`h-8 w-auto max-w-[9rem] shrink-0 gap-1 rounded-full px-2.5 text-[12px] sm:max-w-none ${
+        className={`h-8 w-auto max-w-[8.5rem] shrink-0 gap-1 rounded-full px-2.5 text-[12px] ${
           active ? 'border-foreground font-medium text-foreground' : 'text-muted-foreground'
         }`}
       >
         <Icon className="size-3.5 shrink-0" aria-hidden />
-        {/* Sur téléphone, le nom du critère laisse la place à l'icone seule ;
-            une fois un filtre choisi, c'est la valeur qui s'affiche. */}
-        <span className={`truncate ${active ? '' : 'hidden sm:inline'}`}>{label}</span>
+        {/* L'icone remplace le nom du critère : rien n'est écrit tant qu'aucun
+            filtre n'est choisi, puis seulement la valeur choisie, tronquée.
+            Le nom reste lisible en infobulle et pour les lecteurs d'écran. */}
+        {active && <span className="truncate">{label}</span>}
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{allLabel}</SelectItem>
@@ -114,7 +115,6 @@ export function InvoiceListView() {
                 className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] text-muted-foreground hover:text-foreground"
               >
                 <X className="size-3.5" />
-                <span className="hidden sm:inline">{t('portal.invoices.filterReset')}</span>
               </button>
             )}
           </div>
