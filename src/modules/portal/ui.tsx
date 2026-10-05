@@ -5,7 +5,7 @@
  */
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, FileText, ImageIcon, Loader2, Upload, User } from 'lucide-react';
+import { Camera, ChevronDown, FileText, ImageIcon, Loader2, Upload, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -79,6 +79,56 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
       <h2 className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{children}</h2>
       {action}
     </div>
+  );
+}
+
+/**
+ * Carte repliable : sur un téléphone, les longues sections (documents du
+ * véhicule, entretiens) doivent pouvoir se replier. Le choix du client est
+ * retenu sur son appareil ; `hint` donne un repère quand c'est replié
+ * (nombre de documents, dernier entretien…).
+ */
+export function CollapsibleCard({
+  id, title, hint, defaultOpen = true, className, children,
+}: {
+  id: string;
+  title: ReactNode;
+  hint?: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const key = `ducati.portal.section.${id}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem(key);
+      if (v !== null) return v === '1';
+    } catch { /* navigation privée : on garde le défaut */ }
+    return defaultOpen;
+  });
+  const toggle = () => {
+    setOpen((o) => {
+      try { localStorage.setItem(key, o ? '0' : '1'); } catch { /* idem */ }
+      return !o;
+    });
+  };
+  return (
+    <Card className={className}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <h2 className="flex-1 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{title}</h2>
+        {hint != null && <span className="shrink-0 text-[12px] text-muted-foreground">{hint}</span>}
+        <ChevronDown
+          className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </Card>
   );
 }
 

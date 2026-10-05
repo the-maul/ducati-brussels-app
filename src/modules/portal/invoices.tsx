@@ -10,7 +10,10 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, FileDown, FileText, Printer, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import {
+  ALL, NO_FILTER, buildInvoiceFilterOptions, filterInvoices, isFiltered, type InvoiceFilters,
+} from './invoice-filters';
 import { t } from '@/lib/i18n';
 import { getInvoice, listInvoices, openFile } from './api';
 import { Card, EmptyState, ErrorBox, InvoiceStatus, Loading, PortalPage, SectionTitle, dateFr, eur } from './ui';
@@ -18,32 +21,34 @@ import { Card, EmptyState, ErrorBox, InvoiceStatus, Loading, PortalPage, Section
 const openPdf = (path: string) =>
   openFile(path).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
 
-/** Valeur « pas de filtre » d'un <Select> (une valeur vide est interdite). */
-const ALL = '__all__';
-/** Factures au nom du client lui-même (pas d'une fiche liée ni d'un financement). */
-const MINE = '__mine__';
-
-/** Tranches de montant, de la plus petite à la plus grande. `max` est exclu. */
-const AMOUNTS: { key: string; min: number; max: number }[] = [
-  { key: 'lt100', min: 0, max: 100 },
-  { key: 'r100', min: 100, max: 500 },
-  { key: 'r500', min: 500, max: 2000 },
-  { key: 'gt2000', min: 2000, max: Infinity },
-];
-
-/** Un filtre n'est proposé que s'il y a vraiment un choix à faire. */
-function FilterSelect({
-  value, onChange, allLabel, options,
+/**
+ * Un filtre = une puce compacte sur une seule ligne (l'écran du client est un
+ * téléphone : quatre menus pleine largeur mangeaient toute la page).
+ * La puce porte le nom du critère tant qu'on n'a rien choisi, puis la valeur.
+ * Elle n'apparaît que s'il y a vraiment un choix à faire.
+ */
+function FilterChip({
+  value, onChange, name, allLabel, options,
 }: {
   value: string;
   onChange: (v: string) => void;
+  name: string;
   allLabel: string;
   options: { value: string; label: string }[];
 }) {
   if (options.length < 2) return null;
+  const active = value !== ALL;
+  const label = active ? (options.find((o) => o.value === value)?.label ?? name) : name;
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[11rem]"><SelectValue /></SelectTrigger>
+      <SelectTrigger
+        aria-label={name}
+        className={`h-8 w-auto shrink-0 gap-1 rounded-full px-3 text-[12px] ${
+          active ? 'border-foreground font-medium text-foreground' : 'text-muted-foreground'
+        }`}
+      >
+        <span className="max-w-[9rem] truncate">{label}</span>
+      </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{allLabel}</SelectItem>
         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -54,44 +59,16 @@ function FilterSelect({
 
 export function InvoiceListView() {
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'invoices'], queryFn: listInvoices });
-  const [vehicle, setVehicle] = useState(ALL);
-  const [profile, setProfile] = useState(ALL);
-  const [year, setYear] = useState(ALL);
-  const [amount, setAmount] = useState(ALL);
+  const [filters, setFilters] = useState<InvoiceFilters>(NO_FILTER);
+  const set = (k: keyof InvoiceFilters) => (v: string) => setFilters((f) => ({ ...f, [k]: v }));
 
-  // Les choix proposés viennent des factures du client : jamais un filtre qui
-  // ne donnerait aucun résultat.
-  const opts = useMemo(() => {
-    const uniq = (xs: (string | null | undefined)[]) =>
-      [...new Set(xs.filter((x): x is string => !!x))].sort();
-    const list = data ?? [];
-    return {
-      vehicles: uniq(list.map((d) => d.vehicle_label)).map((v) => ({ value: v, label: v })),
-      profiles: [
-        ...(list.some((d) => !d.on_behalf) ? [{ value: MINE, label: t('portal.invoices.filterMine') }] : []),
-        ...uniq(list.map((d) => d.on_behalf)).map((v) => ({ value: v, label: v })),
-      ],
-      years: uniq(list.map((d) => d.issue_date?.slice(0, 4))).reverse().map((y) => ({ value: y, label: y })),
-      amounts: AMOUNTS.filter((a) => list.some((d) => Number(d.total_ttc) >= a.min && Number(d.total_ttc) < a.max))
-        .map((a) => ({ value: a.key, label: t(`portal.invoices.amount_${a.key}`) })),
-    };
-  }, [data]);
-
-  const rows = useMemo(() => (data ?? []).filter((d) => {
-    if (vehicle !== ALL && d.vehicle_label !== vehicle) return false;
-    if (profile === MINE && d.on_behalf) return false;
-    if (profile !== ALL && profile !== MINE && d.on_behalf !== profile) return false;
-    if (year !== ALL && d.issue_date?.slice(0, 4) !== year) return false;
-    if (amount !== ALL) {
-      const a = AMOUNTS.find((x) => x.key === amount)!;
-      const n = Number(d.total_ttc);
-      if (n < a.min || n >= a.max) return false;
-    }
-    return true;
-  }), [data, vehicle, profile, year, amount]);
-
-  const filtered = vehicle !== ALL || profile !== ALL || year !== ALL || amount !== ALL;
-  const reset = () => { setVehicle(ALL); setProfile(ALL); setYear(ALL); setAmount(ALL); };
+  const opts = useMemo(
+    () => buildInvoiceFilterOptions(data ?? [], t('portal.invoices.filterMine'),
+      (key) => t(`portal.invoices.amount_${key}`)),
+    [data],
+  );
+  const rows = useMemo(() => filterInvoices(data ?? [], filters), [data, filters]);
+  const filtered = isFiltered(filters);
   const total = rows.reduce((s, d) => s + Number(d.total_ttc), 0);
 
   return (
@@ -101,20 +78,40 @@ export function InvoiceListView() {
       {data && data.length === 0 && <EmptyState icon={<FileText className="size-8" />} text={t('portal.invoices.empty')} />}
       {data && data.length > 0 && (
         <>
-          {/* Filtres : une colonne sur téléphone, en ligne dès que l'écran le permet. */}
-          <div className="mb-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <FilterSelect value={vehicle} onChange={setVehicle} allLabel={t('portal.invoices.filterVehicle')} options={opts.vehicles} />
-            <FilterSelect value={profile} onChange={setProfile} allLabel={t('portal.invoices.filterProfile')} options={opts.profiles} />
-            <FilterSelect value={year} onChange={setYear} allLabel={t('portal.invoices.filterYear')} options={opts.years} />
-            <FilterSelect value={amount} onChange={setAmount} allLabel={t('portal.invoices.filterAmount')} options={opts.amounts} />
+          {/* Une seule ligne, qui défile latéralement si les puces débordent. */}
+          <div className="-mx-1 mb-2 flex items-center gap-1.5 overflow-x-auto px-1 pb-1">
+            <FilterChip
+              value={filters.vehicle} onChange={set('vehicle')}
+              name={t('portal.invoices.chipVehicle')} allLabel={t('portal.invoices.filterVehicle')}
+              options={opts.vehicles}
+            />
+            <FilterChip
+              value={filters.profile} onChange={set('profile')}
+              name={t('portal.invoices.chipProfile')} allLabel={t('portal.invoices.filterProfile')}
+              options={opts.profiles}
+            />
+            <FilterChip
+              value={filters.year} onChange={set('year')}
+              name={t('portal.invoices.chipYear')} allLabel={t('portal.invoices.filterYear')}
+              options={opts.years}
+            />
+            <FilterChip
+              value={filters.amount} onChange={set('amount')}
+              name={t('portal.invoices.chipAmount')} allLabel={t('portal.invoices.filterAmount')}
+              options={opts.amounts}
+            />
             {filtered && (
-              <Button variant="ghost" size="sm" onClick={reset} className="justify-self-start">
-                <X className="size-4" /> {t('portal.invoices.filterReset')}
-              </Button>
+              <button
+                type="button"
+                onClick={() => setFilters(NO_FILTER)}
+                className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" /> {t('portal.invoices.filterReset')}
+              </button>
             )}
           </div>
 
-          <p className="mb-2 text-[13px] text-muted-foreground">
+          <p className="mb-2 text-[12px] text-muted-foreground">
             {rows.length} {rows.length > 1 ? t('portal.invoices.countMany') : t('portal.invoices.countOne')}
             {' · '}{eur(total)}
           </p>
@@ -123,7 +120,7 @@ export function InvoiceListView() {
             <EmptyState
               icon={<FileText className="size-8" />}
               text={t('portal.invoices.noMatch')}
-              action={<Button variant="outline" onClick={reset}>{t('portal.invoices.filterReset')}</Button>}
+              action={<Button variant="outline" onClick={() => setFilters(NO_FILTER)}>{t('portal.invoices.filterReset')}</Button>}
             />
           )}
 

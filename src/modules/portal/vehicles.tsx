@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { getVehicle, listVehicles, VEHICLE_DOC_KINDS } from './api';
 import {
-  Card, EmptyState, ErrorBox, Loading, PortalPage, RepairStatus, SectionTitle, SignedImage, UploadButtons,
+  Card, CollapsibleCard, EmptyState, ErrorBox, Loading, PortalPage, RepairStatus, SignedImage, UploadButtons,
   UploadLimitHint, dateFr, km, useDocViewer, vehicleName,
 } from './ui';
 import { DocumentCard, OtherDocsCard } from './doc-slot';
@@ -120,8 +120,7 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
       </Button>
 
       {/* Informations */}
-      <Card>
-        <SectionTitle>{t('portal.vehicles.info')}</SectionTitle>
+      <CollapsibleCard id="vehicle-info" title={t('portal.vehicles.info')}>
         <dl className="divide-y divide-border">
           <Info label={t('portal.vehicles.vin')} value={v.vin} mono />
           <Info label={t('portal.vehicles.plate')} value={v.plate} />
@@ -135,11 +134,16 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
           <Info label={t('portal.vehicles.nextInspection')} value={dateFr(v.next_inspection_date)} />
           <Info label={t('portal.vehicles.warrantyEnd')} value={dateFr(v.warranty_end)} />
         </dl>
-      </Card>
+      </CollapsibleCard>
 
-      {/* Documents du véhicule : chacun recto ET verso, plus « autres documents » */}
-      <Card>
-        <SectionTitle>{t('portal.vehicles.documents')}</SectionTitle>
+      {/* Documents du véhicule : chacun recto ET verso, plus « autres documents ».
+          Replié par défaut : c'est la section la plus longue de la page. */}
+      <CollapsibleCard
+        id="vehicle-docs"
+        title={t('portal.vehicles.documents')}
+        hint={v.files.length || null}
+        defaultOpen={false}
+      >
         <p className="mb-3 text-[12px] text-muted-foreground">{t('portal.vehicles.documentsHint')}</p>
         <ul className="space-y-3">
           {VEHICLE_DOC_KINDS.map((kind) => (
@@ -148,13 +152,17 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
           ))}
           <OtherDocsCard vehicleId={v.id} files={v.files} onDone={refresh} onView={viewDoc} />
         </ul>
-      </Card>
+      </CollapsibleCard>
 
       {viewer}
 
       {/* Entretiens et réparations */}
-      <Card>
-        <SectionTitle>{t('portal.vehicles.repairs')}</SectionTitle>
+      <CollapsibleCard
+        id="vehicle-repairs"
+        title={t('portal.vehicles.repairs')}
+        hint={v.repairs.length + v.maintenance.length || null}
+        defaultOpen={false}
+      >
         {v.repairs.length === 0 && v.maintenance.length === 0 && (
           <p className="text-[13px] text-muted-foreground">{t('portal.vehicles.noRepairs')}</p>
         )}
@@ -191,7 +199,7 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
             </li>
           ))}
         </ul>
-      </Card>
+      </CollapsibleCard>
 
       {/* Les factures de la moto ne sont plus listées ici : l'onglet « Mes
           factures » se filtre par moto (retour de Simon du 05/10). */}
