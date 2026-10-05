@@ -43,7 +43,7 @@ import {
   type PortalProfile, type ProfilePatch,
 } from './api';
 import {
-  Avatar, Card, ErrorBox, Loading, PortalPage, SectionTitle, UploadButtons, UploadLimitHint, useDocViewer,
+  Avatar, Card, CollapsibleCard, ErrorBox, Loading, PortalPage, UploadButtons, UploadLimitHint, useDocViewer,
 } from './ui';
 import { DocumentCard, lastFileOf } from './doc-slot';
 
@@ -170,9 +170,13 @@ export function ProfileView() {
 
       <form onSubmit={submit} className="space-y-4">
         {/* Coordonnées */}
-        <Card>
+        <CollapsibleCard
+          id="profile-contact"
+          title={t('portal.profile.contactInfo')}
+          anchors={['coordonnees']}
+          forceOpen={phoneInvalid}
+        >
           <div id="coordonnees" />
-          <SectionTitle>{t('portal.profile.contactInfo')}</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="pf-first_name" label={t('portal.profile.firstName')}>{input('first_name', { autoComplete: 'given-name' })}</Field>
             <Field id="pf-last_name" label={t('portal.profile.lastName')}>{input('last_name', { autoComplete: 'family-name' })}</Field>
@@ -203,12 +207,17 @@ export function ProfileView() {
             <Field id="pf-birth_date" label={t('portal.profile.birthDate')}>{input('birth_date', { type: 'date', autoComplete: 'bday' })}</Field>
             <Field id="pf-birth_place" label={t('portal.profile.birthPlace')}>{input('birth_place')}</Field>
           </div>
-        </Card>
+        </CollapsibleCard>
 
         {/* Mission 04, carte 5 : coordonnées bancaires (et TVA pour un particulier) */}
-        <Card>
+        <CollapsibleCard
+          id="profile-bank"
+          title={t('portal.profile.bank')}
+          anchors={['banque']}
+          defaultOpen={false}
+          forceOpen={ibanInvalid}
+        >
           <div id="banque" />
-          <SectionTitle>{t('portal.profile.bank')}</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="pf-iban" label={t('portal.profile.iban')} className="sm:col-span-2">
               {input('iban', { placeholder: 'BE68 5390 0754 7034', className: 'h-11 font-mono', 'aria-invalid': ibanInvalid })}
@@ -222,13 +231,17 @@ export function ProfileView() {
             )}
           </div>
           <p className="mt-2 text-[12px] text-muted-foreground">{t('portal.profile.ibanHint')}</p>
-        </Card>
+        </CollapsibleCard>
 
         {/* Société (comptes professionnels) */}
         {data.is_pro && (
-          <Card>
+          <CollapsibleCard
+            id="profile-company"
+            title={t('portal.profile.company')}
+            anchors={['societe']}
+            defaultOpen={false}
+          >
             <div id="societe" />
-            <SectionTitle>{t('portal.profile.company')}</SectionTitle>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field id="pf-company_name" label={t('portal.profile.companyName')} className="sm:col-span-2">{input('company_name', { autoComplete: 'organization' })}</Field>
               <Field id="pf-vat_number" label={t('portal.profile.vatNumber')} className="sm:col-span-2">
@@ -252,19 +265,22 @@ export function ProfileView() {
               <p className="mt-2 flex items-center gap-1 text-[13px] text-success"><CheckCircle2 className="size-4" /> {t('portal.profile.viesChecked')}</p>
             )}
             <p className="mt-2 text-[12px] text-muted-foreground">{t('portal.profile.companyHint')}</p>
-          </Card>
+          </CollapsibleCard>
         )}
 
         {/* Permis : le numéro. Les deux faces sont dans « Mes documents », hors formulaire. */}
-        <Card>
-          <SectionTitle>{t('portal.profile.license')}</SectionTitle>
+        <CollapsibleCard id="profile-license" title={t('portal.profile.license')} defaultOpen={false}>
           <Field id="pf-license_number" label={t('portal.profile.licenseNumber')}>{input('license_number')}</Field>
-        </Card>
+        </CollapsibleCard>
 
         {/* Préférences de contact */}
-        <Card>
+        <CollapsibleCard
+          id="profile-preferences"
+          title={t('portal.profile.preferences')}
+          anchors={['preferences']}
+          defaultOpen={false}
+        >
           <div id="preferences" />
-          <SectionTitle>{t('portal.profile.preferences')}</SectionTitle>
           <p className="mb-2 text-[13px]">{t('portal.profile.preferredChannel')}</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {CONTACT_PREFERENCES.map((c) => (
@@ -282,7 +298,7 @@ export function ProfileView() {
             </span>
             <Switch checked={!form.marketing_opt_out} onCheckedChange={(v) => set('marketing_opt_out', !v)} />
           </label>
-        </Card>
+        </CollapsibleCard>
 
         <div className="sticky bottom-20 z-20 md:bottom-4">
           <Button type="submit" className="h-11 w-full shadow-[var(--shadow-card)]" disabled={changed.length === 0 || save.isPending || ibanInvalid || phoneInvalid}>
@@ -292,8 +308,13 @@ export function ProfileView() {
       </form>
 
       {/* Mes documents : permis et carte d'identité, recto ET verso (retour 05/10). */}
-      <Card>
-        <SectionTitle>{t('portal.profile.documents')}</SectionTitle>
+      <CollapsibleCard
+        id="profile-docs"
+        title={t('portal.profile.documents')}
+        anchors={['permis', 'carte_identite']}
+        hint={data.files?.length || null}
+        defaultOpen={false}
+      >
         <p className="mb-3 text-[12px] text-muted-foreground">{t('portal.profile.documentsHint')}</p>
         <ul className="space-y-3">
           {CONTACT_DOC_KINDS.map((kind) => (
@@ -301,18 +322,17 @@ export function ProfileView() {
               noBack={data.no_back} onDone={refreshAll} onView={viewDoc} />
           ))}
         </ul>
-      </Card>
+      </CollapsibleCard>
 
       {viewer}
 
       {/* Compte */}
-      <Card>
-        <SectionTitle>{t('portal.profile.account')}</SectionTitle>
+      <CollapsibleCard id="profile-account" title={t('portal.profile.account')} defaultOpen={false}>
         <p className="text-[13px] text-muted-foreground">{t('portal.profile.emailHint')}</p>
         <Button asChild variant="outline" className="mt-3">
           <Link to="/reset-password"><KeyRound /> {t('portal.profile.changePassword')}</Link>
         </Button>
-      </Card>
+      </CollapsibleCard>
     </PortalPage>
   );
 }

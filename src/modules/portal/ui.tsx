@@ -3,7 +3,7 @@
  * Couleurs uniquement via les tokens ; le rouge Ducati (primary) n'est utilisé que
  * pour les actions principales, jamais pour un statut (charte, CLAUDE.md règle 9).
  */
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Camera, ChevronDown, FileText, ImageIcon, Loader2, Upload, User } from 'lucide-react';
 import { toast } from 'sonner';
@@ -89,12 +89,16 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
  * (nombre de documents, dernier entretien…).
  */
 export function CollapsibleCard({
-  id, title, hint, defaultOpen = true, className, children,
+  id, title, hint, defaultOpen = true, forceOpen = false, anchors, className, children,
 }: {
   id: string;
   title: ReactNode;
   hint?: ReactNode;
   defaultOpen?: boolean;
+  /** Ouvre la section quoi qu'il arrive (ex. une erreur de saisie à l'intérieur). */
+  forceOpen?: boolean;
+  /** Ancres (#coordonnees…) qui doivent déplier la section quand on arrive dessus. */
+  anchors?: string[];
   className?: string;
   children: ReactNode;
 }) {
@@ -106,28 +110,43 @@ export function CollapsibleCard({
     } catch { /* navigation privée : on garde le défaut */ }
     return defaultOpen;
   });
+  // Un lien « compléter mes coordonnées » depuis l'accueil ne doit pas tomber
+  // sur une section repliée.
+  const anchorKey = (anchors ?? []).join(',');
+  useEffect(() => {
+    if (!anchorKey) return;
+    const list = anchorKey.split(',');
+    const check = () => {
+      const h = decodeURIComponent(window.location.hash.replace('#', ''));
+      if (h && list.includes(h)) setOpen(true);
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, [anchorKey]);
   const toggle = () => {
     setOpen((o) => {
       try { localStorage.setItem(key, o ? '0' : '1'); } catch { /* idem */ }
       return !o;
     });
   };
+  const shown = open || forceOpen;
   return (
     <Card className={className}>
       <button
         type="button"
         onClick={toggle}
-        aria-expanded={open}
+        aria-expanded={shown}
         className="flex w-full items-center gap-2 text-left"
       >
         <h2 className="flex-1 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{title}</h2>
         {hint != null && <span className="shrink-0 text-[12px] text-muted-foreground">{hint}</span>}
         <ChevronDown
-          className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+          className={cn('size-4 shrink-0 text-muted-foreground transition-transform', shown && 'rotate-180')}
           aria-hidden
         />
       </button>
-      {open && <div className="mt-3">{children}</div>}
+      {shown && <div className="mt-3">{children}</div>}
     </Card>
   );
 }

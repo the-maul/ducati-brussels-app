@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, FileDown, FileText, Printer, X } from 'lucide-react';
+import { Bike, Calendar, ChevronRight, Euro, FileDown, FileText, Printer, User, X, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -28,13 +28,14 @@ const openPdf = (path: string) =>
  * Elle n'apparaît que s'il y a vraiment un choix à faire.
  */
 function FilterChip({
-  value, onChange, name, allLabel, options,
+  value, onChange, name, allLabel, options, icon: Icon,
 }: {
   value: string;
   onChange: (v: string) => void;
   name: string;
   allLabel: string;
   options: { value: string; label: string }[];
+  icon: LucideIcon;
 }) {
   if (options.length < 2) return null;
   const active = value !== ALL;
@@ -43,11 +44,15 @@ function FilterChip({
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
         aria-label={name}
-        className={`h-8 w-auto shrink-0 gap-1 rounded-full px-3 text-[12px] ${
+        title={name}
+        className={`h-8 w-auto max-w-[9rem] shrink-0 gap-1 rounded-full px-2.5 text-[12px] sm:max-w-none ${
           active ? 'border-foreground font-medium text-foreground' : 'text-muted-foreground'
         }`}
       >
-        <span className="max-w-[9rem] truncate">{label}</span>
+        <Icon className="size-3.5 shrink-0" aria-hidden />
+        {/* Sur téléphone, le nom du critère laisse la place à l'icone seule ;
+            une fois un filtre choisi, c'est la valeur qui s'affiche. */}
+        <span className={`truncate ${active ? '' : 'hidden sm:inline'}`}>{label}</span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{allLabel}</SelectItem>
@@ -83,30 +88,33 @@ export function InvoiceListView() {
             <FilterChip
               value={filters.vehicle} onChange={set('vehicle')}
               name={t('portal.invoices.chipVehicle')} allLabel={t('portal.invoices.filterVehicle')}
-              options={opts.vehicles}
+              options={opts.vehicles} icon={Bike}
             />
             <FilterChip
               value={filters.profile} onChange={set('profile')}
               name={t('portal.invoices.chipProfile')} allLabel={t('portal.invoices.filterProfile')}
-              options={opts.profiles}
+              options={opts.profiles} icon={User}
             />
             <FilterChip
               value={filters.year} onChange={set('year')}
               name={t('portal.invoices.chipYear')} allLabel={t('portal.invoices.filterYear')}
-              options={opts.years}
+              options={opts.years} icon={Calendar}
             />
             <FilterChip
               value={filters.amount} onChange={set('amount')}
               name={t('portal.invoices.chipAmount')} allLabel={t('portal.invoices.filterAmount')}
-              options={opts.amounts}
+              options={opts.amounts} icon={Euro}
             />
             {filtered && (
               <button
                 type="button"
                 onClick={() => setFilters(NO_FILTER)}
+                aria-label={t('portal.invoices.filterReset')}
+                title={t('portal.invoices.filterReset')}
                 className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] text-muted-foreground hover:text-foreground"
               >
-                <X className="size-3.5" /> {t('portal.invoices.filterReset')}
+                <X className="size-3.5" />
+                <span className="hidden sm:inline">{t('portal.invoices.filterReset')}</span>
               </button>
             )}
           </div>
