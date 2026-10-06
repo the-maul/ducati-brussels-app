@@ -276,6 +276,16 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{c.subject || t(`crm.channel_${c.channel}`)}</span>
                     <span className="text-[11px] text-muted-foreground">{t(`crm.dir_${c.direction}`)}{c.mailbox ? ` · ${c.mailbox}` : ''}</span>
+                    {/* Adresse e-mail partagée : l'échange est arrivé sur une autre
+                        fiche du même foyer / de la même société. */}
+                    {c.holder_name && (
+                      <span
+                        title={t('crm.sharedMailHint')}
+                        className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                      >
+                        {t('crm.sharedMailFrom')} {c.holder_name}
+                      </span>
+                    )}
                     <span className="ml-auto font-mono text-[12px] text-muted-foreground">{new Date(c.occurred_at).toLocaleString('fr-BE')}</span>
                   </div>
                   {c.body && <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{c.body}</p>}

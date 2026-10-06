@@ -5,9 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { clientAppUrl } from '@/lib/client-app-url';
 import { toE164 } from '@/lib/phone';
+import { contactDisplayName } from '@/modules/contacts/api';
 
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type Communication = Database['public']['Tables']['communications']['Row'];
+/** Un échange, plus le nom de la fiche d'arrivée quand l'adresse est partagée. */
+export type ContactCommunication = Communication & { holder_name?: string | null };
 
 export const LEAD_STAGES = ['nouveau', 'contacte', 'qualifie', 'proposition', 'gagne', 'perdu'] as const;
 
@@ -534,10 +537,38 @@ export async function sendEmailViaOutlook(p: { companyId: string; contactId: str
   return data as { ok?: boolean; dryRun?: boolean; from?: string; html?: string };
 }
 
-export async function listCommunications(contactId: string): Promise<Communication[]> {
-  const { data, error } = await supabase.from('communications').select('*').eq('contact_id', contactId).order('occurred_at', { ascending: false });
+/**
+ * Un échange reçu sur une adresse e-mail partagée (couple, famille, société)
+ * doit apparaître sur TOUTES les fiches qui portent cette adresse — décision
+ * de Simon du 05/10. L'échange reste rattaché en base à la fiche sur laquelle
+ * il est arrivé ; `holder_name` dit sur quelle autre fiche, quand ce n'est pas
+ * celle qu'on regarde.
+ *
+ * Le regroupement est calculé par `contacts_sharing_email` : elle écarte les
+ * adresses du garage et celles portées par plus de 4 fiches (bouche-trou).
+ */
+export async function listCommunications(contactId: string): Promise<ContactCommunication[]> {
+  const { data: shared, error: eShared } = await supabase.rpc('contacts_sharing_email', { _contact: contactId });
+  if (eShared) throw eShared;
+  const ids = [...new Set([contactId, ...((shared ?? []) as { id: string }[]).map((r) => r.id)])];
+
+  // Nom de la fiche d'arrivée, seulement s'il y a vraiment plusieurs fiches.
+  const holders = new Map<string, string>();
+  if (ids.length > 1) {
+    const { data: cs } = await supabase
+      .from('contacts').select('id, type, first_name, last_name, company_name').in('id', ids);
+    for (const c of (cs ?? []) as Parameters<typeof contactDisplayName>[0][] & { id: string }[]) {
+      holders.set(c.id, contactDisplayName(c));
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('communications').select('*').in('contact_id', ids).order('occurred_at', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((c) => ({
+    ...c,
+    holder_name: c.contact_id && c.contact_id !== contactId ? holders.get(c.contact_id) ?? null : null,
+  }));
 }
 
 export async function addCommunication(p: { companyId: string; contactId: string; channel: string; direction: string; subject?: string; body?: string }): Promise<void> {

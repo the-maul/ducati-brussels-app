@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_mappings: {
@@ -10376,6 +10401,7 @@ export type Database = {
         Args: { _picking: string }
         Returns: undefined
       }
+      _portal_contact_ids: { Args: never; Returns: string[] }
       _portal_ctx: { Args: never; Returns: Record<string, unknown> }
       _portal_doc_complete: {
         Args: {
@@ -10383,6 +10409,16 @@ export type Database = {
           _entity: string
           _entity_type: string
           _kind: string
+        }
+        Returns: boolean
+      }
+      _portal_doc_visible: {
+        Args: {
+          _contact_id: string
+          _doc_id: string
+          _ids: string[]
+          _issue_date: string
+          _vehicle_id: string
         }
         Returns: boolean
       }
@@ -10407,6 +10443,12 @@ export type Database = {
         Returns: boolean
       }
       _portal_vehicle_label: { Args: { _vehicle: string }; Returns: string }
+      _portal_visible_documents: {
+        Args: { _company: string; _ids: string[] }
+        Returns: {
+          id: string
+        }[]
+      }
       _recompute_paid_unchecked: {
         Args: { _document: string }
         Returns: undefined
@@ -10964,6 +11006,10 @@ export type Database = {
       contact_norm_phone: { Args: { _v: string }; Returns: string }
       contact_norm_txt: { Args: { _v: string }; Returns: string }
       contact_phone_key: { Args: { _p: string }; Returns: string }
+      contact_sort_label: {
+        Args: { c: Database["public"]["Tables"]["contacts"]["Row"] }
+        Returns: string
+      }
       contact_use_phone_as_mobile: { Args: { _id: string }; Returns: string }
       contacts_find_by_email_or_mobile: {
         Args: {
@@ -11375,6 +11421,12 @@ export type Database = {
       contacts_search_count: {
         Args: { _company: string; _q: string; _type: string }
         Returns: number
+      }
+      contacts_sharing_email: {
+        Args: { _contact: string }
+        Returns: {
+          id: string
+        }[]
       }
       counter_display_current: {
         Args: { _company: string }
@@ -13564,6 +13616,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

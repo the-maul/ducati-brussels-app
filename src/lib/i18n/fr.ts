@@ -1436,6 +1436,8 @@ export const fr = {
     // communications
     history: 'Communications', channel: 'Canal', channel_call: 'Appel', channel_email: 'E-mail', channel_sms: 'SMS', channel_note: 'Note',
     direction: 'Sens', dir_in: 'Entrant', dir_out: 'Sortant', subject: 'Objet', body: 'Détail', logComm: 'Enregistrer dans l’historique', noComm: 'Aucun échange enregistré.',
+    sharedMailFrom: 'Fiche',
+    sharedMailHint: 'Cette adresse e-mail est partagée : l’échange est arrivé sur cette fiche-là.',
     to: 'Destinataire', sendEmail: 'Envoyer par Outlook', emailSent: 'E-mail envoyé depuis Outlook ✓', emailNotConfigured: 'Envoi Outlook non configuré (clés Microsoft Graph à poser).',
     attach: 'Joindre des fichiers', bodyPlaceholder: 'Rédigez votre message…',
     fromClientDocs: 'Documents du client', noClientDocs: 'Aucun document pour ce client.',
