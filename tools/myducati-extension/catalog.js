@@ -284,6 +284,8 @@
     let h = `<p><b>${s.modelsKept}</b> modèles gardés (Europe, depuis ${sel.minYear}) · <b>${s.modelYearsKept}</b> modèles-années à lire.<br>`
       + `<small>${s.modelsOutsideEurope} modèles hors Europe exclus · ${s.modelYearsBeforeMin} millésimes avant ${sel.minYear} exclus`
       + (s.modelYearsNoYear ? ` · ${s.modelYearsNoYear} sans année (gardés)` : '') + `</small></p>`
+      + `<p>Millésimes depuis : <input data-f="minYear" type="number" min="1985" max="2030" step="1" value="${sel.minYear}" style="width:70px">`
+      + `<br><small>Le catalogue Ducati descend jusqu'à 1990. Les millésimes déjà importés sont sautés.</small></p>`
       + `<p>Délai entre deux pages : <input data-f="delay" type="number" min="0.5" step="0.5" value="${delaySec}" style="width:60px"> s`
       + `<br><small>Durée estimée : ${hoursShared} à ${hours} h (moins si beaucoup de planches sont communes entre modèles).</small></p>`
       + btn('launch', 'Lancer l’import', true) + btn('rereadTree', 'Relire la liste') + '<hr style="margin:10px 0">';
@@ -357,6 +359,9 @@
     const el = ev.target; const f = el.getAttribute('data-f'); const id = el.getAttribute('data-id');
     const toggle = (arr, v, on) => { const i = arr.indexOf(v); if (on && i < 0) arr.push(v); if (!on && i >= 0) arr.splice(i, 1); };
     if (f === 'delay') delaySec = Math.max(0.5, Number(el.value) || 1);
+    // Millésime le plus ancien à importer. Figé à 2000 jusqu'au 13/10/2026 ; or le catalogue
+    // Ducati descend à 1990, et 123 millésimes nous manquaient de ce seul fait.
+    if (f === 'minYear') sel.minYear = Math.min(2030, Math.max(1985, Math.round(Number(el.value) || 2000)));
     if (f === 'delayRun' && state) { state.delayMs = C.clampDelay(Number(el.value) * 1000); await save(); return; }
     if (f === 'fam') toggle(sel.excludedFamilies, id, !el.checked);
     if (f === 'model') {
