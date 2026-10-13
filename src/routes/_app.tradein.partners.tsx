@@ -17,6 +17,7 @@ import {
 } from '@/modules/tradein/partners-api';
 import { MOTO_BRANDS } from '@/modules/tradein/reprise-wizard-data';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/tradein/partners')({
   head: () => ({ meta: [{ title: 'Marchands partenaires — Ducati Bruxelles' }] }),
@@ -52,6 +53,9 @@ function fromPartner(p: TradeinPartner): PartnerForm {
 function PartnersPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
   const [f, setF] = useState<PartnerForm>(EMPTY);
@@ -136,7 +140,7 @@ function PartnersPage() {
                 </td>
                 <td className="px-2 py-1 text-right">
                   <Button variant="ghost" size="sm" onClick={() => startEdit(p)}><Pencil className="size-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => del.mutate(p.id)}><Trash2 className="size-4 text-danger" /></Button>
+                  <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => del.mutate(p.id)}><Trash2 className="size-4 text-danger" /></Button>
                 </td>
               </tr>
             ))}

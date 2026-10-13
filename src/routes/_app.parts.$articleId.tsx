@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/$articleId')({
   head: () => ({ meta: [{ title: 'Article — Ducati Bruxelles' }] }),
@@ -31,6 +32,9 @@ function EditArticle() {
   const { activeCompanyId } = useAuth();
   const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -97,7 +101,7 @@ function EditArticle() {
               <BookOpen /> {t('articles.openCatalog')}
             </Button>
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
-            <Button variant="outline" disabled={duplicate.isPending} onClick={() => duplicate.mutate()}>
+            <Button variant="outline" disabled={readOnly || duplicate.isPending} onClick={() => duplicate.mutate()}>
               <Copy /> {t('articles.duplicate')}
             </Button>
             <Button

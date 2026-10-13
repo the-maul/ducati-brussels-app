@@ -26,6 +26,7 @@ import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { PrepareButton } from '@/modules/sales/prepare-button';
 import { t } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/sales/')({
   head: () => ({ meta: [{ title: 'Ventes & Facturation — Ducati Bruxelles' }] }),
@@ -89,6 +90,9 @@ function matchesAvailFilter(filter: AvailFilter, status: AvailabilityStatus | un
 function SalesList() {
   const { activeCompanyId, activeCompany } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
   const qc = useQueryClient();
@@ -347,7 +351,7 @@ function SalesList() {
                       <Button variant="ghost" size="icon" title={t('sales.print')} onClick={() => printMut.mutate(d.id)}>
                         <Printer className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title={t('action.duplicate')} onClick={() => duplicateMut.mutate(d.id)}>
+                      <Button variant="ghost" size="icon" disabled={readOnly} title={t('action.duplicate')} onClick={() => duplicateMut.mutate(d.id)}>
                         <Copy className="size-4" />
                       </Button>
                       <Button

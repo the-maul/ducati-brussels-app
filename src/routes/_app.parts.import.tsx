@@ -34,6 +34,7 @@ import { PENDING_MIGRATION_SQL } from '@/modules/articles/import/migration-sql';
 import { translateRows } from '@/modules/articles/import/translate';
 import { applyImport, type ApplyResult } from '@/modules/articles/import/apply';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/import')({
   head: () => ({ meta: [{ title: 'Import tarif — Ducati Bruxelles' }] }),
@@ -77,6 +78,9 @@ function toExisting(a: ArticleLite): ExistingArticle {
 function ImportPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [step, setStep] = useState<'input' | 'preview' | 'done'>('input');
   const [parsed, setParsed] = useState<ParsedCsv>({ headers: [], rows: [] });
@@ -503,6 +507,7 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
   supplierNames: string[];
   categoryNames: string[];
 }) {
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [pct, setPct] = useState('');
   const [supplier, setSupplier] = useState('');
@@ -583,7 +588,7 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
                 <td className="px-3 py-1.5">{r.category_path || '—'}</td>
                 <td className="px-3 py-1.5">{r.brand || '—'}</td>
                 <td className="px-3 py-1.5 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => del.mutate(r.id)} title={t('articles.ppcDelete')}>
+                  <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => del.mutate(r.id)} title={t('articles.ppcDelete')}>
                     <Trash2 className="size-4" />
                   </Button>
                 </td>

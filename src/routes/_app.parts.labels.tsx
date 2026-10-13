@@ -20,6 +20,7 @@ import { renderLabelSvg, printLabelsWithTemplate } from '@/modules/articles/labe
 import { QuickLabelDialog } from '@/modules/articles/labels/quick-label';
 import { useConfirm } from '@/components/confirm-provider';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/labels')({
   head: () => ({ meta: [{ title: 'Étiquettes personnalisées — Ducati Bruxelles' }] }),
@@ -32,6 +33,9 @@ const num = (s: string) => { const n = Number(String(s).replace(',', '.')); retu
 function LabelEditorPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const confirm = useConfirm();
   const qc = useQueryClient();
   const imgRef = useRef<HTMLInputElement>(null);
@@ -162,7 +166,7 @@ function LabelEditorPage() {
         </Select>
         <Button variant="outline" size="sm" onClick={newFormat}><Plus className="size-4" /> {t('articles.tplNew')}</Button>
         <Button variant="outline" size="sm" onClick={duplicate}><Copy className="size-4" /> {t('articles.tplDuplicate')}</Button>
-        <Button variant="outline" size="sm" disabled={!selectedId || del.isPending} onClick={async () => { if (await confirm({ variant: 'delete', message: t('articles.tplDeleteConfirm') })) del.mutate(); }}>
+        <Button variant="outline" size="sm" disabled={readOnly || !selectedId || del.isPending} onClick={async () => { if (await confirm({ variant: 'delete', message: t('articles.tplDeleteConfirm') })) del.mutate(); }}>
           <Trash2 className="size-4" /> {t('articles.tplDelete')}
         </Button>
         <div className="ml-auto flex gap-2">

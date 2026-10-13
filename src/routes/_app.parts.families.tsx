@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCategories, upsertCategory, deleteCategory, categoryPath, depthOf } from '@/modules/articles/categories-api';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/families')({
   head: () => ({ meta: [{ title: 'Familles — Ducati Bruxelles' }] }),
@@ -18,6 +19,9 @@ export const Route = createFileRoute('/_app/parts/families')({
 function FamiliesPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['categories', activeCompanyId],
@@ -64,7 +68,7 @@ function FamiliesPage() {
                     </td>
                     <td className="px-3 py-2 font-mono text-[12px]">{c.code ?? '—'}</td>
                     <td className="px-3 py-2 font-mono text-[12px]">{c.sales_account ?? '—'}</td>
-                    <td className="px-3 py-2 text-right"><Button size="sm" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="size-4 text-danger" /></Button></td>
+                    <td className="px-3 py-2 text-right"><Button size="sm" variant="ghost" disabled={readOnly} onClick={() => del.mutate(c.id)}><Trash2 className="size-4 text-danger" /></Button></td>
                   </tr>
                 ))}
               </tbody>

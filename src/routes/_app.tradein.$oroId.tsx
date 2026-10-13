@@ -25,6 +25,7 @@ import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type At
 import { RepriseEditDialog } from '@/modules/tradein/reprise-edit-dialog';
 import { ReprisePhotosPanel } from '@/modules/tradein/reprise-photos-panel';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/tradein/$oroId')({
   head: () => ({ meta: [{ title: 'ORO — Ducati Bruxelles' }] }),
@@ -38,6 +39,9 @@ function OroView() {
   const { oroId } = Route.useParams();
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['oro-full', oroId], queryFn: () => getOroFull(oroId) });
   const offersQ = useQuery({ queryKey: ['oro-offers', oroId], queryFn: () => listOffers(oroId) });
@@ -163,7 +167,7 @@ function OroView() {
           <Button
             variant="outline"
             onClick={() => { if (window.confirm(t('tradein.cancelConfirm'))) cancel.mutate(); }}
-            disabled={cancel.isPending}
+            disabled={readOnly || cancel.isPending}
           >
             {cancel.isPending ? <Loader2 className="animate-spin" /> : <XCircle className="text-danger" />} {t('tradein.valCancel')}
           </Button>
@@ -181,7 +185,7 @@ function OroView() {
                 <td className="px-3 py-2 text-right tabular-nums">{Number(l.quantity)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.unit_cost))}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(Number(l.line_cost))}</td>
-                <td className="px-2 py-1 text-center">{open && <Button size="sm" variant="ghost" onClick={() => del.mutate(l.id)}><Trash2 className="size-4 text-danger" /></Button>}</td>
+                <td className="px-2 py-1 text-center">{open && <Button size="sm" variant="ghost" disabled={readOnly} onClick={() => del.mutate(l.id)}><Trash2 className="size-4 text-danger" /></Button>}</td>
               </tr>
             ))}
             {lines.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">—</td></tr>}
@@ -346,6 +350,7 @@ function PurchaseInvoicePanel({ companyId, vehicleId }: { companyId: string; veh
 
 /** Offres des marchands partenaires — triées de la plus haute à la plus basse. */
 function OffersPanel({ oroId, companyId, brand, motoTitle, followUp }: { oroId: string; companyId: string; brand: string | null; motoTitle?: string; followUp?: boolean }) {
+  const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [partnerId, setPartnerId] = useState<string>('');
   const [partnerName, setPartnerName] = useState('');
@@ -398,7 +403,7 @@ function OffersPanel({ oroId, companyId, brand, motoTitle, followUp }: { oroId: 
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{o.message ?? '—'}</td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">{eur(Number(o.amount))}</td>
-                    <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => del.mutate(o.id)}><Trash2 className="size-4 text-danger" /></Button></td>
+                    <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" disabled={readOnly} onClick={() => del.mutate(o.id)}><Trash2 className="size-4 text-danger" /></Button></td>
                   </tr>
                 ))}
               </tbody>

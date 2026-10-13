@@ -35,6 +35,7 @@ import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-di
 import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
   head: () => ({ meta: [{ title: 'Document — Ducati Bruxelles' }] }),
@@ -47,6 +48,9 @@ const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' |
 function DocumentView() {
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const { companies, activeCompanyId } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
   const showAvailability = data ? (AVAILABILITY_DOC_TYPES as readonly string[]).includes(data.doc.doc_type) : false;
@@ -157,12 +161,12 @@ function DocumentView() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
-              <Button key={tt} size="sm" variant="outline" onClick={() => convert.mutate(tt)} disabled={convert.isPending}>
+              <Button key={tt} size="sm" variant="outline" onClick={() => convert.mutate(tt)} disabled={readOnly || convert.isPending}>
                 {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
               </Button>
             ))}
             {doc.doc_type === 'FAC' && (
-              <Button size="sm" variant="outline" onClick={() => credit.mutate()} disabled={credit.isPending}>
+              <Button size="sm" variant="outline" onClick={() => credit.mutate()} disabled={readOnly || credit.isPending}>
                 {credit.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {t('sales.creditNote')}
               </Button>
             )}
@@ -272,7 +276,7 @@ function DocumentView() {
                     .replace('{when}', new Date(a.created_at).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))}
                 </span>
                 <Button
-                  size="sm" variant="ghost" className="ml-auto" disabled={removeAllocation.isPending}
+                  size="sm" variant="ghost" className="ml-auto" disabled={readOnly || removeAllocation.isPending}
                   onClick={() => { if (window.confirm(t('onOrder.removeConfirm'))) removeAllocation.mutate(a.id); }}
                 >
                   <X className="size-4" /> {t('onOrder.remove')}

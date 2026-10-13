@@ -11,11 +11,15 @@ import { Loader2, Upload, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type Attachment } from '@/modules/documents/ged-api';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 const FOLDER = "Facture d'achat";
 
 export function PurchaseInvoiceField({ companyId, vehicleId }: { companyId: string; vehicleId: string | null }) {
   const qc = useQueryClient();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -69,7 +73,7 @@ export function PurchaseInvoiceField({ companyId, vehicleId }: { companyId: stri
               <FileText className="size-3.5 shrink-0 text-muted-foreground" />
               <button type="button" onClick={() => open(a)} className="flex-1 truncate text-left text-primary hover:underline">{a.file_name}</button>
               <Button type="button" size="sm" variant="ghost" onClick={() => open(a)}><ExternalLink className="size-4 text-info" /></Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => del.mutate(a)} disabled={del.isPending}><Trash2 className="size-4 text-danger" /></Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => del.mutate(a)} disabled={readOnly || del.isPending}><Trash2 className="size-4 text-danger" /></Button>
             </li>
           ))}
         </ul>

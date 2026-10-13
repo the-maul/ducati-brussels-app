@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Eye, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ReadOnlyProvider } from '@/lib/auth/read-only-context';
 import { usePageAccess } from '@/lib/auth/use-access';
 import { t } from '@/lib/i18n';
 
@@ -29,7 +30,7 @@ export function AccessGuard({ children }: { children: ReactNode }) {
   }
 
   return (
-    <>
+    <ReadOnlyProvider value={level === 'read'}>
       {level === 'read' && (
         <div
           role="status"
@@ -40,6 +41,6 @@ export function AccessGuard({ children }: { children: ReactNode }) {
         </div>
       )}
       {children}
-    </>
+    </ReadOnlyProvider>
   );
 }

@@ -16,9 +16,13 @@ import { PhoneInput } from '@/components/phone-input';
 import { listPartners, addPartner, deletePartner, checkPartnersSchema } from './partners-api';
 import { MOTO_BRANDS } from './reprise-wizard-data';
 import { t } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export function PartnersDialog({ open, onOpenChange, companyId }: { open: boolean; onOpenChange: (o: boolean) => void; companyId: string }) {
   const qc = useQueryClient();
+  // Lecture seule : on neutralise aussi les actions secondaires qui ecrivent
+  // (suppression, duplication, conversion) — le bouton partage ne voit qu'elles.
+  const readOnly = useReadOnly();
   const [name, setName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [company, setCompany] = useState('');
@@ -76,7 +80,7 @@ export function PartnersDialog({ open, onOpenChange, companyId }: { open: boolea
                       {[p.email, p.phone].filter(Boolean).join(' · ')} — {p.brands.length === 0 ? t('tradein.partnerAllBrands') : p.brands.join(', ')}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => del.mutate(p.id)}><Trash2 className="size-4 text-danger" /></Button>
+                  <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => del.mutate(p.id)}><Trash2 className="size-4 text-danger" /></Button>
                 </div>
               ))}
             </div>
