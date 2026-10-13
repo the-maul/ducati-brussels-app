@@ -139,7 +139,13 @@ export function DucatiCard({ companyId, articleId }: { companyId: string; articl
         <h2 className="font-ui text-[15px] font-bold">{t('links.ducatiTitle')}</h2>
         {q.isLoading && <Loader2 className="mt-2 size-5 animate-spin text-muted-foreground" />}
         {q.error && <Unavailable error={q.error} />}
-        {q.data && !linked && <p className="mt-1 text-sm text-muted-foreground">{t('links.ducatiNone')}</p>}
+        {q.data && !linked && (
+          <div className="mt-1 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">{t('links.ducatiNone')}</p>
+            <p className="mt-0.5">{t('links.ducatiNoneWhy')}</p>
+            <p className="mt-0.5">{t('links.ducatiNoneWhat')}</p>
+          </div>
+        )}
         {linked && (
           <div className="mt-2 flex flex-wrap gap-4">
             {info?.drawing?.thumbnail_url || info?.drawing?.image_url || info?.image_url ? (

@@ -4174,7 +4174,11 @@ export const fr = {
     tipG8: 'Article repris de G8',
     vehicleDrawings: 'Vues éclatées de cette moto',
     ducatiTitle: 'Référence Ducati de l’article',
-    ducatiNone: 'Aucune référence du catalogue Ducati n’est reliée à cet article.',
+    ducatiNone: 'Aucune information catalogue Ducati pour cette référence.',
+    // Le message est CALCULÉ : il disparaît de lui-même dès qu'un lien catalogue
+    // existe. Pas de marqueur enregistré, donc jamais de mention qui traîne.
+    ducatiNoneWhy: 'Cette référence n’existe pas dans le catalogue en ligne : pièce ancienne (modèle d’avant 2000) ou pièce hors vues éclatées.',
+    ducatiNoneWhat: 'Vous pouvez compléter le libellé sur la fiche et déposer une photo ou une notice dans l’onglet Photos / documents.',
     ducatiLinkLabel: 'Relier à une référence Ducati',
     ducatiLinkPlaceholder: 'Référence Ducati',
     ducatiLinkBtn: 'Relier',
