@@ -57,8 +57,10 @@ function DataQualityPage() {
       {q.isLoading && (
         <div className="grid place-items-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
       )}
+      {/* Le comptage peut echouer (migration pas encore appliquee) : on affiche
+          quand meme les chantiers, sans les nombres, plutot qu'un ecran rouge. */}
       {q.error && (
-        <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{(q.error as Error).message}</p>
+        <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('dataQuality.noCounts')}</p>
       )}
 
       {nothing && (
@@ -67,7 +69,7 @@ function DataQualityPage() {
         </div>
       )}
 
-      {q.data && (
+      {(q.data || q.error) && (
         <ul className="grid gap-3 sm:grid-cols-2">
           {topics.map((x) => {
             const n = q.data?.[x.key] ?? 0;
@@ -84,7 +86,9 @@ function DataQualityPage() {
                     <p className="text-[14px] font-medium">{t(`dataQuality.${x.key}`)}</p>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">{t(`dataQuality.${x.key}Hint`)}</p>
                     <p className="mt-1.5 font-data text-[13px] tabular-nums">
-                      {n > 0 ? (
+                      {q.error ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : n > 0 ? (
                         <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1.5 py-0.5 font-bold text-warning">
                           {n} {t('dataQuality.toHandle')}
                         </span>

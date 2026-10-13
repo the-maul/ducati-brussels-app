@@ -24,6 +24,7 @@ export const fr = {
     toHandle: 'à traiter',
     none: 'Rien à traiter',
     refresh: 'Recompter',
+    noCounts: 'Les compteurs ne sont pas encore disponibles : les chantiers restent accessibles.',
     links: 'Rapprochements à valider',
     linksHint: 'Articles du DMS proposés comme étant la même pièce qu’une référence Ducati ou un produit du site.',
     shopify_unlinked: 'Produits du site sans article',
