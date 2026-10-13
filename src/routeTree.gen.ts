@@ -26,7 +26,6 @@ import { Route as AppClientsRouteImport } from './routes/_app.clients'
 import { Route as AppConsignmentRouteImport } from './routes/_app.consignment'
 import { Route as AppCrmRouteImport } from './routes/_app.crm'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppDataQualityRouteImport } from './routes/_app.data-quality'
 import { Route as AppDemoRouteImport } from './routes/_app.demo'
 import { Route as AppOrdersRouteImport } from './routes/_app.orders'
 import { Route as AppPartsRouteImport } from './routes/_app.parts'
@@ -195,11 +194,6 @@ const AppCrmRoute = AppCrmRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDataQualityRoute = AppDataQualityRouteImport.update({
-  id: '/data-quality',
-  path: '/data-quality',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDemoRoute = AppDemoRouteImport.update({
@@ -651,7 +645,6 @@ export interface FileRoutesByFullPath {
   '/consignment': typeof AppConsignmentRoute
   '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
-  '/data-quality': typeof AppDataQualityRoute
   '/demo': typeof AppDemoRoute
   '/orders': typeof AppOrdersRouteWithChildren
   '/parts': typeof AppPartsRouteWithChildren
@@ -753,7 +746,6 @@ export interface FileRoutesByTo {
   '/consignment': typeof AppConsignmentRoute
   '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
-  '/data-quality': typeof AppDataQualityRoute
   '/demo': typeof AppDemoRoute
   '/picking': typeof AppPickingRoute
   '/pos': typeof AppPosRoute
@@ -848,7 +840,6 @@ export interface FileRoutesById {
   '/_app/consignment': typeof AppConsignmentRoute
   '/_app/crm': typeof AppCrmRoute
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/data-quality': typeof AppDataQualityRoute
   '/_app/demo': typeof AppDemoRoute
   '/_app/orders': typeof AppOrdersRouteWithChildren
   '/_app/parts': typeof AppPartsRouteWithChildren
@@ -954,7 +945,6 @@ export interface FileRouteTypes {
     | '/consignment'
     | '/crm'
     | '/dashboard'
-    | '/data-quality'
     | '/demo'
     | '/orders'
     | '/parts'
@@ -1056,7 +1046,6 @@ export interface FileRouteTypes {
     | '/consignment'
     | '/crm'
     | '/dashboard'
-    | '/data-quality'
     | '/demo'
     | '/picking'
     | '/pos'
@@ -1150,7 +1139,6 @@ export interface FileRouteTypes {
     | '/_app/consignment'
     | '/_app/crm'
     | '/_app/dashboard'
-    | '/_app/data-quality'
     | '/_app/demo'
     | '/_app/orders'
     | '/_app/parts'
@@ -1369,13 +1357,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/data-quality': {
-      id: '/_app/data-quality'
-      path: '/data-quality'
-      fullPath: '/data-quality'
-      preLoaderRoute: typeof AppDataQualityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/demo': {
@@ -2233,7 +2214,6 @@ interface AppRouteChildren {
   AppConsignmentRoute: typeof AppConsignmentRoute
   AppCrmRoute: typeof AppCrmRoute
   AppDashboardRoute: typeof AppDashboardRoute
-  AppDataQualityRoute: typeof AppDataQualityRoute
   AppDemoRoute: typeof AppDemoRoute
   AppOrdersRoute: typeof AppOrdersRouteWithChildren
   AppPartsRoute: typeof AppPartsRouteWithChildren
@@ -2259,7 +2239,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppConsignmentRoute: AppConsignmentRoute,
   AppCrmRoute: AppCrmRoute,
   AppDashboardRoute: AppDashboardRoute,
-  AppDataQualityRoute: AppDataQualityRoute,
   AppDemoRoute: AppDemoRoute,
   AppOrdersRoute: AppOrdersRouteWithChildren,
   AppPartsRoute: AppPartsRouteWithChildren,

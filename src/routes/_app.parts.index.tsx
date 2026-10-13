@@ -193,11 +193,6 @@ function ArticlesList() {
                 <Store /> {t('links.toolShopify')}
               </Button>
             )}
-            {/* Les rapprochements ont quitte le menu principal (ecran de
-                maintenance) : on garde l'acces la ou il sert. */}
-            <Button variant="outline" allowInReadOnly onClick={() => navigate({ to: '/parts/links' })}>
-              <GitMerge /> {t('nav.partsLinks')}
-            </Button>
             {canWrite && (
               <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
                 <Upload /> {t('articles.import')}
