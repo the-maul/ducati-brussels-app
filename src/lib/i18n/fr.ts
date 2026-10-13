@@ -16,6 +16,24 @@ export const fr = {
     no: 'Non',
   },
 
+  // Écrans de maintenance regroupés hors du menu principal
+  dataQuality: {
+    title: 'Qualité des données',
+    subtitle: 'Les vérifications ponctuelles, regroupées. Rien à ouvrir tant qu’il n’y a rien à traiter.',
+    allClear: 'Rien à traiter pour le moment.',
+    toHandle: 'à traiter',
+    none: 'Rien à traiter',
+    refresh: 'Recompter',
+    links: 'Rapprochements à valider',
+    linksHint: 'Articles du DMS proposés comme étant la même pièce qu’une référence Ducati ou un produit du site.',
+    shopify_unlinked: 'Produits du site sans article',
+    shopify_unlinkedHint: 'Produits vendus sur le site qui n’existent pas encore comme article dans le DMS.',
+    declarations: 'Motos déclarées par les clients',
+    declarationsHint: 'Motos qu’un client a déclarées depuis son espace et qui attendent votre validation.',
+    phone_gsm: 'Numéros à reprendre',
+    phone_gsmHint: 'Numéros rangés en « téléphone » lors de la reprise G8 alors que ce sont des GSM : sans eux, pas de SMS.',
+  },
+
   // Droits d'accès par rôle (grille validée par le client)
   access: {
     deniedTitle: 'Page non accessible',
@@ -35,6 +53,7 @@ export const fr = {
     partsCatalog: 'Catalogue Ducati',
     partsShopify: 'Produits Shopify',
     partsLinks: 'Rapprochements',
+    dataQuality: 'Qualité des données',
     stock: 'Stock & inventaire',
     tradein: 'Reprises motos clients',
     purchases: 'Achats & réceptions',

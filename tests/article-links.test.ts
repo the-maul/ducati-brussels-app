@@ -118,17 +118,25 @@ describe('aperçu « créer les articles manquants »', () => {
   });
 });
 
-describe('menu : un seul catalogue, Rapprochements comme outil', () => {
-  test('ni « Catalogue Ducati » ni « Produits Shopify » dans le menu ; Rapprochements sous Pièces & Accessoires', () => {
-    const i = mainNav.findIndex((n) => n.to === '/parts');
-    expect(mainNav.some((n) => n.to === '/parts/catalog' || n.to === '/parts/shopify')).toBe(false);
-    expect(mainNav[i + 1].to).toBe('/parts/links');
-    expect(mainNav[i + 1].child).toBe(true);
+describe('menu : un seul catalogue, les ecrans de maintenance ranges a part', () => {
+  test('aucun ecran technique dans le menu principal', () => {
+    // Retour de Simon du 23/09 : catalogue Ducati, produits du site ET
+    // rapprochements sont des ecrans de maintenance, pas du travail quotidien.
+    for (const to of ['/parts/catalog', '/parts/shopify', '/parts/links']) {
+      expect(mainNav.some((n) => n.to === to)).toBe(false);
+    }
   });
-  test("l'entrée la plus précise est active", () => {
-    expect(activeNavTo('/parts/links', mainNav)).toBe('/parts/links');
+  test('ils sont regroupes dans « Qualite des donnees », juste avant Parametres', () => {
+    const i = mainNav.findIndex((n) => n.to === '/data-quality');
+    expect(i).toBeGreaterThan(0);
+    expect(mainNav[i + 1].to).toBe('/settings');
+  });
+  test("l'entree la plus precise est active", () => {
+    // Un ecran de maintenance de la rubrique Pieces garde Pieces en surbrillance.
+    expect(activeNavTo('/parts/links', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/shopify', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/abc', mainNav)).toBe('/parts');
+    expect(activeNavTo('/data-quality', mainNav)).toBe('/data-quality');
   });
 });
 

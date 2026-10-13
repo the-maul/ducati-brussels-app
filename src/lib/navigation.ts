@@ -26,7 +26,7 @@ import {
   Wallet,
   type LucideIcon,
   Globe,
-  GitMerge,
+  ShieldCheck,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -47,9 +47,6 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
-  // Un seul catalogue (décision M-25) : les articles du DMS. Les vues éclatées Ducati s'ouvrent depuis la fiche
-  // article ou la fiche moto ; l'outil « Rapprochements » (liens, articles manquants, produits du site) reste ici.
-  { labelKey: 'nav.partsLinks', to: '/parts/links', icon: GitMerge, child: true },
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
   { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
@@ -62,6 +59,9 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.pos', to: '/pos', icon: CreditCard },
   { labelKey: 'nav.reports', to: '/reports', icon: BarChart3 },
   { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator },
+  // Ecrans de maintenance regroupes : ils ne se consultent que ponctuellement,
+  // ils n'ont rien a faire au meme niveau que le travail quotidien.
+  { labelKey: 'nav.dataQuality', to: '/data-quality', icon: ShieldCheck },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings },
   { labelKey: 'nav.demo', to: '/demo', icon: Palette, dev: true },
 ];

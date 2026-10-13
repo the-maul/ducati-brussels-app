@@ -9,6 +9,7 @@ import { mainNav, activeNavTo } from '@/lib/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { canSee } from '@/lib/auth/permissions';
 import { countUnseenOffers } from '@/modules/tradein/partners-api';
+import { getDataQualityCounts, pendingTopics } from '@/modules/settings/data-quality-api';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,16 @@ export function AppSidebar({
     enabled: !!activeCompanyId,
     refetchInterval: 60_000,
   });
-  const badgeFor = (to: string): number => (to === '/tradein' ? unseenOffers : 0);
+  // Pastille « Qualite des donnees » : le NOMBRE DE CHANTIERS a traiter, pas le
+  // nombre de lignes (2 934 numeros a reprendre ne font pas 2 934 taches du jour).
+  const { data: dq } = useQuery({
+    queryKey: ['data-quality', activeCompanyId],
+    queryFn: () => getDataQualityCounts(activeCompanyId!),
+    enabled: !!activeCompanyId,
+    staleTime: 5 * 60_000,
+  });
+  const badgeFor = (to: string): number =>
+    to === '/tradein' ? unseenOffers : to === '/data-quality' ? pendingTopics(dq) : 0;
   // La grille des droits (permissions.ts) fait foi : une page qu'un role ne
   // peut pas ouvrir ne s'affiche pas dans le menu.
   const allowed = (to: string) => canSee(to, rolesForActiveCompany);
