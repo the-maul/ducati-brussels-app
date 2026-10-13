@@ -44,6 +44,8 @@ function DataQualityPage() {
     queryFn: () => getDataQualityCounts(activeCompanyId!),
     enabled: !!activeCompanyId,
     staleTime: 60_000,
+    // Pas de reessai : si le comptage n'est pas disponible, on le dit tout de suite.
+    retry: false,
   });
 
   // Un chantier qui mène à une page interdite au rôle n'a pas à s'afficher.

@@ -40,6 +40,8 @@ export function AppSidebar({
     queryFn: () => getDataQualityCounts(activeCompanyId!),
     enabled: !!activeCompanyId,
     staleTime: 5 * 60_000,
+    // Pas de reessai : si le comptage n'est pas disponible, on le dit tout de suite.
+    retry: false,
   });
   const badgeFor = (to: string): number =>
     to === '/tradein' ? unseenOffers : to === '/data-quality' ? pendingTopics(dq) : 0;
