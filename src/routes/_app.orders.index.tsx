@@ -11,6 +11,7 @@ import {
 import { countOrders, DISPATCH_STATUSES } from '@/modules/orders/status-flow';
 import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel } from '@/modules/orders/order-ui';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/orders/')({
   head: () => ({ meta: [{ title: 'Commandes de pièces — Ducati Bruxelles' }] }),
@@ -22,6 +23,8 @@ const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(
 function OrdersList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const [kind, setKind] = useState<OrderKind | 'all'>('all');
   const [status, setStatus] = useState<OrderDispatchStatus | 'all'>('all');
   const filters = { kind: kind === 'all' ? undefined : kind, status: status === 'all' ? undefined : status };
@@ -63,9 +66,11 @@ function OrdersList() {
             <Button variant="outline" onClick={() => navigate({ to: '/orders/excel' })}>
               <FileSpreadsheet /> {t('orders.excelTitle')}
             </Button>
-            <Button onClick={() => navigate({ to: '/orders/new' })}>
-              <Plus /> {t('orders.new')}
-            </Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/orders/new' })}>
+                <Plus /> {t('orders.new')}
+              </Button>
+            )}
           </div>
         }
       />

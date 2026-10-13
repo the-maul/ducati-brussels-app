@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listVehicles, vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
 import { listPendingDeclarations } from '@/modules/vehicles/declarations-api';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/vehicles/')({
   head: () => ({ meta: [{ title: 'Véhicules — Ducati Bruxelles' }] }),
@@ -28,6 +29,8 @@ const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)
 function VehiclesList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState<VehicleStatus | 'all'>('all');
@@ -67,9 +70,11 @@ function VehiclesList() {
                 <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1.5 font-data text-[12px] font-bold tabular-nums text-warning">{pendingDecl}</span>
               )}
             </Button>
-            <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined, declaration: undefined } })}>
-              <Plus /> {t('vehicles.new')}
-            </Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined, declaration: undefined } })}>
+                <Plus /> {t('vehicles.new')}
+              </Button>
+            )}
           </div>
         }
       />

@@ -16,6 +16,16 @@ export const fr = {
     no: 'Non',
   },
 
+  // Droits d'accès par rôle (grille validée par le client)
+  access: {
+    deniedTitle: 'Page non accessible',
+    deniedText: 'Votre rôle ne donne pas accès à cette page. Si vous en avez besoin, demandez à un administrateur de vous ajouter le rôle correspondant.',
+    backHome: 'Retour au tableau de bord',
+    readOnly: 'Lecture seule',
+    readOnlyHint: 'votre rôle vous permet de consulter cette page, pas de la modifier.',
+    noWrite: 'Votre rôle ne permet pas de modifier cette page.',
+  },
+
   // Modules de la sidebar (charte §4.1)
   nav: {
     dashboard: 'Tableau de bord',

@@ -2,6 +2,8 @@
  * Définition de la navigation principale (sidebar) — charte §4.1.
  * Regroupe les 14 modules en 10 entrées (cf. dossier-projet §5.5).
  * Les libellés viennent de l'i18n (clé), jamais en dur.
+ * Qui voit quelle entrée : c'est la grille des droits (lib/auth/permissions.ts)
+ * qui tranche, pas ce fichier — une seule source de vérité.
  */
 import {
   LayoutDashboard,
@@ -33,8 +35,6 @@ export type NavItem = {
   /** chemin de la route */
   to: string;
   icon: LucideIcon;
-  /** visible seulement pour ces rôles (vide = tous) */
-  roles?: string[];
   /** entrée de développement (démo charte) */
   dev?: boolean;
   /** sous-entrée (affichée en retrait sous l'entrée qui la précède, mêmes droits) */
@@ -55,14 +55,14 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },
   { labelKey: 'nav.balances', to: '/sales/balances', icon: Wallet },
-  { labelKey: 'nav.webOrders', to: '/sales/web-orders', icon: Globe, roles: ['admin', 'vendeur'] },
+  { labelKey: 'nav.webOrders', to: '/sales/web-orders', icon: Globe },
   { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },
   { labelKey: 'nav.clients', to: '/clients', icon: Users },
   { labelKey: 'nav.crm', to: '/crm', icon: Target },
   { labelKey: 'nav.pos', to: '/pos', icon: CreditCard },
   { labelKey: 'nav.reports', to: '/reports', icon: BarChart3 },
-  { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator, roles: ['admin', 'comptable'] },
-  { labelKey: 'nav.settings', to: '/settings', icon: Settings, roles: ['admin'] },
+  { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator },
+  { labelKey: 'nav.settings', to: '/settings', icon: Settings },
   { labelKey: 'nav.demo', to: '/demo', icon: Palette, dev: true },
 ];
 

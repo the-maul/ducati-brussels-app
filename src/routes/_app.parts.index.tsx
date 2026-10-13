@@ -25,6 +25,7 @@ import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
 import { CatalogSearchHint } from '@/modules/catalog/catalog-search-hint';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/parts/')({
   head: () => ({ meta: [{ title: 'Pièces & Accessoires — Ducati Bruxelles' }] }),
@@ -86,6 +87,8 @@ function ArticlesList() {
   const { activeCompanyId, isAdmin, hasRole } = useAuth();
   const roundUp = useRoundSalePrices(activeCompanyId);
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -190,15 +193,19 @@ function ArticlesList() {
                 <Store /> {t('links.toolShopify')}
               </Button>
             )}
-            <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
-              <Upload /> {t('articles.import')}
-            </Button>
+            {canWrite && (
+              <Button variant="outline" onClick={() => navigate({ to: '/parts/import' })}>
+                <Upload /> {t('articles.import')}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setLabelsOpen(true)}>
               <Tags /> {t('articles.labelsBtn')}
             </Button>
-            <Button onClick={() => navigate({ to: '/parts/new' })}>
-              <Plus /> {t('articles.new')}
-            </Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/parts/new' })}>
+                <Plus /> {t('articles.new')}
+              </Button>
+            )}
           </>
         }
       />

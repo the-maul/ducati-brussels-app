@@ -19,6 +19,7 @@ import { tradeinStatusOf, setRepriseStatusManual, cancelReprise, statusChangedAt
 import { REPRISE_STATUSES, REPRISE_STATUS_FIELD_BG, type RepriseStatus } from '@/modules/tradein/reprise-status';
 import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/tradein/')({
   head: () => ({ meta: [{ title: 'Reprises motos clients — Ducati Bruxelles' }] }),
@@ -32,6 +33,8 @@ const fmtDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString
 function TradeinList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const qc = useQueryClient();
   const [partnersOpen, setPartnersOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -149,6 +152,7 @@ function TradeinList() {
       />
 
       {/* Action principale — grande cible tactile (tablette / smartphone) */}
+      {canWrite && (
       <Button
         onClick={() => navigate({ to: '/tradein/new' })}
         className="mb-6 h-auto w-full gap-3 py-4 shadow-[var(--shadow-card)] active:scale-[0.99] sm:py-5"
@@ -159,6 +163,7 @@ function TradeinList() {
           <span className="text-[17px] font-bold uppercase tracking-[0.03em] sm:text-[19px]">{t('tradein.newMoto')}</span>
         </span>
       </Button>
+      )}
 
       {/* Recherche : n° REP, client, société, véhicule */}
       <div className="relative mb-3">

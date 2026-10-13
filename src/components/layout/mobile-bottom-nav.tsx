@@ -5,6 +5,8 @@
  */
 import { Link, useRouterState } from '@tanstack/react-router';
 import { LayoutDashboard, Wrench, CreditCard, Users, Menu, type LucideIcon } from 'lucide-react';
+import { useAuth } from '@/lib/auth/auth-context';
+import { canSee } from '@/lib/auth/permissions';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -23,13 +25,16 @@ function isActivePath(pathname: string, to: string) {
 
 export function MobileBottomNav({ onMore }: { onMore: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Meme grille que la sidebar : pas de raccourci vers une page interdite.
+  const { rolesForActiveCompany } = useAuth();
+  const shown = items.filter((it) => canSee(it.to, rolesForActiveCompany));
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label={t('nav.more')}
     >
-      {items.map((it) => {
+      {shown.map((it) => {
         const active = isActivePath(pathname, it.to);
         const Icon = it.icon;
         return (

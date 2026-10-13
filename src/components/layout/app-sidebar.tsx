@@ -7,6 +7,7 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { mainNav, activeNavTo } from '@/lib/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
+import { canSee } from '@/lib/auth/permissions';
 import { countUnseenOffers } from '@/modules/tradein/partners-api';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -32,15 +33,15 @@ export function AppSidebar({
     refetchInterval: 60_000,
   });
   const badgeFor = (to: string): number => (to === '/tradein' ? unseenOffers : 0);
-  // Filtre par rôle : une entrée sans `roles` est visible par tous ; sinon il faut
-  // détenir l'un des rôles requis pour la société active.
-  const allowed = (roles?: string[]) => !roles || roles.some((r) => rolesForActiveCompany.includes(r as (typeof rolesForActiveCompany)[number]));
+  // La grille des droits (permissions.ts) fait foi : une page qu'un role ne
+  // peut pas ouvrir ne s'affiche pas dans le menu.
+  const allowed = (to: string) => canSee(to, rolesForActiveCompany);
   // Une sous-entrée hérite des droits de l'entrée parente (celle qui la précède).
   const items = mainNav.filter((item, i) => {
-    if (!item.child) return allowed(item.roles);
+    if (!item.child) return allowed(item.to);
     let p = i - 1;
     while (p >= 0 && mainNav[p].child) p--;
-    return allowed(item.roles) && (p < 0 || allowed(mainNav[p].roles));
+    return allowed(item.to) && (p < 0 || allowed(mainNav[p].to));
   });
   const activeTo = activeNavTo(pathname, items);
 

@@ -25,6 +25,7 @@ import { computeDocAvailability, AVAILABILITY_DOC_TYPES, type AvailabilityStatus
 import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { PrepareButton } from '@/modules/sales/prepare-button';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/sales/')({
   head: () => ({ meta: [{ title: 'Ventes & Facturation — Ducati Bruxelles' }] }),
@@ -88,6 +89,8 @@ function matchesAvailFilter(filter: AvailFilter, status: AvailabilityStatus | un
 function SalesList() {
   const { activeCompanyId, activeCompany } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -231,7 +234,9 @@ function SalesList() {
             <Button variant="outline" onClick={() => setPurgeOpen(true)}><Trash2 /> {t('sales.purgeQuotes')}</Button>
             {/* search explicite : la route declare un parametre facultatif, mais
                 TanStack exige quand meme l'objet. */}
-            <Button onClick={() => navigate({ to: '/sales/new', search: { contactId: undefined } })}><Plus /> {t('sales.newDoc')}</Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/sales/new', search: { contactId: undefined } })}><Plus /> {t('sales.newDoc')}</Button>
+            )}
           </div>
         }
       />

@@ -16,6 +16,7 @@ import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { formatPhone } from '@/lib/phone';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
@@ -39,6 +40,8 @@ export const Route = createFileRoute('/_app/clients/')({
 function ClientsList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -111,9 +114,11 @@ function ClientsList() {
             <Button variant="outline" onClick={() => navigate({ to: '/clients/mobiles' })}>
               <Smartphone /> {t('contacts.mobileFix.link')}
             </Button>
-            <Button onClick={() => navigate({ to: '/clients/new' })}>
-              <UserPlus /> {t('contacts.new')}
-            </Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/clients/new' })}>
+                <UserPlus /> {t('contacts.new')}
+              </Button>
+            )}
           </div>
         }
       />

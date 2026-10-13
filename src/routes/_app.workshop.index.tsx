@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/workshop/')({
   head: () => ({ meta: [{ title: 'Atelier & SAV — Ducati Bruxelles' }] }),
@@ -21,6 +22,8 @@ const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neu
 function WorkshopList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const [status, setStatus] = useState('all');
   const { data, isLoading } = useQuery({
     queryKey: ['repair-orders', activeCompanyId, status],
@@ -40,7 +43,9 @@ function WorkshopList() {
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning', search: { week: undefined } })}><CalendarDays /> {t('workshop.planning')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/maintenance-plans' })}><BookOpen /> {t('workshop.maintenancePlans')}</Button>
-            <Button onClick={() => navigate({ to: '/workshop/new', search: { contactId: undefined } })}><Plus /> {t('workshop.newOr')}</Button>
+            {canWrite && (
+              <Button onClick={() => navigate({ to: '/workshop/new', search: { contactId: undefined } })}><Plus /> {t('workshop.newOr')}</Button>
+            )}
           </div>
         }
       />

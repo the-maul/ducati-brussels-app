@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listPurchaseOrders, listSuppliers, supplierName } from '@/modules/purchases/api';
 import { t } from '@/lib/i18n';
+import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/purchases/')({
   head: () => ({ meta: [{ title: 'Achats & réceptions — Ducati Bruxelles' }] }),
@@ -19,6 +20,8 @@ const statusTone = (s: string) => (s === 'recue' ? 'success' : s === 'annulee' ?
 function PurchasesList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
+  const canWrite = useCanWrite();
   const { data, isLoading } = useQuery({ queryKey: ['purchase-orders', activeCompanyId], queryFn: () => listPurchaseOrders(activeCompanyId!), enabled: !!activeCompanyId });
   const { data: suppliers } = useQuery({ queryKey: ['suppliers-map', activeCompanyId], queryFn: () => listSuppliers(activeCompanyId!), enabled: !!activeCompanyId });
   const supName = (id: string | null) => (id ? supplierName(suppliers?.find((s) => s.id === id) ?? { company_name: null, first_name: null, last_name: null }) : '—');
@@ -34,8 +37,12 @@ function PurchasesList() {
             {/* search explicite : `highlight` est facultatif mais l'objet est exige. */}
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/reorder', search: { highlight: undefined } })}><ShoppingCart /> {t('purchases.reorderTitle')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/proposal' })}><PackageCheck /> {t('purchases.proposalBtn')}</Button>
-            <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</Button>
-            <Button onClick={() => navigate({ to: '/purchases/new', search: { docType: 'REC' } })}><Truck /> {t('purchases.newReception')}</Button>
+            {canWrite && (
+              <>
+                <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</Button>
+                <Button onClick={() => navigate({ to: '/purchases/new', search: { docType: 'REC' } })}><Truck /> {t('purchases.newReception')}</Button>
+              </>
+            )}
           </div>
         }
       />
