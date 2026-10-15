@@ -81,11 +81,25 @@
     forbidden: 'Le compte DMS connecté n’a pas le droit d’importer (administrateur requis).',
   };
 
-  async function getJson(path, delayMs) {
-    const wait = lastRequestAt + delayMs - Date.now();
-    if (wait > 0) await sleep(wait);
-    for (let attempt = 0; ; attempt++) {
+  // Cadence : une file qui ne laisse partir qu'une requete tous les delayMs. Les
+  // reponses, elles, peuvent se chevaucher : l'e-catalog met ~2 s a repondre, donc
+  // attendre la reponse precedente avant de partir laissait la ligne vide 80 % du
+  // temps. Le rythme vu par Ducati reste exactement celui du delai affiche.
+  let startGate = Promise.resolve();
+  function waitTurn(delayMs) {
+    const turn = startGate.then(async () => {
+      const wait = lastRequestAt + delayMs - Date.now();
+      if (wait > 0) await sleep(wait);
       lastRequestAt = Date.now();
+    });
+    startGate = turn.catch(() => {});
+    return turn;
+  }
+
+  async function getJson(path, delayMs) {
+    await waitTurn(delayMs);
+    for (let attempt = 0; ; attempt++) {
+      if (attempt > 0) await waitTurn(delayMs);
       requestCount++;
       let res;
       try {
@@ -167,6 +181,7 @@
     if (!(await takeLock())) { alert('Un import du catalogue tourne déjà dans un autre onglet de l’e-catalog.'); return; }
     running = true; pauseRequested = false; startHeartbeat();
     state.status = 'running'; state.lastError = null; state.errorKind = null; requestCount = state.requests || 0;
+    state.conc = C.clampConc(state.conc || concNow);
     await save();
     try {
       const hello = await dms('hello');
@@ -205,16 +220,22 @@
           if (!remaining.length) { state = C.modelYearDone(state, false); await save(); continue; }
         }
         const base = [job.familyId, job.superModelId, job.modelId, job.modelYearId].map(encodeURIComponent).join('/');
+        // Les planches sont lues par paquets de `conc` en parallele, mais conservees
+        // dans l'ordre : la reprise compte les planches envoyees, elle doit retrouver
+        // exactement la meme suite si on s'arrete au milieu.
+        const conc = C.clampConc(state.conc || concNow);
         let buf = [];
-        for (let i = 0; i < remaining.length; i++) {
-          if (pauseRequested) break;
-          const d = remaining[i];
-          const det = await getJson(API + '/drawing/drawing/1/' + base + '/' + encodeURIComponent(d.groupId) + '/' + encodeURIComponent(d.drawingId) + '?lang=' + LANG, state.delayMs);
-          buf.push(det ? slimDrawing(det, d.drawingId) : null);
-          const last = i === remaining.length - 1;
+        let done = 0;
+        for (let i = 0; i < remaining.length && !pauseRequested; i += conc) {
+          const win = remaining.slice(i, i + conc);
+          const dets = await Promise.all(win.map((d) => getJson(
+            API + '/drawing/drawing/1/' + base + '/' + encodeURIComponent(d.groupId) + '/' + encodeURIComponent(d.drawingId) + '?lang=' + LANG,
+            state.delayMs)));
+          for (let k = 0; k < win.length; k++) buf.push(dets[k] ? slimDrawing(dets[k], win[k].drawingId) : null);
+          done += win.length;
+          const last = done >= remaining.length;
           if (buf.length >= CHUNK || last) {
-            const payload = buf.filter(Boolean);
-            await dms('drawings', { batchId: state.batchId, modelYearId: job.modelYearId, drawings: payload, complete: last });
+            await dms('drawings', { batchId: state.batchId, modelYearId: job.modelYearId, drawings: buf.filter(Boolean), complete: last });
             state = C.drawingsSent(state, buf.length);
             buf = [];
             await save();
@@ -284,6 +305,7 @@
   if (OPT.minYear) sel.minYear = Math.min(2030, Math.max(1985, Math.round(Number(OPT.minYear) || 2000)));
   if (C.parseShard(OPT.shard)) sel.shard = C.parseShard(OPT.shard);
   let delaySec = OPT.delay ? Math.max(0.5, Number(OPT.delay) || 1) : 1;
+  let concNow = C.clampConc(OPT.conc);
   let treeProgress = null;
   let autoResumeTimer = null;
 
@@ -364,7 +386,7 @@
     const cur = state.current && state.current.label ? ` · ${esc(state.current.label)}` : '';
     let h = `<p><b>${labels[state.status] || state.status}</b> — ${state.cursor} / ${state.jobs.length} modèles-années${cur}</p>`
       + `<div style="height:10px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:10px;width:${pct}%;background:#cc0000"></div></div>`
-      + `<p><small>${pct} % · ${state.drawings} planches importées · ${state.skipped} modèles-années déjà complets · ${state.requests || 0} pages lues · délai ${state.delayMs / 1000} s</small></p>`;
+      + `<p><small>${pct} % · ${state.drawings} planches importées · ${state.skipped} modèles-années déjà complets · ${state.requests || 0} pages lues · délai ${state.delayMs / 1000} s${state.conc > 1 ? ' · ' + state.conc + ' planches à la fois' : ''}</small></p>`;
     if (state.lastError) h += `<p style="background:#fff4e5;border:1px solid #f0c36d;border-radius:6px;padding:8px">${esc(state.lastError)}</p>`;
     if (autoResumeTimer) h += '<p>Reprise automatique dans quelques secondes…</p>' + btn('pause', 'Ne pas reprendre');
     else if (state.status === 'running') h += btn('pause', 'Pause');
@@ -392,7 +414,7 @@
     if (a === 'launch') {
       if (!plan || !plan.jobs.length) return;
       if (!confirm(`Lancer l’import de ${plan.jobs.length} modèles-années ? Vous pourrez mettre en pause à tout moment.`)) return;
-      state = C.newState(plan, { delayMs: delaySec * 1000 });
+      state = C.newState(plan, { delayMs: delaySec * 1000, conc: concNow });
       state.selection = Object.assign({}, sel);
       await save();
       run();
@@ -463,7 +485,7 @@
     if (!t || !t.done) return;                  // la liste des modeles doit deja etre lue
     treeCache = t; rebuildPlan(); ensurePanel(); render();
     if (!plan || !plan.jobs.length) return;
-    state = C.newState(plan, { delayMs: delaySec * 1000 });
+    state = C.newState(plan, { delayMs: delaySec * 1000, conc: concNow });
     state.selection = Object.assign({}, sel);
     await save();
     const stagger = 2000 + (sel.shard ? sel.shard.i : 0) * 700;   // les onglets ne partent pas tous ensemble

@@ -241,6 +241,7 @@
       status: 'ready',                 // ready | running | paused | error | done | stopped
       batchId: null,
       delayMs: clampDelay(opts.delayMs),
+      conc: clampConc(opts.conc),
       jobs: (plan && plan.jobs) || [],
       cursor: 0,                       // index du modèle-année en cours
       current: null,                   // { modelYearId, pending: [{drawingId, groupId}], sent: n }
@@ -248,6 +249,13 @@
       lastError: null, errorKind: null,
       updatedAt: null,
     };
+  }
+
+  /** Nombre de planches lues en meme temps dans un onglet. 1 = comportement d'avant. */
+  function clampConc(n) {
+    var v = Math.round(Number(n));
+    if (!isFinite(v) || v < 1) return 1;
+    return Math.min(8, v);
   }
 
   function clampDelay(ms) {
@@ -316,7 +324,7 @@
     buildTree: buildTree, buildPlan: buildPlan,
     uniqueDrawings: uniqueDrawings, withoutKnown: withoutKnown,
     normalizeReference: normalizeReference, classifyResponse: classifyResponse,
-    newState: newState, clampDelay: clampDelay, startModelYear: startModelYear, drawingsSent: drawingsSent,
+    newState: newState, clampDelay: clampDelay, clampConc: clampConc, startModelYear: startModelYear, drawingsSent: drawingsSent,
     modelYearDone: modelYearDone, resumePoint: resumePoint, progress: progress, sanitizeState: sanitizeState,
     estimateHours: estimateHours,
   };

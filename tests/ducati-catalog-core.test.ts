@@ -177,6 +177,29 @@ describe('réponses de l’e-catalog', () => {
   });
 });
 
+describe('lectures simultanées dans un onglet', () => {
+  // L'e-catalog met ~2,5 s a repondre pour un delai regle a 0,5 s : lire une planche
+  // a la fois laissait la ligne inoccupee 80 % du temps.
+  test('le nombre de planches lues en même temps reste entre 1 et 8', () => {
+    expect(core.clampConc(4)).toBe(4);
+    expect(core.clampConc('3')).toBe(3);
+    expect(core.clampConc(undefined)).toBe(1);
+    expect(core.clampConc(null)).toBe(1);
+    expect(core.clampConc(0)).toBe(1);
+    expect(core.clampConc(-5)).toBe(1);
+    expect(core.clampConc(99)).toBe(8);
+    expect(core.clampConc('x')).toBe(1);
+  });
+
+  test('l’état retient ce réglage et survit à une fermeture du navigateur', () => {
+    const plan = core.buildPlan(tree, {});
+    const s = core.newState(plan, { delayMs: 500, conc: 4 });
+    expect(s.conc).toBe(4);
+    expect(core.sanitizeState(s).conc).toBe(4);
+    expect(core.newState(plan, { delayMs: 500 }).conc).toBe(1);
+  });
+});
+
 describe('reprise (état dans chrome.storage.local)', () => {
   const plan = core.buildPlan(tree, {});
   test('reprend au modèle-année et à la planche où on s’était arrêté', () => {
