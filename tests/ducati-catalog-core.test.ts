@@ -191,7 +191,7 @@ describe('lectures simultanées dans un onglet', () => {
     expect(core.clampConc('x')).toBe(1);
   });
 
-  test('l’état retient ce réglage et survit à une fermeture du navigateur', () => {
+  test('le réglage est retenu et survit à une fermeture du navigateur', () => {
     const plan = core.buildPlan(tree, {});
     const s = core.newState(plan, { delayMs: 500, conc: 4 });
     expect(s.conc).toBe(4);
