@@ -21,9 +21,23 @@
 
   const API = '/EPC/api/spareparts';
   const LANG = 'fr-FR';
-  const STATE_KEY = 'dmsCatalogImport';
-  const TREE_KEY = 'dmsCatalogTree';
-  const LOCK_KEY = 'dmsCatalogLock';
+  // Un import par onglet : l'onglet ouvert sur #run=usa travaille sur sa propre
+  // reprise et son propre verrou, sans ecraser celui des autres onglets. Sans
+  // #run=..., on garde les cles historiques (un seul import, comportement d'avant).
+  // Le nom du run est donne une fois dans l'URL (#run=usa) puis retenu pour
+  // l'onglet : le site est une SPA qui reecrit le hash, on ne peut pas s'y fier
+  // apres la premiere seconde. sessionStorage est propre a l'onglet.
+  const RUN = (function () {
+    let name = '';
+    try { name = sessionStorage.getItem('dmsCatalogRun') || ''; } catch (e) { name = ''; }
+    const m = /(?:^|[#&])run=([A-Za-z0-9_-]{1,16})/.exec(location.hash || '');
+    if (m) { name = m[1].toLowerCase(); try { sessionStorage.setItem('dmsCatalogRun', name); } catch (e) {} }
+    return name ? ':' + name : '';
+  })();
+  const RUN_LABEL = RUN ? RUN.slice(1) : '';
+  const STATE_KEY = 'dmsCatalogImport' + RUN;
+  const TREE_KEY = 'dmsCatalogTree';          // l'arbre est le meme pour tous les onglets
+  const LOCK_KEY = 'dmsCatalogLock' + RUN;
   const CHUNK = 10;                 // planches par envoi au DMS
   const ME = Math.random().toString(36).slice(2);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -142,7 +156,7 @@
       const complete = new Set((hello.state && hello.state.completeModelYears) || []);
       if (!state.batchId) {
         const t = await store.get(TREE_KEY);
-        state.batchId = (await dms('start', { scope: { europe: true, minYear: state.selection.minYear, excludedFamilies: state.selection.excludedFamilies, excludedModels: state.selection.excludedModels, includedModels: state.selection.includedModels, delayMs: state.delayMs, modelYears: state.jobs.length }, total: state.jobs.length })).batchId;
+        state.batchId = (await dms('start', { scope: { markets: state.selection.markets || ['EU'], minYear: state.selection.minYear, excludedFamilies: state.selection.excludedFamilies, excludedModels: state.selection.excludedModels, includedModels: state.selection.includedModels, delayMs: state.delayMs, modelYears: state.jobs.length }, total: state.jobs.length })).batchId;
         await save();
         await dms('tree', { batchId: state.batchId, tree: treeOf(t) });
       } else {
@@ -239,7 +253,15 @@
 
   // ---------------------------------------------------------------- interface (panneau flottant)
   let panel = null, plan = null, treeCache = null;
-  const sel = { minYear: 2000, excludedFamilies: [], excludedModels: [], includedModels: [] };
+  const MARKETS = [
+    { v: 'EU', label: 'Europe seulement' },
+    { v: 'USA', label: 'USA seulement' },
+    { v: 'THAILAND', label: 'Thailande seulement' },
+    { v: 'BRASIL', label: 'Bresil seulement' },
+    { v: 'ARGENTINA,AUSTRALIA,TAIWAN,CHINA,JAPAN', label: 'Autres marches' },
+    { v: '*', label: 'Tous les marches' },
+  ];
+  const sel = { minYear: 2000, markets: ['EU'], excludedFamilies: [], excludedModels: [], includedModels: [] };
   let delaySec = 1;
   let treeProgress = null;
   let autoResumeTimer = null;
@@ -258,7 +280,8 @@
   }
 
   function header() {
-    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:14px">Import du catalogue Ducati → DMS</b>' + btn('close', 'Fermer') + '</div>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:14px">Import du catalogue Ducati → DMS</b>'
+      + (RUN_LABEL ? '<span style="margin-left:8px;padding:1px 7px;border-radius:999px;background:#eee;font:600 11px system-ui">' + esc(RUN_LABEL) + '</span>' : '') + btn('close', 'Fermer') + '</div>';
   }
 
   function render() {
@@ -281,9 +304,14 @@
     const s = plan.summary;
     const hours = C.estimateHours(s.modelYearsKept, delaySec * 1000, 76, 1);
     const hoursShared = C.estimateHours(s.modelYearsKept, delaySec * 1000, 76, 4);
-    let h = `<p><b>${s.modelsKept}</b> modèles gardés (Europe, depuis ${sel.minYear}) · <b>${s.modelYearsKept}</b> modèles-années à lire.<br>`
-      + `<small>${s.modelsOutsideEurope} modèles hors Europe exclus · ${s.modelYearsBeforeMin} millésimes avant ${sel.minYear} exclus`
+    const mkNow = (sel.markets || ['EU']).join(',');
+    const mkLabel = (MARKETS.find((x) => x.v === mkNow) || { label: mkNow }).label;
+    let h = `<p><b>${s.modelsKept}</b> modèles gardés (${esc(mkLabel.toLowerCase())}, depuis ${sel.minYear}) · <b>${s.modelYearsKept}</b> modèles-années à lire.<br>`
+      + `<small>${s.modelsOutsideMarkets || 0} modèles d'autres marchés exclus · ${s.modelYearsBeforeMin} millésimes avant ${sel.minYear} exclus`
       + (s.modelYearsNoYear ? ` · ${s.modelYearsNoYear} sans année (gardés)` : '') + `</small></p>`
+      + `<p>Marchés : <select data-f="markets">`
+      + MARKETS.map((x) => `<option value="${esc(x.v)}" ${x.v === mkNow ? 'selected' : ''}>${esc(x.label)}</option>`).join('')
+      + `</select><br><small>Un onglet par marché permet de lire plusieurs marchés en parallèle (ouvrir l'onglet sur #run=usa, #run=thai…).</small></p>`
       + `<p>Millésimes depuis : <input data-f="minYear" type="number" min="1985" max="2030" step="1" value="${sel.minYear}" style="width:70px">`
       + `<br><small>Le catalogue Ducati descend jusqu'à 1990. Les millésimes déjà importés sont sautés.</small></p>`
       + `<p>Délai entre deux pages : <input data-f="delay" type="number" min="0.5" step="0.5" value="${delaySec}" style="width:60px"> s`
@@ -298,7 +326,9 @@
       h += `<details style="margin:4px 0"><summary><label><input type="checkbox" data-f="fam" data-id="${esc(fid)}" ${famOff ? '' : 'checked'}> <b>${esc(f.name)}</b></label> <small>(${kept} / ${f.models.length} modèles)</small></summary><div style="padding-left:18px">`;
       for (const m of f.models) {
         const checked = m.kept || (m.reason === 'years' && !sel.excludedModels.includes(m.id));
-        const tag = !m.isEurope ? ` <small style="color:#a15c00">hors Europe (${esc(m.market)})</small>` : m.reason === 'years' ? ' <small style="color:#666">avant ' + sel.minYear + '</small>' : '';
+        const tag = m.reason === 'market' ? ` <small style="color:#a15c00">marché ${esc(m.market)}</small>`
+          : m.reason === 'years' ? ' <small style="color:#666">avant ' + sel.minYear + '</small>'
+          : !m.isEurope ? ` <small style="color:#666">${esc(m.market)}</small>` : '';
         const years = m.years.length ? ` <small style="color:#666">${Math.min(...m.years)}–${Math.max(...m.years)}</small>` : '';
         h += `<div><label><input type="checkbox" data-f="model" data-id="${esc(m.id)}" data-eu="${m.isEurope ? 1 : 0}" ${checked ? 'checked' : ''} ${famOff ? 'disabled' : ''}> ${esc(m.description)}</label>${years}${tag}</div>`;
       }
@@ -362,6 +392,13 @@
     // Millésime le plus ancien à importer. Figé à 2000 jusqu'au 13/10/2026 ; or le catalogue
     // Ducati descend à 1990, et 123 millésimes nous manquaient de ce seul fait.
     if (f === 'minYear') sel.minYear = Math.min(2030, Math.max(1985, Math.round(Number(el.value) || 2000)));
+    // Marchés gardés. Le filtre Europe était un réglage par défaut, pas une limite :
+    // Ducati publie aussi USA, Thailande, Bresil… soit 1439 millésimes de plus.
+    if (f === 'markets') {
+      const v = String(el.value || 'EU');
+      sel.markets = v === '*' ? ['*'] : v.split(',').filter(Boolean);
+      sel.includedModels.length = 0;
+    }
     if (f === 'delayRun' && state) { state.delayMs = C.clampDelay(Number(el.value) * 1000); await save(); return; }
     if (f === 'fam') toggle(sel.excludedFamilies, id, !el.checked);
     if (f === 'model') {

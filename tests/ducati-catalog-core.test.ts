@@ -77,6 +77,32 @@ describe('arbre et plan d’import', () => {
     expect(core.buildPlan(tree, { includedModels: ['502'] }).jobs.map((j: { modelYearId: string }) => j.modelYearId)).toEqual(['9001', '9003', '9101', '9102']);
   });
 
+  // Le filtre Europe était un réglage par défaut, pas une limite du catalogue :
+  // Ducati publie 1439 millésimes de plus sur les marchés USA, Thailande, Bresil…
+  test('on peut choisir les marchés à importer', () => {
+    const only = (sel: Record<string, unknown>) =>
+      core.buildPlan(tree, { minYear: 2000, ...sel }).jobs.map((j: { modelYearId: string }) => j.modelYearId);
+    expect(only({ markets: ['USA'] })).toEqual(['9003']);
+    expect(only({ markets: ['THAILAND'] })).toEqual(['9103']);
+    expect(only({ markets: ['EU', 'USA'] })).toEqual(['9001', '9003', '9101', '9102']);
+    expect(only({ markets: ['*'] })).toEqual(['9001', '9003', '9101', '9102', '9103']);
+    expect(only({ markets: ['usa'] })).toEqual(['9003']);        // casse indifférente
+    expect(only({})).toEqual(['9001', '9101', '9102']);          // par défaut : Europe
+  });
+
+  test('le marché écarté est compté et motivé', () => {
+    const plan = core.buildPlan(tree, { minYear: 2000, markets: ['USA'] });
+    expect(plan.summary).toMatchObject({ modelsKept: 1, modelsOutsideMarkets: 4 });
+    const reasons = Object.fromEntries(plan.models.map((m: { id: string; reason: string | null }) => [m.id, m.reason]));
+    // 703 est européen : écarté par le marché choisi, avant même la question du millésime.
+    expect(reasons).toEqual({ 501: 'market', 502: null, 701: 'market', 702: 'market', 703: 'market' });
+  });
+
+  test('un modèle coché à la main passe outre le marché choisi', () => {
+    const plan = core.buildPlan(tree, { minYear: 2000, markets: ['USA'], includedModels: ['702'] });
+    expect(plan.jobs.map((j: { modelYearId: string }) => j.modelYearId)).toEqual(['9003', '9103']);
+  });
+
   test('millésime lu dans le champ year ou, à défaut, dans le code', () => {
     expect(core.yearOf({ year: 2021 })).toBe(2021);
     expect(core.yearOf({ year: '2019' })).toBe(2019);

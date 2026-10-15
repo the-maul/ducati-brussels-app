@@ -96,8 +96,10 @@
 
   /**
    * Plan d'import : liste ordonnée des modèles-années à lire, après filtre.
-   * sel = { minYear (2000), excludedFamilies: [ids], excludedModels: [ids], includedModels: [ids] }
-   *  - un modèle hors Europe est exclu sauf s'il est dans includedModels ;
+   * sel = { minYear (2000), markets: ['EU'], excludedFamilies: [ids], excludedModels: [ids], includedModels: [ids] }
+   *  - markets liste les marchés gardés ; ['*'] prend tout le catalogue, tous marchés
+   *    confondus. Par défaut ['EU'], le comportement historique.
+   *  - un modèle d'un marché non gardé est exclu sauf s'il est dans includedModels ;
    *  - un modèle d'excludedModels ou d'une famille d'excludedFamilies est exclu ;
    *  - un millésime < minYear est toujours exclu ; un millésime inconnu est gardé (signalé).
    * Renvoie { jobs, models, summary }.
@@ -106,8 +108,11 @@
     sel = sel || {};
     var minYear = sel.minYear == null ? 2000 : sel.minYear;
     var exFam = toSet(sel.excludedFamilies), exMod = toSet(sel.excludedModels), inMod = toSet(sel.includedModels);
+    var mkList = (sel.markets && sel.markets.length) ? sel.markets : ['EU'];
+    var allMarkets = mkList.indexOf('*') >= 0;
+    var mk = toSet(mkList.map(function (x) { return String(x).toUpperCase(); }));
     var jobs = [], models = [];
-    var summary = { families: 0, models: 0, modelsKept: 0, modelsOutsideEurope: 0, modelsUnchecked: 0,
+    var summary = { families: 0, models: 0, modelsKept: 0, modelsOutsideEurope: 0, modelsOutsideMarkets: 0, modelsUnchecked: 0,
                     modelYears: 0, modelYearsKept: 0, modelYearsBeforeMin: 0, modelYearsNoYear: 0 };
     ((tree && tree.families) || []).forEach(function (f) {
       summary.families++;
@@ -115,20 +120,22 @@
         (s.models || []).forEach(function (m) {
           summary.models++;
           var europe = m.isEurope !== undefined ? !!m.isEurope : isEuropeModel(m.description);
+          var market = m.market || marketOf(m.description);
           var reason = null;
           if (exFam.has(f.id)) reason = 'family';
           else if (exMod.has(m.id)) reason = 'unchecked';
-          else if (!europe && !inMod.has(m.id)) reason = 'market';
+          else if (!allMarkets && !mk.has(String(market).toUpperCase()) && !inMod.has(m.id)) reason = 'market';
           var years = (m.modelYears || []).map(function (y) { return { y: y, year: y.year != null ? y.year : yearOf(y) }; });
           var keptYears = years.filter(function (x) { return x.year == null || x.year >= minYear; });
           summary.modelYears += years.length;
           summary.modelYearsBeforeMin += years.length - keptYears.length;
           if (!europe) summary.modelsOutsideEurope++;
+          if (reason === 'market') summary.modelsOutsideMarkets++;
           if (reason === 'unchecked') summary.modelsUnchecked++;
           var kept = !reason && keptYears.length > 0;
           if (!reason && keptYears.length === 0) reason = 'years';
           models.push({ familyId: f.id, family: f.description, superModelId: s.id, superModel: s.description,
-                        id: m.id, description: m.description, market: m.market || marketOf(m.description),
+                        id: m.id, description: m.description, market: market,
                         isEurope: europe, kept: kept, reason: reason,
                         years: keptYears.map(function (x) { return x.year; }).filter(function (y) { return y != null; }) });
           if (!kept) return;
