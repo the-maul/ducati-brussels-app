@@ -104,6 +104,16 @@
    *  - un millésime < minYear est toujours exclu ; un millésime inconnu est gardé (signalé).
    * Renvoie { jobs, models, summary }.
    */
+  /** Tranche de travail : { i, n } ou '3/10'. Renvoie null si ce n'est pas un partage valide. */
+  function parseShard(v) {
+    if (v == null || v === '') return null;
+    var i, n;
+    if (typeof v === 'string') { var m = /^(\d+)\s*\/\s*(\d+)$/.exec(v.trim()); if (!m) return null; i = +m[1]; n = +m[2]; }
+    else { i = Math.round(Number(v.i)); n = Math.round(Number(v.n)); }
+    if (!isFinite(i) || !isFinite(n) || n < 1 || n > 64 || i < 0 || i >= n) return null;
+    return { i: i, n: n };
+  }
+
   function buildPlan(tree, sel) {
     sel = sel || {};
     var minYear = sel.minYear == null ? 2000 : sel.minYear;
@@ -149,6 +159,15 @@
         });
       });
     });
+    // Partage en tranches : sel.shard = { i: 0, n: 10 } ne garde qu'un modele-annee
+    // sur dix. Dix onglets avec i = 0..9 lisent le catalogue en parallele sans
+    // jamais se recouvrir, et chacun garde sa propre reprise.
+    var sh = parseShard(sel.shard);
+    if (sh) {
+      jobs = jobs.filter(function (j, idx) { return idx % sh.n === sh.i; });
+      summary.shard = sh;
+      summary.modelYearsKept = jobs.length;
+    }
     return { jobs: jobs, models: models, summary: summary };
   }
 
@@ -293,7 +312,7 @@
 
   var api = {
     NON_EU_MARKETS: NON_EU_MARKETS, DEFAULT_DELAY_MS: DEFAULT_DELAY_MS, MIN_DELAY_MS: MIN_DELAY_MS,
-    marketOf: marketOf, isEuropeModel: isEuropeModel, yearOf: yearOf,
+    marketOf: marketOf, isEuropeModel: isEuropeModel, yearOf: yearOf, parseShard: parseShard,
     buildTree: buildTree, buildPlan: buildPlan,
     uniqueDrawings: uniqueDrawings, withoutKnown: withoutKnown,
     normalizeReference: normalizeReference, classifyResponse: classifyResponse,

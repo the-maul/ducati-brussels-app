@@ -103,6 +103,29 @@ describe('arbre et plan d’import', () => {
     expect(plan.jobs.map((j: { modelYearId: string }) => j.modelYearId)).toEqual(['9003', '9103']);
   });
 
+  // Dix onglets en parallèle : chacun prend une tranche, sans recouvrement.
+  test('le partage en tranches découpe le plan sans perte ni doublon', () => {
+    const all = core.buildPlan(tree, { minYear: 2000, markets: ['*'] }).jobs.map((j: { modelYearId: string }) => j.modelYearId);
+    const union: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const part = core.buildPlan(tree, { minYear: 2000, markets: ['*'], shard: { i, n: 3 } });
+      expect(part.summary.modelYearsKept).toBe(part.jobs.length);
+      union.push(...part.jobs.map((j: { modelYearId: string }) => j.modelYearId));
+    }
+    expect(union.sort()).toEqual([...all].sort());
+    expect(new Set(union).size).toBe(all.length);
+  });
+
+  test('tranche écrite « 3/10 » ou rejetée si absurde', () => {
+    expect(core.parseShard('3/10')).toEqual({ i: 3, n: 10 });
+    expect(core.parseShard({ i: 0, n: 1 })).toEqual({ i: 0, n: 1 });
+    for (const bad of ['', null, undefined, '10/10', '-1/4', '1/0', '1/65', 'x/3', {}]) {
+      expect(core.parseShard(bad)).toBe(null);
+    }
+    // une tranche invalide ne filtre rien du tout, plutôt que de vider le plan
+    expect(core.buildPlan(tree, { minYear: 2000, shard: '9/3' }).jobs.length).toBe(3);
+  });
+
   test('millésime lu dans le champ year ou, à défaut, dans le code', () => {
     expect(core.yearOf({ year: 2021 })).toBe(2021);
     expect(core.yearOf({ year: '2019' })).toBe(2019);

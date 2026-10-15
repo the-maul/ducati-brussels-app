@@ -27,12 +27,30 @@
   // Le nom du run est donne une fois dans l'URL (#run=usa) puis retenu pour
   // l'onglet : le site est une SPA qui reecrit le hash, on ne peut pas s'y fier
   // apres la premiere seconde. sessionStorage est propre a l'onglet.
+  // Reglages donnes une fois dans l'URL, par exemple
+  //   #run=s3&shard=3/10&markets=*&minYear=1985&delay=1&auto=1
+  // puis retenus pour l'onglet : le site est une SPA qui reecrit le hash, on ne
+  // peut pas s'y fier apres la premiere seconde. sessionStorage est par onglet.
+  const OPT = (function () {
+    let saved = {};
+    try { saved = JSON.parse(sessionStorage.getItem('dmsCatalogOpt') || '{}') || {}; } catch (e) { saved = {}; }
+    const h = String(location.hash || '').replace(/^#/, '');
+    if (h) {
+      const got = {};
+      h.split('&').forEach(function (kv) {
+        const i = kv.indexOf('=');
+        if (i > 0) got[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+      });
+      if (Object.keys(got).length) {
+        saved = got;
+        try { sessionStorage.setItem('dmsCatalogOpt', JSON.stringify(got)); } catch (e) {}
+      }
+    }
+    return saved;
+  })();
   const RUN = (function () {
-    let name = '';
-    try { name = sessionStorage.getItem('dmsCatalogRun') || ''; } catch (e) { name = ''; }
-    const m = /(?:^|[#&])run=([A-Za-z0-9_-]{1,16})/.exec(location.hash || '');
-    if (m) { name = m[1].toLowerCase(); try { sessionStorage.setItem('dmsCatalogRun', name); } catch (e) {} }
-    return name ? ':' + name : '';
+    const m = /^[A-Za-z0-9_-]{1,16}$/.exec(String(OPT.run || ''));
+    return m ? ':' + m[0].toLowerCase() : '';
   })();
   const RUN_LABEL = RUN ? RUN.slice(1) : '';
   const STATE_KEY = 'dmsCatalogImport' + RUN;
@@ -156,7 +174,7 @@
       const complete = new Set((hello.state && hello.state.completeModelYears) || []);
       if (!state.batchId) {
         const t = await store.get(TREE_KEY);
-        state.batchId = (await dms('start', { scope: { markets: state.selection.markets || ['EU'], minYear: state.selection.minYear, excludedFamilies: state.selection.excludedFamilies, excludedModels: state.selection.excludedModels, includedModels: state.selection.includedModels, delayMs: state.delayMs, modelYears: state.jobs.length }, total: state.jobs.length })).batchId;
+        state.batchId = (await dms('start', { scope: { markets: state.selection.markets || ['EU'], shard: state.selection.shard || null, minYear: state.selection.minYear, excludedFamilies: state.selection.excludedFamilies, excludedModels: state.selection.excludedModels, includedModels: state.selection.includedModels, delayMs: state.delayMs, modelYears: state.jobs.length }, total: state.jobs.length })).batchId;
         await save();
         await dms('tree', { batchId: state.batchId, tree: treeOf(t) });
       } else {
@@ -262,7 +280,10 @@
     { v: '*', label: 'Tous les marches' },
   ];
   const sel = { minYear: 2000, markets: ['EU'], excludedFamilies: [], excludedModels: [], includedModels: [] };
-  let delaySec = 1;
+  if (OPT.markets) sel.markets = OPT.markets === '*' ? ['*'] : OPT.markets.split(',').filter(Boolean);
+  if (OPT.minYear) sel.minYear = Math.min(2030, Math.max(1985, Math.round(Number(OPT.minYear) || 2000)));
+  if (C.parseShard(OPT.shard)) sel.shard = C.parseShard(OPT.shard);
+  let delaySec = OPT.delay ? Math.max(0.5, Number(OPT.delay) || 1) : 1;
   let treeProgress = null;
   let autoResumeTimer = null;
 
@@ -426,11 +447,26 @@
 
   (async () => {
     const s = await store.get(STATE_KEY);
-    if (!s || s.status !== 'running') return;
-    const l = await store.get(LOCK_KEY);
-    if (l && Date.now() - l.at < 20000) return; // un autre onglet s'en occupe
-    state = s; ensurePanel();
-    autoResumeTimer = setTimeout(() => { autoResumeTimer = null; run(); }, 8000);
-    render();
+    if (s && s.status === 'running') {
+      const l = await store.get(LOCK_KEY);
+      if (l && Date.now() - l.at < 20000) return; // un autre onglet s'en occupe
+      state = s; ensurePanel();
+      autoResumeTimer = setTimeout(() => { autoResumeTimer = null; run(); }, 8000);
+      render();
+      return;
+    }
+    // Demarrage automatique (#auto=1), pour ouvrir dix onglets d'un coup sans
+    // regler chaque panneau a la main. Jamais si cet onglet a deja un import en
+    // cours, en pause ou arrete : sa reprise passe avant.
+    if (!OPT.auto || s) return;
+    const t = await store.get(TREE_KEY);
+    if (!t || !t.done) return;                  // la liste des modeles doit deja etre lue
+    treeCache = t; rebuildPlan(); ensurePanel(); render();
+    if (!plan || !plan.jobs.length) return;
+    state = C.newState(plan, { delayMs: delaySec * 1000 });
+    state.selection = Object.assign({}, sel);
+    await save();
+    const stagger = 2000 + (sel.shard ? sel.shard.i : 0) * 700;   // les onglets ne partent pas tous ensemble
+    autoResumeTimer = setTimeout(() => { autoResumeTimer = null; run(); }, stagger);
   })();
 })();
