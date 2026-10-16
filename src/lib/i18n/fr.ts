@@ -4177,7 +4177,7 @@ export const fr = {
     ducatiNone: 'Aucune information catalogue Ducati pour cette référence.',
     // Le message est CALCULÉ : il disparaît de lui-même dès qu'un lien catalogue
     // existe. Pas de marqueur enregistré, donc jamais de mention qui traîne.
-    ducatiNoneWhy: 'Cette référence n’existe pas dans le catalogue en ligne : pièce ancienne (modèle d’avant 2000) ou pièce hors vues éclatées.',
+    ducatiNoneWhy: 'Cette référence n’est sur aucune vue éclatée du catalogue Ducati : pièce retirée de la publication, imprimé (manuel, documentation) ou code de projet interne. Le catalogue a été lu en entier, tous marchés et tous millésimes depuis 1985.',
     ducatiNoneWhat: 'Vous pouvez compléter le libellé sur la fiche et déposer une photo ou une notice dans l’onglet Photos / documents.',
     ducatiLinkLabel: 'Relier à une référence Ducati',
     ducatiLinkPlaceholder: 'Référence Ducati',
