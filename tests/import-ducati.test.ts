@@ -22,7 +22,13 @@ test('mapping auto des colonnes du tarif Ducati', () => {
   expect(m.pack_qty).toBe(3);         // Nombre colis
   expect(m.category_path).toBe(5);    // Hiérarchie des produits
   expect(m.replacement_ref).toBe(6);  // Remplacement
-  expect(m.ppc_ttc).toBe(7);          // Prix au détail → PPC
+  // « Prix au détail » est un prix HORS TVA, pas TTC : vérifié le 19/10/2026 contre le
+  // catalogue en ligne — la référence 61811791B vaut 73,86 dans le fichier, et le
+  // catalogue donne 73,86 HT pour 89,37 TTC. Le test affirmait l'inverse.
+  expect(m.ppc_ht).toBe(7);
+  expect(m.ppc_ttc).toBeUndefined();
+  expect(m.discount_group).toBe(4);   // Classe de remise
+  expect(m.supply_status).toBe(2);    // État (E = courant, F = fin de série)
   expect(m.sale_price_ttc).toBeUndefined(); // pas de PV direct dans ce tarif
   expect(m.purchase_price).toBeUndefined();
 });
@@ -62,7 +68,7 @@ test('buildRows : ligne Ducati complète (remplacement + PPC)', () => {
   expect(rows[0].pack_qty).toBe(10);
   expect(rows[0].category_path).toBe('R11');
   expect(rows[0].replacement_ref).toBe('88641161A');
-  expect(rows[0].ppc_ttc).toBe(0.15);
+  expect(rows[0].ppc_ht).toBe(0.15);
 });
 
 const existing = (over: Partial<ExistingArticle> = {}): ExistingArticle => ({
@@ -165,7 +171,7 @@ test('diff complet Ducati : création en librairie avec PPC, pack et hiérarchie
   );
   const d = buildDiff(rows, new Map());
   expect(d[0].action).toBe('create');
-  expect(d[0].patch.ppc_ttc).toBe(250);
+  expect(d[0].patch.ppc_ht).toBe(250);   // le tarif Ducati est en HT (voir le test de mapping)
   expect(d[0].patch.pack_qty).toBe(1);
   expect(d[0].patch.category_path).toBe('R11');
   expect(d[0].patch.is_library).toBe(true);

@@ -15,6 +15,9 @@ export const IMPORT_FIELDS = [
   'coefficient', 'vat_rate', 'bin_location', 'pack_qty', 'color', 'size',
   'year_from', 'year_to',
   'replacement_ref',
+  // Tarifs constructeur Ducati : classe de remise (sert au prix d'achat) et etat
+  // du materiel (E = courant, F = fin de serie).
+  'discount_group', 'supply_status',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
@@ -114,13 +117,52 @@ const MATCHERS: [ImportField, RegExp][] = [
   ['purchase_price', /(prix.*achat|^pa.?ht|^pa$|^achat)/],
   ['sale_price_ttc', /(prix.*vente|pv.?ttc|^pv$|prix.?t\.?t\.?c|public|tarif)/],
   ['coefficient', /coef/],
+  ['discount_group', /(classe.*remise|discount.?group|^remise$)/],
+  ['supply_status', /(^etat$|^statut$|^status$)/],
   ['category_path', /(^rayon$|categorie|famille|hierarchie)/],
   ['reference', /(^ref|reference|code.?article|^article$|^materiel$|^material)/],
   ['designation', /(designation|libelle|description|nom)/],
 ];
 
+const norm0 = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+/**
+ * Tarif constructeur Ducati (PARTS / ACCESSORIES / APPAREL ListPrice) : colonnes
+ * fixes et connues. On le reconnait pour ne pas dependre des matchers generiques,
+ * qui rangeaient « Prix au detail » dans le PPC TTC alors que ce tarif est en HT
+ * (verifie contre le catalogue en ligne : 73,86 HT pour 89,37 TTC sur 61811791B).
+ */
+export function isDucatiTariff(headers: string[]): boolean {
+  const n = headers.map(norm0);
+  return n.includes('materiel') && n.includes('classe de remise') && n.includes('remplacement');
+}
+
+const DUCATI_COLUMNS: [ImportField, string][] = [
+  ['reference', 'materiel'],
+  ['designation', 'description materiel'],
+  ['supply_status', 'etat'],
+  ['pack_qty', 'nombre colis'],
+  ['discount_group', 'classe de remise'],
+  ['category_path', 'hierarchie des produits'],
+  ['replacement_ref', 'remplacement'],
+  ['ppc_ht', 'prix au detail'],
+];
+
 /** Devine un mapping par défaut à partir des libellés de colonnes. */
 export function guessMapping(headers: string[]): ColumnMapping {
+  if (isDucatiTariff(headers)) {
+    const n = headers.map(norm0);
+    const m: ColumnMapping = {};
+    for (const [field, label] of DUCATI_COLUMNS) {
+      const i = n.indexOf(label);
+      if (i >= 0) m[field] = i;
+    }
+    return m;
+  }
+  return guessMappingGeneric(headers);
+}
+
+function guessMappingGeneric(headers: string[]): ColumnMapping {
   const m: ColumnMapping = {};
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   headers.forEach((h, i) => {
@@ -169,6 +211,8 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     coefficient: parseNum(at(row, 'coefficient')),
     vat_rate: parseNum(at(row, 'vat_rate')),
     bin_location: txt(row, 'bin_location'),
+    discount_group: txt(row, 'discount_group'),
+    supply_status: txt(row, 'supply_status'),
     pack_qty: parseNum(at(row, 'pack_qty')),
     color: txt(row, 'color'),
     size: txt(row, 'size'),

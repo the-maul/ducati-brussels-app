@@ -39,6 +39,10 @@ export type ImportRow = {
   year_to?: number | null;
   /** Réf. de REMPLACEMENT (colonne « Remplacement » Ducati/G8) : la nouvelle réf qui remplace celle-ci. */
   replacement_ref?: string | null;
+  /** Classe de remise constructeur (A…E, P, R, S) : base du prix d'achat. */
+  discount_group?: string | null;
+  /** État du matériel au tarif : E = courant, F = fin de série. */
+  supply_status?: string | null;
   rowIndex: number; // ligne source (pour le rapport)
 };
 

@@ -422,6 +422,8 @@ export const fr = {
     weightVolumeLength: 'Poids / Volume / Longueur',
     measureUnit: 'Unité',
     salePriceHt: 'PV HT',
+    discountGroup: 'Classe de remise',
+    supplyStatus: 'Etat au tarif',
     ppcHt: 'P.P.C. HT',
     ppcTtc: 'P.P.C. TTC',
     priceLockPurchase: 'Prix d\'achat bloqué',

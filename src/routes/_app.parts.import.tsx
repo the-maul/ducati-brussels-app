@@ -51,6 +51,8 @@ const FIELD_LABELS: Record<ImportField, string> = {
   barcode: 'Code-barres',
   purchase_price: t('articles.purchasePrice'),
   sale_price_ttc: t('articles.salePriceTtc'),
+  discount_group: t('articles.discountGroup'),
+  supply_status: t('articles.supplyStatus'),
   ppc_ht: t('articles.ppcHt'),
   ppc_ttc: t('articles.ppcTtc'),
   coefficient: t('articles.coefficient'),
