@@ -15,6 +15,20 @@ const DUCATI_HEADERS = [
   'Poids net', 'Unité de mesure', 'Code Intrastat',
 ];
 
+// Le tarif constructeur ne donne que du HT ; le DMS et les regles de prix raisonnent
+// en TTC. Le TTC est donc deduit, et verifie contre le catalogue en ligne.
+test('un tarif en HT seul produit quand meme son PPC TTC', () => {
+  const ligne = (ht: string) => buildRows(
+    { headers: DUCATI_HEADERS, rows: [['X', 'PIECE', 'E', '1', 'C', 'R11', '', ht, 'EUR', '1', 'KG', '']] },
+    guessMapping(DUCATI_HEADERS),
+  )[0];
+  expect(ligne('73,86').ppc_ht).toBe(73.86);
+  expect(ligne('73,86').ppc_ttc).toBe(89.37);   // catalogue : 73,86 HT / 89,37 TTC
+  expect(ligne('15,61').ppc_ttc).toBe(18.89);
+  expect(ligne('101,29').ppc_ttc).toBe(122.56);
+  expect(ligne('2,42').ppc_ttc).toBe(2.93);
+});
+
 test('mapping auto des colonnes du tarif Ducati', () => {
   const m = guessMapping(DUCATI_HEADERS);
   expect(m.reference).toBe(0);        // Matériel

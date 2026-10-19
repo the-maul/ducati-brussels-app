@@ -175,7 +175,15 @@ function guessMappingGeneric(headers: string[]): ColumnMapping {
   return m;
 }
 
-export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[] {
+/**
+ * Taux de TVA par defaut pour deduire un PPC TTC d'un tarif donne en HT.
+ * Les tarifs constructeur Ducati sont en HT ; le DMS, les fiches et les regles de
+ * prix raisonnent en TTC. Verifie sur le catalogue en ligne : 73,86 x 1,21 = 89,37,
+ * 15,61 x 1,21 = 18,89, 101,29 x 1,21 = 122,56, 2,42 x 1,21 = 2,93.
+ */
+export const DEFAULT_VAT_RATE = 21;
+
+export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping, vatRate = DEFAULT_VAT_RATE): ImportRow[] {
   const at = (row: string[], field: ImportField) => {
     const idx = mapping[field];
     return idx != null ? row[idx] : undefined;
@@ -183,6 +191,12 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
   const txt = (row: string[], field: ImportField) => {
     const v = at(row, field);
     return v == null || v.trim() === '' ? null : v.trim();
+  };
+  const ppcTtc = (ttc: number | null, ht: number | null, rowVat: number | null, fallbackVat: number) => {
+    if (ttc != null && ttc > 0) return ttc;
+    if (ht == null || !(ht > 0)) return ttc;
+    const taux = rowVat != null && rowVat > 0 ? rowVat : fallbackVat;
+    return Math.round(ht * (1 + taux / 100) * 100) / 100;
   };
   return parsed.rows.map((row, i) => {
     // Année : la colonne « Du » peut contenir une plage (« 2020-2023 ») ;
@@ -207,7 +221,9 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping): ImportRow[
     purchase_price: parseNum(at(row, 'purchase_price')),
     sale_price_ttc: parseNum(at(row, 'sale_price_ttc')),
     ppc_ht: parseNum(at(row, 'ppc_ht')),
-    ppc_ttc: parseNum(at(row, 'ppc_ttc')),
+    // Un tarif en HT seul (cas Ducati) donne quand meme son TTC : sans lui, les
+    // regles de prix, qui travaillent en TTC, ne s'appliqueraient a rien.
+    ppc_ttc: ppcTtc(parseNum(at(row, 'ppc_ttc')), parseNum(at(row, 'ppc_ht')), parseNum(at(row, 'vat_rate')), vatRate),
     coefficient: parseNum(at(row, 'coefficient')),
     vat_rate: parseNum(at(row, 'vat_rate')),
     bin_location: txt(row, 'bin_location'),
