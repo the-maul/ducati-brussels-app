@@ -300,12 +300,39 @@ export function summarize(diff: DiffResult[]): DiffSummary {
 // ─── Règles PV / PPC (Prix Public Conseillé) ─────────────────────────────────
 
 /** Règle de calcul du PV depuis le PPC (table ppc_price_rules). */
+/**
+ * Arrondi applique APRES le pourcentage (l'ordre decide par le client le
+ * 19/10/2026 : « 6 % puis arrondi »). Toujours vers le HAUT : on n'arrondit
+ * jamais un prix de vente a la baisse sans le vouloir.
+ */
+export type RoundMode = 'none' | 'ceil_0_1' | 'ceil_0_5' | 'ceil_1' | 'ceil_5' | 'ceil_10' | 'end_99';
+
+const STEPS: Record<string, number> = { ceil_0_1: 0.1, ceil_0_5: 0.5, ceil_1: 1, ceil_5: 5, ceil_10: 10 };
+
+/** Arrondit un prix vers le haut selon le mode. Un prix nul ou negatif est rendu tel quel. */
+export function roundUpPrice(value: number, mode: RoundMode | null | undefined): number {
+  if (!(value > 0) || !mode || mode === 'none') return round2(value);
+  if (mode === 'end_99') {
+    // Prix psychologique : le premier x,99 >= valeur (12,00 -> 12,99 ; 12,99 -> 12,99).
+    const base = Math.floor(round2(value));
+    const cand = round2(base + 0.99);
+    return cand >= round2(value) ? cand : round2(base + 1.99);
+  }
+  const step = STEPS[mode];
+  if (!step) return round2(value);
+  // On travaille en centimes pour eviter les surprises du flottant (1,15 / 0,05).
+  const cents = Math.round(value * 100);
+  const stepCents = Math.round(step * 100);
+  return round2((Math.ceil(cents / stepCents) * stepCents) / 100);
+}
+
 export type PpcRule = {
   id?: string;
   supplier_name: string | null;
   category_path: string | null;
   brand: string | null;
   pct: number; // % PV/PPC : PV TTC = PPC TTC × (1 + pct/100)
+  round_mode?: RoundMode | null; // arrondi applique apres le pourcentage
   is_active?: boolean;
 };
 
@@ -353,7 +380,7 @@ export function applyPpcRules(rows: ImportRow[], rules: PpcRule[]): number {
     if (row.ppc_ttc == null || !(row.ppc_ttc > 0)) continue;
     const rule = rules.length ? resolvePpcRule(row, rules) : null;
     if (rule) {
-      row.sale_price_ttc = round2(row.ppc_ttc * (1 + rule.pct / 100));
+      row.sale_price_ttc = roundUpPrice(row.ppc_ttc * (1 + rule.pct / 100), rule.round_mode);
       n++;
     } else if (row.sale_price_ttc == null) {
       row.sale_price_ttc = round2(row.ppc_ttc);
