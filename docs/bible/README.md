@@ -38,6 +38,7 @@ chaque chapitre. Rechercher un sujet : `grep -ril "<mot>" docs/bible/modules`.
 | [M12 Compta](modules/M12-compta.md) | 🟡 | Journaux, registre TVA, Winbooks, Peppol, SEPA |
 | [M13 Reporting](modules/M13-reporting.md) | ✅ | Tableau de bord, CA, marges, productivité |
 | [M14 Migration G8](modules/M14-migration-g8.md) | 🟦 | Reprise des données de G8, dont le stock réel (inventaire) |
+| [TRANSVERSE Imports de données](modules/TRANSVERSE-imports-donnees.md) | 🟦 | D'où vient chaque donnée, ce qui est complet, ce qui manque : G8, catalogue, tarifs, PDF |
 
 Légende : ✅ utilisable · 🟦 cœur fait, finitions · 🟡 attend une clé ou une décision · 🔴 cassé en production.
 
