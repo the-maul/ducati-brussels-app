@@ -16,7 +16,10 @@ import pdfplumber
 
 REF = "ujmrosbgkvgvwfnuryna"; BASE = f"https://{REF}.supabase.co/rest/v1"
 SVC = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+# Dossier des PDF. Par defaut le « Info DB » a cote du depot ; --dir pour le dire
+# explicitement (chez Simon : C:\Users\simon\Desktop\ducati\Ducati\Info DB).
 INFO = os.path.join(os.path.dirname(__file__), "..", "..", "Info DB")
+if "--dir" in sys.argv: INFO = sys.argv[sys.argv.index("--dir") + 1]
 if not SVC: sys.exit("SUPABASE_SERVICE_ROLE_KEY manquant")
 
 # Colonnes par position x (calées sur les FACTURE 26xxxxxx.pdf)
