@@ -26,7 +26,6 @@ import {
   Wallet,
   type LucideIcon,
   Globe,
-  GitMerge,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -48,8 +47,11 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
   // Un seul catalogue (décision M-25) : les articles du DMS. Les vues éclatées Ducati s'ouvrent depuis la fiche
-  // article ou la fiche moto ; l'outil « Rapprochements » (liens, articles manquants, produits du site) reste ici.
-  { labelKey: 'nav.partsLinks', to: '/parts/links', icon: GitMerge, child: true },
+  // article ou la fiche moto.
+  // « Rapprochements » a quitté le menu principal le 28/10/2026 : la file est tombée à 8 cas sur
+  // 145 232 liens, le travail quotidien n'existe plus. L'outil vit dans Paramètres, où une pastille
+  // signale les cas en attente. Il porte aussi les liens Shopify et la création des articles manquants,
+  // c'est pourquoi on ne le supprime pas.
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
   { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },

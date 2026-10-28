@@ -118,15 +118,19 @@ describe('aperçu « créer les articles manquants »', () => {
   });
 });
 
-describe('menu : un seul catalogue, Rapprochements comme outil', () => {
-  test('ni « Catalogue Ducati » ni « Produits Shopify » dans le menu ; Rapprochements sous Pièces & Accessoires', () => {
-    const i = mainNav.findIndex((n) => n.to === '/parts');
+describe('menu : un seul catalogue, Rapprochements rangé dans Paramètres', () => {
+  test('ni « Catalogue Ducati » ni « Produits Shopify » dans le menu', () => {
     expect(mainNav.some((n) => n.to === '/parts/catalog' || n.to === '/parts/shopify')).toBe(false);
-    expect(mainNav[i + 1].to).toBe('/parts/links');
-    expect(mainNav[i + 1].child).toBe(true);
   });
-  test("l'entrée la plus précise est active", () => {
-    expect(activeNavTo('/parts/links', mainNav)).toBe('/parts/links');
+
+  // Sorti du menu principal le 28/10/2026 : la file est tombée à 8 cas sur 145 232 liens,
+  // le travail quotidien n'existe plus. L'outil reste accessible par Paramètres.
+  test('Rapprochements ne figure plus dans le menu principal', () => {
+    expect(mainNav.some((n) => n.to === '/parts/links')).toBe(false);
+  });
+
+  test("l'entrée la plus précise reste active", () => {
+    expect(activeNavTo('/parts/links', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/shopify', mainNav)).toBe('/parts');
     expect(activeNavTo('/parts/abc', mainNav)).toBe('/parts');
   });

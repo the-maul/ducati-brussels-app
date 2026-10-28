@@ -2595,6 +2595,7 @@ export const fr = {
     numbering: 'Numérotation des documents',
     numberingDesc: 'Préfixes et formats des séquences (factures, OR, devis…).',
     commentsTitle: 'Commentaires types', commentsDesc: 'Textes enregistrés à rappeler dans un devis, un bon de commande ou une facture.',
+    links: 'Rapprochements', linksDesc: 'Liens entre les articles du DMS, le catalogue Ducati et le site — et les rares cas à trancher à la main.',
     companies: 'Sociétés', companiesDesc: 'Entités juridiques (TVA, adresse, IBAN, Peppol, comptes) — multi-société.',
     kioskTitle: 'Borne d’inscription',
     kioskDesc: 'Lancer la borne du comptoir sur une tablette, son adresse et son QR code, le guide de verrouillage.',
