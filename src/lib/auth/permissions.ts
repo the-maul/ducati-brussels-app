@@ -56,7 +56,34 @@ export const PAGE_RULES: PageRule[] = [
   { to: '/accounting', write: ['comptable'], read: [] },
   { to: '/settings', write: [], read: [] },
   { to: '/demo', write: [], read: [] },
+
+  // Écrans dont l'adresse ne commence PAS par celle de leur rubrique. Sans
+  // ligne ici, ils seraient « hors grille », donc ouverts à tout le monde
+  // (vérification du 30/10/2026 contre le scan signé) : ils prennent les
+  // droits de la rubrique d'où on les ouvre. Un test vérifie l'égalité.
+  // Comptabilité → clôture d'exercice et virements SEPA.
+  { to: '/accounting-closure', write: ['comptable'], read: [] },
+  { to: '/accounting-sepa', write: ['comptable'], read: [] },
+  // Contacts → tarifs clients.
+  { to: '/client-pricing', write: ['vendeur', 'chef_atelier', 'marketing'], read: ['magasinier', 'mecanicien', 'comptable'] },
+  // Reprises motos clients → dépôt-vente.
+  { to: '/consignment', write: ['vendeur'], read: ['chef_atelier', 'comptable'] },
+  // Picking list → liste de préparation sur tablette.
+  { to: '/preparation', write: ['vendeur', 'magasinier', 'mecanicien', 'chef_atelier'], read: [] },
 ];
+
+/**
+ * Écran → rubrique du document signé, pour les adresses qui ne partagent pas
+ * son préfixe. Sert au test : chaque alias doit donner exactement les mêmes
+ * droits que sa rubrique, rôle par rôle.
+ */
+export const PAGE_ALIASES: Record<string, string> = {
+  '/accounting-closure': '/accounting',
+  '/accounting-sepa': '/accounting',
+  '/client-pricing': '/clients',
+  '/consignment': '/tradein',
+  '/preparation': '/picking',
+};
 
 /** La règle qui gouverne un chemin : le préfixe le plus long qui corresponde. */
 export function ruleFor(path: string): PageRule | null {
