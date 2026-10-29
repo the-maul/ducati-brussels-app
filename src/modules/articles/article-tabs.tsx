@@ -14,7 +14,7 @@ import {
   listBarcodes, addBarcodeRow, deleteBarcode, listKitItems, addKitItem, deleteKitItem,
   setReplacement, searchArticlesLite,
 } from './subobjects-api';
-import { getArticle, listPredecessorArticles } from './api';
+import { getArticle, listPredecessorArticles, getReplacementChain } from './api';
 import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
@@ -156,6 +156,7 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
       )}
+      <ReplacementChain articleId={articleId} companyId={companyId} />
       <div className="space-y-2 border-t border-border pt-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.predecessorsTitle')}</p>
         {predecessors && predecessors.length > 0 ? (
@@ -175,6 +176,54 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
         ) : (
           <p className="text-sm text-muted-foreground">{t('articles.noPredecessors')}</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Historique des références, comme le catalogue Ducati l'affiche : chaque maillon
+ * de la chaîne, et la pastille verte sur celle qu'il faut commander.
+ * Sur 16 331 articles remplacés, 4 969 ont plusieurs maillons : s'arrêter au premier
+ * remplaçant enverrait le vendeur vers une référence que Ducati ne livre plus.
+ */
+function ReplacementChain({ articleId, companyId }: { articleId: string; companyId: string }) {
+  const navigate = useNavigate();
+  const { data } = useQuery({
+    queryKey: ['replacement-chain', articleId],
+    queryFn: () => getReplacementChain(companyId, articleId),
+  });
+  if (!data || data.length < 2) return null;    // pas de chaîne : rien à montrer
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+        {t('articles.chainTitle')}
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {data.map((m) => (
+          <button
+            key={m.article_id}
+            type="button"
+            onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: m.article_id } })}
+            className={`flex items-center gap-3 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent ${
+              m.is_final ? 'border-success bg-success-bg' : 'border-border bg-card'}`}
+            style={{ marginLeft: `${Math.min(m.rang, 6) * 14}px` }}
+          >
+            <span aria-hidden className={`size-2 shrink-0 rounded-full ${m.is_final ? 'bg-success' : 'bg-danger'}`} />
+            <span className="font-mono text-[12px]">{m.reference}</span>
+            <span className="truncate text-muted-foreground">{m.designation}</span>
+            {m.sale_price_ttc != null && (
+              <span className="ml-auto shrink-0 tabular-nums text-[12px]">
+                {m.sale_price_ttc.toLocaleString('fr-BE', { minimumFractionDigits: 2 })}&nbsp;€
+              </span>
+            )}
+            {m.is_final && (
+              <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.04em] text-success">
+                {t('articles.chainOrderThis')}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

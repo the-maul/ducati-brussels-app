@@ -507,6 +507,8 @@ export const fr = {
     replacedBy: 'Remplacée par {ref} — utilisez la nouvelle référence.',
     replacedBanner: 'Cette référence est remplacée par',
     openReplacement: 'Ouvrir la nouvelle référence',
+    chainTitle: 'Historique des références',
+    chainOrderThis: 'à commander',
     predecessorsTitle: 'Anciennes références',
     noPredecessors: 'Aucune ancienne référence liée à cet article.',
     // Étiquettes en masse (B12)

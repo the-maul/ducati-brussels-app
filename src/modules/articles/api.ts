@@ -248,6 +248,32 @@ export async function getArticle(id: string): Promise<Article | null> {
 
 export type PredecessorArticle = Pick<Article, 'id' | 'reference' | 'designation'>;
 
+/** Un maillon de la chaîne des remplacements (voir article_replacement_chain). */
+export type ReplacementLink = {
+  rang: number;
+  article_id: string;
+  reference: string;
+  designation: string | null;
+  sale_price_ttc: number | null;
+  purchase_price: number | null;
+  /** Dernier maillon : c'est cette référence qu'il faut commander. */
+  is_final: boolean;
+};
+
+/**
+ * Chaîne complète des remplacements depuis un article, dans l'ordre.
+ * Sur 16 331 articles remplacés, 4 969 ont plusieurs maillons : s'arrêter au
+ * premier remplaçant enverrait le vendeur vers une référence elle-même morte.
+ */
+export async function getReplacementChain(companyId: string, articleId: string): Promise<ReplacementLink[]> {
+  // Fonction hors types Supabase auto-generes (migration 20261029140000) : cast localise,
+  // comme ailleurs dans le code pour les objets recents.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('article_replacement_chain', { _company: companyId, _article: articleId });
+  if (error) throw error;
+  return (data ?? []) as ReplacementLink[];
+}
+
 /** Anciennes références remplacées PAR cet article (superseded_by_id = articleId) — onglet Équivalences. */
 export async function listPredecessorArticles(articleId: string): Promise<PredecessorArticle[]> {
   const { data, error } = await supabase
