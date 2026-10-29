@@ -71,7 +71,7 @@ def req(method, path, body=None, prefer=None):
     """Appel REST. Une reprise de 12 704 factures dure des heures : une coupure
     reseau ne doit pas tout arreter (constate deux fois le 28/10/2026). On
     reessaie cinq fois, en patientant de plus en plus longtemps."""
-    for essai in range(5):
+    for essai in range(10):
         r = urllib.request.Request(f"{BASE}/{path}", data=(json.dumps(body).encode() if body is not None else None), method=method)
         r.add_header("apikey", SVC); r.add_header("Authorization", f"Bearer {SVC}"); r.add_header("Content-Type", "application/json")
         if prefer: r.add_header("Prefer", prefer)
@@ -81,9 +81,9 @@ def req(method, path, body=None, prefer=None):
         except urllib.error.HTTPError as e:
             sys.exit(f"{method} {path} -> {e.code}: {e.read().decode()[:300]}")
         except Exception as e:
-            if essai == 4:
-                sys.exit(f"{method} {path} -> reseau indisponible apres 5 essais : {e}")
-            attente = 5 * (essai + 1)
+            if essai == 9:
+                sys.exit(f"{method} {path} -> reseau indisponible apres 10 essais : {e}")
+            attente = min(60, 5 * (essai + 1))   # jusqu'a une minute entre deux essais
             print("   reseau indisponible (%s), nouvel essai dans %d s" % (e, attente), flush=True)
             time.sleep(attente)
 
