@@ -178,12 +178,12 @@ export async function deletePpcRule(companyId: string, id: string): Promise<void
 // ── Plancher de prix (réglage société) ───────────────────────────────────────
 
 // Le seuil et le montant, plus la facon de l'appliquer : 'min' remonte au
-// minimum, 'add' ajoute le montant (choix du client le 28/10/2026 :
-// une piece a 0,25 EUR se vend 2,25 EUR, pas 2,00 EUR).
+// minimum, 'cents' garde les centimes et repart du minimum (choix du client le
+// 28/10/2026 : 0,25 EUR donne 2,25 EUR et 1,74 EUR donne 2,74 EUR).
 export type PriceFloor = { threshold: number; min: number; mode: FloorMode };
 
-/** Défaut historique : arrondi G8 (sous 1 € → 2 €). */
-const DEFAULT_FLOOR: PriceFloor = { threshold: 2, min: 2, mode: 'add' };
+/** Reglage du client : sous 2 EUR, on repart de 2 EUR en gardant les centimes. */
+const DEFAULT_FLOOR: PriceFloor = { threshold: 2, min: 2, mode: 'cents' };
 
 export async function getPriceFloor(companyId: string): Promise<PriceFloor> {
   try {

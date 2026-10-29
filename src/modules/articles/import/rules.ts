@@ -104,7 +104,7 @@ export type ImportOptions = {
   settings?: ImportSettings;
   /** PV TTC strictement sous ce seuil → traité selon floorMode (ex. 2 €). */
   floorThreshold?: number;
-  /** 'min' : remonté au minimum · 'add' : le minimum s'ajoute au prix (choix du client). */
+  /** 'min' : remonté au minimum · 'cents' : on garde les centimes (choix du client). */
   floorMode?: FloorMode;
   /** Prix minimum appliqué sous le seuil (ex. 2 €). */
   floorMin?: number;
@@ -133,17 +133,21 @@ export const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Plancher de prix, deux facons de traiter les petits montants :
- *  - 'min' : on remonte au minimum           (0,25 EUR avec un plancher de 2 -> 2,00)
- *  - 'add' : on AJOUTE le montant au prix    (0,25 EUR -> 2,25 ; 1,74 -> 2,74)
- * Le client a choisi 'add' le 28/10/2026 : une piece a 0,25 EUR ne peut pas etre
- * vendue 0,25 EUR, mais il tient a garder l'ecart entre deux petites pieces.
+ *  - 'min'   : on remonte au minimum        (0,25 EUR avec un plancher de 2 -> 2,00)
+ *  - 'cents' : on GARDE LES CENTIMES et on repart du minimum
+ *              (0,25 EUR -> 2,25 ; 1,74 EUR -> 2,74)
+ * Le client a choisi 'cents' le 28/10/2026 : une piece sous 2 EUR ne peut pas se
+ * vendre a ce prix, mais deux petites pieces ne doivent pas finir au meme prix.
+ * A ne pas confondre avec « on ajoute 2 EUR », qui donnerait 1,74 -> 3,74.
  */
-export type FloorMode = 'min' | 'add';
+export type FloorMode = 'min' | 'cents';
 
 export function applyPriceFloor(pv: number, threshold: number, min: number, mode: FloorMode = 'min'): number {
   if (!(pv > 0) || !(threshold > 0) || !(min > 0)) return pv;
   if (pv >= threshold) return pv;
-  return mode === 'add' ? round2(pv + min) : Math.max(pv, min);
+  if (mode !== 'cents') return Math.max(pv, min);
+  const centimes = round2(pv - Math.floor(pv));
+  return round2(min + centimes);
 }
 
 /**

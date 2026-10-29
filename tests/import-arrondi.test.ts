@@ -76,11 +76,14 @@ describe('la regle du client', () => {
 // Regle du client du 28/10/2026 : une piece sous 2 EUR se vend 2 EUR de plus,
 // pas releve a 2 EUR — l'ecart entre deux petites pieces est conserve.
 describe('plancher des petits prix', () => {
-  test('mode « on ajoute » : le prix monte de 2 EUR sous le seuil', () => {
-    expect(applyPriceFloor(0.25, 2, 2, 'add')).toBe(2.25);
-    expect(applyPriceFloor(1.74, 2, 2, 'add')).toBe(3.74);
-    expect(applyPriceFloor(2, 2, 2, 'add')).toBe(2);       // au seuil, rien ne bouge
-    expect(applyPriceFloor(12.5, 2, 2, 'add')).toBe(12.5);
+  // « en dessous de 2 EUR on monte a 2 + les centimes » (client, 28/10/2026).
+  test('mode « on garde les centimes »', () => {
+    expect(applyPriceFloor(0.25, 2, 2, 'cents')).toBe(2.25);
+    expect(applyPriceFloor(1.74, 2, 2, 'cents')).toBe(2.74);   // et non 3,74
+    expect(applyPriceFloor(0.99, 2, 2, 'cents')).toBe(2.99);
+    expect(applyPriceFloor(1, 2, 2, 'cents')).toBe(2);         // pas de centime : on tombe sur 2,00
+    expect(applyPriceFloor(2, 2, 2, 'cents')).toBe(2);         // au seuil, rien ne bouge
+    expect(applyPriceFloor(12.5, 2, 2, 'cents')).toBe(12.5);
   });
 
   test('mode « on remonte » : comportement historique inchange', () => {
@@ -89,8 +92,8 @@ describe('plancher des petits prix', () => {
   });
 
   test('sans seuil ou sans minimum, le prix est rendu tel quel', () => {
-    expect(applyPriceFloor(0.25, 0, 2, 'add')).toBe(0.25);
-    expect(applyPriceFloor(0.25, 2, 0, 'add')).toBe(0.25);
-    expect(applyPriceFloor(0, 2, 2, 'add')).toBe(0);
+    expect(applyPriceFloor(0.25, 0, 2, 'cents')).toBe(0.25);
+    expect(applyPriceFloor(0.25, 2, 0, 'cents')).toBe(0.25);
+    expect(applyPriceFloor(0, 2, 2, 'cents')).toBe(0);
   });
 });
