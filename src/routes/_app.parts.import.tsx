@@ -24,7 +24,7 @@ import {
 import { parseTariffFile } from '@/modules/articles/import/parse-xlsx';
 import {
   buildDiff, summarize, applyPpcRules, DEFAULT_IMPORT_SETTINGS,
-  type DiffResult, type ExistingArticle, type DiffSummary, type ImportSettings, type PpcRule,
+  type DiffResult, type ExistingArticle, type DiffSummary, type ImportSettings, type PpcRule, type RoundMode,
 } from '@/modules/articles/import/rules';
 import {
   getImportSettings, saveImportSettings, listPpcRules, addPpcRule, updatePpcRule, deletePpcRule,
@@ -209,6 +209,9 @@ function ImportPage() {
   const analyze = async () => {
     setError(null);
     if (mapping.reference == null) { setError(t('articles.importNeedRef')); return; }
+    // Sans fournisseur, aucune regle de prix par fournisseur ne peut s'appliquer :
+    // le tarif Ducati n'a pas de colonne fournisseur, il faut le dire ici.
+    if (mapping.supplier_name == null && !fileSupplier.trim()) { setError(t('articles.importNeedSupplier')); return; }
     if (!activeCompanyId) return;
     setBusy(true);
     try {
@@ -503,6 +506,9 @@ function ImportPage() {
 }
 
 /* ── Éditeur des règles PV/PPC (menus déroulants + % éditable) ─────────────── */
+/** Les arrondis proposes, dans l'ordre du plus fin au plus large. */
+const ROUND_MODES: RoundMode[] = ['none', 'ceil_0_1', 'ceil_0_5', 'ceil_1', 'ceil_5', 'ceil_10', 'end_99'];
+
 function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
   companyId: string | null;
   rules: PpcRuleRow[];
@@ -515,6 +521,7 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
   const [supplier, setSupplier] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
+  const [round, setRound] = useState<RoundMode>('none');
   const [pctEdits, setPctEdits] = useState<Record<string, string>>({});
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['ppc-rules', companyId] });
@@ -527,8 +534,9 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
       supplier_name: supplier.trim() || null,
       category_path: category.trim() || null,
       brand: brand.trim() || null,
+      round_mode: round,
     }),
-    onSuccess: () => { setPct(''); setSupplier(''); setCategory(''); setBrand(''); invalidate(); },
+    onSuccess: () => { setPct(''); setSupplier(''); setCategory(''); setBrand(''); setRound('none'); invalidate(); },
     onError: () => toast.error(t('articles.errSave')),
   });
   const upd = useMutation({
@@ -565,6 +573,7 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
           <thead className="bg-muted">
             <tr>
               <Th>{t('articles.ppcPct')}</Th>
+              <Th>{t('articles.ppcRound')}</Th>
               <Th>{t('articles.ppcSupplier')}</Th>
               <Th>{t('articles.ppcCategory')}</Th>
               <Th>{t('articles.ppcBrand')}</Th>
@@ -585,6 +594,20 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
                     />
                     <span className="text-muted-foreground">%</span>
                   </div>
+                </td>
+                <td className="px-2 py-1.5">
+                  <Select
+                    value={r.round_mode ?? 'none'}
+                    onValueChange={(v) => upd.mutate({ id: r.id, patch: { round_mode: v as RoundMode } })}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROUND_MODES.map((m) => (
+                        <SelectItem key={m} value={m}>{t(`articles.round_${m}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </td>
                 <td className="px-3 py-1.5">{r.supplier_name || t('articles.ppcAllSuppliers')}</td>
                 <td className="px-3 py-1.5">{r.category_path || '—'}</td>
@@ -607,6 +630,17 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
           <div className="space-y-1">
             <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.ppcPct')}</Label>
             <Input className="w-28 text-right tabular-nums" value={pct} onChange={(e) => setPct(e.target.value)} placeholder={t('articles.ppcPctPlaceholder')} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.ppcRound')}</Label>
+            <Select value={round} onValueChange={(v) => setRound(v as RoundMode)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ROUND_MODES.map((m) => (
+                  <SelectItem key={m} value={m}>{t(`articles.round_${m}`)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.ppcSupplier')}</Label>

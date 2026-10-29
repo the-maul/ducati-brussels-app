@@ -63,6 +63,7 @@ export type ExistingArticle = {
   ppc_ttc?: number | null;
   year_from?: number | null;
   year_to?: number | null;
+  supplier_availability?: string | null;
 };
 
 /** Réglages d'intégration (mêmes clés que la table article_import_settings). */
@@ -151,6 +152,17 @@ export function applyPriceFloor(pv: number, threshold: number, min: number, mode
 }
 
 /**
+ * Etat au tarif Ducati -> disponibilite fournisseur de l'article.
+ * E = courant (vert), F = fin de serie, jusqu'a epuisement (rouge). Autre ou vide : on ne touche a rien.
+ */
+export function availabilityFromStatus(status: string | null | undefined): 'green' | 'red' | null {
+  const v = (status ?? '').trim().toUpperCase();
+  if (v === 'E') return 'green';
+  if (v === 'F') return 'red';
+  return null;
+}
+
+/**
  * Calcule l'effet d'UNE ligne importée sur le référentiel.
  * @param row ligne de tarif
  * @param existing article existant de MÊME référence (ou null si nouveau)
@@ -204,6 +216,9 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     if (row.year_from != null) patch.year_from = row.year_from;
     if (row.year_to != null) patch.year_to = row.year_to;
     patch.is_library = s.new_refs_in_library; // non stockée tant que pas réceptionnée
+    const dispoNew = availabilityFromStatus(row.supply_status);
+    if (dispoNew) patch.supplier_availability = dispoNew;
+    if (dispoNew === 'red') anomalies.push("Fin de série chez Ducati (état F) : vendue tant qu'il en reste.");
     if (row.barcode && s.integrate_supplier_barcodes) patch.barcode = row.barcode.trim();
     // Réf. de remplacement (résolue en id à l'application — voir apply.ts)
     const newRepl = row.replacement_ref?.trim();
@@ -241,6 +256,14 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
 
   // Coefficient : conservé par défaut (réglage « garder le coefficient »)
   if (!s.keep_coefficient && row.coefficient != null) accept('coefficient', row.coefficient, 'coefficient');
+
+  // Etat au tarif : fin de série signalée, surtout si on en a encore en stock
+  const dispo = availabilityFromStatus(row.supply_status);
+  if (dispo && existing.supplier_availability !== dispo) {
+    changes.push({ field: 'supplier_availability', from: existing.supplier_availability ?? null, to: dispo });
+    patch.supplier_availability = dispo;
+    if (dispo === 'red') anomalies.push("Passe en fin de série chez Ducati (état F) : vendue tant qu'il en reste.");
+  }
 
   // PPC : toujours rafraîchi quand présent (donnée fournisseur, pas un prix de vente)
   if (row.ppc_ht != null) accept('ppc_ht', row.ppc_ht, 'ppc_ht');
