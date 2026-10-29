@@ -10,7 +10,7 @@
  * de données à faire (re-sauvegarder une fois suffit).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { DEFAULT_IMPORT_SETTINGS, type ImportSettings, type PpcRule } from './rules';
+import { DEFAULT_IMPORT_SETTINGS, type ImportSettings, type PpcRule, type FloorMode } from './rules';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const raw = supabase as any;
@@ -134,6 +134,7 @@ export async function addPpcRule(companyId: string, rule: PpcRule): Promise<void
     category_path: rule.category_path?.trim() || null,
     brand: rule.brand?.trim() || null,
     pct: rule.pct,
+    round_mode: rule.round_mode ?? 'none',
     is_active: rule.is_active ?? true,
   };
   try {
@@ -176,22 +177,26 @@ export async function deletePpcRule(companyId: string, id: string): Promise<void
 
 // ── Plancher de prix (réglage société) ───────────────────────────────────────
 
-export type PriceFloor = { threshold: number; min: number };
+// Le seuil et le montant, plus la facon de l'appliquer : 'min' remonte au
+// minimum, 'add' ajoute le montant (choix du client le 28/10/2026 :
+// une piece a 0,25 EUR se vend 2,25 EUR, pas 2,00 EUR).
+export type PriceFloor = { threshold: number; min: number; mode: FloorMode };
 
 /** Défaut historique : arrondi G8 (sous 1 € → 2 €). */
-const DEFAULT_FLOOR: PriceFloor = { threshold: 1, min: 2 };
+const DEFAULT_FLOOR: PriceFloor = { threshold: 2, min: 2, mode: 'add' };
 
 export async function getPriceFloor(companyId: string): Promise<PriceFloor> {
   try {
     const { data, error } = await raw
       .from('companies')
-      .select('price_floor_threshold, price_floor_min')
+      .select('price_floor_threshold, price_floor_min, price_floor_mode')
       .eq('id', companyId)
       .maybeSingle();
     if (error) throw error;
     return {
       threshold: Number(data?.price_floor_threshold ?? DEFAULT_FLOOR.threshold),
       min: Number(data?.price_floor_min ?? DEFAULT_FLOOR.min),
+      mode: (data?.price_floor_mode as FloorMode) ?? DEFAULT_FLOOR.mode,
     };
   } catch (e) {
     if (!isMissingSchema(e)) throw e;

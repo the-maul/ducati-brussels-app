@@ -227,7 +227,7 @@ function ImportPage() {
       ]);
       setRefIds(new Map(existing.map((a) => [a.reference, a.id])));
       const map = new Map(existing.map((a) => [a.reference, toExisting(a)]));
-      const d = buildDiff(rows, map, { settings, floorThreshold: floor.threshold, floorMin: floor.min });
+      const d = buildDiff(rows, map, { settings, floorThreshold: floor.threshold, floorMin: floor.min, floorMode: floor.mode });
       setDiff(d);
       setSummary(summarize(d));
       setStep('preview');

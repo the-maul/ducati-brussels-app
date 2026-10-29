@@ -4,7 +4,7 @@
  * Execution : `bun test`.
  */
 import { test, expect, describe } from 'bun:test';
-import { roundUpPrice, applyPpcRules, type PpcRule, type ImportRow } from '../src/modules/articles/import/rules';
+import { roundUpPrice, applyPpcRules, applyPriceFloor, type PpcRule, type ImportRow } from '../src/modules/articles/import/rules';
 
 describe('arrondi vers le haut', () => {
   test("a l'euro superieur", () => {
@@ -70,5 +70,27 @@ describe('la regle du client', () => {
     const rows: ImportRow[] = [{ reference: 'A', ppc_ttc: 115.18, rowIndex: 2 }];
     applyPpcRules(rows, []);
     expect(rows[0].sale_price_ttc).toBe(115.18);
+  });
+});
+
+// Regle du client du 28/10/2026 : une piece sous 2 EUR se vend 2 EUR de plus,
+// pas releve a 2 EUR — l'ecart entre deux petites pieces est conserve.
+describe('plancher des petits prix', () => {
+  test('mode « on ajoute » : le prix monte de 2 EUR sous le seuil', () => {
+    expect(applyPriceFloor(0.25, 2, 2, 'add')).toBe(2.25);
+    expect(applyPriceFloor(1.74, 2, 2, 'add')).toBe(3.74);
+    expect(applyPriceFloor(2, 2, 2, 'add')).toBe(2);       // au seuil, rien ne bouge
+    expect(applyPriceFloor(12.5, 2, 2, 'add')).toBe(12.5);
+  });
+
+  test('mode « on remonte » : comportement historique inchange', () => {
+    expect(applyPriceFloor(0.25, 2, 2, 'min')).toBe(2);
+    expect(applyPriceFloor(0.25, 2, 2)).toBe(2);            // defaut
+  });
+
+  test('sans seuil ou sans minimum, le prix est rendu tel quel', () => {
+    expect(applyPriceFloor(0.25, 0, 2, 'add')).toBe(0.25);
+    expect(applyPriceFloor(0.25, 2, 0, 'add')).toBe(0.25);
+    expect(applyPriceFloor(0, 2, 2, 'add')).toBe(0);
   });
 });

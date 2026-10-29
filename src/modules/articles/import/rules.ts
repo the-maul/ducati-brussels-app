@@ -102,8 +102,10 @@ export const DEFAULT_IMPORT_SETTINGS: ImportSettings = {
 /** Options de calcul (plancher de prix société — 0 = désactivé). */
 export type ImportOptions = {
   settings?: ImportSettings;
-  /** PV TTC strictement sous ce seuil → remonté à floorMin (ex. 1 €). */
+  /** PV TTC strictement sous ce seuil → traité selon floorMode (ex. 2 €). */
   floorThreshold?: number;
+  /** 'min' : remonté au minimum · 'add' : le minimum s'ajoute au prix (choix du client). */
+  floorMode?: FloorMode;
   /** Prix minimum appliqué sous le seuil (ex. 2 €). */
   floorMin?: number;
 };
@@ -129,10 +131,19 @@ export type DiffResult = {
 export const round3 = (n: number) => Math.round(n * 1000) / 1000;
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Plancher de prix : PV TTC > 0 et < seuil → max(PV, minimum). */
-export function applyPriceFloor(pv: number, threshold: number, min: number): number {
+/**
+ * Plancher de prix, deux facons de traiter les petits montants :
+ *  - 'min' : on remonte au minimum           (0,25 EUR avec un plancher de 2 -> 2,00)
+ *  - 'add' : on AJOUTE le montant au prix    (0,25 EUR -> 2,25 ; 1,74 -> 2,74)
+ * Le client a choisi 'add' le 28/10/2026 : une piece a 0,25 EUR ne peut pas etre
+ * vendue 0,25 EUR, mais il tient a garder l'ecart entre deux petites pieces.
+ */
+export type FloorMode = 'min' | 'add';
+
+export function applyPriceFloor(pv: number, threshold: number, min: number, mode: FloorMode = 'min'): number {
   if (!(pv > 0) || !(threshold > 0) || !(min > 0)) return pv;
-  return pv < threshold ? Math.max(pv, min) : pv;
+  if (pv >= threshold) return pv;
+  return mode === 'add' ? round2(pv + min) : Math.max(pv, min);
 }
 
 /**
@@ -145,6 +156,7 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   const s = opts.settings ?? DEFAULT_IMPORT_SETTINGS;
   const floorT = opts.floorThreshold ?? 0;
   const floorM = opts.floorMin ?? 0;
+  const floorMode = opts.floorMode ?? 'min';
   const anomalies: string[] = [];
   const changes: FieldChange[] = [];
   const patch: Record<string, unknown> = {};
@@ -164,7 +176,7 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
 
   // PV proposé, plancher appliqué (réglage société)
   const proposedPv = row.sale_price_ttc != null
-    ? applyPriceFloor(round2(row.sale_price_ttc), floorT, floorM)
+    ? applyPriceFloor(round2(row.sale_price_ttc), floorT, floorM, floorMode)
     : null;
 
   // ---------- NOUVELLE référence → création ----------
