@@ -29,6 +29,7 @@ import {
 import {
   getImportSettings, saveImportSettings, listPpcRules, addPpcRule, updatePpcRule, deletePpcRule,
   getPriceFloor, checkImportConfigSchema, type PpcRuleRow,
+  listDiscountClasses, addDiscountClass, updateDiscountClass, deleteDiscountClass, type DiscountClassRow,
 } from '@/modules/articles/import/settings-api';
 import { PENDING_MIGRATION_SQL } from '@/modules/articles/import/migration-sql';
 import { translateRows } from '@/modules/articles/import/translate';
@@ -74,6 +75,9 @@ function toExisting(a: ArticleLite): ExistingArticle {
     coefficient: a.coefficient, superseded_by_id: a.superseded_by_id, is_library: a.is_library,
     ppc_ht: a.ppc_ht, ppc_ttc: a.ppc_ttc,
     year_from: a.year_from ?? null, year_to: a.year_to ?? null,
+    // undefined (colonne pas encore en base) reste undefined : le diff ne propose alors rien.
+    discount_group: a.discount_group,
+    price_purchase_locked: a.price_purchase_locked ?? false,
   };
 }
 
@@ -93,6 +97,7 @@ function ImportPage() {
   const [diff, setDiff] = useState<DiffResult[]>([]);
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [ppcApplied, setPpcApplied] = useState(0);
+  const [paFromClass, setPaFromClass] = useState(0);
   const [translated, setTranslated] = useState(0);
   const [refIds, setRefIds] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<ApplyResult | null>(null);
@@ -143,6 +148,14 @@ function ImportPage() {
     enabled: !!activeCompanyId,
   });
   const ppcRules: PpcRuleRow[] = rulesQ.data ?? [];
+
+  // Grille des classes de remise (affichage / edition). L'analyse la relit une fois.
+  const classesQ = useQuery({
+    queryKey: ['discount-classes', activeCompanyId],
+    queryFn: () => listDiscountClasses(activeCompanyId!),
+    enabled: !!activeCompanyId,
+  });
+  const discountClasses: DiscountClassRow[] = classesQ.data ?? [];
 
   // ── Listes pour les menus déroulants (fournisseurs, rayons) ─────────────────
   const suppliersQ = useQuery({
@@ -223,14 +236,21 @@ function ImportPage() {
       setTranslated(settings.translate_designations ? translateRows(rows) : 0);
       // 2. Calcul PV selon PPC (règles paramétrées)
       setPpcApplied(applyPpcRules(rows, ppcRules));
-      // 3. Plancher de prix société (résilient) + 4. référentiel complet paginé
-      const [floor, existing] = await Promise.all([
+      // 3. Plancher de prix société (résilient) + grille des classes de remise
+      //    (une lecture par analyse) + 4. référentiel complet paginé
+      const [floor, classes, existing] = await Promise.all([
         getPriceFloor(activeCompanyId),
+        listDiscountClasses(activeCompanyId),
         listAllArticlesLite(activeCompanyId),
       ]);
       setRefIds(new Map(existing.map((a) => [a.reference, a.id])));
       const map = new Map(existing.map((a) => [a.reference, toExisting(a)]));
-      const d = buildDiff(rows, map, { settings, floorThreshold: floor.threshold, floorMin: floor.min, floorMode: floor.mode });
+      const d = buildDiff(rows, map, {
+        settings, floorThreshold: floor.threshold, floorMin: floor.min, floorMode: floor.mode,
+        discountClasses: classes,
+      });
+      // 5. Prix d'achat deduits de la classe de remise (compteur du rapport)
+      setPaFromClass(d.filter((x) => x.action !== 'skip' && x.patch._pa_from_class === true).length);
       setDiff(d);
       setSummary(summarize(d));
       setStep('preview');
@@ -363,6 +383,15 @@ function ImportPage() {
             />
           </Card>
 
+          {/* ── Classes de remise → prix d'achat ──────────────────────────────── */}
+          <Card title={t('articles.discountClassesTitle')} badge={schemaMissing ? t('articles.localBadge') : undefined}>
+            <DiscountClassesEditor
+              companyId={activeCompanyId}
+              classes={discountClasses}
+              supplierNames={supplierNames}
+            />
+          </Card>
+
           {parsed.headers.length > 0 && (
             <Card title={t('articles.importMapping')}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -411,10 +440,11 @@ function ImportPage() {
             <Kpi label={t('articles.importAnomalies')} value={summary.anomalies} tone={summary.anomalies > 0 ? 'warn' : undefined} />
           </div>
 
-          {(ppcApplied > 0 || translated > 0) && (
+          {(ppcApplied > 0 || paFromClass > 0 || translated > 0) && (
             <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
               {[
                 ppcApplied > 0 ? t('articles.ppcApplied').replace('{n}', String(ppcApplied)) : null,
+                paFromClass > 0 ? t('articles.paFromClassApplied').replace('{n}', paFromClass.toLocaleString('fr-BE')) : null,
                 translated > 0 ? t('articles.translatedApplied').replace('{n}', String(translated)) : null,
               ].filter(Boolean).join(' · ')}
             </p>
@@ -664,6 +694,137 @@ function PpcRulesEditor({ companyId, rules, supplierNames, categoryNames }: {
         </datalist>
         <datalist id="ppc-categories">
           {categoryNames.map((n) => <option key={n} value={n} />)}
+        </datalist>
+      </div>
+    </div>
+  );
+}
+
+/* ── Éditeur de la grille des classes de remise (prix d'achat) ─────────────── */
+function DiscountClassesEditor({ companyId, classes, supplierNames }: {
+  companyId: string | null;
+  classes: DiscountClassRow[];
+  supplierNames: string[];
+}) {
+  const readOnly = useReadOnly();
+  const qc = useQueryClient();
+  const [code, setCode] = useState('');
+  const [pct, setPct] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [pctEdits, setPctEdits] = useState<Record<string, string>>({});
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['discount-classes', companyId] });
+  const parsePct = (v: string) => Number(v.replace(',', '.'));
+
+  const add = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
+    mutationFn: () => addDiscountClass(companyId!, {
+      code, discount_pct: parsePct(pct) || 0, supplier_name: supplier.trim() || null, is_active: true,
+    }),
+    onSuccess: () => { setCode(''); setPct(''); setSupplier(''); invalidate(); },
+    onError: () => toast.error(t('articles.errSave')),
+  });
+  const upd = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
+    mutationFn: (v: { id: string; patch: Partial<DiscountClassRow> }) => updateDiscountClass(companyId!, v.id, v.patch),
+    onSuccess: invalidate,
+    onError: () => toast.error(t('articles.errSave')),
+  });
+  const del = useMutation({
+    // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
+    meta: { error: false },
+    mutationFn: (id: string) => deleteDiscountClass(companyId!, id),
+    onSuccess: invalidate,
+    onError: () => toast.error(t('articles.errSave')),
+  });
+
+  const commitPct = (r: DiscountClassRow) => {
+    const val = pctEdits[r.id];
+    setPctEdits((e) => { const n = { ...e }; delete n[r.id]; return n; });
+    if (val == null) return;
+    const num = parsePct(val);
+    if (Number.isFinite(num) && num !== Number(r.discount_pct)) upd.mutate({ id: r.id, patch: { discount_pct: num } });
+  };
+
+  const canAdd = !!companyId && !readOnly && !add.isPending && pct.trim() !== '' && Number.isFinite(parsePct(pct));
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] text-muted-foreground">{t('articles.discountClassesHint')}</p>
+
+      {classes.length === 0 ? (
+        <p className="text-[13px] text-warning">{t('articles.discountClassEmpty')}</p>
+      ) : (
+        <table className="w-full border-collapse font-data text-[13px]">
+          <thead className="bg-muted">
+            <tr>
+              <Th>{t('articles.discountClassCode')}</Th>
+              <Th>{t('articles.discountClassPct')}</Th>
+              <Th>{t('articles.discountClassActive')}</Th>
+              <Th>{t('articles.discountClassSupplier')}</Th>
+              <Th>{''}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {classes.map((r) => (
+              <tr key={r.id} className={`border-b border-border last:border-0 ${r.is_active === false ? 'text-muted-foreground' : ''}`}>
+                <td className="px-3 py-1.5 font-mono">{r.code || t('articles.discountClassNoCode')}</td>
+                <td className="px-2 py-1.5">
+                  <div className="flex items-center justify-end gap-1">
+                    <Input
+                      className="h-8 w-24 text-right tabular-nums"
+                      value={pctEdits[r.id] ?? String(r.discount_pct)}
+                      disabled={readOnly}
+                      onChange={(e) => setPctEdits((p) => ({ ...p, [r.id]: e.target.value }))}
+                      onBlur={() => commitPct(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    />
+                    <span className="text-muted-foreground">%</span>
+                  </div>
+                </td>
+                <td className="px-3 py-1.5">
+                  <Checkbox
+                    checked={r.is_active !== false}
+                    disabled={readOnly}
+                    onCheckedChange={(v) => upd.mutate({ id: r.id, patch: { is_active: v === true } })}
+                    aria-label={t('articles.discountClassActive')}
+                  />
+                </td>
+                <td className="px-3 py-1.5">{r.supplier_name || t('articles.discountClassAllSuppliers')}</td>
+                <td className="px-3 py-1.5 text-right">
+                  <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => del.mutate(r.id)} title={t('articles.discountClassDelete')}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="rounded-md border border-dashed border-border p-3">
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.discountClassAddTitle')}</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.discountClassCode')}</Label>
+            <Input className="w-44 font-mono uppercase" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder={t('articles.discountClassCodePlaceholder')} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.discountClassPct')}</Label>
+            <Input className="w-28 text-right tabular-nums" value={pct} onChange={(e) => setPct(e.target.value)} placeholder={t('articles.discountClassPctPlaceholder')} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.discountClassSupplier')}</Label>
+            <Input list="discount-class-suppliers" className="w-48" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder={t('articles.discountClassAllSuppliers')} />
+          </div>
+          <Button type="button" size="sm" onClick={() => add.mutate()} disabled={!canAdd}>
+            {add.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} {t('articles.discountClassAdd')}
+          </Button>
+        </div>
+        <datalist id="discount-class-suppliers">
+          {supplierNames.map((n) => <option key={n} value={n} />)}
         </datalist>
       </div>
     </div>

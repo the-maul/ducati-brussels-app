@@ -147,6 +147,11 @@ Seuls 4 116 articles ont un prix d'achat. Les fichiers de tarif Ducati ne donnen
 public HT** et une **classe de remise** (A à E, P, R, S). Le prix d'achat se déduit de la grille
 « classe vers pourcentage », négociée avec Ducati, qui n'est dans aucun fichier.
 
+**Depuis le 30/10 (TAR007, M-66)** : la grille vit dans le DMS (`supplier_discount_classes`,
+préchargée avec celle de G8, modifiable dans Paramètres → Règles de prix) et l'import calcule le
+prix d'achat : `PA HT = prix catalogue HT × (1 − remise %)`. Verrou G8 respecté, classe inconnue ou
+inactive signalée. Migration `20261030120000` **à appliquer** avant le premier import de tarif.
+
 ### Les verrous de prix
 
 `price_sale_locked` et `price_purchase_locked` sont vides sur tous les articles : la reprise de
@@ -192,3 +197,4 @@ migrations non appliquées.
 | 2026-10-16 | Catalogue Ducati complet : 2 399 modèles-années | `CAT011` à `CAT014` |
 | 2026-10-19 | Tarif lu en HT, classe de remise et état ajoutés | `M2-TAR001`, `M2-TAR002` |
 | 2026-10-19 | Arrondi des prix après pourcentage | `M2-TAR003` |
+| 2026-10-30 | Grille des classes de remise dans le DMS, prix d'achat calculé à l'import | `TAR007`, migration `20261030120000` (à appliquer) |

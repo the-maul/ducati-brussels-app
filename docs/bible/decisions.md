@@ -8,6 +8,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — Tarif Ducati : la classe de remise devient un prix d'achat (mission 06)
+
+- **M-66** — **La grille des classes de remise est celle de G8, et elle se modifie dans
+  Paramètres.** Le tarif Ducati ne donne qu'un prix catalogue HT et une lettre de classe ; le
+  prix d'achat se calcule à l'import : `PA HT = prix catalogue HT × (1 − remise %)`, arrondi au
+  centime. La grille (table `supplier_discount_classes`, par société) est préchargée avec celle de
+  G8 — A 25, B 35, C 45, D 10, E 50, H 30, I 35, L 20, M 40, N 30, P 30, Q 30, R 45, S 60, T 30,
+  W 5, X 30, Y 25, sans classe 25 ; EB / J / O / V / Z à 0 et inactives — et se modifie dans
+  **Paramètres → Règles de prix** (bloc « Classes de remise (achat) » de l'écran Import tarif).
+  Une classe inconnue ou inactive ne calcule rien et est signalée ligne par ligne ; un prix
+  d'achat verrouillé (`price_purchase_locked`, verrou G8) n'est jamais écrasé ; un prix d'achat
+  donné par le fichier garde la main. *Client · 29/10.* [M02](modules/M02-articles.md),
+  [TRANSVERSE imports](modules/TRANSVERSE-imports-donnees.md)
+
+---
+
 ## 2026-10-05 — Fiche liée : le nom vient de la personne, la recherche voit les deux (retour du 05/10)
 
 - **M-62** — **La personne physique est la source unique du prénom et du nom.** Quand une fiche

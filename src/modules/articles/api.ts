@@ -34,7 +34,7 @@ function sanitize(term: string): string {
  * (bandeau « Copier le SQL » sur l'écran d'import). Les écritures retirent la
  * colonne manquante NOMMÉE par l'erreur et réessaient plutôt que d'échouer en bloc.
  */
-const OPTIONAL_NEW_COLS = ['bin_location2', 'year_from', 'year_to'] as const;
+const OPTIONAL_NEW_COLS = ['bin_location2', 'year_from', 'year_to', 'discount_group'] as const;
 
 export function isMissingSchema(e: unknown): boolean {
   const code = (e as { code?: string } | null)?.code;
@@ -324,19 +324,25 @@ export async function listPredecessorArticles(articleId: string): Promise<Predec
 export type ArticleLite = Pick<Article,
   'id' | 'reference' | 'designation' | 'brand' | 'category_path' | 'supplier_ref' |
   'purchase_price' | 'sale_price_ttc' | 'coefficient' | 'superseded_by_id' | 'is_library' |
-  'ppc_ht' | 'ppc_ttc'> & { year_from?: number | null; year_to?: number | null };
+  'ppc_ht' | 'ppc_ttc' | 'price_purchase_locked'> & {
+    year_from?: number | null; year_to?: number | null;
+    /** undefined tant que la colonne n'est pas en base (migration 20261030120000). */
+    discount_group?: string | null;
+  };
 
-const LITE_COLS = 'id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc';
+const LITE_COLS = 'id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc, price_purchase_locked';
+/** Colonnes lues si elles existent ; retirees UNE A UNE quand la base ne les connait pas. */
+const LITE_OPTIONAL_COLS = ['year_from', 'year_to', 'discount_group'];
 
 /**
  * Référentiel COMPLET (paginé par 1000) pour l'import de tarifs — listArticles
  * est plafonné à 500 et ne convient pas au croisement d'un gros fichier.
- * Les colonnes year_from/year_to sont incluses si la migration est appliquée.
+ * Les colonnes year_from/year_to/discount_group sont incluses si leur migration est appliquée.
  */
 export async function listAllArticlesLite(companyId: string): Promise<ArticleLite[]> {
   const PAGE = 1000;
   const out: ArticleLite[] = [];
-  let withYears = true;
+  let optional = [...LITE_OPTIONAL_COLS];
   for (let from = 0; ; from += PAGE) {
     const page = (cols: string) => supabase
       .from('articles')
@@ -344,10 +350,14 @@ export async function listAllArticlesLite(companyId: string): Promise<ArticleLit
       .eq('company_id', companyId)
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
-    let res = await page(withYears ? `${LITE_COLS}, year_from, year_to` : LITE_COLS);
-    if (res.error && withYears && isMissingSchema(res.error)) {
-      withYears = false;
-      res = await page(LITE_COLS);
+    const colsOf = () => (optional.length ? `${LITE_COLS}, ${optional.join(', ')}` : LITE_COLS);
+    let res = await page(colsOf());
+    // Colonne optionnelle absente : on retire celle que nomme l'erreur et on reessaie
+    // (a defaut, tout le groupe), sans perdre les autres colonnes optionnelles presentes.
+    for (let attempt = 0; res.error && isMissingSchema(res.error) && optional.length > 0 && attempt < LITE_OPTIONAL_COLS.length; attempt++) {
+      const col = missingColumn(res.error);
+      optional = col && optional.includes(col) ? optional.filter((c) => c !== col) : [];
+      res = await page(colsOf());
     }
     if (res.error) throw res.error;
     const data = (res.data ?? []) as unknown as ArticleLite[];

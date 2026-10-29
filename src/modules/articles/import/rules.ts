@@ -14,6 +14,8 @@
  *  - intégrer les codes-barres fournisseurs
  *  - PA arrondi à 3 décimales
  *  - plancher de prix : PV TTC sous le seuil → remonté au minimum (réglage société)
+ *  - prix d'achat deduit de la classe de remise du tarif (grille
+ *    supplier_discount_classes, decision client du 29/10/2026) ; verrou G8 respecte
  */
 
 export type ImportRow = {
@@ -64,6 +66,10 @@ export type ExistingArticle = {
   year_from?: number | null;
   year_to?: number | null;
   supplier_availability?: string | null;
+  /** Classe de remise deja connue (colonne articles.discount_group ; undefined = colonne absente). */
+  discount_group?: string | null;
+  /** Verrou G8 sur le prix d'achat : un PA verrouille n'est jamais ecrase par un import. */
+  price_purchase_locked?: boolean | null;
 };
 
 /** Réglages d'intégration (mêmes clés que la table article_import_settings). */
@@ -109,7 +115,118 @@ export type ImportOptions = {
   floorMode?: FloorMode;
   /** Prix minimum appliqué sous le seuil (ex. 2 €). */
   floorMin?: number;
+  /**
+   * Grille des classes de remise (table supplier_discount_classes), chargee une
+   * fois par analyse. Absente ou vide : aucun prix d'achat n'est deduit du tarif.
+   */
+  discountClasses?: DiscountClass[];
 };
+
+// ─── Classes de remise → prix d'achat (decision client du 29/10/2026) ────────
+
+/** Une ligne de la grille (table supplier_discount_classes). */
+export type DiscountClass = {
+  id?: string;
+  /** null = vaut pour tous les fournisseurs. */
+  supplier_name: string | null;
+  /** Classe en majuscules ; '' = ligne du tarif sans classe. */
+  code: string;
+  /** Remise en % sur le prix catalogue HT (0..100). */
+  discount_pct: number;
+  is_active?: boolean;
+};
+
+/**
+ * Grille G8 (celle que le client utilisait) : sert de prechargement en base
+ * (migration 20261030120000) et de repli tant que la table n'existe pas.
+ * EB / J / O / V / Z : pas de remise dans G8 -> inactives, signalees a l'import.
+ */
+export const DEFAULT_DISCOUNT_CLASSES: DiscountClass[] = [
+  { supplier_name: null, code: 'A', discount_pct: 25 },
+  { supplier_name: null, code: 'B', discount_pct: 35 },
+  { supplier_name: null, code: 'C', discount_pct: 45 },
+  { supplier_name: null, code: 'D', discount_pct: 10 },
+  { supplier_name: null, code: 'E', discount_pct: 50 },
+  { supplier_name: null, code: 'H', discount_pct: 30 },
+  { supplier_name: null, code: 'I', discount_pct: 35 },
+  { supplier_name: null, code: 'L', discount_pct: 20 },
+  { supplier_name: null, code: 'M', discount_pct: 40 },
+  { supplier_name: null, code: 'N', discount_pct: 30 },
+  { supplier_name: null, code: 'P', discount_pct: 30 },
+  { supplier_name: null, code: 'Q', discount_pct: 30 },
+  { supplier_name: null, code: 'R', discount_pct: 45 },
+  { supplier_name: null, code: 'S', discount_pct: 60 },
+  { supplier_name: null, code: 'T', discount_pct: 30 },
+  { supplier_name: null, code: 'W', discount_pct: 5 },
+  { supplier_name: null, code: 'X', discount_pct: 30 },
+  { supplier_name: null, code: 'Y', discount_pct: 25 },
+  { supplier_name: null, code: '', discount_pct: 25 },
+  { supplier_name: null, code: 'EB', discount_pct: 0, is_active: false },
+  { supplier_name: null, code: 'J', discount_pct: 0, is_active: false },
+  { supplier_name: null, code: 'O', discount_pct: 0, is_active: false },
+  { supplier_name: null, code: 'V', discount_pct: 0, is_active: false },
+  { supplier_name: null, code: 'Z', discount_pct: 0, is_active: false },
+];
+
+/** Classe normalisee : majuscules, sans espaces ; vide = « sans classe ». */
+export const normalizeDiscountCode = (code: string | null | undefined): string => (code ?? '').trim().toUpperCase();
+
+/**
+ * Trouve la ligne de grille d'une classe : la ligne propre au fournisseur de la
+ * ligne de tarif gagne sur la ligne « tous fournisseurs ». Retourne la ligne
+ * meme inactive (c'est l'appelant qui decide quoi en dire) ; null si la classe
+ * n'est pas dans la grille.
+ */
+export function resolveDiscountClass(
+  code: string | null | undefined,
+  supplierName: string | null | undefined,
+  classes: DiscountClass[],
+): DiscountClass | null {
+  const c = normalizeDiscountCode(code);
+  const sup = supplierName ? supplierName.trim().toLowerCase() : '';
+  let generic: DiscountClass | null = null;
+  for (const k of classes) {
+    if (normalizeDiscountCode(k.code) !== c) continue;
+    const ks = k.supplier_name ? k.supplier_name.trim().toLowerCase() : '';
+    if (ks && sup && ks === sup) return k;
+    if (!ks && !generic) generic = k;
+  }
+  return generic;
+}
+
+export type PurchaseFromClass =
+  | { ok: true; price: number; pct: number; code: string }
+  | { ok: false; reason: 'no_grid' | 'no_ppc' | 'unknown' | 'inactive'; code: string };
+
+/**
+ * Prix d'achat HT deduit du prix catalogue HT et de la classe de remise :
+ *   PA = round2(ppc_ht x (1 - remise / 100))
+ * Classe absente de la grille ou inactive : pas de prix, raison lisible.
+ */
+export function purchasePriceFromClass(
+  ppcHt: number | null | undefined,
+  code: string | null | undefined,
+  supplierName: string | null | undefined,
+  classes: DiscountClass[] | undefined,
+): PurchaseFromClass {
+  const c = normalizeDiscountCode(code);
+  if (!classes || classes.length === 0) return { ok: false, reason: 'no_grid', code: c };
+  if (ppcHt == null || !(ppcHt > 0)) return { ok: false, reason: 'no_ppc', code: c };
+  const k = resolveDiscountClass(c, supplierName, classes);
+  if (!k) return { ok: false, reason: 'unknown', code: c };
+  if (k.is_active === false) return { ok: false, reason: 'inactive', code: c };
+  const pct = Number(k.discount_pct) || 0;
+  return { ok: true, price: round2(ppcHt * (1 - pct / 100)), pct, code: c };
+}
+
+/** Libelle d'anomalie quand la classe ne donne pas de prix d'achat (null = rien a dire). */
+export function discountClassAnomaly(r: PurchaseFromClass): string | null {
+  if (r.ok) return null;
+  const label = r.code === '' ? 'sans classe' : r.code;
+  if (r.reason === 'unknown') return `Classe de remise ${label} inconnue : prix d'achat non calculé.`;
+  if (r.reason === 'inactive') return `Classe de remise ${label} inactive : prix d'achat non calculé.`;
+  return null;
+}
 
 export type FieldChange = { field: string; from: unknown; to: unknown };
 
@@ -186,9 +303,24 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   }
 
   // PA arrondi (3 décimales par défaut, réglage)
-  const pa = row.purchase_price != null
+  let pa = row.purchase_price != null
     ? (s.purchase_price_3dec ? round3(row.purchase_price) : round2(row.purchase_price))
     : null;
+
+  // Prix d'achat deduit de la classe de remise (tarif Ducati : pas de colonne
+  // PA, mais un prix catalogue HT et une classe). Le PA du fichier, s'il
+  // existe, garde la main. Classe inconnue ou inactive : anomalie, pas de PA.
+  const cls = normalizeDiscountCode(row.discount_group);
+  const hasClassInput = row.discount_group != null || row.ppc_ht != null;
+  let paFromClass = false;
+  if (pa == null && hasClassInput && opts.discountClasses && opts.discountClasses.length > 0) {
+    const r = purchasePriceFromClass(row.ppc_ht, cls, row.supplier_name, opts.discountClasses);
+    if (r.ok) { pa = r.price; paFromClass = true; }
+    else {
+      const msg = discountClassAnomaly(r);
+      if (msg) anomalies.push(msg);
+    }
+  }
 
   // PV proposé, plancher appliqué (réglage société)
   const proposedPv = row.sale_price_ttc != null
@@ -204,6 +336,8 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     // Réf. fournisseur = référence principale par défaut (demande magasin)
     patch.supplier_ref = row.supplier_ref ?? ref;
     if (pa != null) patch.purchase_price = pa;
+    if (paFromClass) patch._pa_from_class = true;
+    if (cls) patch.discount_group = cls;
     if (proposedPv != null && s.sale_price_mode !== 'never') patch.sale_price_ttc = proposedPv;
     if (row.coefficient != null) patch.coefficient = row.coefficient;
     if (row.vat_rate != null) patch.vat_rate = row.vat_rate;
@@ -249,7 +383,24 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   if (s.accept_designation && row.designation != null && row.designation.trim()) {
     accept('designation', row.designation.trim(), 'designation');
   }
-  if (s.accept_purchase_price && pa != null) accept('purchase_price', pa, 'purchase_price');
+  // PA : reglage « accepter le prix d'achat », et verrou G8 (jamais ecrase).
+  if (s.accept_purchase_price && pa != null) {
+    if (existing.price_purchase_locked) {
+      if (existing.purchase_price !== pa) anomalies.push("Prix d'achat verrouillé : conservé.");
+    } else {
+      accept('purchase_price', pa, 'purchase_price');
+      if (paFromClass && patch.purchase_price != null) patch._pa_from_class = true;
+    }
+  }
+  // La classe de remise du tarif est gardee sur la fiche (si la colonne existe).
+  if (row.discount_group != null && existing.discount_group !== undefined) {
+    const stored = normalizeDiscountCode(existing.discount_group) || null;
+    const next = cls || null;
+    if (stored !== next) {
+      changes.push({ field: 'discount_group', from: stored, to: next });
+      patch.discount_group = next;
+    }
+  }
   if (s.accept_supplier_ref && row.supplier_ref != null) accept('supplier_ref', row.supplier_ref, 'supplier_ref');
   if (s.accept_category && row.category_path != null) accept('category_path', row.category_path, 'category_path');
   if (s.accept_brand && row.brand != null) accept('brand', row.brand, 'brand');

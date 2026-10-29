@@ -10,7 +10,10 @@
  * de données à faire (re-sauvegarder une fois suffit).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { DEFAULT_IMPORT_SETTINGS, type ImportSettings, type PpcRule, type FloorMode } from './rules';
+import {
+  DEFAULT_IMPORT_SETTINGS, DEFAULT_DISCOUNT_CLASSES, normalizeDiscountCode,
+  type ImportSettings, type PpcRule, type FloorMode, type DiscountClass,
+} from './rules';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const raw = supabase as any;
@@ -41,6 +44,7 @@ function writeLocal(key: string, value: unknown): void {
 const kSettings = (companyId: string) => `ducati.import-settings.${companyId}`;
 const kRules = (companyId: string) => `ducati.ppc-rules.${companyId}`;
 const kFloor = (companyId: string) => `ducati.price-floor.${companyId}`;
+const kClasses = (companyId: string) => `ducati.discount-classes.${companyId}`;
 
 /**
  * Le schéma requis par l'import est-il présent en base ? (bannière migration)
@@ -173,6 +177,90 @@ export async function deletePpcRule(companyId: string, id: string): Promise<void
     }
   }
   writeLocal(kRules(companyId), localRules(companyId).filter((r) => r.id !== id));
+}
+
+// ── Classes de remise → prix d'achat (table supplier_discount_classes) ──────
+
+export type DiscountClassRow = DiscountClass & { id: string; company_id: string };
+
+/**
+ * Repli par poste tant que la migration 20261030120000 n'est pas appliquee :
+ * la grille G8 par defaut, modifiable localement.
+ */
+const localClasses = (companyId: string): DiscountClassRow[] =>
+  readLocal<DiscountClassRow[]>(kClasses(companyId))
+  ?? DEFAULT_DISCOUNT_CLASSES.map((c, i) => ({ ...c, is_active: c.is_active ?? true, id: `local-default-${i}`, company_id: companyId }));
+
+const sortClasses = (rows: DiscountClassRow[]): DiscountClassRow[] =>
+  [...rows].sort((a, b) => (a.supplier_name ?? '').localeCompare(b.supplier_name ?? '') || a.code.localeCompare(b.code));
+
+/** La grille de la societe (une seule lecture par analyse d'import). */
+export async function listDiscountClasses(companyId: string): Promise<DiscountClassRow[]> {
+  try {
+    const { data, error } = await raw
+      .from('supplier_discount_classes')
+      .select('*')
+      .eq('company_id', companyId);
+    if (error) throw error;
+    return sortClasses(((data as DiscountClassRow[]) ?? []).map((r) => ({ ...r, discount_pct: Number(r.discount_pct) })));
+  } catch (e) {
+    if (!isMissingSchema(e)) throw e;
+    return sortClasses(localClasses(companyId));
+  }
+}
+
+function cleanClass(c: DiscountClass): DiscountClass {
+  const pct = Number(c.discount_pct);
+  return {
+    supplier_name: c.supplier_name?.trim() || null,
+    code: normalizeDiscountCode(c.code),
+    discount_pct: Number.isFinite(pct) ? Math.min(100, Math.max(0, pct)) : 0,
+    is_active: c.is_active ?? true,
+  };
+}
+
+export async function addDiscountClass(companyId: string, c: DiscountClass): Promise<void> {
+  const clean = cleanClass(c);
+  try {
+    const { error } = await raw.from('supplier_discount_classes').insert({ company_id: companyId, ...clean });
+    if (error) throw error;
+  } catch (e) {
+    if (!isMissingSchema(e)) throw e;
+    const rows = localClasses(companyId).filter(
+      (r) => !(normalizeDiscountCode(r.code) === clean.code && (r.supplier_name ?? null) === clean.supplier_name),
+    );
+    rows.push({ id: `local-${Date.now()}-${Math.floor(Math.random() * 1e6)}`, company_id: companyId, ...clean });
+    writeLocal(kClasses(companyId), rows);
+  }
+}
+
+export async function updateDiscountClass(companyId: string, id: string, patch: Partial<DiscountClass>): Promise<void> {
+  const p: Partial<DiscountClass> = { ...patch };
+  if (p.code != null) p.code = normalizeDiscountCode(p.code);
+  if (p.discount_pct != null) p.discount_pct = Math.min(100, Math.max(0, Number(p.discount_pct) || 0));
+  if (!id.startsWith('local-')) {
+    try {
+      const { error } = await raw.from('supplier_discount_classes').update(p).eq('id', id);
+      if (error) throw error;
+      return;
+    } catch (e) {
+      if (!isMissingSchema(e)) throw e;
+    }
+  }
+  writeLocal(kClasses(companyId), localClasses(companyId).map((r) => (r.id === id ? { ...r, ...p } : r)));
+}
+
+export async function deleteDiscountClass(companyId: string, id: string): Promise<void> {
+  if (!id.startsWith('local-')) {
+    try {
+      const { error } = await raw.from('supplier_discount_classes').delete().eq('id', id);
+      if (error) throw error;
+      return;
+    } catch (e) {
+      if (!isMissingSchema(e)) throw e;
+    }
+  }
+  writeLocal(kClasses(companyId), localClasses(companyId).filter((r) => r.id !== id));
 }
 
 // ── Plancher de prix (réglage société) ───────────────────────────────────────
