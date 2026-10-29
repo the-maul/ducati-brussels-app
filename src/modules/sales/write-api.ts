@@ -4,6 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { t } from '@/lib/i18n';
 
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
@@ -38,6 +39,34 @@ export function lineHasAmount(l: Pick<LineInput, 'line_type'>): boolean {
 export function lineMovesStock(l: { line_type?: string | null; article_id?: string | null; quantity: number | string }): boolean {
   return (l.line_type ?? 'article') === 'article' && !!l.article_id && Number(l.quantity) > 0;
 }
+
+/** Seul document vendu sans client identifié : le ticket de caisse du comptoir. */
+export const NO_CLIENT_DOC_TYPES = ['TIK'] as const;
+
+export type DocumentValidationError = 'needLine' | 'needClient' | 'needAmount';
+
+/**
+ * Contrôles avant écriture d'un document (audit du parcours de vente, 31/10/2026, VEN001) :
+ *  - au moins une ligne qui n'est pas une ligne vide (brouillon comme validation) ;
+ *  - à la validation, un client, sauf pour un ticket de caisse ;
+ *  - à la validation, au moins une ligne qui porte un montant (`requireAmount`, demandé par
+ *    l'écran de vente : un devis « TEST » à 0 € ne se valide plus ; pas exigé par la facture
+ *    d'un OR en garantie, légitimement à 0 €).
+ * Retourne la clé du message (`sales.<clé>`) ou null si tout va bien.
+ */
+export function documentValidationError(p: {
+  docType: string; status: 'brouillon' | 'validee'; contactId?: string | null; lines: LineInput[]; requireAmount?: boolean;
+}): DocumentValidationError | null {
+  const kept = p.lines.filter((l) => l.line_type === 'vide' || l.designation.trim());
+  if (!kept.some((l) => l.line_type !== 'vide')) return 'needLine';
+  if (p.status !== 'validee') return null;
+  if (!p.contactId && !(NO_CLIENT_DOC_TYPES as readonly string[]).includes(p.docType)) return 'needClient';
+  if (p.requireAmount && !kept.some((l) => lineHasAmount(l) && Math.abs(lineHtRaw(l)) > 0.004)) return 'needAmount';
+  return null;
+}
+
+/** Message lisible d'un refus de validation, dans la langue de l'utilisateur. */
+export const documentValidationMessage = (e: DocumentValidationError): string => t(`sales.${e}`);
 
 /** Ligne enregistrée → ligne à recopier (conversion, duplication, avoir). */
 export function rowToLineInput(l: DocumentLine, sign: 1 | -1 = 1): LineInput {
@@ -98,12 +127,14 @@ export function computeTotals(lines: LineInput[], pied: PiedInput = {}) {
     linesHt += ht;
     linesVat += pied.taxExempt ? 0 : (ht * (l.vat_rate || 0)) / 100;
   }
-  // remise globale (sur le HT des lignes uniquement)
+  // remise globale (sur le HT des lignes uniquement). Un avoir a des lignes négatives : la remise
+  // en € suit le signe du document et la TVA est répartie dès que le HT n'est pas nul (avant le
+  // 31/10/2026, un avoir sortait avec une TVA à 0 et, avec une remise en €, un HT à 0).
   let discount = 0;
   if (pied.globalDiscountPct && pied.globalDiscountPct > 0) discount = (linesHt * pied.globalDiscountPct) / 100;
-  else if (pied.globalDiscountAmount && pied.globalDiscountAmount > 0) discount = Math.min(pied.globalDiscountAmount, linesHt);
+  else if (pied.globalDiscountAmount && pied.globalDiscountAmount > 0) discount = Math.sign(linesHt) * Math.min(pied.globalDiscountAmount, Math.abs(linesHt));
   const netLinesHt = linesHt - discount;
-  const netLinesVat = linesHt > 0 ? linesVat * (netLinesHt / linesHt) : 0;
+  const netLinesVat = linesHt !== 0 ? linesVat * (netLinesHt / linesHt) : 0;
   // frais de port
   const shipHt = pied.shippingHt || 0;
   const shipVat = !pied.taxExempt && pied.shippingTaxed !== false && shipHt > 0
@@ -137,11 +168,21 @@ export async function createDocument(p: {
 }): Promise<string> {
   const pied = p.pied ?? {};
   const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, pied);
-  const number = p.status === 'validee' ? await nextNumber(p.companyId, p.docType) : null;
+  const validated = p.status === 'validee';
 
+  // Refus clair plutôt qu'un document validé sans client ou sans ligne (audit du 31/10/2026).
+  if (validated) {
+    const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines });
+    if (refused) throw new Error(documentValidationMessage(refused));
+  }
+
+  // Ordre d'écriture (pas de transaction côté navigateur) : en-tête en brouillon SANS numéro,
+  // puis les lignes, puis seulement le numéro et le statut « validée », puis le stock. Si les
+  // lignes sont refusées (ex. moto sans VIN, trigger en base), l'en-tête orphelin est retiré et
+  // aucun numéro n'a été consommé : plus de document validé vide avec un numéro (constat du 30/10).
   const { data: doc, error } = await supabase.from('documents').insert({
-    company_id: p.companyId, doc_type: p.docType, number, contact_id: p.contactId ?? null,
-    vehicle_id: p.vehicleId ?? null, status: p.status, issue_date: p.issueDate, due_date: p.dueDate ?? null,
+    company_id: p.companyId, doc_type: p.docType, number: null, contact_id: p.contactId ?? null,
+    vehicle_id: p.vehicleId ?? null, status: 'brouillon', issue_date: p.issueDate, due_date: p.dueDate ?? null,
     notes: p.notes ?? null, total_ht, total_vat, total_ttc, source_document_id: p.sourceDocumentId ?? null,
     price_mode: pied.priceMode ?? 'ttc', tax_exempt: !!pied.taxExempt,
     global_discount_pct: pied.globalDiscountPct ?? 0, global_discount_amount: pied.globalDiscountAmount ?? 0,
@@ -150,40 +191,52 @@ export async function createDocument(p: {
   }).select('id').single();
   if (error) throw error;
   const docId = doc.id as string;
+  // En-tête posé mais suite refusée : on retire le brouillon orphelin avant de remonter l'erreur.
+  const discard = async (e: unknown): Promise<never> => {
+    await supabase.from('documents').delete().eq('id', docId);
+    throw e;
+  };
 
   if (p.lines.length) {
     const rows = p.lines.map((l, i) => {
-      const t = lineTotals(l, pied.taxExempt);
+      const tot = lineTotals(l, pied.taxExempt);
       const amount = lineHasAmount(l);
       return {
         document_id: docId, article_id: amount ? l.article_id ?? null : null, designation: l.designation,
         reference: l.reference ?? null, line_type: l.line_type ?? 'article',
         quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0, vat_rate: l.vat_rate,
-        discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: t.ht, line_ttc: t.ttc, sort_order: i,
+        discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: tot.ht, line_ttc: tot.ttc, sort_order: i,
       };
     });
     const { error: le } = await supabase.from('document_lines').insert(rows);
-    if (le) throw le;
+    if (le) return discard(le);
   }
 
+  if (!validated) return docId;
+
+  // Numéro attribué à la validation seulement (par société et par type, séquences M0).
+  let number: string | null = null;
+  try { number = await nextNumber(p.companyId, p.docType); } catch (e) { return discard(e); }
+  const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', docId);
+  if (ve) return discard(ve);
+
   // Mouvement de stock à la validation (B4 triple stock, B7 traçabilité append-only).
-  if (p.status === 'validee') {
-    const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(p.docType);
-    const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(p.docType);
-    if (realOut || reserve) {
-      for (const l of p.lines) {
-        if (!lineMovesStock(l) || !l.article_id) continue;
-        const qty = Math.abs(l.quantity);
-        const args = realOut
-          ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
-          : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
-        const { error: se } = await supabase.rpc('record_stock_move', {
-          // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
-          _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
-          _ref: number ?? undefined, _note: undefined, ...args,
-        });
-        if (se) throw se;
-      }
+  // Un échec ici laisse le document validé avec un stock partiel : connu, voir M06 §7.
+  const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(p.docType);
+  const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(p.docType);
+  if (realOut || reserve) {
+    for (const l of p.lines) {
+      if (!lineMovesStock(l) || !l.article_id) continue;
+      const qty = Math.abs(l.quantity);
+      const args = realOut
+        ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
+        : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
+      const { error: se } = await supabase.rpc('record_stock_move', {
+        // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+        _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
+        _ref: number ?? undefined, _note: undefined, ...args,
+      });
+      if (se) throw se;
     }
   }
   return docId;

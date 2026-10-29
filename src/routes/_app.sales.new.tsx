@@ -8,8 +8,10 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/new')({
   head: () => ({ meta: [{ title: pageTitle('salesNew') }] }),
-  validateSearch: (s: Record<string, unknown>): { contactId?: string; vehicleId?: string; orNumber?: string; workshop?: boolean } => ({
+  validateSearch: (s: Record<string, unknown>): { contactId?: string; vehicleId?: string; orNumber?: string; workshop?: boolean; docType?: string } => ({
     contactId: typeof s.contactId === 'string' ? s.contactId : undefined,
+    // type proposé à l'ouverture (ex. DEV depuis un lien « nouveau devis ») ; l'éditeur ignore une valeur inconnue
+    docType: typeof s.docType === 'string' ? s.docType : undefined,
     // devis atelier (depuis un OR) : véhicule, n° d'OR, case « Devis atelier » cochée
     vehicleId: typeof s.vehicleId === 'string' ? s.vehicleId : undefined,
     orNumber: typeof s.orNumber === 'string' ? s.orNumber : undefined,
@@ -20,13 +22,13 @@ export const Route = createFileRoute('/_app/sales/new')({
 
 function NewDocument() {
   const { activeCompanyId } = useAuth();
-  const { contactId, vehicleId, orNumber, workshop } = Route.useSearch();
+  const { contactId, vehicleId, orNumber, workshop, docType } = Route.useSearch();
   const navigate = useNavigate();
   if (!activeCompanyId) return null;
   return (
     <>
       <PageHeader title={t('sales.newDoc')} actions={<Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>} />
-      <DocumentEditor companyId={activeCompanyId} initialContactId={contactId} initialVehicleId={vehicleId} workshopOrNumber={orNumber} workshop={workshop} />
+      <DocumentEditor companyId={activeCompanyId} initialContactId={contactId} initialVehicleId={vehicleId} initialDocType={docType} workshopOrNumber={orNumber} workshop={workshop} />
     </>
   );
 }

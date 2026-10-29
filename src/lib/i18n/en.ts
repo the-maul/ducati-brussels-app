@@ -812,6 +812,7 @@ export const en: DictionaryShape = {
     removeModel: 'Remove',
     // Étiquette client (impression depuis la fiche)
     labelBtn: 'Label',
+    newDoc: 'New document',
     labelTitle: 'Customer label',
     labelSubtitle: 'Tick the information to print on the label.',
     labelName: 'Last name - First name',
@@ -1156,6 +1157,9 @@ export const en: DictionaryShape = {
     recallEmpty: 'No comment template saved. Add some in Settings → Comment templates.',
     recallManage: 'Manage comment templates',
     needLine: 'Add at least one line.',
+    needClient: 'Choose a client before validating (a draft can stay without a client).',
+    needAmount: 'No amount on this document: add an article or a price before validating, or save it as a draft.',
+    articleNone: 'No article found for "{term}": the line will stay as free text.',
     errSave: 'Error',
     draft: 'Draft', validate: 'Validate',
     // devis atelier : frais de devis (mission 02)

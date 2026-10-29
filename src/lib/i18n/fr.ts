@@ -812,6 +812,7 @@ export const fr = {
     removeModel: 'Retirer',
     // Étiquette client (impression depuis la fiche)
     labelBtn: 'Étiquette',
+    newDoc: 'Nouveau document',
     labelTitle: 'Étiquette client',
     labelSubtitle: 'Cochez les informations à imprimer sur l’étiquette.',
     labelName: 'Nom - Prénom',
@@ -1157,6 +1158,9 @@ export const fr = {
     recallEmpty: 'Aucun commentaire type enregistré. Ajoutez-en dans Paramètres → Commentaires types.',
     recallManage: 'Gérer les commentaires types',
     needLine: 'Ajoutez au moins une ligne.',
+    needClient: 'Choisissez un client avant de valider (un brouillon peut rester sans client).',
+    needAmount: 'Aucun montant sur ce document : ajoutez un article ou un prix avant de valider, ou enregistrez-le en brouillon.',
+    articleNone: 'Aucun article trouvé pour « {term} » : la ligne restera en texte libre.',
     errSave: 'Erreur',
     draft: 'Brouillon', validate: 'Valider',
     // devis atelier : frais de devis (mission 02)

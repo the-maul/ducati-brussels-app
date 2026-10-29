@@ -812,6 +812,7 @@ export const it: DictionaryShape = {
     removeModel: 'Rimuovi',
     // Étiquette client (impression depuis la fiche)
     labelBtn: 'Etichetta',
+    newDoc: 'Nuovo documento',
     labelTitle: 'Etichetta cliente',
     labelSubtitle: "Spunta le informazioni da stampare sull'etichetta.",
     labelName: 'Cognome - Nome',
@@ -1156,6 +1157,9 @@ export const it: DictionaryShape = {
     recallEmpty: 'Nessun commento predefinito salvato. Aggiungine in Impostazioni → Commenti predefiniti.',
     recallManage: 'Gestisci i commenti predefiniti',
     needLine: 'Aggiungi almeno una riga.',
+    needClient: 'Scegli un cliente prima di convalidare (una bozza può restare senza cliente).',
+    needAmount: 'Nessun importo su questo documento: aggiungi un articolo o un prezzo prima di convalidare, oppure salvalo come bozza.',
+    articleNone: 'Nessun articolo trovato per « {term} »: la riga resterà testo libero.',
     errSave: 'Errore',
     draft: 'Bozza', validate: 'Convalida',
     // devis atelier : frais de devis (mission 02)

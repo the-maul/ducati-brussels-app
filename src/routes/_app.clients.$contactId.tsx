@@ -222,7 +222,7 @@ function EditClient() {
               </Button>
             )}
             <Button variant="outline" onClick={() => setLabelOpen(true)}><Tags /> {t('contacts.labelBtn')}</Button>
-            <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> Nouveau document</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> {t('contacts.newDoc')}</Button>
             {/* Fusion reservee aux admins (decision F-9, controle aussi par contact_merge). */}
             {isAdmin(activeCompanyId) && (
               <Button variant="outline" onClick={() => setMergeOpen(true)}><Merge /> {t('contacts.merge')}</Button>

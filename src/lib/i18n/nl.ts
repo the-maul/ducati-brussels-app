@@ -812,6 +812,7 @@ export const nl: DictionaryShape = {
     removeModel: 'Verwijderen',
     // Étiquette client (impression depuis la fiche)
     labelBtn: 'Etiket',
+    newDoc: 'Nieuw document',
     labelTitle: 'Klantetiket',
     labelSubtitle: 'Vink de gegevens aan die op het etiket moeten staan.',
     labelName: 'Naam - Voornaam',
@@ -1156,6 +1157,9 @@ export const nl: DictionaryShape = {
     recallEmpty: 'Geen standaardcommentaar opgeslagen. Voeg er toe in Instellingen → Standaardcommentaren.',
     recallManage: 'Standaardcommentaren beheren',
     needLine: 'Voeg minstens één lijn toe.',
+    needClient: 'Kies een klant voor u valideert (een ontwerp mag zonder klant blijven).',
+    needAmount: 'Geen bedrag op dit document: voeg een artikel of een prijs toe voor u valideert, of sla het op als ontwerp.',
+    articleNone: 'Geen artikel gevonden voor « {term} »: de lijn blijft vrije tekst.',
     errSave: 'Fout',
     draft: 'Ontwerp', validate: 'Valideren',
     // devis atelier : frais de devis (mission 02)

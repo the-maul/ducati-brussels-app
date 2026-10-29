@@ -21,6 +21,7 @@ import { listCompanyMailboxes, listCommunications } from '@/modules/crm/api';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t, tIn } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
+import { errorMessage } from '@/lib/mutation-feedback';
 import type { DocumentFull } from './write-api';
 import { generateSalesPdf, pdfBlob } from './document-pdf-data';
 import { sendDocumentMail, mailErrorLabel, type DryRunPreview } from './document-mail-api';
@@ -91,7 +92,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
       qc.invalidateQueries({ queryKey: ['comms', contact.id] });
       onClose();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('salesMail.errGeneric')),
+    onError: (e) => toast.error(errorMessage(e)),
   });
 
   return (

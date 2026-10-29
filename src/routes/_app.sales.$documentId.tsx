@@ -37,6 +37,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { t, tIn, pageTitle } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { useReadOnly } from '@/lib/auth/read-only-context';
+import { errorMessage } from '@/lib/mutation-feedback';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
   head: () => ({ meta: [{ title: pageTitle('salesDocument') }] }),
@@ -145,7 +146,7 @@ function DocumentView() {
         actions={
           <div className="flex items-center gap-2">
             <PrepareButton doc={doc} withLabel />
-            <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '')}><Printer /> {t('sales.print')}</Button>
+            <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '').catch((e) => toast.error(errorMessage(e)))}><Printer /> {t('sales.print')}</Button>
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
@@ -373,7 +374,7 @@ function SendSmsDialog({ companyId, document, contact, onClose }: { companyId: s
     onSuccess: () => { toast.success(t('sales.smsQueued')); onClose(); },
       // Toast sur mesure émis ici : on coupe le toast global (mutation-feedback).
       meta: { success: false, error: false },
-    onError: () => toast.error(t('sales.errSend')),
+    onError: (e) => toast.error(errorMessage(e)),
   });
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>

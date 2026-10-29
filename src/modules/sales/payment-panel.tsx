@@ -15,6 +15,7 @@ import {
   type NewPayment,
 } from './write-api';
 import { t } from '@/lib/i18n';
+import { errorMessage } from '@/lib/mutation-feedback';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -72,7 +73,8 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
       await addPayments(documentId, lines);
     },
     onSuccess: () => { setDrafts([]); setError(null); refresh(); },
-    onError: (e) => setError(e instanceof Error ? e.message : t('sales.errSave')),
+    // Motif réel (PostgrestError compris) plutôt que « Erreur » ; le toast global le montre aussi.
+    onError: (e) => setError(errorMessage(e)),
   });
 
   const del = useMutation({ mutationFn: (id: string) => deletePayment(id, documentId), onSuccess: refresh });

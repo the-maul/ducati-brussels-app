@@ -17,12 +17,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { toast } from 'sonner';
+import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
-import { createDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount, type LineInput, type LineType, type SaleArticle, type PiedInput } from './write-api';
+import {
+  createDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount,
+  documentValidationError, documentValidationMessage,
+  type LineInput, type LineType, type SaleArticle, type PiedInput,
+} from './write-api';
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { errorMessage } from '@/lib/mutation-feedback';
 import { useAuth } from '@/lib/auth/auth-context';
 import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
 import { loadQuoteFeeParams } from '@/modules/workshop/quote-fees-api';
@@ -45,14 +51,17 @@ const blankLine = (type: LineType = 'article', designation = ''): EditLine => ({
   unit_price_ht: 0, vat_rate: 21, discount_pct: 0, line_type: type,
 });
 
-export function DocumentEditor({ companyId, initialContactId, initialVehicleId, workshopOrNumber, workshop }: {
-  companyId: string; initialContactId?: string; initialVehicleId?: string; workshopOrNumber?: string; workshop?: boolean;
+export function DocumentEditor({ companyId, initialContactId, initialVehicleId, initialDocType, workshopOrNumber, workshop }: {
+  companyId: string; initialContactId?: string; initialVehicleId?: string; initialDocType?: string; workshopOrNumber?: string; workshop?: boolean;
 }) {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
   const operatorName = profile?.full_name?.trim() || profile?.email || user?.email || '';
   const roundUp = useRoundSalePrices(companyId);
-  const [docType, setDocType] = useState<string>(workshop ? 'DEV' : 'FAC');
+  // Type proposé : devis atelier depuis un OR, sinon le type demandé par le lien (ex. DEV), sinon facture.
+  const [docType, setDocType] = useState<string>(
+    workshop ? 'DEV' : (DOC_TYPES as readonly string[]).includes(initialDocType ?? '') ? (initialDocType as string) : 'FAC',
+  );
   const [contact, setContact] = useState<Contact | null>(null);
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState('');
@@ -96,13 +105,16 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // La détaxe n'est valable qu'en mode HT (G8 p.54) : on la coupe si on repasse en TTC.
   useEffect(() => { if (priceMode !== 'ht' && taxExempt) setTaxExempt(false); }, [priceMode, taxExempt]);
 
-  // précharge le client si fourni
-  const { data: preContact } = useQuery({
+  // Précharge le client fourni par le lien (fiche client → « Nouveau document », OR → devis).
+  // Lecture directe de la fiche : l'ancienne recherche sans terme ne renvoyait que les 500 premiers
+  // contacts sur 8 000, et le client arrivait vide sans un mot (constat du 30/10/2026).
+  const { data: preContact, isError: preContactFailed } = useQuery({
     queryKey: ['contact-pre', initialContactId],
-    queryFn: async () => (initialContactId ? (await listContacts(companyId, '')).find((c) => c.id === initialContactId) ?? null : null),
+    queryFn: () => getContact(initialContactId as string),
     enabled: !!initialContactId,
   });
   useEffect(() => { if (preContact) setContact(preContact); }, [preContact]);
+  useEffect(() => { if (preContactFailed || (initialContactId && preContact === null)) toast.error(t('sales.needClient')); }, [preContactFailed, preContact, initialContactId]);
 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
@@ -136,19 +148,24 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   };
   const totals = computeTotals(lines.map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l), pied);
 
+  // Erreur toujours visible : sous les totaux ET en toast (le bouton Valider est en bas, pas le message).
+  const fail = (msg: string) => { setError(msg); toast.error(msg); setBusy(false); };
+
   const save = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
       // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
       const payload = lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l);
-      if (!payload.some((l) => l.line_type !== 'vide')) { setError(t('sales.needLine')); setBusy(false); return; }
+      // Refus clairs avant d'écrire : sans ligne, validation sans client, validation à 0 € (audit du 31/10/2026).
+      const refused = documentValidationError({ docType, status, contactId: contact?.id ?? null, lines: payload, requireAmount: true });
+      if (refused) { fail(documentValidationMessage(refused)); return; }
       const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
       const id = await createDocument({
         companyId, docType, contactId: contact?.id ?? null, vehicleId: initialVehicleId ?? null, issueDate, dueDate: dueDate || null,
         status, notes, lines: payload, pied,
       });
       navigate({ to: '/sales/$documentId', params: { documentId: id } });
-    } catch (e) { setError(e instanceof Error ? e.message : t('sales.errSave')); setBusy(false); }
+    } catch (e) { fail(errorMessage(e)); }
   };
 
   return (
@@ -419,10 +436,14 @@ function LinePicker({ companyId, value, onText, onPick }: { companyId: string; v
   const roundUp = useRoundSalePrices(companyId);
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
-  const { data } = useQuery({ queryKey: ['sale-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
+  const { data, isFetched } = useQuery({ queryKey: ['sale-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
   return (
     <div className="relative">
       <Input value={value} onChange={(e) => onText(e.target.value)} placeholder={t('sales.lineArticleOrText')} className="h-8" />
+      {/* Recherche sans résultat : on le dit, sinon le vendeur croit que la recherche ne marche pas. */}
+      {isFetched && data && data.length === 0 && deb.length >= 2 && (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{t('sales.articleNone').replace('{term}', deb)}</p>
+      )}
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
