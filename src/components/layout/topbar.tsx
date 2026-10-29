@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -148,6 +148,14 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid,
     refetchInterval: 120_000,
   });
+  // ATE009 : le client a signe une proposition d'intervention (tous les membres, ecran de l'OR).
+  const proposalKey = ['proposal-signed-alerts', activeCompanyId, uid];
+  const { data: proposalData } = useQuery({
+    queryKey: proposalKey,
+    queryFn: () => listDocumentAlerts(activeCompanyId!, uid!, 'proposal_signed'),
+    enabled: !!activeCompanyId && !!uid,
+    refetchInterval: 120_000,
+  });
   const webOrderKey = ['web-order-alerts', activeCompanyId, uid];
   const { data: webOrderData } = useQuery({
     queryKey: webOrderKey,
@@ -170,6 +178,7 @@ function NotificationsBell() {
       queryClient.invalidateQueries({ queryKey: depositKey });
       queryClient.invalidateQueries({ queryKey: unpaidKey });
       queryClient.invalidateQueries({ queryKey: webOrderKey });
+      queryClient.invalidateQueries({ queryKey: proposalKey });
     },
   });
 
@@ -187,9 +196,11 @@ function NotificationsBell() {
   const unreadUnpaid = unpaidAlerts.filter((n) => !n.read);
   const webOrders = seesWebOrders ? webOrderData ?? [] : [];
   const unreadWebOrders = webOrders.filter((n) => !n.read);
+  const proposalAlerts = proposalData ?? [];
+  const unreadProposals = proposalAlerts.filter((n) => !n.read);
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -327,6 +338,15 @@ function NotificationsBell() {
           </>
         )}
 
+        {proposalAlerts.length > 0 && (
+          <DocumentAlertSection
+            title={t('notif.proposalTitle')} alerts={proposalAlerts} icon={PenLine} tone="success"
+            line={(n) => t('notif.proposalLine').replace('{kept}', String(n.payload.kept ?? 0)).replace('{deferred}', String(n.payload.deferred ?? 0))}
+            onRead={(id) => markRead.mutate([id])} fmt={fmt}
+            linkTo={(n) => (n.payload.repair_order_id ? { to: '/workshop/$orId', params: { orId: n.payload.repair_order_id } } : null)}
+          />
+        )}
+
         {depositAlerts.length > 0 && (
           <DocumentAlertSection
             title={t('notif.depositTitle')} alerts={depositAlerts} icon={ShoppingCart} tone="warning"
@@ -459,17 +479,19 @@ function NotificationsBell() {
 }
 
 /** Section de la cloche pour les alertes liées à un document de vente (mission 05, carte 10). */
-function DocumentAlertSection({ title, alerts, icon: Icon, tone, line, onRead, fmt, footer }: {
+function DocumentAlertSection({ title, alerts, icon: Icon, tone, line, onRead, fmt, footer, linkTo }: {
   title: string;
   alerts: DocumentAlert[];
   icon: typeof Bell;
-  tone: 'warning' | 'danger';
+  tone: 'warning' | 'danger' | 'success';
   line: (n: DocumentAlert) => string;
   onRead: (id: string) => void;
   fmt: (iso: string) => string;
   footer?: ReactNode;
+  /** Cible du lien (par defaut : le document de vente). */
+  linkTo?: (n: DocumentAlert) => { to: '/workshop/$orId'; params: { orId: string } } | null;
 }) {
-  const color = tone === 'danger' ? 'text-[var(--danger)]' : 'text-[var(--warning)]';
+  const color = tone === 'danger' ? 'text-[var(--danger)]' : tone === 'success' ? 'text-[var(--success)]' : 'text-[var(--warning)]';
   return (
     <>
       <DropdownMenuSeparator />
@@ -488,7 +510,9 @@ function DocumentAlertSection({ title, alerts, icon: Icon, tone, line, onRead, f
         );
         return (
           <DropdownMenuItem key={n.id} asChild className="cursor-pointer" onSelect={() => { if (!n.read) onRead(n.id); }}>
-            {n.documentId ? (
+            {linkTo?.(n) ? (
+              <Link to="/workshop/$orId" params={linkTo(n)!.params} className="flex flex-col items-start gap-0.5">{body}</Link>
+            ) : n.documentId ? (
               <Link to="/sales/$documentId" params={{ documentId: n.documentId }} className="flex flex-col items-start gap-0.5">{body}</Link>
             ) : (
               <div className="flex flex-col items-start gap-0.5">{body}</div>

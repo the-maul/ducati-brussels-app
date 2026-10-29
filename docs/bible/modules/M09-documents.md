@@ -2,9 +2,9 @@
 chapitre: M9
 titre: Documents / GED / signatures
 etat: 🟦
-verifie_le: 2026-09-18
-missions: []
-mots_cles: [GED, pièce jointe, document, dossier, photo, PDF, signature, signature électronique, CGV, COC, garantie, réception, contrat d'essai, reprise, bridage, financement, attestation, stockage, bucket]
+verifie_le: 2026-10-31
+missions: [07]
+mots_cles: [GED, pièce jointe, document, dossier, photo, PDF, signature, signature électronique, signature maison, proposition d'intervention, jeton, lien signé, CGV, COC, garantie, réception, contrat d'essai, reprise, bridage, financement, attestation, stockage, bucket]
 ---
 
 # M9 — Documents / GED / signatures
@@ -31,6 +31,7 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | Ventes → document → Imprimer | Facture / devis / ticket / BL / avoir au format de la concession, avec les **CGV au verso** si la société en a (M6, `print-document.ts`). |
 | Ventes → document → **Aperçu PDF** / **Envoyer par e-mail** (19/09) | PDF du devis / proforma, bon de commande, réservation, BL, facture… ; à l'envoi, le PDF est rangé dans la GED du **client** (dossier « Documents de vente ») et dans celle du **document**, avec la note « Envoyé par e-mail à … depuis … le … ». |
 | Espace client → **Mon profil** → « Mes documents » et **fiche moto** → « Documents du véhicule » (05/10) | Permis, carte d’identité, carte grise, assurance, COC, contrôle technique : un emplacement **recto** et un **verso** par document, « Complet / À compléter », interrupteur « Ce document n’a pas de verso ». « Autres documents » : plusieurs fichiers, chacun avec un libellé saisi par le client. Chaque fichier déposé apparaît en **miniature** (image réduite ; icône PDF sinon), « Voir en grand » et « Supprimer » avec confirmation. Limite **10 Mo** annoncée avant le dépôt, photos réduites à 1 200 px par le navigateur. |
+| **Signer une proposition d'intervention** (`/signer/<jeton>`, 31/10, ATE008 / ATE009) | Page **publique** (sans connexion) ouverte par le lien du mail ou depuis l'espace client (« Une proposition de notre atelier attend votre signature »), et par la tablette du comptoir (« Faire signer sur la tablette », `?mode=comptoir`). Dans la **langue du client** : une **case par action** (décocher = reporter, le total se recalcule, photo du check-up affichée), nom, puis **« J'accepte et je signe »** ; au comptoir, **signature tracée au doigt**. Ensuite : « Merci, c'est signé », travaux acceptés / reportés, empreinte, exemplaire signé envoyé par mail |
 | Reprises → validation (M7) | Signature manuscrite du client sur l'attestation « TVA régime de la marge », PDF d'archive de la reprise déposé en GED sur la moto et sur le client, fiche de reprise PDF. ⚠️ Module M7 inopérant en production (voir chapitre M7). |
 
 ## 3. Où trouver quoi
@@ -40,12 +41,13 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | Écrans (routes) | pas de route propre ; panneau inséré dans `src/routes/_app.clients.$contactId.tsx`, `_app.vehicles.$vehicleId.tsx`, `_app.parts.$articleId.tsx`, `_app.sales.$documentId.tsx`, `_app.workshop.$orId.tsx`, `src/modules/crm/lead-detail.tsx`, `src/modules/improvements/task-editor.tsx` |
 | Panneau GED | `src/modules/documents/attachments-panel.tsx` |
 | Accès aux fichiers | `src/modules/documents/ged-api.ts` (chemin de stockage : `<company_id>/<entity_type>/<entity_id>/<horodatage>_<nom>`) |
-| Signature manuscrite | `src/modules/documents/signature-pad.tsx` (utilisé seulement par `src/modules/tradein/validate-dialog.tsx`) |
-| PDF des documents de vente (M6) | `src/modules/sales/document-pdf.ts`, `document-pdf-data.ts`, `pdf-print-style.ts` ; envoi + archivage `document-mail-api.ts` |
+| Signature manuscrite | `src/modules/documents/signature-pad.tsx` (reprise M7 et signature au comptoir de la proposition d'intervention) |
+| Signature maison d'une proposition d'intervention (31/10) | `src/modules/documents/proposal-sign.ts` (pur : groupes à cocher, texte accepté, entrée du PDF signé, nom de fichier), `proposal-sign-api.ts` (appels de la fonction serveur), `proposal-sign-screen.tsx` (l'écran, deux modes), route `src/routes/signer.$token.tsx` ; fonction serveur `supabase/functions/proposal-sign/index.ts` (jeton, `proposal_by_token`, `proposal_apply_signature`, PDF signé en GED, mail Graph dans la langue du client, textes `_shared/mail-i18n.ts` bloc `proposal`) ; règles côté atelier : M08 (`src/modules/workshop/checkup/rules.ts`) |
+| PDF des documents de vente (M6) | `src/modules/sales/document-pdf.ts` (31/10 : titre « Proposition d'intervention », vignette photo sous la ligne, lignes reportées barrées, bloc « Signé électroniquement » avec tracé au comptoir), `document-pdf-data.ts`, `pdf-print-style.ts` ; envoi + archivage `document-mail-api.ts` (31/10 : adresse http(s) du message rendue cliquable) |
 | Texte des PDF (jsPDF) | `src/modules/documents/pdf-text.ts` (`sanitizePdfText`, `patchPdfText`) |
 | Générateurs de documents existants (hors module) | `src/modules/sales/print-document.ts` (M6, HTML imprimable), `src/modules/tradein/attestation-pdf.ts`, `reprise-pdf.ts`, `validation-pdf.ts`, `sheet-builder.ts` (M7, jsPDF) |
 | Espace client (portail) | Écrans `src/modules/portal/profile.tsx` et `vehicles.tsx` ; briques recto-verso, miniature, consultation et suppression : `src/modules/portal/doc-slot.tsx` et `ui.tsx` (`DocThumb`, `useDocViewer`, `UploadLimitHint`) ; appels `src/modules/portal/api.ts` (`uploadPortalFile`, `deletePortalUpload`, `setDocNoBack`) ; réduction d’image et contrôle de poids `src/modules/portal/image.ts` (préréglage `portal` de `src/lib/image-tools.ts`, 1 200 px) |
-| Tables | `attachments` (index des pièces : entité, chemin, type, taille, dossier, empreinte), `document_signatures` (prévue pour les signatures, **inutilisée**), `companies.cgv_text` / `invoice_footer` (CGV et pied de facture) |
+| Tables | `attachments` (index des pièces : entité, chemin, type, taille, dossier, empreinte), `document_signatures` (**utilisée depuis le 31/10** : `mode` distance / comptoir, `signer_name`, `signed_at`, `signed_ip`, `user_agent`, `accepted_text` + `accepted_text_hash` SHA-256, `kept_line_ids`, `signature_data` = PNG du tracé au comptoir, `signed_by` si la tablette est connectée), `documents.sign_token` / `sign_token_expires_at` / `accepted_at` / `accepted_signature_id` / `doc_kind` / `repair_order_id`, `document_lines.accepted` / `checkup_key` / `photo_path`, `companies.cgv_text` / `invoice_footer` (CGV et pied de facture) |
 | Stockage | bucket privé `ged` (13 191 objets), bucket public `shop-assets` (M11) |
 | Fonctions SQL (RPC) | aucune propre ; politique `ged_public_products` pour les photos d'articles publiés (M11). Portail client (migration `20261005130000`) : `portal_prepare_upload`, `portal_complete_upload`, `portal_set_upload_label`, `portal_set_doc_no_back`, `portal_delete_upload` ; prédicats `portal_can_read_object` / `portal_can_write_object` / `portal_can_delete_object` et politiques `ged_portal_select` / `ged_portal_insert` / `ged_portal_delete` |
 | Fonctions serveur (Edge) | `supabase/functions/outlook-poll` dépose les pièces jointes des mails (dossier « E-mails », dédoublonnées par empreinte `content_hash`) ; `supabase/functions/read-id-doc` lit les scans d'identité (M1) et, en mode `carte_grise`, la carte grise d'une moto (M3, mission 04 carte 7 : photo rangée dans la GED du véhicule, dossier « Carte grise ») |
@@ -63,6 +65,25 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 - **PDF des documents de vente généré dans le navigateur avec jsPDF** (19/09, mission 05 carte 8). Pourquoi : jsPDF est **déjà** une dépendance du projet (PDF de reprise M7), léger, très répandu, compatible Lovable / TanStack Start (chargé à la demande, seulement au clic) ; le même fichier sert à l'aperçu, à la pièce jointe et à l'archive GED, sans aller-retour serveur. Écartés : une Edge Function Deno (il faudrait y réécrire la mise en page et relire toutes les données avec la clé service, pour aucun gain tant qu'aucun PDF ne part sans utilisateur) ; l'impression HTML `window.print()` (aucun fichier à joindre ni à archiver) ; pdf-lib (nouvelle dépendance, pas de mise en page du texte). Couleurs et polices du PDF : **uniquement** `pdf-print-style.ts` (document imprimé, charte §7), jamais dans un composant React. Le jour où un PDF devra partir sans utilisateur connecté (relance automatique), déplacer `document-pdf.ts` (pur) dans une Edge Function.
 - **Un PDF envoyé = deux fichiers GED** (client et document), pas une ligne partagée : supprimer l'un ne casse pas l'autre (la suppression efface le fichier du stockage).
 - **Prix de vente jamais dans le PDF d'archive de reprise** (demande magasin, en-tête de `validation-pdf.ts`).
+- **Signature maison, un écran, deux usages (31/10/2026, décision M-75)**. Pas de prestataire de
+  signature : pour un accord de travaux, une **signature électronique simple** suffit, à condition
+  d'enregistrer de quoi prouver qui a accepté quoi et quand. Le lien `/signer/<jeton>` porte un
+  **jeton de 64 hexadécimaux généré en base** (`_proposal_new_token`, deux UUID v4), à **durée
+  limitée** (30 jours ; renouvelé par « Renvoyer », « Faire signer sur la tablette » ou l'espace
+  client). Le navigateur ne touche jamais la base : la fonction serveur `proposal-sign` vérifie le
+  jeton avec la clé de service, et `proposal_by_token` / `proposal_apply_signature` ne sont
+  exécutables que par elle. **À distance** : nom tapé + « J'accepte et je signe » → on enregistre
+  le nom, l'horodatage, l'adresse IP (`x-forwarded-for`), le navigateur, les lignes gardées et le
+  **texte exact accepté** (société, n°, client, moto, chaque action gardée avec son montant, total,
+  phrase d'acceptation, nom, date) avec son **empreinte SHA-256** (calculée en base par pgcrypto,
+  vérifiable depuis le texte). **Au comptoir** : mêmes enregistrements + le **tracé au doigt** (PNG)
+  stocké dans `document_signatures.signature_data` et imprimé dans le PDF. Une proposition ne se
+  signe qu'une fois (`deja signee`), jamais expirée ni annulée. Le **PDF signé** est construit dans
+  le navigateur du signataire (jsPDF, comme les autres PDF) avec les valeurs renvoyées par la base
+  (horodatage, IP, empreinte), puis rangé par la fonction serveur dans la GED du document et du
+  client et envoyé au client par Outlook (boîte `inbound_mailbox` de la société, sinon la première
+  boîte partagée) dans **sa langue** ; sans secrets Graph, la signature reste enregistrée et l'écran
+  dit que la concession enverra l'exemplaire.
 - **Un document part dans la langue du client (I18N004, décision M-71 du 30/10/2026)**. La langue est
   celle de la **fiche du client** (`contacts.locale`, FR par défaut), jamais celle de l'écran de
   l'utilisateur : le vendeur travaille en français, le client flamand reçoit « NOG TE BETALEN ».
@@ -86,7 +107,7 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 - ✅ Table `attachments` (13 178 lignes : 12 703 sur des documents de vente — factures G8 d'origine —, 245 véhicules, 223 contacts, 4 articles, 3 améliorations) et bucket `ged` (13 191 objets) présents ; colonnes `folder` et `content_hash` présentes.
 - ✅ Dépôt, dossiers, renommage, ouverture et suppression fonctionnent sur toutes les fiches.
 - ✅ CGV : renseignées pour 1 société sur 2, imprimées au verso des factures.
-- ⚠️ `document_signatures` existe (0 ligne) mais **aucun code ne l'écrit** : la seule signature réelle (attestation de reprise) est incrustée comme image dans le PDF, sans empreinte ni horodatage en base.
+- ⚠️ `document_signatures` existe (0 ligne) ; depuis le 31/10 la signature d'une proposition d'intervention y écrit (migration non appliquée : 0 ligne tant qu'elle ne l'est pas) ; l'attestation de reprise reste incrustée comme image dans le PDF.
 - ⚠️ **Tout membre de la société peut supprimer définitivement n'importe quelle pièce**, y compris les 12 703 factures d'origine reprises de G8 (politique `attachments_all` et `ged_delete` = `is_member`). La suppression est tracée dans `events` (déclencheur `trg_attachments_audit`) mais le fichier est effacé du stockage **avant** la ligne d'index, sans vérifier le résultat : si la seconde étape échoue, le fichier est perdu et la ligne reste.
 - 🔴 `read-id-doc` (voir M1) télécharge n'importe quel chemin de la GED avec la clé service role, sans vérifier l'appelant, et est déployée sans vérification de jeton.
 
@@ -100,7 +121,8 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 ## 7. Limites connues, dettes, pièges
 
 - **Pas de générateur PDF templaté commun** : chaque module écrit le sien (HTML imprimable et PDF jsPDF en M6, jsPDF en M7). Le « générateur PDF en Edge Function » du dossier-projet n'existe pas (choix du 19/09, §4).
-- **Signature du PDF de vente** : une case « Bon pour accord » vide, à signer à la main ; pas de signature électronique (VEN003).
+- **Signature du PDF de vente** : une case « Bon pour accord » vide, à signer à la main ; la signature électronique n'existe que pour la **proposition d'intervention** de l'atelier (31/10) — l'étendre aux devis / bons de commande (VEN003) = relier le même écran à ces documents.
+- **Signature (31/10)** : l'adresse IP vient de `x-forwarded-for` (fiable derrière Supabase, à relire si un autre proxy s'intercale) ; le PDF signé est généré dans le navigateur du client (un navigateur très ancien pourrait échouer : la signature est alors enregistrée sans PDF, la concession peut le régénérer depuis le document) ; un jeton n'est jamais réutilisable après signature mais la page reste consultable (« déjà signée »).
 - La GED d'une entité est lue par `entity_type` + `entity_id` sans filtre `company_id` côté requête (la RLS s'en charge).
 - Les dossiers vides n'existent que dans l'écran (état local) : un dossier sans fichier disparaît au rechargement.
 - Aucune limite de taille sur le bucket `ged` lui-même (`storage.buckets.file_size_limit` est nul : la limite réelle est celle du projet Supabase). Pour les dépôts du **portail client**, c’est la base qui fait foi : **10 Mo**, vérifiés dans `portal_prepare_upload` et `portal_complete_upload` (M-61). Le panneau GED du personnel, lui, n’a toujours aucune limite.
@@ -122,14 +144,14 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | DOC006 | Attestation de bridage / débridage | ⬜ manquant | seule l'attestation « TVA marge » existe (`attestation-pdf.ts`) |
 | DOC007 | Dossiers de financement | 🟦 partiel | dépôt générique en GED client, pas de dossier structuré |
 | DOC008 | Alias mail pour archivage automatique | 🟦 partiel | `outlook-poll` range les pièces jointes des mails sur la fiche du client expéditeur ; pas d'alias dédié |
-| VEN003 | Signature électronique des devis/commandes | ⬜ manquant | `document_signatures` inutilisée ; « lu et approuvé » papier au verso des CGV |
+| VEN003 | Signature électronique des devis/commandes | 🟦 partiel (31/10) | Signature maison branchée sur la **proposition d'intervention** (`doc_kind = proposition_intervention`) ; devis / bons de commande ordinaires : encore « lu et approuvé » papier |
 | VEN005 | Fiches véhicule A6 pour le magasin | ⬜ manquant | aucun gabarit A6 dans `src/` |
 | VEN014 | Documents de financement dans la fiche client | 🟦 partiel | GED client (onglet GED) |
 | VEN015 | Portail de dépôt de documents de financement | ⬜ manquant | pas de portail |
 | VEN016 | Portail de demande de reprise avec photos | ⬜ manquant | l'assistant de reprise M7 est interne |
 | VEH005 | Gestion documentaire par véhicule | ✅ fait | panneau GED sur `_app.vehicles.$vehicleId.tsx` |
 | ATE007 | Photos à la réception du véhicule | ✅ fait | panneau GED sur `_app.workshop.$orId.tsx`, libellé « Réception » |
-| ATE008 | Signature client sur l'OR avec envoi automatique | ⬜ manquant | — |
+| ATE008 | Signature client sur l'OR avec envoi automatique | 🟦 partiel (31/10) | Proposition d'intervention signée à distance ou au comptoir, PDF signé envoyé et archivé ; fiche de réception à signer : non |
 
 ## 9. Historique
 
@@ -144,4 +166,5 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | 2026-09-19 | PDF des documents de vente (jsPDF) : aperçu, pièce jointe du mail, archivé en GED client + document (mission 05 carte 8, mission 02 carte 6) | code seul |
 | 2026-10-05 | **Espace client, retour de Simon du 05/10** : carte d’identité ajoutée, **recto et verso** pour tous les documents (avec « pas de verso »), consultation plein écran et **suppression par le client** (tracée, fichier effacé), limite ramenée à **10 Mo** annoncée avant l’envoi et images réduites à 1 200 px, **plusieurs « autres documents »** avec libellé, **miniatures** à la place du nom de fichier (M-58 à M-62) | branche `lot-portail-docs`, migration `20261005130000_m9_portail_documents_recto_verso` (**appliquée le 05/10**) |
 | 2026-09-19 | Carte grise lue par `read-id-doc` (mode `carte_grise`) et rangée dans la GED de la moto (mission 04, carte 7) | branche `lot-m4-moto` |
+| 2026-10-31 | **Signature maison des propositions d'intervention** (ATE008 / ATE009, M-75) : page publique `/signer/<jeton>`, deux modes (nom + clic à distance, tracé au doigt au comptoir), `document_signatures` enfin écrite (mode, IP, navigateur, texte accepté + SHA-256, lignes gardées), PDF avec vignettes photo et bloc de signature, fonction serveur `proposal-sign` (à déployer), textes de mail `_shared/mail-i18n.ts` bloc `proposal` ; test `tests/workshop-checkup.test.ts` | branche `lot-checkup-atelier`, migration `20261031110000_m8_checkup_et_accord_client.sql` (**non appliquée**) |
 | 2026-10-30 | **Le client reçoit ses devis, factures et mails dans sa langue** (I18N004, lot 4, M-71) : PDF et impression des documents de vente, objet/corps du mail de document, SMS, pied de mail et mails de compte dans la langue de la fiche (`contacts.locale`) ; désignations des lignes traduites quand `designation_i18n` existe ; textes serveur `supabase/functions/_shared/mail-i18n.ts` ; test `tests/langue-du-client.test.ts` | branche `lot-documents-langue-client`, migration `20261030160000_m1_langue_du_client.sql` (**à appliquer**), fonctions `graph-send-email` et `send-account-invitation` **à redéployer** |

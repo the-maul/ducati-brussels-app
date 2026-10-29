@@ -319,6 +319,17 @@ export const listInvoices = () => rpc<PortalInvoiceSummary[]>('portal_invoices')
 export const getInvoice = (id: string) => rpc<PortalInvoiceDetail>('portal_invoice', { p_document_id: id });
 export const listAppointments = () => rpc<PortalAppointment[]>('portal_appointments');
 
+/**
+ * Propositions d'intervention de l'atelier (ATE009, migration 20261031110000) : a signer ou deja
+ * signees, avec le jeton du lien /signer/<jeton>. Fonction absente (migration non posee) → liste vide.
+ */
+export type PortalProposal = {
+  id: string; number: string | null; issue_date: string; total_ttc: number; status: 'en_attente' | 'accepte';
+  accepted_at: string | null; token: string | null; or_number: string | null; vehicle_label: string | null;
+};
+export const listProposals = (): Promise<PortalProposal[]> =>
+  rpc<PortalProposal[]>('portal_proposals' as Parameters<typeof supabase.rpc>[0]).catch(() => [] as PortalProposal[]);
+
 // ---------------------------------------------------------------- écritures
 export const updateProfile = (patch: ProfilePatch) =>
   rpc<PortalProfile>('portal_update_profile', { p: patch });

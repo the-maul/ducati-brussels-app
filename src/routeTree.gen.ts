@@ -42,6 +42,7 @@ import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
 import { Route as MonEspaceIndexRouteImport } from './routes/mon-espace.index'
 import { Route as MonEspaceProfilRouteImport } from './routes/mon-espace.profil'
 import { Route as MonEspaceRendezVousRouteImport } from './routes/mon-espace.rendez-vous'
+import { Route as SignerTokenRouteImport } from './routes/signer.$token'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
 import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
@@ -277,6 +278,11 @@ const MonEspaceRendezVousRoute = MonEspaceRendezVousRouteImport.update({
   id: '/rendez-vous',
   path: '/rendez-vous',
   getParentRoute: () => MonEspaceRoute,
+} as any)
+const SignerTokenRoute = SignerTokenRouteImport.update({
+  id: '/signer/$token',
+  path: '/signer/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/',
@@ -672,6 +678,7 @@ export interface FileRoutesByFullPath {
   '/workshop': typeof AppWorkshopRouteWithChildren
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
@@ -765,6 +772,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/signer/$token': typeof SignerTokenRoute
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
@@ -870,6 +878,7 @@ export interface FileRoutesById {
   '/_app/workshop': typeof AppWorkshopRouteWithChildren
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
   '/_app/clients/mobiles': typeof AppClientsMobilesRoute
@@ -977,6 +986,7 @@ export interface FileRouteTypes {
     | '/workshop'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/signer/$token'
     | '/mon-espace/'
     | '/clients/$contactId'
     | '/clients/mobiles'
@@ -1070,6 +1080,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/signer/$token'
     | '/mon-espace'
     | '/clients/$contactId'
     | '/clients/mobiles'
@@ -1174,6 +1185,7 @@ export interface FileRouteTypes {
     | '/_app/workshop'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/signer/$token'
     | '/mon-espace/'
     | '/_app/clients/$contactId'
     | '/_app/clients/mobiles'
@@ -1258,6 +1270,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MonEspaceRoute: typeof MonEspaceRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SignerTokenRoute: typeof SignerTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1492,6 +1505,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/mon-espace/rendez-vous'
       preLoaderRoute: typeof MonEspaceRendezVousRouteImport
       parentRoute: typeof MonEspaceRoute
+    }
+    '/signer/$token': {
+      id: '/signer/$token'
+      path: '/signer/$token'
+      fullPath: '/signer/$token'
+      preLoaderRoute: typeof SignerTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/clients/': {
       id: '/_app/clients/'
@@ -2340,17 +2360,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MonEspaceRoute: MonEspaceRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  SignerTokenRoute: SignerTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

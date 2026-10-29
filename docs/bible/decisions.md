@@ -53,6 +53,32 @@ migration `20261031100000` **non appliquée**).
 
 ---
 
+## 2026-10-31 — Check-up à l'accueil, proposition d'intervention, accord client, interventions reportées
+
+- **M-75** — **Une signature électronique simple suffit pour un accord de travaux.** Pas de
+  prestataire de signature : le client reçoit un lien signé (jeton de 64 hexa généré en base, 30
+  jours), coche ce qu'il garde, tape son nom et clique « J'accepte et je signe » ; on enregistre le
+  nom, l'horodatage, l'adresse IP, le navigateur, les lignes gardées et le texte exact accepté avec
+  son empreinte SHA-256. Au comptoir, le même écran sur la tablette ajoute la signature tracée au
+  doigt, stockée en image et imprimée dans le PDF. Le PDF signé part au client dans sa langue et
+  est rangé en GED. *Client · 30/10, réalisation 31/10.* [M09](modules/M09-documents.md), [M08](modules/M08-atelier.md)
+- **M-76** — **Aucune intervention sans accord tracé.** Dès qu'une proposition d'intervention est
+  envoyée, l'OR n'est plus « à faire » pour l'atelier (bandeau, parcours et pointeuse grisés) tant
+  que le client n'a pas signé ou qu'un **accord verbal** n'a pas été noté par le vendeur (qui,
+  quand, canal téléphone / comptoir / e-mail, note), tracé dans l'historique. « Si le client n'a pas
+  signé au comptoir, le vendeur vérifie que c'est validé (en l'appelant) avant intervention. »
+  *Client · 30/10.* [M08](modules/M08-atelier.md)
+- **M-77** — **Les actions décochées sont reportées, jamais perdues : date fixée au comptoir, +30 jours
+  par défaut.** Chaque carte décochée à la signature devient une intervention reportée (table
+  `deferred_interventions`, à planifier). À la facturation / remise des clés, le comptoir propose
+  une date (aujourd'hui + 30 jours, modifiable) ou « pas maintenant » ; les reportées sont visibles
+  sur la fiche moto et la fiche client ; les relances sont l'affaire de l'agent « relances
+  marketing », qui lit cette table telle quelle (colonnes figées). « Au retrait du véhicule, le
+  comptoir demande et remet une date pour les interventions non faites. » *Client · 30/10.*
+  [M08](modules/M08-atelier.md)
+
+---
+
 ## 2026-10-30 — Le client reçoit ses documents dans sa langue (carte CRM « Traduire l'application et les données », lot 4)
 
 - **M-71** — **La langue du client est celle de sa fiche ; défaut FR.** « On a la version dans la

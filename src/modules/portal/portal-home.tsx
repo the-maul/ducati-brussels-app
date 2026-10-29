@@ -5,11 +5,11 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowRight, Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Bike, CalendarClock, CheckCircle2, ChevronRight, Circle, FileText, TrendingUp, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { getHome, type CompletionStep } from './api';
+import { getHome, listProposals, type CompletionStep } from './api';
 import {
   AppointmentStatus, Card, ErrorBox, Loading, ProgressBar, SectionTitle, dateLongFr, progressTone, timeFr,
   type ProgressTone,
@@ -38,6 +38,7 @@ function stepLabel(s: CompletionStep) {
 
 export function PortalHomeView() {
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'home'], queryFn: getHome });
+  const proposals = useQuery({ queryKey: ['portal', 'proposals'], queryFn: listProposals });
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorBox error={error} />;
 
@@ -111,6 +112,35 @@ export function PortalHomeView() {
           })}
         </ul>
       </Card>
+
+      {/* Propositions d'intervention de l'atelier a signer (ATE009) */}
+      {(proposals.data ?? []).filter((p) => p.status === 'en_attente' && p.token).map((p) => (
+        <Card key={p.id} className="border-warning">
+          <SectionTitle>{t('portal.proposals.title')}</SectionTitle>
+          <p className="text-[14px]">
+            {t('portal.proposals.line').replace('{number}', p.number ?? '').replace('{or}', p.or_number ?? '')}
+            {p.vehicle_label ? ` · ${p.vehicle_label}` : ''}
+          </p>
+          <p className="font-data text-[18px] font-bold tabular-nums">{t('portal.proposals.total')} {Number(p.total_ttc).toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €</p>
+          <Button asChild className="mt-3 h-12 w-full text-[15px]">
+            <a href={`/signer/${p.token}`}><PenLine /> {t('portal.proposals.sign')}</a>
+          </Button>
+        </Card>
+      ))}
+      {(proposals.data ?? []).some((p) => p.status === 'accepte') && (
+        <Card>
+          <SectionTitle>{t('portal.proposals.signedTitle')}</SectionTitle>
+          <ul className="divide-y divide-border">
+            {(proposals.data ?? []).filter((p) => p.status === 'accepte').map((p) => (
+              <li key={p.id} className="flex items-center gap-2 py-2 text-[14px]">
+                <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
+                <span className="min-w-0 flex-1">{t('portal.proposals.line').replace('{number}', p.number ?? '').replace('{or}', p.or_number ?? '')}</span>
+                {p.token && <a href={`/signer/${p.token}`} className="text-[13px] text-info underline">{t('portal.proposals.view')}</a>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Prochaine visite */}
       <Card>

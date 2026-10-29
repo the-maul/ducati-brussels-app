@@ -27,10 +27,18 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-/** Texte saisi (textarea) → HTML simple et sûr pour le corps du mail. */
+/**
+ * Texte saisi (textarea) → HTML simple et sûr pour le corps du mail. Une adresse http(s)
+ * collée dans le texte (lien de signature d'une proposition) devient un lien cliquable.
+ */
 export function plainTextToHtml(text: string): string {
   const esc = text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
-  return esc.replace(/\r?\n/g, '<br>');
+  const linked = esc.replace(/https?:\/\/[^\s<]+/g, (url) => {
+    const clean = url.replace(/[.,;:)]+$/, '');
+    const tail = url.slice(clean.length);
+    return `<a href="${clean}">${clean}</a>${tail}`;
+  });
+  return linked.replace(/\r?\n/g, '<br>');
 }
 
 export type SendDocumentMailInput = {

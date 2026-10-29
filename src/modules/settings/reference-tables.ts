@@ -71,6 +71,9 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   { key: 'insurance_firm', label: "Cabinets d'assurance", group: 'atelier', extraColumns: [] },
   { key: 'insurance_expert', label: 'Experts assurance', group: 'atelier', extraColumns: [] },
   { key: 'repair_type', label: 'Types de réparation', group: 'atelier', extraColumns: [] },
+  // Motif d'entrée de la moto à l'accueil de l'atelier (check-up, ATE009) : un code commençant par
+  // « entretien » (ou « vidange ») pré-remplit les actions du plan d'entretien de la moto.
+  { key: 'workshop_reason', label: "Motifs d'entrée atelier", group: 'atelier', extraColumns: [] },
   { key: 'workshop_operation', label: 'Opérations atelier', group: 'atelier', extraColumns: [] },
   { key: 'workshop_task', label: 'Tâches hors facturation', group: 'atelier', extraColumns: [] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».

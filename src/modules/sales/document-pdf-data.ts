@@ -10,11 +10,45 @@ import { contactDisplayName } from '@/modules/contacts/api';
 import { fetchImageForPdf } from '@/lib/image-tools';
 import { tIn, type Locale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
+import { signedUrl } from '@/modules/documents/ged-api';
 import type { DocumentFull } from './write-api';
 import {
   buildSalesDocumentPdf, validityMention, salesPdfFileName, dmy,
-  type SalesPdfInput, type ValidityRule,
+  type SalesPdfInput, type SalesPdfSignature, type ValidityRule,
 } from './document-pdf';
+
+/** Sous-type « Proposition d'intervention » (check-up atelier, ATE009, migration 20261031110000). */
+export const PROPOSAL_DOC_KIND = 'proposition_intervention';
+
+/** Colonnes du check-up sur un document / une ligne (absentes de types.ts tant que la migration n'est pas posée). */
+type ProposalDocExtra = { doc_kind?: string | null; accepted_signature_id?: string | null; repair_order_id?: string | null };
+type ProposalLineExtra = { photo_path?: string | null; accepted?: boolean | null };
+
+export const isProposalDoc = (doc: object): boolean => (doc as ProposalDocExtra).doc_kind === PROPOSAL_DOC_KIND;
+
+/** Vignette d'une photo du check-up pour le PDF (petite : 480 px), null si illisible. */
+async function photoThumb(path: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
+  try {
+    const url = await signedUrl(path);
+    return url ? await fetchImageForPdf(url, { maxPx: 480, quality: 0.7 }) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signature électronique enregistrée sur une proposition acceptée (table document_signatures). */
+async function loadSignature(signatureId: string | null | undefined): Promise<SalesPdfSignature | null> {
+  if (!signatureId) return null;
+  const { data } = await supabase.from('document_signatures').select('*').eq('id', signatureId).maybeSingle();
+  if (!data) return null;
+  const s = data as Record<string, unknown>;
+  const mode = s.mode === 'comptoir' ? 'comptoir' : 'distance';
+  return {
+    signerName: String(s.signer_name ?? ''), signedAt: String(s.signed_at), mode,
+    ip: (s.signed_ip as string) ?? null, hash: (s.accepted_text_hash as string) ?? null,
+    imageDataUrl: mode === 'comptoir' ? (s.signature_data as string) ?? null : null,
+  };
+}
 
 /** Clé de la table de paramètres des mentions de validité (code = type de document). */
 export const VALIDITY_TABLE_KEY = 'sales_document_validity';
@@ -88,6 +122,19 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     v.engine_number ? `${t('salesPdf.engineNumber')} : ${s(v.engine_number)}` : '',
   ].filter(Boolean) : [];
 
+  // Proposition d'intervention : titre, vignettes des photos, lignes reportées, signature.
+  const proposal = isProposalDoc(doc);
+  const photoByLine = new Map<string, { dataUrl: string; w: number; h: number }>();
+  if (proposal) {
+    await Promise.all(lines.map(async (l) => {
+      const path = (l as ProposalLineExtra).photo_path;
+      if (!path) return;
+      const img = await photoThumb(path);
+      if (img) photoByLine.set(l.id, img);
+    }));
+  }
+  const signature = proposal ? await loadSignature((doc as ProposalDocExtra).accepted_signature_id) : null;
+
   const pays = (payments ?? []).filter((p) => Number(p.amount) !== 0).map((p) => ({
     date: String(p.paid_at).slice(0, 10),
     label: `${String(p.note ?? '').toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : ''}${p.method}`,
@@ -119,6 +166,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
       designation: l.article_id ? designationFor(locale, l.designation, i18nByArticle.get(l.article_id)) : l.designation,
       quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), vatRate: Number(l.vat_rate),
       discountPct: Number(l.discount_pct || 0), lineTtc: Number(l.line_ttc),
+      photo: photoByLine.get(l.id) ?? null,
+      accepted: proposal ? (l as ProposalLineExtra).accepted ?? null : null,
     })),
     payments: pays,
     taxExempt: !!doc.tax_exempt,
@@ -132,6 +181,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     validity: validityMention(doc.doc_type, doc.issue_date, rules, locale),
     notes: doc.notes,
     locale,
+    titleOverride: proposal ? t('checkup.pdfTitle') : null,
+    signature,
   };
 }
 
@@ -142,7 +193,7 @@ export async function generateSalesPdf(full: DocumentFull): Promise<SalesPdf> {
   const input = await loadSalesPdfInput(full);
   const bytes = await buildSalesDocumentPdf(input);
   // Nom du fichier joint au mail : lui aussi dans la langue du client (« Offerte-proforma_… »).
-  return { bytes, fileName: salesPdfFileName(full.doc.doc_type, full.doc.number, input.locale) };
+  return { bytes, fileName: salesPdfFileName(full.doc.doc_type, full.doc.number, input.locale, input.titleOverride) };
 }
 
 export function pdfBlob(bytes: Uint8Array): Blob {

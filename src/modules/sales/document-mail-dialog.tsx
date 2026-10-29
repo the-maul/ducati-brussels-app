@@ -28,8 +28,12 @@ import { sendDocumentMail, mailErrorLabel, type DryRunPreview } from './document
 
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
-export function DocumentMailDialog({ full, contact, companyName, onClose }: {
+export function DocumentMailDialog({ full, contact, companyName, onClose, preset, onSent }: {
   full: DocumentFull; contact: Contact; companyName: string; onClose: () => void;
+  /** Objet et message proposés à la place des textes par défaut (ex. proposition d'intervention avec son lien de signature). */
+  preset?: { subject: string; body: string } | null;
+  /** Appelé après un envoi réel réussi (pas après une simulation). */
+  onSent?: () => void;
 }) {
   const qc = useQueryClient();
   const { doc } = full;
@@ -46,8 +50,8 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
   };
   const isReservation = doc.doc_type === 'RES';
   const [to, setTo] = useState(contact.email ?? '');
-  const [subject, setSubject] = useState(fill(tc(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
-  const [body, setBody] = useState(fill(tc(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
+  const [subject, setSubject] = useState(preset?.subject ?? fill(tc(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
+  const [body, setBody] = useState(preset?.body ?? fill(tc(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
   const [preview, setPreview] = useState<DryRunPreview & { from: string } | null>(null);
 
   // Boîtes d'envoi : même règle que les échanges du CRM (communications-panel).
@@ -90,6 +94,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
       if (!r.archived) toast.warning(t('salesMail.archiveFailed'));
       qc.invalidateQueries({ queryKey: ['attachments'] });
       qc.invalidateQueries({ queryKey: ['comms', contact.id] });
+      onSent?.();
       onClose();
     },
     onError: (e) => toast.error(errorMessage(e)),

@@ -12,6 +12,7 @@ import { DucatiInfoPanel } from '@/modules/vehicles/ducati-panel';
 import { MotoSitePanel } from '@/modules/vehicles/moto-site-panel';
 import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-panel';
 import { VehicleNextServicePanel } from '@/modules/workshop/vehicle-next-service-panel';
+import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -161,6 +162,9 @@ function EditVehicle() {
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenance.vehTitle')}</h2>
         <VehicleMaintenancePanel vehicle={vehicle} companyId={activeCompanyId} />
       </div>
+
+      {/* Interventions reportees par le client a la signature de la proposition (ATE009) */}
+      <div className="mt-6"><DeferredPanel vehicleId={vehicleId} /></div>
 
       <div className="mt-6 rounded-md border border-border bg-card p-4">
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('ged.title')}</h2>

@@ -82,7 +82,7 @@ export function newUnpaidAlerts<T extends { id: string; due_date?: string | null
 
 // ---- Cloche ----
 
-export type DocumentAlertKind = 'order_after_deposit' | 'unpaid_balance';
+export type DocumentAlertKind = 'order_after_deposit' | 'unpaid_balance' | 'proposal_signed';
 
 export type DocumentAlert = {
   id: string;
@@ -90,7 +90,11 @@ export type DocumentAlert = {
   documentId: string | null;
   contactId: string | null;
   title: string;
-  payload: { number?: string | null; doc_type?: string; missing_lines?: number; missing_qty?: number; deposit?: number; due_date?: string; client_due?: number };
+  payload: {
+    number?: string | null; doc_type?: string; missing_lines?: number; missing_qty?: number; deposit?: number; due_date?: string; client_due?: number;
+    /** Proposition d'intervention signee (ATE009) : cartes gardees / reportees, mode, OR. */
+    kept?: number; deferred?: number; mode?: string; repair_order_id?: string | null; total_ttc?: number;
+  };
   createdAt: string;
   read: boolean;
 };

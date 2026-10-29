@@ -51,6 +51,11 @@ export type MailTexts = {
   };
   /** Relances d'entretien (followups-send) : libelle du bouton « Prendre rendez-vous ». */
   followup: { book: string };
+  /** Proposition d'intervention signee par le client (proposal-sign). */
+  proposal: {
+    signedSubject: string; signedIntro: string; signedKept: string; signedDeferred: string; signedDeferredHint: string;
+    signedTotal: string; signedAttached: string; signedBye: string;
+  };
 };
 
 const fr: MailTexts = {
@@ -97,6 +102,17 @@ const fr: MailTexts = {
     signature: 'Ducati Bruxelles',
   },
   followup: { book: 'Prendre rendez-vous' },
+  /** Proposition d'intervention signee (proposal-sign). `{number}`, `{or}`, `{total}`, `{company}` remplaces. */
+  proposal: {
+    signedSubject: 'Votre accord pour les travaux - proposition {number}',
+    signedIntro: 'Merci : vous avez signe la proposition d\'intervention {number} (ordre de reparation {or}). Voici ce qui a ete retenu.',
+    signedKept: 'Travaux acceptes :',
+    signedDeferred: 'Travaux reportes :',
+    signedDeferredHint: 'Nous vous proposerons une date pour ces travaux lors de la restitution de votre moto.',
+    signedTotal: 'Total TTC des travaux acceptes : {total}',
+    signedAttached: 'Vous trouverez en piece jointe la proposition signee.',
+    signedBye: 'A bientot,',
+  },
 };
 
 const nl: MailTexts = {
@@ -143,6 +159,16 @@ const nl: MailTexts = {
     signature: 'Ducati Bruxelles',
   },
   followup: { book: 'Een afspraak maken' },
+  proposal: {
+    signedSubject: 'Uw akkoord voor de werken - voorstel {number}',
+    signedIntro: 'Bedankt: u hebt het interventievoorstel {number} (herstelorder {or}) ondertekend. Dit is wat werd weerhouden.',
+    signedKept: 'Aanvaarde werken:',
+    signedDeferred: 'Uitgestelde werken:',
+    signedDeferredHint: 'Wij stellen u een datum voor deze werken voor bij het ophalen van uw motor.',
+    signedTotal: 'Totaal incl. btw van de aanvaarde werken: {total}',
+    signedAttached: 'In bijlage vindt u het ondertekende voorstel.',
+    signedBye: 'Tot binnenkort,',
+  },
 };
 
 const en: MailTexts = {
@@ -189,6 +215,16 @@ const en: MailTexts = {
     signature: 'Ducati Bruxelles',
   },
   followup: { book: 'Book an appointment' },
+  proposal: {
+    signedSubject: 'Your approval for the work - proposal {number}',
+    signedIntro: 'Thank you: you have signed the work proposal {number} (repair order {or}). Here is what was kept.',
+    signedKept: 'Approved work:',
+    signedDeferred: 'Postponed work:',
+    signedDeferredHint: 'We will suggest a date for this work when you collect your motorcycle.',
+    signedTotal: 'Total incl. VAT of the approved work: {total}',
+    signedAttached: 'The signed proposal is attached.',
+    signedBye: 'See you soon,',
+  },
 };
 
 const it: MailTexts = {
@@ -235,6 +271,16 @@ const it: MailTexts = {
     signature: 'Ducati Bruxelles',
   },
   followup: { book: 'Prenotare un appuntamento' },
+  proposal: {
+    signedSubject: 'Il suo accordo per i lavori - proposta {number}',
+    signedIntro: 'Grazie: ha firmato la proposta di intervento {number} (ordine di riparazione {or}). Ecco cosa e stato confermato.',
+    signedKept: 'Lavori accettati:',
+    signedDeferred: 'Lavori rinviati:',
+    signedDeferredHint: 'Le proporremo una data per questi lavori alla riconsegna della sua moto.',
+    signedTotal: 'Totale IVA inclusa dei lavori accettati: {total}',
+    signedAttached: 'In allegato trova la proposta firmata.',
+    signedBye: 'A presto,',
+  },
 };
 
 export const MAIL_TEXTS: Record<MailLocale, MailTexts> = { fr, nl, en, it };

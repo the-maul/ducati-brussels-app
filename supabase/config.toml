@@ -62,3 +62,7 @@ verify_jwt = false
 
 [functions.shopify-publish]
 verify_jwt = false
+# Signature d'une proposition d'intervention par le client : page publique /signer/<jeton>,
+# le jeton (64 hexa, duree limitee) est verifie DANS la fonction, avec la cle de service.
+[functions.proposal-sign]
+verify_jwt = false

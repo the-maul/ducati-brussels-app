@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
 import { getOpenEntry, listTodayEntries, togglePresence, startWork, stopWork } from '@/modules/workshop/chrono-api';
+import { canStartWork } from '@/modules/workshop/checkup/rules';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/chrono')({
@@ -62,7 +63,11 @@ function ChronoPage() {
             <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('workshop.pickOr')}</label>
               <Select value={orId} onValueChange={setOrId}>
                 <SelectTrigger className="w-72"><SelectValue placeholder={t('workshop.pickOr')} /></SelectTrigger>
-                <SelectContent>{(ors.data ?? []).map((o) => <SelectItem key={o.id} value={o.id}>OR {o.number ?? o.id.slice(0, 8)}</SelectItem>)}{(ors.data ?? []).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">{t('workshop.noOpenOr')}</div>}</SelectContent>
+                <SelectContent>{(ors.data ?? []).map((o) => {
+                  // Garde-fou (ATE009) : accord client en attente → l'OR n'est pas « à faire » pour l'atelier.
+                  const blocked = !canStartWork(o as { customer_approval?: string | null });
+                  return <SelectItem key={o.id} value={o.id} disabled={blocked}>OR {o.number ?? o.id.slice(0, 8)}{blocked ? ` · ${t('checkup.approval_en_attente')}` : ''}</SelectItem>;
+                })}{(ors.data ?? []).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">{t('workshop.noOpenOr')}</div>}</SelectContent>
               </Select>
             </div>
             <Button onClick={() => start.mutate()} disabled={start.isPending || !orId}>{start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('workshop.startWork')}</Button>

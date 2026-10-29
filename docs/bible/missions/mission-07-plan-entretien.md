@@ -452,6 +452,82 @@ stock.**
   comme S5 : sans ce secret, la fonction refuse l'appel du cron ; l'envoi manuel depuis l'écran
   fonctionne quand même).
 - Tests `tests/followups.test.ts` (date d'envoi, J+5, RDV → close, variables, langue, onglets, droits).
+### 31/10 — Parcours check-up → proposition → signature → reportées (ATE008 + ATE009, M-75 à M-77)
+
+> Décision de Simon (30/10), mot pour mot : « À l'accueil d'une moto, elle rentre pour une raison
+> (entretien annuel, 15 000 km…). L'atelier, quand il ouvre la carte de la moto, fait un check-up :
+> on est à l'entretien des 15 000, il y a 6 actions à faire, et ils remarquent que le pneu est abîmé,
+> que les freins sont morts… ils prennent une photo, ajoutent l'action à faire dessus, le temps
+> (estimation automatisée), les pièces, et le prix vient s'ajouter. Le membre de l'atelier envoie la
+> proposition d'intervention (par mail et sur l'app client). Le client valide l'entièreté ou décoche
+> ce qu'il ne veut pas tout de suite et signe d'un clic. Le comptoir doit aussi pouvoir faire signer
+> directement en tactile sur la tablette. Si le client n'a pas signé au comptoir, le vendeur vérifie
+> que c'est validé (en l'appelant) avant intervention. Au retrait du véhicule (facturation, clés), le
+> comptoir demande et remet une date pour les interventions non faites. »
+
+**Pour l'utilisateur**
+1. **Accueil** : sur l'OR, le **motif d'entrée** (liste réglable dans Paramètres → Tables → Motifs
+   d'entrée atelier). Un motif « entretien … » ou « vidange » permet de **pré-remplir** les actions
+   depuis le plan d'entretien de la moto (carte 1) et les pièces du kit (carte 2) : une carte
+   « Entretien » avec le temps Ducati et les pièces, puis une carte par opération.
+2. **Onglet Check-up** (tablette) : une colonne de grandes cartes — libellé, état **OK / À faire / À
+   prévoir** (couleur + icône + libellé), **photo** (appareil ou galerie, rangée dans la GED de l'OR,
+   dossier « Check-up »), temps (proposé, sinon saisi, en heures décimales), pièces (recherche dans
+   les articles), prix calculé (MO = heures × taux horaire HT + pièces au PV). **« + Constat »** pour
+   un pneu, des freins… Total des actions proposées toujours visible en bas.
+3. **« Envoyer la proposition »** : l'OR est enregistré, un devis « Proposition d'intervention »
+   (`DEV-`) est créé et relié à l'OR, puis la fenêtre d'envoi s'ouvre avec l'objet, le message et
+   le **lien de signature** dans la **langue du client**. Le PDF joint porte la photo en vignette
+   sous chaque action. La proposition apparaît aussi dans **l'espace client** (accueil).
+4. **Le client signe** (`/signer/<jeton>`, sans connexion) : une case par action, il décoche ce
+   qu'il ne veut pas tout de suite, le total se recalcule, il tape son nom et clique **« J'accepte et
+   je signe »**. Au comptoir, **« Faire signer sur la tablette »** ouvre le même écran avec une
+   **signature au doigt**. Résultat : document accepté avec les lignes retenues, les lignes
+   décochées deviennent des **interventions reportées**, l'OR passe **« Accord client : signé »**,
+   un PDF signé part par mail au client, l'équipe reçoit une **cloche**.
+5. **Garde-fou** : en tête de l'OR, en grand, « Signé le … par … » / **« EN ATTENTE »** / « Accord
+   verbal le … par … (téléphone) ». Tant que l'accord est en attente, « Démarrer le parcours » et la
+   pointeuse sont grisés. **« Accord verbal »** (qui, quand, canal, note) lève le blocage et laisse
+   une trace dans l'historique.
+6. **À la facturation / remise des clés** : si la moto a des interventions reportées à planifier,
+   une étape **« Date pour les interventions reportées »** propose une date (+30 jours, modifiable)
+   ou « Pas maintenant ». Les reportées sont visibles sur la **fiche moto** (encadré) et la **fiche
+   client** (onglet « Reportées »).
+
+**Technique**
+- Migration `supabase/migrations/20261031110000_m8_checkup_et_accord_client.sql` (**non appliquée**,
+  essayée en transaction annulée sur la base de production le 29/10 : lignes, proposition, signature,
+  reportée, accord verbal, double signature refusée). Fonction serveur `supabase/functions/proposal-sign`
+  **à déployer** (`npx supabase@2.117.0 functions deploy proposal-sign --project-ref ujmrosbgkvgvwfnuryna`).
+- Code : `src/modules/workshop/checkup/` (règles pures, accès base, onglet, accord, reportées),
+  `src/modules/documents/proposal-sign*` (écran de signature), `src/routes/signer.$token.tsx`,
+  PDF `src/modules/sales/document-pdf.ts`, cloche `src/components/layout/topbar.tsx`, espace client
+  `src/modules/portal/portal-home.tsx`. Détail des règles : [M08](../modules/M08-atelier.md) §4 et
+  [M09](../modules/M09-documents.md) §4.
+- Tests : `tests/workshop-checkup.test.ts` (prix d'une carte MO + pièces, partition acceptées /
+  reportées, hash du texte accepté, garde-fou, création des reportées, date +30 j, échéance selon
+  le motif, lien cliquable).
+
+### À tester (31/10)
+
+1. Appliquer la migration et déployer `proposal-sign`. Paramètres → Tables → Frais de devis atelier :
+   un tarif horaire HTVA (sinon la main-d'oeuvre reste à 0 €).
+2. Ouvrir un OR avec client et moto → motif « Entretien 15 000 km » → onglet **Check-up** →
+   « Pré-remplir depuis le plan d'entretien » (moto reliée au catalogue) ou **« + Constat »** :
+   « Plaquettes avant usées », état **À faire**, photo, 1,5 h, une pièce. Le prix de la carte et le
+   total du bas suivent.
+3. **« Envoyer la proposition »** : la fenêtre d'envoi s'ouvre (langue du client, lien de signature
+   dans le message) ; « Vérifier sans envoyer » puis envoyer. L'OR affiche **« Accord client : EN
+   ATTENTE »**, « Démarrer le parcours » est grisé.
+4. Ouvrir le lien reçu (ou l'espace client) : décocher une action, taper le nom, **« J'accepte et je
+   signe »** → « Merci, c'est signé », exemplaire signé par mail.
+5. Revenir sur l'OR : **« Signé le … par … »**, l'action décochée est marquée **reportée**, le
+   parcours est à nouveau possible ; cloche « Propositions d'intervention signées ».
+6. Variante comptoir : **« Faire signer sur la tablette »** → signature au doigt → PDF avec le tracé.
+7. Variante téléphone : **« Accord verbal »** (qui, quand, téléphone, note) → « Accord verbal le … ».
+8. **« Transformer en facture »** : l'étape « Date pour les interventions reportées » propose
+   +30 jours → « Fixer la date » → la facture s'ouvre ; fiche moto et fiche client montrent
+   l'intervention **planifiée** à cette date.
 
 ## 5 bis. Cartes proposées (21/09)
 

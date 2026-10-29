@@ -13,6 +13,7 @@ import { ContactForm } from '@/modules/contacts/contact-form';
 import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
+import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { CommunicationsPanel } from '@/modules/crm/communications-panel';
 import {
@@ -327,6 +328,7 @@ function EditClient() {
           <TabsTrigger value="parc">{t('clientTabs.tabParc')}</TabsTrigger>
           <TabsTrigger value="documents">{t('clientTabs.tabDocuments')}</TabsTrigger>
           <TabsTrigger value="echeances">{t('clientTabs.tabDue')}</TabsTrigger>
+          <TabsTrigger value="reportees">{t('checkup.deferredTab')}</TabsTrigger>
           <TabsTrigger value="livraisons">{t('clientTabs.tabDeliveries')}</TabsTrigger>
           <TabsTrigger value="contacts">{t('clientTabs.tabContacts')}</TabsTrigger>
           <TabsTrigger value="tarifs">{t('clientTabs.tabPricing')}</TabsTrigger>
@@ -347,6 +349,7 @@ function EditClient() {
         <TabsContent value="parc" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
         <TabsContent value="documents" className="mt-4"><DocumentsTab contactId={contactId} /></TabsContent>
         <TabsContent value="echeances" className="mt-4"><DueItemsTab contactId={contactId} /></TabsContent>
+        <TabsContent value="reportees" className="mt-4"><DeferredPanel contactId={contactId} /></TabsContent>
         <TabsContent value="livraisons" className="mt-4"><DeliveryTab contactId={contactId} /></TabsContent>
         <TabsContent value="contacts" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>

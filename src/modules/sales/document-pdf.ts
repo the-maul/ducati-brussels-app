@@ -41,6 +41,21 @@ export type SalesPdfLine = {
   vatRate: number;
   discountPct: number;
   lineTtc: number;
+  /** Proposition d'intervention (ATE009) : vignette de la photo prise au check-up. */
+  photo?: { dataUrl: string; w: number; h: number } | null;
+  /** Proposition signée : false = décochée par le client (reportée), affichée barrée. */
+  accepted?: boolean | null;
+};
+
+/** Signature électronique imprimée sur le PDF (ATE008, M09 §4) : deux modes. */
+export type SalesPdfSignature = {
+  signerName: string;
+  signedAt: string;            // ISO
+  mode: 'distance' | 'comptoir';
+  ip?: string | null;
+  hash?: string | null;
+  /** Tracé au doigt (PNG dataURL), mode comptoir seulement. */
+  imageDataUrl?: string | null;
 };
 
 export type SalesPdfPayment = { date: string; label: string; amount: number; received: boolean };
@@ -84,6 +99,10 @@ export type SalesPdfInput = {
   notes?: string | null;
   /** Langue du client (fiche contact) : libellés fixes et mentions légales du PDF. FR par défaut. */
   locale?: Locale;
+  /** Titre imprimé à la place du type (« Proposition d'intervention »). */
+  titleOverride?: string | null;
+  /** Signature électronique enregistrée : remplace la case « Bon pour accord ». */
+  signature?: SalesPdfSignature | null;
 };
 
 export type VatPied = {
@@ -189,9 +208,9 @@ export const eurPdf = (n: number): string => {
 const num2 = (n: number) => (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',');
 
 /** Nom de fichier du PDF : « Devis-proforma_DEV-2026-0012.pdf ». */
-export function salesPdfFileName(docType: string, number: string | null, locale?: Locale): string {
+export function salesPdfFileName(docType: string, number: string | null, locale?: Locale, labelOverride?: string | null): string {
   const tr = trIn(locale);
-  const label = tr(`sales.type_${docType}`).replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
+  const label = (labelOverride || tr(`sales.type_${docType}`)).replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
   const raw = `${label}_${number ?? tr('salesPdf.draft')}`;
   return `${raw.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_')}.pdf`;
 }
@@ -249,7 +268,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const { margin: M, width: W, height: H, footer: F, lineHeight: LH } = PDF_PAGE;
   const right = W - M;
   const tr = trIn(d.locale);
-  const typeLabel = tr(`sales.type_${d.docType}`);
+  const typeLabel = d.titleOverride || tr(`sales.type_${d.docType}`);
   const color = (c: Rgb) => doc.setTextColor(c[0], c[1], c[2]);
   const draw = (c: Rgb) => doc.setDrawColor(c[0], c[1], c[2]);
   const fill = (c: Rgb) => doc.setFillColor(c[0], c[1], c[2]);
@@ -363,9 +382,14 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
       continue;
     }
     font(PDF_FONT.body);
-    const desLines = doc.splitTextToSize(l.designation ?? '', COLS[1].w - 2) as string[];
+    const declined = l.accepted === false;
+    const designation = declined ? `${l.designation ?? ''} (${tr('checkup.pdfDeferred')})` : (l.designation ?? '');
+    const desLines = doc.splitTextToSize(designation, COLS[1].w - 2) as string[];
     const refLines = doc.splitTextToSize(l.reference ?? '', COLS[0].w - 2) as string[];
-    const rowH = Math.max(desLines.length, refLines.length, 1) * LH + 1.6;
+    // Vignette de la photo du check-up : sous la désignation, 22 mm de large au plus.
+    const thumb = l.photo ? (() => { const k = Math.min(22 / l.photo.w, 16 / l.photo.h); return { w: l.photo.w * k, h: l.photo.h * k }; })() : null;
+    const textH = Math.max(desLines.length, refLines.length, 1) * LH;
+    const rowH = textH + (thumb ? thumb.h + 1.5 : 0) + 1.6;
     ensure(rowH);
     if (zebra) { fill(PDF_COLORS.zebra); doc.rect(M, y - 0.4, right - M, rowH, 'F'); }
     zebra = !zebra;
@@ -373,14 +397,19 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     const qty = num2(l.quantity) + (l.lineType === 'main_oeuvre' ? ` ${tr('sales.hoursUnit')}` : '');
     const cells = [
       refLines, desLines, [qty], [eurPdf(l.unitPriceHt)], [eurPdf(Number(l.unitPriceHt) * (1 + vat / 100))],
-      [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(l.lineTtc)], [String(vat).replace('.', ',')],
+      [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(declined ? 0 : l.lineTtc)], [String(vat).replace('.', ',')],
     ];
-    color(PDF_COLORS.ink);
+    color(declined ? PDF_COLORS.muted : PDF_COLORS.ink);
     let x = M;
     COLS.forEach((c, i) => {
       cells[i].forEach((txt, k) => doc.text(txt, c.align === 'right' ? x + c.w - 1 : x + 1, y + 3 + k * LH, { align: c.align }));
       x += c.w;
     });
+    if (declined) { draw(PDF_COLORS.muted); doc.setLineWidth(0.2); doc.line(M + COLS[0].w + 1, y + 2, M + COLS[0].w + COLS[1].w - 1, y + 2); }
+    if (thumb && l.photo) {
+      try { doc.addImage(l.photo.dataUrl, 'JPEG', M + COLS[0].w + 1, y + textH + 0.8, thumb.w, thumb.h, undefined, 'FAST'); }
+      catch { /* photo illisible : ligne sans vignette */ }
+    }
     y += rowH;
     draw(PDF_COLORS.rule); doc.setLineWidth(0.1); doc.line(M, y - 0.4, right, y - 0.4);
   }
@@ -479,8 +508,33 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     y += 1.2;
   }
 
+  // ---- Signature électronique enregistrée (ATE008) -----------------------------------------
+  if (d.signature) {
+    const sg = d.signature;
+    const hasImg = sg.mode === 'comptoir' && !!sg.imageDataUrl;
+    const sh = hasImg ? 44 : 26;
+    if (y + sh + 3 > bottomLimit) { doc.addPage(); y = M; }
+    y += 3;
+    const sx = right - 110, sw = 110;
+    draw(PDF_COLORS.frame); doc.setLineWidth(0.3); doc.roundedRect(sx, y, sw, sh, 2, 2);
+    font(PDF_FONT.small, 'bold'); color(PDF_COLORS.ink);
+    doc.text(tr('checkup.pdfSignedTitle'), sx + 3, y + 4.5);
+    font(PDF_FONT.tiny); color(PDF_COLORS.muted);
+    const when = `${dmy(sg.signedAt)} ${new Date(sg.signedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`;
+    const modeLabel = tr(sg.mode === 'comptoir' ? 'checkup.pdfSignedCounter' : 'checkup.pdfSignedRemote');
+    const info = [
+      `${tr('checkup.pdfSignedBy')} ${sg.signerName} - ${when} (${modeLabel})`,
+      sg.ip ? `IP : ${sg.ip}` : '',
+      sg.hash ? `${tr('checkup.pdfSignedHash')} ${sg.hash.slice(0, 32)}...` : '',
+    ].filter(Boolean);
+    info.forEach((l, i) => doc.text(doc.splitTextToSize(l, sw - 6)[0] as string, sx + 3, y + 8.5 + i * 3.4));
+    if (hasImg && sg.imageDataUrl) {
+      try { doc.addImage(sg.imageDataUrl, 'PNG', sx + 3, y + 19, 56, 18, undefined, 'FAST'); }
+      catch { /* image illisible : les mentions suffisent */ }
+    }
+    y += sh + 2;
+  } else if ((SIGNATURE_DOC_TYPES as readonly string[]).includes(d.docType)) {
   // ---- Case signature ----------------------------------------------------------------------
-  if ((SIGNATURE_DOC_TYPES as readonly string[]).includes(d.docType)) {
     const sh = 26;
     if (y + sh + 3 > bottomLimit) { doc.addPage(); y = M; }
     y += 3;

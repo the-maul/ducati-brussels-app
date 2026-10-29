@@ -1946,6 +1946,62 @@ export const fr = {
     rename: 'Renommer', renamePrompt: 'Nouveau nom du fichier', dropHere: 'Déposez vos fichiers ici pour les ajouter',
   },
 
+  // Check-up a l'accueil, proposition d'intervention, accord client, interventions reportees (M8/M9, ATE008 ATE009)
+  checkup: {
+    reason: 'Motif d\'entree', reasonPlaceholder: 'Pourquoi la moto entre-t-elle ?', reasonNone: 'Non precise',
+    tabFiche: 'Fiche et lignes', tabCheckup: 'Check-up', linesFromCheckup: '{n} action(s) du check-up sont comptees dans le total (onglet Check-up).',
+    intro: 'Une carte par action : son etat, une photo, le temps, les pieces. Les actions « a faire » et « a prevoir » partent dans la proposition envoyee au client.',
+    nextDue: 'Prochain entretien :', prefillFromPlan: 'Pre-remplir depuis le plan d\'entretien',
+    prefill_no_vehicle: 'Reliez d\'abord une moto a l\'OR.', prefill_no_catalog: 'La moto n\'est pas reliee au catalogue Ducati : pas de plan d\'entretien a proposer.',
+    prefill_no_plan: 'Aucun plan d\'entretien pour cette moto.', prefillDone: '{n} action(s) ajoutee(s) depuis le plan ({service}).', prefillError: 'Le plan d\'entretien n\'a pas pu etre lu.',
+    noRate: 'Taux horaire atelier non renseigne : la main-d\'oeuvre est a 0 €. Parametres → Tables → Frais de devis atelier → Tarif horaire HTVA.',
+    editWhilePending: 'La proposition est partie chez le client. Si vous modifiez les actions, renvoyez-la.',
+    emptyTitle: 'Aucune action pour l\'instant', emptyHint: 'Ajoutez un constat (pneu, freins…) ou pre-remplissez depuis le plan d\'entretien.',
+    addFinding: '+ Constat', labelPlaceholder: 'Ex. Plaquettes avant usees', removeCard: 'Retirer cette action', fromPlan: 'Depuis le plan d\'entretien',
+    state_ok: 'OK', state_a_faire: 'A faire', state_a_prevoir: 'A prevoir', state_reporte: 'Reportee par le client',
+    takePhoto: 'Prendre une photo', retakePhoto: 'Reprendre la photo', fromGallery: 'Galerie', removePhoto: 'Retirer la photo',
+    hours: 'Temps (heures)', hoursHint: 'Heures decimales (1,5 = 1 h 30)', suggestedHours: 'Propose : {h} h (plan d\'entretien)', rate: '{rate} / h',
+    labour: 'Main-d\'oeuvre', parts: 'Pieces', addPart: 'Ajouter une piece', removePart: 'Retirer la piece',
+    totalProposed: '{n} action(s) proposee(s) au client', needClient: 'Un client est requis pour envoyer la proposition.', needAction: 'Aucune action « a faire » ou « a prevoir ».',
+    sendProposal: 'Envoyer la proposition', proposalCreated: 'Proposition d\'intervention creee : choisissez la boite d\'envoi et envoyez.',
+    noProposal: 'Aucune proposition sur cet OR.', migrationMissing: 'Le check-up et l\'accord client seront actifs des que la migration 20261031110000 sera appliquee.',
+    workBlocked: 'Accord client en attente : aucune intervention ne demarre tant que le client n\'a pas signe (ou donne son accord verbal, note ci-dessous).',
+    approvalTitle: 'Accord client', approval_none: 'Aucune proposition envoyee', approval_en_attente: 'EN ATTENTE', approval_signe: 'Signe',
+    approval_accord_verbal: 'Accord verbal', approval_refuse: 'Refuse',
+    approvalSigned: 'Signe le {when} par {who} ({channel}).', approvalVerbal: 'Accord verbal le {when} par {who} ({channel}).',
+    approvalPendingHint: 'Le client n\'a pas encore signe. Appelez-le si besoin et notez son accord verbal.',
+    approvalRefused: 'Le client a refuse la proposition.', approvalNoneHint: 'Faites le check-up puis envoyez la proposition au client.',
+    openProposal: 'Voir la proposition', resendProposal: 'Renvoyer', signAtCounter: 'Faire signer sur la tablette', verbalApproval: 'Accord verbal',
+    channel_signature_distance: 'signature a distance', channel_signature_comptoir: 'signature au comptoir', channel_telephone: 'telephone', channel_comptoir: 'au comptoir', channel_mail: 'e-mail',
+    verbalTitle: 'Accord verbal du client', verbalIntro: 'A noter seulement si le client a donne son accord (telephone, comptoir, e-mail). Trace dans l\'historique.',
+    verbalWho: 'Accord donne par', verbalWhen: 'Quand', verbalChannel: 'Canal', verbalNote: 'Note', verbalConfirm: 'Noter l\'accord', verbalSaved: 'Accord verbal enregistre.',
+    deferredStepTitle: 'Date pour les interventions reportees', deferredStepIntro: 'Le client avait reporte ces travaux. Convenez d\'une date avec lui avant de remettre les cles.',
+    deferredDate: 'Date proposee', deferredDateHint: 'Par defaut : dans 30 jours.', deferredTotal: 'Total', deferredNotNow: 'Pas maintenant', deferredConfirm: 'Fixer la date',
+    deferredPlanned: 'Interventions planifiees au {date}.', deferredTitle: 'Interventions reportees', deferredTab: 'Reportees', deferredEmpty: 'Aucune intervention reportee.',
+    deferredNoDate: 'Sans date', deferredSetDate: 'Fixer une date', deferredAbandonConfirm: 'Abandonner cette intervention reportee ?',
+    deferred_a_planifier: 'A planifier', deferred_planifie: 'Planifiee', deferred_relance: 'Relancee', deferred_fait: 'Faite', deferred_abandonne: 'Abandonnee',
+    mailSubject: 'Proposition d\'intervention {number} — {company}',
+    mailBody: 'Bonjour {client},\n\nLors de l\'accueil de votre moto (OR {or}), notre atelier a fait un check-up. Vous trouverez en piece jointe notre proposition d\'intervention n° {number}.\n\nPour l\'accepter, cochez ce que vous souhaitez faire maintenant et signez d\'un clic :\n{link}\n\nNous restons a votre disposition.\n\nCordialement,',
+    pdfTitle: 'Proposition d\'intervention', pdfDeferred: 'reportee', pdfSignedTitle: 'Signe electroniquement', pdfSignedBy: 'Par', pdfSignedRemote: 'a distance', pdfSignedCounter: 'au comptoir',
+    pdfSignedHash: 'Empreinte SHA-256 :', pdfSignedSuffix: 'signee',
+    signSentence: 'J\'accepte les travaux coches ci-dessus, pour le montant indique, et j\'autorise l\'atelier a les realiser.',
+    signIntro: 'Cochez ce que vous souhaitez faire maintenant. Ce que vous decochez est simplement reporte : nous vous proposerons une date.',
+    signHours: 'Main-d\'oeuvre : {h} h', signDeferredLine: 'Reporte : on vous proposera une date', signTotal: 'Total a payer',
+    signDeferredCount: '{n} action(s) reportee(s) ({amount})', signName: 'Votre nom', signDraw: 'Signez avec le doigt',
+    signRecordRemote: 'En signant, votre nom, la date et l\'heure, votre adresse internet et le texte accepte sont enregistres.',
+    signRecordCounter: 'La signature tracee est enregistree avec la date, l\'heure et le texte accepte.',
+    signButton: 'J\'accepte et je signe', signStepSigning: 'Enregistrement…', signStepPdf: 'Preparation du document signe…', signStepSending: 'Envoi…',
+    signNothingKept: 'Cochez au moins une action pour signer.', signBackToOr: 'Retour a l\'OR',
+    signErrTitle: 'Ce lien ne peut pas etre utilise', signErr_unknown_link: 'Lien inconnu. Demandez un nouveau lien a la concession.',
+    signErr_expired: 'Ce lien a expire. Demandez un nouveau lien a la concession.', signErr_already_signed: 'Cette proposition est deja signee.',
+    signErr_cancelled: 'Cette proposition a ete remplacee ou annulee.', signErr_missing_params: 'Il manque une information (nom ou signature).',
+    signErr_not_configured: 'Le service de signature n\'est pas disponible pour le moment.', signErr_sign_failed: 'La signature n\'a pas pu etre enregistree.',
+    signErr_archive_failed: 'Le document signe n\'a pas pu etre range.', signErr_generic: 'Une erreur est survenue. Reessayez ou contactez la concession.',
+    signDoneTitle: 'Merci, c\'est signe', signDoneText: 'Signe par {who} le {when}.', signMailed: 'Un exemplaire signe vous a ete envoye a {email}.',
+    signNotMailed: 'La signature est enregistree ; la concession vous enverra l\'exemplaire signe.',
+    signKeptTitle: 'Travaux acceptes', signDeferredTitle: 'Travaux reportes', signDeferredHint: 'Nous vous proposerons une date pour ces travaux a la restitution de votre moto.',
+  },
+
   // Atelier (M8)
   workshop: {
     rdvTime: 'Heure',
@@ -2794,6 +2850,12 @@ export const fr = {
   // Gestion des utilisateurs (M0)
   // Portail client /mon-espace (mission 01, lot 3 — décisions P-1 à P-4)
   portal: {
+    // Propositions d'intervention de l'atelier (ATE009)
+    proposals: {
+      title: 'Une proposition de notre atelier attend votre signature',
+      line: 'Proposition {number} — ordre de reparation {or}',
+      total: 'Total propose :', sign: 'Lire et signer', signedTitle: 'Propositions signees', view: 'Voir',
+    },
     nav: {
       label: 'Navigation de mon espace',
       home: 'Accueil',
@@ -3175,6 +3237,9 @@ export const fr = {
     webOrderLine: '{amount} TTC',
     webOrderUnlinked: '{n} produit(s) à relier',
     webOrderSeeAll: 'Ouvrir « Commandes du site »',
+    // ATE009 : le client a signe une proposition d'intervention
+    proposalTitle: 'Propositions d\'intervention signees',
+    proposalLine: '{kept} action(s) acceptee(s) · {deferred} reportee(s)',
   },
 
   // Mission 04, cartes 6 à 8 : moto du client (fiche client, carte grise, déclaration par le client)
@@ -4595,6 +4660,7 @@ export const fr = {
     settingsTables: 'Tables de données',
     settingsTable: 'Table de données',
     settingsUsers: 'Utilisateurs',
+    sign: 'Signer la proposition',
     stock: 'Stock & inventaire',
     stockCessions: 'Cessions internes',
     stockDepreciation: 'Dépréciations de stock',
