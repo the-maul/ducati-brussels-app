@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArticleForm } from '@/modules/articles/article-form';
+import { getReplacementChain } from '@/modules/articles/api';
 import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { ArticleSourceImages } from '@/modules/articles/article-source-images';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
@@ -24,8 +25,19 @@ import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
+type ArticleSearch = { ancienne?: 1; remplace?: string; de?: string };
+
 export const Route = createFileRoute('/_app/parts/$articleId')({
   head: () => ({ meta: [{ title: pageTitle('part') }] }),
+  // ?ancienne=1 : on veut voir la fiche d'une reference remplacee sans etre renvoye vers la
+  // nouvelle ; ?remplace=<ref> : on vient d'etre renvoye depuis cette ancienne reference.
+  validateSearch: (s: Record<string, unknown>): ArticleSearch => {
+    const out: ArticleSearch = {};
+    if (s.ancienne === 1 || s.ancienne === '1') out.ancienne = 1;
+    if (typeof s.remplace === 'string' && s.remplace) out.remplace = s.remplace;
+    if (typeof s.de === 'string' && s.de) out.de = s.de;
+    return out;
+  },
   component: EditArticle,
 });
 
@@ -51,6 +63,25 @@ function EditArticle() {
     queryFn: () => getArticle(article!.superseded_by_id!),
     enabled: !!article?.superseded_by_id,
   });
+
+  const search = Route.useSearch();
+  // Une reference remplacee renvoie d'office vers la reference a commander (fin de chaine),
+  // comme la recherche (REMP003) : « quand on tape l'ancienne, on arrive sur la nouvelle ».
+  // L'ancienne fiche reste visible avec ?ancienne=1 (lien dans le bandeau d'arrivee).
+  useEffect(() => {
+    if (!article?.superseded_by_id || search.ancienne || !activeCompanyId) return;
+    let actif = true;
+    (async () => {
+      let cible = article.superseded_by_id!;
+      try {
+        const chaine = await getReplacementChain(activeCompanyId, article.id);
+        const derniere = chaine.find((x) => x.is_final);
+        if (derniere && derniere.article_id !== article.id) cible = derniere.article_id;
+      } catch { /* repli : le remplacant direct */ }
+      if (actif) navigate({ to: '/parts/$articleId', params: { articleId: cible }, search: { remplace: article.reference, de: article.id }, replace: true });
+    })();
+    return () => { actif = false; };
+  }, [article?.id, article?.superseded_by_id, search.ancienne, activeCompanyId]);
 
   const m = useSaveMutation({
     // Libelle modifie a la main : retraduit (I18N002), l'original fournisseur est garde.
@@ -121,6 +152,21 @@ function EditArticle() {
           </>
         }
       />
+      {search.remplace && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
+          <ArrowRight className="size-4 shrink-0" />
+          <span>
+            {t('articles.redirectedFrom')} <span className="font-mono font-bold">{search.remplace}</span>
+          </span>
+          <Button
+            variant="outline" size="sm"
+            disabled={!search.de}
+            onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: search.de! }, search: { ancienne: 1 } })}
+          >
+            {t('articles.seeOldSheet')}
+          </Button>
+        </div>
+      )}
       {article.superseded_by_id && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
           <ArrowRight className="size-4 shrink-0" />

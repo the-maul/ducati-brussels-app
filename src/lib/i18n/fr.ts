@@ -561,6 +561,8 @@ export const fr = {
     importReplaced: '{n} référence(s) marquée(s) « remplacée » — la nouvelle référence sera privilégiée.',
     replacedBadge: 'Remplacée',
     replacedBy: 'Remplacée par {ref} — utilisez la nouvelle référence.',
+    redirectedFrom: "Vous avez été renvoyé depuis la référence remplacée",
+    seeOldSheet: "Voir l'ancienne fiche",
     replacedBanner: 'Cette référence est remplacée par',
     openReplacement: 'Ouvrir la nouvelle référence',
     optionsTitle: 'Plusieurs références peuvent remplacer celle-ci',

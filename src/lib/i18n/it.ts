@@ -550,6 +550,8 @@ export const it: DictionaryShape = {
     importReplaced: '{n} riferimento/i contrassegnato/i «sostituito» — il nuovo riferimento sarà privilegiato.',
     replacedBadge: 'Sostituito',
     replacedBy: 'Sostituito da {ref} — usi il nuovo riferimento.',
+    redirectedFrom: "Sei stato reindirizzato dal riferimento sostituito",
+    seeOldSheet: "Vedi la vecchia scheda",
     replacedBanner: 'Questo riferimento è sostituito da',
     openReplacement: 'Apri il nuovo riferimento',
     optionsTitle: 'Più riferimenti possono sostituire questo',

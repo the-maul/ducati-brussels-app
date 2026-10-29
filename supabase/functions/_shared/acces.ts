@@ -56,9 +56,25 @@ export async function identify(req: Request): Promise<Caller | null> {
 
   if (!auth.startsWith('Bearer ') || !URL || !SVC) return null;
   const r = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: SVC, Authorization: auth } });
-  if (!r.ok) return null;                       // la clé anon n'est pas un utilisateur : 401/403 ici
-  const u = await r.json().catch(() => null);
-  return isUuid(u?.id) ? { kind: 'user', id: u.id, email: String(u.email ?? '').toLowerCase() } : null;
+  if (r.ok) {
+    const u = await r.json().catch(() => null);
+    if (isUuid(u?.id)) return { kind: 'user', id: u.id, email: String(u.email ?? '').toLowerCase() };
+  }
+  // Pas un utilisateur : est-ce une clé de service d'un autre format que celle injectée ici
+  // (clé « sb_secret_… » de nouvelle génération, ou clé tournée) ? Seule une clé de service
+  // ouvre l'administration des comptes : si cet appel passe, l'appelant est le service.
+  return (await isServiceKey(auth.slice('Bearer '.length))) ? { kind: 'service' } : null;
+}
+
+/** Une clé est « de service » si elle ouvre l'administration Auth (jamais le cas de l'anon). */
+async function isServiceKey(key: string): Promise<boolean> {
+  if (!key || key.length < 32 || !URL) return false;
+  try {
+    const r = await fetch(`${URL}/auth/v1/admin/users?per_page=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    return r.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Sociétés dont l'utilisateur est membre ACTIF (vide si compte désactivé ou sans rôle). */

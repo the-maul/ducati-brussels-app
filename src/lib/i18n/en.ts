@@ -550,6 +550,8 @@ export const en: DictionaryShape = {
     importReplaced: '{n} reference(s) marked "replaced" — the new reference will take precedence.',
     replacedBadge: 'Replaced',
     replacedBy: 'Replaced by {ref} — use the new reference.',
+    redirectedFrom: "You were redirected from the replaced reference",
+    seeOldSheet: "View the old record",
     replacedBanner: 'This reference is replaced by',
     openReplacement: 'Open the new reference',
     optionsTitle: 'Several references can replace this one',

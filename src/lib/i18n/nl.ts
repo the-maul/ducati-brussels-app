@@ -550,6 +550,8 @@ export const nl: DictionaryShape = {
     importReplaced: '{n} referentie(s) gemarkeerd als "vervangen" — de nieuwe referentie krijgt voorrang.',
     replacedBadge: 'Vervangen',
     replacedBy: 'Vervangen door {ref} — gebruik de nieuwe referentie.',
+    redirectedFrom: "U bent doorverwezen vanaf de vervangen referentie",
+    seeOldSheet: "Oude fiche bekijken",
     replacedBanner: 'Deze referentie is vervangen door',
     openReplacement: 'Nieuwe referentie openen',
     optionsTitle: 'Meerdere referenties kunnen deze vervangen',
