@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContacts, contactDisplayName } from '@/modules/contacts/api';
 import { listVehicles, vehicleLabel } from '@/modules/vehicles/api';
-import { listArticles } from '@/modules/articles/api';
+import { listArticles, getReplacementChain } from '@/modules/articles/api';
 import { t } from '@/lib/i18n';
 
 const VIN_RE = /^[A-Za-z0-9]{17}$/;
@@ -67,6 +67,28 @@ export function GlobalSearch() {
     queryFn: () => runSearch(activeCompanyId!, debounced),
     enabled,
   });
+
+  /**
+   * Une ancienne reference mene directement a celle qu'on peut commander
+   * (decision client du 19/10/2026 : « une nouvelle reference, c'est le meme
+   * produit »). On suit toute la chaine : sur 16 331 articles remplaces, 4 969
+   * en ont plusieurs, et s'arreter au premier remplacant enverrait le vendeur
+   * vers une reference elle-meme morte.
+   * Si la resolution echoue, on ouvre l'article demande : jamais de cul-de-sac.
+   */
+  const openArticle = async (a: { id: string; replacement?: { id: string } | null }) => {
+    let cible = a.id;
+    if (a.replacement && activeCompanyId) {
+      try {
+        const chaine = await getReplacementChain(activeCompanyId, a.id);
+        const derniere = chaine.find((m) => m.is_final);
+        if (derniere) cible = derniere.article_id;
+      } catch {
+        cible = a.replacement.id;
+      }
+    }
+    go('/parts/$articleId', { articleId: cible });
+  };
 
   const detection = detect(query);
   const go = (to: string, params?: Record<string, string>) => {
@@ -133,10 +155,15 @@ export function GlobalSearch() {
           {data && data.articles.length > 0 && (
             <CommandGroup heading={t('search.groupParts')}>
               {data.articles.map((a) => (
-                <CommandItem key={a.id} value={`art-${a.id}`} onSelect={() => go('/parts/$articleId', { articleId: a.id })}>
+                <CommandItem key={a.id} value={`art-${a.id}`} onSelect={() => openArticle(a)}>
                   <Package />
                   <span className="font-mono text-[12px]">{a.reference}</span>
                   <span className="truncate">{a.designation}</span>
+                  {a.replacement && (
+                    <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                      {t('search.replacedBy')} <b className="font-mono">{a.replacement.reference}</b>
+                    </span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

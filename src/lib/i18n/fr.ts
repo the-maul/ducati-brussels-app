@@ -108,6 +108,7 @@ export const fr = {
     hint: 'Tapez pour rechercher — un VIN (17 car.) ou un n° TVA est reconnu automatiquement',
     groupVehicles: 'Véhicules',
     groupClients: 'Clients',
+    replacedBy: 'remplacée par',
     groupParts: 'Pièces',
     groupDocuments: 'Documents',
     detectedVin: 'VIN détecté',
