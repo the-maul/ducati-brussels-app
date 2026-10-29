@@ -150,7 +150,31 @@ def main():
         ref = (r[C_REF] or "").strip().upper()
         a = articles.get(ref)
         if not a:
+            # Reference presente dans G8 mais absente du DMS : c'est un article cree
+            # dans G8 depuis la reprise de juin. On le cree, avec ce que le fichier
+            # en dit. Le stock, lui, passera par import_inventaire_g8.py (B7).
             inconnus.append(ref)
+            if apply:
+                nouveau = {
+                    "company_id": cid,
+                    "reference": r[C_REF].strip(),
+                    "designation": (r[C_DES] or "").strip() or "Libelle a completer",
+                    "mgmt_type": "A",
+                    "to_complete": not (r[C_DES] or "").strip(),
+                }
+                pa = nombre(r[C_ACHAT])
+                if pa: nouveau["purchase_price"] = pa
+                pamp = nombre(r[C_PAMP])
+                if pamp: nouveau["pamp"] = pamp
+                casier = (r[C_CASIER] or "").strip()
+                if casier: nouveau["bin_location"] = casier
+                if oui(r[C_VENTE_BLOQUE]): nouveau["price_sale_locked"] = True
+                if oui(r[C_ACHAT_BLOQUE]): nouveau["price_purchase_locked"] = True
+                d = date_excel(r[C_DERNIERE_VENTE])
+                if d: nouveau["last_sold_at"] = d
+                d = date_excel(r[C_DERNIER_ACHAT])
+                if d: nouveau["last_purchased_at"] = d
+                req("POST", "articles", nouveau, prefer="return=minimal")
             continue
         patch = {}
         if oui(r[C_VENTE_BLOQUE]) and not a.get("price_sale_locked"):
@@ -189,7 +213,8 @@ def main():
         if v:
             print(f"   {k.ljust(16)} : {len(v):>5}   ex. {', '.join(v[:3])}")
     if inconnus:
-        print(f"   {'inconnus du DMS'.ljust(16)} : {len(inconnus):>5}   ex. {', '.join(inconnus[:3])}")
+        quoi = "crees dans le DMS" if apply else "absents du DMS (a creer)"
+        print(f"   {quoi.ljust(24)} : {len(inconnus):>5}   ex. {', '.join(inconnus[:3])}")
     if sans_stock:
         print("   (le controle des ecarts de stock a ete demande en moins)")
     else:
