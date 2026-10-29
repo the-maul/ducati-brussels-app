@@ -92,6 +92,16 @@ def main():
     limit = None
     if "--limit" in sys.argv: limit = int(sys.argv[sys.argv.index("--limit")+1])
     files = sorted(glob.glob(os.path.join(INFO, "FACTURE *.pdf")))
+    # --part i/n : on ne traite qu'une facture sur n. Plusieurs copies du script
+    # peuvent ainsi tourner en meme temps sans se marcher dessus (la reprise des
+    # 12 704 PDF prend des heures a un seul processus).
+    if "--part" in sys.argv:
+        m = re.match(r"(\d+)/(\d+)$", sys.argv[sys.argv.index("--part") + 1])
+        if not m: sys.exit("--part attend i/n, par exemple 0/4")
+        i, n = int(m.group(1)), int(m.group(2))
+        if not (0 <= i < n): sys.exit("--part : i doit etre entre 0 et n-1")
+        files = [f for k, f in enumerate(files) if k % n == i]
+        print(f"tranche {i}/{n} : {len(files)} fichier(s)")
     if not apply: files = files[:5]
     elif limit: files = files[:limit]
     co = req("GET","companies?select=id,code")
