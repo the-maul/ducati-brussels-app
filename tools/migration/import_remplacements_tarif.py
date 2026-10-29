@@ -138,8 +138,17 @@ def main():
         if va["superseded_by_id"] == vn["id"]:
             deja_ok += 1
         elif va["superseded_by_id"]:
+            # Deux sources, deux remplacants : ce n'est pas un conflit a trancher, ce
+            # sont souvent deux pieces pour des motos differentes (constate avec le
+            # client le 30/10/2026). On garde le choix du DMS par defaut et on
+            # enregistre l'autre comme remplacant possible.
             actuel = par_id.get(va["superseded_by_id"])
             desaccords.append((va["reference"], (actuel or {}).get("reference", "?"), vn["reference"]))
+            if apply:
+                req("POST", "article_replacement_options",
+                    {"company_id": cid, "article_id": va["id"], "candidate_id": vn["id"],
+                     "source": "tarif_ducati"},
+                    prefer="return=minimal,resolution=ignore-duplicates")
         else:
             a_poser.append((va, vn))
 
@@ -154,11 +163,12 @@ def main():
     print(f"   remplacements poses        : {len(a_poser)}")
     print(f"   deja corrects              : {deja_ok}")
     print(f"   une des deux refs absente  : {hors_dms}")
-    print(f"   DESACCORDS G8 / tarif      : {len(desaccords)}")
+    print(f"   DEUX REMPLACANTS POSSIBLES : {len(desaccords)}")
     for anc, g8, tarif in desaccords[:10]:
-        print(f"      {anc.ljust(14)} : le DMS dit {g8}, le tarif dit {tarif}")
+        print(f"      {anc.ljust(14)} : {g8} (defaut, G8) ou {tarif} (tarif Ducati)")
     if desaccords:
-        print("   (non modifies : un desaccord se tranche a la main, pas en silence)")
+        print("   (le choix par defaut ne bouge pas ; l'autre est enregistre comme")
+        print("    remplacant possible, la fiche montrera les motos de chacun)")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ import {
   listBarcodes, addBarcodeRow, deleteBarcode, listKitItems, addKitItem, deleteKitItem,
   setReplacement, searchArticlesLite,
 } from './subobjects-api';
-import { getArticle, listPredecessorArticles, getReplacementChain } from './api';
+import { getArticle, listPredecessorArticles, getReplacementChain, getReplacementOptions } from './api';
 import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
@@ -156,6 +156,7 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
       )}
+      <ReplacementOptions articleId={articleId} companyId={companyId} />
       <ReplacementChain articleId={articleId} companyId={companyId} />
       <div className="space-y-2 border-t border-border pt-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.predecessorsTitle')}</p>
@@ -176,6 +177,54 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
         ) : (
           <p className="text-sm text-muted-foreground">{t('articles.noPredecessors')}</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Quand Ducati publie PLUSIEURS remplaçants pour une même référence épuisée.
+ * Ce ne sont pas deux réponses concurrentes : ce sont deux pièces, chacune pour
+ * d'autres motos. `14622167AA` mène à `14622162CA` (194 motos) ou `6992A401AA`
+ * (160 motos) ; pour la vis `77140677CF`, les deux listes ne se recoupent pas.
+ * On montre donc les deux avec leurs motos, au lieu de choisir à la place du vendeur.
+ */
+function ReplacementOptions({ articleId, companyId }: { articleId: string; companyId: string }) {
+  const navigate = useNavigate();
+  const { data } = useQuery({
+    queryKey: ['replacement-options', articleId],
+    queryFn: () => getReplacementOptions(companyId, articleId),
+  });
+  if (!data || data.length < 2) return null;    // un seul remplaçant : la ligne au-dessus suffit
+  return (
+    <div className="space-y-2 rounded-md border border-warning bg-warning-bg p-3">
+      <p className="text-[13px] font-bold">{t('articles.optionsTitle')}</p>
+      <p className="text-[12px] text-muted-foreground">{t('articles.optionsHint')}</p>
+      <div className="flex flex-col gap-1.5">
+        {data.map((o) => (
+          <button
+            key={o.candidate_id}
+            type="button"
+            onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: o.candidate_id } })}
+            className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-accent"
+          >
+            <span className="font-mono text-[12px]">{o.reference}</span>
+            <span className="truncate text-muted-foreground">{o.designation}</span>
+            <span className="ml-auto shrink-0 tabular-nums text-[12px] text-muted-foreground">
+              {t('articles.optionsBikes').replace('{n}', o.motos.toLocaleString('fr-BE'))}
+            </span>
+            {o.sale_price_ttc != null && (
+              <span className="shrink-0 tabular-nums text-[12px]">
+                {o.sale_price_ttc.toLocaleString('fr-BE', { minimumFractionDigits: 2 })}&nbsp;€
+              </span>
+            )}
+            {o.is_default && (
+              <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                {t('articles.optionsDefault')}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -248,6 +248,41 @@ export async function getArticle(id: string): Promise<Article | null> {
 
 export type PredecessorArticle = Pick<Article, 'id' | 'reference' | 'designation'>;
 
+/** Un remplaçant possible d'une référence épuisée. */
+export type ReplacementOption = {
+  candidate_id: string;
+  reference: string;
+  designation: string | null;
+  sale_price_ttc: number | null;
+  /** 'g8' = hérité de la reprise · 'tarif_ducati' = publié par Ducati · 'manuel'. */
+  source: string;
+  /** Le choix actuel de la fiche (superseded_by_id). */
+  is_default: boolean;
+  /** Nombre de motos sur lesquelles cette pièce apparaît au catalogue. */
+  motos: number;
+  /** Renseigné seulement quand on connaît la moto du client. */
+  va_sur_cette_moto: boolean | null;
+};
+
+/**
+ * Les remplaçants possibles d'une référence. Ducati publie parfois deux pièces
+ * pour une même référence épuisée, chacune pour d'autres motos : `14622167AA`
+ * mène à `14622162CA` (194 motos) ou `6992A401AA` (160 motos), et pour une vis
+ * les deux listes ne se recoupent même pas. Passer `modelYearId` trie la bonne
+ * en premier.
+ */
+export async function getReplacementOptions(
+  companyId: string, articleId: string, modelYearId?: string | null,
+): Promise<ReplacementOption[]> {
+  // Fonction hors types Supabase auto-generes (migration 20261030090000).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('article_replacement_options_list', {
+    _company: companyId, _article: articleId, _model_year_id: modelYearId ?? null,
+  });
+  if (error) throw error;
+  return (data ?? []) as ReplacementOption[];
+}
+
 /** Un maillon de la chaîne des remplacements (voir article_replacement_chain). */
 export type ReplacementLink = {
   rang: number;
