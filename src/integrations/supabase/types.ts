@@ -6165,6 +6165,7 @@ export type Database = {
           id: string
           is_active: boolean
           job_title: string | null
+          locale: string
           phone: string | null
           updated_at: string
         }
@@ -6176,6 +6177,7 @@ export type Database = {
           id: string
           is_active?: boolean
           job_title?: string | null
+          locale?: string
           phone?: string | null
           updated_at?: string
         }
@@ -6187,6 +6189,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title?: string | null
+          locale?: string
           phone?: string | null
           updated_at?: string
         }

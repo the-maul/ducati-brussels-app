@@ -8,6 +8,19 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — L'application en quatre langues (carte CRM « Traduire l'application et les données »)
+
+- **M-70** — **L'application complète existe en français, néerlandais, anglais et italien ; chaque
+  utilisateur choisit sa langue.** L'équipe Italbike reste en français par défaut. Lot 1 (interface) :
+  un dictionnaire par langue avec exactement les mêmes clés que le FR, un test qui refuse toute
+  clé manquante, valeur vide ou placeholder perdu ; colonne `profiles.locale` (fr/nl/en/it, défaut
+  fr) modifiable par l'utilisateur lui-même ; sélecteur « Langue » dans le menu du compte (équipe)
+  et dans Mon profil → Préférences (espace client) ; bascule immédiate sans rechargement. Les
+  **données** (tables de référence, statuts, PDF, e-mails) restent en français : lot 2 à venir.
+  Toute nouvelle clé FR doit être livrée dans les trois autres langues dans la même PR.
+  *Client · 30/10.* [M00](modules/M00-socle.md)
+---
+
 ## 2026-10-30 — Traduire les données : chaque libellé entre en quatre langues
 
 Carte CRM « Traduire l'application et les données en FR, NL, EN, IT », lots 2 et 3.

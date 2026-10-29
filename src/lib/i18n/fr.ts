@@ -1,8 +1,9 @@
 /**
  * Dictionnaire FR — source unique des libellés UI (CLAUDE.md règle 10).
  * Aucune chaîne en dur dans les composants : tout passe par t('clé').
- * Structure prête pour le NL (Bruxelles) : dupliquer ce fichier en `nl.ts`
- * avec les mêmes clés et brancher dans i18n/index.ts.
+ * Le FR est la référence : `nl.ts`, `en.ts` et `it.ts` portent exactement les
+ * mêmes clés (type `DictionaryShape`, test `tests/i18n-dictionnaires.test.ts`).
+ * Toute clé ajoutée ici doit l'être dans les trois autres.
  */
 export const fr = {
   app: {
@@ -14,6 +15,17 @@ export const fr = {
   // Libellés génériques réutilisables (boutons de dialogues, etc.)
   common: {
     no: 'Non',
+  },
+
+  // Langue de l'application (choix par utilisateur, décision client du 30/10/2026)
+  locale: {
+    menu: 'Langue',
+    fr: 'Français',
+    nl: 'Nederlands',
+    en: 'English',
+    it: 'Italiano',
+    saved: 'Langue enregistrée',
+    error: "La langue n'a pas pu être enregistrée.",
   },
 
   // Droits d'accès par rôle (grille validée par le client)
@@ -4338,3 +4350,8 @@ export const fr = {
 } as const;
 
 export type Dictionary = typeof fr;
+
+/** Même arborescence que le FR, feuilles en `string` : forme imposée aux autres langues. */
+export type DictionaryShape<T = Dictionary> = {
+  [K in keyof T]: T[K] extends string ? string : DictionaryShape<T[K]>;
+};

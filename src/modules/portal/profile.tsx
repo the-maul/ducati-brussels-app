@@ -30,7 +30,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { t } from '@/lib/i18n';
+import { toast } from 'sonner';
+import { t, isLocale, LOCALES, useLocale } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth/auth-context';
 import { cn } from '@/lib/utils';
 import { checkVat, parseViesAddress, type ViesResult } from '@/modules/contacts/vies-api';
 import { isValidIban } from '@/lib/contact-normalize';
@@ -71,6 +73,15 @@ function Field({ id, label, children, className }: { id: string; label: string; 
 }
 
 export function ProfileView() {
+  // Langue de l'espace client (décision du 30/10/2026) : enregistrée dans le profil, bascule immédiate.
+  const { setUserLocale } = useAuth();
+  const locale = useLocale();
+  const changeLocale = (value: string) => {
+    if (!isLocale(value) || value === locale) return;
+    setUserLocale(value)
+      .then(() => toast.success(t('locale.saved')))
+      .catch(() => toast.error(t('locale.error')));
+  };
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'profile'], queryFn: getProfile });
   const [form, setForm] = useState<FormState | null>(null);
@@ -298,6 +309,17 @@ export function ProfileView() {
             </span>
             <Switch checked={!form.marketing_opt_out} onCheckedChange={(v) => set('marketing_opt_out', !v)} />
           </label>
+          {/* Langue de l'application : enregistrée tout de suite, hors du bouton « Enregistrer ». */}
+          <p className="mb-2 mt-4 text-[13px]">{t('locale.menu')}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {LOCALES.map((l) => (
+              <button key={l} type="button" onClick={() => changeLocale(l)} aria-pressed={locale === l}
+                className={cn('h-11 rounded-md border text-[14px]',
+                  locale === l ? 'border-foreground bg-foreground text-background' : 'border-border bg-card')}>
+                {t(`locale.${l}`)}
+              </button>
+            ))}
+          </div>
         </CollapsibleCard>
 
         <div className="sticky bottom-20 z-20 md:bottom-4">

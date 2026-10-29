@@ -14,6 +14,7 @@ import tokensCss from "../styles/tokens.css?url";
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { LocaleProvider } from "@/lib/i18n";
 import { ConfirmProvider } from "@/components/confirm-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -131,13 +132,16 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* useConfirm() jette hors provider : monte ici pour couvrir toutes les routes. */}
-        <ConfirmProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          {/* Hôte des toasts : sans lui, tous les toast() de l'app sont muets. */}
-          <Toaster />
-        </ConfirmProvider>
+        {/* Langue de l'utilisateur : re-monte l'arbre sous lui quand elle change (sans rechargement). */}
+        <LocaleProvider>
+          {/* useConfirm() jette hors provider : monte ici pour couvrir toutes les routes. */}
+          <ConfirmProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            {/* Hôte des toasts : sans lui, tous les toast() de l'app sont muets. */}
+            <Toaster />
+          </ConfirmProvider>
+        </LocaleProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

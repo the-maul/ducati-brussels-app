@@ -5,14 +5,19 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Link } from '@tanstack/react-router';
@@ -30,7 +35,8 @@ import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-
 import { eur } from '@/modules/sales/balance-panel';
 import { listWebOrderAlerts, WEB_ORDER_ROLES } from '@/modules/sales/web-orders-api';
 import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
-import { t } from '@/lib/i18n';
+import { toast } from 'sonner';
+import { t, isLocale, LOCALES, useLocale } from '@/lib/i18n';
 
 /**
  * Cloche — chacun voit ce qui le concerne (décision N-1 du 19/09) :
@@ -521,12 +527,20 @@ function CompanySwitcher() {
 }
 
 function UserMenu() {
-  const { profile, user, signOut, rolesForActiveCompany } = useAuth();
+  const { profile, user, signOut, rolesForActiveCompany, setUserLocale } = useAuth();
   const name = profile?.full_name || profile?.email || user?.email || '—';
   const topRole = rolesForActiveCompany[0];
   // Signature des e-mails envoyés depuis son adresse personnelle (21/09) : équipe seulement.
   const [sigOpen, setSigOpen] = useState(false);
   const isStaff = rolesForActiveCompany.length > 0;
+  // Langue de l'interface (décision client du 30/10/2026) : FR, NL, EN, IT, par utilisateur.
+  const locale = useLocale();
+  const changeLocale = (value: string) => {
+    if (!isLocale(value) || value === locale) return;
+    setUserLocale(value)
+      .then(() => toast.success(t('locale.saved')))
+      .catch(() => toast.error(t('locale.error')));
+  };
 
   return (
     <>
@@ -557,6 +571,20 @@ function UserMenu() {
             {t('mailSignature.menu')}
           </DropdownMenuItem>
         )}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Languages className="size-4" />
+            {t('locale.menu')}
+            <span className="ml-1 text-[11px] uppercase text-muted-foreground">{locale}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={locale} onValueChange={changeLocale}>
+              {LOCALES.map((l) => (
+                <DropdownMenuRadioItem key={l} value={l}>{t(`locale.${l}`)}</DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut className="size-4" />
           {t('auth.signOut')}

@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { DEFAULT_LOCALE, isLocale, setLocale, type Locale } from '@/lib/i18n';
 
 export type AppRole =
   | 'admin' | 'vendeur' | 'magasinier' | 'mecanicien'
@@ -26,6 +27,8 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   default_company_id: string | null;
+  /** Langue de l'interface (fr par défaut) — colonne `profiles.locale`, migration 20261030150000. */
+  locale: Locale;
 }
 
 interface AuthState {
@@ -43,6 +46,8 @@ interface AuthState {
   rolesForActiveCompany: AppRole[];
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+  /** Change la langue de l'interface (immédiat) et l'enregistre dans le profil. */
+  setUserLocale: (locale: Locale) => Promise<void>;
 }
 
 const Ctx = createContext<AuthState | undefined>(undefined);
@@ -58,13 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfileData = useCallback(async (userId: string) => {
     const [profRes, roleRes, compRes] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, email, default_company_id').eq('id', userId).maybeSingle(),
+      // `*` plutôt qu'une liste : la colonne `locale` (migration 20261030150000) peut
+      // manquer en base tant qu'elle n'est pas appliquée ; on retombe alors sur FR.
+      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('user_roles').select('company_id, role'),
       supabase.from('companies').select('id, code, name').order('name'),
     ]);
-    const prof = (profRes.data ?? null) as Profile | null;
+    const raw = profRes.data as (Partial<Profile> & { id: string }) | null;
+    const prof: Profile | null = raw
+      ? {
+          id: raw.id,
+          full_name: raw.full_name ?? null,
+          email: raw.email ?? null,
+          default_company_id: raw.default_company_id ?? null,
+          locale: isLocale(raw.locale) ? raw.locale : DEFAULT_LOCALE,
+        }
+      : null;
     const comps = (compRes.data ?? []) as Company[];
     setProfile(prof);
+    // Langue de l'utilisateur : lue du profil, FR par défaut (décision client du 30/10/2026).
+    setLocale(prof?.locale ?? DEFAULT_LOCALE);
     setRoles((roleRes.data ?? []) as RoleAssignment[]);
     setCompanies(comps);
 
@@ -100,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles([]);
         setCompanies([]);
         setActiveCompanyId(null);
+        setLocale(DEFAULT_LOCALE);
         finishLoading();
       }
     });
@@ -136,6 +155,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) await loadProfileData(session.user.id);
   }, [session, loadProfileData]);
 
+  const setUserLocale = useCallback(async (locale: Locale) => {
+    if (!isLocale(locale)) return;
+    // Bascule immédiate (l'arbre se re-rend via <LocaleProvider>), puis enregistrement.
+    setLocale(locale);
+    setProfile((p) => (p ? { ...p, locale } : p));
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const { error } = await supabase.from('profiles').update({ locale }).eq('id', uid);
+    if (error) throw error;
+  }, [session]);
+
   const activeCompany = companies.find((c) => c.id === activeCompanyId) ?? null;
   const rolesForActiveCompany = roles
     .filter((r) => !activeCompanyId || r.company_id === activeCompanyId)
@@ -158,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rolesForActiveCompany,
         signOut,
         refresh,
+        setUserLocale,
       }}
     >
       {children}
