@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { listContacts, contactDisplayName, getModelInterests, type Contact } from '@/modules/contacts/api';
 import { addCommunication, sendEmailViaOutlook } from '@/modules/crm/api';
 import { vehicleLabel, type Vehicle } from '@/modules/vehicles/api';
+import { tIn, fillVars } from '@/lib/i18n';
+import { contactLocale } from '@/lib/i18n/client-locale';
 
 export type VehicleUsage = 'route' | 'sport' | 'offroad' | 'piste';
 
@@ -112,13 +114,16 @@ export async function notifyInterestedContact(p: {
   if (!toAddress) throw new Error('Coordonnée manquante pour ce canal.');
 
   const label = vehicleLabel(vehicle);
-  const subject = `Ducati Bruxelles — ${label} disponible`;
-  const body = `Bonjour ${contactDisplayName(contact)},\n\nLa moto ${label} qui vous intéresse vient d'entrer en stock chez Ducati Bruxelles. Contactez-nous pour en savoir plus ou planifier un essai.\n\nDucati Bruxelles`;
+  // Message dans la LANGUE DU CLIENT (fiche contact, I18N004), pas celle de l'écran.
+  const locale = contactLocale(contact);
+  const vars = { label, name: contactDisplayName(contact) };
+  const subject = fillVars(tIn(locale, 'crm.matchSubject'), vars);
+  const body = fillVars(tIn(locale, 'crm.matchBody'), vars);
 
   if (channel === 'email') {
     const { error } = await sendEmailViaOutlook({
       companyId, contactId: contact.id, to: toAddress,
-      subject, body: body.replace(/\n/g, '<br>'),
+      subject, body: body.replace(/\n/g, '<br>'), locale,
     });
     if (error) throw new Error(error);
   } else {

@@ -1970,9 +1970,11 @@ export type Database = {
           vies_valid: boolean | null
           watch_note: string | null
           zip: string | null
+          locale: string
         }
         Insert: {
           account_code?: string | null
+          locale?: string
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null
@@ -2080,6 +2082,7 @@ export type Database = {
         }
         Update: {
           account_code?: string | null
+          locale?: string
           accounting_account?: string | null
           address?: string | null
           address_complement?: string | null

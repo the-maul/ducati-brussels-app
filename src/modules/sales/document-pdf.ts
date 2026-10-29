@@ -18,8 +18,14 @@
  */
 import { patchPdfText } from '@/modules/documents/pdf-text';
 import { code128Svg } from '@/modules/articles/barcode';
-import { t } from '@/lib/i18n';
+import { tIn, DEFAULT_LOCALE, type Locale } from '@/lib/i18n';
 import { lineHasAmount, type LineType } from './write-api';
+
+/**
+ * Libellés du document dans la LANGUE DU CLIENT (I18N004, décision M-71), jamais dans celle de
+ * l'écran : `tIn(locale, clé)`. FR par défaut (fiche sans langue, ancien appelant).
+ */
+const trIn = (locale: Locale | undefined) => (key: string) => tIn(locale ?? DEFAULT_LOCALE, key);
 import { PDF_COLORS, PDF_FONT, PDF_PAGE, type Rgb } from './pdf-print-style';
 
 // ---------------------------------------------------------------------------------------------
@@ -76,6 +82,8 @@ export type SalesPdfInput = {
   /** Mention de validité déjà calculée (`validityMention`), ou null. */
   validity: string | null;
   notes?: string | null;
+  /** Langue du client (fiche contact) : libellés fixes et mentions légales du PDF. FR par défaut. */
+  locale?: Locale;
 };
 
 export type VatPied = {
@@ -133,8 +141,8 @@ export function vatBreakdown(
 export type ValidityRule = { docType: string; text: string; months: number; active: boolean };
 
 /** Par défaut (aucune ligne en Paramètres) : le devis / proforma est valable 1 mois (G8, vidéo 7:19). */
-export const defaultValidity = (): ValidityRule[] => [
-  { docType: 'DEV', text: t('salesPdf.defaultValidity'), months: 1, active: true },
+export const defaultValidity = (locale?: Locale): ValidityRule[] => [
+  { docType: 'DEV', text: trIn(locale)('salesPdf.defaultValidity'), months: 1, active: true },
 ];
 
 /** Ajoute des mois à une date AAAA-MM-JJ (fin de mois bornée : 31/01 + 1 mois = 28 ou 29/02). */
@@ -157,14 +165,17 @@ export const dmy = (iso: string | null | undefined): string => {
  * sinon la règle par défaut. « {date} » dans le texte est remplacé par la date limite ; sans
  * « {date} » et avec un nombre de mois, la date est ajoutée entre parenthèses.
  */
-export function validityMention(docType: string, issueIso: string, rules: ValidityRule[]): string | null {
-  const rule = rules.find((r) => r.docType === docType) ?? defaultValidity().find((r) => r.docType === docType);
+export function validityMention(docType: string, issueIso: string, rules: ValidityRule[], locale?: Locale): string | null {
+  const tr = trIn(locale);
+  // Une règle saisie en Paramètres est un texte libre de la société (en FR) : elle prime ;
+  // seule la règle par défaut est traduite dans la langue du client.
+  const rule = rules.find((r) => r.docType === docType) ?? defaultValidity(locale).find((r) => r.docType === docType);
   if (!rule || !rule.active || !rule.text.trim()) return null;
   if (!(rule.months > 0) || !issueIso) return rule.text.replace('{date}', '').trim();
   const until = dmy(addMonthsIso(issueIso, rule.months));
   return rule.text.includes('{date}')
     ? rule.text.replace('{date}', until)
-    : `${rule.text} (${t('salesPdf.validUntil')} ${until})`;
+    : `${rule.text} (${tr('salesPdf.validUntil')} ${until})`;
 }
 
 /** Documents qui portent une case signature (accord du client, réception). */
@@ -178,9 +189,10 @@ export const eurPdf = (n: number): string => {
 const num2 = (n: number) => (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',');
 
 /** Nom de fichier du PDF : « Devis-proforma_DEV-2026-0012.pdf ». */
-export function salesPdfFileName(docType: string, number: string | null): string {
-  const label = t(`sales.type_${docType}`).replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
-  const raw = `${label}_${number ?? t('salesPdf.draft')}`;
+export function salesPdfFileName(docType: string, number: string | null, locale?: Locale): string {
+  const tr = trIn(locale);
+  const label = tr(`sales.type_${docType}`).replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
+  const raw = `${label}_${number ?? tr('salesPdf.draft')}`;
   return `${raw.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_')}.pdf`;
 }
 
@@ -236,7 +248,8 @@ export async function buildSalesDocumentPdfUncompressed(d: SalesPdfInput): Promi
 function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const { margin: M, width: W, height: H, footer: F, lineHeight: LH } = PDF_PAGE;
   const right = W - M;
-  const typeLabel = t(`sales.type_${d.docType}`);
+  const tr = trIn(d.locale);
+  const typeLabel = tr(`sales.type_${d.docType}`);
   const color = (c: Rgb) => doc.setTextColor(c[0], c[1], c[2]);
   const draw = (c: Rgb) => doc.setDrawColor(c[0], c[1], c[2]);
   const fill = (c: Rgb) => doc.setFillColor(c[0], c[1], c[2]);
@@ -260,14 +273,14 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   font(PDF_FONT.small); color(PDF_COLORS.soft);
   const coLines = [
     co.address ?? '', [co.zip, co.city].filter(Boolean).join(' '),
-    co.legalName ?? '', co.vatNumber ? `${t('salesPdf.vat')} : ${co.vatNumber}` : '',
+    co.legalName ?? '', co.vatNumber ? `${tr('salesPdf.vat')} : ${co.vatNumber}` : '',
     co.iban ? `IBAN : ${co.iban}${co.bic ? ` · BIC : ${co.bic}` : ''}` : '',
   ].filter(Boolean);
   for (const l of coLines) { doc.text(l, M, leftY + 3); leftY += 3.6; }
 
   const boxX = 112, boxW = right - boxX;
   font(PDF_FONT.body);
-  const clientText: string[] = d.clientLines.length ? d.clientLines : [t('sales.client')];
+  const clientText: string[] = d.clientLines.length ? d.clientLines : [tr('sales.client')];
   const wrapped = clientText.flatMap((l, i) => (i === 0 ? [l] : doc.splitTextToSize(l, boxW - 8) as string[]));
   const boxH = Math.max(18, wrapped.length * LH + 6);
   draw(PDF_COLORS.frame); doc.setLineWidth(0.3);
@@ -291,7 +304,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   font(PDF_FONT.title, 'bold'); color(PDF_COLORS.ink);
   doc.text(typeLabel.toUpperCase(), M + 1, y + 6);
   font(PDF_FONT.body + 1); color(PDF_COLORS.frame);
-  doc.text(`N° ${d.number ?? t('salesPdf.draft')}`, right - 1, y + 6, { align: 'right' });
+  doc.text(`N° ${d.number ?? tr('salesPdf.draft')}`, right - 1, y + 6, { align: 'right' });
   y += 8.5;
   doc.setLineWidth(0.3); doc.line(M, y, right, y);
   y += 3;
@@ -299,12 +312,12 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const heure = d.createdAt ? new Date(d.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '';
   const band: [string, string][] = [
     [typeLabel.toUpperCase(), d.number ?? ''],
-    [t('salesPdf.date'), dmy(d.issueDate)],
-    [t('salesPdf.time'), heure],
-    [t('salesPdf.clientNo'), d.clientCode ?? ''],
-    [t('salesPdf.condition'), d.condition || t('salesPdf.conditionDefault')],
-    [t('salesPdf.dueDate'), dmy(d.dueDate) || dmy(d.issueDate)],
-    [t('salesPdf.operator'), d.operator ?? ''],
+    [tr('salesPdf.date'), dmy(d.issueDate)],
+    [tr('salesPdf.time'), heure],
+    [tr('salesPdf.clientNo'), d.clientCode ?? ''],
+    [tr('salesPdf.condition'), d.condition || tr('salesPdf.conditionDefault')],
+    [tr('salesPdf.dueDate'), dmy(d.dueDate) || dmy(d.issueDate)],
+    [tr('salesPdf.operator'), d.operator ?? ''],
   ];
   const bandW = (right - M) / band.length;
   draw(PDF_COLORS.frame); doc.roundedRect(M, y, right - M, 10, 2, 2);
@@ -326,8 +339,8 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const headerRow = () => {
     font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
     let x = M;
-    const heads = [t('salesPdf.colRef'), t('salesPdf.colDesignation'), t('salesPdf.colQty'), t('salesPdf.colPuHt'),
-      t('salesPdf.colPuTtc'), t('salesPdf.colDiscount'), t('salesPdf.colAmountTtc'), t('salesPdf.colVat')];
+    const heads = [tr('salesPdf.colRef'), tr('salesPdf.colDesignation'), tr('salesPdf.colQty'), tr('salesPdf.colPuHt'),
+      tr('salesPdf.colPuTtc'), tr('salesPdf.colDiscount'), tr('salesPdf.colAmountTtc'), tr('salesPdf.colVat')];
     COLS.forEach((c, i) => {
       doc.text(heads[i], c.align === 'right' ? x + c.w - 1 : x + 1, y + 3, { align: c.align });
       x += c.w;
@@ -357,7 +370,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     if (zebra) { fill(PDF_COLORS.zebra); doc.rect(M, y - 0.4, right - M, rowH, 'F'); }
     zebra = !zebra;
     const vat = d.taxExempt ? 0 : Number(l.vatRate) || 0;
-    const qty = num2(l.quantity) + (l.lineType === 'main_oeuvre' ? ` ${t('sales.hoursUnit')}` : '');
+    const qty = num2(l.quantity) + (l.lineType === 'main_oeuvre' ? ` ${tr('sales.hoursUnit')}` : '');
     const cells = [
       refLines, desLines, [qty], [eurPdf(l.unitPriceHt)], [eurPdf(Number(l.unitPriceHt) * (1 + vat / 100))],
       [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(l.lineTtc)], [String(vat).replace('.', ',')],
@@ -391,12 +404,12 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const reste = r2(d.totals.ttc - d.totals.paid);
   const brutTtc = d.lines.reduce((s, l) => s + (lineHasAmount({ line_type: l.lineType as LineType }) ? Number(l.lineTtc) || 0 : 0), 0);
   const totalRows: [string, string, boolean][] = [
-    [t('salesPdf.grossTtc'), eurPdf(brutTtc), false],
-    [t('salesPdf.netHt'), eurPdf(d.totals.ht), false],
-    [t('salesPdf.totalVat'), eurPdf(d.totals.vat), false],
-    [t('salesPdf.netTtc'), eurPdf(d.totals.ttc), true],
-    ...(d.totals.paid !== 0 ? [[t('salesPdf.paid'), eurPdf(d.totals.paid), false] as [string, string, boolean]] : []),
-    [t('salesPdf.due'), eurPdf(reste), true],
+    [tr('salesPdf.grossTtc'), eurPdf(brutTtc), false],
+    [tr('salesPdf.netHt'), eurPdf(d.totals.ht), false],
+    [tr('salesPdf.totalVat'), eurPdf(d.totals.vat), false],
+    [tr('salesPdf.netTtc'), eurPdf(d.totals.ttc), true],
+    ...(d.totals.paid !== 0 ? [[tr('salesPdf.paid'), eurPdf(d.totals.paid), false] as [string, string, boolean]] : []),
+    [tr('salesPdf.due'), eurPdf(reste), true],
   ];
   const leftBlockH = 6 + (vatRows.length + 1) * 4 + (d.payments.length ? 6 + d.payments.length * 3.8 : 0);
   const totalsH = totalRows.length * 6 + 2;
@@ -407,9 +420,9 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   // Détail TVA
   const tvX = M, tvW = 92;
   font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
-  doc.text(t('salesPdf.vatRate'), tvX + 1, y + 3);
-  doc.text(t('salesPdf.vatBase'), tvX + 55, y + 3, { align: 'right' });
-  doc.text(t('salesPdf.vatAmount'), tvX + tvW - 1, y + 3, { align: 'right' });
+  doc.text(tr('salesPdf.vatRate'), tvX + 1, y + 3);
+  doc.text(tr('salesPdf.vatBase'), tvX + 55, y + 3, { align: 'right' });
+  doc.text(tr('salesPdf.vatAmount'), tvX + tvW - 1, y + 3, { align: 'right' });
   draw(PDF_COLORS.muted); doc.setLineWidth(0.2); doc.line(tvX, y + 4.3, tvX + tvW, y + 4.3);
   y += 5.5;
   font(PDF_FONT.small); color(PDF_COLORS.ink);
@@ -425,12 +438,12 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   if (d.payments.length) {
     y += 2;
     font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
-    doc.text(t('salesPdf.payments'), tvX + 1, y + 3);
+    doc.text(tr('salesPdf.payments'), tvX + 1, y + 3);
     y += 4.5;
     font(PDF_FONT.small); color(PDF_COLORS.ink);
     for (const p of d.payments) {
       doc.text(dmy(p.date), tvX + 1, y + 3);
-      doc.text(`${p.label}${p.received ? '' : ` (${t('salesPdf.expected')})`}`, tvX + 20, y + 3);
+      doc.text(`${p.label}${p.received ? '' : ` (${tr('salesPdf.expected')})`}`, tvX + 20, y + 3);
       doc.text(eurPdf(p.amount), tvX + tvW - 1, y + 3, { align: 'right' });
       y += 3.8;
     }
@@ -454,8 +467,8 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
 
   // ---- Mentions, validité, notes, pied -----------------------------------------------------
   const paragraphs: { text: string; style: 'normal' | 'italic' | 'bold' }[] = [];
-  if (d.isMarge) paragraphs.push({ text: t('salesPdf.margeMention'), style: 'italic' });
-  else if (d.taxExempt) paragraphs.push({ text: t('sales.taxExemptMention'), style: 'italic' });
+  if (d.isMarge) paragraphs.push({ text: tr('salesPdf.margeMention'), style: 'italic' });
+  else if (d.taxExempt) paragraphs.push({ text: tr('sales.taxExemptMention'), style: 'italic' });
   if (d.validity) paragraphs.push({ text: d.validity, style: 'bold' });
   if (d.notes) paragraphs.push({ text: d.notes, style: 'normal' });
   if (co.footer) paragraphs.push({ text: co.footer, style: 'normal' });
@@ -474,9 +487,9 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     const sx = right - 90;
     draw(PDF_COLORS.frame); doc.setLineWidth(0.3); doc.roundedRect(sx, y, 90, sh, 2, 2);
     font(PDF_FONT.small, 'bold'); color(PDF_COLORS.ink);
-    doc.text(t('salesPdf.signatureTitle'), sx + 3, y + 4.5);
+    doc.text(tr('salesPdf.signatureTitle'), sx + 3, y + 4.5);
     font(PDF_FONT.tiny); color(PDF_COLORS.muted);
-    doc.text(t('salesPdf.signatureHint'), sx + 3, y + 8.5);
+    doc.text(tr('salesPdf.signatureHint'), sx + 3, y + 8.5);
     y += sh + 2;
   }
 
@@ -484,7 +497,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   if (co.cgv) {
     doc.addPage(); y = M;
     font(PDF_FONT.body + 1, 'bold'); color(PDF_COLORS.ink);
-    doc.text(t('salesPdf.cgvTitle'), M, y + 4); y += 8;
+    doc.text(tr('salesPdf.cgvTitle'), M, y + 4); y += 8;
     font(PDF_FONT.small); color(PDF_COLORS.soft);
     for (const part of String(co.cgv).split('\n').flatMap((p) => doc.splitTextToSize(p || ' ', right - M) as string[])) {
       if (y + 3.4 > bottomLimit) { doc.addPage(); y = M; }
@@ -498,6 +511,6 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     doc.setPage(i);
     font(PDF_FONT.tiny); color(PDF_COLORS.muted);
     doc.text(`${typeLabel} ${d.number ?? ''}`.trim(), M, H - M + 2);
-    doc.text(t('salesPdf.page').replace('{i}', String(i)).replace('{n}', String(pages)), right, H - M + 2, { align: 'right' });
+    doc.text(tr('salesPdf.page').replace('{i}', String(i)).replace('{n}', String(pages)), right, H - M + 2, { align: 'right' });
   }
 }

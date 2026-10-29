@@ -8,7 +8,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { fetchImageForPdf } from '@/lib/image-tools';
-import { t } from '@/lib/i18n';
+import { tIn, type Locale } from '@/lib/i18n';
+import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import type { DocumentFull } from './write-api';
 import {
   buildSalesDocumentPdf, validityMention, salesPdfFileName, dmy,
@@ -44,12 +45,23 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
   const c = (contact ?? null) as Record<string, unknown> | null;
   const v = (vehicle ?? null) as Record<string, unknown> | null;
   const s = (x: unknown) => (x == null ? '' : String(x));
+  // Langue du client (I18N004) : celle de sa fiche, FR sans client ou sans langue. Tous les
+  // libellés fixes du PDF et la désignation des lignes la suivent ; l'écran de l'utilisateur, non.
+  const locale: Locale = contactLocale(c);
+  const t = (key: string) => tIn(locale, key);
 
   let isMarge = false;
+  const i18nByArticle = new Map<string, unknown>();
   const artIds = lines.map((l) => l.article_id).filter(Boolean) as string[];
   if (artIds.length) {
     const { data: arts } = await supabase.from('articles').select('id, mgmt_type').in('id', artIds);
     isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
+    // Désignations traduites (M-67, colonne designation_i18n de la migration 20261030140000) :
+    // lecture séparée et tolérante, la colonne peut manquer tant que la migration n'est pas posée.
+    if (locale !== 'fr') {
+      const { data: tr } = await supabase.from('articles').select('id, designation_i18n').in('id', artIds);
+      for (const a of (tr ?? []) as { id: string; designation_i18n: unknown }[]) i18nByArticle.set(a.id, a.designation_i18n);
+    }
   }
 
   const logoUrl = s(co.logo_url);
@@ -103,7 +115,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     clientLines,
     vehicleLines,
     lines: lines.map((l) => ({
-      lineType: l.line_type, reference: l.reference, designation: l.designation,
+      lineType: l.line_type, reference: l.reference,
+      designation: l.article_id ? designationFor(locale, l.designation, i18nByArticle.get(l.article_id)) : l.designation,
       quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), vatRate: Number(l.vat_rate),
       discountPct: Number(l.discount_pct || 0), lineTtc: Number(l.line_ttc),
     })),
@@ -116,8 +129,9 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
       shippingVatRate: Number(doc.shipping_vat_rate),
     },
     totals: { ht: Number(doc.total_ht), vat: Number(doc.total_vat), ttc: Number(doc.total_ttc), paid: Number(doc.paid_amount) },
-    validity: validityMention(doc.doc_type, doc.issue_date, rules),
+    validity: validityMention(doc.doc_type, doc.issue_date, rules, locale),
     notes: doc.notes,
+    locale,
   };
 }
 
@@ -127,7 +141,8 @@ export type SalesPdf = { bytes: Uint8Array; fileName: string };
 export async function generateSalesPdf(full: DocumentFull): Promise<SalesPdf> {
   const input = await loadSalesPdfInput(full);
   const bytes = await buildSalesDocumentPdf(input);
-  return { bytes, fileName: salesPdfFileName(full.doc.doc_type, full.doc.number) };
+  // Nom du fichier joint au mail : lui aussi dans la langue du client (« Offerte-proforma_… »).
+  return { bytes, fileName: salesPdfFileName(full.doc.doc_type, full.doc.number, input.locale) };
 }
 
 export function pdfBlob(bytes: Uint8Array): Blob {

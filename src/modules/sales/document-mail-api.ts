@@ -13,7 +13,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { clientAppUrl } from '@/lib/client-app-url';
 import { uploadAttachment } from '@/modules/documents/ged-api';
-import { t } from '@/lib/i18n';
+import { t, type Locale } from '@/lib/i18n';
 import type { DocumentFull } from './write-api';
 import { generateSalesPdf, pdfBlob, type SalesPdf } from './document-pdf-data';
 
@@ -43,6 +43,12 @@ export type SendDocumentMailInput = {
   dryRun?: boolean;
   /** PDF déjà généré (aperçu) ; sinon généré ici. */
   pdf?: SalesPdf;
+  /**
+   * Langue du client (I18N004) : transmise à `graph-send-email` pour le pied de mail
+   * (invitation à l'espace client). La fonction relit la fiche par `contactId` et ne s'en
+   * sert qu'en repli.
+   */
+  locale?: Locale;
 };
 
 export type SendDocumentMailResult =
@@ -58,6 +64,7 @@ export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDo
     body: {
       companyId: doc.company_id, contactId: p.contactId, to: p.to.trim(), from: p.from || undefined,
       subject: p.subject, body: plainTextToHtml(p.body), origin: clientAppUrl(),
+      ...(p.locale ? { locale: p.locale } : {}),
       attachments: [{ name: pdf.fileName, contentType: 'application/pdf', contentBytes: bytesToBase64(pdf.bytes) }],
       trace: { entityType: 'documents', entityId: doc.id },
       ...(p.dryRun ? { dryRun: true } : {}),

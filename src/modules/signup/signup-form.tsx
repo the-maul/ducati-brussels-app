@@ -28,7 +28,8 @@ import { MotoPicker, isMotoComplete, type MotoChoice } from '@/components/moto-p
 import { isValidPhone, toE164 } from '@/lib/phone';
 import { clientAppHost, clientAppUrl } from '@/lib/client-app-url';
 import { cn } from '@/lib/utils';
-import { t } from '@/lib/i18n';
+import { t, getLocale, setLocale, useLocale } from '@/lib/i18n';
+import { LocaleButtons } from '@/components/locale-buttons';
 import {
   SIGNUP_INTERESTS, startSignup, submitSignup, type SignupErrorCode, type SignupResult,
 } from './signup.functions';
@@ -55,12 +56,19 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="text-[13px] text-danger" role="alert">{msg}</p>;
 }
 
-export function SignupForm({ mode, initialEmail, onSuccess }: {
+export function SignupForm({ mode, initialEmail, onSuccess, showLanguage = true }: {
   mode: SignupMode;
   initialEmail?: string;
   onSuccess: (r: SignupSuccess) => void;
+  /**
+   * Bloc « Votre langue » en tête du formulaire (I18N004). La borne avec écran d'accueil le
+   * place sur l'accueil : changer de langue re-monte l'écran (LocaleProvider), donc on choisit
+   * AVANT de remplir.
+   */
+  showLanguage?: boolean;
 }) {
   const kiosk = mode === 'kiosk';
+  const locale = useLocale();
   const ac = kiosk ? 'off' : undefined;
   // Cibles tactiles : au moins 44 px (h-11) sur téléphone et tablette, 48 px sur la borne.
   const inputCls = kiosk ? 'h-12 text-[16px]' : 'h-11 lg:h-10';
@@ -153,6 +161,8 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
           recontact,
           message: recontact && message.trim() ? message.trim() : undefined,
           origin: clientAppUrl(),
+          // Langue de l'écran au moment de l'envoi = langue de la fiche (I18N004).
+          locale: getLocale(),
         },
       });
       if (!alive.current) return;
@@ -215,6 +225,15 @@ export function SignupForm({ mode, initialEmail, onSuccess }: {
         <input id="signup-website" name="website" type="text" tabIndex={-1} autoComplete="off"
           value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
       </div>
+
+      {/* Langue du client (I18N004) : bascule immédiate de l'écran, retenue sur la fiche. */}
+      {showLanguage && (
+        <section className="space-y-3">
+          <SectionTitle>{t('signup.language')}</SectionTitle>
+          <LocaleButtons value={locale} onChange={setLocale} size={kiosk ? 'kiosk' : 'default'} />
+          <p className="text-[13px] text-muted-foreground">{t('signup.languageHint')}</p>
+        </section>
+      )}
 
       {/* Vous */}
       <section className="space-y-4">

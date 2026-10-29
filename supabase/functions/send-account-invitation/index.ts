@@ -45,7 +45,11 @@
 // Rappel (18/09) : l'invitation de la borne testée à 13:36 UTC a reçu un 401
 // `not_signed_in` : c'était encore l'ancienne version de cette fonction (réservée aux
 // administrateurs), la version acceptant la clé de service a été déployée 40 s après.
+// LANGUE DU DESTINATAIRE (I18N004, décision M-71 du 30/10/2026) : objet et corps dans la langue
+// de la FICHE du client (contacts.locale, via contact_accounts), sinon celle de son profil
+// (profiles.locale, compte de l'équipe), sinon FR. Textes : _shared/mail-i18n.ts.
 // deno-lint-ignore-file
+import { fillMail, mailDateTime, mailTexts, pickMailLocale, type MailLocale } from '../_shared/mail-i18n.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -101,6 +105,35 @@ async function senderFor(companyId: string): Promise<string | null> {
 }
 
 /**
+ * Langue de la personne visée (I18N004) : sa fiche client d'abord (source unique), sinon son
+ * profil. Lecture tolérante : colonne absente ou erreur → FR, jamais d'exception.
+ */
+async function localeFor(userId: string): Promise<MailLocale> {
+  let contactLocale: unknown = null;
+  let profileLocale: unknown = null;
+  try {
+    const ca = await db(`contact_accounts?select=contact_id&user_id=eq.${userId}&limit=1`);
+    const rows = ca.ok ? await ca.json() : [];
+    const contactId = Array.isArray(rows) ? rows[0]?.contact_id : null;
+    if (contactId) {
+      const c = await db(`contacts?select=locale&id=eq.${contactId}&limit=1`);
+      const crow = c.ok ? await c.json() : [];
+      contactLocale = Array.isArray(crow) ? crow[0]?.locale : null;
+    }
+    const pr = await db(`profiles?select=locale&id=eq.${userId}&limit=1`);
+    const prow = pr.ok ? await pr.json() : [];
+    profileLocale = Array.isArray(prow) ? prow[0]?.locale : null;
+  } catch { /* repli FR */ }
+  return pickMailLocale({ contactLocale, profileLocale });
+}
+
+/** Paragraphe HTML d'un texte du dictionnaire ; les variables sont échappées (`b` : en gras). */
+const p = (text: string, vars: Record<string, string> = {}, bold: string[] = []) =>
+  `<p>${fillMail(esc(text), Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, bold.includes(k) ? `<b>${esc(v)}</b>` : esc(v)])))}</p>`;
+/** Lien sur une ligne. */
+const a = (href: string, label: string) => `<p><a href="${esc(href)}">${esc(label)}</a></p>`;
+
+/**
  * « Mot de passe oublié ? » : travail fait APRÈS la réponse (même réponse, même durée,
  * que le compte existe ou non). Ne journalise jamais l'adresse ni un détail d'erreur.
  */
@@ -131,21 +164,23 @@ async function processReset(email: string, o: string, ipHash: string | null): Pr
     if (!hashed) { console.warn('reset: link_failed'); return; }
     const link = `${o}/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery`;
 
+    // Langue de la personne (fiche client, sinon profil, sinon FR) : I18N004.
+    const T = mailTexts(await localeFor(target.user_id)).account;
     const html = `
-    <p>${name ? `Bonjour ${esc(name)},` : 'Bonjour,'}</p>
-    <p>Vous avez demandé à choisir un nouveau mot de passe pour votre compte Ducati Bruxelles (identifiant <b>${esc(to)}</b>).</p>
-    <p><a href="${esc(link)}">Choisir un nouveau mot de passe</a></p>
-    <p>Ce lien ne sert qu'une fois et n'est valable que peu de temps. S'il a expiré, refaites simplement la demande depuis « Mot de passe oublié ? » sur la page de connexion.</p>
-    <p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable.</p>
-    <p>Pour votre sécurité, ce message ne contient jamais votre mot de passe.</p>
-    <p>Ducati Bruxelles</p>`;
+    ${name ? p(T.hello, { name }) : p(T.helloAnonymous)}
+    ${p(T.resetIntro, { email: to }, ['email'])}
+    ${a(link, T.resetLink)}
+    ${p(T.resetExpired)}
+    ${p(T.resetIgnore)}
+    ${p(T.neverPassword)}
+    ${p(T.signature)}`;
     const tok = await graphToken();
     if (!tok) { console.warn('reset: graph_auth_failed'); return; }
     const send = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
       method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: {
-          subject: 'Choisir un nouveau mot de passe',
+          subject: T.resetSubject,
           body: { contentType: 'HTML', content: html },
           toRecipients: [{ emailAddress: { address: to } }],
         },
@@ -158,12 +193,13 @@ async function processReset(email: string, o: string, ipHash: string | null): Pr
   }
 }
 
-/** Message de bienvenue K (écran de fin d'inscription, src/lib/i18n/fr.ts `signup.welcome*`). */
-function welcomeBlock(o: string): string {
+/** Message de bienvenue K (écran de fin d'inscription, src/lib/i18n/fr.ts `signup.welcome*`), dans la langue du client. */
+function welcomeBlock(o: string, locale: MailLocale): string {
   const host = o.replace(/^https?:\/\//, '');
+  const T = mailTexts(locale).account;
   return `
-    <p><b>Bravo et merci pour votre enregistrement.</b> Bienvenue chez Ducati Bruxelles.</p>
-    <p>Vous pourrez désormais retrouver vos informations et celles de vos achats et de vos véhicules directement sur <a href="${esc(o)}">${esc(host)}</a>.</p>`;
+    <p><b>${esc(T.welcomeTitle)}</b></p>
+    <p>${fillMail(esc(T.welcomeAccess), { host: `<a href="${esc(o)}">${esc(host)}</a>` })}</p>`;
 }
 
 
@@ -276,8 +312,10 @@ Deno.serve(async (req) => {
   const sender = await senderFor(companyId);
   if (!sender) return J({ error: 'no_mailbox' }, 400);
 
-  // 4. Contenu.
-  const hello = name ? `Bonjour ${esc(name)},` : 'Bonjour,';
+  // 4. Contenu, dans la langue de la personne (fiche client, sinon profil, sinon FR : I18N004).
+  const locale = await localeFor(userId!);
+  const T = mailTexts(locale).account;
+  const hello = name ? p(T.hello, { name }) : p(T.helloAnonymous);
   const home = isClient && !isStaff ? `${o}/mon-espace` : `${o}/login`;
   let subject: string;
   let html: string;
@@ -291,43 +329,41 @@ Deno.serve(async (req) => {
     const link = `${o}/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery`;
 
     const intro = selfSignup
-      ? `${welcomeBlock(o)}
-    <p>Nous vous connaissions déjà : pour protéger votre compte, le mot de passe saisi lors de l'inscription n'a pas été utilisé.</p>`
+      ? `${welcomeBlock(o, locale)}
+    ${p(T.inviteKnown)}`
       : isClient
-      ? '<p>Ducati Bruxelles vous a créé un espace client. Vous pourrez y retrouver vos informations, vos véhicules et vos achats.</p>'
-      : '<p>Un compte a été créé pour vous sur la plateforme de gestion de Ducati Bruxelles.</p>';
-    subject = selfSignup ? 'Bienvenue chez Ducati Bruxelles' : isClient ? 'Votre espace client Ducati Bruxelles' : 'Votre compte Ducati Bruxelles';
+      ? p(T.inviteClient)
+      : p(T.inviteStaff);
+    subject = selfSignup ? T.inviteSubjectSignup : isClient ? T.inviteSubjectClient : T.inviteSubjectStaff;
     html = `
-    <p>${hello}</p>
+    ${hello}
     ${intro}
-    <p>Pour activer votre compte, choisissez votre mot de passe en cliquant sur ce lien :</p>
-    <p><a href="${esc(link)}">Choisir mon mot de passe</a></p>
-    <p>Votre identifiant de connexion est : <b>${esc(email)}</b></p>
-    <p>Ce lien ne sert qu'une fois et n'est valable que peu de temps. S'il a expiré, demandez-en simplement un nouveau à la concession.</p>
-    <p>${selfSignup
-      ? "Si vous n'êtes pas à l'origine de cette inscription, ignorez simplement ce message : sans mot de passe choisi, le compte reste inutilisable."
-      : "Si vous n'attendiez pas ce message, vous pouvez l'ignorer."}</p>
-    <p>Ducati Bruxelles</p>`;
+    ${p(T.inviteChoose)}
+    ${a(link, T.inviteLink)}
+    ${p(T.identifier, { email }, ['email'])}
+    ${p(T.linkOnce)}
+    ${p(selfSignup ? T.inviteIgnoreSignup : T.inviteIgnore)}
+    ${p(T.signature)}`;
   } else if (kind === 'welcome') {
-    subject = 'Bienvenue chez Ducati Bruxelles';
+    subject = T.welcomeSubject;
     html = `
-    <p>${hello}</p>
-    ${welcomeBlock(o)}
-    <p>Votre identifiant de connexion est : <b>${esc(email)}</b>, avec le mot de passe que vous avez choisi.</p>
-    <p><a href="${esc(home)}">Accéder à mon espace client</a></p>
-    <p>Si vous n'êtes pas à l'origine de cette inscription, répondez simplement à ce message et nous fermerons le compte.</p>
-    <p>À très bientôt,<br>Ducati Bruxelles</p>`;
+    ${hello}
+    ${welcomeBlock(o, locale)}
+    ${p(T.welcomeIdentifier, { email }, ['email'])}
+    ${a(home, T.welcomeOpen)}
+    ${p(T.welcomeIgnore)}
+    <p>${esc(T.welcomeBye)}<br>${esc(T.signature)}</p>`;
   } else {
-    const when = new Date().toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', dateStyle: 'long', timeStyle: 'short' });
-    subject = 'Votre mot de passe a été modifié';
+    const when = mailDateTime(locale);
+    subject = T.passwordSubject;
     html = `
-    <p>${hello}</p>
-    <p>Le mot de passe de votre compte Ducati Bruxelles (identifiant <b>${esc(email)}</b>) a été modifié le ${esc(when)}.</p>
-    <p>Si c'est bien vous, vous n'avez rien à faire.</p>
-    <p><b>Si ce n'est pas vous</b>, contactez-nous immédiatement en répondant à ce message ou en appelant la concession : nous bloquerons l'accès et vous enverrons un nouveau lien.</p>
-    <p><a href="${esc(home)}">Me connecter</a></p>
-    <p>Pour votre sécurité, ce message ne contient jamais votre mot de passe.</p>
-    <p>Ducati Bruxelles</p>`;
+    ${hello}
+    ${p(T.passwordChanged, { email, when }, ['email'])}
+    ${p(T.passwordIfYou)}
+    <p><b>${esc(T.passwordIfNot)}</b></p>
+    ${a(home, T.passwordLogin)}
+    ${p(T.neverPassword)}
+    ${p(T.signature)}`;
   }
 
   // 5. Envoi.

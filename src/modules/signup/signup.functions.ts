@@ -113,6 +113,9 @@ const signupInput = z.object({
   message: z.string().trim().max(1000).optional(),
   // Adresse de l'application client (VITE_CLIENT_APP_URL ou origine du site) pour le lien d'invitation.
   origin: z.string().regex(/^https:\/\/[^/\s]+$|^http:\/\/localhost(:\d+)?$/),
+  // I18N004 : langue choisie à l'écran (inscription en ligne ou borne) = langue de la fiche,
+  // donc de ses documents et de nos e-mails (le mail de bienvenue y compris).
+  locale: z.enum(['fr', 'nl', 'en', 'it']).default('fr'),
 });
 
 export const submitSignup = createServerFn({ method: 'POST' })
@@ -196,6 +199,21 @@ export const submitSignup = createServerFn({ method: 'POST' })
     }
     const row = Array.isArray(reg) ? reg[0] : reg;
     await supabaseAdmin.from('profiles').upsert({ id: userId, email: data.email, full_name: fullName, is_active: true });
+
+    // Langue du client (I18N004) : écrite sur la FICHE (source unique) ; le profil du compte
+    // suit par déclencheur (migration 20261030160000). Best-effort : tant que la migration
+    // n'est pas appliquée, la colonne manque et l'inscription continue en FR.
+    if (data.locale !== 'fr' && row.contact_id) {
+      const { error: locErr } = await supabaseAdmin
+        .from('contacts').update({ locale: data.locale }).eq('id', row.contact_id);
+      if (locErr) console.warn('[signup] locale non enregistrée', locErr.message);
+      else {
+        // Ceinture et bretelles si le déclencheur n'est pas encore posé : le mail de bienvenue
+        // lit la fiche, l'écran du client lit le profil.
+        await supabaseAdmin.from('profiles').update({ locale: data.locale }).eq('id', userId)
+          .then(({ error: pErr }) => { if (pErr) console.warn('[signup] profil locale', pErr.message); });
+      }
+    }
 
     // 6. E-mail par Outlook : bienvenue (mot de passe choisi) ou invitation
     //    « choisir mon mot de passe » (fiche déjà connue). Échec = compte créé quand même.

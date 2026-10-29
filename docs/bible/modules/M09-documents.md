@@ -51,7 +51,7 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 | Fonctions serveur (Edge) | `supabase/functions/outlook-poll` dépose les pièces jointes des mails (dossier « E-mails », dédoublonnées par empreinte `content_hash`) ; `supabase/functions/read-id-doc` lit les scans d'identité (M1) et, en mode `carte_grise`, la carte grise d'une moto (M3, mission 04 carte 7 : photo rangée dans la GED du véhicule, dossier « Carte grise ») |
 | Tâches planifiées | `outlook-poll` (toutes les 5 min, voir M10) |
 | Migrations clés | `supabase/migrations/20260610370000_m9_ged.sql`, `20260612260000_m9_cgv_signatures.sql`, `20260612370000_m9_ged_folders.sql`, `20260919120000_m0_portail_client.sql` (dépôts du portail), `20261005130000_m9_portail_documents_recto_verso.sql` (recto-verso, suppression, 10 Mo, libellés) |
-| Libellés | `src/lib/i18n/fr.ts`, bloc `ged` |
+| Libellés | `src/lib/i18n/fr.ts`, bloc `ged` ; libellés des documents dans la langue du client : blocs `salesPdf`, `sales`, `salesMail` des quatre dictionnaires, lus par `tIn()` (`src/lib/i18n/index.ts`) et `contactLocale()` / `designationFor()` (`src/lib/i18n/client-locale.ts`) ; textes des mails serveur : `supabase/functions/_shared/mail-i18n.ts` |
 | Tests | `tests/pdf-text.test.ts`, `tests/portal-documents.test.ts` (recto-verso, suppression tracée, limite de 10 Mo), `tests/portal-etancheite.test.ts` |
 
 ## 4. Règles métier et décisions
@@ -63,6 +63,21 @@ HTML et, depuis le 19/09, **vrai PDF** envoyé par mail et rangé en GED) sont �
 - **PDF des documents de vente généré dans le navigateur avec jsPDF** (19/09, mission 05 carte 8). Pourquoi : jsPDF est **déjà** une dépendance du projet (PDF de reprise M7), léger, très répandu, compatible Lovable / TanStack Start (chargé à la demande, seulement au clic) ; le même fichier sert à l'aperçu, à la pièce jointe et à l'archive GED, sans aller-retour serveur. Écartés : une Edge Function Deno (il faudrait y réécrire la mise en page et relire toutes les données avec la clé service, pour aucun gain tant qu'aucun PDF ne part sans utilisateur) ; l'impression HTML `window.print()` (aucun fichier à joindre ni à archiver) ; pdf-lib (nouvelle dépendance, pas de mise en page du texte). Couleurs et polices du PDF : **uniquement** `pdf-print-style.ts` (document imprimé, charte §7), jamais dans un composant React. Le jour où un PDF devra partir sans utilisateur connecté (relance automatique), déplacer `document-pdf.ts` (pur) dans une Edge Function.
 - **Un PDF envoyé = deux fichiers GED** (client et document), pas une ligne partagée : supprimer l'un ne casse pas l'autre (la suppression efface le fichier du stockage).
 - **Prix de vente jamais dans le PDF d'archive de reprise** (demande magasin, en-tête de `validation-pdf.ts`).
+- **Un document part dans la langue du client (I18N004, décision M-71 du 30/10/2026)**. La langue est
+  celle de la **fiche du client** (`contacts.locale`, FR par défaut), jamais celle de l'écran de
+  l'utilisateur : le vendeur travaille en français, le client flamand reçoit « NOG TE BETALEN ».
+  Concerne le PDF des documents de vente (`document-pdf.ts`, entrée `locale`), l'impression HTML
+  (`print-document.ts`), l'objet et le corps proposés dans « Envoyer par e-mail », le SMS
+  proposé, le pied de mail « espace client » (`_shared/mail-message.ts`), les mails de compte
+  (`send-account-invitation`) et le message de rapprochement CRM. Libellés fixes et **mentions
+  légales** (TVA marge art. 58 §4 CTVA, détaxe art. 39, CGV) : clés `salesPdf.*` et `sales.*`
+  des quatre dictionnaires, lues par `tIn(locale, clé)` (`src/lib/i18n`) — le FR reste le texte
+  de référence, NL/EN/IT en sont des traductions fidèles. La **désignation d'une ligne** utilise
+  `articles.designation_i18n[locale]` quand elle existe (M-67), sinon le texte de la ligne (FR :
+  toujours le texte de la ligne, M-69). Ce qui **n'est pas traduit** : les textes libres saisis
+  par la société (CGV `cgv_text`, pied `invoice_footer`, règle de validité de Paramètres, notes du
+  document) et les documents **internes** (picking, étiquettes, PDF de reprise M7) qui restent dans
+  la langue de l'utilisateur ou en FR.
 
 ## 5. État en production
 
@@ -129,3 +144,4 @@ Vérifié le 18/09/2026 dans le code et dans la base.
 | 2026-09-19 | PDF des documents de vente (jsPDF) : aperçu, pièce jointe du mail, archivé en GED client + document (mission 05 carte 8, mission 02 carte 6) | code seul |
 | 2026-10-05 | **Espace client, retour de Simon du 05/10** : carte d’identité ajoutée, **recto et verso** pour tous les documents (avec « pas de verso »), consultation plein écran et **suppression par le client** (tracée, fichier effacé), limite ramenée à **10 Mo** annoncée avant l’envoi et images réduites à 1 200 px, **plusieurs « autres documents »** avec libellé, **miniatures** à la place du nom de fichier (M-58 à M-62) | branche `lot-portail-docs`, migration `20261005130000_m9_portail_documents_recto_verso` (**appliquée le 05/10**) |
 | 2026-09-19 | Carte grise lue par `read-id-doc` (mode `carte_grise`) et rangée dans la GED de la moto (mission 04, carte 7) | branche `lot-m4-moto` |
+| 2026-10-30 | **Le client reçoit ses devis, factures et mails dans sa langue** (I18N004, lot 4, M-71) : PDF et impression des documents de vente, objet/corps du mail de document, SMS, pied de mail et mails de compte dans la langue de la fiche (`contacts.locale`) ; désignations des lignes traduites quand `designation_i18n` existe ; textes serveur `supabase/functions/_shared/mail-i18n.ts` ; test `tests/langue-du-client.test.ts` | branche `lot-documents-langue-client`, migration `20261030160000_m1_langue_du_client.sql` (**à appliquer**), fonctions `graph-send-email` et `send-account-invitation` **à redéployer** |

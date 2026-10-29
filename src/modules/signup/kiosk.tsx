@@ -30,7 +30,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bike, ExternalLink, Home, Maximize, RotateCcw, SlidersHorizontal, UserPlus, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { t } from '@/lib/i18n';
+import { LocaleButtons } from '@/components/locale-buttons';
+import { useAuth } from '@/lib/auth/auth-context';
+import { t, setLocale, useLocale, DEFAULT_LOCALE, type Locale } from '@/lib/i18n';
 import { SignupForm, SignupWelcome, type SignupSuccess } from './signup-form';
 import { kioskHasHome, kioskUrlHost, type KioskLinks } from './kiosk-links';
 
@@ -52,6 +54,11 @@ export function KioskSignup({ links }: { links: KioskLinks }) {
   const lastActivity = useRef(Date.now());
   const loadedAt = useRef(Date.now());
   const pristine = useRef(true); // aucune saisie depuis la dernière remise à zéro
+  // Langue de la borne (I18N004) : le client la choisit sur l'accueil ; chaque remise à zéro
+  // revient à celle de la tablette (profil de l'utilisateur connecté, sinon FR).
+  const { profile } = useAuth();
+  const locale = useLocale();
+  const defaultLocale: Locale = profile?.locale ?? DEFAULT_LOCALE;
 
   const reset = useCallback(() => {
     setScreen(homeScreen);
@@ -64,7 +71,8 @@ export function KioskSignup({ links }: { links: KioskLinks }) {
       (document.activeElement as HTMLElement | null)?.blur?.();
       window.scrollTo({ top: 0 });
     }
-  }, [homeScreen]);
+    setLocale(defaultLocale);
+  }, [homeScreen, defaultLocale]);
 
   // Activité à l'écran : repousse la remise à zéro.
   useEffect(() => {
@@ -194,6 +202,8 @@ export function KioskSignup({ links }: { links: KioskLinks }) {
           <KioskHome
             links={links}
             online={online}
+            locale={locale}
+            onLocale={setLocale}
             onSignup={() => { setScreen('form'); window.scrollTo({ top: 0 }); }}
             onExternal={openExternal}
           />
@@ -225,6 +235,7 @@ export function KioskSignup({ links }: { links: KioskLinks }) {
               <SignupForm
                 key={round}
                 mode="kiosk"
+                showLanguage={!hasHome}
                 onSuccess={(r) => {
                   setResult(r);
                   lastActivity.current = Date.now();
@@ -240,9 +251,11 @@ export function KioskSignup({ links }: { links: KioskLinks }) {
 }
 
 /** Écran d'accueil : 3 grandes tuiles tactiles. */
-function KioskHome({ links, online, onSignup, onExternal }: {
+function KioskHome({ links, online, locale, onLocale, onSignup, onExternal }: {
   links: KioskLinks;
   online: boolean;
+  locale: Locale;
+  onLocale: (locale: Locale) => void;
   onSignup: () => void;
   onExternal: (url: string) => void;
 }) {
@@ -261,6 +274,8 @@ function KioskHome({ links, online, onSignup, onExternal }: {
         <h1 className="font-display text-[28px] font-bold uppercase leading-[34px] sm:text-[32px] sm:leading-[38px]">{t('signup.kiosk.homeTitle')}</h1>
         <p className="text-[17px] text-muted-foreground">{t('signup.kiosk.homeIntro')}</p>
       </div>
+      {/* Langue du client (I18N004) : choisie ici, avant toute saisie ; retenue sur sa fiche. */}
+      <LocaleButtons value={locale} onChange={onLocale} size="kiosk" className="max-w-3xl" />
       <div className={`grid gap-4 ${tiles.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {tiles.map((tile) => {
           const Icon = tile.icon;

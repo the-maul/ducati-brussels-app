@@ -13,7 +13,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { t } from '@/lib/i18n';
+import { t, type Locale } from '@/lib/i18n';
 import { prepareFileForUpload } from './image';
 
 const BUCKET = 'ged';
@@ -317,6 +317,17 @@ export const cancelAppointmentRequest = (id: string) =>
  * Migration : supabase/migrations/20260919200000_m0_portail_visite.sql.
  */
 export const touchPortal = () => rpc<null>('portal_touch').catch(() => null);
+
+/**
+ * Langue du client (I18N004) : Mon profil → Préférences écrit la FICHE (`contacts.locale`,
+ * source unique) par `portal_set_locale` ; le profil du compte suit par déclencheur.
+ * Migration : supabase/migrations/20261030160000_m1_langue_du_client.sql.
+ * Renvoie false si la fonction n'est pas encore en base (migration non appliquée) : l'appelant
+ * retombe alors sur l'enregistrement du profil seul.
+ */
+export const setPortalLocale = (locale: Locale): Promise<boolean> =>
+  // Nom absent de types.ts tant qu'il n'est pas régénéré après la migration.
+  rpc<null>('portal_set_locale' as Parameters<typeof supabase.rpc>[0], { p_locale: locale }).then(() => true).catch(() => false);
 
 /**
  * Dépôt d'un fichier en trois temps :

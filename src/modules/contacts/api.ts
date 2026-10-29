@@ -108,14 +108,34 @@ export async function getContactPortalVisit(contactId: string): Promise<ContactP
   return data ? { first_visit_at: data.first_portal_visit_at, last_visit_at: data.last_portal_visit_at, user_id: data.user_id ?? null } : null;
 }
 
+/**
+ * I18N004 : la colonne `contacts.locale` arrive avec la migration 20261030160000. Tant
+ * qu'elle n'est pas appliquée, une écriture qui la porte est refusée par PostgREST
+ * (« Could not find the 'locale' column », code PGRST204 / 42703) : on réessaie alors
+ * sans elle, pour ne jamais bloquer l'enregistrement d'une fiche.
+ */
+function isMissingLocaleColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = String(error.message ?? '');
+  return /locale/i.test(msg) && (error.code === 'PGRST204' || error.code === '42703' || /column/i.test(msg));
+}
+
 export async function createContact(input: ContactInsert): Promise<Contact> {
   const { data, error } = await supabase.from('contacts').insert(input).select().single();
+  if (error && isMissingLocaleColumn(error) && 'locale' in input) {
+    const { locale: _locale, ...rest } = input;
+    return createContact(rest as ContactInsert);
+  }
   if (error) throw error;
   return data;
 }
 
 export async function updateContact(id: string, input: ContactUpdate): Promise<Contact> {
   const { data, error } = await supabase.from('contacts').update(input).eq('id', id).select().single();
+  if (error && isMissingLocaleColumn(error) && 'locale' in input) {
+    const { locale: _locale, ...rest } = input;
+    return updateContact(id, rest as ContactUpdate);
+  }
   if (error) throw error;
   return data;
 }

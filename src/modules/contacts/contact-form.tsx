@@ -31,7 +31,7 @@ import {
 import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { t } from '@/lib/i18n';
+import { t, LOCALES, DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
 import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/lib/contact-normalize';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
@@ -165,6 +165,8 @@ type FormState = {
   civility: string;
   /** Mission 04, carte 2 : forme juridique d'un pro (colonne legal_form). */
   legal_form: string;
+  /** I18N004 : langue des documents et e-mails adressés au client (colonne locale, défaut fr). */
+  locale: Locale;
   first_name: string;
   last_name: string;
   company_name: string;
@@ -242,6 +244,7 @@ function fromContact(c: Contact | null): FormState {
     // restée dans `civility` est conservée telle quelle (non affichée, jamais effacée).
     civility: personCivility(c?.civility) ?? c?.civility ?? '',
     legal_form: c?.legal_form ?? '',
+    locale: isLocale(ext?.locale) ? ext.locale : DEFAULT_LOCALE,
     first_name: c?.first_name ?? '',
     last_name: c?.last_name ?? '',
     company_name: c?.company_name ?? '',
@@ -374,6 +377,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     marketing_opt_out: f.marketing_opt_out,
     // Mission 04, carte 2 (migration 20260919261000)
     legal_form: nn(f.legal_form),
+    // I18N004 (migration 20261030160000) : langue du client, fr par défaut.
+    locale: isLocale(f.locale) ? f.locale : DEFAULT_LOCALE,
     interests: f.interests,
     notes: nn(f.notes),
     supplier_customer_no: nn(f.supplier_customer_no),
@@ -634,6 +639,17 @@ export function ContactForm({
                   <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
                   {PERSON_CIVILITIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={t('contacts.locale')}>
+              {/* I18N004 : langue des documents et e-mails adressés au client (fr par défaut). */}
+              <Select value={f.locale} onValueChange={(v) => set('locale', isLocale(v) ? v : DEFAULT_LOCALE)}>
+                <SelectTrigger title={t('contacts.localeHint')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOCALES.map((l) => (
+                    <SelectItem key={l} value={l}>{t(`locale.${l}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

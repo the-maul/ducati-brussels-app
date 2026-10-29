@@ -55,6 +55,7 @@ import {
   contactFromCompany, type MailContact,
   type SignatureCompany,
 } from '../_shared/mail-message.ts';
+import { asMailLocale, DEFAULT_MAIL_LOCALE, type MailLocale } from '../_shared/mail-i18n.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -117,6 +118,20 @@ async function first<T>(path: string): Promise<T | null> {
     const rows = await r.json();
     return Array.isArray(rows) && rows.length ? rows[0] as T : null;
   } catch { return null; }
+}
+
+/**
+ * Langue du destinataire pour le pied de mail (I18N004, décision M-71) : la FICHE du client
+ * (`contacts.locale`, de la même société) fait foi ; sinon la langue transmise par l'écran
+ * (`locale`) ; sinon FR. Colonne absente (migration 20261030160000 non posée) → repli, jamais d'erreur.
+ */
+async function recipientLocale(companyId: string, contactId: unknown, hint: unknown): Promise<MailLocale> {
+  if (typeof contactId === 'string' && /^[0-9a-f-]{36}$/i.test(contactId)) {
+    const c = await first<{ locale?: string }>(`contacts?select=locale&id=eq.${contactId}&company_id=eq.${companyId}&limit=1`);
+    const fromContact = asMailLocale(c?.locale);
+    if (fromContact) return fromContact;
+  }
+  return asMailLocale(hint) ?? DEFAULT_MAIL_LOCALE;
 }
 
 /**
@@ -213,7 +228,9 @@ Deno.serve(async (req) => {
   // On ne les écrit donc qu'UNE fois : dans le pied de mail seulement quand il n'y a pas de
   // signature (fiche société sans coordonnées). Compléter la fiche société suffit dans les
   // deux cas, rien n'est en dur dans le code.
-  const footer = kind ? footerHtml(kind, o, recipient, signature ? null : contact) : '';
+  // Pied de mail dans la langue du client (fiche contact), pas celle de l'utilisateur (I18N004).
+  const locale = kind ? await recipientLocale(companyId, contactId, payload?.locale) : DEFAULT_MAIL_LOCALE;
+  const footer = kind ? footerHtml(kind, o, recipient, signature ? null : contact, locale) : '';
 
   // Corps déjà en HTML (éditeur enrichi) + signature + pied de mail.
   const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), signature, footer, to, attachments: atts });

@@ -59,7 +59,18 @@ function resolve(obj: unknown, path: string): string | undefined {
  * (visible en dev, jamais de crash). Le FR reste le filet de sécurité.
  */
 export function t(key: string): string {
-  const dict = dictionaries[currentLocale] ?? fr;
+  return tIn(currentLocale, key);
+}
+
+/**
+ * Traduit une clé dans une langue DONNÉE, sans toucher à la langue active de l'écran.
+ * Sert aux documents et messages adressés au client (I18N004, décision M-71) : le PDF du
+ * devis, l'objet et le corps du mail, le SMS sortent dans la langue de la fiche du client
+ * pendant que l'utilisateur garde la sienne. Repli : FR si la clé manque dans la langue.
+ */
+export function tIn(locale: Locale | string | null | undefined, key: string): string {
+  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const dict = dictionaries[loc] ?? fr;
   const value = resolve(dict, key) ?? resolve(fr, key);
   if (value === undefined) {
     if (import.meta.env?.DEV) console.warn(`[i18n] clé manquante : ${key}`);
@@ -76,6 +87,11 @@ export function t(key: string): string {
  */
 export function pageTitle(key: keyof DictionaryShape['pageTitles']): string {
   return `${t(`pageTitles.${key}`)} — ${t('app.name')}`;
+}
+
+/** Remplace les `{nom}` d'un libellé par les valeurs données (clé absente : laissée telle quelle). */
+export function fillVars(text: string, vars: Record<string, string | number | null | undefined>): string {
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v == null ? '' : String(v)), text);
 }
 
 const LocaleCtx = createContext<Locale>(DEFAULT_LOCALE);

@@ -12,7 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
 import type { DocumentFull } from './write-api';
-import { t } from '@/lib/i18n';
+import { tIn } from '@/lib/i18n';
+import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -20,8 +21,6 @@ const dmy = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateStrin
 
 export async function printDocument(full: DocumentFull, companyName: string): Promise<void> {
   const { doc, lines } = full;
-  const typeLabel = t(`sales.type_${doc.doc_type}`);
-  const title = `${typeLabel} ${doc.number ?? ''}`.trim();
 
   // Données société, client, véhicule, règlements + détection occasion (TVA marge).
   const [{ data: company }, { data: contact }, { data: payments }, { data: vehicle }] = await Promise.all([
@@ -34,16 +33,31 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const c = (contact ?? null) as Record<string, unknown> | null;
   const v = (vehicle ?? null) as Record<string, unknown> | null;
 
+  // Langue du client (I18N004) : le papier remis au client est dans SA langue (fiche contact),
+  // mêmes libellés que le PDF (`salesPdf.*`), pas ceux de l'écran de l'utilisateur.
+  const locale = contactLocale(c);
+  const t = (key: string) => tIn(locale, key);
+  const typeLabel = t(`sales.type_${doc.doc_type}`);
+  const title = `${typeLabel} ${doc.number ?? ''}`.trim();
+
   // Le document est-il une vente d'occasion en TVA marge ? (article lié de type O)
   let isMarge = false;
+  const i18nByArticle = new Map<string, unknown>();
   const artIds = lines.map((l) => l.article_id).filter(Boolean) as string[];
   if (artIds.length) {
     const { data: arts } = await supabase.from('articles').select('id, mgmt_type').in('id', artIds);
     isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
+    if (locale !== 'fr') {
+      // Désignations traduites (M-67) ; colonne absente tant que la migration 20261030140000 n'est pas posée.
+      const { data: tr } = await supabase.from('articles').select('id, designation_i18n').in('id', artIds);
+      for (const a of (tr ?? []) as { id: string; designation_i18n: unknown }[]) i18nByArticle.set(a.id, a.designation_i18n);
+    }
   }
+  const designationOf = (l: { article_id: string | null; designation: string }) =>
+    l.article_id ? designationFor(locale, l.designation, i18nByArticle.get(l.article_id)) : l.designation;
 
   const heure = doc.created_at ? new Date(doc.created_at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '';
-  const condition = (doc.condition_reglement as string) || 'AU GRAND COMPTANT';
+  const condition = (doc.condition_reglement as string) || t('salesPdf.conditionDefault');
   const echeance = dmy(doc.due_date) || dmy(doc.issue_date);
   const numClient = (c?.legacy_code as string) || (c?.id ? String(c.id).slice(0, 8) : '');
 
@@ -51,8 +65,8 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     `<strong>${esc(contactDisplayName(c as never))}</strong>`,
     esc([c.street_number, c.address].filter(Boolean).join(' ')),
     esc([c.zip, c.city, (c.country && c.country !== 'BE') ? c.country : ''].filter(Boolean).join(' ')),
-    (c.phone || c.mobile) ? `Tél : ${esc([c.phone, c.mobile].filter(Boolean).join(' / '))}` : '',
-    c.vat_number ? `Identification T.V.A. : ${esc(c.vat_number)}` : '',
+    (c.phone || c.mobile) ? `${esc(t('salesPdf.phone'))} : ${esc([c.phone, c.mobile].filter(Boolean).join(' / '))}` : '',
+    c.vat_number ? `${esc(t('salesPdf.vatId'))} : ${esc(c.vat_number)}` : '',
   ].filter(Boolean).join('<br>') : '';
 
   // Lignes selon leur type (mission 05, carte 5) : ligne vide = séparation, texte = commentaire
@@ -64,7 +78,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     return `
     <tr>
       <td>${esc(l.reference ?? '')}</td>
-      <td>${esc(l.designation)}</td>
+      <td>${esc(designationOf(l))}</td>
       <td class="r">${qty}</td>
       <td class="r">${eur(Number(l.unit_price_ht))}</td>
       <td class="r">${eur(Number(l.unit_price_ht) * (1 + (doc.tax_exempt ? 0 : Number(l.vat_rate)) / 100))}</td>
@@ -78,18 +92,18 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const vehBlock = v ? `
     <div class="vehblock">
       <div>${[
-        v.vin ? `N° de série : ${esc(v.vin)}` : '', v.model ? `Modèle : ${esc(v.model)}` : '',
-        v.mileage != null ? `Kilométrage : ${esc(v.mileage)}` : '', v.antipollution ? `Norme antipollution : ${esc(v.antipollution)}` : '',
-        v.cylinders != null ? `Nb de cylindres : ${esc(v.cylinders)}` : '',
+        v.vin ? `${esc(t('salesPdf.vin'))} : ${esc(v.vin)}` : '', v.model ? `${esc(t('salesPdf.model'))} : ${esc(v.model)}` : '',
+        v.mileage != null ? `${esc(t('salesPdf.mileage'))} : ${esc(v.mileage)}` : '', v.antipollution ? `${esc(t('salesPdf.antipollution'))} : ${esc(v.antipollution)}` : '',
+        v.cylinders != null ? `${esc(t('salesPdf.cylinders'))} : ${esc(v.cylinders)}` : '',
       ].filter(Boolean).join('<br>')}</div>
       <div>${[
-        v.legacy_state ? `Etat : ${esc(v.legacy_state)}` : '', v.plate ? `N° de plaque : ${esc(v.plate)}` : '',
-        v.displacement != null ? `Cylindrée : ${esc(v.displacement)}` : '', v.color ? `Couleur : ${esc(v.color)}` : '',
-        v.first_registration_date ? `Mise en circulation : ${dmy(v.first_registration_date as string)}` : '',
+        v.legacy_state ? `${esc(t('salesPdf.state'))} : ${esc(v.legacy_state)}` : '', v.plate ? `${esc(t('salesPdf.plate'))} : ${esc(v.plate)}` : '',
+        v.displacement != null ? `${esc(t('salesPdf.displacement'))} : ${esc(v.displacement)}` : '', v.color ? `${esc(t('salesPdf.color'))} : ${esc(v.color)}` : '',
+        v.first_registration_date ? `${esc(t('salesPdf.firstRegistration'))} : ${dmy(v.first_registration_date as string)}` : '',
       ].filter(Boolean).join('<br>')}</div>
       <div>${[
-        v.brand ? `Marque : ${esc(v.brand)}` : '', v.engine_number ? `N° de moteur : ${esc(v.engine_number)}` : '',
-        v.power_cv != null ? `Puissance en CV : ${esc(v.power_cv)}` : '',
+        v.brand ? `${esc(t('salesPdf.brand'))} : ${esc(v.brand)}` : '', v.engine_number ? `${esc(t('salesPdf.engineNumber'))} : ${esc(v.engine_number)}` : '',
+        v.power_cv != null ? `${esc(t('salesPdf.powerCv'))} : ${esc(v.power_cv)}` : '',
       ].filter(Boolean).join('<br>')}</div>
     </div>` : '';
 
@@ -97,27 +111,28 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const reste = Number(doc.total_ttc) - Number(doc.paid_amount);
   const totalsBox = `
     <table class="totals">
-      <tr><td>BRUT T.T.C.</td><td class="r">${eur(brutTtc)}</td></tr>
-      <tr><td>NET H.T.</td><td class="r">${eur(Number(doc.total_ht))}</td></tr>
-      <tr><td>TOTAL T.V.A.</td><td class="r">${eur(Number(doc.total_vat))}</td></tr>
-      <tr class="strong"><td>NET T.T.C.</td><td class="r">${eur(Number(doc.total_ttc))}</td></tr>
-      <tr class="strong"><td>RESTE A PAYER</td><td class="r">${eur(reste)}</td></tr>
+      <tr><td>${esc(t('salesPdf.grossTtc'))}</td><td class="r">${eur(brutTtc)}</td></tr>
+      <tr><td>${esc(t('salesPdf.netHt'))}</td><td class="r">${eur(Number(doc.total_ht))}</td></tr>
+      <tr><td>${esc(t('salesPdf.totalVat'))}</td><td class="r">${eur(Number(doc.total_vat))}</td></tr>
+      <tr class="strong"><td>${esc(t('salesPdf.netTtc'))}</td><td class="r">${eur(Number(doc.total_ttc))}</td></tr>
+      <tr class="strong"><td>${esc(t('salesPdf.due'))}</td><td class="r">${eur(reste)}</td></tr>
     </table>`;
 
   const payRows = (payments ?? []).filter((p) => Number(p.amount) !== 0).map((p) => `
-    <tr><td>${dmy(p.paid_at)}</td><td>${esc((p.note as string) && String(p.note).toLowerCase().includes('acompte') ? 'ACOMPTE ' : '')}${esc(p.method)}</td><td class="r">${eur(Number(p.amount))}</td></tr>`).join('');
+    <tr><td>${dmy(p.paid_at)}</td><td>${esc((p.note as string) && String(p.note).toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : '')}${esc(p.method)}</td><td class="r">${eur(Number(p.amount))}</td></tr>`).join('');
   const payBlock = payRows ? `<table class="pays"><tbody>${payRows}</tbody></table>` : '';
 
+  // Mentions légales (TVA marge, détaxe) : textes du dictionnaire, FR de référence, NL/EN/IT fidèles.
   const margeMention = isMarge
-    ? `<p class="mention">Livraison soumise au régime particulier - Biens d'occasion - d'imposition de la marge : TVA non déductible - art. 58 §4 CTVA.</p>`
+    ? `<p class="mention">${esc(t('salesPdf.margeMention'))}</p>`
     : (doc.tax_exempt ? `<p class="mention">${esc(t('sales.taxExemptMention'))}</p>` : '');
   const footerText = co.invoice_footer ? `<p class="footer-note">${esc(co.invoice_footer)}</p>` : '';
   const cgvPage = co.cgv_text
-    ? `<div class="cgv"><h3>Conditions générales de vente</h3><div>${esc(co.cgv_text)}</div><p class="signature">Mention « lu et approuvé » + signature :</p></div>`
+    ? `<div class="cgv"><h3>${esc(t('salesPdf.cgvTitle'))}</h3><div>${esc(co.cgv_text)}</div><p class="signature">${esc(t('salesPdf.cgvSignature'))}</p></div>`
     : '';
   const barcode = doc.number ? code128Svg(String(doc.number)) : '';
 
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(title)}</title>
+  const html = `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:14mm;font-size:12px;line-height:1.4}
@@ -162,7 +177,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
       ${co.logo_url ? `<img src="${esc(co.logo_url)}" alt="${esc(companyName)}" style="max-height:96px;max-width:300px;display:block">` : `<div class="brand">${esc(companyName)}</div>`}
       <div class="sub">${[esc(co.address), esc([co.zip, co.city].filter(Boolean).join(' ')),
         co.phone ? esc(co.phone) : '', co.email ? esc(co.email) : '',
-        co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `TVA : ${esc(co.vat_number)}` : '',
+        co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `${esc(t('salesPdf.vat'))} : ${esc(co.vat_number)}` : '',
         co.iban ? `IBAN : ${esc(co.iban)}` : ''].filter(Boolean).join('<br>')}</div>
     </div>
     <div style="text-align:right">
@@ -175,16 +190,16 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
 
   <div class="band">
     <div>${esc(typeLabel.toUpperCase())}<b>${esc(doc.number ?? '')}</b></div>
-    <div>DATE<b>${dmy(doc.issue_date)}</b></div>
-    <div>HEURE<b>${esc(heure)}</b></div>
-    <div>N° CLIENT<b>${esc(numClient)}</b></div>
-    <div>CONDITION ACCORDÉE<b>${esc(condition)}</b></div>
-    <div>ÉCHÉANCE<b>${esc(echeance)}</b></div>
-    <div>OPERATEUR<b>${esc(doc.operator ?? '')}</b></div>
+    <div>${esc(t('salesPdf.date'))}<b>${dmy(doc.issue_date)}</b></div>
+    <div>${esc(t('salesPdf.time'))}<b>${esc(heure)}</b></div>
+    <div>${esc(t('salesPdf.clientNo'))}<b>${esc(numClient)}</b></div>
+    <div>${esc(t('salesPdf.condition'))}<b>${esc(condition)}</b></div>
+    <div>${esc(t('salesPdf.dueDate'))}<b>${esc(echeance)}</b></div>
+    <div>${esc(t('salesPdf.operator'))}<b>${esc(doc.operator ?? '')}</b></div>
   </div>
 
   <table class="lines">
-    <thead><tr><th>REFERENCE</th><th>DESIGNATION</th><th class="r">QUANTITE</th><th class="r">P.U. HT</th><th class="r">P.U. TTC</th><th class="r">REM. %</th><th class="r">MONTANT TTC</th><th class="r">TVA</th></tr></thead>
+    <thead><tr><th>${esc(t('salesPdf.colRef'))}</th><th>${esc(t('salesPdf.colDesignation'))}</th><th class="r">${esc(t('salesPdf.colQty'))}</th><th class="r">${esc(t('salesPdf.colPuHt'))}</th><th class="r">${esc(t('salesPdf.colPuTtc'))}</th><th class="r">${esc(t('salesPdf.colDiscount'))}</th><th class="r">${esc(t('salesPdf.colAmountTtc'))}</th><th class="r">${esc(t('salesPdf.colVat'))}</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   ${vehBlock}

@@ -34,7 +34,8 @@ import { DocumentOrdersPanel } from '@/modules/orders/document-orders-panel';
 import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-dialog';
 import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t, pageTitle } from '@/lib/i18n';
+import { t, tIn, pageTitle } from '@/lib/i18n';
+import { contactLocale } from '@/lib/i18n/client-locale';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
@@ -365,7 +366,8 @@ function DocumentView() {
 function SendSmsDialog({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
   const label = document.number ?? t('sales.draftSuffix');
   const to = contact.mobile || contact.phone || '';
-  const [body, setBody] = useState(t('sales.smsBodyDefault').replace('{number}', label));
+  // SMS proposé dans la langue du client (fiche contact, I18N004), modifiable.
+  const [body, setBody] = useState(tIn(contactLocale(contact), 'sales.smsBodyDefault').replace('{number}', label));
   const send = useMutation({
     mutationFn: () => enqueueDocumentSms({ companyId, document, contact, body }),
     onSuccess: () => { toast.success(t('sales.smsQueued')); onClose(); },

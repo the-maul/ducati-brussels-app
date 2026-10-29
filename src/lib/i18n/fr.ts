@@ -1093,6 +1093,9 @@ export const fr = {
     civilityMx: 'Mx',
     civilityContact: 'Civilité de la personne de contact',
     legalForm: 'Forme juridique',
+    // Langue du client (I18N004) : celle de ses documents et de nos e-mails, FR par défaut.
+    locale: 'Langue',
+    localeHint: 'Langue des documents (devis, factures) et des e-mails envoyés à ce client.',
     civilityMr: 'Monsieur',
     civilityMrs: 'Madame',
     civilityOther: 'Autre',
@@ -1207,6 +1210,10 @@ export const fr = {
     vat: 'TVA', phone: 'Tél', vin: 'N° de série', brand: 'Marque', model: 'Modèle', plate: 'N° de plaque',
     mileage: 'Kilométrage', color: 'Couleur', displacement: 'Cylindrée', firstRegistration: 'Mise en circulation',
     engineNumber: 'N° de moteur',
+    // Impression HTML (print-document.ts) : mêmes libellés que le PDF, plus ceux-ci.
+    vatId: 'Identification T.V.A.', antipollution: 'Norme antipollution', cylinders: 'Nb de cylindres',
+    state: 'Etat', powerCv: 'Puissance en CV',
+    cgvSignature: 'Mention « lu et approuvé » + signature :',
     date: 'DATE', time: 'HEURE', clientNo: 'N° CLIENT', condition: 'CONDITION ACCORDÉE',
     conditionDefault: 'AU GRAND COMPTANT', dueDate: 'ÉCHÉANCE', operator: 'OPÉRATEUR',
     colRef: 'RÉFÉRENCE', colDesignation: 'DÉSIGNATION', colQty: 'QUANTITÉ', colPuHt: 'P.U. HT', colPuTtc: 'P.U. TTC',
@@ -1496,6 +1503,9 @@ export const fr = {
     newLead: 'Nouveau lead', empty: 'Aucun lead.',
     stage_nouveau: 'Nouveau', stage_contacte: 'Contacté', stage_qualifie: 'Qualifié', stage_proposition: 'Proposition', stage_gagne: 'Gagné', stage_perdu: 'Perdu',
     phoneInvalidSave: 'Corrigez le téléphone (un numéro, pas une adresse e-mail) pour enregistrer.',
+    // Rapprochement : message au client intéressé, dans SA langue (I18N004).
+    matchSubject: 'Ducati Bruxelles — {label} disponible',
+    matchBody: 'Bonjour {name},\n\nLa moto {label} qui vous intéresse vient d\'entrer en stock chez Ducati Bruxelles. Contactez-nous pour en savoir plus ou planifier un essai.\n\nDucati Bruxelles',
     leadName: 'Nom', email: 'E-mail', phone: 'Téléphone', vehicleInterest: 'Véhicule recherché', source: 'Source', estimatedValue: 'Valeur estimée',
     // Filtre par catégorie de lead (source)
     filterAll: 'Tous les leads',
@@ -1624,6 +1634,9 @@ export const fr = {
     stepTitle: 'Créer mon compte',
     intro: 'Rejoignez la communauté des clients Ducati Bruxelles : vos motos, vos entretiens et vos achats au même endroit.',
     kioskIntro: 'Bienvenue ! Enregistrez-vous en une minute pour retrouver ensuite vos motos, vos entretiens et vos achats.',
+    // Langue choisie par le client (I18N004) : l'écran bascule tout de suite, la fiche la retient.
+    language: 'Votre langue',
+    languageHint: 'L\'écran, vos documents et nos e-mails seront dans cette langue.',
     sectionYou: 'Vous',
     sectionMoto: 'Votre moto actuelle',
     sectionInterests: 'Ce qui vous intéresse',

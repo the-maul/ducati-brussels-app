@@ -41,7 +41,7 @@ import { PhoneInput } from '@/components/phone-input';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { useConfirm } from '@/components/confirm-provider';
 import {
-  CONTACT_DOC_KINDS, CONTACT_PREFERENCES, deletePortalUpload, getProfile, updateProfile,
+  CONTACT_DOC_KINDS, CONTACT_PREFERENCES, deletePortalUpload, getProfile, setPortalLocale, updateProfile,
   type PortalProfile, type ProfilePatch,
 } from './api';
 import {
@@ -73,12 +73,15 @@ function Field({ id, label, children, className }: { id: string; label: string; 
 }
 
 export function ProfileView() {
-  // Langue de l'espace client (décision du 30/10/2026) : enregistrée dans le profil, bascule immédiate.
+  // Langue de l'espace client (décision du 30/10/2026) : bascule immédiate. Source unique =
+  // la FICHE du client (`contacts.locale`, I18N004) écrite par portal_set_locale ; le profil du
+  // compte suit par déclencheur. Tant que la migration n'est pas posée, on enregistre le profil.
   const { setUserLocale } = useAuth();
   const locale = useLocale();
   const changeLocale = (value: string) => {
     if (!isLocale(value) || value === locale) return;
-    setUserLocale(value)
+    setPortalLocale(value)
+      .then(() => setUserLocale(value))
       .then(() => toast.success(t('locale.saved')))
       .catch(() => toast.error(t('locale.error')));
   };

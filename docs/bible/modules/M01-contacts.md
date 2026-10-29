@@ -67,7 +67,8 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 | Fonctions serveur (Edge) | `supabase/functions/vies-check` (TVA), `supabase/functions/read-id-doc` (lecture du permis / de la carte par Claude) |
 | Tâches planifiées | aucune |
 | Migrations clés | `20260610110000_m1_contacts.sql`, `20260610130000_m1_contacts_complete.sql`, `20260610190000_m1_client_subobjects.sql`, `20260612200000_m1_customer_pricing.sql`, `20260612340000_m1_contacts_search.sql`, `20260613400000_m1_contact_links.sql`, `20260629100000_m1_contacts_enhancements.sql`, `20260911120000_m1_contact_code_dedup_delete.sql`, `20260911170000_contact_links_unique_pair.sql`, `20260914150000_m1_new_client_foundations.sql`, `20260914200000_m1_contacts_sort_recent.sql`, `20260919140000_m1_contact_merge.sql` (fusion), mission 04 : `20260919260000_m1_doublon_email_mobile.sql`, `20260919261000_m1_forme_juridique.sql`, `20260919262000_m1_mobile_depuis_telephone.sql`, `20260919263000_m1_email_minuscules.sql`, `20260919264000_ref_codes_postaux_be.sql`, `20260919265000_m1_portail_iban_naissance.sql`, retour 21/09 : `20260921160000_m1_telephone_sans_email_permis_verso.sql` (réparation des e-mails rangés dans un téléphone, garde-fou, permis recto/verso), retour 05/10 : `20261005140000_m1_nom_repris_fiche_privee.sql` (les 3 déclencheurs de reprise du nom) et `20261005141000_m1_recherche_fiche_liee.sql` (recherche par la fiche liée + `contacts_linked_brief`) |
-| Libellés | `src/lib/i18n/fr.ts`, blocs `contacts`, `pricing`, `labels` |
+| Libellés | `src/lib/i18n/fr.ts`, blocs `contacts`, `pricing`, `labels` (et `contacts.locale*`, `signup.language*` pour la langue du client) |
+| Langue du client | colonne `contacts.locale` (migration `20261030160000_m1_langue_du_client.sql`), champ « Langue » de `contact-form.tsx`, boutons `src/components/locale-buttons.tsx` (inscription `signup-form.tsx`, borne `kiosk.tsx`), `setPortalLocale` dans `src/modules/portal/api.ts` (RPC `portal_set_locale`), lecture `contactLocale()` dans `src/lib/i18n/client-locale.ts` ; test `tests/langue-du-client.test.ts` |
 | Tests | `tests/vies.test.ts`, `tests/id-docs.test.ts`, `tests/contact-label.test.ts`, `tests/dial-codes.test.ts`, `tests/contact-normalize.test.ts`, `tests/civility.test.ts`, `tests/phone.test.ts`, `tests/fiche-liee.test.ts` (reprise du nom et recherche par la fiche liée) |
 
 ## 4. Règles métier et décisions
@@ -128,6 +129,17 @@ professionnelle et d'une fiche privée, actions groupées sur la liste.
 - **Permis A2** : conditionne le bridage (lien DOC006, voir M9) — le lien n'est pas encore exploité.
 - **Pas de `null` explicite** sur une colonne NOT NULL avec défaut (`contacts.country`) : cause d'un incident du 14/09 (`etat-projet.md`, `plan-nouveau-client.md`).
 - **RGPD** : le consentement marketing se recueille au formulaire d'inscription, pas dans la fiche créée automatiquement ; champ `marketing_opt_out`.
+- **Langue du client (I18N004, décision M-71 du 30/10/2026)** : champ « Langue » de la fiche
+  (`contacts.locale` : fr par défaut, nl, en, it), **source unique** de la langue des documents
+  PDF, des e-mails et des SMS adressés au client (voir [M09](M09-documents.md) §4). Choisie par le
+  client lui-même à l'inscription en ligne et à la borne (bloc « Votre langue » : l'écran bascule
+  aussitôt, la fiche la retient) et dans l'espace client (Mon profil → Préférences, fonction
+  `portal_set_locale`). Le **compte client lié suit la fiche** : un déclencheur recopie
+  `contacts.locale` dans `profiles.locale` à chaque changement et à la liaison d'un compte
+  (`contact_accounts`) ; on ne modifie jamais le profil d'un client directement. Toutes les fiches
+  existantes sont en FR ; l'équipe change la langue d'un client depuis sa fiche. Tant que la
+  migration n'est pas appliquée, la fiche s'enregistre quand même (la colonne absente est
+  retirée de l'écriture et le client reste en FR).
 
 ## 5. État en production
 
@@ -210,3 +222,4 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 | 2026-10-05 | **Retour client « Inscription en ligne » (suite)** : « Autre marque » n'est plus un champ libre — marque → modèle → année avec recherche dans la liste toutes marques (`MotoPicker`, inscription en ligne et borne), suggestions dans « Ajouter ma moto » de l'espace client, « Je ne trouve pas ma moto » conservé et versé dans la file « marques à valider ». Données et règles : voir [M03](M03-vehicules.md) (décisions M-49, M-50) | branche `lot-marques`, migrations `20261005100000` + `20261005101000` (**appliquées le 05/10**) |
 | 2026-09-21 | **Retour client « Inscription en ligne »** : e-mail rangé dans le GSM corrigé (cause : inscription sans contrôle du téléphone + remplissage du navigateur) — champ E-mail distinct en lecture seule dans Mon profil, contrôle à l'écran, au serveur et en base, réparation des fiches existantes ; téléphones au format unique E.164 avec préfixe pays (inscription, Mon profil, fiche) ; permis recto + verso ; « 50 % complété » coloré et « Finaliser mon profil » | branche `lot-profil`, migration `20260921160000_m1_telephone_sans_email_permis_verso.sql` (**à appliquer**) |
 | 2026-10-05 | **Retour de Simon du 05/10 — fiche liée** : le prénom et le nom d'une fiche pro sont repris de sa fiche privée liée et deviennent non modifiables (déclencheurs en base, trace `events`) ; la recherche de contacts trouve une fiche par le nom de sa fiche liée ; la fiche liée s'affiche sous la ligne du contact dans la liste des clients et dans les sélecteurs de contact | branche `lot-fiche-liee`, migrations `20261005140000` + `20261005141000` (**à appliquer**) |
+| 2026-10-30 | **Langue du client** (I18N004, M-71) : champ « Langue » sur la fiche (`contacts.locale`, fr/nl/en/it, défaut fr), choix à l'inscription en ligne et à la borne, Mon profil de l'espace client écrit la fiche (`portal_set_locale`) ; le profil du compte lié suit par déclencheur. Documents et mails dans cette langue : voir [M09](M09-documents.md) | branche `lot-documents-langue-client`, migration `20261030160000_m1_langue_du_client.sql` (**à appliquer**) |

@@ -8,6 +8,8 @@
 // utiliser les variables CSS de src/styles/tokens.css, les valeurs sont donc recopiées ici
 // depuis la charte (même esprit qu'un document imprimé).
 
+import { mailTexts, DEFAULT_MAIL_LOCALE, type MailLocale } from './mail-i18n.ts';
+
 export type InAttachment = { name?: unknown; contentType?: unknown; contentBytes?: unknown };
 export type GraphAttachment = {
   '@odata.type': '#microsoft.graph.fileAttachment';
@@ -53,19 +55,17 @@ export type MailContact = {
  * des interventions à l'atelier et au contact direct avec l'équipe pour toute demande
  * commerciale. Les coordonnées du magasin (`contact`) sont lues en base, jamais écrites ici.
  */
-export function footerHtml(kind: 'join' | 'login', origin: string, to: string, contact?: MailContact | null): string {
+export function footerHtml(kind: 'join' | 'login', origin: string, to: string, contact?: MailContact | null, locale: MailLocale = DEFAULT_MAIL_LOCALE): string {
   const join = kind === 'join';
   const link = join ? `${origin}/inscription?email=${encodeURIComponent(to)}` : `${origin}/login`;
-  // Texte validé par Simon (05/10) : court, orienté bénéfice, puis l'appel à l'action.
-  const text = join
-    ? 'Retrouvez tous vos documents et le suivi de votre moto grâce à l’application Ducati Bruxelles.'
-    : 'Votre espace Ducati Bruxelles est prêt : tous vos documents et le suivi de votre moto, au même endroit.';
-  // Reprend les mots demandés par le client le 21/09 (factures, atelier, demande commerciale).
-  const perks = 'Vos factures, le suivi de vos interventions à l’atelier, les photos de votre moto, et notre équipe joignable pour toute demande commerciale.';
-  const nudge = join ? 'Pas encore de compte ? Créez-le gratuitement :' : 'Votre compte vous attend :';
-  // Même libellé dans les deux cas (Simon, 05/10) : le bouton mène au compte,
-  // vers l'inscription si la personne n'en a pas encore, vers la connexion sinon.
-  const label = 'Mon espace Ducati Bruxelles';
+  // Textes dans la LANGUE DU CLIENT (I18N004, _shared/mail-i18n.ts). FR validé par Simon
+  // (05/10) : court, orienté bénéfice, puis l'appel à l'action ; mots demandés par le client
+  // le 21/09 (factures, atelier, demande commerciale) ; même libellé de bouton dans les deux cas.
+  const T = mailTexts(locale).footer;
+  const text = join ? T.joinText : T.loginText;
+  const perks = T.perks;
+  const nudge = join ? T.joinNudge : T.loginNudge;
+  const label = esc(T.button);
   // Bloc encadré avec un vrai bouton : tableau + styles en ligne, seule mise en page
   // que tous les logiciels de messagerie rendent correctement (Outlook compris).
   return `

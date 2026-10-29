@@ -19,7 +19,8 @@ import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMailboxes, listCommunications } from '@/modules/crm/api';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
-import { t } from '@/lib/i18n';
+import { t, tIn } from '@/lib/i18n';
+import { contactLocale } from '@/lib/i18n/client-locale';
 import type { DocumentFull } from './write-api';
 import { generateSalesPdf, pdfBlob } from './document-pdf-data';
 import { sendDocumentMail, mailErrorLabel, type DryRunPreview } from './document-mail-api';
@@ -34,14 +35,18 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
   const { session } = useAuth();
   const myEmail = (session?.user?.email ?? '').toLowerCase();
 
+  // Objet et message proposés dans la LANGUE DU CLIENT (fiche contact, I18N004), modifiables ;
+  // la fenêtre elle-même reste dans la langue de l'utilisateur.
+  const locale = contactLocale(contact);
+  const tc = (key: string) => tIn(locale, key);
   const vars = {
-    type: t(`sales.type_${doc.doc_type}`), number: doc.number ?? t('sales.draftSuffix'),
+    type: tc(`sales.type_${doc.doc_type}`), number: doc.number ?? tc('sales.draftSuffix'),
     company: companyName, client: contactDisplayName(contact),
   };
   const isReservation = doc.doc_type === 'RES';
   const [to, setTo] = useState(contact.email ?? '');
-  const [subject, setSubject] = useState(fill(t(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
-  const [body, setBody] = useState(fill(t(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
+  const [subject, setSubject] = useState(fill(tc(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
+  const [body, setBody] = useState(fill(tc(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
   const [preview, setPreview] = useState<DryRunPreview & { from: string } | null>(null);
 
   // Boîtes d'envoi : même règle que les échanges du CRM (communications-panel).
@@ -74,7 +79,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose }: {
 
   const run = useMutation({
     mutationFn: (dryRun: boolean) => sendDocumentMail({
-      full, contactId: contact.id, to, from: fromBox || undefined, subject, body, dryRun, pdf: pdfQ.data,
+      full, contactId: contact.id, to, from: fromBox || undefined, subject, body, dryRun, pdf: pdfQ.data, locale,
     }),
     meta: { success: false, error: false },
     onSuccess: (r) => {

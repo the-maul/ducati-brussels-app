@@ -8,6 +8,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — Le client reçoit ses documents dans sa langue (carte CRM « Traduire l'application et les données », lot 4)
+
+- **M-71** — **La langue du client est celle de sa fiche ; défaut FR.** « On a la version dans la
+  langue de l'utilisateur (français pour la team Italbike), mais le client, lui, la reçoit dans sa
+  langue. » Une seule source : `contacts.locale` (fr par défaut, nl, en, it), choisie par le client
+  à l'inscription (en ligne ou borne) ou dans son espace, ou par l'équipe sur la fiche ; le compte
+  client lié suit la fiche (déclencheur), jamais l'inverse. Tout ce qui **part au client** sort dans
+  cette langue : PDF et impression des documents de vente (libellés, mentions légales TVA marge /
+  détaxe, désignations traduites quand elles existent), objet et corps proposés des e-mails de
+  document, SMS, pied de mail « espace client », mails de compte (bienvenue, invitation, mot de
+  passe), message de rapprochement CRM. L'écran de l'utilisateur ne change pas. Restent dans la
+  langue de l'utilisateur ou en FR : documents internes (picking, étiquettes, PDF de reprise), textes
+  libres saisis par la société (CGV, pied de facture, règle de validité, notes). *Client · 30/10.*
+  [M01](modules/M01-contacts.md), [M09](modules/M09-documents.md), [M00](modules/M00-socle.md)
+
+---
+
 ## 2026-10-30 — L'application en quatre langues (carte CRM « Traduire l'application et les données »)
 
 - **M-70** — **L'application complète existe en français, néerlandais, anglais et italien ; chaque
