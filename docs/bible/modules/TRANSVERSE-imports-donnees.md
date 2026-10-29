@@ -152,6 +152,30 @@ préchargée avec celle de G8, modifiable dans Paramètres → Règles de prix) 
 prix d'achat : `PA HT = prix catalogue HT × (1 − remise %)`. Verrou G8 respecté, classe inconnue ou
 inactive signalée. Migration `20261030120000` **à appliquer** avant le premier import de tarif.
 
+### Traduction des libellés (depuis le 30/10, I18N002)
+
+Les libellés arrivent en **italien** (catalogue, APPAREL) ou en **anglais** (PARTS, ACCESSORIES),
+rarement en français. Décision client du 30/10/2026 : **chaque libellé qui entre est traduit en
+FR, NL, EN et IT, l'original est gardé**, l'équipe voit le FR (`articles.designation`), le client
+recevra plus tard ses documents dans sa langue (lot séparé).
+
+| Canal d'entrée | Où la traduction se fait |
+|---|---|
+| Import de tarif (`/parts/import`) | à l'**analyse**, après le diff, avant l'application (`src/routes/_app.parts.import.tsx`) ; le tarif se compare à `designation_source`, pas au FR |
+| Catalogue Ducati, reprise Shopify (`article_links_create_missing`) | juste après la création, côté écran (`translatePendingArticles`, `src/modules/articles/links-tools.tsx`) |
+| Création manuelle, modification du libellé | `withTranslatedDesignation` dans `/parts/new` et la fiche |
+| Reprise G8, scripts Python | **pas branché** : passer ensuite `tools/migration/traduire_designations.py` |
+
+Moteur : étage 1 **glossaire mécanique** (`supabase/functions/_shared/designation-engine.ts`,
+sans réseau) ; étage 2 **Edge Function `translate-designations`** (mémoire `translation_memory`,
+puis un appel Claude par lot de 50). Échec de l'étage 2 → article créé avec l'original,
+`designation_translated_at` NULL, relance par la fiche (« Retraduire ») ou par le script.
+
+**Reprise de l'existant** (93 782 articles actifs au 30/10, aucun traduit) :
+`python tools/migration/traduire_designations.py` (essai à blanc : langues détectées, part
+couverte par le glossaire, coût Claude estimé), puis `--lang it,en --apply` ou `--tout --apply`.
+Reprise naturelle : un article déjà traduit n'est plus relu.
+
 ### Les verrous de prix
 
 `price_sale_locked` et `price_purchase_locked` sont vides sur tous les articles : la reprise de
@@ -198,3 +222,4 @@ migrations non appliquées.
 | 2026-10-19 | Tarif lu en HT, classe de remise et état ajoutés | `M2-TAR001`, `M2-TAR002` |
 | 2026-10-19 | Arrondi des prix après pourcentage | `M2-TAR003` |
 | 2026-10-30 | Grille des classes de remise dans le DMS, prix d'achat calculé à l'import | `TAR007`, migration `20261030120000` (à appliquer) |
+| 2026-10-30 | Chaque libellé entre en quatre langues, original gardé ; script de reprise de l'existant | `I18N002`, migration `20261030140000` (à appliquer), fonction `translate-designations` (à déployer) |

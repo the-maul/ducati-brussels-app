@@ -640,6 +640,10 @@ export type Database = {
           deee: boolean
           descriptif: string | null
           designation: string
+          designation_i18n: Json
+          designation_source: string | null
+          designation_source_lang: string | null
+          designation_translated_at: string | null
           eco_tax_ttc: number
           equivalence_group: string | null
           id: string
@@ -703,6 +707,10 @@ export type Database = {
           deee?: boolean
           descriptif?: string | null
           designation: string
+          designation_i18n?: Json
+          designation_source?: string | null
+          designation_source_lang?: string | null
+          designation_translated_at?: string | null
           eco_tax_ttc?: number
           equivalence_group?: string | null
           id?: string
@@ -766,6 +774,10 @@ export type Database = {
           deee?: boolean
           descriptif?: string | null
           designation?: string
+          designation_i18n?: Json
+          designation_source?: string | null
+          designation_source_lang?: string | null
+          designation_translated_at?: string | null
           eco_tax_ttc?: number
           equivalence_group?: string | null
           id?: string

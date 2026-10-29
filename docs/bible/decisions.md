@@ -8,6 +8,30 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — Traduire les données : chaque libellé entre en quatre langues
+
+Carte CRM « Traduire l'application et les données en FR, NL, EN, IT », lots 2 et 3.
+
+- **M-67** — **Quatre langues, à l'entrée.** « Quand une donnée rentre elle doit être traduite » :
+  chaque libellé d'article qui entre dans le DMS (tarif, catalogue Ducati, site Shopify, saisie)
+  existe en français, néerlandais, anglais et italien (`articles.designation_i18n`). La traduction
+  se fait au moment où la donnée entre, pas à l'affichage. Un moteur à deux étages : un glossaire
+  mécanique de pièces moto, puis la mémoire de traduction et Claude pour ce que le glossaire ne
+  couvre pas. *Client · 30/10.* [M02](modules/M02-articles.md),
+  [TRANSVERSE imports](modules/TRANSVERSE-imports-donnees.md)
+- **M-68** — **L'original est conservé, jamais réécrit.** Le libellé tel que reçu du fournisseur
+  reste dans `designation_source` avec sa langue ; ni une traduction ni une correction manuelle du
+  français ne l'effacent. Si la traduction échoue (fonction indisponible, clé, réseau), l'article
+  est créé quand même avec l'original et reste marqué « à traduire » : on relance depuis la fiche
+  ou par le script de reprise. *Client / agence · 30/10.* [M02](modules/M02-articles.md)
+- **M-69** — **L'équipe voit le français.** `articles.designation` reste la colonne affichée par
+  l'application et vaut la version FR ; Italbike travaille en français. Le client, lui, recevra
+  ses documents dans sa langue : lot séparé, pas dans celui-ci. La mémoire de traduction est
+  commune à toutes les sociétés (un nom de pièce n'est pas une donnée confidentielle). *Client ·
+  30/10.* [M02](modules/M02-articles.md)
+
+---
+
 ## 2026-10-30 — Tarif Ducati : la classe de remise devient un prix d'achat (mission 06)
 
 - **M-66** — **La grille des classes de remise est celle de G8, et elle se modifie dans

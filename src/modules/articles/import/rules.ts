@@ -70,6 +70,11 @@ export type ExistingArticle = {
   discount_group?: string | null;
   /** Verrou G8 sur le prix d'achat : un PA verrouille n'est jamais ecrase par un import. */
   price_purchase_locked?: boolean | null;
+  /**
+   * Libelle d'origine fournisseur (I18N002) : `designation` etant la version FR,
+   * c'est a l'original que le tarif se compare pour savoir si le libelle a change.
+   */
+  designation_source?: string | null;
 };
 
 /** Réglages d'intégration (mêmes clés que la table article_import_settings). */
@@ -381,7 +386,15 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     }
   };
   if (s.accept_designation && row.designation != null && row.designation.trim()) {
-    accept('designation', row.designation.trim(), 'designation');
+    // La designation affichee est la version FR : on compare le tarif a l'original
+    // fournisseur quand on le connait, sinon a la designation elle-meme. Le patch
+    // porte l'original ; la traduction (translate/api.ts) le convertit ensuite.
+    const incoming = row.designation.trim();
+    const current = existing.designation_source ?? existing.designation;
+    if (current !== incoming) {
+      changes.push({ field: 'designation', from: current, to: incoming });
+      patch.designation = incoming;
+    }
   }
   // PA : reglage « accepter le prix d'achat », et verrou G8 (jamais ecrase).
   if (s.accept_purchase_price && pa != null) {

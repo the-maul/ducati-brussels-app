@@ -21,6 +21,7 @@ import {
 } from './links-api';
 import { ArticleThumb } from './article-thumb';
 import { fill, fmtEur, fmtInt, ScoreBadge } from './links-ui';
+import { translatePendingArticles } from './translate/api';
 
 const card = 'mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]';
 const errText = (e: unknown) => (e instanceof LinksUnavailableError ? t('links.unavailable') : ((e as Error)?.message ?? String(e)));
@@ -48,6 +49,17 @@ export function CreateMissingButton({ companyId }: { companyId: string }) {
         for (const k of ['ducati_parts', 'ducati_products', 'shopify', 'mouvements_stock', 'prix'] as const) total[k] = (total[k] ?? 0) + (r[k] ?? 0);
         setProgress(fill(t('links.createProgress'), { n: fmtInt((total.ducati_parts ?? 0) + (total.ducati_products ?? 0) + (total.shopify ?? 0)) }));
         if (!r.ducati_parts && !r.ducati_products && !r.shopify) break;
+      }
+      // Les articles crees par la fonction SQL portent le libelle du catalogue / du site :
+      // ils passent par le moteur de traduction (I18N002). Un echec ne bloque pas la creation.
+      const created = (total.ducati_parts ?? 0) + (total.ducati_products ?? 0) + (total.shopify ?? 0);
+      if (created > 0) {
+        try {
+          await translatePendingArticles(companyId, {
+            max: Math.min(created, 2000),
+            onProgress: (done, n) => setProgress(fill(t('links.translateProgress'), { done: fmtInt(done), total: fmtInt(n) })),
+          });
+        } catch { /* la relance reste possible depuis la fiche ou par le script */ }
       }
       return total;
     },
@@ -81,7 +93,12 @@ export function UnlinkedProductsSection({ companyId, admin }: { companyId: strin
   const [attach, setAttach] = useState<UnlinkedProduct | null>(null);
   const create = useMutation({
     meta: { success: false, error: false },
-    mutationFn: (v: string) => createMissingArticles(companyId, { scope: 'shopify', variant: v }),
+    mutationFn: async (v: string) => {
+      const r = await createMissingArticles(companyId, { scope: 'shopify', variant: v });
+      // Reprise Shopify : le titre du produit passe par le moteur de traduction (I18N002).
+      if (r.shopify) { try { await translatePendingArticles(companyId, { max: 5 }); } catch { /* relance possible */ } }
+      return r;
+    },
     onSuccess: (r) => {
       if (r.shopify) toast.success(t('links.createdOne'));
       else toast.warning(t('links.createdNone'));

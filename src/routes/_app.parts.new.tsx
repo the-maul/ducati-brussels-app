@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/page-header';
 import { ArticleForm } from '@/modules/articles/article-form';
 import { createArticle, type ArticleInsert } from '@/modules/articles/api';
+import { withTranslatedDesignation } from '@/modules/articles/translate/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
@@ -33,7 +34,9 @@ function NewArticle() {
   const [error, setError] = useState<string | null>(null);
 
   const m = useSaveMutation({
-    mutationFn: (payload: ArticleInsert) => createArticle(payload),
+    // Le libelle saisi passe par le moteur de traduction (I18N002) : designation = FR,
+    // les quatre langues et l'original sur la fiche. Sans reseau, l'article est cree quand meme.
+    mutationFn: async (payload: ArticleInsert) => createArticle(await withTranslatedDesignation(payload, activeCompanyId!)),
     success: t('feedback.created'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['articles'] });

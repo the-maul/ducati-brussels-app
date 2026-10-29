@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
+import { withTranslatedDesignation } from '@/modules/articles/translate/api';
+import { DesignationLanguages } from '@/modules/articles/translate/designation-languages';
 import { addToReorderProposal } from '@/modules/purchases/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
@@ -51,7 +53,13 @@ function EditArticle() {
   });
 
   const m = useSaveMutation({
-    mutationFn: (payload: ArticleInsert) => updateArticle(articleId, payload),
+    // Libelle modifie a la main : retraduit (I18N002), l'original fournisseur est garde.
+    mutationFn: async (payload: ArticleInsert) => updateArticle(
+      articleId,
+      payload.designation !== article?.designation
+        ? await withTranslatedDesignation(payload, activeCompanyId!, { preserveSource: !!article?.designation_source })
+        : payload,
+    ),
     success: t('feedback.saved'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['articles'] });
@@ -148,6 +156,8 @@ function EditArticle() {
         <TabsContent value="fiche" className="mt-4">
           {/* Tout sur une page (M-25) : catalogue Ducati et site Shopify de l'article. */}
           <ArticleSourcesSummary companyId={activeCompanyId} articleId={articleId} publishable={!!article.publishable} />
+          {/* Libelle en quatre langues + original fournisseur (I18N002). */}
+          <DesignationLanguages companyId={activeCompanyId} article={article} />
           {/* Images venues des catalogues (Ducati, site) — les photos du magasin sont juste en dessous. */}
           <ArticleSourceImages companyId={activeCompanyId} articleId={articleId} designation={article.designation} />
           <ArticlePhotoCard companyId={activeCompanyId} articleId={articleId} />

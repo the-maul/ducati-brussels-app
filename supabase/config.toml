@@ -20,6 +20,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.classify-prospect-email]
 verify_jwt = false
+[functions.translate-designations]
+verify_jwt = false
 [functions.mailbox-diag]
 verify_jwt = false
 [functions.graph-send-email]

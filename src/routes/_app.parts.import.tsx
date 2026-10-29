@@ -32,7 +32,7 @@ import {
   listDiscountClasses, addDiscountClass, updateDiscountClass, deleteDiscountClass, type DiscountClassRow,
 } from '@/modules/articles/import/settings-api';
 import { PENDING_MIGRATION_SQL } from '@/modules/articles/import/migration-sql';
-import { translateRows } from '@/modules/articles/import/translate';
+import { translateDesignations, designationFields } from '@/modules/articles/translate/api';
 import { applyImport, type ApplyResult } from '@/modules/articles/import/apply';
 import { t } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
@@ -78,6 +78,7 @@ function toExisting(a: ArticleLite): ExistingArticle {
     // undefined (colonne pas encore en base) reste undefined : le diff ne propose alors rien.
     discount_group: a.discount_group,
     price_purchase_locked: a.price_purchase_locked ?? false,
+    designation_source: a.designation_source,
   };
 }
 
@@ -99,6 +100,10 @@ function ImportPage() {
   const [ppcApplied, setPpcApplied] = useState(0);
   const [paFromClass, setPaFromClass] = useState(0);
   const [translated, setTranslated] = useState(0);
+  // Etage 2 de la traduction (Edge Function) : libelles restes sans traduction + raison.
+  const [translateFailed, setTranslateFailed] = useState(0);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null);
   const [refIds, setRefIds] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<ApplyResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -232,8 +237,7 @@ function ImportPage() {
       // 0. Fournisseur du fichier → toutes les lignes (pour les règles PPC par fournisseur)
       const fs = fileSupplier.trim();
       if (fs) for (const r of rows) { if (!r.supplier_name) r.supplier_name = fs; }
-      // 1. Traduction FR des désignations (IT/EN → FR, réglage)
-      setTranslated(settings.translate_designations ? translateRows(rows) : 0);
+      // 1. (la traduction des designations se fait APRES le diff, sur l'original garde)
       // 2. Calcul PV selon PPC (règles paramétrées)
       setPpcApplied(applyPpcRules(rows, ppcRules));
       // 3. Plancher de prix société (résilient) + grille des classes de remise
@@ -251,6 +255,34 @@ function ImportPage() {
       });
       // 5. Prix d'achat deduits de la classe de remise (compteur du rapport)
       setPaFromClass(d.filter((x) => x.action !== 'skip' && x.patch._pa_from_class === true).length);
+      // 6. Traduction des designations (I18N002) : chaque libelle qui entre passe par le
+      //    moteur (glossaire, puis Edge Function). designation = FR, l'original est garde.
+      //    En cas d'echec de l'etage 2, l'article est quand meme cree avec l'original.
+      const toTranslate = d.filter((x) => x.action !== 'skip' && typeof x.patch.designation === 'string' && x.patch.designation);
+      setTranslated(0); setTranslateFailed(0); setTranslateError(null);
+      if (toTranslate.length) {
+        setTranslateProgress({ done: 0, total: toTranslate.length });
+        const outcome = await translateDesignations(
+          toTranslate.map((x) => x.patch.designation as string), activeCompanyId,
+          { onProgress: (done, total) => setTranslateProgress({ done, total }) },
+        );
+        const now = new Date().toISOString();
+        let ok = 0;
+        for (const x of toTranslate) {
+          const original = x.patch.designation as string;
+          const r = outcome.results.get(original.replace(/\s+/g, ' ').trim());
+          const f = designationFields(original, r, now);
+          Object.assign(x.patch, f);
+          const ch = x.changes.find((c) => c.field === 'designation');
+          if (ch) ch.to = f.designation;
+          if (r) ok++;
+          else x.anomalies.push(t('articles.translateRowPending'));
+        }
+        setTranslated(ok);
+        setTranslateFailed(toTranslate.length - ok);
+        setTranslateError(outcome.error);
+        setTranslateProgress(null);
+      }
       setDiff(d);
       setSummary(summarize(d));
       setStep('preview');
@@ -369,8 +401,10 @@ function ImportPage() {
               <SettingCheck label={t('articles.setReplacedEquiv')} checked={settings.replaced_to_equivalences} onChange={(v) => setSetting('replaced_to_equivalences', v)} />
               <SettingCheck label={t('articles.setNewLibrary')} checked={settings.new_refs_in_library} onChange={(v) => setSetting('new_refs_in_library', v)} />
               <SettingCheck label={t('articles.setBarcodes')} checked={settings.integrate_supplier_barcodes} onChange={(v) => setSetting('integrate_supplier_barcodes', v)} />
-              <SettingCheck label={t('articles.setTranslate')} checked={settings.translate_designations} onChange={(v) => setSetting('translate_designations', v)} />
             </div>
+            {/* Depuis le 30/10/2026 (I18N002) la traduction n'est plus une option : chaque
+                libelle entre en quatre langues, l'original est garde sur la fiche. */}
+            <p className="mt-3 text-[12px] text-muted-foreground">{t('articles.translateAlwaysHint')}</p>
           </Card>
 
           {/* ── Calcul PV selon PPC ─────────────────────────────────────────── */}
@@ -421,7 +455,14 @@ function ImportPage() {
 
           {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {busy && translateProgress && (
+              <span className="text-[12px] tabular-nums text-muted-foreground">
+                {t('articles.translateProgress')
+                  .replace('{done}', translateProgress.done.toLocaleString('fr-BE'))
+                  .replace('{total}', translateProgress.total.toLocaleString('fr-BE'))}
+              </span>
+            )}
             <Button onClick={analyze} disabled={busy || parsed.rows.length === 0}>
               {busy ? <Loader2 className="animate-spin" /> : <Play />} {t('articles.importAnalyze')}
             </Button>
@@ -445,8 +486,14 @@ function ImportPage() {
               {[
                 ppcApplied > 0 ? t('articles.ppcApplied').replace('{n}', String(ppcApplied)) : null,
                 paFromClass > 0 ? t('articles.paFromClassApplied').replace('{n}', paFromClass.toLocaleString('fr-BE')) : null,
-                translated > 0 ? t('articles.translatedApplied').replace('{n}', String(translated)) : null,
+                translated > 0 ? t('articles.translatedApplied').replace('{n}', translated.toLocaleString('fr-BE')) : null,
               ].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {translateFailed > 0 && (
+            <p className="rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+              {t('articles.translateFailed').replace('{n}', translateFailed.toLocaleString('fr-BE'))}
+              {translateError ? ` (${translateError})` : ''}
             </p>
           )}
 

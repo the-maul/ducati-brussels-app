@@ -34,7 +34,11 @@ function sanitize(term: string): string {
  * (bandeau « Copier le SQL » sur l'écran d'import). Les écritures retirent la
  * colonne manquante NOMMÉE par l'erreur et réessaient plutôt que d'échouer en bloc.
  */
-const OPTIONAL_NEW_COLS = ['bin_location2', 'year_from', 'year_to', 'discount_group'] as const;
+const OPTIONAL_NEW_COLS = [
+  'bin_location2', 'year_from', 'year_to', 'discount_group',
+  // Designations en quatre langues (migration 20261030140000, I18N002)
+  'designation_source', 'designation_source_lang', 'designation_i18n', 'designation_translated_at',
+] as const;
 
 export function isMissingSchema(e: unknown): boolean {
   const code = (e as { code?: string } | null)?.code;
@@ -328,11 +332,13 @@ export type ArticleLite = Pick<Article,
     year_from?: number | null; year_to?: number | null;
     /** undefined tant que la colonne n'est pas en base (migration 20261030120000). */
     discount_group?: string | null;
+    /** Libelle d'origine fournisseur (migration 20261030140000) ; undefined tant que la colonne manque. */
+    designation_source?: string | null;
   };
 
 const LITE_COLS = 'id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc, price_purchase_locked';
 /** Colonnes lues si elles existent ; retirees UNE A UNE quand la base ne les connait pas. */
-const LITE_OPTIONAL_COLS = ['year_from', 'year_to', 'discount_group'];
+const LITE_OPTIONAL_COLS = ['year_from', 'year_to', 'discount_group', 'designation_source'];
 
 /**
  * Référentiel COMPLET (paginé par 1000) pour l'import de tarifs — listArticles
