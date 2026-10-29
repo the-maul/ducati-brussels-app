@@ -431,13 +431,18 @@ export function buildContentUpdateMutation(productId: string, title: string, des
   };
 }
 
-/** Photos à envoyer : celles du DMS, sauf celles reprises de CE produit Shopify ou déjà envoyées dessus. */
+/**
+ * Photos à envoyer : celles du DMS, sauf celles reprises de CE produit Shopify ou déjà envoyées dessus.
+ * `foreignMediaIds` (bascule d'une reference remplacee) : ids d'images reprises d'UN AUTRE produit du site
+ * (celui de l'ancienne reference) ; elles ne sont pas encore sur ce produit, donc elles partent.
+ */
 export function photosToPush<T extends { attachment_id: string; external_id: string | null; pushed_to: string[] }>(
-  photos: T[], productId: string | null,
+  photos: T[], productId: string | null, foreignMediaIds: Iterable<string> = [],
 ): T[] {
+  const foreign = new Set(foreignMediaIds);
   return photos.filter((p) => {
     if (productId && p.pushed_to.includes(productId)) return false;
-    if (productId && p.external_id) return false;      // photo reprise de Shopify : déjà sur le produit relié
+    if (productId && p.external_id && !foreign.has(p.external_id)) return false;   // photo reprise de Shopify : déjà sur le produit relié
     return true;
   });
 }

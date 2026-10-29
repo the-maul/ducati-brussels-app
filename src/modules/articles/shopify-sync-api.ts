@@ -101,6 +101,10 @@ export type ArticleSiteStatus = {
     price: number | null; inventory_quantity: number | null; link_status: string;
   } | null;
   log: { kind: string; status: string; price_sent: number | null; qty_sent: number | null; detail: string | null; created_at: string }[];
+  /** Fin de la chaine des remplacements, si cet article est remplace (migration 20261030130000 ; absent avant). */
+  replaced_by?: { article_id: string; reference: string; designation: string | null; redirect_done: boolean } | null;
+  /** Anciennes references de la chaine encore reliees a un produit du site. */
+  old_linked?: { article_id: string; reference: string; product_status: string | null; redirect_done: boolean }[] | null;
 };
 
 export async function getArticleSiteStatus(companyId: string, articleId: string): Promise<ArticleSiteStatus | null> {
@@ -124,6 +128,64 @@ export async function runPublishAction(companyId: string, articleId: string, act
     throw error;
   }
   return data as PublishResult;
+}
+
+// ─── Bascule d'une reference remplacee sur le site (29-30/10/2026) ─────────────────────
+
+export type SwitchStepName = 'contenu' | 'publication' | 'remise_en_ligne' | 'mise_a_jour' | 'retrait' | 'redirection';
+export type SwitchStep = { step: SwitchStepName; status: 'a_faire' | 'deja_fait' | 'bloque'; detail: string | null };
+export type SwitchPlan = {
+  ok: boolean;
+  reason: 'not_replaced' | 'old_not_linked' | 'sync_stopped' | 'not_in_trial' | 'inactive' | 'no_price' | 'no_handle' | null;
+  steps: SwitchStep[];
+  notice: string;
+  old_references: string[];
+  next_reference: string;
+};
+export type SwitchResult = {
+  ok: boolean;
+  simulate?: boolean;
+  error?: string;
+  detail?: string;
+  old?: { article_id: string; reference: string };
+  next?: { article_id: string; reference: string };
+  plan?: SwitchPlan;
+  /** Etapes executees (hors simulation), dans l'ordre. */
+  results?: { step: SwitchStepName; ok: boolean; detail: string | null }[];
+};
+
+/**
+ * Bascule le site de l'ancienne reference (articleId, reliee a un produit) vers la fin de sa chaine de
+ * remplacement : contenu repris, nouvelle reference publiee, ancienne en brouillon, redirection.
+ * simulate = true : renvoie le plan, rien n'est ecrit (ni sur Shopify, ni dans le DMS).
+ */
+export async function runSwitch(companyId: string, articleId: string, simulate: boolean): Promise<SwitchResult> {
+  const { data, error } = await supabase.functions.invoke('shopify-publish', {
+    body: { company_id: companyId, article_id: articleId, action: 'switch', simulate },
+  });
+  if (error) {
+    const ctx = (error as { context?: Response }).context;
+    const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+    if (body && typeof body === 'object') return body as SwitchResult;
+    throw error;
+  }
+  return data as SwitchResult;
+}
+
+export type ReplacedLinkedRow = {
+  article_id: string; reference: string; designation: string | null;
+  shopify_product_id: string | null; product_status: string | null; product_title: string | null; handle: string | null;
+  next_article_id: string; next_reference: string; next_designation: string | null; next_product_status: string | null; next_linked: boolean;
+  redirect_done: boolean; old_in_trial: boolean; next_in_trial: boolean; done: boolean;
+};
+
+/** Produits du site relies a une reference remplacee (ecran Produits Shopify, action groupee). */
+export async function listReplacedLinked(companyId: string): Promise<ReplacedLinkedRow[]> {
+  // Fonction hors types Supabase auto-generes (migration 20261030130000) : cast localise.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('shopify_replaced_linked_products', { _company: companyId });
+  if (error) throw error;
+  return (data ?? []) as ReplacedLinkedRow[];
 }
 
 // ─── Aligner le DMS sur le site (stock et prix) — reprise W-10 ─────────────────────────

@@ -15,6 +15,7 @@ import {
   setReplacement, searchArticlesLite,
 } from './subobjects-api';
 import { getArticle, listPredecessorArticles, getReplacementChain, getReplacementOptions } from './api';
+import { ShopifyReplacementSwitch } from './shopify-switch';
 import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
@@ -156,6 +157,8 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
       )}
+      {/* Reliee au site et remplacee : le site peut basculer sur la nouvelle reference (29-30/10/2026). */}
+      {supersededById && <ShopifyReplacementSwitch companyId={companyId} articleId={articleId} />}
       <ReplacementOptions articleId={articleId} companyId={companyId} />
       <ReplacementChain articleId={articleId} companyId={companyId} />
       <div className="space-y-2 border-t border-border pt-3">

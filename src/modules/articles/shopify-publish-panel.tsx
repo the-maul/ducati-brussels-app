@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { getArticleSiteStatus, runPublishAction, type PublishAction, type PublishResult } from './shopify-sync-api';
 import { RESULT_BADGE, KIND_LABEL } from './shopify-sync-panel';
+import { ShopifySwitchButton, ShopifyOldLinkedList } from './shopify-switch';
 
 function fill(s: string, vars: Record<string, string | number>): string {
   return Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s);
@@ -128,6 +129,15 @@ export function ShopifyPublishPanel({ companyId, articleId, publishable }: {
           )}
         </div>
       )}
+
+      {/* Reference remplacee et reliee au site : le site peut basculer sur la nouvelle (29-30/10/2026). */}
+      {admin && link && st?.replaced_by && (
+        <div className="mt-2">
+          <ShopifySwitchButton companyId={companyId} articleId={articleId} nextReference={st.replaced_by.reference} />
+        </div>
+      )}
+      {/* Nouvelle reference : les anciennes encore reliees au site, chacune avec son bouton. */}
+      <ShopifyOldLinkedList companyId={companyId} articleId={articleId} />
 
       {(st?.log ?? []).length > 0 && (
         <div className="mt-2">

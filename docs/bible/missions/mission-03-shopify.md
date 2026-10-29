@@ -604,6 +604,79 @@ motos déjà rattachés ailleurs. **Aucune proposition n'est restée « ambiguë
   passera en « Essai » ou « Tous ».
 - **TVA du dépôt-vente (type D)** : taux 0 posé sur l'article, à confirmer avec le comptable.
 
+## 5 nonies. Une référence remplacée bascule sur la nouvelle, sur le site (30/10/2026)
+
+Décision du client (29-30/10, voir [M02](../modules/M02-articles.md) pour la chaîne des remplacements) :
+quand une référence A est remplacée par B (`articles.superseded_by_id`, fin de chaîne par
+`article_final_replacement`) et que A est reliée à un produit du site, le site doit suivre. Mots du
+client : « il garde celle de l'ancienne ref par défaut et vient même importer texte et image pour nourrir
+le DMS ». Aucun automatisme silencieux : le client déclenche et voit ce qui se passe.
+
+### Ce qui change dans l'application
+
+| Où | Quoi |
+|---|---|
+| Fiche article de **A** (ancienne) → encadré **Sur le site Shopify** et onglet **Remplacement** | Bouton **« Basculer le site sur la nouvelle référence »** (administrateurs). Un clic ouvre l'**aperçu** (rien n'est écrit) : liste des étapes À faire / Déjà fait / Bloqué, la mention qui sera posée, puis **« Basculer maintenant »**. |
+| Fiche article de **B** (nouvelle) → encadré **Sur le site Shopify** | « Anciennes références encore reliées au site » : une ligne par ancienne référence, chacune avec son bouton **Basculer**. |
+| Produits Shopify → encadré **« Produits reliés à une référence remplacée »** | La liste (ancienne, état sur le site, nouvelle, état, redirection), un bouton **Basculer** par ligne et **« Tout basculer »** (une bascule après l'autre, compte à la fin). |
+| Journal des envois | Nouveau genre **Redirection** ; chaque étape est une ligne (publication, retrait, mise à jour, redirection), avec le détail « Bascule depuis 14622167AA ». |
+
+### Ce que fait une bascule, dans l'ordre
+
+1. **Contenu** : si la fiche de B n'a pas de titre web, pas de description web ou pas de photo, le DMS lit le
+   produit Shopify de A et **reprend dans la fiche de B** ce qui manque (titre, description nettoyée,
+   images copiées dans le Storage du DMS) — règle « ne jamais écraser » de la reprise de contenu, même
+   fonction SQL `_shopify_apply_content`. Si cette reprise échoue, **rien d'autre n'est touché**.
+2. **B sur le site** : B hérite de la case « Publiable » (tracé `shopify_bascule_publiable`), puis est
+   **publiée** (nouveau produit, SKU = référence, photos, prix TTC, stock), ou **remise en ligne** si son
+   produit était en brouillon, ou **mise à jour** si elle est déjà en ligne (photos reprises de A envoyées).
+   La description envoyée se termine par **« Remplace aussi la référence 14622167AA. »** (ou « les
+   références X, Y et Z. » : toute la chaîne qui mène à B). Mention en français, générée par le DMS, dans
+   le corps de la description (ce qui s'affiche sur tout thème sans réglage), **idempotente** : paragraphe
+   `<p class="dms-remplace">` retiré puis reposé à chaque envoi, jamais dupliqué. Depuis ce lot, **toute**
+   publication ou mise à jour d'un article qui a des anciennes références pose cette mention.
+   Si B ne peut pas aller sur le site (refus Shopify, référence déjà présente sur un autre produit…),
+   la bascule s'arrête : **A reste en ligne telle quelle**.
+3. **A retirée** : produit Shopify en **brouillon** (jamais supprimé, remise en ligne possible).
+4. **Redirection** : `urlRedirectCreate` **/products/<handle de A> → /products/<handle de B>** (handles
+   relus sur Shopify ; si une redirection existe déjà pour ce chemin, elle est reprise ou mise à jour).
+   Journal `shopify_redirects` (qui, quand, de quoi vers quoi, id Shopify) + journal des envois + `events`.
+
+Chaque bascule se termine par un événement `shopify_bascule` sur A avec le résumé des étapes.
+
+### Mode requis et droits
+
+- **Arrêtée** : boutons grisés, message habituel, rien ne part.
+- **Essai** : la bascule n'est possible que si **A ET B sont des articles d'essai** (le message le dit) ;
+  « Tout basculer » ignore les autres lignes et le compte final les signale.
+- **Tous** : tout.
+- Administrateurs seulement (même règle que Publier / Retirer). Les vendeurs voient la liste.
+
+### Prérequis Shopify (une fois, Simon)
+
+La redirection exige le droit **`write_online_store_navigation`** que l'application n'avait pas.
+Il est ajouté dans [`integrations/shopify-app/shopify.app.toml`](../../../integrations/shopify-app/shopify.app.toml)
+(avec `read_online_store_navigation`) : depuis ce dossier, `npx @shopify/cli@latest app deploy`, puis
+accepter les nouveaux droits dans le Dev Dashboard (application → Install / Update). Tant que ce n'est pas
+fait, les trois premières étapes passent et l'étape **Redirection** est en erreur dans le journal
+(message explicite) ; relancer la bascule la repose seule, le reste étant « Déjà fait ».
+
+### À tester (Simon)
+
+- [ ] Mode Arrêtée : bouton grisé sur la fiche de A ; « Tout basculer » grisé.
+- [ ] Mode Essai, A et B d'essai : aperçu → les étapes attendues ; Basculer maintenant → B en ligne sur
+      ducatibruxelles.be avec les photos et le texte de A et la mention « Remplace aussi la référence … » en
+      bas de la description ; A en brouillon ; l'ancienne adresse /products/<A> ouvre la fiche de B.
+- [ ] Relancer la même bascule : tout « Déjà fait » sauf la mise à jour ; la mention n'est pas doublée.
+- [ ] Chaîne A → B → C : la bascule depuis A publie **C** et cite A et B.
+- [ ] Journal des envois : une ligne par étape, genre Redirection présent.
+
+Code : `supabase/functions/_shared/shopify-switch.ts` (règles pures, testées dans
+`tests/shopify-switch.test.ts`), `supabase/functions/shopify-publish` (action `switch`),
+`src/modules/articles/shopify-switch.tsx`, migration `20261030130000_m11_remplacements_sur_le_site.sql`
+(table `shopify_redirects`, fonctions `_shopify_switch_context` / `_shopify_switch_prepare` /
+`_shopify_switch_record`, `shopify_replaced_linked_products`, `shopify_article_site_status` enrichie).
+
 ## 6. Risques
 
 - Double vérité sur le stock pendant la reprise : figer les modifications côté Shopify le temps de la reprise.

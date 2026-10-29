@@ -10,8 +10,10 @@ application_url = "https://ducatilive.netlify.app"
 embedded = false
 
 [access_scopes]
-# Produits (lecture + écriture), stock, emplacements, commandes, clients, canaux de vente (publication sur la boutique, W-8).
-scopes = "read_products,write_products,read_inventory,write_inventory,read_locations,read_orders,read_customers,read_publications,write_publications"
+# Produits (lecture + écriture), stock, emplacements, commandes, clients, canaux de vente (publication sur la boutique, W-8),
+# redirections du site (bascule d'une reference remplacee vers la nouvelle, 30/10/2026 : urlRedirectCreate exige
+# write_online_store_navigation ; apres modification, republier avec `npx @shopify/cli@latest app deploy`).
+scopes = "read_products,write_products,read_inventory,write_inventory,read_locations,read_orders,read_customers,read_publications,write_publications,read_online_store_navigation,write_online_store_navigation"
 
 [auth]
 redirect_urls = [ "https://ducatilive.netlify.app/" ]

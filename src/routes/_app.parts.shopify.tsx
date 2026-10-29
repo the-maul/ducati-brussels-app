@@ -25,6 +25,8 @@ import {
   type ShopifyOverviewRow, type ShopifyContentImport, type ShopifyContentResult,
 } from '@/modules/articles/shopify-api';
 import { ShopifySyncPanel } from '@/modules/articles/shopify-sync-panel';
+import { ShopifyReplacedPanel } from '@/modules/articles/shopify-switch';
+import { getSyncStatus } from '@/modules/articles/shopify-sync-api';
 import { ShopifyRealignButton } from '@/modules/articles/shopify-realign-dialog';
 import { t } from '@/lib/i18n';
 
@@ -99,6 +101,13 @@ function ShopifyProductsPage() {
   const { data: rows, isLoading, error } = useQuery({
     queryKey: ['shopify-products', activeCompanyId],
     queryFn: () => listShopifyProducts(activeCompanyId!),
+    enabled: !!activeCompanyId && canRead,
+  });
+
+  // Mode de synchronisation (meme cle que le panneau de synchronisation : une seule lecture).
+  const { data: syncStatus } = useQuery({
+    queryKey: ['shopify-sync-status', activeCompanyId],
+    queryFn: () => getSyncStatus(activeCompanyId!),
     enabled: !!activeCompanyId && canRead,
   });
 
@@ -221,6 +230,8 @@ function ShopifyProductsPage() {
       {!admin && <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('shopify.readOnly')}</p>}
 
       {activeCompanyId && <ShopifySyncPanel companyId={activeCompanyId} admin={admin} />}
+      {/* Produits relies a une reference remplacee : bascule du site sur la nouvelle (29-30/10/2026). */}
+      {activeCompanyId && <ShopifyReplacedPanel companyId={activeCompanyId} admin={admin} mode={syncStatus?.mode} />}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Counter label={t('shopify.cTotal')} value={counters.total} onClick={() => setFilter('all')} active={filter === 'all'} />

@@ -54,6 +54,7 @@ export const KIND_LABEL: Record<string, string> = {
   publication: 'shopifySync.kPublication',
   retrait: 'shopifySync.kRetrait',
   mise_a_jour: 'shopifySync.kMaj',
+  redirection: 'shopifySync.kRedirection',
 };
 
 function reportToast(r: PushReport) {
