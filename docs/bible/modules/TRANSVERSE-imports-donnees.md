@@ -84,6 +84,38 @@ pièces de marchés lointains ou de modèles anciens retirées de la publication
 déjà bougé en stock. **Mais 13 610 d'entre elles sont dans les fichiers de tarif** avec leur
 libellé et leur prix : le tarif les récupérera.
 
+### Les pièces sans référence Ducati — décision du 29/10/2026
+
+On arrête de chercher à rattacher à tout prix. Une pièce sans lien catalogue
+reste une pièce normale du DMS : elle a sa référence, son libellé, son prix et son
+stock. Domenico peut la rattacher à la main depuis la fiche s'il tombe dessus,
+mais **on ne lui demandera jamais de traiter une file de plusieurs milliers**.
+
+Chiffres vérifiés le 29/10/2026 :
+
+| | |
+|---|---|
+| Pièces sans lien catalogue | **32 074** |
+| — dont présentes dans le tarif Ducati | **31 386** |
+| — dont absentes du tarif | **688** |
+
+Donc la quasi-totalité **aura son libellé et son prix** par l'import du tarif.
+Ce qui leur manque, et manquera toujours, c'est la **vue éclatée** : elles ne
+figurent sur aucune planche du catalogue.
+
+> **À garder en tête pour la suite.** Partout où l'on s'appuiera sur la référence
+> Ducati — ouvrir la vue éclatée depuis un ordre de réparation, proposer les
+> pièces compatibles d'une moto, illustrer une ligne de devis — il faudra
+> prévoir ce qu'on affiche pour ces 32 074 pièces. Ne pas supposer qu'une pièce
+> a forcément une planche.
+
+**Piège de mesure.** Les premiers comptes de ce chapitre parlaient de « 16 628 »
+puis « 13 680 » références : c'était un filtre trop étroit (`^[0-9]{8}[A-Z]?$`),
+qui excluait des références Ducati parfaitement valides comme `57314551AA`,
+`490P0322A`, `91378191US` ou `320318`. Pour compter les pièces sans lien,
+**filtrer sur `mgmt_type` et l'absence de lien, jamais sur la forme de la
+référence**.
+
 ### Contrôles de cohérence
 
 | Contrôle | Résultat |
