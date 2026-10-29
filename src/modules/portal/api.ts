@@ -311,6 +311,13 @@ export const cancelAppointmentRequest = (id: string) =>
   rpc<null>('portal_cancel_appointment_request', { p_appointment_id: id });
 
 /**
+ * Relance d'entretien (M10, migration 20261031120000) : le lien « Prendre rendez-vous » du mail
+ * porte le jeton de la relance ; une fois la demande de RDV envoyee, la relance passe « repondue ».
+ */
+export const answerFollowupByToken = (token: string) =>
+  rpc<boolean>('followup_answer_by_token' as Parameters<typeof supabase.rpc>[0], { _token: token });
+
+/**
  * Retient la visite de l'espace client (contact_accounts.first/last_portal_visit_at).
  * Sert au pied de mail (P-6) : tant que le client n'est jamais venu, ses mails
  * l'invitent à se connecter. Sans effet visible ; une erreur est ignorée.

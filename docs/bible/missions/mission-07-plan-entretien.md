@@ -37,8 +37,8 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
 | 4 | Prochain entretien de chaque moto | 07-1, 06-4 |
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
-| 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé | 07-2 |
-| 7 | Relances d'entretien (cloche d'abord ; mail/SMS quand les services seront choisis) | 07-4 |
+| 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé — 🟦 **réorientée le 30/10 (M-72)** : pas de liste de rendez-vous hypothétiques pour l'atelier ; le rendez-vous naît de la réponse du client à la relance (lien « Prendre rendez-vous » du mail → demande de RDV du portail, moto présélectionnée) et **ferme la relance** ; fait le 31/10, à valider (§5) | 07-2 |
+| 7 | Relances d'entretien — 🟦 **fait le 31/10, à valider (§5)** : mails automatiques préparés par le marketing (entretien dû −15 j, intervention reportée à la date fixée), J+5 sans réponse → CRM commercial « à rappeler » (M-72) ; SMS toujours en attente d'un fournisseur | 07-4 |
 | 8 | Parcours d'entretien pas à pas pour le technicien (tablette atelier) — 🟦 fait le 23/09, à valider (§5) | 07-1, 06-4, lot-manuels |
 
 ## 4. Décisions (Simon, 21/09)
@@ -299,6 +299,58 @@ stock.**
    brouillon et porte le lien vers l'OR.
 6. Relancer « Commander les pièces manquantes » : la fenêtre doit dire **« Rien à commander »**
    (ce qui est déjà en brouillon n'est pas recommandé).
+
+### 31/10 — Cartes 6 et 7 « Relances d'entretien » et « Rendez-vous d'entretien » (CRM006, VEN001 côté entretien ; décision M-72)
+
+**Pour l'utilisateur**
+- **Clients (CRM) → Relances** (`/crm/relances`, vendeur, marketing, admin) : trois onglets **À envoyer**,
+  **Envoyées (en attente)**, **À rappeler / Closes** ; pour chaque relance le client, la moto, l'objet
+  (« Desmo Service 24 000 km », « Pneu arrière »), la date (envoi prévu / envoyé le / réponse ou clôture),
+  le canal (e-mail), le statut (couleur + icône + libellé) et la source (entretien dû, intervention
+  reportée). Compteurs : à envoyer cette semaine, en attente de réponse, à rappeler.
+- **Actions** sur une relance : aperçu du mail (dans la langue du client, variables remplies), envoyer
+  maintenant, décaler, marquer répondue, clore, annuler, ouvrir la carte CRM (quand J+5 l'a créée).
+- **Planifier maintenant** : construit ou actualise la liste à partir des entretiens dus (lot « dates
+  d'entretien », envoi 15 jours avant) et des interventions reportées (lot « check-up atelier », à la
+  date fixée). Tourne aussi seul chaque matin à 6 h ; les mails dus partent à 6 h 15 par Outlook.
+- **Modèles** : objet et texte par type de relance et par langue (FR/NL/EN/IT), préchargés, modifiables ;
+  variables `{prenom} {nom} {moto} {date} {objet} {km} {lien_rdv}` expliquées, variable inconnue
+  signalée, aperçu avec des valeurs d'exemple.
+- **Côté client** : le mail contient un bouton « Prendre rendez-vous » vers son espace (formulaire de
+  RDV ouvert, moto présélectionnée). Sa demande marque la relance répondue ; le rendez-vous (portail,
+  comptoir ou planning) la ferme. Un mail de réponse relevé par Outlook dans les 5 jours la marque aussi
+  répondue.
+- **J+5** sans réponse ni rendez-vous : la relance passe « À rappeler » et une **carte CRM commerciale**
+  apparaît (ou la carte ouverte du client est réutilisée) avec la tâche « Rappeler {client} — {moto} :
+  {objet} » confiée au responsable par défaut des nouvelles demandes. Un rendez-vous pris ensuite
+  termine la tâche.
+
+**Comment tester (après application de la migration et déploiement de `followups-send`)**
+1. CRM → Relances → **Planifier maintenant** : le message indique le nombre de relances créées (vide tant
+   que les lots « dates d'entretien » et « check-up atelier » ne sont pas en base : c'est voulu).
+2. Pour un essai sans ces lots : insérer une relance sur sa propre fiche (e-mail = le sien) avec
+   `send_at = current_date` (SQL), puis **Aperçu du mail** et **Envoyer maintenant** : le mail arrive
+   dans sa boîte, dans la langue de la fiche, avec le bouton « Prendre rendez-vous ».
+3. Cliquer le bouton : l'espace client s'ouvre sur la demande de RDV, moto présélectionnée ; envoyer la
+   demande → la relance passe « Répondue » puis « Close » (le rendez-vous « demande » est créé).
+4. Simuler J+5 : `update followups set sent_at = now() - interval '6 days' where id = …` puis
+   `select followups_j5('<société>')` (ou attendre 6 h) → la relance passe « À rappeler », la carte CRM
+   et la tâche apparaissent (cloche du responsable par défaut) ; « Ouvrir la carte CRM » y mène.
+5. Prendre un rendez-vous au comptoir pour cette moto → relance close, tâche terminée.
+
+**Technique**
+- Migration `20261031120000_m10_relances.sql` (**non appliquée**, essai à blanc réussi en transaction
+  annulée sur la base de production le 31/10 : planification, rendu NL, J+5 → carte + tâche, RDV → close
+  + tâche terminée, mail entrant → répondue, refus sans session). Tolère l'absence de
+  `vehicles_maintenance_upcoming` et `deferred_interventions` (`to_regprocedure` / `to_regclass`) et de
+  `contacts.locale` (`to_jsonb`).
+- Edge `followups-send` (**à déployer** : `npx supabase@2.117.0 functions deploy followups-send --project-ref ujmrosbgkvgvwfnuryna`),
+  `config.toml` : `verify_jwt = false` (pg_cron par x-cron-secret, membre par jeton). Pas de file
+  `notifications` : elle finit en `skipped` faute de Resend ; ici Outlook / Graph (D4).
+- Tâches pg_cron `followups-plan` (6 h, SQL) et `followups-send` (6 h 15, pg_net + Vault `cron_secret`
+  comme S5 : sans ce secret, la fonction refuse l'appel du cron ; l'envoi manuel depuis l'écran
+  fonctionne quand même).
+- Tests `tests/followups.test.ts` (date d'envoi, J+5, RDV → close, variables, langue, onglets, droits).
 
 ## 5 bis. Cartes proposées (21/09)
 

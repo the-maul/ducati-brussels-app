@@ -46,6 +46,8 @@ import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
 import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
+import { Route as AppCrmIndexRouteImport } from './routes/_app.crm.index'
+import { Route as AppCrmRelancesRouteImport } from './routes/_app.crm.relances'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app.orders.index'
 import { Route as AppOrdersOrderIdRouteImport } from './routes/_app.orders.$orderId'
 import { Route as AppOrdersExcelRouteImport } from './routes/_app.orders.excel'
@@ -295,6 +297,16 @@ const AppClientsNewRoute = AppClientsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => AppClientsRoute,
+} as any)
+const AppCrmIndexRoute = AppCrmIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCrmRoute,
+} as any)
+const AppCrmRelancesRoute = AppCrmRelancesRouteImport.update({
+  id: '/relances',
+  path: '/relances',
+  getParentRoute: () => AppCrmRoute,
 } as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
   id: '/',
@@ -643,7 +655,7 @@ export interface FileRoutesByFullPath {
   '/client-pricing': typeof AppClientPricingRoute
   '/clients': typeof AppClientsRouteWithChildren
   '/consignment': typeof AppConsignmentRoute
-  '/crm': typeof AppCrmRoute
+  '/crm': typeof AppCrmRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
   '/orders': typeof AppOrdersRouteWithChildren
@@ -664,6 +676,7 @@ export interface FileRoutesByFullPath {
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -713,6 +726,7 @@ export interface FileRoutesByFullPath {
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
   '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/clients/': typeof AppClientsIndexRoute
+  '/crm/': typeof AppCrmIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/parts/': typeof AppPartsIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
@@ -744,7 +758,6 @@ export interface FileRoutesByTo {
   '/accounting-sepa': typeof AppAccountingSepaRoute
   '/client-pricing': typeof AppClientPricingRoute
   '/consignment': typeof AppConsignmentRoute
-  '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/demo': typeof AppDemoRoute
   '/picking': typeof AppPickingRoute
@@ -756,6 +769,7 @@ export interface FileRoutesByTo {
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -803,6 +817,7 @@ export interface FileRoutesByTo {
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
   '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/clients': typeof AppClientsIndexRoute
+  '/crm': typeof AppCrmIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/parts': typeof AppPartsIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
@@ -838,7 +853,7 @@ export interface FileRoutesById {
   '/_app/client-pricing': typeof AppClientPricingRoute
   '/_app/clients': typeof AppClientsRouteWithChildren
   '/_app/consignment': typeof AppConsignmentRoute
-  '/_app/crm': typeof AppCrmRoute
+  '/_app/crm': typeof AppCrmRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/demo': typeof AppDemoRoute
   '/_app/orders': typeof AppOrdersRouteWithChildren
@@ -859,6 +874,7 @@ export interface FileRoutesById {
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
   '/_app/clients/mobiles': typeof AppClientsMobilesRoute
   '/_app/clients/new': typeof AppClientsNewRoute
+  '/_app/crm/relances': typeof AppCrmRelancesRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/excel': typeof AppOrdersExcelRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
@@ -908,6 +924,7 @@ export interface FileRoutesById {
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
   '/mon-espace/motos/$vehicleId': typeof MonEspaceMotosVehicleIdRoute
   '/_app/clients/': typeof AppClientsIndexRoute
+  '/_app/crm/': typeof AppCrmIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/parts/': typeof AppPartsIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
@@ -964,6 +981,7 @@ export interface FileRouteTypes {
     | '/clients/$contactId'
     | '/clients/mobiles'
     | '/clients/new'
+    | '/crm/relances'
     | '/orders/$orderId'
     | '/orders/excel'
     | '/orders/new'
@@ -1013,6 +1031,7 @@ export interface FileRouteTypes {
     | '/mon-espace/factures/$documentId'
     | '/mon-espace/motos/$vehicleId'
     | '/clients/'
+    | '/crm/'
     | '/orders/'
     | '/parts/'
     | '/purchases/'
@@ -1044,7 +1063,6 @@ export interface FileRouteTypes {
     | '/accounting-sepa'
     | '/client-pricing'
     | '/consignment'
-    | '/crm'
     | '/dashboard'
     | '/demo'
     | '/picking'
@@ -1056,6 +1074,7 @@ export interface FileRouteTypes {
     | '/clients/$contactId'
     | '/clients/mobiles'
     | '/clients/new'
+    | '/crm/relances'
     | '/orders/$orderId'
     | '/orders/excel'
     | '/orders/new'
@@ -1103,6 +1122,7 @@ export interface FileRouteTypes {
     | '/mon-espace/factures/$documentId'
     | '/mon-espace/motos/$vehicleId'
     | '/clients'
+    | '/crm'
     | '/orders'
     | '/parts'
     | '/purchases'
@@ -1158,6 +1178,7 @@ export interface FileRouteTypes {
     | '/_app/clients/$contactId'
     | '/_app/clients/mobiles'
     | '/_app/clients/new'
+    | '/_app/crm/relances'
     | '/_app/orders/$orderId'
     | '/_app/orders/excel'
     | '/_app/orders/new'
@@ -1207,6 +1228,7 @@ export interface FileRouteTypes {
     | '/mon-espace/factures/$documentId'
     | '/mon-espace/motos/$vehicleId'
     | '/_app/clients/'
+    | '/_app/crm/'
     | '/_app/orders/'
     | '/_app/parts/'
     | '/_app/purchases/'
@@ -1498,6 +1520,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/new'
       preLoaderRoute: typeof AppClientsNewRouteImport
       parentRoute: typeof AppClientsRoute
+    }
+    '/_app/crm/': {
+      id: '/_app/crm/'
+      path: '/'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof AppCrmIndexRouteImport
+      parentRoute: typeof AppCrmRoute
+    }
+    '/_app/crm/relances': {
+      id: '/_app/crm/relances'
+      path: '/relances'
+      fullPath: '/crm/relances'
+      preLoaderRoute: typeof AppCrmRelancesRouteImport
+      parentRoute: typeof AppCrmRoute
     }
     '/_app/orders/': {
       id: '/_app/orders/'
@@ -1975,6 +2011,19 @@ const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
   AppClientsRouteChildren,
 )
 
+interface AppCrmRouteChildren {
+  AppCrmRelancesRoute: typeof AppCrmRelancesRoute
+  AppCrmIndexRoute: typeof AppCrmIndexRoute
+}
+
+const AppCrmRouteChildren: AppCrmRouteChildren = {
+  AppCrmRelancesRoute: AppCrmRelancesRoute,
+  AppCrmIndexRoute: AppCrmIndexRoute,
+}
+
+const AppCrmRouteWithChildren =
+  AppCrmRoute._addFileChildren(AppCrmRouteChildren)
+
 interface AppOrdersRouteChildren {
   AppOrdersOrderIdRoute: typeof AppOrdersOrderIdRoute
   AppOrdersExcelRoute: typeof AppOrdersExcelRoute
@@ -2212,7 +2261,7 @@ interface AppRouteChildren {
   AppClientPricingRoute: typeof AppClientPricingRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConsignmentRoute: typeof AppConsignmentRoute
-  AppCrmRoute: typeof AppCrmRoute
+  AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppDemoRoute: typeof AppDemoRoute
   AppOrdersRoute: typeof AppOrdersRouteWithChildren
@@ -2237,7 +2286,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClientPricingRoute: AppClientPricingRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConsignmentRoute: AppConsignmentRoute,
-  AppCrmRoute: AppCrmRoute,
+  AppCrmRoute: AppCrmRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppDemoRoute: AppDemoRoute,
   AppOrdersRoute: AppOrdersRouteWithChildren,

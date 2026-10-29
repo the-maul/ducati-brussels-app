@@ -8,6 +8,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — Relances d'entretien : le marketing envoie, le commercial rappelle (mission 07, cartes 6 et 7)
+
+- **M-72** — **Les relances d'entretien sont des mails automatiques préparés par le marketing, pas
+  une liste de rendez-vous hypothétiques pour l'atelier.** « Ce n'est pas l'atelier qui va avoir une
+  liste de rendez-vous hypothétiques : c'est une partie Marketing qui prépare les différentes
+  relances automatiques par mail. Après un mail envoyé, s'il n'y a pas de réponse, ça tombe à J+5
+  dans le CRM commercial comme personne à rappeler. » Règles : la relance d'entretien part **15 jours
+  avant** la date due ; une intervention **reportée** (ce que le client a décoché sur la proposition
+  de l'atelier) est relancée **à la date fixée au comptoir** ; « pas de réponse » = pas de rendez-vous
+  pris et pas de réponse au mail ; à **J+5** la carte va au **responsable par défaut** des nouvelles
+  demandes (réglage existant) ; **un rendez-vous pris ferme la relance**. Le mail part dans la langue
+  de la fiche du client (M-71), par Outlook (D4). *Client · 30/10, validé par Simon.*
+  [M10](modules/M10-crm.md), [mission 07](missions/mission-07-plan-entretien.md)
+
+---
+
 ## 2026-10-30 — Le client reçoit ses documents dans sa langue (carte CRM « Traduire l'application et les données », lot 4)
 
 - **M-71** — **La langue du client est celle de sa fiche ; défaut FR.** « On a la version dans la

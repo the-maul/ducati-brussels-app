@@ -51,6 +51,8 @@ export const PAGE_RULES: PageRule[] = [
   { to: '/picking', write: ['vendeur', 'magasinier', 'mecanicien', 'chef_atelier'], read: [] },
   { to: '/clients', write: ['vendeur', 'chef_atelier', 'marketing'], read: ['magasinier', 'mecanicien', 'comptable'] },
   { to: '/crm', write: ['vendeur', 'marketing'], read: [] },
+  // Relances d'entretien par mail (31/10/2026, M-72) : sous le CRM, memes droits.
+  { to: '/crm/relances', write: ['vendeur', 'marketing'], read: [] },
   { to: '/pos', write: ['vendeur', 'magasinier', 'mecanicien', 'chef_atelier', 'comptable'], read: [] },
   { to: '/reports', write: ['comptable'], read: ['vendeur', 'magasinier', 'chef_atelier', 'marketing'] },
   { to: '/accounting', write: ['comptable'], read: [] },
@@ -83,6 +85,8 @@ export const PAGE_ALIASES: Record<string, string> = {
   '/client-pricing': '/clients',
   '/consignment': '/tradein',
   '/preparation': '/picking',
+  // Clients (CRM) -> relances d'entretien par mail (31/10/2026, M-72) : memes droits que le CRM.
+  '/crm/relances': '/crm',
 };
 
 /** La règle qui gouverne un chemin : le préfixe le plus long qui corresponde. */

@@ -49,6 +49,8 @@ export type MailTexts = {
     resetSubject: string; resetIntro: string; resetLink: string; resetExpired: string; resetIgnore: string;
     signature: string;
   };
+  /** Relances d'entretien (followups-send) : libelle du bouton « Prendre rendez-vous ». */
+  followup: { book: string };
 };
 
 const fr: MailTexts = {
@@ -94,6 +96,7 @@ const fr: MailTexts = {
     resetIgnore: 'Si vous n\'êtes pas à l\'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable.',
     signature: 'Ducati Bruxelles',
   },
+  followup: { book: 'Prendre rendez-vous' },
 };
 
 const nl: MailTexts = {
@@ -139,6 +142,7 @@ const nl: MailTexts = {
     resetIgnore: 'Hebt u deze aanvraag niet zelf gedaan, negeer dan dit bericht: uw huidige wachtwoord blijft geldig.',
     signature: 'Ducati Bruxelles',
   },
+  followup: { book: 'Een afspraak maken' },
 };
 
 const en: MailTexts = {
@@ -184,6 +188,7 @@ const en: MailTexts = {
     resetIgnore: 'If you did not make this request, ignore this message: your current password remains valid.',
     signature: 'Ducati Bruxelles',
   },
+  followup: { book: 'Book an appointment' },
 };
 
 const it: MailTexts = {
@@ -229,6 +234,7 @@ const it: MailTexts = {
     resetIgnore: 'Se non è lei all\'origine di questa richiesta, ignori questo messaggio: la sua password attuale resta valida.',
     signature: 'Ducati Bruxelles',
   },
+  followup: { book: 'Prenotare un appuntamento' },
 };
 
 export const MAIL_TEXTS: Record<MailLocale, MailTexts> = { fr, nl, en, it };

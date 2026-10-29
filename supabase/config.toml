@@ -12,6 +12,9 @@ project_id = "ujmrosbgkvgvwfnuryna"
 # Appelées par pg_cron (en-tête x-cron-secret). Stripe et la vitrine ont été supprimés le 18/09.
 [functions.dispatch-notifications]
 verify_jwt = false
+# Relances d'entretien (M10, 31/10/2026) : pg_cron (x-cron-secret) ou membre connecte (envoi immediat, apercu).
+[functions.followups-send]
+verify_jwt = false
 [functions.outlook-poll]
 verify_jwt = false
 

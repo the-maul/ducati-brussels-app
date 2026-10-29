@@ -17,7 +17,7 @@ import { useConfirm } from '@/components/confirm-provider';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
-  cancelAppointmentRequest, listAppointments, listVehicles, requestAppointment, type AppointmentSlot,
+  answerFollowupByToken, cancelAppointmentRequest, listAppointments, listVehicles, requestAppointment, type AppointmentSlot,
 } from './api';
 import { AppointmentStatus, Card, EmptyState, ErrorBox, Loading, PortalPage, SectionTitle, dateLongFr, timeFr, vehicleName } from './ui';
 
@@ -30,7 +30,11 @@ function isoDay(offsetDays: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function AppointmentsView({ openForm, vehicleId }: { openForm?: boolean; vehicleId?: string }) {
+/**
+ * `followupToken` : jeton d'une relance d'entretien (lien « Prendre rendez-vous » du mail, M10).
+ * Une fois la demande envoyee, la relance est marquee repondue ; le rendez-vous lui-meme la ferme.
+ */
+export function AppointmentsView({ openForm, vehicleId, followupToken }: { openForm?: boolean; vehicleId?: string; followupToken?: string }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [showForm, setShowForm] = useState(!!openForm);
@@ -61,6 +65,7 @@ export function AppointmentsView({ openForm, vehicleId }: { openForm?: boolean; 
       {showForm && (
         <RequestForm
           defaultVehicleId={vehicleId}
+          followupToken={followupToken}
           onClose={() => setShowForm(false)}
           onDone={() => {
             setShowForm(false);
@@ -134,8 +139,8 @@ export function AppointmentsView({ openForm, vehicleId }: { openForm?: boolean; 
   );
 }
 
-function RequestForm({ defaultVehicleId, onClose, onDone }: {
-  defaultVehicleId?: string; onClose: () => void; onDone: () => void;
+function RequestForm({ defaultVehicleId, followupToken, onClose, onDone }: {
+  defaultVehicleId?: string; followupToken?: string; onClose: () => void; onDone: () => void;
 }) {
   const vehicles = useQuery({ queryKey: ['portal', 'vehicles'], queryFn: listVehicles });
   const [vehicle, setVehicle] = useState<string>(defaultVehicleId ?? '');
@@ -156,7 +161,11 @@ function RequestForm({ defaultVehicleId, onClose, onDone }: {
       slot,
     }),
     meta: { success: t('portal.appointments.sent') },
-    onSuccess: onDone,
+    onSuccess: async () => {
+      // Venu du mail de relance : la relance est repondue (best-effort, jamais bloquant).
+      if (followupToken) { try { await answerFollowupByToken(followupToken); } catch { /* la demande est partie, c'est l'essentiel */ } }
+      onDone();
+    },
   });
 
   const submit = (e: FormEvent) => {

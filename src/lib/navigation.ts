@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   ShoppingCart,
   Wallet,
+  BellRing,
   type LucideIcon,
   Globe,
 } from 'lucide-react';
@@ -61,6 +62,9 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },
   { labelKey: 'nav.clients', to: '/clients', icon: Users },
   { labelKey: 'nav.crm', to: '/crm', icon: Target },
+  // Relances d'entretien par mail (marketing), J+5 sans reponse → CRM commercial (M-72, 31/10/2026).
+  // Sous /crm : memes droits que le CRM (vendeur, marketing, admin).
+  { labelKey: 'nav.crmFollowups', to: '/crm/relances', icon: BellRing, child: true },
   { labelKey: 'nav.pos', to: '/pos', icon: CreditCard },
   { labelKey: 'nav.reports', to: '/reports', icon: BarChart3 },
   { labelKey: 'nav.accounting', to: '/accounting', icon: Calculator },
