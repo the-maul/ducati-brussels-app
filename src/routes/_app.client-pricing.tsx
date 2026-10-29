@@ -10,10 +10,10 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { listPriceRules, addPriceRule, deletePriceRule, resolveCustomerPrice, type Tier } from '@/modules/contacts/pricing';
 import { searchSaleArticles } from '@/modules/sales/write-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/client-pricing')({
-  head: () => ({ meta: [{ title: 'Tarifs clients — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('clientPricing') }] }),
   component: PricingPage,
 });
 

@@ -7,10 +7,10 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/lib/auth/auth-context';
 import { JourneyScreen } from '@/modules/workshop/journey/journey-screen';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/journey/$orId')({
-  head: () => ({ meta: [{ title: 'Parcours d’entretien — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopJourney') }] }),
   component: JourneyRoute,
 });
 

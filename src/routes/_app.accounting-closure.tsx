@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getDebtorsList, getPendingDeposits, getPendingEffects, closeFiscalYear, listClosures } from '@/modules/accounting/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting-closure')({
-  head: () => ({ meta: [{ title: 'Clôture d\'exercice — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('accountingClosure') }] }),
   component: ClosurePage,
 });
 
@@ -34,7 +34,7 @@ function ClosurePage() {
   const close = useMutation({
     mutationFn: () => closeFiscalYear(activeCompanyId!, from, to, `Exercice ${y}`),
     onSuccess: () => { setMsg(t('accounting.closureDone')); setErr(null); closures.refetch(); },
-    onError: (e) => { setErr(e instanceof Error ? e.message : 'Erreur'); setMsg(null); },
+    onError: (e) => { setErr(e instanceof Error ? e.message : t('accounting.closureError')); setMsg(null); },
   });
 
   return (
@@ -90,7 +90,7 @@ function ClosurePage() {
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('accounting.closureHistory')}</p>
         <div className="overflow-hidden rounded-md border border-border">
           <table className="w-full border-collapse font-data text-[12px]">
-            <thead className="bg-muted"><tr><Th>{t('accounting.closureFrom')}</Th><Th>{t('accounting.closureTo')}</Th><Th>Clôturé le</Th></tr></thead>
+            <thead className="bg-muted"><tr><Th>{t('accounting.closureFrom')}</Th><Th>{t('accounting.closureTo')}</Th><Th>{t('accounting.closureClosedOn')}</Th></tr></thead>
             <tbody>
               {closures.data?.length === 0 && <Empty cols={3} />}
               {closures.data?.map((c) => <tr key={c.id} className="border-b border-border last:border-0"><td className="px-3 py-1.5 font-mono">{c.period_from}</td><td className="px-3 py-1.5 font-mono">{c.period_to}</td><td className="px-3 py-1.5 font-mono">{c.closed_at?.slice(0, 10)}</td></tr>)}

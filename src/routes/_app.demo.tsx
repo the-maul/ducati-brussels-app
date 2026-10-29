@@ -4,11 +4,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { KpiCard } from '@/components/kpi-card';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import type { ReactNode } from 'react';
 
 export const Route = createFileRoute('/_app/demo')({
-  head: () => ({ meta: [{ title: 'Charte — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('demo') }] }),
   component: DemoCharte,
 });
 
@@ -60,13 +60,13 @@ function DemoCharte() {
       {/* Typographie */}
       <Section title={t('demo.sectionTypography')}>
         <div className="space-y-2">
-          <p className="font-display text-[28px] font-bold uppercase leading-[34px]">Atelier &amp; SAV</p>
-          <p className="font-ui text-[22px] font-bold leading-[28px]">Ordre de réparation #2026-0412</p>
-          <p className="font-ui text-[17px] font-bold leading-[24px]">Section de formulaire</p>
-          <p className="font-ui text-[14px] leading-[20px]">Texte courant — corps de formulaire en Ducati Style.</p>
-          <p className="font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Label de champ</p>
-          <p className="font-data text-[13px] leading-[18px]">Donnée dense en Ducati Style Cond — tableaux et listes.</p>
-          <p className="mono text-[13px]">VIN ZDMABCDEF12345678 · réf. 96480471A</p>
+          <p className="font-display text-[28px] font-bold uppercase leading-[34px]">{t('demo.typoDisplay')}</p>
+          <p className="font-ui text-[22px] font-bold leading-[28px]">{t('demo.typoTitle')}</p>
+          <p className="font-ui text-[17px] font-bold leading-[24px]">{t('demo.typoSection')}</p>
+          <p className="font-ui text-[14px] leading-[20px]">{t('demo.typoBody')}</p>
+          <p className="font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('demo.typoLabel')}</p>
+          <p className="font-data text-[13px] leading-[18px]">{t('demo.typoData')}</p>
+          <p className="mono text-[13px]">{t('demo.typoMono')}</p>
         </div>
       </Section>
 

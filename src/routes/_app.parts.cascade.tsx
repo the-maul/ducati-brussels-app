@@ -9,10 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listArticles, updateArticle, recordPriceChange, MGMT_TYPES, type Article } from '@/modules/articles/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/cascade')({
-  head: () => ({ meta: [{ title: 'Modification en cascade — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsCascade') }] }),
   component: CascadePage,
 });
 
@@ -63,7 +63,7 @@ function CascadePage() {
       const data = await listArticles(activeCompanyId, search);
       setArticles(data);
       setSel(new Set(data.map((a) => a.id)));
-    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur'); }
+    } catch (e) { setError(e instanceof Error ? e.message : t('cascade.error')); }
     finally { setLoading(false); }
   };
 
@@ -94,18 +94,18 @@ function CascadePage() {
       return count;
     },
     onSuccess: (n) => setDone(n),
-    onError: (e) => setError(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('cascade.error')),
   });
 
   return (
     <>
       <PageHeader
-        title="Modification en cascade"
-        description="Filtrer une sélection d'articles puis appliquer une action de masse (prix, TVA, marque, type, casier, verrous)."
+        title={t('cascade.title')}
+        description={t('cascade.description')}
         actions={<Button variant="outline" onClick={() => navigate({ to: '/parts' })}><ArrowLeft /> {t('articles.title')}</Button>}
       />
       <p className="mb-4 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
-        Les modifications de prix sont tracées dans le journal <strong>price_changes</strong> (append-only, B7) : qui, quand, ancien/nouveau, origine « cascade ».
+        {t('cascade.noteBefore')} <strong>price_changes</strong> {t('cascade.noteAfter')}
       </p>
 
       {/* Filtre + chargement */}
@@ -114,34 +114,34 @@ function CascadePage() {
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('articles.search')} className="pl-9" onKeyDown={(e) => e.key === 'Enter' && load()} />
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : <Search />} Charger</Button>
+        <Button variant="outline" onClick={load} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : <Search />} {t('cascade.load')}</Button>
       </div>
 
       {/* Action de masse */}
       {articles.length > 0 && (
         <div className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-border bg-card p-3">
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Action</label>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cascade.action')}</label>
             <Select value={action} onValueChange={(v) => setAction(v as Action)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pv_pct">PV TTC ± %</SelectItem>
-                <SelectItem value="pa_pct">PA ± %</SelectItem>
-                <SelectItem value="coef">Coefficient =</SelectItem>
-                <SelectItem value="vat">Taux TVA =</SelectItem>
-                <SelectItem value="brand">Marque =</SelectItem>
-                <SelectItem value="mgmt_type">Type de gestion =</SelectItem>
-                <SelectItem value="bin">Casier =</SelectItem>
-                <SelectItem value="lock_sale">Bloquer prix de vente</SelectItem>
-                <SelectItem value="unlock_sale">Débloquer prix de vente</SelectItem>
-                <SelectItem value="lock_purchase">Bloquer prix d'achat</SelectItem>
-                <SelectItem value="unlock_purchase">Débloquer prix d'achat</SelectItem>
+                <SelectItem value="pv_pct">{t('cascade.actPvPct')}</SelectItem>
+                <SelectItem value="pa_pct">{t('cascade.actPaPct')}</SelectItem>
+                <SelectItem value="coef">{t('cascade.actCoef')}</SelectItem>
+                <SelectItem value="vat">{t('cascade.actVat')}</SelectItem>
+                <SelectItem value="brand">{t('cascade.actBrand')}</SelectItem>
+                <SelectItem value="mgmt_type">{t('cascade.actMgmt')}</SelectItem>
+                <SelectItem value="bin">{t('cascade.actBin')}</SelectItem>
+                <SelectItem value="lock_sale">{t('cascade.lockSale')}</SelectItem>
+                <SelectItem value="unlock_sale">{t('cascade.unlockSale')}</SelectItem>
+                <SelectItem value="lock_purchase">{t('cascade.lockPurchase')}</SelectItem>
+                <SelectItem value="unlock_purchase">{t('cascade.unlockPurchase')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {NEEDS_VALUE.includes(action) && (
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Valeur</label>
+              <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cascade.value')}</label>
               {action === 'mgmt_type' ? (
                 <Select value={value} onValueChange={setValue}>
                   <SelectTrigger className="w-56"><SelectValue placeholder="—" /></SelectTrigger>
@@ -169,7 +169,7 @@ function CascadePage() {
               <thead className="sticky top-0 bg-muted">
                 <tr>
                   <Th className="w-10 text-center"><Checkbox checked={allSelected} onCheckedChange={(v) => setSel(v === true ? new Set(articles.map((a) => a.id)) : new Set())} /></Th>
-                  <Th>Réf.</Th><Th>Désignation</Th><Th className="text-right">PA</Th><Th className="text-right">PV TTC</Th><Th className="text-right">Coef</Th>
+                  <Th>{t('cascade.colRef')}</Th><Th>{t('cascade.colDesignation')}</Th><Th className="text-right">{t('cascade.colPa')}</Th><Th className="text-right">{t('cascade.colPvTtc')}</Th><Th className="text-right">{t('cascade.colCoef')}</Th>
                 </tr>
               </thead>
               <tbody>

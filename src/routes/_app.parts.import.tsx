@@ -34,11 +34,11 @@ import {
 import { PENDING_MIGRATION_SQL } from '@/modules/articles/import/migration-sql';
 import { translateDesignations, designationFields } from '@/modules/articles/translate/api';
 import { applyImport, type ApplyResult } from '@/modules/articles/import/apply';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/import')({
-  head: () => ({ meta: [{ title: 'Import tarif — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsImport') }] }),
   component: ImportPage,
 });
 
@@ -512,8 +512,8 @@ function ImportPage() {
                   {diff.slice(0, 300).map((d, i) => (
                     <tr key={i} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">
-                        {d.action === 'create' && <StatusBadge tone="success" label="CRÉER" />}
-                        {d.action === 'update' && <StatusBadge tone="info" label="MAJ" />}
+                        {d.action === 'create' && <StatusBadge tone="success" label={t('articles.importBadgeCreate')} />}
+                        {d.action === 'update' && <StatusBadge tone="info" label={t('articles.importBadgeUpdate')} />}
                         {d.action === 'skip' && <StatusBadge tone="neutral" label="—" />}
                       </td>
                       <td className="px-3 py-2 font-mono text-[12px]">{d.reference}</td>

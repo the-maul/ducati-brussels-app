@@ -6,11 +6,11 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listPurchaseOrders, listSuppliers, supplierName } from '@/modules/purchases/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/purchases/')({
-  head: () => ({ meta: [{ title: 'Achats & réceptions — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('purchases') }] }),
   component: PurchasesList,
 });
 

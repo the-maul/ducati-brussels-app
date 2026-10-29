@@ -15,10 +15,10 @@ import { requestPasswordReset } from '@/lib/auth/password-reset';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/login')({
-  head: () => ({ meta: [{ title: 'Connexion — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('login') }] }),
   component: LoginPage,
 });
 

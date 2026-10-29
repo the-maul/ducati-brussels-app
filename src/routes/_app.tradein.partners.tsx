@@ -16,11 +16,11 @@ import {
   type TradeinPartner, type PartnerExtraContact, type PartnerInput,
 } from '@/modules/tradein/partners-api';
 import { MOTO_BRANDS } from '@/modules/tradein/reprise-wizard-data';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/tradein/partners')({
-  head: () => ({ meta: [{ title: 'Marchands partenaires — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('tradeinPartners') }] }),
   component: PartnersPage,
 });
 

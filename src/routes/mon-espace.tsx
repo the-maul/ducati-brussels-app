@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { isClientHost } from '@/lib/portal-host';
 import { getWhoami, touchPortal } from '@/modules/portal/api';
 import { PortalShell } from '@/modules/portal/portal-shell';
@@ -15,7 +15,7 @@ import { PortalShell } from '@/modules/portal/portal-shell';
  * ne sont lues que par les fonctions portal_* : voir src/modules/portal/api.ts.
  */
 export const Route = createFileRoute('/mon-espace')({
-  head: () => ({ meta: [{ title: 'Mon espace — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('portal') }] }),
   component: PortalLayout,
 });
 

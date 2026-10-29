@@ -13,10 +13,10 @@ import { listStock, type StockRow } from '@/modules/stock/stock-api';
 import { listDepreciations, createDepreciation, cancelDepreciation, getTotalDepreciation, type StockDepreciation } from '@/modules/stock/depreciation-api';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
 import { RAYONS_SORTED } from '@/modules/articles/product-families';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/depreciation')({
-  head: () => ({ meta: [{ title: 'Dépréciations de stock — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('stockDepreciation') }] }),
   component: DepreciationPage,
 });
 

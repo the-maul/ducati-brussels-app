@@ -26,10 +26,10 @@ import {
 } from '@/modules/sales/picking-api';
 import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
 import { listDocuments } from '@/modules/sales/write-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/picking')({
-  head: () => ({ meta: [{ title: 'Listes de préparation — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('picking') }] }),
   component: PickingPage,
 });
 

@@ -24,11 +24,11 @@ import { listSuppliers, supplierName, addToReorderProposal } from '@/modules/pur
 import { LabelsBatchDialog } from '@/modules/articles/labels-batch';
 import { CatalogSearchHint } from '@/modules/catalog/catalog-search-hint';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/parts/')({
-  head: () => ({ meta: [{ title: 'Pièces & Accessoires — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('parts') }] }),
   component: ArticlesList,
 });
 

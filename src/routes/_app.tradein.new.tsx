@@ -4,10 +4,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { RepriseWizard } from '@/modules/tradein/reprise-wizard';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/tradein/new')({
-  head: () => ({ meta: [{ title: 'Nouvelle reprise moto — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('tradeinNew') }] }),
   component: NewReprise,
 });
 

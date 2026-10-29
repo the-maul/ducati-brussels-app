@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { getSepaCollectable, generateSepaFile, recordSepaUnpaid } from '@/modules/accounting/sepa';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting-sepa')({
-  head: () => ({ meta: [{ title: 'Domiciliations SEPA — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('accountingSepa') }] }),
   component: SepaPage,
 });
 

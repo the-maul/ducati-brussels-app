@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMembers } from '@/modules/crm/api';
 import { listOpenBalances, sortOpenBalances, totalOpenBalances, type BalanceSort } from '@/modules/sales/deposit-alerts';
 import { RestStatusBadge, eur } from '@/modules/sales/balance-panel';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 /**
  * Soldes à encaisser (mission 05, carte 10) : « ne pas laisser traîner des factures à payer ou des
@@ -18,7 +18,7 @@ import { t } from '@/lib/i18n';
  * filtre par vendeur (opérateur du document).
  */
 export const Route = createFileRoute('/_app/sales/balances')({
-  head: () => ({ meta: [{ title: 'Soldes à encaisser — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('salesBalances') }] }),
   component: OpenBalancesPage,
 });
 

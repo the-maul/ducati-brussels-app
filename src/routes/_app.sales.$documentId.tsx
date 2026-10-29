@@ -34,11 +34,11 @@ import { DocumentOrdersPanel } from '@/modules/orders/document-orders-panel';
 import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-dialog';
 import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
-  head: () => ({ meta: [{ title: 'Document — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('salesDocument') }] }),
   component: DocumentView,
 });
 

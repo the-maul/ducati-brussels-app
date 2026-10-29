@@ -19,10 +19,10 @@ import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
-  head: () => ({ meta: [{ title: 'OR — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopOr') }] }),
   component: OrView,
 });
 

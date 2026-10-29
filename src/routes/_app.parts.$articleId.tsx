@@ -20,12 +20,12 @@ import { DesignationLanguages } from '@/modules/articles/translate/designation-l
 import { addToReorderProposal } from '@/modules/purchases/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/$articleId')({
-  head: () => ({ meta: [{ title: 'Article — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('part') }] }),
   component: EditArticle,
 });
 
@@ -143,14 +143,14 @@ function EditArticle() {
       <ArticleLinkBadges companyId={activeCompanyId} articleId={articleId} />
       <Tabs defaultValue="fiche">
         <TabsList>
-          <TabsTrigger value="fiche">Fiche</TabsTrigger>
-          <TabsTrigger value="stock">Stock</TabsTrigger>
-          <TabsTrigger value="barcodes">Codes-barres</TabsTrigger>
-          <TabsTrigger value="kit">Kit / nomenclature</TabsTrigger>
-          <TabsTrigger value="replacement">Remplacement</TabsTrigger>
+          <TabsTrigger value="fiche">{t('articleTabs.tabFiche')}</TabsTrigger>
+          <TabsTrigger value="stock">{t('articleTabs.tabStock')}</TabsTrigger>
+          <TabsTrigger value="barcodes">{t('articleTabs.tabBarcodes')}</TabsTrigger>
+          <TabsTrigger value="kit">{t('articleTabs.tabKit')}</TabsTrigger>
+          <TabsTrigger value="replacement">{t('articleTabs.tabReplacement')}</TabsTrigger>
           <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
           <TabsTrigger value="ducati-catalog">{t('links.compatTab')}</TabsTrigger>
-          <TabsTrigger value="stats">Statistiques</TabsTrigger>
+          <TabsTrigger value="stats">{t('articleTabs.tabStats')}</TabsTrigger>
           <TabsTrigger value="photos">{t('ged.title')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">

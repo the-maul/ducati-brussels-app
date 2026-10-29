@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { listVehicles, vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
 import { listPendingDeclarations } from '@/modules/vehicles/declarations-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/vehicles/')({
-  head: () => ({ meta: [{ title: 'Véhicules — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('vehicles') }] }),
   component: VehiclesList,
 });
 

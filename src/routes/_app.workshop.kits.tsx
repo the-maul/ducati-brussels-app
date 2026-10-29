@@ -4,11 +4,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { KitsScreen } from '@/modules/workshop/kits/kits-screen';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 /** Kits de pièces d'entretien par famille de moteur (mission 07, carte 2, M-20, ATE013). */
 export const Route = createFileRoute('/_app/workshop/kits')({
-  head: () => ({ meta: [{ title: 'Kits d’entretien — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopKits') }] }),
   component: KitsPage,
 });
 

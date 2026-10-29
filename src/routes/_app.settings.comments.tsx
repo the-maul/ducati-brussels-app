@@ -4,10 +4,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { CommentTemplatesEditor } from '@/modules/sales/comment-templates-editor';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/comments')({
-  head: () => ({ meta: [{ title: 'Commentaires types — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsComments') }] }),
   component: CommentTemplatesPage,
 });
 

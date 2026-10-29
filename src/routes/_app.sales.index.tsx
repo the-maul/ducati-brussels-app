@@ -24,12 +24,12 @@ import { listStock } from '@/modules/stock/stock-api';
 import { computeDocAvailability, AVAILABILITY_DOC_TYPES, type AvailabilityStatus } from '@/modules/sales/availability';
 import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { PrepareButton } from '@/modules/sales/prepare-button';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/sales/')({
-  head: () => ({ meta: [{ title: 'Ventes & Facturation — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('sales') }] }),
   component: SalesList,
 });
 

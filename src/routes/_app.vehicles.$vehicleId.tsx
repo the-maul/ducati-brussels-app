@@ -15,12 +15,12 @@ import { findInterestedContacts, notifyInterestedContact, type InterestedContact
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { formatPhone } from '@/lib/phone';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/vehicles/$vehicleId')({
-  head: () => ({ meta: [{ title: 'Véhicule — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('vehicle') }] }),
   component: EditVehicle,
 });
 

@@ -4,10 +4,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth/auth-context';
 import { PosSale } from '@/modules/sales/pos-sale';
 import { CashScreen } from '@/modules/sales/cash-screen';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/pos')({
-  head: () => ({ meta: [{ title: 'Caisse — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('pos') }] }),
   component: PosPage,
 });
 

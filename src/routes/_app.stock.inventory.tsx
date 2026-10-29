@@ -4,10 +4,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { InventoryScreen } from '@/modules/stock/inventory-screen';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/inventory')({
-  head: () => ({ meta: [{ title: 'Inventaire — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('stockInventory') }] }),
   component: InventoryPage,
 });
 

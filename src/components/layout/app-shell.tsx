@@ -10,6 +10,7 @@ import { MobileBottomNav } from './mobile-bottom-nav';
 import { MyDucatiListener } from '@/components/myducati-listener';
 import { CatalogImportListener } from '@/components/catalog-import-listener';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { t } from '@/lib/i18n';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -40,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {mobileOpen && (
         <button
           type="button"
-          aria-label="Fermer le menu"
+          aria-label={t('shell.closeMenu')}
           onClick={() => setMobileOpen(false)}
           className="fixed inset-0 z-40 bg-black/40 md:hidden"
         />

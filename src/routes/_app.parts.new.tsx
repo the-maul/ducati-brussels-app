@@ -6,7 +6,7 @@ import { ArticleForm } from '@/modules/articles/article-form';
 import { createArticle, type ArticleInsert } from '@/modules/articles/api';
 import { withTranslatedDesignation } from '@/modules/articles/translate/api';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 type NewArticleSearch = { reference?: string; designation?: string; mgmt?: 'A' | 'M'; from?: 'catalog' };
@@ -19,7 +19,7 @@ export const Route = createFileRoute('/_app/parts/new')({
     mgmt: s.mgmt === 'A' || s.mgmt === 'M' ? s.mgmt : undefined,
     from: s.from === 'catalog' ? 'catalog' : undefined,
   }),
-  head: () => ({ meta: [{ title: 'Nouvel article — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partNew') }] }),
   component: NewArticle,
 });
 

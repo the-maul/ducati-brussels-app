@@ -68,6 +68,16 @@ export function t(key: string): string {
   return value;
 }
 
+/**
+ * Titre d'onglet du navigateur pour une page (`head: () => ({ meta: [{ title: pageTitle('dashboard') }] })`).
+ * `head` est evalue hors React par le routeur : on lit la locale courante du module
+ * (FR au rendu serveur, puis la langue de l'utilisateur au navigateur). Le suffixe
+ * « — Ducati Bruxelles » est un nom propre, identique dans les quatre langues.
+ */
+export function pageTitle(key: keyof DictionaryShape['pageTitles']): string {
+  return `${t(`pageTitles.${key}`)} — ${t('app.name')}`;
+}
+
 const LocaleCtx = createContext<Locale>(DEFAULT_LOCALE);
 
 /**

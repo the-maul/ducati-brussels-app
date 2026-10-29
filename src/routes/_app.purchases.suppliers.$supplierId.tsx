@@ -6,11 +6,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { getContact, updateContact, contactDisplayName, type ContactInsert } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/purchases/suppliers/$supplierId')({
-  head: () => ({ meta: [{ title: 'Fiche fournisseur — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('supplier') }] }),
   component: EditSupplier,
 });
 

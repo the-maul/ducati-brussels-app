@@ -28,10 +28,10 @@ import { ShopifySyncPanel } from '@/modules/articles/shopify-sync-panel';
 import { ShopifyReplacedPanel } from '@/modules/articles/shopify-switch';
 import { getSyncStatus } from '@/modules/articles/shopify-sync-api';
 import { ShopifyRealignButton } from '@/modules/articles/shopify-realign-dialog';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/parts/shopify')({
-  head: () => ({ meta: [{ title: 'Produits Shopify — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsShopify') }] }),
   component: ShopifyProductsPage,
 });
 

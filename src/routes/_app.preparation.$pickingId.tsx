@@ -22,10 +22,10 @@ import {
 } from '@/modules/sales/picking-api';
 import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
 import { SALE_STOCK_META } from '@/modules/sales/availability';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/preparation/$pickingId')({
-  head: () => ({ meta: [{ title: 'Préparation — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('preparation') }] }),
   component: PreparationTablet,
 });
 

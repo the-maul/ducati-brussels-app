@@ -13,10 +13,10 @@ import { listStock, listStockHistory, type StockRow } from '@/modules/stock/stoc
 import { downloadStockCsv } from '@/modules/stock/stock-export';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
 import { RAYONS_SORTED } from '@/modules/articles/product-families';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/')({
-  head: () => ({ meta: [{ title: 'Stock & inventaire — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('stock') }] }),
   component: StockList,
 });
 

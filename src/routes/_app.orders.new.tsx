@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createPartOrder, getOrderRules, type OrderKind } from '@/modules/orders/api';
 import { kindIcon, kindLabel, ruleSentences } from '@/modules/orders/order-ui';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/new')({
-  head: () => ({ meta: [{ title: 'Nouvelle commande de pièces — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('orderNew') }] }),
   component: NewOrder,
 });
 

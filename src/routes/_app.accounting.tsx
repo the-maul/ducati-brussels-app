@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, exportVoRegister, printVoMarginAttestation, getAccountingCutover, setAccountingCutover, type VoMarginRow } from '@/modules/accounting/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
-  head: () => ({ meta: [{ title: 'Comptabilité — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('accounting') }] }),
   component: AccountingPage,
 });
 

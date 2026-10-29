@@ -22,7 +22,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { getOrderRules } from '@/modules/orders/api';
 import { DispatchBadge, eur, kindIcon, kindLabel } from '@/modules/orders/order-ui';
 import type { OrderDispatchStatus } from '@/modules/orders/api';
@@ -38,7 +38,7 @@ import {
 import { SupplierMailDialog, type SupplierMailKind } from '@/modules/purchases/supplier-mail-dialog';
 
 export const Route = createFileRoute('/_app/purchases/proposal')({
-  head: () => ({ meta: [{ title: 'Proposition de commande — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('purchasesProposal') }] }),
   component: ProposalPage,
 });
 

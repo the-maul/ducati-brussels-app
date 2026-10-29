@@ -14,13 +14,13 @@ import { normalizeRepriseStatus } from '@/modules/tradein/reprise-status';
 import { LeadDetail } from '@/modules/crm/lead-detail';
 import { PhoneInput } from '@/components/phone-input';
 import { toE164 } from '@/lib/phone';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 /** Catégories de lead (source) — filtre CRM. */
 const LEAD_SOURCES = ['MAIL', 'WEB', 'COMPTOIR', 'REP', 'VN', 'VO', 'ATELIER', 'PIECE', 'FINANCEMENT'] as const;
 
 export const Route = createFileRoute('/_app/crm')({
-  head: () => ({ meta: [{ title: 'CRM — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('crm') }] }),
   component: CrmPage,
 });
 

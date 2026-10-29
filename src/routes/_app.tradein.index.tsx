@@ -18,11 +18,11 @@ import { downloadSheetForOro } from '@/modules/tradein/sheet-builder';
 import { tradeinStatusOf, setRepriseStatusManual, cancelReprise, statusChangedAt, readValidationMeta } from '@/modules/tradein/validate-api';
 import { REPRISE_STATUSES, REPRISE_STATUS_FIELD_BG, type RepriseStatus } from '@/modules/tradein/reprise-status';
 import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/tradein/')({
-  head: () => ({ meta: [{ title: 'Reprises motos clients — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('tradein') }] }),
   component: TradeinList,
 });
 

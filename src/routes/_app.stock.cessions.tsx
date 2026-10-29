@@ -10,10 +10,10 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { listCessions, recordCession } from '@/modules/stock/stock-api';
 import { searchPurchaseArticles, type PurchaseArticle } from '@/modules/purchases/api';
 import { listRef } from '@/modules/settings/reference-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/cessions')({
-  head: () => ({ meta: [{ title: 'Cessions internes — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('stockCessions') }] }),
   component: CessionsPage,
 });
 

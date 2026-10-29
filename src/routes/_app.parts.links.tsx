@@ -13,7 +13,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import {
   decideLinks, getCreationPreview, getLinkStats, listReview, refreshLinks, LinksUnavailableError,
   type DecideResult, type ReviewRow,
@@ -24,7 +24,7 @@ import { CreateMissingButton, UnlinkedProductsSection, VehicleLinksSection } fro
 import { ArticleThumb } from '@/modules/articles/article-thumb';
 
 export const Route = createFileRoute('/_app/parts/links')({
-  head: () => ({ meta: [{ title: 'Rapprochements — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsLinks') }] }),
   component: LinksPage,
 });
 

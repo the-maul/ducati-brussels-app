@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { listConsignments, createConsignment, settleConsignment } from '@/modules/tradein/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/consignment')({
-  head: () => ({ meta: [{ title: 'Dépôt-vente — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('consignment') }] }),
   component: ConsignmentPage,
 });
 

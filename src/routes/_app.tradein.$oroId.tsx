@@ -24,11 +24,11 @@ import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type Attachment } from '@/modules/documents/ged-api';
 import { RepriseEditDialog } from '@/modules/tradein/reprise-edit-dialog';
 import { ReprisePhotosPanel } from '@/modules/tradein/reprise-photos-panel';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/tradein/$oroId')({
-  head: () => ({ meta: [{ title: 'ORO — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('tradeinOro') }] }),
   component: OroView,
 });
 

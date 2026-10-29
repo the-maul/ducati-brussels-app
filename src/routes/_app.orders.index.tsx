@@ -10,11 +10,11 @@ import {
 } from '@/modules/orders/api';
 import { countOrders, DISPATCH_STATUSES } from '@/modules/orders/status-flow';
 import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel } from '@/modules/orders/order-ui';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/orders/')({
-  head: () => ({ meta: [{ title: 'Commandes de pièces — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('orders') }] }),
   component: OrdersList,
 });
 

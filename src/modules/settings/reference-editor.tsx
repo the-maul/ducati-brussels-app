@@ -72,7 +72,7 @@ export function ReferenceEditor({ def, companyId }: { def: RefTableDef; companyI
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ref', companyId, def.key] }),
-    onError: (e) => setError(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('settings.refError')),
   });
 
   if (isLoading) return <div className="grid place-items-center py-12"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
@@ -83,16 +83,16 @@ export function ReferenceEditor({ def, companyId }: { def: RefTableDef; companyI
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
             <tr>
-              <Th className="w-32">Code</Th>
-              <Th>Libellé</Th>
+              <Th className="w-32">{t('settings.refColCode')}</Th>
+              <Th>{t('settings.refColLabel')}</Th>
               {def.extraColumns.map((c) => <Th key={c.key} className="w-40">{c.label}</Th>)}
-              <Th className="w-16 text-center">Actif</Th>
+              <Th className="w-16 text-center">{t('settings.refColActive')}</Th>
               <Th className="w-12"></Th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={4 + def.extraColumns.length} className="px-3 py-6 text-center text-muted-foreground">Aucune valeur — ajoutez une ligne.</td></tr>
+              <tr><td colSpan={4 + def.extraColumns.length} className="px-3 py-6 text-center text-muted-foreground">{t('settings.refEmpty')}</td></tr>
             )}
             {rows.map((r) => (
               <tr key={r._key} className="border-b border-border last:border-0">
@@ -111,7 +111,7 @@ export function ReferenceEditor({ def, companyId }: { def: RefTableDef; companyI
                   <Checkbox checked={r.is_active} onCheckedChange={(v) => update(r._key, { is_active: v === true })} />
                 </td>
                 <td className="px-2 py-1 text-center">
-                  <Button type="button" size="sm" variant="ghost" onClick={() => removeRow(r)} aria-label="Supprimer">
+                  <Button type="button" size="sm" variant="ghost" onClick={() => removeRow(r)} aria-label={t('settings.refDelete')}>
                     <Trash2 className="size-4 text-danger" />
                   </Button>
                 </td>
@@ -124,13 +124,13 @@ export function ReferenceEditor({ def, companyId }: { def: RefTableDef; companyI
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
       <div className="flex items-center justify-between">
-        <Button type="button" variant="outline" onClick={addRow}><Plus /> Ajouter une ligne</Button>
+        <Button type="button" variant="outline" onClick={addRow}><Plus /> {t('settings.refAddRow')}</Button>
         <Button onClick={() => { setError(null); save.mutate(); }} disabled={save.isPending}>
           {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('action.save')}
         </Button>
       </div>
       {save.isSuccess && !save.isPending && (
-        <p className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> Enregistré.</p>
+        <p className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> {t('settings.saved')}</p>
       )}
     </div>
   );

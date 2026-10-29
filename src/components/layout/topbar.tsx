@@ -603,7 +603,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         type="button"
         onClick={onMenu}
         className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent"
-        aria-label="Menu"
+        aria-label={t('shell.openMenu')}
       >
         <PanelLeft className="size-5" />
       </button>

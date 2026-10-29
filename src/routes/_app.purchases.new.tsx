@@ -4,10 +4,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { PurchaseEditor } from '@/modules/purchases/purchase-editor';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/new')({
-  head: () => ({ meta: [{ title: 'Nouveau document achat — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('purchaseNew') }] }),
   validateSearch: (s: Record<string, unknown>) => ({ docType: s.docType === 'CMD' ? 'CMD' as const : 'REC' as const }),
   component: NewPurchase,
 });

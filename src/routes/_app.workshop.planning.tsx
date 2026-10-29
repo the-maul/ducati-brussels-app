@@ -13,10 +13,10 @@ import { listContacts, contactDisplayName, type Contact } from '@/modules/contac
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { searchVehicles, type VehicleLite } from '@/modules/workshop/api';
 import { listAppointments, createAppointment, updateAppointmentStatus, createOrFromAppointment, type Appointment } from '@/modules/workshop/planning-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/planning')({
-  head: () => ({ meta: [{ title: 'Planning atelier — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopPlanning') }] }),
   validateSearch: (s: Record<string, unknown>) => ({ week: typeof s.week === 'string' ? s.week : undefined }),
   component: PlanningPage,
 });
@@ -139,7 +139,7 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
         <DialogHeader><DialogTitle>{t('workshop.newRdv')}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('workshop.rdvDate')}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="Heure"><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+          <Field label={t('workshop.rdvTime')}><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
           <Field label={t('workshop.rdvDuration')}><Input type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} className="text-right tabular-nums" /></Field>
           <Field label={t('workshop.mechanicName')}><Input value={mechanic} onChange={(e) => setMechanic(e.target.value)} /></Field>
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>

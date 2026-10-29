@@ -5,11 +5,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { createContact, type ContactInsert } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 export const Route = createFileRoute('/_app/clients/new')({
-  head: () => ({ meta: [{ title: 'Nouveau client — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('clientNew') }] }),
   component: NewClient,
 });
 

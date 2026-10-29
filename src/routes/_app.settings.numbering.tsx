@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listSequences, updateSequence, previewNumber, type DocSequence } from '@/modules/settings/sequences-api';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/numbering')({
-  head: () => ({ meta: [{ title: 'Numérotation — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsNumbering') }] }),
   component: NumberingPage,
 });
 
@@ -44,7 +45,7 @@ function NumberingPage() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sequences', activeCompanyId] }),
-    onError: (e) => setError(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('settings.numError')),
   });
 
   if (!activeCompanyId) return null;
@@ -52,9 +53,9 @@ function NumberingPage() {
   return (
     <>
       <PageHeader
-        title="Numérotation des documents"
-        description="Préfixe, format et remise à zéro annuelle par type de document. L'aperçu montre le prochain numéro."
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/settings' })}><ArrowLeft /> Paramètres</Button>}
+        title={t('settings.numbering')}
+        description={t('settings.numberingDescLong')}
+        actions={<Button variant="outline" onClick={() => navigate({ to: '/settings' })}><ArrowLeft /> {t('settings.title')}</Button>}
       />
 
       {isLoading && <div className="grid place-items-center py-12"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>}
@@ -64,9 +65,9 @@ function NumberingPage() {
           <table className="w-full border-collapse font-data text-[13px]">
             <thead className="bg-muted">
               <tr>
-                <Th>Type</Th><Th>Libellé</Th><Th className="w-24">Préfixe</Th><Th className="w-16">Sépar.</Th>
-                <Th className="w-20">Longueur</Th><Th className="w-20 text-center">Reset an.</Th><Th className="w-24">Suffixe</Th>
-                <Th>Aperçu</Th>
+                <Th>{t('settings.numColType')}</Th><Th>{t('settings.numColLabel')}</Th><Th className="w-24">{t('settings.numColPrefix')}</Th><Th className="w-16">{t('settings.numColSeparator')}</Th>
+                <Th className="w-20">{t('settings.numColPadding')}</Th><Th className="w-20 text-center">{t('settings.numColResetYearly')}</Th><Th className="w-24">{t('settings.numColSuffix')}</Th>
+                <Th>{t('settings.numColPreview')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -91,9 +92,9 @@ function NumberingPage() {
 
       <div className="mt-4 flex items-center gap-3">
         <Button onClick={() => { setError(null); save.mutate(); }} disabled={save.isPending || !rows.some((r) => r._dirty)}>
-          {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} Enregistrer
+          {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('action.save')}
         </Button>
-        {save.isSuccess && !save.isPending && <span className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> Enregistré.</span>}
+        {save.isSuccess && !save.isPending && <span className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> {t('settings.saved')}</span>}
       </div>
     </>
   );

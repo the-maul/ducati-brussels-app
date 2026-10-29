@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getMonthlyRevenue, getTopArticles, getWorkshopProductivity, getSalesBy, getPeriodCompare, getIndicators, getTransformation } from '@/modules/reports/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/reports')({
-  head: () => ({ meta: [{ title: 'Rapports — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('reports') }] }),
   component: ReportsPage,
 });
 

@@ -14,7 +14,7 @@ import {
 } from '@/modules/vehicles/declarations-api';
 import { contactDisplayName, getContact } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,7 +30,7 @@ const uuidOrUndefined = (v: unknown) => (typeof v === 'string' && UUID_RE.test(v
  *   declared_vehicle_create / declared_vehicle_attach (déclaration clôturée, tracée).
  */
 export const Route = createFileRoute('/_app/vehicles/new')({
-  head: () => ({ meta: [{ title: 'Nouveau véhicule — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('vehicleNew') }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     contact: uuidOrUndefined(s.contact),
     declaration: uuidOrUndefined(s.declaration),

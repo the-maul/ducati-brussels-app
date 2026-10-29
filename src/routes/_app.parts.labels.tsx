@@ -19,11 +19,11 @@ import { listTemplates, saveTemplate, deleteTemplate } from '@/modules/articles/
 import { renderLabelSvg, printLabelsWithTemplate } from '@/modules/articles/labels/render';
 import { QuickLabelDialog } from '@/modules/articles/labels/quick-label';
 import { useConfirm } from '@/components/confirm-provider';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
 export const Route = createFileRoute('/_app/parts/labels')({
-  head: () => ({ meta: [{ title: 'Étiquettes personnalisées — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsLabels') }] }),
   component: LabelEditorPage,
 });
 
@@ -110,7 +110,7 @@ function LabelEditorPage() {
     onSuccess: () => {
       setMode('view');
       setSelectedId(null); // l'auto-sélection reprendra le premier format restant
-      toast.success('Élément supprimé');
+      toast.success(t('articles.tplDeleted'));
       qc.invalidateQueries({ queryKey: ['label-templates', activeCompanyId] });
     },
   });

@@ -27,12 +27,12 @@ import { listOrgUsers, createOrgUser, setUserRoles, setUserActive } from '@/lib/
 import { listCompanyMembers, getDefaultAssignee, setDefaultAssignee, countOpenTasksOf } from '@/modules/crm/api';
 import { sendAccountInvitation, searchContactsForAccount, type ContactHit } from '@/modules/settings/users-api';
 import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
 
 export const Route = createFileRoute('/_app/settings/users')({
-  head: () => ({ meta: [{ title: 'Utilisateurs — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsUsers') }] }),
   component: UsersAdmin,
 });
 

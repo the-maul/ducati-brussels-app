@@ -170,7 +170,7 @@ export function CommunicationsPanel({ companyId, contactId, defaultChannel = 'em
               </Select>
             </div>
             <div className="space-y-1"><Lbl>{t('crm.to')}</Lbl>
-              <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="email@client" />
+              <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder={t('crm.toPlaceholder')} />
             </div>
           </div>
         )}

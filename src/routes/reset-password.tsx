@@ -25,10 +25,10 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
 import { notifyPasswordChanged } from '@/lib/auth/password-notify';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/reset-password')({
-  head: () => ({ meta: [{ title: 'Mot de passe — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('resetPassword') }] }),
   // Paramètres facultatifs : absents quand on vient du menu « Changer mon mot de passe ».
   validateSearch: (s: Record<string, unknown>): { token_hash?: string; type?: string } => ({
     ...(typeof s.token_hash === 'string' ? { token_hash: s.token_hash } : {}),

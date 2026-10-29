@@ -9,10 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanies, updateCompany, createCompany, type Company, type CompanyPatch } from '@/modules/settings/companies-api';
 import { MailSignatureSettings } from '@/modules/settings/mail-signature-settings';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/companies')({
-  head: () => ({ meta: [{ title: 'Sociétés — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsCompanies') }] }),
   component: CompaniesPage,
 });
 
@@ -43,7 +43,7 @@ function CompaniesPage() {
         <div className="space-y-1">
           {data?.map((c) => (
             <button key={c.id} type="button" onClick={() => setSelected(c.id)} className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm ${current?.id === c.id ? 'border-ring bg-accent' : 'border-border hover:bg-accent'}`}>
-              <Building2 className="size-4 text-muted-foreground" /><span className="truncate">{c.name}</span>{!c.is_active && <span className="ml-auto text-[11px] text-muted-foreground">inactive</span>}
+              <Building2 className="size-4 text-muted-foreground" /><span className="truncate">{c.name}</span>{!c.is_active && <span className="ml-auto text-[11px] text-muted-foreground">{t('settings.coInactive')}</span>}
             </button>
           ))}
         </div>

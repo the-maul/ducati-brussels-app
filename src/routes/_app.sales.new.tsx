@@ -4,10 +4,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { DocumentEditor } from '@/modules/sales/document-editor';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/sales/new')({
-  head: () => ({ meta: [{ title: 'Nouveau document — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('salesNew') }] }),
   validateSearch: (s: Record<string, unknown>): { contactId?: string; vehicleId?: string; orNumber?: string; workshop?: boolean } => ({
     contactId: typeof s.contactId === 'string' ? s.contactId : undefined,
     // devis atelier (depuis un OR) : véhicule, n° d'OR, case « Devis atelier » cochée

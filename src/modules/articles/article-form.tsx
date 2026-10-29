@@ -488,8 +488,8 @@ export function ArticleForm({
         </Field>
         <Field label={t('articles.margins')}>
           <div className="flex min-h-9 flex-wrap items-center gap-3 text-sm tabular-nums">
-            <span title="Marge sur PA">PA <b className={margePa != null && margePa < 0 ? 'text-danger' : 'text-success'}>{margePa != null ? `${pct(margePa)} · ${eur(pvht - pa)}` : '—'}</b></span>
-            <span className="text-muted-foreground" title="Marge sur PAMP">PAMP <b>{margePamp != null ? `${pct(margePamp)} · ${eur(pvht - pamp)}` : '—'}</b></span>
+            <span title={t('articles.marginOnPa')}>PA <b className={margePa != null && margePa < 0 ? 'text-danger' : 'text-success'}>{margePa != null ? `${pct(margePa)} · ${eur(pvht - pa)}` : '—'}</b></span>
+            <span className="text-muted-foreground" title={t('articles.marginOnPamp')}>PAMP <b>{margePamp != null ? `${pct(margePamp)} · ${eur(pvht - pamp)}` : '—'}</b></span>
           </div>
         </Field>
         <Field label={t('articles.ppcHt')}>

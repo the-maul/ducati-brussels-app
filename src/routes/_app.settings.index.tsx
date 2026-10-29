@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/')({
-  head: () => ({ meta: [{ title: 'Paramètres — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settings') }] }),
   component: SettingsIndex,
 });
 
@@ -59,8 +59,8 @@ function SettingsIndex() {
           className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
         >
           <Table2 className="size-6 text-primary" />
-          <span className="font-ui text-[15px] font-bold">Tables de données</span>
-          <span className="text-sm text-muted-foreground">Référentiels paramétrables : TVA, règlements, marques, cessions, civilités…</span>
+          <span className="font-ui text-[15px] font-bold">{t('settings.tablesTitle')}</span>
+          <span className="text-sm text-muted-foreground">{t('settings.tablesDesc')}</span>
         </Link>
 
         <Link

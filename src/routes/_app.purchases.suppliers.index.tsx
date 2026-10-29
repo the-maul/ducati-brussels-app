@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/suppliers/')({
-  head: () => ({ meta: [{ title: 'Fournisseurs — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('suppliers') }] }),
   component: SuppliersList,
 });
 

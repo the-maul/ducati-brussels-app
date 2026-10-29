@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
 import { getOpenEntry, listTodayEntries, togglePresence, startWork, stopWork } from '@/modules/workshop/chrono-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/chrono')({
-  head: () => ({ meta: [{ title: 'Chronos atelier — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopChrono') }] }),
   component: ChronoPage,
 });
 

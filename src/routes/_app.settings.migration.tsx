@@ -8,10 +8,10 @@ import { parseContactsCsv, applyContactsImport } from '@/modules/migration/conta
 import { parseArticlesCsv, applyArticlesImport } from '@/modules/migration/articles-import';
 import { parseVehiclesCsv, applyVehiclesImport } from '@/modules/migration/vehicles-import';
 import { ImportPanel } from '@/modules/migration/import-panel';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/migration')({
-  head: () => ({ meta: [{ title: 'Migration & imports — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsMigration') }] }),
   component: MigrationPage,
 });
 

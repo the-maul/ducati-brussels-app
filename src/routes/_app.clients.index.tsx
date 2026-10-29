@@ -15,7 +15,7 @@ import { BulkActionsBar } from '@/modules/contacts/bulk-actions-bar';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { formatPhone } from '@/lib/phone';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
@@ -33,7 +33,7 @@ const ALL_COLS: { key: ColKey; label: () => string }[] = [
 const PAGE_SIZES = [25, 50, 100, 200];
 
 export const Route = createFileRoute('/_app/clients/')({
-  head: () => ({ meta: [{ title: 'Clients — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('clients') }] }),
   component: ClientsList,
 });
 

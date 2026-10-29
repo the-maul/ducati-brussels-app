@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth/auth-context';
 import { CatalogBrowser } from '@/modules/catalog/catalog-browser';
 import { CatalogImportStatus } from '@/modules/catalog/import-status';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 /** Catalogue Ducati (mission 06, cartes 2 et 3) : consultation et état de l'import. */
 /** Lien direct : ?my=<modèle-année>&drawing=<vue éclatée>&ref=<référence à surligner>, ou ?ref= seul (fiche référence). */
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_app/parts/catalog')({
   validateSearch: (s: Record<string, unknown>): CatalogSearch => ({
     my: str(s.my), drawing: str(s.drawing), ref: str(s.ref), tab: s.tab === 'import' ? 'import' : undefined,
   }),
-  head: () => ({ meta: [{ title: 'Catalogue Ducati — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('partsCatalog') }] }),
   component: CatalogPage,
 });
 

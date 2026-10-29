@@ -174,7 +174,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articles.labelsCategory')}</label>
-            <Input className="w-48" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="APPAREL, ACCESSOIRES…" />
+            <Input className="w-48" value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t('articles.labelsCategoryPlaceholder')} />
           </div>
           <div className="space-y-1">
             <label className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('action.search')}</label>

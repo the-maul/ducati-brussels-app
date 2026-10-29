@@ -307,7 +307,7 @@ export function ValidateRepriseDialog({ open, onOpenChange, companyId, oro, oroR
               <div><Label>{t('contacts.firstName')}</Label><Input value={clientForm.first_name} onChange={(e) => setClientForm((f) => ({ ...f, first_name: e.target.value }))} /></div>
               <div><Label>{t('contacts.lastName')}</Label><Input value={clientForm.last_name} onChange={(e) => setClientForm((f) => ({ ...f, last_name: e.target.value.toUpperCase() }))} /></div>
               <div><Label>{t('contacts.companyName')}</Label><Input value={clientForm.company_name} onChange={(e) => setClientForm((f) => ({ ...f, company_name: e.target.value }))} /></div>
-              <div><Label>E-mail</Label><Input value={clientForm.email} onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))} /></div>
+              <div><Label>{t('contacts.email')}</Label><Input value={clientForm.email} onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))} /></div>
               <div><Label>{t('contacts.phone')}</Label><Input value={clientForm.phone} onChange={(e) => setClientForm((f) => ({ ...f, phone: e.target.value }))} /></div>
               <div><Label>{t('contacts.street')}</Label><Input value={clientForm.address} onChange={(e) => setClientForm((f) => ({ ...f, address: e.target.value }))} /></div>
               <div><Label>{t('contacts.zip')}</Label><Input value={clientForm.zip} onChange={(e) => setClientForm((f) => ({ ...f, zip: e.target.value }))} /></div>

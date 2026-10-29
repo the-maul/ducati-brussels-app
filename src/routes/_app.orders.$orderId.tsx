@@ -17,10 +17,10 @@ import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel, ruleSentences } 
 import { listRef } from '@/modules/settings/reference-api';
 import { OrderLinesEditor } from '@/modules/orders/order-lines';
 import { OrderOrigin } from '@/modules/orders/order-origin';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/$orderId')({
-  head: () => ({ meta: [{ title: 'Commande de pièces — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('order') }] }),
   component: OrderDetail,
 });
 

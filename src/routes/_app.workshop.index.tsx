@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/workshop/')({
-  head: () => ({ meta: [{ title: 'Atelier & SAV — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshop') }] }),
   component: WorkshopList,
 });
 

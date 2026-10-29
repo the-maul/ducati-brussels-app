@@ -15,10 +15,10 @@ import {
   type ExcelOrder, type ExcelOrderLine, type ExcelOrderStatus, type ExcelCatalogItem,
 } from '@/modules/orders/excel-api';
 import { excelTabsSummary, type ExcelTab } from '@/modules/orders/thresholds';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/excel')({
-  head: () => ({ meta: [{ title: 'Commande Excel — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('ordersExcel') }] }),
   component: ExcelOrderScreen,
 });
 

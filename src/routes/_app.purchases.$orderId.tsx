@@ -10,10 +10,10 @@ import { downloadDcs } from '@/modules/purchases/dcs-export';
 import { CustomerLabelDialog } from '@/modules/purchases/customer-label-dialog';
 import { PurchaseDestinations } from '@/modules/purchases/purchase-destinations';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/$orderId')({
-  head: () => ({ meta: [{ title: 'Document achat — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('purchase') }] }),
   component: PurchaseView,
 });
 
@@ -29,7 +29,7 @@ function PurchaseView() {
   const [labelsOpen, setLabelsOpen] = useState(false);
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  if (!data) return <><PageHeader title="Document" /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('purchases.notFound')}</p></>;
+  if (!data) return <><PageHeader title={t('purchases.docTitle')} /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('purchases.notFound')}</p></>;
 
   const { order, lines, schedules } = data;
   const sup = order.supplier_id ? suppliers?.find((s) => s.id === order.supplier_id) : null;

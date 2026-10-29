@@ -51,9 +51,9 @@ export function EncoursBar({ contactId }: { contactId: string }) {
   const over = data.available < 0;
   return (
     <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_1.6fr]">
-      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours autorisé</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.authorized)}</div></div>
-      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Encours actuel</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.current)}</div></div>
-      <div className={`rounded-md border p-3 ${over ? 'border-danger/40 bg-danger-bg' : 'border-success/30 bg-success-bg'}`}><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Disponible</div><div className={`mt-1 font-data text-xl tabular-nums ${over ? 'text-danger' : 'text-success'}`}>{eur(data.available)}</div></div>
+      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditAuthorized')}</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.authorized)}</div></div>
+      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditCurrent')}</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.current)}</div></div>
+      <div className={`rounded-md border p-3 ${over ? 'border-danger/40 bg-danger-bg' : 'border-success/30 bg-success-bg'}`}><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditAvailable')}</div><div className={`mt-1 font-data text-xl tabular-nums ${over ? 'text-danger' : 'text-success'}`}>{eur(data.available)}</div></div>
       <div className="rounded-md border border-border bg-card p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 font-data text-[12px] tabular-nums text-muted-foreground">
@@ -80,14 +80,14 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
   const methodsQ = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId!), enabled: !!companyId });
   const orgsQ = useQuery({ queryKey: ['financing-orgs', companyId], queryFn: () => listFinancingOrgs(companyId!), enabled: !!companyId });
   if (docsQ.isLoading) return <Spinner />;
-  if (!data || data.length === 0) return <Empty>Aucun document.</Empty>;
+  if (!data || data.length === 0) return <Empty>{t('clientTabs.noDocument')}</Empty>;
   const methodLabel = (code: string) => methodsQ.data?.find((m) => m.code === code)?.label ?? code;
   const orgLabel = (id: string | null) => (id ? orgsQ.data?.find((o) => o.id === id)?.label ?? null : null);
   const today = todayIso();
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>N°</Th><Th>Type</Th><Th>Date</Th><Th>Statut</Th><Th className="text-right">TTC</Th><Th className="text-right">Réglé</Th><Th className="text-right">{t('balance.colRest')}</Th><Th className="w-12" /></tr></thead>
+        <thead className="bg-muted"><tr><Th>{t('clientTabs.colNumber')}</Th><Th>{t('clientTabs.colType')}</Th><Th>{t('clientTabs.colDate')}</Th><Th>{t('clientTabs.colStatus')}</Th><Th className="text-right">{t('clientTabs.colTtc')}</Th><Th className="text-right">{t('clientTabs.colPaid')}</Th><Th className="text-right">{t('balance.colRest')}</Th><Th className="w-12" /></tr></thead>
         <tbody>
           {data.map((d) => {
             const pays = paymentsQ.data?.get(d.id) ?? [];
@@ -153,12 +153,12 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
 export function DueItemsTab({ contactId }: { contactId: string }) {
   const { data, isLoading } = useQuery({ queryKey: ['client-due', contactId], queryFn: () => listContactDueItems(contactId) });
   if (isLoading) return <Spinner />;
-  if (!data || data.length === 0) return <Empty>Aucune échéance en attente.</Empty>;
+  if (!data || data.length === 0) return <Empty>{t('clientTabs.noDue')}</Empty>;
   const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>N°</Th><Th>Échéance</Th><Th className="text-right">Reste dû</Th><Th>État</Th></tr></thead>
+        <thead className="bg-muted"><tr><Th>{t('clientTabs.colNumber')}</Th><Th>{t('clientTabs.colDueDate')}</Th><Th className="text-right">{t('clientTabs.colRest')}</Th><Th>{t('clientTabs.colState')}</Th></tr></thead>
         <tbody>
           {data.map((d) => {
             const due = Number(d.total_ttc) - Number(d.paid_amount);
@@ -168,7 +168,7 @@ export function DueItemsTab({ contactId }: { contactId: string }) {
                 <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{d.due_date ?? '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(due)}</td>
-                <td className="px-3 py-2">{late ? <StatusBadge tone="danger" label="En retard" /> : <StatusBadge tone="warning" label="À échoir" />}</td>
+                <td className="px-3 py-2">{late ? <StatusBadge tone="danger" label={t('clientTabs.late')} /> : <StatusBadge tone="warning" label={t('clientTabs.upcoming')} />}</td>
               </tr>
             );
           })}
@@ -199,7 +199,7 @@ export function ParcTab({ contactId }: { contactId: string }) {
       </Button>
     </div>
   );
-  if (!data || data.length === 0) return <>{addBar}<Empty>Aucun véhicule lié à ce client.</Empty></>;
+  if (!data || data.length === 0) return <>{addBar}<Empty>{t('clientTabs.noVehicle')}</Empty></>;
   const ownerName = (id: string) => (id === contactId ? null : (linked.find((l) => l.contact.id === id) ? contactDisplayName(linked.find((l) => l.contact.id === id)!.contact) : null));
   const hasLinked = linked.length > 0;
   return (
@@ -207,7 +207,7 @@ export function ParcTab({ contactId }: { contactId: string }) {
     {addBar}
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
-        <thead className="bg-muted"><tr><Th>Véhicule</Th><Th>VIN</Th><Th>Période</Th>{hasLinked && <Th>Propriétaire</Th>}<Th>Statut</Th></tr></thead>
+        <thead className="bg-muted"><tr><Th>{t('clientTabs.colVehicle')}</Th><Th>{t('clientTabs.colVin')}</Th><Th>{t('clientTabs.colPeriod')}</Th>{hasLinked && <Th>{t('clientTabs.colOwner')}</Th>}<Th>{t('clientTabs.colStatus')}</Th></tr></thead>
         <tbody>
           {data.map((o) => (
             <tr key={o.ownerId} onClick={() => navigate({ to: '/vehicles/$vehicleId', params: { vehicleId: o.vehicle.id } })}
@@ -241,7 +241,7 @@ export function DeliveryTab({ contactId }: { contactId: string }) {
       {data && data.length > 0 && (
         <div className="overflow-hidden rounded-md border border-border">
           <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>Libellé</Th><Th>Adresse</Th><Th>CP</Th><Th>Ville</Th><Th /></tr></thead>
+            <thead className="bg-muted"><tr><Th>{t('clientTabs.colLabel')}</Th><Th>{t('clientTabs.colAddress')}</Th><Th>{t('clientTabs.colZip')}</Th><Th>{t('clientTabs.colCity')}</Th><Th /></tr></thead>
             <tbody>
               {data.map((a) => (
                 <tr key={a.id} className="border-b border-border last:border-0">
@@ -255,11 +255,11 @@ export function DeliveryTab({ contactId }: { contactId: string }) {
         </div>
       )}
       <div className="grid grid-cols-1 gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-5">
-        <Input placeholder="Libellé" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
-        <Input placeholder="Adresse" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-        <Input placeholder="CP" value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
-        <Input placeholder="Ville" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.address.trim()}><Plus /> Ajouter</Button>
+        <Input placeholder={t('clientTabs.colLabel')} value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
+        <Input placeholder={t('clientTabs.colAddress')} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+        <Input placeholder={t('clientTabs.colZip')} value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
+        <Input placeholder={t('clientTabs.colCity')} value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.address.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );
@@ -280,8 +280,8 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
   });
   const del = useMutation({ mutationFn: (id: string) => deleteClientPriceRule(id), onSuccess: inv });
 
-  const modeLabel = (m: string) => (m === 'discount' ? 'Remise %' : m === 'net' ? 'Prix net' : 'Coefficient');
-  const targetLabel = (ty: string) => ({ all: 'Tout', brand: 'Marque', category: 'Catégorie', reference: 'Référence', supplier: 'Fournisseur' } as Record<string, string>)[ty] ?? ty;
+  const modeLabel = (m: string) => (m === 'discount' ? t('clientTabs.modeDiscount') : m === 'net' ? t('clientTabs.modeNet') : t('clientTabs.modeCoef'));
+  const targetLabel = (ty: string) => ({ all: t('clientTabs.targetAll'), brand: t('clientTabs.targetBrand'), category: t('clientTabs.targetCategory'), reference: t('clientTabs.targetReference'), supplier: t('clientTabs.targetSupplier') } as Record<string, string>)[ty] ?? ty;
 
   if (isLoading) return <Spinner />;
   return (
@@ -289,14 +289,14 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
       {data && data.length > 0 && (
         <div className="overflow-hidden rounded-md border border-border">
           <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>Cible</Th><Th>Mode</Th><Th className="text-right">Valeur</Th><Th>Promo</Th><Th /></tr></thead>
+            <thead className="bg-muted"><tr><Th>{t('clientTabs.colTarget')}</Th><Th>{t('clientTabs.colMode')}</Th><Th className="text-right">{t('clientTabs.colValue')}</Th><Th>{t('clientTabs.colPromo')}</Th><Th /></tr></thead>
             <tbody>
               {data.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
                   <td className="px-3 py-2">{targetLabel(p.target_type)}{p.target_value ? ` : ${p.target_value}` : ''}</td>
                   <td className="px-3 py-2">{modeLabel(p.mode)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{p.value1 ?? '—'}</td>
-                  <td className="px-3 py-2">{p.is_promo ? <StatusBadge tone="warning" label="PROMO" /> : '—'}</td>
+                  <td className="px-3 py-2">{p.is_promo ? <StatusBadge tone="warning" label={t('clientTabs.promoBadge')} /> : '—'}</td>
                   <td className="px-3 py-2 text-right"><Button size="sm" variant="ghost" onClick={() => del.mutate(p.id)}><Trash2 className="size-4 text-danger" /></Button></td>
                 </tr>
               ))}
@@ -308,19 +308,19 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
         <Select value={form.target_type} onValueChange={(v) => setForm((f) => ({ ...f, target_type: v }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tout</SelectItem><SelectItem value="brand">Marque</SelectItem>
-            <SelectItem value="category">Catégorie</SelectItem><SelectItem value="reference">Référence</SelectItem>
-            <SelectItem value="supplier">Fournisseur</SelectItem>
+            <SelectItem value="all">{t('clientTabs.targetAll')}</SelectItem><SelectItem value="brand">{t('clientTabs.targetBrand')}</SelectItem>
+            <SelectItem value="category">{t('clientTabs.targetCategory')}</SelectItem><SelectItem value="reference">{t('clientTabs.targetReference')}</SelectItem>
+            <SelectItem value="supplier">{t('clientTabs.targetSupplier')}</SelectItem>
           </SelectContent>
         </Select>
-        <Input placeholder="Cible (valeur)" value={form.target_value} onChange={(e) => setForm((f) => ({ ...f, target_value: e.target.value }))} />
+        <Input placeholder={t('clientTabs.targetValue')} value={form.target_value} onChange={(e) => setForm((f) => ({ ...f, target_value: e.target.value }))} />
         <Select value={form.mode} onValueChange={(v) => setForm((f) => ({ ...f, mode: v }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="discount">Remise %</SelectItem><SelectItem value="net">Prix net</SelectItem><SelectItem value="coef">Coefficient</SelectItem></SelectContent>
+          <SelectContent><SelectItem value="discount">{t('clientTabs.modeDiscount')}</SelectItem><SelectItem value="net">{t('clientTabs.modeNet')}</SelectItem><SelectItem value="coef">{t('clientTabs.modeCoef')}</SelectItem></SelectContent>
         </Select>
-        <Input type="number" step="0.01" placeholder="Valeur" value={form.value1} onChange={(e) => setForm((f) => ({ ...f, value1: e.target.value }))} className="text-right tabular-nums" />
-        <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.is_promo} onCheckedChange={(v) => setForm((f) => ({ ...f, is_promo: v === true }))} /> Promo</label>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.value1.trim()}><Plus /> Ajouter</Button>
+        <Input type="number" step="0.01" placeholder={t('clientTabs.colValue')} value={form.value1} onChange={(e) => setForm((f) => ({ ...f, value1: e.target.value }))} className="text-right tabular-nums" />
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.is_promo} onCheckedChange={(v) => setForm((f) => ({ ...f, is_promo: v === true }))} /> {t('clientTabs.promo')}</label>
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.value1.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );
@@ -340,7 +340,7 @@ export function SubcontactsTab({ contactId }: { contactId: string }) {
       {data && data.length > 0 && (
         <div className="overflow-hidden rounded-md border border-border">
           <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>Nom</Th><Th>Fonction</Th><Th>Téléphone</Th><Th>Email</Th><Th /></tr></thead>
+            <thead className="bg-muted"><tr><Th>{t('clientTabs.colName')}</Th><Th>{t('clientTabs.colRole')}</Th><Th>{t('clientTabs.colPhone')}</Th><Th>{t('clientTabs.colEmail')}</Th><Th /></tr></thead>
             <tbody>
               {data.map((s) => (
                 <tr key={s.id} className="border-b border-border last:border-0">
@@ -354,11 +354,11 @@ export function SubcontactsTab({ contactId }: { contactId: string }) {
         </div>
       )}
       <div className="grid grid-cols-1 gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-5">
-        <Input placeholder="Nom" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        <Input placeholder="Fonction" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
-        <Input placeholder="Téléphone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-        <Input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> Ajouter</Button>
+        <Input placeholder={t('clientTabs.colName')} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <Input placeholder={t('clientTabs.colRole')} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
+        <Input placeholder={t('clientTabs.colPhone')} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <Input type="email" placeholder={t('clientTabs.colEmail')} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );

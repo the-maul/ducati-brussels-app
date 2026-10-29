@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { OrEditor, type OrPayload } from '@/modules/workshop/or-editor';
 import { createRepairOrder } from '@/modules/workshop/write-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/new')({
-  head: () => ({ meta: [{ title: 'Nouvel OR — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('workshopNew') }] }),
   validateSearch: (s: Record<string, unknown>) => ({ contactId: typeof s.contactId === 'string' ? s.contactId : undefined }),
   component: NewOr,
 });

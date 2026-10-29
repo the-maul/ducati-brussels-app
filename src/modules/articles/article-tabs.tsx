@@ -32,7 +32,7 @@ function ArticlePicker({ companyId, onPick }: { companyId: string; onPick: (a: L
   return (
     <div className="relative w-full max-w-md">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Rechercher un article…" className="pl-9" />
+      <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('articleTabs.searchArticle')} className="pl-9" />
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
@@ -67,11 +67,11 @@ export function BarcodesTab({ articleId }: { articleId: string }) {
             <button type="button" onClick={() => del.mutate(b.id)} className="text-muted-foreground hover:text-danger"><X className="size-3" /></button>
           </span>
         ))}
-        {(!data || data.length === 0) && <span className="text-sm text-muted-foreground">Aucun code-barres.</span>}
+        {(!data || data.length === 0) && <span className="text-sm text-muted-foreground">{t('articleTabs.noBarcode')}</span>}
       </div>
       <div className="flex gap-2">
-        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Nouveau code-barres" className="max-w-xs font-mono" onKeyDown={(e) => e.key === 'Enter' && code.trim() && add.mutate()} />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !code.trim()}><Plus /> Ajouter</Button>
+        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('articleTabs.newBarcode')} className="max-w-xs font-mono" onKeyDown={(e) => e.key === 'Enter' && code.trim() && add.mutate()} />
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !code.trim()}><Plus /> {t('articleTabs.add')}</Button>
       </div>
     </div>
   );
@@ -91,9 +91,9 @@ export function KitTab({ articleId, companyId }: { articleId: string; companyId:
     <div className="space-y-3">
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>Réf.</Th><Th>Composant</Th><Th className="w-24 text-right">Qté</Th><Th className="w-12" /></tr></thead>
+          <thead className="bg-muted"><tr><Th>{t('articleTabs.colRef')}</Th><Th>{t('articleTabs.colComponent')}</Th><Th className="w-24 text-right">{t('articleTabs.colQty')}</Th><Th className="w-12" /></tr></thead>
           <tbody>
-            {(!data || data.length === 0) && <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Aucun composant.</td></tr>}
+            {(!data || data.length === 0) && <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">{t('articleTabs.noComponent')}</td></tr>}
             {data?.map((k) => (
               <tr key={k.id} className="border-b border-border last:border-0">
                 <td className="px-3 py-2 font-mono text-[12px]">{k.component?.reference ?? '—'}</td>
@@ -113,7 +113,7 @@ export function KitTab({ articleId, companyId }: { articleId: string; companyId:
           </span>
         ) : <ArticlePicker companyId={companyId} onPick={setPick} />}
         <Input type="number" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} className="w-24 text-right tabular-nums" />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !pick}><Plus /> Ajouter</Button>
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !pick}><Plus /> {t('articleTabs.add')}</Button>
       </div>
     </div>
   );
@@ -141,18 +141,18 @@ export function ReplacementTab({ articleId, companyId, supersededById }: { artic
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Indiquez l'article qui <b>remplace</b> cette référence. À la saisie de l'ancienne référence, la nouvelle sera proposée.
+        {t('articleTabs.replaceHint')}
       </p>
       {!supersededById && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={transferStock} onChange={(e) => setTransferStock(e.target.checked)} />
-          Transférer le stock et le PAMP vers la nouvelle référence
+          {t('articleTabs.transferStock')}
         </label>
       )}
       {supersededById && replacement ? (
         <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
-          <span className="text-sm">Remplacée par&nbsp;: <b className="font-mono">{replacement.reference}</b> — {replacement.designation}</span>
-          <Button size="sm" variant="outline" onClick={() => set.mutate(null)} disabled={set.isPending}>Retirer</Button>
+          <span className="text-sm">{t('articleTabs.replacedBy')} <b className="font-mono">{replacement.reference}</b> — {replacement.designation}</span>
+          <Button size="sm" variant="outline" onClick={() => set.mutate(null)} disabled={set.isPending}>{t('articleTabs.remove')}</Button>
         </div>
       ) : (
         <ArticlePicker companyId={companyId} onPick={(a) => set.mutate(a.id)} />
@@ -405,9 +405,9 @@ export function StockTab({ articleId }: { articleId: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <StockCard label="Réel" value={stock.data?.real} loading={stock.isLoading} />
-        <StockCard label="Réservé" value={stock.data?.reserved} loading={stock.isLoading} muted />
-        <StockCard label="Disponible" value={stock.data?.available} loading={stock.isLoading} accent />
+        <StockCard label={t('articleTabs.stockReal')} value={stock.data?.real} loading={stock.isLoading} />
+        <StockCard label={t('articleTabs.stockReserved')} value={stock.data?.reserved} loading={stock.isLoading} muted />
+        <StockCard label={t('articleTabs.stockAvailable')} value={stock.data?.available} loading={stock.isLoading} accent />
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
@@ -528,16 +528,16 @@ export function StatsTab({ articleId }: { articleId: string }) {
   const totalQty = (data ?? []).reduce((s, l) => s + l.quantity, 0);
   const totalAmount = (data ?? []).reduce((s, l) => s + l.line_ht, 0);
   const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
-  if (rows.length === 0) return <Empty>Aucune vente enregistrée pour cet article.</Empty>;
+  if (rows.length === 0) return <Empty>{t('articleTabs.noSales')}</Empty>;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">Quantité vendue</div><div className="mt-1 font-data text-2xl tabular-nums">{totalQty}</div></div>
-        <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">CA HT</div><div className="mt-1 font-data text-2xl tabular-nums">{eur(totalAmount)}</div></div>
+        <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articleTabs.qtySold')}</div><div className="mt-1 font-data text-2xl tabular-nums">{totalQty}</div></div>
+        <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('articleTabs.revenueHt')}</div><div className="mt-1 font-data text-2xl tabular-nums">{eur(totalAmount)}</div></div>
       </div>
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>Mois</Th><Th className="text-right">Qté</Th><Th className="text-right">CA HT</Th></tr></thead>
+          <thead className="bg-muted"><tr><Th>{t('articleTabs.colMonth')}</Th><Th className="text-right">{t('articleTabs.colQty')}</Th><Th className="text-right">{t('articleTabs.revenueHt')}</Th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.month} className="border-b border-border last:border-0">

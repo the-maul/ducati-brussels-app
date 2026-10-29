@@ -22,7 +22,7 @@ import {
   type WebOrder, type WebOrderDisplayStatus,
 } from '@/modules/sales/web-orders-api';
 import { eur } from '@/modules/sales/balance-panel';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 /**
  * Ventes → « Commandes du site » (mission 03, carte « Une vente sur le site crée la vente et la
@@ -33,7 +33,7 @@ import { t } from '@/lib/i18n';
  * « Réservée (en attente de paiement) », fin de la réservation, durée réglable (administrateurs).
  */
 export const Route = createFileRoute('/_app/sales/web-orders')({
-  head: () => ({ meta: [{ title: 'Commandes du site — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('salesWebOrders') }] }),
   component: WebOrdersPage,
 });
 

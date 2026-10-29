@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { KpiCard } from '@/components/kpi-card';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getDashboardKpis } from '@/modules/reports/api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/dashboard')({
-  head: () => ({ meta: [{ title: 'Tableau de bord — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('dashboard') }] }),
   component: Dashboard,
 });
 

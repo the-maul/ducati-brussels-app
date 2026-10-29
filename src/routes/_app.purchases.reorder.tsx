@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getReorderProposals, listSuppliers, supplierName, type ReorderProposal } from '@/modules/purchases/api';
 import { createOrdersFromProposals } from '@/modules/purchases/write-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/reorder')({
-  head: () => ({ meta: [{ title: 'Proposition de commande — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('purchasesReorder') }] }),
   validateSearch: (s: Record<string, unknown>) => ({ highlight: typeof s.highlight === 'string' ? s.highlight : undefined }),
   component: ReorderPage,
 });

@@ -25,13 +25,13 @@ import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
 import { sendAccountInvitation } from '@/modules/settings/users-api';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 const eurFormat = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
 export const Route = createFileRoute('/_app/clients/$contactId')({
-  head: () => ({ meta: [{ title: 'Fiche client — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('client') }] }),
   component: EditClient,
 });
 
@@ -323,13 +323,13 @@ function EditClient() {
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">
         <TabsList>
-          <TabsTrigger value="fiche">Fiche</TabsTrigger>
-          <TabsTrigger value="parc">Parc</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="echeances">Échéances</TabsTrigger>
-          <TabsTrigger value="livraisons">Livraisons</TabsTrigger>
-          <TabsTrigger value="contacts">Contacts</TabsTrigger>
-          <TabsTrigger value="tarifs">Tarifs</TabsTrigger>
+          <TabsTrigger value="fiche">{t('clientTabs.tabFiche')}</TabsTrigger>
+          <TabsTrigger value="parc">{t('clientTabs.tabParc')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('clientTabs.tabDocuments')}</TabsTrigger>
+          <TabsTrigger value="echeances">{t('clientTabs.tabDue')}</TabsTrigger>
+          <TabsTrigger value="livraisons">{t('clientTabs.tabDeliveries')}</TabsTrigger>
+          <TabsTrigger value="contacts">{t('clientTabs.tabContacts')}</TabsTrigger>
+          <TabsTrigger value="tarifs">{t('clientTabs.tabPricing')}</TabsTrigger>
           <TabsTrigger value="documents-ged">{t('ged.title')}</TabsTrigger>
           <TabsTrigger value="comms">{t('crm.history')}</TabsTrigger>
         </TabsList>

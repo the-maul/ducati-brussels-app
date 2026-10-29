@@ -2,10 +2,10 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, Download, Chrome, MousePointerClick, ListChecks, BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { t } from '@/lib/i18n';
+import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/extension')({
-  head: () => ({ meta: [{ title: 'Extension My Ducati — Ducati Bruxelles' }] }),
+  head: () => ({ meta: [{ title: pageTitle('settingsExtension') }] }),
   component: ExtensionPage,
 });
 

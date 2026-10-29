@@ -5,7 +5,7 @@
  * Rappel : les fichiers NL/EN/IT ne contiennent aucun guillemet courbe.
  */
 import { test, expect, describe } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fr } from '../src/lib/i18n/fr';
 import { nl } from '../src/lib/i18n/nl';
 import { en } from '../src/lib/i18n/en';
@@ -34,6 +34,22 @@ const others: Record<string, Map<string, string>> = {
   en: flatten(en as unknown as Dict),
   it: flatten(it as unknown as Dict),
 };
+
+describe("i18n — titres d'onglet des routes (I18N003)", () => {
+  test('aucun titre de page ecrit en dur dans src/routes : tout passe par pageTitle() ou t()', () => {
+    const dir = new URL('../src/routes/', import.meta.url);
+    const offenders: string[] = [];
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.tsx')) continue;
+      const src = readFileSync(new URL(name, dir), 'utf8');
+      // Bloc `head: () => ({ ... }),` de la route (une ou plusieurs lignes).
+      const head = src.match(/head: \(\) => \(\{[\s\S]*?\}\),?\r?\n/)?.[0] ?? '';
+      // Un titre litteral ressemble a `title: 'Texte'` ou `title: "Texte"`.
+      if (/title:\s*['"]/.test(head)) offenders.push(name);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
 
 describe('i18n — dictionnaires FR / NL / EN / IT', () => {
   test('le FR a des clés et aucune valeur vide', () => {
