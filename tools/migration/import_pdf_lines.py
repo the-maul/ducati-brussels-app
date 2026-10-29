@@ -11,7 +11,7 @@ Usage :
   python tools/migration/import_pdf_lines.py --apply     # tout, insère
   python tools/migration/import_pdf_lines.py --apply --limit 50
 """
-import os, sys, re, json, glob, urllib.request
+import os, sys, re, json, glob, time, urllib.request
 import pdfplumber
 
 REF = "ujmrosbgkvgvwfnuryna"; BASE = f"https://{REF}.supabase.co/rest/v1"
@@ -68,14 +68,24 @@ def parse_pdf(path):
     return out
 
 def req(method, path, body=None, prefer=None):
-    r = urllib.request.Request(f"{BASE}/{path}", data=(json.dumps(body).encode() if body is not None else None), method=method)
-    r.add_header("apikey", SVC); r.add_header("Authorization", f"Bearer {SVC}"); r.add_header("Content-Type","application/json")
-    if prefer: r.add_header("Prefer", prefer)
-    try:
-        with urllib.request.urlopen(r) as resp:
-            raw = resp.read().decode(); return json.loads(raw) if raw else None
-    except urllib.error.HTTPError as e:
-        sys.exit(f"{method} {path} -> {e.code}: {e.read().decode()[:300]}")
+    """Appel REST. Une reprise de 12 704 factures dure des heures : une coupure
+    reseau ne doit pas tout arreter (constate deux fois le 28/10/2026). On
+    reessaie cinq fois, en patientant de plus en plus longtemps."""
+    for essai in range(5):
+        r = urllib.request.Request(f"{BASE}/{path}", data=(json.dumps(body).encode() if body is not None else None), method=method)
+        r.add_header("apikey", SVC); r.add_header("Authorization", f"Bearer {SVC}"); r.add_header("Content-Type", "application/json")
+        if prefer: r.add_header("Prefer", prefer)
+        try:
+            with urllib.request.urlopen(r, timeout=60) as resp:
+                raw = resp.read().decode(); return json.loads(raw) if raw else None
+        except urllib.error.HTTPError as e:
+            sys.exit(f"{method} {path} -> {e.code}: {e.read().decode()[:300]}")
+        except Exception as e:
+            if essai == 4:
+                sys.exit(f"{method} {path} -> reseau indisponible apres 5 essais : {e}")
+            attente = 5 * (essai + 1)
+            print("   reseau indisponible (%s), nouvel essai dans %d s" % (e, attente), flush=True)
+            time.sleep(attente)
 
 def main():
     apply = "--apply" in sys.argv
