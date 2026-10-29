@@ -93,6 +93,16 @@ const motoSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('none') }),
 ]);
 
+// Mission 07, carte 5 : km actuel et dernier entretien déclarés avec la moto (facultatifs).
+const serviceSchema = z.object({
+  mileage_km: z.number().int().min(0).max(999999).nullable(),
+  last_services: z.array(z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    km: z.number().int().min(0).max(999999).nullable(),
+    where: z.enum(['ici', 'ailleurs']).nullable(),
+  })).max(3),
+});
+
 const signupInput = z.object({
   mode: z.enum(['web', 'kiosk']),
   ticket: z.string().max(200),
@@ -107,6 +117,7 @@ const signupInput = z.object({
     .transform((v) => toE164(v) || undefined),
   password: z.string().max(PASSWORD_MAX_LENGTH).optional(),
   moto: motoSchema,
+  service: serviceSchema.optional(),
   interests: z.array(z.enum(SIGNUP_INTERESTS)).max(SIGNUP_INTERESTS.length).default([]),
   marketing_consent: z.boolean(),
   recontact: z.boolean(),
@@ -199,6 +210,24 @@ export const submitSignup = createServerFn({ method: 'POST' })
     }
     const row = Array.isArray(reg) ? reg[0] : reg;
     await supabaseAdmin.from('profiles').upsert({ id: userId, email: data.email, full_name: fullName, is_active: true });
+
+    // Km actuel et dernier entretien (mission 07, carte 5) : posés sur la moto déclarée que
+    // signup_register vient de créer (la plus récente du client). Best-effort : tant que la
+    // migration 20261031100000 n'est pas appliquée, les colonnes manquent et l'inscription continue.
+    if (data.service && data.moto.kind !== 'none' && row.contact_id) {
+      try {
+        const { data: decl } = await supabaseAdmin.from('contact_declared_vehicles')
+          .select('id').eq('contact_id', row.contact_id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (decl?.id) {
+          const { error: svcErr } = await supabaseAdmin.from('contact_declared_vehicles')
+            .update({ mileage_km: data.service.mileage_km, last_services: data.service.last_services })
+            .eq('id', decl.id);
+          if (svcErr) console.warn('[signup] entretien declare non enregistre', svcErr.message);
+        }
+      } catch (e) {
+        console.warn('[signup] entretien declare', e instanceof Error ? e.message : e);
+      }
+    }
 
     // Langue du client (I18N004) : écrite sur la FICHE (source unique) ; le profil du compte
     // suit par déclencheur (migration 20261030160000). Best-effort : tant que la migration

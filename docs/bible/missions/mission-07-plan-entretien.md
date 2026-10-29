@@ -35,8 +35,8 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 1 | Plans d'entretien par modèle et par année — 🟦 fait le 21/09, à valider (§5) | 06-2 |
 | 2 | Forfaits d'entretien avec pièces, temps et devis automatique — 🟦 fait 23/09 (kits, picking list, commande) | 07-1, 06-3 |
 | 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
-| 4 | Prochain entretien de chaque moto | 07-1, 06-4 |
-| 5 | Demander km et derniers entretiens quand une moto est enregistrée | 07-4 |
+| 4 | Prochain entretien de chaque moto — 🟦 fait le 31/10, à valider (§5) : échéance et source sur la fiche moto, extract DCS importable en un clic, `vehicles_maintenance_upcoming` pour les relances | 07-1, 06-4 |
+| 5 | Demander km et derniers entretiens quand une moto est enregistrée — 🟦 fait le 31/10, à valider (§5) : espace client, inscription, borne, fiche moto | 07-4 |
 | 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé — 🟦 **réorientée le 30/10 (M-72)** : pas de liste de rendez-vous hypothétiques pour l'atelier ; le rendez-vous naît de la réponse du client à la relance (lien « Prendre rendez-vous » du mail → demande de RDV du portail, moto présélectionnée) et **ferme la relance** ; fait le 31/10, à valider (§5) | 07-2 |
 | 7 | Relances d'entretien — 🟦 **fait le 31/10, à valider (§5)** : mails automatiques préparés par le marketing (entretien dû −15 j, intervention reportée à la date fixée), J+5 sans réponse → CRM commercial « à rappeler » (M-72) ; SMS toujours en attente d'un fournisseur | 07-4 |
 | 8 | Parcours d'entretien pas à pas pour le technicien (tablette atelier) — 🟦 fait le 23/09, à valider (§5) | 07-1, 06-4, lot-manuels |
@@ -202,6 +202,107 @@ catalogue ne contient pas encore ces modèles-années). Voir décision M-28.
   `tests/fixtures/manuels-atelier/` — un manuel à révisions nommées, un manuel en grille
   kilométrique, une procédure ; aucune donnée personnelle).
 
+### 31/10 — Cartes 4 et 5 « Prochain entretien de chaque moto » et « Demander km et derniers entretiens » (ATE014) — à valider
+
+> Décision de Simon du 30/10 (parcours « entretien ») : **chaque moto doit avoir une date de prochain
+> entretien connue, avec sa source**, pour alimenter les relances marketing (page Relances, M10) et
+> l'accueil atelier (M8). Décisions M-73 et M-74.
+
+**Pour l'utilisateur**
+- **Fiche moto → encadré « Prochain entretien »** : « Annuel — avant le 14/05/2026 » avec son état
+  (badge **dépassé de 169 j** / **dans n j** / km atteint), le km d'échéance s'il est connu (« ou
+  27 000 km »), la **source** (OR facturé dans le DMS, facture G8 relue, déclaré par le client,
+  extract DCS du … ligne n, plan Ducati) et le dernier entretien connu ; bouton **Recalculer** ;
+  bloc **« Déclaré par le client »** (km actuel, date et km du dernier entretien, chez nous /
+  ailleurs / je ne sais pas) modifiable par l'équipe, chaque enregistrement relance le calcul.
+- **Atelier → Plans d'entretien → onglet « Extract DCS »** : bouton **« Importer l'extract DCS »**
+  (fichier « ENTRETIEN EN RETARD 180 JOURS + 6 MOIS A VENIR » sorti de DCS, feuille Export, lu dans
+  le navigateur comme l'import de tarif) → **Vérifier (essai à blanc)** : lignes lues, doublons du
+  fichier, motos connues / inconnues du DMS (liste des VIN inconnus dépliable), lignes déjà importées,
+  propriétaires avec e-mail → **Importer**. Relançable chaque mois : un VIN déjà importé pour la même
+  date et le même type n'entre pas deux fois. Liste des extracts déjà importés. Bouton **« Recalculer
+  toutes les motos »** (par lots de 200). Administrateur ou chef d'atelier.
+- **Espace client → Mes motos → fiche d'une moto** : carte **« Prochain entretien »** (date, état,
+  bouton « Prendre rendez-vous pour cet entretien » quand c'est dans 60 jours ou dépassé — jamais la
+  source technique) et le formulaire **km actuel / dernier entretien (date, km, chez nous / ailleurs /
+  je ne sais pas)** → la fiche est mise à jour et l'échéance recalculée.
+- **« Ajouter ma moto » (espace client), inscription en ligne et borne** : mêmes champs, facultatifs,
+  sous le choix de la moto ; enregistrés avec la moto déclarée (`contact_declared_vehicles.mileage_km`,
+  `last_services`) et **recopiés sur la fiche à la validation** par l'équipe (ou à la validation d'office
+  M-63), seulement dans les champs vides.
+
+**La règle (M-73, M-74)**
+- Sources, par ordre de confiance : **1. OR facturé du DMS** dont une ligne (ou les travaux) est un
+  entretien ; **2. facture G8 relue** (`documents` / `document_lines`, 89 853 lignes) avec une ligne
+  d'entretien ; **3. déclaration du client** ; **4. extract DCS** (date planifiée = la vérité, dernier
+  entretien = − 12 mois, ou − 6 mois pour le premier) ; **5. plan seul** : aucun entretien connu,
+  seulement une date de départ (début de garantie, puis mise en circulation).
+- Entre 1 et 4, **le dernier entretien le plus récent gagne** ; à date égale, l'ordre de confiance.
+  Prochain = dernier + **12 mois** ; premier entretien = début de garantie + **6 mois** ou **1 000 km** ;
+  km d'échéance = km du dernier entretien + intervalle de la vidange du plan de la moto **si le plan est
+  rattaché** (rien n'est inventé sinon). **Au premier atteint** (M-16) : date ou km (km déclaré ou constaté).
+- Plan seul : 6 mois puis tous les 12 mois, en gardant une **fenêtre de retard de 180 jours** (celle de
+  l'extract DCS) ; source « plan » = estimation, à filtrer dans les relances si on veut du sûr.
+- Un entretien dans un libellé de facture : « VIDANGE », « ENTRETIEN SF V2 », « RODAGE 1000 KM »,
+  « REVISION 30.000 KM », « Oil/Annual/Desmo Service » oui ; « BOUCHON VIDANGE HUILE », « KIT DE REVISION
+  DE PIVOTS », « SERVICE BOOKLET », « T-SHIRT DESMO », « MANUEL D'UTILISATION ET ENTRETIEN » non (vérifié
+  sur les libellés réels G8 : sans ces exclusions, les pièces et le merchandising passaient pour des entretiens).
+
+**Mesuré en transaction annulée sur la base de production (31/10)** : 3 364 motos, 3 324 avec VIN,
+26 avec début de garantie, 2 843 avec mise en circulation, 6 527 factures G8 rattachées à une moto mais
+**37 lignes d'entretien seulement** (G8 facturait surtout des pièces), 1 OR facturé, 0 entretien My Ducati.
+Extract DCS du 29/10 : **228 lignes** (143 Annual Service, 73 Oil Service, 12 Oil Service 1000 km),
+échéances du 14/05/2026 au 26/04/2027, **223 motos connues** par leur VIN. Sur un lot de 300 motos :
+255 avec une échéance (254 « plan », 1 « extract DCS »).
+
+**Technique**
+- Migration **écrite, testée en transaction annulée, PAS appliquée** :
+  `supabase/migrations/20261031100000_m8_prochain_entretien.sql` — colonnes `vehicles.last_service_at`,
+  `last_service_km`, `last_service_where` (ici / ailleurs), `declared_km`, `declared_km_at` ; tables
+  `vehicle_maintenance_due` (une ligne courante par moto et par kind, historique conservé, RLS lecture
+  équipe / écriture admin, audit) et `dcs_maintenance_imports` (dépôt de l'extract, unique VIN + date +
+  type) ; fonctions `maintenance_label_is_service(text)`, `vehicle_maintenance_recompute(_company,
+  _vehicle)`, `vehicle_maintenance_recompute_batch(_company, _after, _limit)`,
+  **`vehicles_maintenance_upcoming(_company, _days)`** (signature et colonnes figées pour la page
+  Relances : `vehicle_id, vin, model_label, contact_id, contact_name, email, phone, locale, kind,
+  due_date, due_km, days_left, source` ; `days_left` négatif = dépassé ; `locale` lue de façon tolérante),
+  `dcs_maintenance_import(_company, _file, _rows, _apply)`, `dcs_maintenance_import_files` ; déclencheurs
+  (moto modifiée, OR passé « facturé », moto déclarée rattachée) ; espace client
+  `portal_vehicle_service_declare`, `portal_declaration_service_set`, `portal_vehicle` enrichi
+  (`maintenance_due`, `declared_km`, `last_service_*`).
+- Règles pures `src/modules/workshop/maintenance-due.ts` (miroir TypeScript des fonctions SQL : libellé,
+  type DCS, + 12 mois / + 6 mois, plan seul, premier atteint, parseur de la feuille Export, dédoublonnage) ;
+  accès base `maintenance-due-api.ts` (sans typage généré tant que la migration n'est pas appliquée,
+  `isMissingSchema` → message clair) ; écrans `vehicle-next-service-panel.tsx` (fiche moto),
+  `dcs-import-panel.tsx` (onglet Extract DCS) ; composant partagé
+  `src/components/service-declaration-fields.tsx` (inscription, borne, espace client) ; espace client
+  `src/modules/portal/next-service-card.tsx` ; inscription `signup-form.tsx` + `signup.functions.ts`
+  (champ `service`, posé sur la moto déclarée après `signup_register`).
+- Scripts : `tools/migration/import_dcs_entretiens.py "<fichier.xlsx>" [--apply]` (essai à blanc par
+  défaut, même fonction SQL que le bouton, rapport motos connues / inconnues, VIN inconnus, propriétaires
+  avec e-mail, lignes déjà importées) ; `tools/migration/recalculer_entretiens.py [--apply]` (état des lieux,
+  puis recalcul par lots des 3 364 motos avec le compte par source). **Le fichier DCS n'est jamais commité.**
+- Tests : `tests/maintenance-due.test.ts` (40 cas : + 12 / + 6 mois, fin de mois, plan seul, premier
+  atteint, choix du dernier entretien, 9 libellés positifs et 14 négatifs réels, parseur sur des lignes et
+  sur un petit xlsx fabriqué en mémoire, dédoublonnage).
+
+### À tester (cartes 4 et 5)
+
+1. Appliquer la migration `20261031100000_m8_prochain_entretien.sql` (essai à blanc d'abord, voir
+   00-architecture §), puis `python tools/migration/recalculer_entretiens.py --apply`.
+2. **Atelier → Plans d'entretien → Extract DCS** : choisir le fichier « ENTRETIEN EN RETARD 180 JOURS +
+   6 MOIS A VENIR.xlsx » → **Vérifier** : 228 lignes, 223 motos connues, VIN inconnus listés →
+   **Importer**. Relancer le même fichier : tout doit être « déjà importé ».
+3. Ouvrir la fiche d'une moto de l'extract (Véhicules → recherche par VIN) : encadré **Prochain
+   entretien** « Annuel — avant le 14/05/2026 — dépassé de n j — source : extract DCS du … ».
+4. Saisir dans « Déclaré par le client » un dernier entretien plus récent (ex. 01/09/2026, ailleurs) →
+   Enregistrer : l'échéance passe au 01/09/2027, source « déclaré par le client ». Effacer la date →
+   Enregistrer → retour à l'extract DCS.
+5. Espace client → Mes motos → une moto : carte « Prochain entretien », saisir le km actuel et le dernier
+   entretien → « Merci, c'est noté » et la date se met à jour. Inscription (ou borne) : après le choix de
+   la moto, les trois champs apparaissent ; après validation de la moto déclarée (Véhicules → Motos
+   déclarées), la fiche porte le km et le dernier entretien déclarés.
+
 ### 23/09 — Carte 2 « Kits de pièces d'entretien » (ATE013 + ATE014, M-20)
 
 > Demande de Simon (23/09), mot pour mot : « relier les entretiens au pièces.. on doit pouvoir aussi
@@ -354,8 +455,7 @@ stock.**
 
 ## 5 bis. Cartes proposées (21/09)
 
-- **Prochain entretien de chaque moto** (= carte 4) : la règle `nextDue` (premier atteint, rythme de
-  roulage) est prête et testée ; il reste à lire les derniers entretiens (OR, My Ducati) et le km.
+- ~~**Prochain entretien de chaque moto** (= carte 4)~~ — **fait le 31/10** (voir §5) : sources OR / G8 / client / extract DCS / plan, `vehicle_maintenance_due`.
 - **Rattacher les modèles du catalogue aux plans** : une fois le catalogue chargé, lancer « Proposer les
   rattachements » puis valider les « à valider » (écran prêt).
 - **Temps pour les plans sans temps** (Monster V2, DesertX V2, Hypermotard V2, MY26) : poster

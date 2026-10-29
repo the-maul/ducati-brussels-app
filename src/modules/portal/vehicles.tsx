@@ -24,6 +24,7 @@ import {
 } from './ui';
 import { DocumentCard, OtherDocsCard } from './doc-slot';
 import { DeclareVehicleForm, DeclaredVehiclesCard } from './declare-vehicle';
+import { NextServiceCard } from './next-service-card';
 
 export function VehicleListView() {
   const { data, isLoading, error } = useQuery({ queryKey: ['portal', 'vehicles'], queryFn: listVehicles });
@@ -118,6 +119,9 @@ export function VehicleDetailView({ vehicleId }: { vehicleId: string }) {
           <CalendarClock /> {t('portal.appointments.requestForVehicle')}
         </Link>
       </Button>
+
+      {/* Prochain entretien + km et dernier entretien déclarés (mission 07, cartes 4 et 5) */}
+      <NextServiceCard vehicle={v} onDone={refresh} />
 
       {/* Informations */}
       <CollapsibleCard id="vehicle-info" title={t('portal.vehicles.info')}>

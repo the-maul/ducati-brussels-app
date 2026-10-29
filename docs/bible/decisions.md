@@ -24,6 +24,35 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-10-30 — Mission 07 : chaque moto connaît son prochain entretien (cartes 4 et 5)
+
+Parcours « entretien » validé par Simon le 30/10 ; réalisation du 31/10 (branche `lot-entretien-dates`,
+migration `20261031100000` **non appliquée**).
+
+- **M-73** — **Une date de prochain entretien par moto, avec sa source, par ordre de confiance.**
+  Sources : **1.** le dernier OR facturé du DMS dont une ligne est un entretien ; **2.** les factures G8
+  relues (`documents` / `document_lines`) avec une ligne d'entretien ; **3.** ce que le client déclare
+  (km actuel, date et km du dernier entretien, chez nous / ailleurs — espace client, borne, inscription,
+  fiche) ; **4.** l'extract DCS « ENTRETIEN EN RETARD 180 JOURS + 6 MOIS A VENIR » que le concessionnaire
+  sort à la main (importable en un clic, relançable sans doublon) ; **5.** le plan seul (date de départ :
+  garantie, puis mise en circulation) quand rien n'est connu. Entre 1 et 4, **le dernier entretien le plus
+  récent gagne** ; à date égale, l'ordre de confiance. La source est toujours affichée (fiche moto) et
+  renvoyée (`vehicles_maintenance_upcoming`) : les relances peuvent écarter « plan ». Un entretien se
+  reconnaît dans un libellé de facture par ses mots (entretien, vidange, révision, service, 1000 km,
+  15/30 000…) **moins** les pièces et le merchandising (bouchon, kit, vis, booklet, t-shirt…), vérifié
+  sur les libellés réels G8. *Client / agence · 30/10.* [M08](modules/M08-atelier.md),
+  [M03](modules/M03-vehicules.md), [mission 07](missions/mission-07-plan-entretien.md)
+- **M-74** — **Règle Ducati, lue dans l'extract DCS : prochain entretien = dernier + 12 mois ; premier
+  entretien = 6 mois après le début de garantie ou 1 000 km.** Le km d'échéance n'est posé que si le
+  plan d'entretien de la moto (catalogue rattaché) donne l'intervalle de la vidange ; **au premier
+  atteint** entre la date et le km (M-16), le km étant le plus grand du km déclaré par le client et du
+  km constaté. Sans aucun entretien connu : 6 mois puis tous les 12 mois depuis la date de départ, en
+  gardant une fenêtre de retard de 180 jours (celle de l'extract). Le début de garantie de l'extract
+  DCS remplit `vehicles.warranty_start` s'il est vide, jamais autrement. *Agence, d'après les données
+  Ducati · 31/10.* [M08](modules/M08-atelier.md)
+
+---
+
 ## 2026-10-30 — Le client reçoit ses documents dans sa langue (carte CRM « Traduire l'application et les données », lot 4)
 
 - **M-71** — **La langue du client est celle de sa fiche ; défaut FR.** « On a la version dans la

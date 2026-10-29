@@ -149,6 +149,18 @@ export type PortalMaintenance = {
   dealer: string | null;
 };
 
+export type PortalMaintenanceDue = {
+  kind: 'first_1000' | 'oil' | 'annual' | 'km';
+  due_date: string | null;
+  due_km: number | null;
+  source: 'or_dms' | 'invoice_g8' | 'client' | 'dcs_extract' | 'plan';
+  source_ref: string | null;
+  last_service_at: string | null;
+  last_service_km: number | null;
+  computed_at: string;
+  days_left: number | null;
+};
+
 export type PortalFile = {
   id: string;
   kind: UploadKind;
@@ -172,6 +184,13 @@ export type PortalVehicleDetail = Omit<PortalVehicleSummary, 'has_registration' 
   warranty_end: string | null;
   repairs: PortalRepair[];
   maintenance: PortalMaintenance[];
+  /** Mission 07, cartes 4 et 5 : prochain entretien calculé et ce que le client a déclaré (migration 20261031100000). */
+  maintenance_due?: PortalMaintenanceDue | null;
+  declared_km?: number | null;
+  declared_km_at?: string | null;
+  last_service_at?: string | null;
+  last_service_km?: number | null;
+  last_service_where?: 'ici' | 'ailleurs' | null;
   files: PortalFile[];
   /** Types pour lesquels le client a déclaré « pas de verso ». */
   no_back?: DocKind[];
@@ -271,6 +290,8 @@ export function portalErrorMessage(err: unknown): string {
     ['invalid year', 'portal.errors.invalidYear'],
     ['invalid vin', 'portal.errors.invalidVin'],
     ['invalid plate', 'portal.errors.invalidPlate'],
+    ['invalid km', 'portal.errors.invalidKm'],
+    ['date in the future', 'portal.errors.dateInFuture'],
     ['too many pending declarations', 'portal.errors.tooManyDeclarations'],
     ['not found', 'portal.errors.notFound'],
     ['no client account', 'portal.errors.noAccount'],
@@ -430,6 +451,21 @@ export type VehicleDeclaration = {
 export const declareVehicle = (d: VehicleDeclaration) =>
   rpc<string>('portal_declare_vehicle', {
     p_brand: d.brand, p_model: d.model, p_model_year: d.modelYear, p_vin: d.vin, p_plate: d.plate,
+  });
+
+/**
+ * Mission 07, carte 5 : km actuel et dernier entretien déclarés avec la moto (« Ajouter ma moto »),
+ * recopiés sur la fiche à la validation par l'équipe. Migration 20261031100000.
+ */
+export const setDeclarationService = (declarationId: string, p: { mileage_km: number | null; last_services: unknown[] }) =>
+  rpc<null>('portal_declaration_service_set' as Parameters<typeof supabase.rpc>[0], { p_declaration_id: declarationId, p_mileage_km: p.mileage_km, p_last_services: p.last_services });
+
+/** « Mes motos » : km actuel et dernier entretien (date, km, chez nous / ailleurs) → recalcul du prochain entretien. */
+export const declareVehicleService = (vehicleId: string, p: {
+  km: number | null; lastServiceAt: string | null; lastServiceKm: number | null; where: 'ici' | 'ailleurs' | null;
+}) =>
+  rpc<PortalMaintenanceDue | null>('portal_vehicle_service_declare' as Parameters<typeof supabase.rpc>[0], {
+    p_vehicle_id: vehicleId, p_km: p.km, p_last_service_at: p.lastServiceAt, p_last_service_km: p.lastServiceKm, p_where: p.where,
   });
 
 /**

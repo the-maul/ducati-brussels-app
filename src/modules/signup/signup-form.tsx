@@ -25,6 +25,10 @@ import { PhoneInput } from '@/components/phone-input';
 import { PasswordInput, PasswordRules } from '@/components/password-field';
 import { isStrongPassword } from '@/lib/password-policy';
 import { MotoPicker, isMotoComplete, type MotoChoice } from '@/components/moto-picker';
+import {
+  EMPTY_SERVICE_DECLARATION, ServiceDeclarationFields, hasServiceDeclaration, serviceDeclarationErrors,
+  serviceDeclarationPayload, type ServiceDeclarationValue,
+} from '@/components/service-declaration-fields';
 import { isValidPhone, toE164 } from '@/lib/phone';
 import { clientAppHost, clientAppUrl } from '@/lib/client-app-url';
 import { cn } from '@/lib/utils';
@@ -41,7 +45,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Délai entre deux tentatives quand la connexion est tombée. */
 const RETRY_MS = 5_000;
 
-type Errors = Partial<Record<'first_name' | 'last_name' | 'email' | 'phone' | 'password' | 'confirm' | 'moto', string>>;
+type Errors = Partial<Record<'first_name' | 'last_name' | 'email' | 'phone' | 'password' | 'confirm' | 'moto' | 'service', string>>;
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -80,6 +84,8 @@ export function SignupForm({ mode, initialEmail, onSuccess, showLanguage = true 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [moto, setMoto] = useState<MotoChoice | null>(null);
+  // Mission 07, carte 5 : km actuel et dernier entretien de la moto (facultatifs).
+  const [service, setService] = useState<ServiceDeclarationValue>(EMPTY_SERVICE_DECLARATION);
   const [interests, setInterests] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [recontact, setRecontact] = useState(false);
@@ -124,6 +130,8 @@ export function SignupForm({ mode, initialEmail, onSuccess, showLanguage = true 
     // automatique du navigateur) finissait dans le GSM de la fiche. Refusée ici et au serveur.
     if (!isValidPhone(phone)) e.phone = t('signup.errors.phone');
     if (!isMotoComplete(moto)) e.moto = t('signup.errors.moto');
+    const se = serviceDeclarationErrors(service);
+    if (se.km) e.service = se.km; else if (se.date) e.service = se.date;
     if (!isStrongPassword(password)) e.password = t('signup.errors.passwordShort');
     else if (password !== confirm) e.confirm = t('signup.errors.passwordMismatch');
     setErrors(e);
@@ -156,6 +164,7 @@ export function SignupForm({ mode, initialEmail, onSuccess, showLanguage = true 
           phone: e164,
           password,
           moto: moto!,
+          service: moto && moto.kind !== 'none' && hasServiceDeclaration(service) ? serviceDeclarationPayload(service) : undefined,
           interests: interests as (typeof SIGNUP_INTERESTS)[number][],
           marketing_consent: consent,
           recontact,
@@ -274,6 +283,12 @@ export function SignupForm({ mode, initialEmail, onSuccess, showLanguage = true 
         <SectionTitle>{t('signup.sectionMoto')} *</SectionTitle>
         <MotoPicker value={moto} onChange={setMoto} size={kiosk ? 'kiosk' : 'default'} autoComplete={ac} />
         <FieldError msg={errors.moto} />
+        {moto && moto.kind !== 'none' && isMotoComplete(moto) && (
+          <>
+            <ServiceDeclarationFields value={service} onChange={setService} size={kiosk ? 'kiosk' : 'default'} idPrefix="su-sd" />
+            <FieldError msg={errors.service} />
+          </>
+        )}
       </section>
 
       {/* Intérêts */}

@@ -19,9 +19,13 @@ import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import {
-  declareVehicle, listDeclaredVehicles, uploadDeclarationScan,
+  declareVehicle, listDeclaredVehicles, uploadDeclarationScan, setDeclarationService,
   searchVehicleBrandHints, searchVehicleModelHints,
 } from './api';
+import {
+  EMPTY_SERVICE_DECLARATION, ServiceDeclarationFields, hasServiceDeclaration, serviceDeclarationErrors,
+  serviceDeclarationPayload, type ServiceDeclarationValue,
+} from '@/components/service-declaration-fields';
 import { Card, SectionTitle, dateFr, vehicleName } from './ui';
 import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
@@ -63,6 +67,9 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Mission 07, carte 5 : km actuel et dernier entretien, facultatifs.
+  const [service, setService] = useState<ServiceDeclarationValue>(EMPTY_SERVICE_DECLARATION);
+  const serviceErrors = serviceDeclarationErrors(service);
 
   // Suggestions toutes marques (21/09). Jamais bloquant : une erreur = aucune suggestion.
   const [brandHints, setBrandHints] = useState<{ id: string; name: string }[]>([]);
@@ -96,6 +103,10 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
         modelYear: year.trim() ? Number(year) : null,
         vin: vin.trim() || null, plate: plate.trim() || null,
       });
+      // Km et dernier entretien : jamais bloquants (la moto est déclarée quoi qu'il arrive).
+      if (hasServiceDeclaration(service)) {
+        try { await setDeclarationService(id, serviceDeclarationPayload(service)); } catch { /* migration pas encore appliquée */ }
+      }
       if (file) {
         try { await uploadDeclarationScan(id, file); } catch { return 'scan_failed' as const; }
       }
@@ -114,6 +125,7 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setErr(null);
     if (!brand.trim() || !model.trim()) { setErr(t('motoClient.portalRequired')); return; }
+    if (serviceErrors.km || serviceErrors.date) return;
     send.mutate();
   };
 
@@ -162,6 +174,9 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalPlate')}</Label>
             <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} maxLength={15} className="font-mono" />
+          </div>
+          <div className="sm:col-span-2">
+            <ServiceDeclarationFields value={service} onChange={setService} idPrefix="decl-sd" errors={serviceErrors} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className={field}>{t('motoClient.portalCg')}</Label>
