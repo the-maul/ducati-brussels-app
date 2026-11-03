@@ -8,6 +8,39 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Écran client sur tablette appairée (mission 12, carte P2 ; PDV020)
+
+- **M-103** — **La tablette face au client s'appaire à la caisse sans compte utilisateur.** Au premier
+  lancement, `/ecran-client` affiche un **code à 6 caractères** (sans 0 / O / 1 / I / L) et un QR qui
+  ouvre la caisse avec le code pré-rempli (`/pos?ecran=XXXXXX`) ; au comptoir, Caisse → « Écran
+  client » → code, nom, poste (`CAISSE-1` par défaut) : l'appareil est lié à la **société**, au **poste**
+  et au **vendeur** dont il suit l'écran (« Prendre cet écran » pour un autre vendeur au même poste).
+  L'appareil garde un **jeton long** (64 hexa) ; la base n'en garde que l'**empreinte SHA-256**.
+  Il ne lit que **son** écran, par jeton (`customer_display_read`, security definer) ; il ne voit que le
+  ticket en cours (nom du client, lignes, montants, langue), **jamais** la réponse du client ni une
+  adresse / un téléphone (clés du ticket filtrées en base). Révocable dans Paramètres → Écrans clients
+  (la tablette revient à l'appairage à sa relecture suivante). Temps réel : signal **sans donnée** sur
+  un canal Realtime au nom secret + relecture toutes les 5 s. La fenêtre « Ouvrir l'écran client » du
+  vendeur connecté marche comme avant. *Simon (« que quand on valide le ticket il apparaisse sur un
+  device connecté ») · 03/11.* [M06](modules/M06-ventes-caisse.md)
+- **M-104** — **Exception à « company_id partout »** : un appareil **en attente d'appairage** n'a pas encore
+  de société (`customer_display_devices.company_id` null, invisible de tous, code valable 10 min, purge
+  après 15 min, 50 demandes en cours au plus). Dès l'appairage, la ligne porte sa société et la RLS
+  s'applique. *Agence · 03/11.*
+- **M-105** — **Au comptoir l'écran suit tout seul, sur un document c'est un clic.** Caisse : ticket en
+  direct pendant la saisie → montant à payer et moyens acceptés à « Encaisser » → « Payez sur le
+  terminal » (bouton Carte) → merci (+ ticket par e-mail si le vendeur l'autorise : l'adresse tapée par
+  le client n'est enregistrée nulle part, le vendeur envoie) → accueil après 10 s (90 s si l'e-mail est
+  proposé). Document de vente : « Ticket », « Carte : terminal », « Merci », « Faire signer » d'un clic,
+  parce que le vendeur consulte aussi les documents d'autres clients. Signature : `SignaturePad` sur la
+  tablette, empreinte SHA-256 (texte + image) calculée par la base, PNG rangé automatiquement dans la
+  GED du document. Langue : celle de la fiche du client (I18N004), sinon FR / NL / EN / IT au choix
+  sur la tablette. **Aucun supplément** pour aucun moyen de paiement (le « +5 % » est abandonné).
+  Migration `20261103240000_m6_ecran_client.sql` **non appliquée** ; essai à blanc 31/31 le 03/11.
+  *Simon · 03/11.* [M06](modules/M06-ventes-caisse.md)
+
+---
+
 ## 2026-11-03 — Facture belge conforme : avoir, facture d'acompte, journal juste, UBL prêt pour Peppol (VEN006, M12)
 
 - **M-99** — **Une facture compensée par un avoir reste au journal des ventes** (statut `avoir_emis`,

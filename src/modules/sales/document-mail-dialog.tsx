@@ -30,12 +30,14 @@ import { sendDocumentMail, mailErrorLabel, accountantCopy, getAccountantEmail, t
 
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
-export function DocumentMailDialog({ full, contact, companyName, onClose, preset, onSent }: {
+export function DocumentMailDialog({ full, contact, companyName, onClose, preset, onSent, initialTo }: {
   full: DocumentFull; contact: Contact | null; companyName: string; onClose: () => void;
   /** Objet et message proposés à la place des textes par défaut (ex. proposition d'intervention avec son lien de signature). */
   preset?: { subject: string; body: string } | null;
   /** Appelé après un envoi réel réussi (pas après une simulation). */
   onSent?: () => void;
+  /** Adresse tapée par le client sur l'écran client (PDV020) : proposée à la place de celle de la fiche. */
+  initialTo?: string | null;
 }) {
   const qc = useQueryClient();
   const { doc } = full;
@@ -51,7 +53,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
     company: companyName, client: contact ? contactDisplayName(contact) : '',
   };
   const isReservation = doc.doc_type === 'RES';
-  const [to, setTo] = useState(contact?.email ?? '');
+  const [to, setTo] = useState(initialTo || contact?.email || '');
   const [subject, setSubject] = useState(preset?.subject ?? fill(tc(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
   const [body, setBody] = useState(preset?.body ?? fill(tc(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
   const [preview, setPreview] = useState<DryRunPreview & { from: string } | null>(null);

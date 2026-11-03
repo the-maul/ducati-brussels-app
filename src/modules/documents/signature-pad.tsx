@@ -11,7 +11,11 @@ import { t } from '@/lib/i18n';
 const W = 560;
 const H = 180;
 
-export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+/**
+ * `hint` / `clearLabel` : libellés dans une autre langue que celle de l'écran (écran client sur
+ * tablette, langue du client, PDV020) ; par défaut ceux de l'utilisateur.
+ */
+export function SignaturePad({ onChange, hint, clearLabel }: { onChange: (dataUrl: string | null) => void; hint?: string; clearLabel?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -80,9 +84,9 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
         }}
       />
       <div className="flex items-center justify-between">
-        <p className="text-[11px] text-muted-foreground">{t('tradein.signHint')}</p>
+        <p className="text-[11px] text-muted-foreground">{hint ?? t('tradein.signHint')}</p>
         <Button type="button" variant="outline" size="sm" onClick={clear} disabled={!hasInk}>
-          <Eraser className="size-3.5" /> {t('tradein.signClear')}
+          <Eraser className="size-3.5" /> {clearLabel ?? t('tradein.signClear')}
         </Button>
       </div>
     </div>

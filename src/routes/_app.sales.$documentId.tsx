@@ -25,6 +25,7 @@ import { getContact, contactDisplayName, type Contact } from '@/modules/contacts
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { PaymentPanel } from '@/modules/sales/payment-panel';
 import { QrPaymentCard } from '@/modules/sales/qr-payment-card';
+import { DocumentCustomerScreen } from '@/modules/sales/document-customer-screen';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
@@ -143,6 +144,8 @@ function DocumentView() {
     if (await confirmDialog({ variant: 'delete', title: t('sales.deleteDraft'), message: t('sales.deleteConfirm') })) removeDraft.mutate();
   };
   const [mailOpen, setMailOpen] = useState(false);
+  // Adresse tapée par le client sur l'écran client (PDV020), proposée dans la fenêtre d'envoi.
+  const [mailTo, setMailTo] = useState<string | null>(null);
   // Mission 09 carte 5 : depuis un devis, ouvrir (ou retrouver) le dossier accident de cette moto.
   const accident = useMutation({
     mutationFn: () => openAccidentFile({ companyId: data!.doc.company_id, vehicleId: data!.doc.vehicle_id, contactId: data!.doc.contact_id, quoteDocumentId: documentId }),
@@ -395,6 +398,15 @@ function DocumentView() {
         </div>
       )}
 
+      {doc.status !== 'annulee' && doc.doc_type !== 'AVO' && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <DocumentCustomerScreen
+            full={data} contact={contactQ.data ?? null} clientDue={balance.clientDue}
+            onSendTicket={(contactId || doc.doc_type === 'TIK') ? (email) => { setMailTo(email); setMailOpen(true); } : undefined}
+          />
+        </div>
+      )}
+
       {!isClosedDocStatus(doc.status) && doc.doc_type !== 'AVO' && doc.doc_type !== 'FAA' && (
         <div className="mt-4">
           <QrPaymentCard
@@ -432,7 +444,7 @@ function DocumentView() {
         />
       )}
       {mailOpen && (contactQ.data || !contactId) && (
-        <DocumentMailDialog full={data} contact={contactQ.data ?? null} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} onClose={() => setMailOpen(false)} />
+        <DocumentMailDialog full={data} contact={contactQ.data ?? null} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} initialTo={mailTo} onClose={() => { setMailOpen(false); setMailTo(null); }} />
       )}
       {smsOpen && contactQ.data && (
         <SendSmsDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setSmsOpen(false)} />

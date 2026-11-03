@@ -54,14 +54,14 @@ Cloud » (Payment API, méthode terminal) ; le Duo Base ne l'est pas. Reste à s
 | # | Carte | Pourquoi | État | Jours | Décision requise | Dépend de |
 |---|---|---|---|---|---|---|
 | P1 | Au moins un moyen électronique : QR de virement SEPA + écran client | légal | **fait** (`d3cef17`, 19/09) | 0 → 0 | non | — |
-| P2 | **Écran client généralisé sur tablette** : ticket en direct, total, QR, « suivez le terminal », merci, mode vitrine ; un écran par poste | attendu | **en cours** (go de Simon le 03/11) | 3,5 → 3,5 | Domenico : une tablette par poste, Android ou iPad, vitrine ? | K17 (postes) |
+| P2 | **Écran client généralisé sur tablette** : ticket en direct, total, QR, « suivez le terminal », merci, mode vitrine ; un écran par poste | attendu | **fait (03/11, à valider)** — tablette appairée par code sans compte, ticket en direct, montant à payer, terminal, QR de virement (Stripe prévu), merci + ticket par e-mail, langue du client ; migration `20261103240000` **à appliquer** ; mode vitrine : non (accueil neutre) | 3,5 → 0 | Domenico : une tablette par poste, Android ou iPad, vitrine ? | K17 (postes) |
 | P3 | **QR instantané sans supplément** : Stripe Checkout (Bancontact 0,35 €, cartes, Wero), règlement passé « reçu » par webhook, même lien dans le mail de commande de pièces ; remplace le « +5 % » | légal (supplément interdit) + attendu | **en cours** (accord de Domenico le 03/11) | 3,5 → 3,5 | Domenico : compte Stripe d'ITALBIKE STORE et clé live | P2 |
 | P4 | **Terminal CCV A77 piloté par le DMS** (montant envoyé, résultat reçu), remboursement, certification CCV ; sinon terminal « à côté » (0 j) | attendu | **en cours** (étude : qui ouvre l'API, PAX / CCV / Omespay ; mail Omespay prêt, non envoyé) | 5 → 5 (+ délai Omespay) | Domenico : envoyer le mail à Omespay, relevé mensuel, date du contrat | P2 |
-| P5 | Signature sur l'écran client (BL, prise en charge, décharge) | utile | à faire | 1,5 → 1,5 | Domenico : pour quels documents ? | P2 |
+| P5 | Signature sur l'écran client (BL, prise en charge, décharge) | utile | **socle fait (03/11)** : « Faire signer » sur le comptoir et le document, texte modifiable, PNG + empreinte SHA-256 rangés en GED ; reste à brancher les documents choisis | 1,5 → 0,5 | Domenico : pour quels documents ? | P2 |
 | P6 | Option : QR Bancontact Pro « On a Display » (QR belge, 120 s) | confort | à faire (option) | 2,5 → 2,5 | Domenico + sa banque (tarif) | P2 |
 
-**Bilan** : 13,5 jours estimés (+ 2,5 en option) ; **rien de livré depuis la synthèse** (P1 date du
-19/09) ; **reste 13,5 jours**, dont **12 en cours** (P2, P3, P4) et 1,5 à faire (P5), + 2,5 si P6.
+**Bilan** : 13,5 jours estimés (+ 2,5 en option) ; **P2 livré le 03/11** (et le socle de P5) ; **reste
+9 jours** : P3 et P4 en cours (8,5), P5 0,5, + 2,5 si P6.
 Ordre : P2 (ne dépend de personne) → P3 (dès la clé Stripe) → P4 (dès la réponse d'Omespay) → P5 → P6.
 
 ## 4. Questions en attente
@@ -84,12 +84,13 @@ paiements, atelier »**, détaillées dans [`2026-11-questions-omespay-domenico.
 
 ## 5. Ce qui a changé dans l'application
 
-Rien de nouveau depuis la synthèse du 03/11 : les lots P2, P3 et P4 sont **en cours**, pas sur `main`.
+P2 (écran client sur tablette) est sur `main` depuis le 03/11 ; P3 et P4 sont **en cours**.
 Déjà livré avant : chapitre [M06 Ventes & caisse](../modules/M06-ventes-caisse.md),
 [mission 02](mission-02-commandes-pieces.md) carte 9.
 
 | Lot | Ce qui change pour l'utilisateur | Commit | À tester |
 |---|---|---|---|
+| **Écran client sur tablette (P2, PDV020)** | La tablette posée face au client s'appaire à la caisse par un code (sans compte) ; le client voit son ticket se remplir, le montant à payer, « Payez sur le terminal », le QR de virement, signe au doigt si on le lui demande, peut recevoir son ticket par e-mail ; le vendeur voit un aperçu et l'état de la tablette ; Paramètres → Écrans clients pour révoquer | branche `lot-ecran-client` (03/11) ; migration `20261103240000_m6_ecran_client.sql` **à appliquer** | Ouvrir `/ecran-client` sur la tablette, saisir le code à la caisse, faire une vente, payer, vérifier le merci puis l'accueil |
 | QR de virement sur le 2e écran (P1) | Au comptoir, le client voit un QR de virement (montant + communication structurée) sur un 2e écran ; le vendeur confirme « Paiement reçu » | `d3cef17` (19/09) | Déjà à valider depuis le 19/09 : scanner le QR avec une app bancaire, vérifier montant et communication |
 
 ## 6. Risques et points d'attention

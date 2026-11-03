@@ -12,8 +12,12 @@
  *    pièce / un accessoire / une prestation du véhicule (famille réglable, Paramètres → Tables) :
  *    la caisse exige un client et produit une facture FAC ;
  *  - ticket par e-mail sans client (adresse saisie, non enregistrée).
+ * Ecran client sur tablette (PDV020, 03/11/2026) : le ticket s'affiche en direct pendant la saisie,
+ * puis le montant à payer, « Payez sur le terminal » si carte, la signature si demandée, le merci
+ * (avec l'adresse e-mail tapée par le client si on l'autorise) ; envoi automatique (parcours testé
+ * dans customer-screen.ts, `nextSaleFlow`).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt } from 'lucide-react';
@@ -34,6 +38,9 @@ import { printDocument } from './print-document';
 import { ContactPicker } from './document-editor';
 import { DocumentMailDialog } from './document-mail-dialog';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { contactLocale } from '@/lib/i18n/client-locale';
+import { CustomerScreenButton, useCustomerScreenPush, type ScreenAction } from './customer-screen-control';
+import { initialSaleFlow, nextSaleFlow, screenModeForFlow, ticketForScreen, type ScreenMode, type ScreenPayload } from './customer-screen';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -51,7 +58,7 @@ let ck = 0;
 /** La session porte-t-elle les colonnes de la migration 20261103170000 (rattachement possible) ? */
 const sessionLinkable = (s: CashSession | null | undefined): boolean => !!s && 'register_code' in s;
 
-export function PosSale({ companyId, companyName, onOpenCash }: { companyId: string; companyName: string; onOpenCash?: () => void }) {
+export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { companyId: string; companyName: string; onOpenCash?: () => void; screenCode?: string | null }) {
   const qc = useQueryClient();
   const roundUp = useRoundSalePrices(companyId);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -61,6 +68,13 @@ export function PosSale({ companyId, companyName, onOpenCash }: { companyId: str
   const [error, setError] = useState<string | null>(null);
   const [askUnpaid, setAskUnpaid] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
+  const [mailTo, setMailTo] = useState<string | null>(null);
+  // Ecran client (PDV020) : parcours accueil -> ticket -> paiement -> (signature) -> merci -> accueil.
+  const [flow, dispatch] = useReducer(nextSaleFlow, initialSaleFlow);
+  const [manual, setManual] = useState<ScreenAction | null>(null);
+  const [screenNonce, setScreenNonce] = useState(0);
+  const [allowEmail, setAllowEmail] = useState(true);
+  const pushScreen = useCustomerScreenPush(companyId);
 
   const { data: session, isLoading: sessionLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
   const { data: rules } = useQuery({ queryKey: ['invoice-family-rules', companyId], queryFn: () => listInvoiceFamilyRules(companyId) });
@@ -102,6 +116,7 @@ export function PosSale({ companyId, companyName, onOpenCash }: { companyId: str
       });
       const tot = computeTotals(lines);
       setActiveDoc({ id, ttc: tot.total_ttc, contact });
+      dispatch({ type: 'checkout' });
     } catch (e) { setError(errorMessage(e) || t('pos.errSale')); }
     setBusy(false);
   };
@@ -109,9 +124,56 @@ export function PosSale({ companyId, companyName, onOpenCash }: { companyId: str
   // Règlements du ticket en cours : « Nouvelle vente » prévient tant qu'il reste à encaisser.
   const { data: payments } = useQuery({ queryKey: ['payments', activeDoc?.id], queryFn: () => listPayments(activeDoc!.id), enabled: !!activeDoc });
   const remaining = activeDoc ? ticketRemaining(activeDoc.ttc, payments ?? []) : 0;
-  const { data: full } = useQuery({ queryKey: ['doc-full', activeDoc?.id], queryFn: () => getDocumentFull(activeDoc!.id), enabled: !!activeDoc && mailOpen });
+  const { data: full } = useQuery({ queryKey: ['doc-full', activeDoc?.id], queryFn: () => getDocumentFull(activeDoc!.id), enabled: !!activeDoc });
 
-  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setAskUnpaid(false); setMailOpen(false); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  // ---- Ecran client : ce que le parcours demande, poussé automatiquement (dédoublonné)
+  useEffect(() => { dispatch({ type: 'cart', lines: cart.filter((l) => Number(l.quantity) > 0).length }); }, [cart]);
+  const paidNow = !!activeDoc && !!payments && remaining <= 0.005;
+  useEffect(() => { if (paidNow) dispatch({ type: 'paid' }); }, [paidNow]);
+  useEffect(() => { setManual(null); }, [flow.step]);
+  const screenStarted = useRef(false);
+  const pushedNonce = useRef(0);
+  useEffect(() => {
+    const mode: ScreenMode = manual === 'merci' ? 'merci' : manual === 'accueil' ? 'accueil' : manual === 'ticket' && flow.step !== 'accueil' ? 'ticket' : screenModeForFlow(flow);
+    // Rien n'est poussé à l'ouverture de la caisse (un QR affiché depuis un document reste à l'écran).
+    if (!screenStarted.current && mode === 'accueil') return;
+    screenStarted.current = true;
+    const ticket = ticketForScreen(posTicketLines(cart));
+    const base: ScreenPayload = {
+      ...ticket, doc_type: full?.doc.doc_type ?? null, document_number: full?.doc.number ?? null,
+      customer_name: (activeDoc?.contact ?? contact) ? contactDisplayName((activeDoc?.contact ?? contact)!) : null,
+      locale: (activeDoc?.contact ?? contact) ? contactLocale(activeDoc?.contact ?? contact) : null,
+    };
+    let payload: ScreenPayload = {};
+    if (mode === 'ticket' || mode === 'terminal' || mode === 'qr') {
+      payload = activeDoc
+        ? { ...base, stage: 'a_payer', amount: activeDoc.ttc, due: remaining, methods: ['card', 'cash'] }
+        : { ...base, stage: 'saisie' };
+    } else if (mode === 'merci') {
+      payload = { document_number: base.document_number, locale: base.locale, amount: activeDoc?.ttc ?? ticket.totals?.ttc, allow_email: allowEmail && !!activeDoc };
+    }
+    // Un geste manuel (ou la signature rangée) repousse l'écran même s'il n'a pas changé ici.
+    const force = screenNonce !== pushedNonce.current;
+    pushedNonce.current = screenNonce;
+    pushScreen(mode === 'qr' ? 'ticket' : mode, payload, { force });
+  }, [flow, manual, cart, contact, activeDoc, remaining, full?.doc.number, full?.doc.doc_type, allowEmail, screenNonce, pushScreen]);
+  const onScreenAction = (a: ScreenAction) => {
+    if (a === 'terminal') { dispatch({ type: 'method', method: 'card' }); setManual(null); }
+    else if (a === 'ticket') { dispatch({ type: 'method', method: null }); setManual('ticket'); }
+    else setManual(a);
+    setScreenNonce((n) => n + 1);
+  };
+  const screenButton = (
+    <CustomerScreenButton
+      companyId={companyId} initialCode={screenCode} onAction={onScreenAction}
+      signatureFor={activeDoc ? { documentId: activeDoc.id, number: full?.doc.number ?? null } : null}
+      allowEmail={allowEmail} onAllowEmail={setAllowEmail}
+      onSendTicket={activeDoc ? (email) => { setMailTo(email); setMailOpen(true); } : undefined}
+      onSigned={() => { setManual(null); setScreenNonce((n) => n + 1); }}
+    />
+  );
+
+  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
   const askNewSale = () => { if (remaining > 0.005) setAskUnpaid(true); else newSale(); };
   const print = async () => {
     if (!activeDoc) return;
@@ -132,13 +194,14 @@ export function PosSale({ companyId, companyName, onOpenCash }: { companyId: str
         <PaymentPanel documentId={activeDoc.id} companyId={companyId} due={remaining} />
         {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
+          <span className="mr-auto">{screenButton}</span>
           <Button variant="outline" asChild><Link to="/sales/$documentId" params={{ documentId: activeDoc.id }}><FileText /> {t('pos.openTicket')}</Link></Button>
           <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('pos.mailTicket')}</Button>
           <Button variant="outline" onClick={print}><Printer /> {t('pos.printTicket')}</Button>
           <Button onClick={askNewSale}><RotateCcw /> {t('pos.newSale')}</Button>
         </div>
         {mailOpen && full && (
-          <DocumentMailDialog full={full} contact={activeDoc.contact} companyName={companyName} onClose={() => setMailOpen(false)} />
+          <DocumentMailDialog full={full} contact={activeDoc.contact} companyName={companyName} initialTo={mailTo} onClose={() => { setMailOpen(false); setMailTo(null); }} />
         )}
         <AlertDialog open={askUnpaid} onOpenChange={setAskUnpaid}>
           <AlertDialogContent>
@@ -171,7 +234,10 @@ export function PosSale({ companyId, companyName, onOpenCash }: { companyId: str
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         {/* Panier */}
         <div className="space-y-3">
-          <ScanBar companyId={companyId} onAdd={add} />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-0 flex-1"><ScanBar companyId={companyId} onAdd={add} /></div>
+            {screenButton}
+          </div>
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
               <thead className="bg-muted"><tr><Th>{t('pos.article')}</Th><Th className="w-24 text-right">{t('pos.qty')}</Th><Th className="w-24 text-right">{t('pos.price')}</Th><Th className="w-24 text-right">{t('pos.total')}</Th><Th className="w-10" /></tr></thead>

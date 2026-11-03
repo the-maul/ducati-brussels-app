@@ -1,13 +1,12 @@
 /**
- * Mission 02, carte 9 — Écran client du comptoir (2e écran tourné vers le client).
- * Plein écran, sans navigation, réservé à l'équipe : sans session → /login ; sans rôle → message.
- * Tout le comportement est dans src/modules/sales/customer-display.tsx.
+ * Ecran client du comptoir (mission 02 carte 9 ; mission 12 carte P2, PDV020).
+ * Page PUBLIQUE plein ecran, sans navigation : une tablette posee face au client s y appaire sans
+ * compte (code a 6 caracteres, jeton d appareil) ; la fenetre « Ouvrir l ecran client » du vendeur
+ * (session equipe) marche comme avant. `?appairer=1` force l appairage sur un appareil connecte.
+ * Tout le comportement est dans src/modules/sales/customer-screen-device.tsx.
  */
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import { CustomerDisplay } from '@/modules/sales/customer-display';
-import { useAuth } from '@/lib/auth/auth-context';
+import { createFileRoute } from '@tanstack/react-router';
+import { CustomerScreenPage } from '@/modules/sales/customer-screen-device';
 import { t } from '@/lib/i18n';
 
 export const Route = createFileRoute('/ecran-client')({
@@ -15,32 +14,16 @@ export const Route = createFileRoute('/ecran-client')({
     meta: [
       { title: `${t('qrPay.displayTitle')} — ${t('app.name')}` },
       { name: 'robots', content: 'noindex, nofollow' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
     ],
+  }),
+  validateSearch: (s: Record<string, unknown>): { appairer?: boolean } => ({
+    appairer: s.appairer === '1' || s.appairer === 1 || s.appairer === true ? true : undefined,
   }),
   component: CounterDisplayPage,
 });
 
 function CounterDisplayPage() {
-  const { loading, session, roles } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: '/login' });
-  }, [loading, session, navigate]);
-
-  if (loading || !session) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-  if (roles.length === 0) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background p-8">
-        <p className="text-[20px] text-muted-foreground">{t('qrPay.staffOnly')}</p>
-      </div>
-    );
-  }
-  return <CustomerDisplay />;
+  const { appairer } = Route.useSearch();
+  return <CustomerScreenPage forcePairing={!!appairer} />;
 }
