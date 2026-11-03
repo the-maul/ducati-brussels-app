@@ -11,7 +11,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
-import type { DocumentFull } from './write-api';
+import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
 import { vehicleBlockLines, vatBreakdown, type VehicleBlockSource } from './document-pdf';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
@@ -44,13 +44,15 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const typeLabel = t(`sales.type_${doc.doc_type}`);
   const title = `${typeLabel} ${doc.number ?? ''}`.trim();
 
-  // Le document est-il une vente d'occasion en TVA marge ? (article lié de type O)
-  let isMarge = false;
+  // Vente en régime de la marge (M-89) : `documents.vat_scheme` ; repli sur la détection par
+  // article O tant que la colonne n'existe pas (migration 20261103160000 non posée).
+  const schemeKnown = (doc as DocumentMargeExtra).vat_scheme != null;
+  let isMarge = isMargeDocument(doc);
   const i18nByArticle = new Map<string, unknown>();
   const artIds = lines.map((l) => l.article_id).filter(Boolean) as string[];
   if (artIds.length) {
     const { data: arts } = await supabase.from('articles').select('id, mgmt_type').in('id', artIds);
-    isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
+    if (!schemeKnown) isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
     if (locale !== 'fr') {
       // Désignations traduites (M-67) ; colonne absente tant que la migration 20261030140000 n'est pas posée.
       const { data: tr } = await supabase.from('articles').select('id, designation_i18n').in('id', artIds);
@@ -79,16 +81,17 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     if (l.line_type === 'vide') return `<tr class="blank"><td colspan="8">&nbsp;</td></tr>`;
     if (l.line_type === 'texte') return `<tr class="text"><td></td><td colspan="7">${esc(l.designation)}</td></tr>`;
     const qty = Number(l.quantity).toFixed(2).replace('.', ',') + (l.line_type === 'main_oeuvre' ? ` ${esc(t('sales.hoursUnit'))}` : '');
+    const noVat = doc.tax_exempt || isMarge;   // marge : aucune TVA affichée, ni taux ni montant
     return `
     <tr>
       <td>${esc(l.reference ?? '')}</td>
       <td>${esc(designationOf(l))}</td>
       <td class="r">${qty}</td>
       <td class="r">${eur(Number(l.unit_price_ht))}</td>
-      <td class="r">${eur(Number(l.unit_price_ht) * (1 + (doc.tax_exempt ? 0 : Number(l.vat_rate)) / 100))}</td>
+      <td class="r">${eur(Number(l.unit_price_ht) * (1 + (noVat ? 0 : Number(l.vat_rate)) / 100))}</td>
       <td class="r">${esc(Number(l.discount_pct || 0))}</td>
       <td class="r">${eur(Number(l.line_ttc))}</td>
-      <td class="r">${doc.tax_exempt ? '0' : esc(Number(l.vat_rate))}</td>
+      <td class="r">${isMarge ? '' : doc.tax_exempt ? '0' : esc(Number(l.vat_rate))}</td>
     </tr>`;
   }).join('');
 
@@ -113,8 +116,8 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const totalsBox = `
     <table class="totals">
       <tr><td>${esc(t('salesPdf.grossTtc'))}</td><td class="r">${eur(brutTtc)}</td></tr>
-      <tr><td>${esc(t('salesPdf.netHt'))}</td><td class="r">${eur(Number(doc.total_ht))}</td></tr>
-      <tr><td>${esc(t('salesPdf.totalVat'))}</td><td class="r">${eur(Number(doc.total_vat))}</td></tr>
+      ${isMarge ? '' : `<tr><td>${esc(t('salesPdf.netHt'))}</td><td class="r">${eur(Number(doc.total_ht))}</td></tr>
+      <tr><td>${esc(t('salesPdf.totalVat'))}</td><td class="r">${eur(Number(doc.total_vat))}</td></tr>`}
       <tr class="strong"><td>${esc(t('salesPdf.netTtc'))}</td><td class="r">${eur(Number(doc.total_ttc))}</td></tr>
       <tr class="strong"><td>${esc(t('salesPdf.due'))}</td><td class="r">${eur(reste)}</td></tr>
     </table>`;
@@ -125,7 +128,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
 
   // Ventilation de la TVA par taux (mention obligatoire du ticket et de la facture) : même calcul
   // que le PDF (`vatBreakdown`), lignes texte / vides ignorées, détaxe = 0 %.
-  const vatRows = vatBreakdown(
+  const vatRows = isMarge ? [] : vatBreakdown(
     lines.map((l) => ({ lineType: l.line_type, quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), discountPct: Number(l.discount_pct || 0), vatRate: Number(l.vat_rate) })),
     {
       taxExempt: !!doc.tax_exempt, globalDiscountPct: Number(doc.global_discount_pct), globalDiscountAmount: Number(doc.global_discount_amount),

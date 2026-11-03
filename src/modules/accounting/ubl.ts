@@ -10,7 +10,18 @@ export type UblInvoice = {
   number: string; issueDate: string; dueDate: string | null; isCredit: boolean;
   supplier: UblParty; customer: UblParty; iban: string | null;
   totalHt: number; totalVat: number; totalTtc: number; lines: UblLine[]; taxExempt: boolean;
+  /**
+   * Régime de la marge (B2, M-89, scénario BEG 9 du 25/02/2026) : catégorie `E` à 0 % sur toutes
+   * les lignes, aucune TVA, `TaxExemptionReason` = mention légale, **sans** code VATEX et jamais
+   * la catégorie `O` (qui interdit les n° de TVA). La TVA due se calcule hors facture (registre).
+   */
+  vatScheme?: 'normal' | 'marge';
+  /** Texte de la mention (langue du client) ; FR par défaut. */
+  marginReason?: string | null;
 };
+
+/** Mention légale de référence (FR) du régime de la marge, art. 58 §4 CTVA. */
+export const UBL_MARGIN_REASON_FR = 'Livraison soumise au regime particulier d imposition de la marge beneficiaire. TVA non deductible.';
 
 const x = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 const n2 = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
@@ -30,26 +41,32 @@ function party(role: 'Supplier' | 'Customer', p: UblParty): string {
 }
 
 export function buildUblInvoice(inv: UblInvoice): string {
-  const cat = (rate: number) => (inv.taxExempt || rate === 0 ? 'E' : 'S');
+  const marge = inv.vatScheme === 'marge';
+  const noVat = inv.taxExempt || marge;
+  const cat = (rate: number) => (noVat || rate === 0 ? 'E' : 'S');
+  // Motif d'exemption : régime de la marge = texte seul (BEG 9), sinon code VATEX existant.
+  const exemption = marge
+    ? `<cbc:TaxExemptionReason>${x(inv.marginReason || UBL_MARGIN_REASON_FR)}</cbc:TaxExemptionReason>`
+    : '<cbc:TaxExemptionReasonCode>VATEX-EU-AE</cbc:TaxExemptionReasonCode>';
   // Regroupe la TVA par taux
   const byRate = new Map<number, { base: number; vat: number }>();
   for (const l of inv.lines) {
-    const r = inv.taxExempt ? 0 : l.vatRate;
+    const r = noVat ? 0 : l.vatRate;
     const cur = byRate.get(r) ?? { base: 0, vat: 0 };
-    cur.base += l.lineHt; cur.vat += inv.taxExempt ? 0 : (l.lineHt * l.vatRate) / 100;
+    cur.base += l.lineHt; cur.vat += noVat ? 0 : (l.lineHt * l.vatRate) / 100;
     byRate.set(r, cur);
   }
   const subtotals = [...byRate.entries()].map(([rate, v]) => `<cac:TaxSubtotal>
     <cbc:TaxableAmount currencyID="EUR">${n2(v.base)}</cbc:TaxableAmount>
     <cbc:TaxAmount currencyID="EUR">${n2(v.vat)}</cbc:TaxAmount>
-    <cac:TaxCategory><cbc:ID>${cat(rate)}</cbc:ID><cbc:Percent>${n2(rate)}</cbc:Percent>${cat(rate) === 'E' ? '<cbc:TaxExemptionReasonCode>VATEX-EU-AE</cbc:TaxExemptionReasonCode>' : ''}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory>
+    <cac:TaxCategory><cbc:ID>${cat(rate)}</cbc:ID><cbc:Percent>${n2(rate)}</cbc:Percent>${cat(rate) === 'E' ? exemption : ''}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory>
   </cac:TaxSubtotal>`).join('');
 
   const lines = inv.lines.map((l) => `<cac:InvoiceLine>
     <cbc:ID>${l.id}</cbc:ID>
     <cbc:InvoicedQuantity unitCode="C62">${n2(l.quantity)}</cbc:InvoicedQuantity>
     <cbc:LineExtensionAmount currencyID="EUR">${n2(l.lineHt)}</cbc:LineExtensionAmount>
-    <cac:Item><cbc:Name>${x(l.designation)}</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>${cat(l.vatRate)}</cbc:ID><cbc:Percent>${n2(inv.taxExempt ? 0 : l.vatRate)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
+    <cac:Item><cbc:Name>${x(l.designation)}</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>${cat(l.vatRate)}</cbc:ID><cbc:Percent>${n2(noVat ? 0 : l.vatRate)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
     <cac:Price><cbc:PriceAmount currencyID="EUR">${n2(l.unitPriceHt)}</cbc:PriceAmount></cac:Price>
   </cac:InvoiceLine>`).join('');
 
@@ -70,6 +87,7 @@ export function buildUblInvoice(inv: UblInvoice): string {
   ${inv.dueDate ? `<cbc:DueDate>${x(inv.dueDate)}</cbc:DueDate>` : ''}
   ${typeTag}${creditTag}
   <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  ${marge ? `<cbc:Note>${x(inv.marginReason || UBL_MARGIN_REASON_FR)}</cbc:Note>` : ''}
   ${party('Supplier', inv.supplier)}
   ${party('Customer', inv.customer)}
   ${inv.iban ? `<cac:PaymentMeans><cbc:PaymentMeansCode>30</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${x(inv.iban.replace(/\s/g, ''))}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>` : ''}

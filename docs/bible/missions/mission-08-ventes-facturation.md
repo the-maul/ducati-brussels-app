@@ -66,7 +66,7 @@ imprimer tout ça sans un mot.
 | Envoyer par e-mail | Fenêtre avec boîte d'envoi, destinataire, PDF joint, « Vérifier sans envoyer », archivage GED, trace `events`. Jamais utilisée en vrai. | Marche sur le papier ; à tester avec sa propre adresse (mission 05 carte 8). Fonction `graph-send-email` à redéployer (I18N004). |
 | Acompte / règlement | Multi-modes, différé, espèces avec rendu, « versé par l'organisme ». Message d'erreur générique. | Marche ; message **corrigé**. Suppression physique d'un règlement : carte 9. |
 | Devis → bon de commande / réservation / BL / facture | Lignes recopiées (type compris), pied, acomptes reportés, financement reporté, réservation libérée, source « convertie ». Facture = sortie du stock réel ; devis et BC ne touchent pas au stock. Pas de confirmation avant de créer la facture (numérotée, irréversible). | Marche (tests) ; confirmation : carte 6. |
-| TVA marge (type O) | La mention légale est imprimée, mais **la TVA est calculée sur le prix total**, pas sur la marge (B2, connu depuis le 18/09). | **Faux** → carte 5. |
+| TVA marge (type O) | La mention légale est imprimée, mais **la TVA est calculée sur le prix total**, pas sur la marge (B2, connu depuis le 18/09). | **Faux** → carte 5 (faite le 03/11, M-89, migration à poser). |
 | Avoir | Lignes négatives, réintégration du stock, remboursement des règlements, facture annulée. TVA de l'avoir : corrigée ci-dessus. | Marche désormais. |
 | Numérotation | `next_document_number` : par société et par type, remise à zéro annuelle, numéro seulement à la validation. Testé en base : `DEV-2026-00003`, `DEV-2026-00004`, `FAC-2026-00005`, `BC-2026-00001` (transaction annulée). | Marche. |
 | Facture d'OR (atelier) | `transformToInvoice` passe par le même `createDocument` : **un OR sans client ne pourra plus être facturé** (refus « Choisissez un client »). Non modifié (autre lot). | À savoir. |
@@ -103,6 +103,10 @@ imprimer tout ça sans un mot.
 - *Pourquoi* : la facture d'une occasion calcule la TVA sur le prix total ; le registre VO (M12) la recalcule sur la marge : les deux ne concordent pas (B2). Première vente d'occasion = première facture fausse.
 - *Test* : facturer un article de type O acheté 8 000 € vendu 10 000 € → TVA = 21 % de 2 000 €, mention art. 58 §4.
 - *Avis* : à trancher avec le comptable avant la première VO ; règle 7 de `CLAUDE.md` exige des tests.
+- **Faite le 03/11/2026** (décision **M-89**, « OUI » du client), voir §5 ter. La règle légale
+  diffère du test d'origine : **aucune TVA sur la facture** (prix TTC = prix convenu, mention
+  légale), la TVA due se calcule **globalement par période** dans le registre de la marge.
+  Migration écrite, **non appliquée**.
 
 ### B. Ce qui est pénible ou risqué
 
@@ -151,6 +155,9 @@ imprimer tout ça sans un mot.
   défaut, réglable par société) et **M-82** (un brouillon se rouvre, se modifie, se valide ou se
   supprime ; un document validé est figé ; facture et avoir demandent confirmation avec le numéro
   qui sera pris). Voir [`decisions.md`](../decisions.md).
+- 03/11/2026, Simon (« OUI ») : **M-89** — TVA sur la marge à la vente (carte 5) : base = prix de
+  vente − prix de reprise seul, TVA due globale par période avec report, aucune TVA sur la facture,
+  une moto O = un document à part. Voir [`decisions.md`](../decisions.md).
 
 ## 5. Ce qui a changé dans l'application (31/10/2026, branche `lot-ventes-audit`, à valider)
 
@@ -213,6 +220,34 @@ en-tête → lignes → validation (opérateur écrit par le serveur, 3 lignes `
    total, lignes, « Le stock réel sera débité » ; Annuler ne crée rien ; « Créer la facture » crée.
 5. Sur la facture : « Générer un avoir » → même fenêtre (stock réintégré, facture annulée).
 6. Dans l'éditeur, type « Facture » + « Valider » → même confirmation avant d'écrire.
+
+## 5 ter. Carte 5 — TVA sur la marge (03/11/2026, branche `lot-tva-marge`, B2, à valider)
+
+- `src/modules/sales/vat-scheme.ts` (nouveau, logique pure) : régime `normal` / `marge` d'après les
+  articles (O = marge), refus `margeMixed` / `margeShipping` / `margeNoPurchasePrice`, prix de
+  reprise à figer, calcul par période `marginPeriods` (même règle que la fonction SQL).
+- `write-api.ts` : `computeTotals` sans TVA en marge (TTC = prix convenu, net forcé = prix),
+  `resolveVatScheme` dans `createDocument` / `updateDraftDocument`, lignes écrites à 0 %, avoir
+  d'une vente marge dans le même régime avec le prix de reprise de la facture ; tant que la
+  migration n'est pas posée, l'en-tête est réécrit sans les colonnes du régime.
+- Éditeur, fiche document, PDF, impression : bandeau « TVA sur la marge », ni HT ni TVA ni taux
+  affichés, mention légale dans la langue du client (FR / NL / EN / IT). UBL : catégorie `E` 0 %,
+  motif en texte (BEG 9), jamais `O`.
+- Comptabilité : « Registre de la marge » par période (mois / trimestre) : achats, ventes, report
+  entrant, marge, base, **TVA due**, report sortant ; registre par véhicule (marge indicative) ;
+  achats sous régime de la marge ; export CSV et OD Winbooks. Réglages : Paramètres → Tables →
+  « TVA marge (occasions) — réglages » (taux, période, grilles 00 / 03 / 54, code TVA et journal).
+- Migration **écrite, non appliquée** : `20261103160000_m6_tva_marge_a_la_vente.sql` (colonnes,
+  verrous en base, registre, `vo_margin_periods`, vue `v_vo_margin_declaration`, registre TVA
+  ordinaire sans les ventes marge, écritures au compte 700200). Essai à blanc en prod le 03/11,
+  transaction annulée : vente 5 000 (reprise 6 000, stock initial) en novembre + reprise 8 000 →
+  marge −3 000 reportée ; vente 12 000 en décembre → marge 9 000, base 7 438,02, TVA 1 561,98 ;
+  refus pièce à 21 %, refus sans reprise, refus d'une O en régime normal, régime figé après validation.
+- Tests : `tests/tva-marge.test.ts` (17 cas).
+
+**Comment tester** (après pose de la migration) : facturer une moto de type O seule → aucune TVA,
+TTC = prix saisi, mention légale ; ajouter une pièce → refus « document à part » ; moto O sans prix
+de reprise → refus ; Comptabilité → Registre de la marge → période, TVA due, export.
 
 ## 6. Risques et points d'attention
 - **Facture d'OR sans client** : refusée désormais par `createDocument` (« Choisissez un client »).

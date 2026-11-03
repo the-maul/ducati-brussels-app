@@ -25,6 +25,37 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — TVA sur la marge à la vente des occasions de particulier (B2, mission 08 carte 5)
+
+- **M-89** — **Une moto d'occasion rachetée à un particulier (type O) se vend sous le régime de la
+  marge, sans TVA sur la facture.** « OUI » du client le 03/11/2026 sur la règle légale (art. 58 §4
+  CTVA, AR n° 53 ; étude [`../etudes/2026-11-facturation-peppol-compta.md`](../etudes/2026-11-facturation-peppol-compta.md)) :
+  - **base** = prix de vente − **prix de reprise seul** (payé au particulier) ; les pièces et la
+    main-d'œuvre de l'ORO sont des achats ordinaires, jamais ajoutés ; la rentabilité B3 de la fiche
+    VIN (avec ORO) ne change pas ;
+  - **TVA due globale par période de déclaration** (mois ou trimestre, réglable) : ventes marge −
+    achats marge de la période + report ; une marge négative ne donne aucune TVA et se reporte ;
+    registre tenu **par véhicule** (marge indicative) ;
+  - **facture** : aucun taux ni montant de TVA, prix TTC = prix convenu, mention « Livraison soumise
+    au régime particulier d'imposition de la marge bénéficiaire. TVA non déductible. » dans la langue
+    du client (FR / NL / EN / IT) ; UBL catégorie `E` 0 % avec ce texte (BEG 9 du 25/02/2026) ;
+  - **P et V inchangés** (21 % sur le prix total) ; **impossible de facturer une O sans prix de
+    reprise** ; un acompte (réservation, bon de commande) et un avoir d'une vente marge suivent la
+    même règle, l'avoir reprend le prix de reprise figé sur la facture ;
+  - **règle de mélange retenue** : une moto O = **un document à part**. Une pièce, de la main-d'œuvre,
+    du port ou tout autre article sur le même document est refusé : ils se facturent sur un document
+    séparé (pas d'exception « frais hors marge », pour qu'aucune facture marge ne porte de TVA).
+  - **à confirmer par le comptable** : grilles de la déclaration (00 / 03 / 54 par défaut), code TVA
+    et journal Winbooks de l'OD de fin de période, comptes 700200 / 451090, exclusion du stock
+    initial repris de G8 / Shopify des achats de la période, réglables dans Paramètres → Tables →
+    « TVA marge (occasions) — réglages ».
+  Migration `20261103160000_m6_tva_marge_a_la_vente.sql` **écrite, non appliquée** (essai à blanc
+  le 03/11). *Simon · 03/11/2026.* [M06](modules/M06-ventes-caisse.md),
+  [M07](modules/M07-reprise-occasion.md), [M12](modules/M12-compta.md),
+  [mission 08](missions/mission-08-ventes-facturation.md)
+
+---
+
 ## 2026-11-03 — Étude caisse remise le 03/11/2026 : cadre légal belge et marché des logiciels de caisse
 
 - **Q — étude caisse** : étude remise le 03/11/2026

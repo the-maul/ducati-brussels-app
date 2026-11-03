@@ -44,6 +44,11 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   // Type proposé à l'ouverture de l'éditeur de vente (mission 08, carte 3) : code = DEV, BC, RES,
   // BL, FAC ou TIK ; la première ligne active compte. Sans ligne : « Devis / proforma ».
   { key: 'sales_default_doc_type', label: 'Type de document par défaut (Ventes)', group: 'vente', extraColumns: [] },
+  // TVA sur la marge des occasions (B2, M-89) : code = réglage, libellé = valeur. Codes lus :
+  // `rate` (21), `period` (month | quarter = période de déclaration), `grid_sales` (00),
+  // `grid_base` (03), `grid_vat` (54), `winbooks_vat_code` (code TVA de l'OD, ex. MARGE),
+  // `winbooks_journal` (OD). Grilles et code TVA à confirmer par le comptable.
+  { key: 'vat_margin_settings', label: 'TVA marge (occasions) — réglages', group: 'vente', extraColumns: [] },
   { key: 'civility', label: 'Civilités', group: 'autre',
     extraColumns: [
       { key: 'professional', label: 'Professionnel', type: 'bool' },

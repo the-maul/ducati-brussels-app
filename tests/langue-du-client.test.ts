@@ -88,7 +88,8 @@ describe('langue du client — PDF du document de vente', () => {
       'Pagina 1 / 2',
     ]) expect(raw).toContain(s);
     // La mention TVA marge (texte légal) est bien la version NL, et pas la FR.
-    expect(raw).toContain('art. 58 §4 W.Btw');
+    // Texte du scenario BEG 9 du 25/02/2026 (M-89), sans renvoi d article.
+    expect(raw).toContain('Btw niet aftrekbaar.');
     expect(raw).not.toContain('RESTE À PAYER');
     expect(raw).not.toContain('Bon pour accord');
   });

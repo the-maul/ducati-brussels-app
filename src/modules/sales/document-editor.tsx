@@ -29,6 +29,8 @@ import {
   type LineInput, type LineType, type SaleArticle, type PiedInput, type DocumentFull,
 } from './write-api';
 import { resolveInitialDocType, loadDefaultDocType, EDITOR_DOC_TYPES } from './default-doc-type';
+import { isMarginMgmtType } from './vat-scheme';
+import { supabase } from '@/integrations/supabase/client';
 import { requiresConfirmation } from './confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from './confirm-document-dialog';
 import { listCommentTemplates } from './comment-templates-api';
@@ -136,6 +138,21 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // La détaxe n'est valable qu'en mode HT (G8 p.54) : on la coupe si on repasse en TTC.
   useEffect(() => { if (priceMode !== 'ht' && taxExempt) setTaxExempt(false); }, [priceMode, taxExempt]);
 
+  // Régime de la marge (B2, M-89) : dès qu'une ligne porte une moto d'occasion de particulier
+  // (article O), le document s'affiche sans TVA. Type connu par la recherche (`_stock`) ; pour un
+  // brouillon rouvert, lu en base. La décision finale reste celle de `createDocument`.
+  const unknownTypeIds = lines.filter((l) => l.article_id && !l._stock).map((l) => l.article_id as string).sort();
+  const { data: mgmtTypes } = useQuery({
+    queryKey: ['sale-line-mgmt-types', unknownTypeIds.join(',')],
+    queryFn: async () => {
+      const { data } = await supabase.from('articles').select('id, mgmt_type').in('id', unknownTypeIds);
+      return new Map((data ?? []).map((a) => [a.id, a.mgmt_type]));
+    },
+    enabled: unknownTypeIds.length > 0,
+  });
+  const marge = lines.some((l) => lineHasAmount(l) && l.article_id && isMarginMgmtType(l._stock?.mgmt_type ?? mgmtTypes?.get(l.article_id)));
+  const noVat = taxExempt || marge;
+
   // Précharge le client fourni par le lien (fiche client → « Nouveau document », OR → devis).
   // Lecture directe de la fiche : l'ancienne recherche sans terme ne renvoyait que les 500 premiers
   // contacts sur 8 000, et le client arrivait vide sans un mot (constat du 30/10/2026).
@@ -179,7 +196,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
 
   const pied: PiedInput = {
-    priceMode, taxExempt,
+    priceMode, taxExempt, vatScheme: marge ? 'marge' : 'normal',
     globalDiscountPct: num(discountPct), globalDiscountAmount: num(discountAmount),
     shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
     forcedTtc: forcedTtc.trim() ? num(forcedTtc) : null,
@@ -202,7 +219,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     if (status === 'validee' && requiresConfirmation(docType)) {
       setConfirmRequest({
         action: 'validate', docType, clientName: contact ? contactDisplayName(contact) : null, totalTtc: totals.total_ttc,
-        lines: payload.map((l) => ({ designation: l.designation, quantity: l.quantity, lineTtc: lineHasAmount(l) ? r2(l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) * (1 + (taxExempt ? 0 : l.vat_rate || 0) / 100)) : 0 })),
+        lines: payload.map((l) => ({ designation: l.designation, quantity: l.quantity, lineTtc: lineHasAmount(l) ? r2(l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) * (1 + (noVat ? 0 : l.vat_rate || 0) / 100)) : 0 })),
       });
       return;
     }
@@ -312,7 +329,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               );
               const labour = l.line_type === 'main_oeuvre';
               const ht = lineHasAmount(l) ? l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) : 0;
-              const vatFactor = 1 + (taxExempt ? 0 : l.vat_rate || 0) / 100;
+              const vatFactor = 1 + (noVat ? 0 : l.vat_rate || 0) / 100;
               const shownPrice = priceMode === 'ttc' ? r2(l.unit_price_ht * vatFactor) : l.unit_price_ht;
               const onPrice = (v: number) => setLine(l._key, { unit_price_ht: priceMode === 'ttc' ? r2(v / vatFactor) : v });
               return (
@@ -352,7 +369,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                     )}
                   </td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(shownPrice)} onChange={(e) => onPrice(num(e.target.value))} disabled={!!l._fee} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={taxExempt} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.1" value={marge ? '0' : String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={noVat} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
                   <td className="px-2 py-1">{labour
@@ -456,15 +473,17 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
             </Field>
             <Field label={t('sales.forcedTtc')}><Input type="number" step="0.01" value={forcedTtc} onChange={(e) => setForcedTtc(e.target.value)} className="text-right tabular-nums" placeholder={t('sales.forcedTtcHint')} /></Field>
           </div>
-          {taxExempt && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.taxExemptMention')}</p>}
+          {taxExempt && !marge && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.taxExemptMention')}</p>}
+          {marge && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info"><b>{t('sales.margeTitle')}</b> — {t('sales.margeBanner')}</p>}
         </div>
 
-        {/* Totaux */}
+        {/* Totaux (régime de la marge : aucune TVA, ni HT ni TVA affichés, le TTC est le prix convenu) */}
         <div className="flex flex-col justify-end gap-1 rounded-md border border-border bg-card p-4 font-data text-sm tabular-nums">
           {totals.global_discount > 0 && <Row label={t('sales.totalDiscount')} value={`− ${eur(totals.global_discount)}`} muted />}
           {num(shippingHt) > 0 && <Row label={t('sales.totalShipping')} value={eur(num(shippingHt))} muted />}
-          <Row label={t('sales.totalHt')} value={eur(totals.total_ht)} strong />
-          <Row label={t('sales.totalVat')} value={eur(totals.total_vat)} muted />
+          {!marge && <Row label={t('sales.totalHt')} value={eur(totals.total_ht)} strong />}
+          {!marge && <Row label={t('sales.totalVat')} value={eur(totals.total_vat)} muted />}
+          {marge && <Row label={t('sales.margeNoVat')} value="" muted />}
           <div className="my-1 border-t border-border" />
           <Row label={t('sales.totalTtc')} value={eur(totals.total_ttc)} big />
         </div>

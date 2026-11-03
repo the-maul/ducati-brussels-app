@@ -5,9 +5,23 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { t } from '@/lib/i18n';
+import {
+  detectVatScheme, vatSchemeError, marginPurchasePrice, MARGIN_SALE_DOC_TYPES,
+  type VatScheme, type ArticleVatInfo,
+} from './vat-scheme';
 
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
+
+/**
+ * Colonnes du regime de la marge (migration 20261103160000, absentes de types.ts tant qu elle
+ * n est pas posee) : `vat_scheme` 'normal' | 'marge', `margin_purchase_price` = prix de reprise
+ * fige a la vente (base du registre, M12). Lues de facon tolerante.
+ */
+export type DocumentMargeExtra = { vat_scheme?: string | null; margin_purchase_price?: number | null };
+export const docVatScheme = (doc: object | null | undefined): VatScheme =>
+  ((doc as DocumentMargeExtra | null | undefined)?.vat_scheme === 'marge' ? 'marge' : 'normal');
+export const isMargeDocument = (doc: object | null | undefined): boolean => docVatScheme(doc) === 'marge';
 
 /**
  * Type de ligne (mission 05, carte 5) :
@@ -103,6 +117,7 @@ export const DEPOSIT_DOC_TYPES = ['RES', 'BC'] as const;
 export type PiedInput = {
   priceMode?: 'ht' | 'ttc';
   taxExempt?: boolean;                 // détaxe : inhibe la TVA (export 0 %)
+  vatScheme?: VatScheme;               // régime de la marge (moto O) : aucune TVA sur le document (B2)
   globalDiscountPct?: number;          // remise globale en %
   globalDiscountAmount?: number;       // OU remise globale en montant HT
   shippingHt?: number;                 // frais de port HT
@@ -117,9 +132,13 @@ function lineHtRaw(l: LineInput) {
   if (!lineHasAmount(l)) return 0;
   return l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100);
 }
-function lineTotals(l: LineInput, taxExempt = false) {
+/** Aucune TVA sur le document : détaxe export (art. 39) ou régime de la marge (art. 58 §4, B2). */
+export const piedWithoutVat = (pied: Pick<PiedInput, 'taxExempt' | 'vatScheme'>): boolean =>
+  !!pied.taxExempt || pied.vatScheme === 'marge';
+
+function lineTotals(l: LineInput, noVat = false) {
   const ht = lineHtRaw(l);
-  const ttc = ht * (1 + (taxExempt ? 0 : l.vat_rate || 0) / 100);
+  const ttc = ht * (1 + (noVat ? 0 : l.vat_rate || 0) / 100);
   return { ht: r2(ht), ttc: r2(ttc) };
 }
 
@@ -127,13 +146,16 @@ function lineTotals(l: LineInput, taxExempt = false) {
  * Totaux d'un document, pied compris. La remise globale s'applique sur le HT des
  * lignes (pas sur le port, G8 p.66) et réduit la TVA au prorata ; la détaxe force la
  * TVA à 0 ; le net TTC forcé écrase le TTC et recalcule la TVA (arrondi de facture).
+ * Régime de la marge (M-89) : aucune TVA, le « HT » est le prix convenu lui-même
+ * (TTC = HT) ; un net forcé remplace le prix, jamais la TVA.
  */
 export function computeTotals(lines: LineInput[], pied: PiedInput = {}) {
+  const noVat = piedWithoutVat(pied);
   let linesHt = 0, linesVat = 0;
   for (const l of lines) {
     const ht = lineHtRaw(l);
     linesHt += ht;
-    linesVat += pied.taxExempt ? 0 : (ht * (l.vat_rate || 0)) / 100;
+    linesVat += noVat ? 0 : (ht * (l.vat_rate || 0)) / 100;
   }
   // remise globale (sur le HT des lignes uniquement). Un avoir a des lignes négatives : la remise
   // en € suit le signe du document et la TVA est répartie dès que le HT n'est pas nul (avant le
@@ -145,16 +167,17 @@ export function computeTotals(lines: LineInput[], pied: PiedInput = {}) {
   const netLinesVat = linesHt !== 0 ? linesVat * (netLinesHt / linesHt) : 0;
   // frais de port
   const shipHt = pied.shippingHt || 0;
-  const shipVat = !pied.taxExempt && pied.shippingTaxed !== false && shipHt > 0
+  const shipVat = !noVat && pied.shippingTaxed !== false && shipHt > 0
     ? (shipHt * (pied.shippingVatRate ?? 21)) / 100 : 0;
 
   let total_ht = r2(netLinesHt + shipHt);
   let total_vat = r2(netLinesVat + shipVat);
   let total_ttc = r2(total_ht + total_vat);
-  // net TTC forcé → la TVA absorbe l'écart
+  // net TTC forcé → la TVA absorbe l'écart (régime de la marge : c'est le prix qui bouge, TVA 0)
   if (pied.forcedTtc != null && pied.forcedTtc > 0) {
     total_ttc = r2(pied.forcedTtc);
-    total_vat = r2(total_ttc - total_ht);
+    if (pied.vatScheme === 'marge') { total_ht = total_ttc; total_vat = 0; }
+    else total_vat = r2(total_ttc - total_ht);
   }
   return {
     total_ht, total_vat, total_ttc,
@@ -169,13 +192,20 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
   return (data as string) ?? null;
 }
 
-/** Colonnes d'en-tête communes à la création et à la modification d'un brouillon. */
+/**
+ * Colonnes d'en-tête communes à la création et à la modification d'un brouillon.
+ * Les colonnes du régime de la marge (`vat_scheme`, `margin_purchase_price`) ne sont envoyées
+ * que pour un document en marge : un document ordinaire ne les touche pas, il reste écrit tel
+ * quel tant que la migration 20261103160000 n'est pas posée ; un document en marge est alors
+ * réécrit sans ces colonnes (`isMissingMargeColumn`), ses lignes restant à 0 % de TVA.
+ */
 function headerColumns(p: {
   docType: string; contactId?: string | null; vehicleId?: string | null; issueDate: string; dueDate?: string | null;
-  notes?: string | null; lines: LineInput[]; pied: PiedInput;
+  notes?: string | null; lines: LineInput[]; pied: PiedInput; marginPurchasePrice?: number | null;
 }) {
   const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, p.pied);
-  return {
+  const marge = p.pied.vatScheme === 'marge';
+  const base = {
     doc_type: p.docType, contact_id: p.contactId ?? null, vehicle_id: p.vehicleId ?? null,
     issue_date: p.issueDate, due_date: p.dueDate ?? null, notes: p.notes ?? null, total_ht, total_vat, total_ttc,
     price_mode: p.pied.priceMode ?? 'ttc', tax_exempt: !!p.pied.taxExempt,
@@ -183,20 +213,74 @@ function headerColumns(p: {
     shipping_ht: p.pied.shippingHt ?? 0, shipping_taxed: p.pied.shippingTaxed !== false,
     shipping_vat_rate: p.pied.shippingVatRate ?? 21, forced_ttc: p.pied.forcedTtc ?? null,
   };
+  // Colonnes absentes de types.ts tant que la migration n'est pas posée : ajoutées hors typage.
+  return marge ? Object.assign(base, margeColumns('marge', p.marginPurchasePrice ?? null)) : base;
 }
 
-/** Lignes à insérer dans `document_lines` (une ligne texte ou vide ne porte aucun montant). */
-function lineRows(docId: string, lines: LineInput[], taxExempt?: boolean) {
+/** Colonnes du régime de la marge, hors typage `types.ts` (migration 20261103160000). */
+function margeColumns(scheme: VatScheme, marginPurchasePrice: number | null): object {
+  return { vat_scheme: scheme, margin_purchase_price: marginPurchasePrice };
+}
+/** Colonne du régime absente en base (migration non posée) : PostgREST répond PGRST204 / 42703. */
+export const isMissingMargeColumn = (e: { code?: string; message?: string } | null | undefined): boolean =>
+  !!e && (e.code === 'PGRST204' || e.code === '42703') && /vat_scheme|margin_purchase_price/.test(e.message ?? '');
+function stripMargeColumns<T extends object>(header: T): T {
+  const { vat_scheme: _s, margin_purchase_price: _m, ...rest } = header as T & DocumentMargeExtra;
+  return rest as T;
+}
+
+/**
+ * Lignes à insérer dans `document_lines` (une ligne texte ou vide ne porte aucun montant).
+ * Régime de la marge : le taux de la ligne est écrit à 0 (aucune TVA, TTC = prix), quoi que
+ * l'écran ait affiché.
+ */
+function lineRows(docId: string, lines: LineInput[], pied: PiedInput) {
+  const noVat = piedWithoutVat(pied);
   return lines.map((l, i) => {
-    const tot = lineTotals(l, taxExempt);
+    const tot = lineTotals(l, noVat);
     const amount = lineHasAmount(l);
     return {
       document_id: docId, article_id: amount ? l.article_id ?? null : null, designation: l.designation,
       reference: l.reference ?? null, line_type: l.line_type ?? 'article',
-      quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0, vat_rate: l.vat_rate,
+      quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0,
+      vat_rate: pied.vatScheme === 'marge' ? 0 : l.vat_rate,
       discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: tot.ht, line_ttc: tot.ttc, sort_order: i,
     };
   });
+}
+
+/** Type de gestion et prix de reprise des articles référencés par les lignes (un seul aller-retour). */
+async function loadArticleVatInfo(lines: LineInput[]): Promise<Map<string, ArticleVatInfo>> {
+  const ids = [...new Set(lines.map((l) => l.article_id).filter(Boolean) as string[])];
+  const map = new Map<string, ArticleVatInfo>();
+  if (!ids.length) return map;
+  const { data, error } = await supabase.from('articles').select('id, mgmt_type, purchase_price').in('id', ids);
+  if (error) throw error;
+  for (const a of data ?? []) map.set(a.id, { mgmt_type: a.mgmt_type ?? null, purchase_price: a.purchase_price == null ? null : Number(a.purchase_price) });
+  return map;
+}
+
+/**
+ * Régime de TVA d'un document d'après ses lignes (B2, M-89) : une moto d'occasion de
+ * particulier (article O) fait passer le document en régime de la marge, sans TVA. Refus clair
+ * si le document mélange d'autres lignes, porte du port, ou si une facture / un ticket part
+ * sans prix de reprise connu. Retourne le pied complété et le prix d'achat à figer.
+ */
+export async function resolveVatScheme(p: {
+  lines: LineInput[]; pied: PiedInput; docType: string; status: 'brouillon' | 'validee'; knownPurchasePrice?: number | null;
+  /** Régime imposé par le document d'origine (avoir) : un avoir suit sa facture, jamais l'inverse. */
+  forcedScheme?: VatScheme | null;
+}): Promise<{ pied: PiedInput; marginPurchasePrice: number | null }> {
+  if (p.forcedScheme === 'normal') return { pied: { ...p.pied, vatScheme: 'normal' }, marginPurchasePrice: null };
+  const articles = await loadArticleVatInfo(p.lines);
+  const scheme = p.forcedScheme ?? detectVatScheme(p.lines, articles);
+  if (scheme !== 'marge') return { pied: { ...p.pied, vatScheme: 'normal' }, marginPurchasePrice: null };
+  const requirePurchasePrice = p.status === 'validee' && MARGIN_SALE_DOC_TYPES.includes(p.docType);
+  const refused = vatSchemeError({ lines: p.lines, pied: p.pied, articles, requirePurchasePrice, knownPurchasePrice: p.knownPurchasePrice });
+  if (refused) throw new Error(t(`sales.${refused}`));
+  const known = p.knownPurchasePrice != null && p.knownPurchasePrice > 0 ? p.knownPurchasePrice : null;
+  // Détaxe et marge ne se cumulent pas : la marge l'emporte (aucune TVA de toute façon).
+  return { pied: { ...p.pied, vatScheme: 'marge', taxExempt: false }, marginPurchasePrice: known ?? marginPurchasePrice(p.lines, articles) };
 }
 
 /**
@@ -227,8 +311,11 @@ export async function createDocument(p: {
   companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
   lines: LineInput[]; pied?: PiedInput; sourceDocumentId?: string | null;
+  /** Prix de reprise déjà figé sur le document d'origine (avoir d'une vente en marge). */
+  marginPurchasePrice?: number | null;
+  /** Régime imposé par le document d'origine (avoir), sinon déduit des articles. */
+  vatSchemeOverride?: VatScheme | null;
 }): Promise<string> {
-  const pied = p.pied ?? {};
   const validated = p.status === 'validee';
 
   // Refus clair plutôt qu'un document validé sans client ou sans ligne (audit du 31/10/2026).
@@ -236,16 +323,25 @@ export async function createDocument(p: {
     const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines });
     if (refused) throw new Error(documentValidationMessage(refused));
   }
+  // Régime de TVA d'après les articles (moto O → marge, sans TVA ; refus des mélanges, B2).
+  const { pied, marginPurchasePrice: mpp } = await resolveVatScheme({
+    lines: p.lines, pied: p.pied ?? {}, docType: p.docType, status: p.status, knownPurchasePrice: p.marginPurchasePrice,
+    forcedScheme: p.vatSchemeOverride ?? null,
+  });
 
   // Ordre d'écriture (pas de transaction côté navigateur) : en-tête en brouillon SANS numéro,
   // puis les lignes, puis seulement le numéro et le statut « validée », puis le stock. Si les
   // lignes sont refusées (ex. moto sans VIN, trigger en base), l'en-tête orphelin est retiré et
   // aucun numéro n'a été consommé : plus de document validé vide avec un numéro (constat du 30/10).
-  const { data: doc, error } = await supabase.from('documents').insert({
+  const header = {
     company_id: p.companyId, number: null, status: 'brouillon', source_document_id: p.sourceDocumentId ?? null,
-    ...headerColumns({ ...p, pied }),
-  }).select('id').single();
-  if (error) throw error;
+    ...headerColumns({ ...p, pied, marginPurchasePrice: mpp }),
+  };
+  let { data: doc, error } = await supabase.from('documents').insert(header).select('id').single();
+  // Migration 20261103160000 pas encore posée : en-tête sans les colonnes du régime (les lignes
+  // partent quand même à 0 % et le PDF retrouve la marge par l'article O).
+  if (isMissingMargeColumn(error)) ({ data: doc, error } = await supabase.from('documents').insert(stripMargeColumns(header)).select('id').single());
+  if (error || !doc) throw error;
   const docId = doc.id as string;
   // En-tête posé mais suite refusée : on retire le brouillon orphelin avant de remonter l'erreur.
   const discard = async (e: unknown): Promise<never> => {
@@ -254,7 +350,7 @@ export async function createDocument(p: {
   };
 
   if (p.lines.length) {
-    const { error: le } = await supabase.from('document_lines').insert(lineRows(docId, p.lines, pied.taxExempt));
+    const { error: le } = await supabase.from('document_lines').insert(lineRows(docId, p.lines, pied));
     if (le) return discard(le);
   }
 
@@ -282,7 +378,6 @@ export async function updateDraftDocument(p: {
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
   lines: LineInput[]; pied?: PiedInput;
 }): Promise<string> {
-  const pied = p.pied ?? {};
   const validated = p.status === 'validee';
   const { doc, lines: oldLines } = await getDocumentFull(p.documentId);
   if (!isDraftDocument(doc)) throw new Error(t('sales.notDraft'));
@@ -290,13 +385,18 @@ export async function updateDraftDocument(p: {
     const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines });
     if (refused) throw new Error(documentValidationMessage(refused));
   }
+  const { pied, marginPurchasePrice: mpp } = await resolveVatScheme({ lines: p.lines, pied: p.pied ?? {}, docType: p.docType, status: p.status });
 
-  const { error: he } = await supabase.from('documents').update(headerColumns({ ...p, pied }))
+  // Un brouillon qui quitte le régime de la marge repasse explicitement en 'normal'.
+  const header = headerColumns({ ...p, pied, marginPurchasePrice: mpp });
+  if (isMargeDocument(doc) && pied.vatScheme !== 'marge') Object.assign(header, margeColumns('normal', null));
+  let { error: he } = await supabase.from('documents').update(header)
     .eq('id', p.documentId).eq('status', 'brouillon');
+  if (isMissingMargeColumn(he)) ({ error: he } = await supabase.from('documents').update(stripMargeColumns(header)).eq('id', p.documentId).eq('status', 'brouillon'));
   if (he) throw he;
 
   if (p.lines.length) {
-    const { error: le } = await supabase.from('document_lines').insert(lineRows(p.documentId, p.lines, pied.taxExempt));
+    const { error: le } = await supabase.from('document_lines').insert(lineRows(p.documentId, p.lines, pied));
     if (le) throw le;
   }
   if (oldLines.length) {
@@ -409,7 +509,7 @@ export const CONVERSIONS: Record<string, readonly string[]> = {
 /** Reconstruit les paramètres de pied à partir d'une ligne `documents`. */
 function docRowToPied(d: DocumentRow): PiedInput {
   return {
-    priceMode: (d.price_mode as 'ht' | 'ttc') ?? 'ttc', taxExempt: !!d.tax_exempt,
+    priceMode: (d.price_mode as 'ht' | 'ttc') ?? 'ttc', taxExempt: !!d.tax_exempt, vatScheme: docVatScheme(d),
     globalDiscountPct: Number(d.global_discount_pct), globalDiscountAmount: Number(d.global_discount_amount),
     shippingHt: Number(d.shipping_ht), shippingTaxed: d.shipping_taxed !== false,
     shippingVatRate: Number(d.shipping_vat_rate), forcedTtc: d.forced_ttc != null ? Number(d.forced_ttc) : null,
@@ -488,11 +588,15 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
   // Lignes en négatif (qté inversée → totaux négatifs via computeTotals).
   const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l, -1));
 
+  // Avoir d'une vente en régime de la marge (M-89) : même régime, aucune TVA, prix de reprise
+  // figé repris tel quel (le registre de la marge retire la vente de la période de l'avoir).
+  const mpp = (doc as DocumentMargeExtra).margin_purchase_price;
   const today = new Date().toISOString().slice(0, 10);
   const avoId = await createDocument({
     companyId: doc.company_id, docType: 'AVO', contactId: doc.contact_id, vehicleId: doc.vehicle_id,
     issueDate: today, dueDate: null, status: 'validee', notes: doc.notes,
     lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: invoiceId,
+    marginPurchasePrice: mpp == null ? null : Number(mpp), vatSchemeOverride: docVatScheme(doc),
   });
 
   // Réintégration du stock : entrée réel +qté pour chaque ligne article (B4).

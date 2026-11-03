@@ -4,6 +4,10 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { buildUblInvoice, type UblInvoice, type UblParty } from './ubl';
+import { docVatScheme, isMargeDocument } from '@/modules/sales/write-api';
+import { MARGIN_MENTION_KEY, MARGIN_DEFAULT_RATE } from '@/modules/sales/vat-scheme';
+import { tIn } from '@/lib/i18n';
+import { contactLocale } from '@/lib/i18n/client-locale';
 
 export type JournalRow = { document_id: string; number: string | null; issue_date: string; contact_id: string | null; total_ht: number; total_vat: number; total_ttc: number; paid_amount: number };
 export type VatRow = { vat_rate: number; base_ht: number; vat: number };
@@ -43,9 +47,11 @@ export async function exportInvoiceUbl(documentId: string): Promise<void> {
   const cName = contact ? (contact.company_name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')) : 'Client comptoir';
   const customer: UblParty = { name: cName || 'Client', vat: contact?.vat_number ?? null, street: contact?.address ?? null, zip: contact?.zip ?? null, city: contact?.city ?? null, country: contact?.country ?? 'BE', peppolId: null };
 
+  // Régime de la marge (M-89) : catégorie E 0 %, mention dans la langue du client, jamais `O`.
   const inv: UblInvoice = {
     number: doc.number ?? documentId.slice(0, 8), issueDate: doc.issue_date, dueDate: doc.due_date, isCredit: doc.doc_type === 'AVO',
-    supplier, customer, iban: company!.iban, taxExempt: !!doc.tax_exempt,
+    supplier, customer, iban: company!.iban, taxExempt: !!doc.tax_exempt && !isMargeDocument(doc),
+    vatScheme: docVatScheme(doc), marginReason: isMargeDocument(doc) ? tIn(contactLocale(contact), MARGIN_MENTION_KEY) : null,
     totalHt: Math.abs(Number(doc.total_ht)), totalVat: Math.abs(Number(doc.total_vat)), totalTtc: Math.abs(Number(doc.total_ttc)),
     lines: (lines ?? []).map((l, i) => ({ id: i + 1, designation: l.designation, quantity: Math.abs(Number(l.quantity)), unitPriceHt: Number(l.unit_price_ht), lineHt: Math.abs(Number(l.line_ht)), vatRate: Number(l.vat_rate) })),
   };
@@ -125,33 +131,163 @@ export async function listClosures(companyId: string): Promise<ClosureRow[]> {
   return data ?? [];
 }
 
-// ---- TVA sur marge (VO) — B2 ----
-export type VoMarginRow = { sale_date: string; doc_number: string | null; document_id: string; vehicle_id: string | null; vin: string | null; designation: string; purchase_price: number; sale_ttc: number; margin: number; vat_margin: number; base_ht: number };
+// ---- TVA sur marge (VO) — B2, M-89 : registre par véhicule + base globale par période ----
+/**
+ * Une ligne du registre par véhicule (`vo_margin_register`, migration 20261103160000) : vente
+ * (FAC / TIK) ou avoir (AVO, montants négatifs) d'un document en régime de la marge. La marge
+ * par véhicule est **indicative** : la TVA due se calcule globalement par période (`vo_margin_periods`).
+ */
+export type VoMarginRow = {
+  sale_date: string; doc_number: string | null; doc_type: string; document_id: string; vehicle_id: string | null; vin: string | null;
+  designation: string; purchase_price: number; sale_ttc: number; margin: number; vat_margin: number; base_ht: number;
+};
 export type VoMarginSummary = { count_vo: number; total_sale: number; total_margin: number; total_vat_margin: number; total_base: number };
+/** Un achat sous régime de la marge (moto O entrée en stock : prix de reprise payé au particulier). */
+export type VoMarginPurchase = { purchase_date: string; reference: string; vehicle_id: string | null; vin: string | null; designation: string; purchase_price: number };
+/** Une période de déclaration : base globale, TVA due, report (AR 53 art. 3). */
+export type VoMarginPeriod = {
+  period_key: string; period_start: string; period_end: string; count_sales: number; count_purchases: number;
+  sales: number; purchases: number; carried_in: number; margin: number; base_ht: number; vat_due: number; carried_out: number;
+};
+export type MarginGranularity = 'month' | 'quarter';
+
+const n = (v: unknown) => Number(v ?? 0);
 
 export async function getVoMarginRegister(companyId: string, from: string, to: string): Promise<VoMarginRow[]> {
   const { data, error } = await supabase.rpc('vo_margin_register', { _company: companyId, _from: from, _to: to });
   if (error) throw error;
-  return (data ?? []).map((r) => ({ ...r, purchase_price: Number(r.purchase_price), sale_ttc: Number(r.sale_ttc), margin: Number(r.margin), vat_margin: Number(r.vat_margin), base_ht: Number(r.base_ht) }));
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    sale_date: String(r.sale_date), doc_number: (r.doc_number as string) ?? null, doc_type: String(r.doc_type ?? 'FAC'), document_id: String(r.document_id),
+    vehicle_id: (r.vehicle_id as string) ?? null, vin: (r.vin as string) ?? null, designation: String(r.designation ?? ''),
+    purchase_price: n(r.purchase_price), sale_ttc: n(r.sale_ttc), margin: n(r.margin), vat_margin: n(r.vat_margin), base_ht: n(r.base_ht),
+  }));
 }
 
 export async function getVoMarginSummary(companyId: string, from: string, to: string): Promise<VoMarginSummary> {
   const { data, error } = await supabase.rpc('vo_margin_summary', { _company: companyId, _from: from, _to: to });
   if (error) throw error;
   const r = (Array.isArray(data) ? data[0] : data) as VoMarginSummary | undefined;
-  return r ? { count_vo: Number(r.count_vo), total_sale: Number(r.total_sale), total_margin: Number(r.total_margin), total_vat_margin: Number(r.total_vat_margin), total_base: Number(r.total_base) } : { count_vo: 0, total_sale: 0, total_margin: 0, total_vat_margin: 0, total_base: 0 };
+  return r ? { count_vo: n(r.count_vo), total_sale: n(r.total_sale), total_margin: n(r.total_margin), total_vat_margin: n(r.total_vat_margin), total_base: n(r.total_base) } : { count_vo: 0, total_sale: 0, total_margin: 0, total_vat_margin: 0, total_base: 0 };
 }
 
-/** Export CSV du registre VO (registre de comparaison art. 58 §4 CTVA). */
-export async function exportVoRegister(companyId: string, from: string, to: string): Promise<void> {
-  const rows = await getVoMarginRegister(companyId, from, to);
-  const header = ['Date', 'Document', 'VIN', 'Designation', 'PrixAchat', 'PrixVenteTTC', 'Marge', 'BaseImposable', 'TVAMarge'];
-  const csv = '﻿' + [header.join(';'), ...rows.map((r) => [
-    r.sale_date, r.doc_number ?? '', r.vin ?? '', (r.designation ?? '').replace(/;/g, ','),
-    r.purchase_price.toFixed(2), r.sale_ttc.toFixed(2), r.margin.toFixed(2), r.base_ht.toFixed(2), r.vat_margin.toFixed(2),
-  ].join(';'))].join('\r\n');
-  download(`REGISTRE_VO_${from}_${to}.csv`, csv, 'text/csv;charset=utf-8;');
+export async function getVoMarginPurchases(companyId: string, from: string, to: string): Promise<VoMarginPurchase[]> {
+  const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: Record<string, unknown>[] | null; error: unknown }>)('vo_margin_purchases', { _company: companyId, _from: from, _to: to });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    purchase_date: String(r.purchase_date), reference: String(r.reference ?? ''), vehicle_id: (r.vehicle_id as string) ?? null,
+    vin: (r.vin as string) ?? null, designation: String(r.designation ?? ''), purchase_price: n(r.purchase_price),
+  }));
+}
+
+/**
+ * Base globale par période de déclaration (mois ou trimestre, réglable) : ventes marge − achats
+ * marge + report entrant ; marge négative reportée. Calcul SQL (`vo_margin_periods`), même règle
+ * que `marginPeriods` (vat-scheme.ts, testée).
+ */
+export async function getVoMarginPeriods(companyId: string, from: string, to: string, granularity: MarginGranularity): Promise<VoMarginPeriod[]> {
+  const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: Record<string, unknown>[] | null; error: unknown }>)('vo_margin_periods', { _company: companyId, _from: from, _to: to, _granularity: granularity });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    period_key: String(r.period_key), period_start: String(r.period_start), period_end: String(r.period_end),
+    count_sales: n(r.count_sales), count_purchases: n(r.count_purchases),
+    sales: n(r.sales), purchases: n(r.purchases), carried_in: n(r.carried_in), margin: n(r.margin), base_ht: n(r.base_ht), vat_due: n(r.vat_due), carried_out: n(r.carried_out),
+  }));
+}
+
+/**
+ * Réglages du régime de la marge (Paramètres → Tables → « TVA marge (occasions) »,
+ * `reference_values.vat_margin_settings`, code = réglage, libellé = valeur). Défauts si absents :
+ * taux 21, période mensuelle, grilles 00 / 03 / 54, code TVA Winbooks « MARGE », journal OD.
+ * **À confirmer par le comptable** (grilles et code TVA Winbooks).
+ */
+export type VatMarginSettings = {
+  rate: number; period: MarginGranularity; grid_sales: string; grid_base: string; grid_vat: string;
+  winbooks_vat_code: string; winbooks_journal: string;
+};
+export const VAT_MARGIN_SETTINGS_KEY = 'vat_margin_settings';
+export const DEFAULT_VAT_MARGIN_SETTINGS: VatMarginSettings = {
+  rate: MARGIN_DEFAULT_RATE, period: 'month', grid_sales: '00', grid_base: '03', grid_vat: '54', winbooks_vat_code: 'MARGE', winbooks_journal: 'OD',
+};
+export function parseVatMarginSettings(rows: { code: string; label: string; is_active?: boolean }[]): VatMarginSettings {
+  const s = { ...DEFAULT_VAT_MARGIN_SETTINGS };
+  for (const r of rows) {
+    if (r.is_active === false) continue;
+    const v = (r.label ?? '').trim();
+    switch (r.code) {
+      case 'rate': { const x = Number(v.replace(',', '.')); if (Number.isFinite(x) && x > 0) s.rate = x; break; }
+      case 'period': if (v === 'quarter' || v === 'month') s.period = v; break;
+      case 'grid_sales': if (v) s.grid_sales = v; break;
+      case 'grid_base': if (v) s.grid_base = v; break;
+      case 'grid_vat': if (v) s.grid_vat = v; break;
+      case 'winbooks_vat_code': s.winbooks_vat_code = v; break;
+      case 'winbooks_journal': if (v) s.winbooks_journal = v; break;
+    }
+  }
+  return s;
+}
+export async function loadVatMarginSettings(companyId: string): Promise<VatMarginSettings> {
+  const { data, error } = await supabase.from('reference_values').select('code, label, is_active')
+    .eq('company_id', companyId).eq('table_key', VAT_MARGIN_SETTINGS_KEY);
+  if (error) return { ...DEFAULT_VAT_MARGIN_SETTINGS };
+  return parseVatMarginSettings(data ?? []);
+}
+
+const n2s = (v: number) => (Math.round(v * 100) / 100).toFixed(2);
+const csvCell = (v: unknown) => String(v ?? '').replace(/;/g, ',');
+
+/** Contenu CSV du registre de la marge (périodes + ventes + achats), logique pure (testée). */
+export function voMarginCsv(p: { periods: VoMarginPeriod[]; sales: VoMarginRow[]; purchases: VoMarginPurchase[]; settings: VatMarginSettings }): string {
+  const rows: string[] = [];
+  rows.push(['Periode', 'Du', 'Au', 'Achats', 'Ventes', 'ReportEntrant', 'Marge', `BaseHT_grille_${p.settings.grid_base}`, `TVA_due_grille_${p.settings.grid_vat}`, 'ReportSortant', `Ventes_grille_${p.settings.grid_sales}`].join(';'));
+  for (const r of p.periods) rows.push([r.period_key, r.period_start, r.period_end, n2s(r.purchases), n2s(r.sales), n2s(r.carried_in), n2s(r.margin), n2s(r.base_ht), n2s(r.vat_due), n2s(r.carried_out), n2s(r.sales)].join(';'));
+  rows.push('');
+  rows.push(['Ventes', 'Date', 'Document', 'Type', 'VIN', 'Designation', 'PrixAchatFige', 'PrixVenteTTC', 'MargeIndicative', 'BaseIndicative', 'TVAIndicative'].join(';'));
+  for (const r of p.sales) rows.push(['', r.sale_date, r.doc_number ?? '', r.doc_type, r.vin ?? '', csvCell(r.designation), n2s(r.purchase_price), n2s(r.sale_ttc), n2s(r.margin), n2s(r.base_ht), n2s(r.vat_margin)].join(';'));
+  rows.push('');
+  rows.push(['Achats', 'Date', 'Reference', 'VIN', 'Designation', 'PrixAchat'].join(';'));
+  for (const r of p.purchases) rows.push(['', r.purchase_date, r.reference, r.vin ?? '', csvCell(r.designation), n2s(r.purchase_price)].join(';'));
+  return '﻿' + rows.join('\r\n');
+}
+
+/** Export CSV du registre de la marge (registre de comparaison, AR 53) : périodes, ventes, achats. */
+export async function exportVoRegister(companyId: string, from: string, to: string, granularity?: MarginGranularity): Promise<void> {
+  const settings = await loadVatMarginSettings(companyId);
+  const g = granularity ?? settings.period;
+  const [periods, sales, purchases] = await Promise.all([
+    getVoMarginPeriods(companyId, from, to, g), getVoMarginRegister(companyId, from, to), getVoMarginPurchases(companyId, from, to),
+  ]);
+  download(`REGISTRE_MARGE_${from}_${to}.csv`, voMarginCsv({ periods, sales, purchases, settings }), 'text/csv;charset=utf-8;');
   await logExport(companyId, 'vo_register', `${from}..${to}`, from, to);
+}
+
+/**
+ * Lignes Winbooks (format ACT, mêmes colonnes que `exportWinbooks`) de l'OD de fin de période :
+ * débit « ventes marge » / crédit « TVA sur marge » = TVA due de chaque période, avec le code TVA
+ * paramétré. Logique pure (testée) ; les comptes viennent de `account_mappings`
+ * (`sales_margin`, `vat_margin`). Une période sans TVA due ne produit aucune ligne.
+ */
+export function voMarginWinbooksRows(p: { periods: VoMarginPeriod[]; settings: VatMarginSettings; salesAccount: string; vatAccount: string }): string[] {
+  const rows: string[] = [];
+  for (const r of p.periods) {
+    if (r.vat_due <= 0) continue;
+    const yyyy = r.period_end.slice(0, 4), mm = r.period_end.slice(5, 7);
+    const dmy = `${r.period_end.slice(8, 10)}/${mm}/${yyyy}`;
+    const label = `TVA marge ${r.period_key}`;
+    rows.push(['0', p.settings.winbooks_journal, `MARGE-${r.period_key}`, '1', p.salesAccount, '', yyyy, mm, dmy, label, n2s(r.vat_due), p.settings.winbooks_vat_code].join(';'));
+    rows.push(['0', p.settings.winbooks_journal, `MARGE-${r.period_key}`, '2', p.vatAccount, '', yyyy, mm, dmy, label, n2s(-r.vat_due), p.settings.winbooks_vat_code].join(';'));
+  }
+  return rows;
+}
+
+export async function exportVoMarginWinbooks(companyId: string, from: string, to: string, granularity?: MarginGranularity): Promise<void> {
+  const settings = await loadVatMarginSettings(companyId);
+  const periods = await getVoMarginPeriods(companyId, from, to, granularity ?? settings.period);
+  const { data: maps } = await supabase.from('account_mappings').select('dimension, account_code').eq('company_id', companyId).in('dimension', ['sales_margin', 'vat_margin']).eq('match_key', '*');
+  const acct = (dim: string, fallback: string) => (maps ?? []).find((m) => m.dimension === dim)?.account_code ?? fallback;
+  const header = ['DocType', 'DbkCode', 'DocNumber', 'DocOrder', 'AccountGL', 'AccountRP', 'BookYear', 'Period', 'Date', 'Comment', 'Amount', 'VatCode'];
+  const rows = voMarginWinbooksRows({ periods, settings, salesAccount: acct('sales_margin', '700200'), vatAccount: acct('vat_margin', '451090') });
+  download(`WINBOOKS_MARGE_${from}_${to}.csv`, '﻿' + [header.join(';'), ...rows].join('\r\n'), 'text/csv;charset=utf-8;');
+  await logExport(companyId, 'vo_margin_winbooks', `${from}..${to}`, from, to);
 }
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;

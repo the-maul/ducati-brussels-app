@@ -124,7 +124,7 @@ l'éditeur SQL n'y figure pas. Seule la présence réelle des objets fait foi (`
 | # | Invariant | Statut |
 |---|---|---|
 | B1 | Types de gestion d'article A/M/F/N/V/O/P/D/R | ⬜ |
-| B2 | TVA sur marge (occasions particuliers) + registre VO | ⬜ |
+| B2 | TVA sur marge (occasions particuliers) + registre VO | 🟦 (03/11/2026, M-89 : vente sans TVA + base globale par période ; migration `20261103160000` à poser, comptable à consulter) |
 | B3 | Flux reprise REP → article O/P + véhicule + ORO | ⬜ |
 | B4 | Triple stock (réel/arrêté/disponible) + copies datées | ⬜ |
 | B5 | PAMP recalculé à chaque entrée | ⬜ |

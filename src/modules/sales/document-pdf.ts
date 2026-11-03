@@ -423,11 +423,12 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     ensure(rowH);
     if (zebra) { fill(PDF_COLORS.zebra); doc.rect(M, y - 0.4, right - M, rowH, 'F'); }
     zebra = !zebra;
-    const vat = d.taxExempt ? 0 : Number(l.vatRate) || 0;
+    // Régime de la marge (M-89) : aucune TVA affichée, ni taux ni montant (art. 58 §4 CTVA).
+    const vat = d.taxExempt || d.isMarge ? 0 : Number(l.vatRate) || 0;
     const qty = num2(l.quantity) + (l.lineType === 'main_oeuvre' ? ` ${tr('sales.hoursUnit')}` : '');
     const cells = [
       refLines, desLines, [qty], [eurPdf(l.unitPriceHt)], [eurPdf(Number(l.unitPriceHt) * (1 + vat / 100))],
-      [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(declined ? 0 : l.lineTtc)], [String(vat).replace('.', ',')],
+      [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(declined ? 0 : l.lineTtc)], [d.isMarge ? '' : String(vat).replace('.', ',')],
     ];
     color(declined ? PDF_COLORS.muted : PDF_COLORS.ink);
     let x = M;
@@ -459,13 +460,16 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   }
 
   // ---- Bas de document : TVA + règlements (gauche), totaux (droite) --------------------------
-  const vatRows = vatBreakdown(d.lines, { ...d.pied, taxExempt: d.taxExempt });
+  // Régime de la marge : pas de ventilation TVA, pas de ligne HT ni TVA (prix TTC = prix convenu).
+  const vatRows = d.isMarge ? [] : vatBreakdown(d.lines, { ...d.pied, taxExempt: d.taxExempt });
   const reste = r2(d.totals.ttc - d.totals.paid);
   const brutTtc = d.lines.reduce((s, l) => s + (lineHasAmount({ line_type: l.lineType as LineType }) ? Number(l.lineTtc) || 0 : 0), 0);
   const totalRows: [string, string, boolean][] = [
     [tr('salesPdf.grossTtc'), eurPdf(brutTtc), false],
-    [tr('salesPdf.netHt'), eurPdf(d.totals.ht), false],
-    [tr('salesPdf.totalVat'), eurPdf(d.totals.vat), false],
+    ...(d.isMarge ? [] : [
+      [tr('salesPdf.netHt'), eurPdf(d.totals.ht), false] as [string, string, boolean],
+      [tr('salesPdf.totalVat'), eurPdf(d.totals.vat), false] as [string, string, boolean],
+    ]),
     [tr('salesPdf.netTtc'), eurPdf(d.totals.ttc), true],
     ...(d.totals.paid !== 0 ? [[tr('salesPdf.paid'), eurPdf(d.totals.paid), false] as [string, string, boolean]] : []),
     [tr('salesPdf.due'), eurPdf(reste), true],
@@ -476,21 +480,23 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   y += 5;
   const blockTop = y;
 
-  // Détail TVA
+  // Détail TVA (jamais sur un document en régime de la marge : la mention légale le remplace)
   const tvX = M, tvW = 92;
-  font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
-  doc.text(tr('salesPdf.vatRate'), tvX + 1, y + 3);
-  doc.text(tr('salesPdf.vatBase'), tvX + 55, y + 3, { align: 'right' });
-  doc.text(tr('salesPdf.vatAmount'), tvX + tvW - 1, y + 3, { align: 'right' });
-  draw(PDF_COLORS.muted); doc.setLineWidth(0.2); doc.line(tvX, y + 4.3, tvX + tvW, y + 4.3);
-  y += 5.5;
-  font(PDF_FONT.small); color(PDF_COLORS.ink);
-  if (!vatRows.length) { doc.text('—', tvX + 1, y + 3); y += 4; }
-  for (const r of vatRows) {
-    doc.text(`${String(r.rate).replace('.', ',')} %`, tvX + 1, y + 3);
-    doc.text(eurPdf(r.base), tvX + 55, y + 3, { align: 'right' });
-    doc.text(eurPdf(r.vat), tvX + tvW - 1, y + 3, { align: 'right' });
-    y += 4;
+  if (!d.isMarge) {
+    font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
+    doc.text(tr('salesPdf.vatRate'), tvX + 1, y + 3);
+    doc.text(tr('salesPdf.vatBase'), tvX + 55, y + 3, { align: 'right' });
+    doc.text(tr('salesPdf.vatAmount'), tvX + tvW - 1, y + 3, { align: 'right' });
+    draw(PDF_COLORS.muted); doc.setLineWidth(0.2); doc.line(tvX, y + 4.3, tvX + tvW, y + 4.3);
+    y += 5.5;
+    font(PDF_FONT.small); color(PDF_COLORS.ink);
+    if (!vatRows.length) { doc.text('—', tvX + 1, y + 3); y += 4; }
+    for (const r of vatRows) {
+      doc.text(`${String(r.rate).replace('.', ',')} %`, tvX + 1, y + 3);
+      doc.text(eurPdf(r.base), tvX + 55, y + 3, { align: 'right' });
+      doc.text(eurPdf(r.vat), tvX + tvW - 1, y + 3, { align: 'right' });
+      y += 4;
+    }
   }
 
   // Règlements / acomptes

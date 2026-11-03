@@ -11,7 +11,7 @@ import { fetchImageForPdf } from '@/lib/image-tools';
 import { tIn, type Locale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { signedUrl } from '@/modules/documents/ged-api';
-import type { DocumentFull } from './write-api';
+import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
 import {
   buildSalesDocumentPdf, validityMention, salesPdfFileName, vehicleBlockLines,
   type SalesPdfInput, type SalesPdfSignature, type ValidityRule, type VehicleBlockSource,
@@ -84,12 +84,15 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
   const locale: Locale = contactLocale(c);
   const t = (key: string) => tIn(locale, key);
 
-  let isMarge = false;
+  // Régime de la marge (M-89) : d'après `documents.vat_scheme` ; tant que la colonne n'existe
+  // pas (migration 20261103160000 non posée), repli sur l'ancienne détection par article O.
+  const schemeKnown = (doc as DocumentMargeExtra).vat_scheme != null;
+  let isMarge = isMargeDocument(doc);
   const i18nByArticle = new Map<string, unknown>();
   const artIds = lines.map((l) => l.article_id).filter(Boolean) as string[];
   if (artIds.length) {
     const { data: arts } = await supabase.from('articles').select('id, mgmt_type').in('id', artIds);
-    isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
+    if (!schemeKnown) isMarge = (arts ?? []).some((a) => a.mgmt_type === 'O');
     // Désignations traduites (M-67, colonne designation_i18n de la migration 20261030140000) :
     // lecture séparée et tolérante, la colonne peut manquer tant que la migration n'est pas posée.
     if (locale !== 'fr') {

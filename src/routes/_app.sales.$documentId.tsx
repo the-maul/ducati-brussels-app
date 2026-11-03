@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, isMargeDocument, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
 import { requiresConfirmation } from '@/modules/sales/confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from '@/modules/sales/confirm-document-dialog';
 import { useConfirm } from '@/components/confirm-provider';
@@ -195,6 +195,7 @@ function DocumentView() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
+        {isMargeDocument(doc) && <StatusBadge tone="info" label={t('sales.margeTitle')} />}
         {docAvailability && <AvailabilityBadge status={docAvailability.status} pct={docAvailability.pct} />}
         {canConvert && (convertTargets.length > 0 || canGenerateCreditNote(doc)) && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -344,8 +345,9 @@ function DocumentView() {
       <div className="mt-4 flex flex-col items-end gap-1 font-data text-sm tabular-nums">
         {discount > 0.005 && <span className="text-muted-foreground">{t('sales.totalDiscount')} : − {eur(discount)}</span>}
         {shippingHt > 0.005 && <span className="text-muted-foreground">{t('sales.totalShipping')} : {eur(shippingHt)}</span>}
-        <span>{t('sales.totalHt')} : <b>{eur(Number(doc.total_ht))}</b></span>
-        <span className="text-muted-foreground">{t('sales.totalVat')} : {eur(Number(doc.total_vat))}</span>
+        {!isMargeDocument(doc) && <span>{t('sales.totalHt')} : <b>{eur(Number(doc.total_ht))}</b></span>}
+        {!isMargeDocument(doc) && <span className="text-muted-foreground">{t('sales.totalVat')} : {eur(Number(doc.total_vat))}</span>}
+        {isMargeDocument(doc) && <span className="text-muted-foreground">{t('sales.margeNoVat')}</span>}
         <span className="text-base">{t('sales.totalTtc')} : <b>{eur(Number(doc.total_ttc))}</b></span>
       </div>
 

@@ -5,8 +5,13 @@ import { Loader2, FileDown, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, exportVoRegister, printVoMarginAttestation, getAccountingCutover, setAccountingCutover, type VoMarginRow } from '@/modules/accounting/api';
+import {
+  getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, getVoMarginPeriods,
+  getVoMarginPurchases, loadVatMarginSettings, exportVoRegister, exportVoMarginWinbooks, printVoMarginAttestation, getAccountingCutover, setAccountingCutover,
+  type VoMarginRow, type MarginGranularity,
+} from '@/modules/accounting/api';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
@@ -29,8 +34,15 @@ function AccountingPage() {
   const entries = useQuery({ queryKey: ['acct-entries', activeCompanyId, from, to], queryFn: () => listEntries(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const vo = useQuery({ queryKey: ['vo-register', activeCompanyId, from, to], queryFn: () => getVoMarginRegister(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   const voSum = useQuery({ queryKey: ['vo-summary', activeCompanyId, from, to], queryFn: () => getVoMarginSummary(activeCompanyId!, from, to), enabled: !!activeCompanyId });
+  // Registre de la marge par période (M-89) : granularité = réglage de la société, modifiable à l'écran.
+  const voSettings = useQuery({ queryKey: ['vo-settings', activeCompanyId], queryFn: () => loadVatMarginSettings(activeCompanyId!), enabled: !!activeCompanyId });
+  const [granularityChoice, setGranularity] = useState<MarginGranularity | null>(null);
+  const granularity: MarginGranularity = granularityChoice ?? voSettings.data?.period ?? 'month';
+  const periods = useQuery({ queryKey: ['vo-periods', activeCompanyId, from, to, granularity], queryFn: () => getVoMarginPeriods(activeCompanyId!, from, to, granularity), enabled: !!activeCompanyId });
+  const purchases = useQuery({ queryKey: ['vo-purchases', activeCompanyId, from, to], queryFn: () => getVoMarginPurchases(activeCompanyId!, from, to), enabled: !!activeCompanyId });
   // Export et impression : le fichier produit EST le retour, pas de toast.
-  const voCsv = useMutation({ meta: { success: false }, mutationFn: () => exportVoRegister(activeCompanyId!, from, to) });
+  const voCsv = useMutation({ meta: { success: false }, mutationFn: () => exportVoRegister(activeCompanyId!, from, to, granularity) });
+  const voWb = useMutation({ meta: { success: false }, mutationFn: () => exportVoMarginWinbooks(activeCompanyId!, from, to, granularity) });
   const attest = useMutation({ meta: { success: false }, mutationFn: (r: VoMarginRow) => printVoMarginAttestation(activeCompanyId!, r) });
   const wb = useMutation({ meta: { success: false }, mutationFn: () => exportWinbooks(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
   const gen = useMutation({ mutationFn: () => generateEntries(activeCompanyId!, from, to), onSuccess: () => entries.refetch() });
@@ -146,41 +158,92 @@ function AccountingPage() {
         </div>
       </div>
 
-      {/* Registre TVA sur marge (occasions type O) — B2 */}
+      {/* Registre de la marge (occasions type O) — B2, M-89 : base globale par période + registre par véhicule */}
       <div className="mt-6">
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('accounting.voRegister')}</p>
-          <Button variant="outline" size="sm" onClick={() => voCsv.mutate()} disabled={voCsv.isPending || !vo.data?.length}><FileDown className="size-4" /> {t('accounting.voExport')}</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={granularity} onValueChange={(v) => setGranularity(v as MarginGranularity)}>
+              <SelectTrigger className="h-8 w-44 text-[12px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">{t('accounting.voMonth')}</SelectItem>
+                <SelectItem value="quarter">{t('accounting.voQuarter')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => voCsv.mutate()} disabled={voCsv.isPending || !periods.data?.length}><FileDown className="size-4" /> {t('accounting.voExport')}</Button>
+            <Button variant="outline" size="sm" onClick={() => voWb.mutate()} disabled={voWb.isPending || !periods.data?.some((p) => p.vat_due > 0)}><FileDown className="size-4" /> {t('accounting.voExportWinbooks')}</Button>
+          </div>
         </div>
         <p className="mb-2 text-[12px] text-muted-foreground">{t('accounting.voHint')}</p>
+        <p className="mb-2 rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('accounting.voPeriodHint')}</p>
+        {periods.data && periods.data.length === 0 && <p className="rounded-md border border-border px-3 py-4 text-[13px] text-muted-foreground">{t('accounting.voEmpty')}</p>}
+        {periods.data && periods.data.length > 0 && (
+          <div className="mb-4 overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[13px]">
+              <thead className="bg-muted"><tr><Th>{t('accounting.colPeriod')}</Th><Th className="text-right">{t('accounting.voPurchases')}</Th><Th className="text-right">{t('accounting.voSales')}</Th><Th className="text-right">{t('accounting.voCarriedIn')}</Th><Th className="text-right">{t('accounting.voMargin')}</Th><Th className="text-right">{t('accounting.voBase')}</Th><Th className="text-right">{t('accounting.voVatDue')}</Th><Th className="text-right">{t('accounting.voCarriedOut')}</Th></tr></thead>
+              <tbody>
+                {periods.data.map((p) => (
+                  <tr key={p.period_key} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 font-mono text-[12px]">{p.period_key} <span className="text-muted-foreground">({p.count_sales} / {p.count_purchases})</span></td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.purchases)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.sales)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.carried_in)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.margin)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.base_ht)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-bold">{eur(p.vat_due)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(p.carried_out)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {voSum.data && voSum.data.count_vo > 0 && (
           <div className="mb-2 flex flex-wrap gap-4 rounded-md bg-muted px-3 py-2 text-[12px]">
             <span><strong>{voSum.data.count_vo}</strong> {t('accounting.voCount')}</span>
-            <span>{t('accounting.voMargin')} : <strong className="tabular-nums">{eur(voSum.data.total_margin)}</strong></span>
-            <span>{t('accounting.voBase')} : <strong className="tabular-nums">{eur(voSum.data.total_base)}</strong></span>
-            <span>{t('accounting.voVat')} : <strong className="tabular-nums">{eur(voSum.data.total_vat_margin)}</strong></span>
+            <span>{t('accounting.voSales')} : <strong className="tabular-nums">{eur(voSum.data.total_sale)}</strong></span>
+            <span>{t('accounting.voMarginIndicative')} : <strong className="tabular-nums">{eur(voSum.data.total_margin)}</strong></span>
           </div>
         )}
-        {vo.data && vo.data.length === 0 && <p className="rounded-md border border-border px-3 py-4 text-[13px] text-muted-foreground">{t('accounting.voEmpty')}</p>}
         {vo.data && vo.data.length > 0 && (
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted"><tr><Th>{t('accounting.colDate')}</Th><Th>{t('accounting.colNumber')}</Th><Th>{t('accounting.voVin')}</Th><Th className="text-right">{t('accounting.voPa')}</Th><Th className="text-right">{t('accounting.voPv')}</Th><Th className="text-right">{t('accounting.voMargin')}</Th><Th className="text-right">{t('accounting.voVat')}</Th><Th /></tr></thead>
+              <thead className="bg-muted"><tr><Th>{t('accounting.colDate')}</Th><Th>{t('accounting.colNumber')}</Th><Th>{t('accounting.voVin')}</Th><Th className="text-right">{t('accounting.voPa')}</Th><Th className="text-right">{t('accounting.voPv')}</Th><Th className="text-right">{t('accounting.voMarginIndicative')}</Th><Th /></tr></thead>
               <tbody>
                 {vo.data.map((r, i) => (
                   <tr key={i} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 font-mono text-[12px]">{r.sale_date}</td>
-                    <td className="px-3 py-2 font-mono text-[12px]">{r.doc_number ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[12px]">{r.doc_number ?? '—'} <span className="text-muted-foreground">{t(`sales.type_${r.doc_type}`)}</span></td>
                     <td className="px-3 py-2 font-mono text-[12px]">{r.vin ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.purchase_price)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.sale_ttc)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.margin)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold">{eur(r.vat_margin)}</td>
                     <td className="px-3 py-2 text-right"><Button variant="ghost" size="sm" onClick={() => attest.mutate(r)}>{t('accounting.voAttest')}</Button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {purchases.data && purchases.data.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('accounting.voPurchasesTitle')}</p>
+            <div className="overflow-hidden rounded-md border border-border">
+              <table className="w-full border-collapse font-data text-[13px]">
+                <thead className="bg-muted"><tr><Th>{t('accounting.colDate')}</Th><Th>{t('accounting.colNumber')}</Th><Th>{t('accounting.voVin')}</Th><Th>{t('accounting.colLabel')}</Th><Th className="text-right">{t('accounting.voPa')}</Th></tr></thead>
+                <tbody>
+                  {purchases.data.map((r, i) => (
+                    <tr key={i} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2 font-mono text-[12px]">{r.purchase_date}</td>
+                      <td className="px-3 py-2 font-mono text-[12px]">{r.reference}</td>
+                      <td className="px-3 py-2 font-mono text-[12px]">{r.vin ?? '—'}</td>
+                      <td className="px-3 py-2">{r.designation}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{eur(r.purchase_price)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
