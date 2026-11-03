@@ -38,7 +38,7 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | 4 | Prochain entretien de chaque moto — 🟦 fait le 31/10, à valider (§5) : échéance et source sur la fiche moto, extract DCS importable en un clic, `vehicles_maintenance_upcoming` pour les relances | 07-1, 06-4 |
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée — 🟦 fait le 31/10, à valider (§5) : espace client, inscription, borne, fiche moto | 07-4 |
 | 6 | Rendez-vous d'entretien avec temps bloqué et devis estimé — 🟦 **réorientée le 30/10 (M-72)** : pas de liste de rendez-vous hypothétiques pour l'atelier ; le rendez-vous naît de la réponse du client à la relance (lien « Prendre rendez-vous » du mail → demande de RDV du portail, moto présélectionnée) et **ferme la relance** ; fait le 31/10, à valider (§5) | 07-2 |
-| 7 | Relances d'entretien — 🟦 **fait le 31/10, à valider (§5)** : mails automatiques préparés par le marketing (entretien dû −15 j, intervention reportée à la date fixée), J+5 sans réponse → CRM commercial « à rappeler » (M-72) ; SMS toujours en attente d'un fournisseur | 07-4 |
+| 7 | Relances d'entretien — 🟦 **fait le 31/10, à valider (§5)** : mails automatiques préparés par le marketing (entretien dû −15 j, intervention reportée à la date fixée), J+5 sans réponse → CRM commercial « à rappeler » (M-72) ; SMS toujours en attente d'un fournisseur ; **interrupteur Arrêté / Test / Actif, fermé par défaut (03/11, M-86, à valider)** | 07-4 |
 | 8 | Parcours d'entretien pas à pas pour le technicien (tablette atelier) — 🟦 fait le 23/09, à valider (§5) | 07-1, 06-4, lot-manuels |
 
 ## 4. Décisions (Simon, 21/09)
@@ -452,6 +452,13 @@ stock.**
   comme S5 : sans ce secret, la fonction refuse l'appel du cron ; l'envoi manuel depuis l'écran
   fonctionne quand même).
 - Tests `tests/followups.test.ts` (date d'envoi, J+5, RDV → close, variables, langue, onglets, droits).
+- **03/11 — Interrupteur (CRM011, M-86) : rien ne part chez les clients tant que le bandeau « Envoi des
+  relances » est sur **Arrêté** (défaut, sans réglage en base) ; **Test** = tout part à l'adresse de test
+  (objet « [TEST relance pour <client>] », badge « Test ») ; **Actif** = envoi réel après confirmation.**
+  Migration `20261103140000_m10_relances_interrupteur.sql` (**non appliquée**, essai à blanc le 03/11),
+  `followups-send` à redéployer ensuite, tests `tests/followups-interrupteur.test.ts`. Pour tester le
+  circuit : Test + son adresse → Envoyer maintenant → le mail arrive chez soi, la relance est « Envoyée
+  (Test) » et suit J+5 / clôture par RDV comme une vraie.
 ### 31/10 — Parcours check-up → proposition → signature → reportées (ATE008 + ATE009, M-75 à M-77)
 
 > Décision de Simon (30/10), mot pour mot : « À l'accueil d'une moto, elle rentre pour une raison

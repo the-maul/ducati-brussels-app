@@ -4,7 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { clientAppUrl } from '@/lib/client-app-url';
-import type { FollowupKind, FollowupLocale, FollowupStatus, TemplateKind } from './followups-rules';
+import { normalizeFollowupMode, type FollowupKind, type FollowupLocale, type FollowupMode, type FollowupStatus, type TemplateKind } from './followups-rules';
 
 export type Followup = {
   id: string;
@@ -30,7 +30,14 @@ export type Followup = {
   last_error: string | null;
   token: string;
   created_at: string;
+  /** CRM011 : parti a l'adresse de test (mode test), pas chez le client. */
+  is_test: boolean;
+  /** CRM011 : adresse qui a recu le mail (client, ou adresse de test). */
+  sent_to: string | null;
 };
+
+/** CRM011 : l'interrupteur des relances de la societe (pas de ligne en base = arrete). */
+export type FollowupSettings = { mode: FollowupMode; testRecipient: string | null; updatedAt: string | null };
 
 export type FollowupTemplate = {
   id?: string;
@@ -102,7 +109,26 @@ export async function saveFollowupTemplate(t: FollowupTemplate): Promise<void> {
   if (error) throw error;
 }
 
-export type SendNowResult = { ok?: boolean; error?: string; sent?: number; failed?: number; errors?: { id: string; error: string }[]; dryRun?: boolean; html?: string; subject?: string; to?: string; from?: string };
+/** CRM011 : lire l'interrupteur (membre). Sans ligne en base : arrete. */
+export async function getFollowupSettings(companyId: string): Promise<FollowupSettings> {
+  const { data, error } = await rpcUntyped('followup_settings_get', { _company: companyId });
+  if (error) throw error;
+  const row = (data as { mode: unknown; test_recipient: string | null; updated_at: string | null }[] | null)?.[0];
+  return { mode: normalizeFollowupMode(row?.mode), testRecipient: row?.test_recipient ?? null, updatedAt: row?.updated_at ?? null };
+}
+
+/** CRM011 : changer l'interrupteur (administrateurs ; le mode test exige une adresse ; trace events). */
+export async function setFollowupSettings(companyId: string, mode: FollowupMode, testRecipient: string | null): Promise<void> {
+  const { error } = await rpcUntyped('followup_settings_set', { _company: companyId, _mode: mode, _test_recipient: testRecipient?.trim() || null });
+  if (error) throw error;
+}
+
+export type SendNowResult = {
+  ok?: boolean; error?: string; sent?: number; failed?: number; errors?: { id: string; error: string }[];
+  dryRun?: boolean; html?: string; subject?: string; to?: string; from?: string;
+  /** CRM011 : 'arrete' quand l'interrupteur a retenu l'envoi ; `mode` effectif ; `isTest` en apercu. */
+  skipped?: 'arrete'; mode?: FollowupMode; isTest?: boolean; realTo?: string; held?: number;
+};
 /**
  * Envoi immediat (ou apercu complet avec signature si `dryRun`) par la fonction Edge
  * `followups-send`. Erreurs connues : graph_not_configured (cles Microsoft Graph absentes),

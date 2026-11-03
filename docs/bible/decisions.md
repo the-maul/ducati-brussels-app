@@ -23,6 +23,21 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Relances : rien ne part chez les clients avant la mise en production (CRM011, mission 07 cartes 6-7)
+
+- **M-86** — **Les relances par mail ne partent chez les clients que le jour de la mise en production,
+  après avoir été testées à 100 %.** Interrupteur par société `followup_settings.mode`, **fermé par
+  défaut** (pas de ligne = **Arrêté**) : Arrêté → la planification continue, aucun mail ne part (ni cron
+  de 6 h 15, ni « Envoyer maintenant ») ; **Test** → tout mail part uniquement à l'adresse de test,
+  objet préfixé « [TEST relance pour <client>] », relance marquée envoyée avec `is_test` (J+5 et
+  clôture par RDV jouent normalement) ; **Actif** → envoi réel, confirmé par un administrateur. Même
+  modèle que « Import des commandes du site » (mission 03) et que le mode de synchronisation Shopify.
+  Constat du 03/11 en prod : crons et fonction actifs, clés Graph posées ; l'import de l'extract DCS
+  aurait fait partir de vrais mails. Rappels de RDV : aucun envoi réel possible (pas de Resend / SMS),
+  rien à changer. *Agence / Simon · 03/11/2026.* M10, mission 07.
+
+---
+
 ## 2026-11-03 — Caisse du magasin : Shopify POS ou DMS (mission 03, question 3)
 
 - **Q — caisse Shopify** : proposition remise le 03/11/2026

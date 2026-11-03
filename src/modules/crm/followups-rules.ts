@@ -11,6 +11,15 @@
  *   - le mail part dans la langue de la fiche du client (M-71).
  */
 
+/**
+ * CRM011 — Interrupteur des relances (03/11/2026) : la regle est dans le module pur partage avec la
+ * fonction serveur `followups-send` ; l'ecran et les tests passent par ici.
+ */
+export {
+  FOLLOWUP_MODES, normalizeFollowupMode, canSendNow, modeTone, testSubject, resolveDelivery, isEmail,
+  type FollowupMode,
+} from '../../../supabase/functions/_shared/followups-mode';
+
 export const FOLLOWUP_KINDS = ['entretien', 'intervention_reportee', 'manuel'] as const;
 export type FollowupKind = (typeof FOLLOWUP_KINDS)[number];
 /** Kinds qui ont un modele de mail (le kind « manuel » porte son propre texte). */

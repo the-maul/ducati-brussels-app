@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, Ban, BellRing, CalendarClock, CalendarDays, CheckCircle2, Clock, Eye, Loader2, Mail, MailCheck,
+  AlertTriangle, Ban, BellRing, CalendarClock, CalendarDays, CheckCircle2, Clock, Eye, FlaskConical, Loader2, Mail, MailCheck,
   MoreHorizontal, PhoneCall, RefreshCw, Send, Wrench, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,9 +28,10 @@ import {
   type Followup, type FollowupTemplate, type RenderedFollowup,
 } from '@/modules/crm/followups-api';
 import {
-  counters, fillTemplate, followupTab, statusTone, unknownVars, FOLLOWUP_LOCALES, TEMPLATE_KINDS, TEMPLATE_VARS, LEAD_DAYS, CALLBACK_DAYS,
+  counters, fillTemplate, followupTab, statusTone, unknownVars, canSendNow, FOLLOWUP_LOCALES, TEMPLATE_KINDS, TEMPLATE_VARS, LEAD_DAYS, CALLBACK_DAYS,
   type FollowupStatus, type FollowupTab, type FollowupLocale, type TemplateKind,
 } from '@/modules/crm/followups-rules';
+import { FollowupModeBanner, useFollowupSettings } from '@/modules/crm/followup-mode-banner';
 
 /**
  * Clients (CRM) → « Relances » (M10, decision client du 30/10/2026, M-72).
@@ -38,6 +39,10 @@ import {
  * intervention reportee : a la date fixee au comptoir). Un mail envoye sans reponse ni
  * rendez-vous pendant 5 jours tombe dans le CRM commercial comme « personne a rappeler ».
  * Un rendez-vous pris ferme la relance.
+ *
+ * CRM011 (03/11/2026) : bandeau « Envoi des relances » en tete, toujours visible. Arrete (defaut) :
+ * rien ne part, « Envoyer maintenant » grise ; test : tout part a l'adresse de test, badge « test »
+ * sur les lignes envoyees ; actif : confirmation « Un vrai mail part chez <client> » avant l'envoi.
  */
 export const Route = createFileRoute('/_app/crm/relances')({
   head: () => ({ meta: [{ title: pageTitle('crmFollowups') }] }),
@@ -71,6 +76,11 @@ function FollowupsPage() {
   const list = useQuery({ queryKey: ['followups', activeCompanyId], queryFn: () => listFollowups(activeCompanyId!), enabled: !!activeCompanyId, refetchInterval: 60_000 });
   const refresh = () => qc.invalidateQueries({ queryKey: ['followups', activeCompanyId] });
   const fail = (e: unknown) => toast.error(`${t('followups.errorPrefix')} : ${errMsg(e)}`);
+  // CRM011 : l'interrupteur. Tant qu'il n'est pas charge, on le considere arrete (ferme par defaut).
+  const settings = useFollowupSettings(activeCompanyId);
+  const mode = settings.data?.mode ?? 'arrete';
+  const testRecipient = settings.data?.testRecipient ?? null;
+  const sendAllowed = !!settings.data && canSendNow(mode);
 
   const plan = useMutation({
     mutationFn: () => planFollowups(activeCompanyId!),
@@ -83,10 +93,25 @@ function FollowupsPage() {
     onError: fail,
   });
   const sendNow = useMutation({
-    mutationFn: (f: Followup) => sendFollowupNow(activeCompanyId!, f.id),
+    mutationFn: async (f: Followup) => {
+      // CRM011 : arrete → rien ne part ; actif → un vrai mail part chez le client, on le dit avant.
+      if (!sendAllowed) { toast.warning(t('followups.sendBlocked')); return null; }
+      if (mode === 'actif') {
+        const ok = await confirm({
+          title: t('followups.sendRealTitle'),
+          message: fillVars(t('followups.sendRealMsg'), { client: f.contact_name ?? '', email: f.to_email ?? '' }),
+          confirmLabel: t('followups.sendRealConfirm'),
+        });
+        if (!ok) return null;
+      }
+      return sendFollowupNow(activeCompanyId!, f.id);
+    },
     onSuccess: (r) => {
+      if (!r) return;
       if (r.error) { fail(new Error(r.error)); refresh(); return; }
-      if ((r.failed ?? 0) > 0) toast.error(`${t('followups.errorPrefix')} : ${r.errors?.[0]?.error ?? ''}`);
+      if (r.skipped === 'arrete') { toast.warning(t('followups.sendBlocked')); qc.invalidateQueries({ queryKey: ['followup-settings', activeCompanyId] }); return; }
+      if ((r.failed ?? 0) > 0) toast.error(`${t('followups.errorPrefix')} : ${errMsg(new Error(r.errors?.[0]?.error ?? ''))}`);
+      else if (r.mode === 'test') toast.success(fillVars(t('followups.sentTest'), { email: testRecipient ?? '' }));
       else toast.success(t('followups.sentNow'));
       refresh();
     },
@@ -130,6 +155,9 @@ function FollowupsPage() {
           </div>
         )}
       />
+
+      {/* CRM011 : l'interrupteur, toujours visible en tete */}
+      {activeCompanyId && <FollowupModeBanner companyId={activeCompanyId} />}
 
       {/* Compteurs */}
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -203,7 +231,13 @@ function FollowupsPage() {
                     </TableCell>
                     <TableCell><span className="inline-flex items-center gap-1 text-[12px]"><Mail className="size-3.5 text-muted-foreground" aria-hidden /> {t('followups.channel_email')}</span></TableCell>
                     <TableCell>
-                      <StatusBadge tone={statusTone(f.status)} icon={Icon} label={t(`followups.st_${f.status}`)} />
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <StatusBadge tone={statusTone(f.status)} icon={Icon} label={t(`followups.st_${f.status}`)} />
+                        {f.is_test && f.sent_at && <StatusBadge tone="warning" icon={FlaskConical} label={t('followups.testBadge')} />}
+                      </span>
+                      {f.is_test && f.sent_to && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">{t('followups.sentTo')} {f.sent_to}</div>
+                      )}
                       {f.answered_how && f.status !== 'planifiee' && f.status !== 'envoyee' && (
                         <div className="mt-0.5 text-[11px] text-muted-foreground">{t(`followups.how_${f.answered_how}`)}</div>
                       )}
@@ -225,7 +259,10 @@ function FollowupsPage() {
                           <DropdownMenuItem onClick={() => openPreview.mutate(f)}><Eye className="size-4" /> {t('followups.act_preview')}</DropdownMenuItem>
                           {canWrite && f.status === 'planifiee' && (
                             <>
-                              <DropdownMenuItem onClick={() => sendNow.mutate(f)} disabled={sendNow.isPending}><Send className="size-4" /> {t('followups.act_sendNow')}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => sendNow.mutate(f)} disabled={sendNow.isPending || !sendAllowed} title={sendAllowed ? undefined : t('followups.sendBlocked')}>
+                                <Send className="size-4" /> {t('followups.act_sendNow')}
+                              </DropdownMenuItem>
+                              {!sendAllowed && <div className="px-2 pb-1 text-[11px] text-muted-foreground">{t('followups.sendBlocked')}</div>}
                               <DropdownMenuItem onClick={() => setPostpone({ f, date: f.send_at })}><CalendarDays className="size-4" /> {t('followups.act_postpone')}</DropdownMenuItem>
                             </>
                           )}
@@ -269,11 +306,15 @@ function FollowupsPage() {
               <p><span className="font-bold">{t('followups.previewSubject')} :</span> {preview.r.subject}</p>
               <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-3 font-sans text-[13px] leading-5">{preview.r.body}</pre>
               <p className="text-[11px] text-muted-foreground">{t('followups.previewNote')}</p>
+              {mode === 'test' && <p className="text-[12px] text-[var(--warning)]">{fillVars(t('followups.previewTest'), { email: testRecipient ?? '' })}</p>}
+              {!sendAllowed && <p className="text-[12px] text-muted-foreground">{t('followups.sendBlocked')}</p>}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPreview(null)}>{t('action.close')}</Button>
               {canWrite && preview.f.status === 'planifiee' && (
-                <Button onClick={() => { sendNow.mutate(preview.f); setPreview(null); }} disabled={sendNow.isPending}><Send className="size-4" /> {t('followups.act_sendNow')}</Button>
+                <Button onClick={() => { sendNow.mutate(preview.f); setPreview(null); }} disabled={sendNow.isPending || !sendAllowed} title={sendAllowed ? undefined : t('followups.sendBlocked')}>
+                  <Send className="size-4" /> {t('followups.act_sendNow')}
+                </Button>
               )}
             </DialogFooter>
           </DialogContent>

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
+import { FollowupModeCard } from '@/modules/crm/followup-mode-banner';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/')({
@@ -112,6 +113,9 @@ function SettingsIndex() {
         {/* Mission 09 carte 6 : le classeur Ducati vierge (prix concession) est depose ici,
             une fois par an, dans la GED privee ; il n'est jamais dans le depot. */}
         <DemoTemplateCard />
+
+        {/* CRM011 : rappel de l'interrupteur des relances (Arrete / Test / Actif), reglage dans CRM → Relances. */}
+        <FollowupModeCard />
 
         <Link
           to="/settings/extension"

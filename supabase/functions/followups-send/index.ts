@@ -20,6 +20,15 @@
 // l'historique du client, ligne `events`) ; en cas d'echec : `followup_mark_error` (la relance
 // reste planifiee et repart au passage suivant).
 //
+// INTERRUPTEUR (CRM011, migration 20261103140000, constat du 03/11/2026) : le reglage
+// `followup_settings.mode` de la societe est lu AVANT tout envoi, FERME PAR DEFAUT :
+//   - arrete (ou pas de ligne) : rien ne part ; le cron journalise « arrete » (events
+//     `followups_send_held` si des relances etaient dues) et sort → 200 { skipped: 'arrete' } ;
+//   - test : TOUT mail part a `test_recipient` uniquement, objet prefixe
+//     « [TEST relance pour <client>] », relance marquee envoyee avec is_test et sent_to ;
+//   - actif : envoi reel chez le client.
+// La regle est dans `_shared/followups-mode.ts` (module pur, teste par `bun test`).
+//
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET (app Azure,
 // permission APPLICATION Mail.Send), CRON_SECRET, APP_ORIGINS (adresse de l'espace client,
 // premiere valeur ; sinon la premiere adresse connue). Sans cle Graph : 501 graph_not_configured,
@@ -30,6 +39,7 @@ declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: 
 import { identify, isActiveMember, isUuid } from '../_shared/acces.ts';
 import { buildGraphMessage, signatureFor, signatureHtml, MAIL_STYLE, type SignatureCompany } from '../_shared/mail-message.ts';
 import { mailTexts } from '../_shared/mail-i18n.ts';
+import { normalizeFollowupMode, resolveDelivery, type FollowupMode } from '../_shared/followups-mode.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -60,8 +70,38 @@ async function graphToken(): Promise<string | null> {
   return r.ok ? (await r.json()).access_token : null;
 }
 
-type Followup = { id: string; company_id: string; kind: string; status: string; send_at: string; locale: string; to_email: string | null };
+type ContactLite = { first_name: string | null; last_name: string | null; company_name: string | null } | null;
+type Followup = { id: string; company_id: string; kind: string; status: string; send_at: string; locale: string; to_email: string | null; contact: ContactLite };
 type Rendered = { subject: string; body: string; to_email: string | null; locale: string; link: string; template_key: string | null };
+type Settings = { mode: FollowupMode; testRecipient: string | null };
+
+/** Nom du client pour le prefixe « [TEST relance pour ...] » : societe, sinon prenom nom, sinon l'e-mail. */
+function clientLabel(f: Followup, to: string): string {
+  const c = f.contact;
+  const company = String(c?.company_name ?? '').trim();
+  const person = [c?.first_name, c?.last_name].map((s) => String(s ?? '').trim()).filter(Boolean).join(' ');
+  return company || person || to;
+}
+
+/**
+ * Interrupteur de chaque societe (table `followup_settings`, cle de service : la RLS ne s'applique
+ * pas). Pas de ligne, ligne illisible, erreur reseau : ARRETE. Jamais d'exception.
+ */
+async function loadSettings(companyIds: string[]): Promise<Map<string, Settings>> {
+  const out = new Map<string, Settings>();
+  for (const id of companyIds) out.set(id, { mode: 'arrete', testRecipient: null });
+  if (companyIds.length === 0) return out;
+  try {
+    const r = await db(`followup_settings?select=company_id,mode,test_recipient&company_id=in.(${companyIds.join(',')})`);
+    const rows = r.ok ? await r.json() : [];
+    for (const row of (Array.isArray(rows) ? rows : []) as { company_id: string; mode: unknown; test_recipient: string | null }[]) {
+      out.set(row.company_id, { mode: normalizeFollowupMode(row.mode), testRecipient: row.test_recipient ?? null });
+    }
+  } catch (e) {
+    console.error('followups-send: reglage illisible, tout est considere arrete', e);
+  }
+  return out;
+}
 
 /** Boite d'envoi : la boite principale de la societe, sinon la premiere boite partagee active. */
 async function senderFor(companyId: string): Promise<{ mailbox: string | null; name: string | null }> {
@@ -121,17 +161,40 @@ Deno.serve(async (req: Request) => {
     if (!companyId || !followupId) return J({ error: 'missing_params' }, 400);
     if (!(await isActiveMember(caller.id, companyId))) return J({ error: 'not_a_member' }, 403);
   }
-  if (!dryRun && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
 
   // Ce qui est du : planifiee et send_at atteinte (cron), ou la relance demandee (membre).
   const today = new Date().toISOString().slice(0, 10);
-  let q = 'followups?select=id,company_id,kind,status,send_at,locale,to_email&status=eq.planifiee&order=send_at&limit=200';
+  let q = 'followups?select=id,company_id,kind,status,send_at,locale,to_email,contact:contacts(first_name,last_name,company_name)&status=eq.planifiee&order=send_at&limit=200';
   if (followupId) q += `&id=eq.${followupId}`;
   else q += `&send_at=lte.${today}`;
   if (companyId) q += `&company_id=eq.${companyId}`;
   const due = await (await db(q)).json().catch(() => []);
-  const list = (Array.isArray(due) ? due : []) as Followup[];
-  if (followupId && list.length === 0) return J({ error: 'not_due_or_not_planned' }, 400);
+  const all = (Array.isArray(due) ? due : []) as Followup[];
+  if (followupId && all.length === 0) return J({ error: 'not_due_or_not_planned' }, 400);
+
+  // INTERRUPTEUR : le mode de chaque societe concernee, ARRETE par defaut. Une relance d'une
+  // societe arretee est retenue (jamais envoyee) ; le cron le journalise et sort.
+  const companies = [...new Set(all.map((f) => f.company_id))];
+  if (companyId && !companies.includes(companyId)) companies.push(companyId);
+  const settings = await loadSettings(companies);
+  const modeOf = (co: string): Settings => settings.get(co) ?? { mode: 'arrete', testRecipient: null };
+  const held: Record<string, number> = {};
+  const list: Followup[] = [];
+  for (const f of all) {
+    if (modeOf(f.company_id).mode === 'arrete' && !dryRun) held[f.company_id] = (held[f.company_id] ?? 0) + 1;
+    else list.push(f);
+  }
+  for (const [co, n] of Object.entries(held)) {
+    console.log(`followups-send: societe ${co} en mode arrete, ${n} relance(s) due(s) retenue(s)`);
+    if (caller.kind !== 'user') await rpc('followups_log_held', { _company: co, _mode: 'arrete', _held: n });
+  }
+  if (companyId && !dryRun && modeOf(companyId).mode === 'arrete') {
+    return J({ ok: true, skipped: 'arrete', mode: 'arrete', processed: 0, sent: 0, failed: 0, held: all.length, errors: [] });
+  }
+  if (list.length === 0 && Object.keys(held).length > 0) {
+    return J({ ok: true, skipped: 'arrete', processed: 0, sent: 0, failed: 0, held: Object.values(held).reduce((a, b) => a + b, 0), errors: [] });
+  }
+  if (!dryRun && list.length > 0 && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
 
   let sent = 0, failed = 0;
   const errors: { id: string; error: string }[] = [];
@@ -142,8 +205,17 @@ Deno.serve(async (req: Request) => {
     const rendered = await rpc<Rendered[]>('followup_render', { _id: f.id, _origin: CLIENT_ORIGIN });
     const m = rendered.data?.[0];
     if (!rendered.ok || !m) { failed++; errors.push({ id: f.id, error: rendered.error ?? 'render_empty' }); await rpc('followup_mark_error', { _id: f.id, _error: rendered.error ?? 'render_empty' }); continue; }
-    const to = String(m.to_email ?? f.to_email ?? '').trim().toLowerCase();
-    if (!/^[^\s@,;]+@[^\s@,;]+$/.test(to)) { failed++; errors.push({ id: f.id, error: 'no_email' }); await rpc('followup_mark_error', { _id: f.id, _error: 'adresse e-mail absente ou invalide' }); continue; }
+    const realTo = String(m.to_email ?? f.to_email ?? '').trim().toLowerCase();
+    const st = modeOf(f.company_id);
+    // Ou part le mail, et avec quel objet : client (actif) ou adresse de test (test), jamais en arrete.
+    const d = resolveDelivery({ mode: dryRun && st.mode === 'arrete' ? 'actif' : st.mode, testRecipient: st.testRecipient, to: realTo, subject: m.subject, clientLabel: clientLabel(f, realTo) });
+    if (!d.send) {
+      failed++; errors.push({ id: f.id, error: d.reason });
+      const why = d.reason === 'no_email' ? 'adresse e-mail absente ou invalide'
+        : d.reason === 'no_test_recipient' ? 'mode test sans adresse de test' : 'envoi arrete';
+      if (d.reason !== 'arrete') await rpc('followup_mark_error', { _id: f.id, _error: why });
+      continue;
+    }
 
     let s = senders.get(f.company_id);
     if (!s) {
@@ -154,9 +226,10 @@ Deno.serve(async (req: Request) => {
     if (!s.mailbox) { failed++; errors.push({ id: f.id, error: 'no_mailbox' }); await rpc('followup_mark_error', { _id: f.id, _error: 'aucune boite d envoi pour la societe' }); continue; }
 
     const html = bodyHtml(m.body, m.link, m.locale);
-    const graphBody = buildGraphMessage({ subject: m.subject, bodyHtml: html, signature: s.signature, footer: '', to, attachments: [] });
+    const graphBody = buildGraphMessage({ subject: d.subject, bodyHtml: html, signature: s.signature, footer: '', to: d.to, attachments: [] });
     if (dryRun) {
-      return J({ ok: true, dryRun: true, id: f.id, from: s.mailbox, to, subject: m.subject, locale: m.locale, html: graphBody.message.body.content, link: m.link });
+      // L'apercu montre ce qui partirait VRAIMENT : adresse de test et objet prefixe en mode test.
+      return J({ ok: true, dryRun: true, id: f.id, from: s.mailbox, to: d.to, subject: d.subject, locale: m.locale, html: graphBody.message.body.content, link: m.link, mode: st.mode, isTest: d.isTest, realTo });
     }
     tok = tok ?? await graphToken();
     if (!tok) return J({ error: 'graph_auth_failed', sent, failed }, 502);
@@ -169,9 +242,13 @@ Deno.serve(async (req: Request) => {
       await rpc('followup_mark_error', { _id: f.id, _error: detail });
       continue;
     }
-    const mark = await rpc('followup_mark_sent', { _id: f.id, _subject: m.subject, _body: m.body, _mailbox: s.mailbox, _template_key: m.template_key });
+    const mark = await rpc('followup_mark_sent', {
+      _id: f.id, _subject: d.subject, _body: m.body, _mailbox: s.mailbox, _template_key: m.template_key, _sent_to: d.sentTo, _is_test: d.isTest,
+    });
     if (!mark.ok) { failed++; errors.push({ id: f.id, error: mark.error ?? 'mark_failed' }); continue; }
     sent++;
+    console.log(`followups-send: relance ${f.id} envoyee (${d.isTest ? 'TEST -> ' + d.sentTo : 'client'})`);
   }
-  return J({ ok: true, processed: list.length, sent, failed, errors });
+  const mode = companyId ? modeOf(companyId).mode : undefined;
+  return J({ ok: true, processed: list.length, sent, failed, errors, mode, held: Object.values(held).reduce((a, b) => a + b, 0) });
 });
