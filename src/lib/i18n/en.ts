@@ -1265,6 +1265,36 @@ export const en: DictionaryShape = {
     confirmIrreversible: 'Irreversible: no edit or deletion afterwards (a credit note to cancel).',
     confirmCreateInvoice: 'Create the invoice',
     confirmCreateCredit: 'Create the credit note',
+    status_avoir_emis: "Offset by credit note",
+    type_FAA: "Deposit invoice",
+    confirmInvoiceCredited: "The original invoice will be « offset by a credit note »: it stays in the sales journal.",
+    confirmInvoiceCreditedPartial: "Partial credit note: the original invoice stays open for the balance.",
+    confirmCreditHint: "Choose the quantities to credit (all = full credit note). A numbered document can no longer be changed.",
+    creditQty: "Qty to credit",
+    creditAlready: "already credited",
+    creditNoteNothing: "Nothing to credit: choose at least one quantity.",
+    creditOf: "Credit note on invoice",
+    depositOf: "Deposit on order",
+    openSource: "open the original document",
+  },
+
+  // Factures d'acompte (lot facture légale, 03/11/2026)
+  depositInvoice: {
+    title: "Deposit invoices",
+    hintRequired: "Motorcycle or VAT-registered customer: each deposit received gets its deposit invoice (VAT due on receipt).",
+    hintOnDemand: "Private customer, no motorcycle: deposit invoice on the customer's request.",
+    issue: "Issue the deposit invoice",
+    issued: "Deposit invoice {number}",
+    deadline: "To issue before {date}",
+    created: "Deposit invoice issued.",
+  },
+
+  // Mentions légales des factures, factures d'acompte et avoirs (FR + langue du client)
+  invoiceLegal: {
+    creditRef: "Credit note relating to invoice no. {number} of {date}.",
+    ar4: "VAT to be repaid to the State to the extent that it was initially deducted (Royal Decree no. 4, art. 4 §1).",
+    depositInvoice: "Deposit invoice: deposit received on {paid} on order no. {number} of {date}. VAT due on receipt (art. 17 §1 Belgian VAT Code).",
+    prepaid: "Deposit already invoiced: deposit invoice no. {number} of {date}, {ttc} incl. VAT of which VAT {vat}, deducted from the amount due.",
   },
 
   // PDF des documents de vente (mission 05 carte 8, mission 02 carte 6) — textes imprimés
@@ -1289,6 +1319,7 @@ export const en: DictionaryShape = {
     signatureTitle: 'Approved', signatureHint: 'Date, the words "read and approved" and customer signature',
     cgvTitle: 'General terms and conditions of sale',
     page: 'Page {i} / {n}',
+    companyNumber: "Company number",
   },
 
   // Envoi d'un document de vente par e-mail avec son PDF (mission 05 carte 8, mission 02 carte 6)
@@ -1297,6 +1328,7 @@ export const en: DictionaryShape = {
     introNoClient: 'Receipt without a customer: the PDF is attached to the message and filed with the receipt\'s documents.',
     toNotSaved: 'Address used for this sending only: it is not saved on any record.',
     archiveHintNoClient: 'After sending, the PDF is filed in the receipt\'s document store; the sending is logged in the history.',
+    accountantCopy: "Copy to the accountant: {email}",
     previewPdf: 'PDF preview',
     title: 'Send the document by e-mail',
     intro: 'The PDF of the document is attached to the message. A copy is filed in the customer documents.',
@@ -1516,6 +1548,10 @@ export const en: DictionaryShape = {
     exportWinbooks: 'Winbooks export', exportUbl: 'UBL export (Peppol)', empty: 'No entry for the period.',
     colNumber: 'No.', colDate: 'Date', colHt: 'Total excl. VAT', colVat: 'VAT', colTtc: 'Total incl. VAT', colPaid: 'Paid',
     vatRate: 'Rate', baseHt: 'Base excl. VAT', vatAmount: 'VAT', total: 'Total', ublHint: 'Generates the UBL file to send via Falco on Peppol.',
+    ubl_missingCompanyNumber: "Company record incomplete: enter the company number (BCE) in Settings → Companies.",
+    ubl_missingPeppolId: "Company record incomplete: enter the Peppol identifier 0208:company number in Settings → Companies.",
+    ubl_missingVat: "Company record incomplete: enter the VAT number in Settings → Companies.",
+    prepaidDeducted: "invoiced deposit {amount} deducted",
     // Moteur d'écritures comptables
     entries: 'Accounting entries', generate: 'Generate the entries', generated: 'voucher(s) generated',
     noEntries: 'No entry generated for the period. Click "Generate the entries".',
@@ -3078,6 +3114,13 @@ export const en: DictionaryShape = {
     coTitle: 'Companies', coNew: 'New company', coCreate: 'Create the company', coSave: 'Save',
     coCode: 'Code', coName: 'Name', coLegalName: 'Legal name', coVat: 'VAT number', coAddress: 'Address',
     coZip: 'Postcode', coCity: 'City', coCountry: 'Country', coIban: 'IBAN', coPeppol: 'Peppol identifier',
+    coCompanyNumber: "Company number (BCE/KBO)",
+    coRpm: "RLE (court)",
+    coRpmPlaceholder: "RPM Brabant wallon",
+    coPeppolUse: "Use {id}",
+    coPeppolHint: "Required for the UBL / Peppol export: 0208 followed by the company number (10 digits).",
+    coAccountantEmail: "Accountant e-mail (copy of invoices)",
+    coAccountantEmailPlaceholder: "empty = no copy",
     coSalesAccount: 'Sales account', coCustomerAccount: 'Customer account', coVatAccount: 'VAT account',
     coActive: 'Active', coSaved: 'Company saved', coSecLegal: 'Identity & VAT', coSecAccounting: 'Accounting (UBL / Winbooks)',
     coInboundMailbox: 'Monitored Outlook mailbox (incoming e-mails → customer record)',
@@ -3273,6 +3316,7 @@ export const en: DictionaryShape = {
       status_paid: 'Paid',
       status_due: 'To pay',
       status_annulee: 'Cancelled',
+      status_avoir_emis: "Offset by credit note",
       back: '← All my invoices',
     },
     docTypes: {
@@ -3474,6 +3518,8 @@ export const en: DictionaryShape = {
     // Mission 05, carte 10 : acompte encaissé → pièces à commander ; factures échues impayées
     depositTitle: 'Deposit received: parts to order',
     depositLine: '{n} part(s) to order',
+    depositInvoiceTitle: "Deposit invoice to issue",
+    depositInvoiceLine: "Deposit of {amount} to invoice before {date}",
     unpaidTitle: 'Overdue unpaid invoices',
     unpaidLine: 'Balance {amount} · due on {date}',
     unpaidSeeAll: 'Open "Outstanding balances"',

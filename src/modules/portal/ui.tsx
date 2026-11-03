@@ -46,7 +46,7 @@ export function RepairStatus({ status }: { status: string }) {
 
 export function InvoiceStatus({ status, docType, due }: { status: string; docType: string; due: number }) {
   if (docType === 'AVO') return <StatusBadge tone="neutral" label={t('portal.invoices.creditNote')} />;
-  if (status === 'annulee') return <StatusBadge tone="neutral" label={t('portal.invoices.status_annulee')} />;
+  if (status === 'annulee' || status === 'avoir_emis') return <StatusBadge tone="neutral" label={t(`portal.invoices.status_${status}`)} />;
   if (status !== 'payee' && due > 0.005) return <StatusBadge tone="warning" label={t('portal.invoices.status_due')} />;
   return <StatusBadge tone="success" label={t('portal.invoices.status_paid')} />;
 }

@@ -51,7 +51,7 @@
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
 import {
-  footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary, signatureHtml, signatureFor,
+  footerHtml, toGraphAttachments, buildGraphMessage, attachmentsSummary, attachmentsWithHash, signatureHtml, signatureFor,
   contactFromCompany, type MailContact,
   type SignatureCompany,
 } from '../_shared/mail-message.ts';
@@ -258,14 +258,16 @@ Deno.serve(async (req) => {
   });
   if (!sendRes.ok) return J({ error: 'send_failed', detail: (await sendRes.text()).slice(0, 200) }, 502);
 
-  // Trace du document envoyé (qui, quand, à qui, quelle boîte, quels fichiers).
+  // Trace du document envoyé (qui, quand, à qui, quelle boîte, quels fichiers + empreinte SHA-256
+  // de chaque fichier : le PDF archivé en GED se prouve identique à celui envoyé, lot du 03/11/2026).
+  const hashed = await attachmentsWithHash(atts);
   if (traceId) {
     await db('events', {
       method: 'POST', headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({
         company_id: companyId, actor_id: user.id, action: 'email_sent', entity_type: traceType,
         entity_id: traceId, origin: 'screen',
-        new_data: { to, cc: cc.length ? cc : undefined, from: mailbox, subject, contact_id: contactId ?? null, attachments: attachmentsSummary(atts), footer: kind },
+        new_data: { to, cc: cc.length ? cc : undefined, from: mailbox, subject, contact_id: contactId ?? null, attachments: hashed, footer: kind },
       }),
     });
   }
@@ -281,5 +283,5 @@ Deno.serve(async (req) => {
       }),
     });
   }
-  return J({ ok: true, from: mailbox });
+  return J({ ok: true, from: mailbox, attachments: hashed.map((a) => ({ name: a.name, sha256: a.sha256 })) });
 });

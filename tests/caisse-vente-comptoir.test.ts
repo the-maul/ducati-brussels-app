@@ -78,8 +78,8 @@ describe('localIsoDate — la date du ticket est la date locale du poste', () =>
 });
 
 describe('canGenerateCreditNote — l avoir annule une facture ou un ticket', () => {
-  test('FAC et TIK sont les seules sources', () => {
-    expect([...CREDIT_NOTE_SOURCE_TYPES]).toEqual(['FAC', 'TIK']);
+  test('FAC, TIK et facture d acompte FAA (lot facture legale du 03/11/2026) sont les seules sources', () => {
+    expect([...CREDIT_NOTE_SOURCE_TYPES]).toEqual(['FAC', 'TIK', 'FAA']);
   });
   test('ticket valide ou paye → oui ; devis, brouillon, annule, converti → non', () => {
     expect(canGenerateCreditNote({ doc_type: 'TIK', status: 'validee' })).toBe(true);

@@ -18,10 +18,28 @@ export type CompanyPatch = Partial<Pick<Company,
   'sales_account_default' | 'customer_account_default' | 'vat_account_default' | 'is_active' | 'inbound_mailbox' |
   'round_sale_prices_up'>>
   // Plancher de prix (migration 20260714 — colonnes hors types générés)
-  & { price_floor_threshold?: number; price_floor_min?: number };
+  & { price_floor_threshold?: number; price_floor_min?: number }
+  // Facture legale (migration 20261103180000 — colonnes hors types generes) : n° BCE, RPM, copie comptable
+  & { company_number?: string | null; rpm?: string | null; accountant_email?: string | null };
+
+/** Colonnes de la fiche societe posees par la migration 20261103180000 (absentes tant qu elle n est pas appliquee). */
+export const LEGAL_COMPANY_FIELDS = ['company_number', 'rpm', 'accountant_email'] as const;
+
+/** N° BCE saisi → 10 chiffres (« BE 0472.540.151 » → « 0472540151 »), vide si illisible. */
+export function normalizeCompanyNumber(v: string | null | undefined): string {
+  const d = String(v ?? '').replace(/\D/g, '');
+  return d.length === 9 ? `0${d}` : d.length === 10 ? d : '';
+}
+
+/** Identifiant Peppol propose d apres le n° BCE (regle belge : 0208). */
+export function suggestedPeppolId(companyNumber: string | null | undefined): string {
+  const n = normalizeCompanyNumber(companyNumber);
+  return n ? `0208:${n}` : '';
+}
 
 export async function updateCompany(id: string, patch: CompanyPatch): Promise<void> {
-  const { error } = await supabase.from('companies').update(patch).eq('id', id);
+  // `as never` : company_number, rpm, accountant_email (migration 20261103180000) sont hors types generes.
+  const { error } = await supabase.from('companies').update(patch as never).eq('id', id);
   if (error) throw error;
 }
 

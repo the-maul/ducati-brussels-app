@@ -249,10 +249,10 @@ describe('cartes 4 et 6 — aucune facture ni avoir sans confirmation', () => {
     expect(s.clientName).toBe('Simon');
   });
 
-  test('recapitulatif avoir : stock reintegre, facture annulee, remboursements, bouton « Creer l avoir »', () => {
+  test('recapitulatif avoir : stock reintegre, facture compensee (reste au journal), remboursements, bouton « Creer l avoir »', () => {
     const s = buildConfirmSummary({ action: 'creditNote', docType: 'AVO', totalTtc: -121, lines: [{ designation: 'x', quantity: -1, lineTtc: -121 }], sequence: null });
     expect(s.nextNumber).toBeNull();
-    expect(s.consequences).toEqual(['confirmStockBack', 'confirmInvoiceCancelled', 'confirmRefunds', 'confirmIrreversible']);
+    expect(s.consequences).toEqual(['confirmStockBack', 'confirmInvoiceCredited', 'confirmRefunds', 'confirmIrreversible']);
     expect(s.primaryKey).toBe('confirmCreateCredit');
   });
 

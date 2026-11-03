@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, isMargeDocument, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, isMargeDocument, listPayments, creditableLinesOf, isClosedDocStatus, CREDITED_STATUS, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow, type CreditSelection } from '@/modules/sales/write-api';
+import { DepositInvoicePanel, showsDepositInvoices } from '@/modules/sales/deposit-invoice-panel';
 import { requiresConfirmation } from '@/modules/sales/confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from '@/modules/sales/confirm-document-dialog';
 import { useConfirm } from '@/components/confirm-provider';
@@ -49,7 +50,7 @@ export const Route = createFileRoute('/_app/sales/$documentId')({
 });
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
-const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' || s === 'converti' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
+const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' || s === 'converti' || s === CREDITED_STATUS ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
 
 function DocumentView() {
   const { documentId } = Route.useParams();
@@ -111,20 +112,25 @@ function DocumentView() {
     onSuccess: (newId) => { setConfirmRequest(null); navigate({ to: '/sales/$documentId', params: { documentId: newId } }); },
   });
   const credit = useMutation({
-    mutationFn: () => generateCreditNote(documentId),
+    mutationFn: (selection?: CreditSelection[]) => generateCreditNote(documentId, selection),
     onSuccess: (newId) => { setConfirmRequest(null); navigate({ to: '/sales/$documentId', params: { documentId: newId } }); },
   });
-  const askOrRun = (action: 'convert' | 'creditNote', target: string) => {
+  const askOrRun = async (action: 'convert' | 'creditNote', target: string) => {
     if (!data) return;
     if (!requiresConfirmation(target)) { convert.mutate(target); return; }
     const sign = target === 'AVO' ? -1 : 1;
+    // Avoir : quantité encore créditable par ligne (avoirs partiels déjà émis déduits).
+    const remaining = action === 'creditNote' ? await creditableLinesOf(documentId).catch(() => null) : null;
     setConfirmRequest({
       action, docType: target, clientName: contactQ.data ? contactDisplayName(contactQ.data) : null,
       totalTtc: sign * Number(data.doc.total_ttc),
-      lines: data.lines.filter((l) => l.line_type !== 'vide').map((l) => ({ designation: l.designation, quantity: sign * Number(l.quantity), lineTtc: sign * Number(l.line_ttc) })),
+      lines: data.lines.filter((l) => l.line_type !== 'vide').map((l) => ({
+        designation: l.designation, quantity: sign * Number(l.quantity), lineTtc: sign * Number(l.line_ttc),
+        ...(remaining ? { lineId: l.id, maxQuantity: remaining.get(l.id) ?? 0 } : {}),
+      })),
     });
   };
-  const runConfirmed = (r: ConfirmDocumentRequest) => { if (r.action === 'creditNote') credit.mutate(); else convert.mutate(r.docType); };
+  const runConfirmed = (r: ConfirmDocumentRequest, selection?: CreditSelection[]) => { if (r.action === 'creditNote') credit.mutate(selection); else convert.mutate(r.docType); };
   // Brouillon : modifier ou supprimer (mission 08, carte 1) ; un document validé est figé.
   const confirmDialog = useConfirm();
   const removeDraft = useMutation({
@@ -171,7 +177,8 @@ function DocumentView() {
     : Number(doc.global_discount_amount);
   const shippingHt = Number(doc.shipping_ht);
   const convertTargets = CONVERSIONS[doc.doc_type] ?? [];
-  const canConvert = !['brouillon', 'annulee', 'converti'].includes(doc.status);
+  const canConvert = !isClosedDocStatus(doc.status);
+  const sourceId = (doc.doc_type === 'AVO' || doc.doc_type === 'FAA') ? doc.source_document_id : null;
 
   return (
     <>
@@ -184,7 +191,7 @@ function DocumentView() {
             <PrepareButton doc={doc} withLabel />
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '').catch((e) => toast.error(errorMessage(e)))}><Printer /> {t('sales.print')}</Button>
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
-            {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
+            {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO' || doc.doc_type === 'FAA') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId).catch((e) => toast.error(errorMessage(e)))} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {/* Ticket sans client : envoi à une adresse saisie, non enregistrée (PDV010). */}
             {(contactId || (doc.doc_type === 'TIK' && doc.number)) && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
             {doc.doc_type === 'DEV' && doc.vehicle_id && <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>}
@@ -202,12 +209,12 @@ function DocumentView() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
-              <Button key={tt} size="sm" variant="outline" onClick={() => askOrRun('convert', tt)} disabled={readOnly || convert.isPending}>
+              <Button key={tt} size="sm" variant="outline" onClick={() => { void askOrRun('convert', tt); }} disabled={readOnly || convert.isPending}>
                 {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
               </Button>
             ))}
             {canGenerateCreditNote(doc) && (
-              <Button size="sm" variant="outline" onClick={() => askOrRun('creditNote', 'AVO')} disabled={readOnly || credit.isPending}>
+              <Button size="sm" variant="outline" onClick={() => { void askOrRun('creditNote', 'AVO'); }} disabled={readOnly || credit.isPending}>
                 {credit.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {t('sales.creditNote')}
               </Button>
             )}
@@ -240,6 +247,15 @@ function DocumentView() {
           ) : (
             <span className="font-medium">{t('sales.legacyClient')} #{doc.code_client_legacy}</span>
           )}
+        </div>
+      )}
+
+      {sourceId && (
+        <div className="mb-4 text-[13px]">
+          <span className="text-muted-foreground">{t(doc.doc_type === 'AVO' ? 'sales.creditOf' : 'sales.depositOf')} : </span>
+          <button className="font-medium text-info underline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: sourceId } })}>
+            {t('sales.openSource')}
+          </button>
         </div>
       )}
 
@@ -362,7 +378,7 @@ function DocumentView() {
         </div>
       )}
 
-      {doc.status !== 'annulee' && doc.status !== 'brouillon' && (
+      {doc.status !== 'annulee' && doc.status !== CREDITED_STATUS && doc.status !== 'brouillon' && (
         <div className="mt-4">
           <PaymentPanel
             documentId={documentId} companyId={doc.company_id} due={balance.clientDue} overdue={balance.overdue}
@@ -373,7 +389,13 @@ function DocumentView() {
       )}
 
       {/* Paiement par QR de virement sur l'écran client (mission 02, carte 9) */}
-      {doc.status !== 'annulee' && doc.status !== 'brouillon' && doc.status !== 'converti' && doc.doc_type !== 'AVO' && (
+      {showsDepositInvoices(doc) && (
+        <div className="mt-4">
+          <DepositInvoicePanel doc={doc} readOnly={readOnly} required={!!doc.vehicle_id || !!(contactQ.data?.vat_number ?? '').trim()} />
+        </div>
+      )}
+
+      {!isClosedDocStatus(doc.status) && doc.doc_type !== 'AVO' && doc.doc_type !== 'FAA' && (
         <div className="mt-4">
           <QrPaymentCard
             documentId={documentId} companyId={doc.company_id} docType={doc.doc_type} docNumber={doc.number}

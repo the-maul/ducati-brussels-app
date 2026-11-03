@@ -8,6 +8,36 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Facture belge conforme : avoir, facture d'acompte, journal juste, UBL prêt pour Peppol (VEN006, M12)
+
+- **M-99** — **Une facture compensée par un avoir reste au journal des ventes** (statut `avoir_emis`,
+  « Compensée par un avoir »), jamais plus `annulee` : seul l'avoir la neutralise (AR 1 art. 12). Avoir
+  **partiel** par lignes et quantités (la facture reste ouverte pour le reste), numérotation `AVO-`
+  continue, référence n° + date de la facture et mention AR n° 4 art. 4 §1 imprimées (FR + langue du
+  client). Un avoir **règle** d'abord le dû de la facture (lettrage `AVO`, sans trésorerie) puis
+  rembourse le surplus. Données existantes corrigées par la migration (trace `credit_note_fix`) et
+  garde-fou en base pour les autres chemins (remboursement Shopify). *Client (« intègre déjà tout ce
+  que tu peux sans validation ») · 03/11.*
+- **M-100** — **Facture d'acompte `FAA-AAAA-NNNNN`** (série par société) : émise **automatiquement** dès
+  qu'un acompte est encaissé sur une RES / un BC / un devis **pour une moto ou un client avec n° de
+  TVA** ; **sur demande** (bouton) pour un particulier hors moto — **à confirmer par le comptable**.
+  TVA déclarée à l'encaissement ; la facture finale référence et **déduit** les acomptes facturés
+  (journal, registre TVA, écritures 46, `PrepaidAmount`) ; rappel cloche « à émettre avant le 15 du mois
+  suivant » si l'automatisme n'a pas joué. Écritures : FAA `400 / 460000 / 451`, facture finale
+  contre-passe `460000 + 451 / 400`. *Client · 03/11.*
+- **M-101** — **Seuls les documents validés comptent** en comptabilité : brouillons et documents annulés
+  exclus du journal des ventes, du registre TVA et des écritures (le registre comptait les brouillons).
+- **M-102** — **UBL Peppol BIS 3.0** : n° BCE + identifiant `0208:` **obligatoires** sur la fiche société
+  pour exporter ; `BuyerReference` (« NA »), `OrderReference`, `0208` vendeur et acheteur belge,
+  détaxe `G` + `VATEX-EU-G`, `BillingReference` sur l'avoir, facture d'acompte type 386,
+  `PrepaidAmount`, remises de ligne en `AllowanceCharge`, marge `E` 0 % + texte. **Mail** : empreinte
+  SHA-256 du PDF dans la trace `email_sent` et la GED ; **copie au comptable** sur facture / avoir /
+  FAA si une adresse est saisie (vide par défaut) — **à confirmer par le comptable** (l'étude §5.3
+  préfère un export mensuel). Migration `20261103180000_m6_facture_legale.sql` **non appliquée** (après
+  `20261103160000`). *Agence · 03/11.* [M06](modules/M06-ventes-caisse.md), [M09](modules/M09-documents.md), [M12](modules/M12-compta.md)
+
+---
+
 ## 2026-11-03 — Caisse conforme au droit belge : ce qui ne demandait pas de choix métier (PDV010)
 
 - **M-93** — **Le journal Z est le journal des recettes, numéroté, figé à la clôture, jamais rouvert.**

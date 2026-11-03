@@ -26,7 +26,7 @@ import { contactLocale } from '@/lib/i18n/client-locale';
 import { errorMessage } from '@/lib/mutation-feedback';
 import type { DocumentFull } from './write-api';
 import { generateSalesPdf, pdfBlob } from './document-pdf-data';
-import { sendDocumentMail, mailErrorLabel, type DryRunPreview } from './document-mail-api';
+import { sendDocumentMail, mailErrorLabel, accountantCopy, getAccountantEmail, type DryRunPreview } from './document-mail-api';
 
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
@@ -59,6 +59,8 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
   // Boîtes d'envoi : même règle que les échanges du CRM (communications-panel).
   const mailboxesQ = useQuery({ queryKey: ['company-mailboxes', doc.company_id], queryFn: () => listCompanyMailboxes(doc.company_id) });
   const commsQ = useQuery({ queryKey: ['comms', contact?.id], queryFn: () => listCommunications(contact!.id), enabled: !!contact });
+  // Copie au comptable (Paramètres → Sociétés, vide par défaut) : facture, avoir, facture d'acompte.
+  const accountantQ = useQuery({ queryKey: ['accountant-email', doc.company_id], queryFn: () => getAccountantEmail(doc.company_id) });
   const shared = (mailboxesQ.data ?? []).map((m) => m.address.toLowerCase());
   const sameDomain = shared.some((a) => a.split('@')[1] === myEmail.split('@')[1]);
   const senders = [...shared, ...(myEmail && sameDomain && !shared.includes(myEmail) ? [myEmail] : [])];
@@ -129,6 +131,9 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
               <Input type="email" value={to} onChange={(e) => { setTo(e.target.value); setPreview(null); }} placeholder={t('salesMail.toPlaceholder')} />
               {contact && !contact.email && <p className="text-[12px] text-muted-foreground">{t('salesMail.noClientEmail')}</p>}
               {!contact && <p className="text-[12px] text-muted-foreground">{t('salesMail.toNotSaved')}</p>}
+              {accountantCopy(doc.doc_type, accountantQ.data, to).map((a) => (
+                <p key={a} className="text-[12px] text-muted-foreground">{t('salesMail.accountantCopy').replace('{email}', a)}</p>
+              ))}
             </div>
           </div>
           <div className="space-y-1.5">

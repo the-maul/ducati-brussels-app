@@ -13,6 +13,8 @@ import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
 import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
 import { vehicleBlockLines, vatBreakdown, type VehicleBlockSource } from './document-pdf';
+import { loadLegalMentions } from './document-pdf-data';
+import { formatCompanyNumber } from './invoice-legal';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 
@@ -141,9 +143,12 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     </tbody></table>` : '';
 
   // Mentions légales (TVA marge, détaxe) : textes du dictionnaire, FR de référence, NL/EN/IT fidèles.
-  const margeMention = isMarge
+  // Lot facture légale (03/11/2026) : avoir, facture d'acompte, acomptes déduits, détaxe — FR + langue du client.
+  const legal = await loadLegalMentions(doc, (payments ?? []) as Record<string, unknown>[], locale);
+  const margeMention = (isMarge
     ? `<p class="mention">${esc(t('salesPdf.margeMention'))}</p>`
-    : (doc.tax_exempt ? `<p class="mention">${esc(t('sales.taxExemptMention'))}</p>` : '');
+    : (doc.tax_exempt && !legal ? `<p class="mention">${esc(t('sales.taxExemptMention'))}</p>` : ''))
+    + (legal ?? []).map((m) => `<p class="mention">${esc(m)}</p>`).join('');
   const footerText = co.invoice_footer ? `<p class="footer-note">${esc(co.invoice_footer)}</p>` : '';
   const cgvPage = co.cgv_text
     ? `<div class="cgv"><h3>${esc(t('salesPdf.cgvTitle'))}</h3><div>${esc(co.cgv_text)}</div><p class="signature">${esc(t('salesPdf.cgvSignature'))}</p></div>`
@@ -199,6 +204,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
       <div class="sub">${[esc(co.address), esc([co.zip, co.city].filter(Boolean).join(' ')),
         co.phone ? esc(co.phone) : '', co.email ? esc(co.email) : '',
         co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `${esc(t('salesPdf.vat'))} : ${esc(co.vat_number)}` : '',
+        co.company_number ? `${esc(t('salesPdf.companyNumber'))} : ${esc(formatCompanyNumber(String(co.company_number)))}${co.rpm ? ` · ${esc(co.rpm)}` : ''}` : '',
         co.iban ? `IBAN : ${esc(co.iban)}` : ''].filter(Boolean).join('<br>')}</div>
     </div>
     <div style="text-align:right">

@@ -23,7 +23,42 @@ export function confirmedConversions(sourceType: string): string[] {
   return (CONVERSIONS[sourceType] ?? []).filter(requiresConfirmation);
 }
 
-export type ConfirmLine = { designation: string; quantity: number; lineTtc: number };
+export type ConfirmLine = {
+  designation: string; quantity: number; lineTtc: number;
+  /** Avoir : ligne de la facture et quantité encore créditable (avoir partiel, étude §3 ligne 10). */
+  lineId?: string; maxQuantity?: number;
+};
+
+/** Avoir : quantités choisies par ligne (clé = `lineId`). */
+export type CreditChoice = Map<string, number>;
+
+/** Quantités proposées par défaut pour un avoir : tout ce qui reste créditable. */
+export function defaultCreditChoice(lines: ConfirmLine[]): CreditChoice {
+  return new Map(lines.filter((l) => l.lineId && (l.maxQuantity ?? 0) > 0).map((l) => [l.lineId as string, l.maxQuantity as number]));
+}
+
+/** Borne une quantité saisie : entre 0 et le reste créditable, 3 décimales. */
+export function clampCreditQuantity(value: number, max: number): number {
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return Math.round(Math.min(value, max) * 1000) / 1000;
+}
+
+/** Lignes et total TTC d un avoir d après le choix (montant au prorata de la quantité créditée), signés négatifs. */
+export function creditChoiceSummary(lines: ConfirmLine[], choice: CreditChoice): { lines: ConfirmLine[]; totalTtc: number; full: boolean } {
+  const out: ConfirmLine[] = [];
+  let total = 0;
+  let full = true;
+  for (const l of lines) {
+    if (!l.lineId || !(l.maxQuantity && l.maxQuantity > 0)) continue;
+    const q = clampCreditQuantity(choice.get(l.lineId) ?? 0, l.maxQuantity);
+    if (Math.abs(q - l.maxQuantity) > 0.0005) full = false;
+    if (q <= 0) continue;
+    const ttc = Math.round((Math.abs(l.lineTtc) / Math.abs(l.quantity || 1)) * q * 100) / 100;
+    out.push({ ...l, quantity: -q, lineTtc: -ttc });
+    total += ttc;
+  }
+  return { lines: out, totalTtc: -Math.round(total * 100) / 100, full };
+}
 
 export type ConfirmSummary = {
   action: ConfirmAction;
@@ -52,10 +87,12 @@ export function visibleConfirmLines(lines: ConfirmLine[]): { shown: ConfirmLine[
 export function buildConfirmSummary(p: {
   action: ConfirmAction; docType: string; clientName?: string | null; totalTtc: number; lines: ConfirmLine[];
   sequence?: Parameters<typeof previewNumber>[0] | null;
+  /** Avoir partiel : la facture reste telle quelle, seules les lignes choisies sont reprises. */
+  partialCredit?: boolean;
 }): ConfirmSummary {
   const credit = p.docType === 'AVO';
   const consequences: string[] = [];
-  if (credit) consequences.push('confirmStockBack', 'confirmInvoiceCancelled', 'confirmRefunds');
+  if (credit) consequences.push('confirmStockBack', p.partialCredit ? 'confirmInvoiceCreditedPartial' : 'confirmInvoiceCredited', 'confirmRefunds');
   else if ((REAL_OUT_DOC_TYPES as readonly string[]).includes(p.docType)) consequences.push('confirmStockOut');
   if (p.action === 'convert') consequences.push('confirmSourceConverted');
   consequences.push('confirmIrreversible');

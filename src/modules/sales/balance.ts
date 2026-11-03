@@ -66,7 +66,7 @@ export function documentBalance(doc: BalanceDoc, payments: BalancePayment[] | nu
 export const OPEN_BALANCE_DOC_TYPES = ['FAC', 'TIK', 'BC', 'RES', 'BL'] as const;
 export function isOpenForBalance(d: { doc_type: string; status: string }): boolean {
   return (OPEN_BALANCE_DOC_TYPES as readonly string[]).includes(d.doc_type)
-    && !['brouillon', 'annulee', 'converti'].includes(d.status);
+    && !['brouillon', 'annulee', 'converti', 'avoir_emis'].includes(d.status);
 }
 
 export type ContactBalance = { clientDue: number; toReceiveFromOrg: number; financingPending: number; openDocs: number; overdue: boolean };

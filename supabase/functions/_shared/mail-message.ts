@@ -308,3 +308,17 @@ export function buildGraphMessage(p: { subject: string; bodyHtml: string; signat
 export function attachmentsSummary(atts: GraphAttachment[]): { name: string; contentType: string; size: number }[] {
   return atts.map((a) => ({ name: a.name, contentType: a.contentType, size: base64Size(a.contentBytes) }));
 }
+
+/** Empreinte SHA-256 (hex) d'un contenu base64 : preuve que le fichier archivé est celui envoyé (étude facturation §5.3). */
+export async function sha256Base64(b64: string): Promise<string> {
+  const bin = atob(String(b64).replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Résumé des pièces jointes avec leur empreinte SHA-256 (trace `events` `email_sent`). */
+export async function attachmentsWithHash(atts: GraphAttachment[]): Promise<{ name: string; contentType: string; size: number; sha256: string }[]> {
+  return Promise.all(atts.map(async (a) => ({ name: a.name, contentType: a.contentType, size: base64Size(a.contentBytes), sha256: await sha256Base64(a.contentBytes) })));
+}

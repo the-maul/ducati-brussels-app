@@ -14,7 +14,7 @@ import { documentBalance, type BalanceDoc, type BalancePayment } from './balance
 
 /** Documents qui reçoivent un acompte et déclenchent l'alerte « pièces à commander ». */
 export const DEPOSIT_ALERT_DOC_TYPES = ['DEV', 'BC', 'RES'] as const;
-const CLOSED = ['brouillon', 'annulee', 'converti'];
+const CLOSED = ['brouillon', 'annulee', 'converti', 'avoir_emis'];
 
 const n = (v: unknown) => {
   const x = Number(v);
@@ -82,7 +82,7 @@ export function newUnpaidAlerts<T extends { id: string; due_date?: string | null
 
 // ---- Cloche ----
 
-export type DocumentAlertKind = 'order_after_deposit' | 'unpaid_balance' | 'proposal_signed';
+export type DocumentAlertKind = 'order_after_deposit' | 'unpaid_balance' | 'proposal_signed' | 'deposit_invoice_due';
 
 export type DocumentAlert = {
   id: string;
@@ -94,6 +94,8 @@ export type DocumentAlert = {
     number?: string | null; doc_type?: string; missing_lines?: number; missing_qty?: number; deposit?: number; due_date?: string; client_due?: number;
     /** Proposition d'intervention signee (ATE009) : cartes gardees / reportees, mode, OR. */
     kept?: number; deferred?: number; mode?: string; repair_order_id?: string | null; total_ttc?: number;
+    /** Facture d acompte a emettre (migration 20261103180000) : montant, encaissement, date limite (le 15). */
+    amount?: number; paid_at?: string; deadline?: string; payment_id?: string;
   };
   createdAt: string;
   read: boolean;

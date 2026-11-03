@@ -581,16 +581,23 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
     lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: sourceId,
   });
 
-  // Report des acomptes perçus de la source (réservation) sur la cible → déduction auto.
+  // Report des acomptes perçus de la source (réservation) sur la cible → déduction auto. Un acompte déjà
+  // facturé (facture d acompte FAA) garde son lien : la facture finale le déduit (PrepaidAmount) sans
+  // refacturer la TVA, et la compta ne le repasse pas en trésorerie.
   const srcPayments = await listPayments(sourceId);
   const acomptes = srcPayments.filter((p) => p.status === 'recu' && Number(p.amount) !== 0);
   if (acomptes.length > 0) {
     // `transferredFrom` (PDV010) : l'argent a déjà été encaissé le jour de l'acompte ; le report n'est
-    // pas un nouvel encaissement (hors journal Z, hors plafond espèces).
+    // pas un nouvel encaissement (hors journal Z, hors plafond espèces). Le lien vers la FAA suit
+    // l acompte de document en document (devis → BC → facture) : un acompte deja facture n en
+    // declenche jamais une seconde (declencheur `trg_deposit_invoice_auto`).
+    const faa = await listDepositInvoices(sourceId);
+    const faaByPayment = new Map(faa.filter((f) => f.deposit_payment_id).map((f) => [f.deposit_payment_id as string, f.id]));
     await addPayments(newId, acomptes.map((p) => ({
       method: p.method, amount: Number(p.amount), status: 'recu',
       note: `Acompte reporté ${doc.doc_type} ${doc.number ?? ''}`.trim(),
       fromFinancing: !!p.from_financing, transferredFrom: p.id,
+      depositInvoiceId: (p as { deposit_invoice_id?: string | null }).deposit_invoice_id ?? faaByPayment.get(p.id) ?? null,
     })));
   }
 
@@ -611,29 +618,152 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
 }
 
 /**
- * Génère un avoir (type AVO) depuis une facture (G8 Facturation p.88, p.113, p.135) :
- * lignes en négatif, **réintégration du stock** (entrée réel), **remboursement** des règlements
- * perçus (règlements négatifs sur l'avoir), filiation, et passage de la facture en 'annulee'.
- * Mouvements append-only (B7). Retourne l'id de l'avoir.
- */
-/**
  * Documents qu un avoir peut annuler : la facture et le ticket de caisse (G8 : la vente Express est
  * une « facture Express », annulee comme une facture). Avant l audit caisse du 03/11/2026, le bouton
  * « Generer un avoir » d un ticket repondait « document source non facturable ».
+ * Une facture deja compensee en totalite par un avoir (`avoir_emis`) ne se credite plus.
  */
-export const CREDIT_NOTE_SOURCE_TYPES = ['FAC', 'TIK'] as const;
+export const CREDIT_NOTE_SOURCE_TYPES = ['FAC', 'TIK', 'FAA'] as const;
+/** Statut d une facture compensee en totalite par un avoir : elle RESTE au journal des ventes (AR 1 art. 12). */
+export const CREDITED_STATUS = 'avoir_emis';
+/** Mode de reglement technique « regle par avoir » (lettrage facture ↔ avoir, jamais de tresorerie). */
+export const CREDIT_SETTLEMENT_METHOD = 'AVO';
+/** Statuts d un document ferme (plus aucun encaissement ni conversion). */
+export const CLOSED_DOC_STATUSES = ['brouillon', 'annulee', 'converti', CREDITED_STATUS] as const;
+export const isClosedDocStatus = (status: string): boolean => (CLOSED_DOC_STATUSES as readonly string[]).includes(status);
+
 export function canGenerateCreditNote(doc: Pick<DocumentRow, 'doc_type' | 'status'>): boolean {
-  return (CREDIT_NOTE_SOURCE_TYPES as readonly string[]).includes(doc.doc_type)
-    && !['brouillon', 'annulee', 'converti'].includes(doc.status);
+  return (CREDIT_NOTE_SOURCE_TYPES as readonly string[]).includes(doc.doc_type) && !isClosedDocStatus(doc.status);
 }
 
-export async function generateCreditNote(invoiceId: string): Promise<string> {
+/** Ligne a crediter : identifiant de la ligne de la facture et quantite a reprendre (positive). */
+export type CreditSelection = { lineId: string; quantity: number };
+
+/**
+ * Quantites encore creditables d une facture (avoir partiel, etude §3 ligne 10) : quantite facturee moins
+ * ce que les avoirs precedents (lignes negatives, `source_document_id` = facture) ont deja repris, ligne par
+ * ligne (meme article + meme designation + meme prix, dans l ordre). Lignes texte / vides : 0.
+ */
+export function creditableQuantities(
+  invoiceLines: Pick<DocumentLine, 'id' | 'article_id' | 'designation' | 'unit_price_ht' | 'quantity' | 'line_type'>[],
+  previousCreditLines: Pick<DocumentLine, 'article_id' | 'designation' | 'unit_price_ht' | 'quantity' | 'line_type'>[],
+): Map<string, number> {
+  const key = (l: { article_id: string | null; designation: string; unit_price_ht: number | string }) =>
+    `${l.article_id ?? ''}|${l.designation}|${Number(l.unit_price_ht)}`;
+  const credited = new Map<string, number>();
+  for (const c of previousCreditLines) {
+    if (!lineHasAmount({ line_type: c.line_type as LineType })) continue;
+    credited.set(key(c), (credited.get(key(c)) ?? 0) + Math.abs(Number(c.quantity)));
+  }
+  const out = new Map<string, number>();
+  for (const l of invoiceLines) {
+    if (!lineHasAmount({ line_type: l.line_type as LineType })) { out.set(l.id, 0); continue; }
+    const k = key(l);
+    const already = credited.get(k) ?? 0;
+    const q = Math.abs(Number(l.quantity));
+    const take = Math.min(q, already);
+    credited.set(k, already - take);
+    out.set(l.id, Math.round((q - take) * 1000) / 1000);
+  }
+  return out;
+}
+
+/** Un avoir est total quand il reprend chaque ligne creditable pour toute sa quantite restante. */
+export function isFullCreditNote(remaining: Map<string, number>, selection: CreditSelection[]): boolean {
+  const sel = new Map(selection.map((s) => [s.lineId, Math.abs(s.quantity)]));
+  for (const [lineId, q] of remaining) {
+    if (q <= 0.0005) continue;
+    if (Math.abs((sel.get(lineId) ?? 0) - q) > 0.0005) return false;
+  }
+  return true;
+}
+
+export type CreditSettlement = {
+  /** Part de l avoir qui solde le du de la facture : reglement « AVO » sur la facture, et son inverse sur l avoir. */
+  settled: number;
+  /** Remboursements reels au client (modes des reglements percus, dans l ordre), montants positifs. */
+  refunds: { method: string; amount: number }[];
+};
+
+/**
+ * Comment un avoir se regle (pure, testee) : d abord il solde ce que le client devait encore sur la facture
+ * (lettrage, aucune tresorerie), le reste est rembourse en reprenant les modes des reglements percus.
+ * Avoir total d une facture payee → remboursement integral ; facture impayee → lettrage seul.
+ */
+export function creditNoteSettlement(
+  invoice: { total_ttc: number | string },
+  received: { method: string; amount: number | string }[],
+  creditTtc: number,
+): CreditSettlement {
+  const ttc = Number(invoice.total_ttc) || 0;
+  const paid = received.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const credit = Math.abs(creditTtc);
+  const due = Math.max(ttc - paid, 0);
+  const settled = r2(Math.min(credit, due));
+  let toRefund = r2(credit - settled);
+  const refunds: { method: string; amount: number }[] = [];
+  for (const p of received) {
+    if (toRefund <= 0.004) break;
+    const a = Math.min(Math.abs(Number(p.amount) || 0), toRefund);
+    if (a <= 0.004) continue;
+    refunds.push({ method: p.method, amount: r2(a) });
+    toRefund = r2(toRefund - a);
+  }
+  return { settled, refunds };
+}
+
+/** Lignes d une facture et quantite encore creditable de chacune (fenetre de l avoir partiel). */
+export async function creditableLinesOf(invoiceId: string): Promise<Map<string, number>> {
+  const { lines } = await getDocumentFull(invoiceId);
+  const previous = await listCreditNotesOf(invoiceId);
+  return creditableQuantities(lines, previous.flatMap((p) => p.lines));
+}
+
+/** Avoirs valides deja emis sur une facture (filiation `source_document_id`). */
+export async function listCreditNotesOf(invoiceId: string): Promise<DocumentFull[]> {
+  const { data, error } = await supabase.from('documents').select('*').eq('source_document_id', invoiceId).eq('doc_type', 'AVO')
+    .not('status', 'in', '("brouillon","annulee")').order('created_at');
+  if (error) throw error;
+  const docs = (data ?? []) as DocumentRow[];
+  if (!docs.length) return [];
+  const { data: lines, error: le } = await supabase.from('document_lines').select('*').in('document_id', docs.map((d) => d.id)).order('sort_order');
+  if (le) throw le;
+  return docs.map((doc) => ({ doc, lines: (lines ?? []).filter((l) => l.document_id === doc.id) }));
+}
+
+/**
+ * Génère un avoir (type AVO) depuis une facture (G8 Facturation p.88, p.113, p.135 ; AR 1 art. 12, AR 4 art. 4) :
+ * lignes en négatif (toutes, ou la **sélection** de l avoir partiel), **réintégration du stock** (entrée réel),
+ * **règlement par l avoir** du dû de la facture puis **remboursement** du surplus (règlements négatifs sur
+ * l avoir), filiation. La facture d origine **reste au journal des ventes** : avoir total → statut
+ * `avoir_emis` ; avoir partiel → statut inchangé. Mouvements append-only (B7). Retourne l id de l avoir.
+ */
+export async function generateCreditNote(invoiceId: string, selection?: CreditSelection[]): Promise<string> {
   const { doc, lines } = await getDocumentFull(invoiceId);
   if (!(CREDIT_NOTE_SOURCE_TYPES as readonly string[]).includes(doc.doc_type)) throw new Error(t('sales.creditNoteSource'));
   if (!canGenerateCreditNote(doc)) throw new Error(t('sales.creditNoteAlready'));
 
-  // Lignes en négatif (qté inversée → totaux négatifs via computeTotals).
-  const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l, -1));
+  const previous = await listCreditNotesOf(invoiceId);
+  const remaining = creditableQuantities(lines, previous.flatMap((p) => p.lines));
+  const wanted: CreditSelection[] = selection
+    ?? lines.filter((l) => (remaining.get(l.id) ?? 0) > 0).map((l) => ({ lineId: l.id, quantity: remaining.get(l.id) ?? 0 }));
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  const credited: { line: DocumentLine; quantity: number }[] = [];
+  for (const s of wanted) {
+    const line = byId.get(s.lineId);
+    const max = remaining.get(s.lineId) ?? 0;
+    const q = Math.min(Math.abs(s.quantity), max);
+    if (!line || q <= 0.0005) continue;
+    credited.push({ line, quantity: Math.round(q * 1000) / 1000 });
+  }
+  if (!credited.length) throw new Error(t('sales.creditNoteNothing'));
+  const full = isFullCreditNote(remaining, credited.map((c) => ({ lineId: c.line.id, quantity: c.quantity })));
+
+  // Lignes en négatif (qté inversée → totaux négatifs via computeTotals) ; les lignes texte de la facture
+  // sont reprises sur un avoir total pour garder le document lisible.
+  const lineInputs: LineInput[] = full
+    ? lines.map((l) => (lineHasAmount({ line_type: l.line_type as LineType }) ? rowToLineInput(l, -1) : rowToLineInput(l)))
+    : credited.map((c) => ({ ...rowToLineInput(c.line, -1), quantity: -c.quantity }));
 
   // Avoir d'une vente en régime de la marge (M-89) : même régime, aucune TVA, prix de reprise
   // figé repris tel quel (le registre de la marge retire la vente de la période de l'avoir).
@@ -653,27 +783,36 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
     cashSessionId: open?.id ?? null, sourceDocType: doc.doc_type,
   });
 
-  // Réintégration du stock : entrée réel +qté pour chaque ligne article (B4).
-  for (const l of lines) {
-    if (!lineMovesStock(l) || !l.article_id) continue;
+  // Réintégration du stock : entrée réel +qté pour chaque ligne article créditée (B4).
+  for (const c of credited) {
+    if (!lineMovesStock(c.line) || !c.line.article_id) continue;
     const { error } = await supabase.rpc('record_stock_move', {
-      _article: l.article_id, _type: 'entree', _qty: Math.abs(Number(l.quantity)), _unit_cost: undefined,
+      _article: c.line.article_id, _type: 'entree', _qty: c.quantity, _unit_cost: undefined,
       _is_reservation: false, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Avoir / réintégration',
     });
     if (error) throw error;
   }
 
-  // Remboursement : règlements négatifs reprenant les règlements perçus de la facture (les
-  // contre-passations et leurs cibles s'annulent, l'arrondi « ARR » d'origine n'est pas repris :
-  // le remboursement en espèces est lui-même arrondi à 5 cents, PDV010).
+  // Règlement de l avoir (lot facture légale) : lettrage du dû de la facture (mode AVO, sans trésorerie),
+  // puis remboursement du surplus au mode des règlements réellement perçus (contre-passations déduites,
+  // arrondi `ARR` ignoré, espèces arrondies à 5 cents : `refundLines`, PDV010).
+  const avo = await getDocumentFull(avoId);
   const paid = await listPayments(invoiceId);
-  const refunds = refundLines(paid, doc.number);
-  if (refunds.length > 0) await addPayments(avoId, refunds);
+  const received = receivedByMethod(paid.filter((p) => p.method !== CREDIT_SETTLEMENT_METHOD));
+  const settlement = creditNoteSettlement(doc, received, Number(avo.doc.total_ttc));
+  const avoPayments: NewPayment[] = [];
+  if (settlement.settled > 0.004) {
+    await addPayments(invoiceId, [{ method: CREDIT_SETTLEMENT_METHOD, amount: settlement.settled, status: 'recu', note: `Réglé par avoir ${avo.doc.number ?? ''}`.trim() }]);
+    avoPayments.push({ method: CREDIT_SETTLEMENT_METHOD, amount: -settlement.settled, status: 'recu', note: `Solde la facture ${doc.number ?? ''}`.trim() });
+  }
+  avoPayments.push(...refundLines(settlement.refunds.map((r) => ({ method: r.method, amount: r.amount, status: 'recu' })), doc.number));
+  if (avoPayments.length) await addPayments(avoId, avoPayments);
 
-  // La facture est annulée par l'avoir.
-  const { error: ue } = await supabase.from('documents').update({ status: 'annulee' }).eq('id', invoiceId);
-  if (ue) throw ue;
-
+  // Avoir total : la facture est compensée par l avoir mais reste au journal (plus jamais « annulée »).
+  if (full) {
+    const { error: ue } = await supabase.from('documents').update({ status: CREDITED_STATUS }).eq('id', invoiceId);
+    if (ue) throw ue;
+  }
   return avoId;
 }
 
@@ -693,6 +832,104 @@ export function refundLines(paid: { method: string; amount: number | string; sta
   const lines: NewPayment[] = [...byMethod].filter(([, amount]) => amount > 0.004)
     .map(([method, amount]) => ({ method, amount: -amount, status: 'recu', note }));
   return applyCashRounding(lines).map((l) => ({ ...l, note: l.note ?? note }));
+}
+
+/** Perçu net par mode (contre-passations déduites, arrondi `ARR` ignoré), dans l ordre des modes. */
+export function receivedByMethod(paid: { method: string; amount: number | string; status: string | null }[]): { method: string; amount: number }[] {
+  const byMethod = new Map<string, number>();
+  for (const p of paid) {
+    if ((p.status ?? 'recu') !== 'recu' || p.method === CASH_ROUNDING_METHOD) continue;
+    byMethod.set(p.method, Math.round(((byMethod.get(p.method) ?? 0) + Number(p.amount)) * 100) / 100);
+  }
+  return [...byMethod].filter(([, amount]) => amount > 0.004).map(([method, amount]) => ({ method, amount }));
+}
+
+// ---- Facture d acompte (FAA, étude §3 ligne 9 : CTVA art. 17 §1 al. 3, AR 1 art. 1 et 4) ----
+
+/** Documents dont un acompte encaissé se facture (facture d acompte FAA). */
+export const DEPOSIT_INVOICE_SOURCE_TYPES = ['RES', 'BC', 'DEV'] as const;
+export const DEPOSIT_INVOICE_DOC_TYPE = 'FAA';
+
+/** Type de véhicule qui impose la facture d acompte (moto : article V / O / P / D). */
+export const VEHICLE_MGMT_TYPES = ['V', 'O', 'P', 'D'] as const;
+
+/**
+ * La facture d acompte est-elle obligatoire dès l encaissement (automatique) ? Oui pour une moto (fiche
+ * véhicule ou ligne V/O/P/D) ou un client assujetti (n° TVA). Particulier sans moto : sur demande (bouton),
+ * à confirmer par le comptable. Même règle que `_deposit_invoice_required` en base.
+ */
+export function depositInvoiceRequired(p: { vehicleId?: string | null; contactVat?: string | null; lineMgmtTypes: (string | null)[] }): boolean {
+  if (p.vehicleId) return true;
+  if ((p.contactVat ?? '').trim()) return true;
+  return p.lineMgmtTypes.some((m) => m && (VEHICLE_MGMT_TYPES as readonly string[]).includes(m));
+}
+
+/** Totaux d une facture d acompte : le montant encaissé est TTC, la TVA au taux du document (0 % si détaxe). */
+export function depositInvoiceTotals(amountTtc: number, vatRate: number, taxExempt = false): { ht: number; vat: number; ttc: number; rate: number } {
+  const rate = taxExempt ? 0 : vatRate;
+  const ttc = r2(amountTtc);
+  const ht = r2(ttc / (1 + rate / 100));
+  return { ht, vat: r2(ttc - ht), ttc, rate };
+}
+
+/** Date limite légale d émission : le 15 du mois qui suit l encaissement (AR 1 art. 4). */
+export function depositInvoiceDeadline(paidAtIso: string): string {
+  const [y, m] = paidAtIso.slice(0, 10).split('-').map(Number);
+  const next = new Date(Date.UTC(y, m, 15));
+  return next.toISOString().slice(0, 10);
+}
+
+export type DepositInvoiceRow = { id: string; number: string | null; issue_date: string; total_ttc: number; total_vat: number; deposit_payment_id: string | null };
+
+/** Factures d acompte émises sur un document (RES / BC / devis), par règlement. */
+export async function listDepositInvoices(sourceDocumentId: string): Promise<DepositInvoiceRow[]> {
+  const { data, error } = await supabase.from('documents')
+    .select('id, number, issue_date, total_ttc, total_vat, deposit_payment_id' as never)
+    .eq('source_document_id', sourceDocumentId).eq('doc_type', DEPOSIT_INVOICE_DOC_TYPE)
+    .not('status', 'in', '("brouillon","annulee")').order('issue_date');
+  if (error) throw error;
+  return ((data ?? []) as unknown as DepositInvoiceRow[]).map((d) => ({ ...d, total_ttc: Number(d.total_ttc), total_vat: Number(d.total_vat) }));
+}
+
+/** Règlement d acompte d un document et sa facture d acompte (null = pas encore facturé). */
+export type DepositInvoiceItem = { paymentId: string; amount: number; paidAt: string; method: string; invoice: DepositInvoiceRow | null };
+
+/**
+ * Acomptes facturables d une RES / d un BC / d un devis (pure, testée) : règlements perçus du client
+ * (positifs, hors organisme de financement), avec la FAA qui les couvre. Un acompte reporté d un document
+ * précédent et déjà facturé (`deposit_invoice_id`) est rattaché à sa FAA d origine.
+ */
+export function depositInvoiceItems(
+  payments: { id: string; amount: number | string; status: string; from_financing?: boolean | null; paid_at: string; method: string; deposit_invoice_id?: string | null }[],
+  invoices: DepositInvoiceRow[],
+): DepositInvoiceItem[] {
+  const byPayment = new Map(invoices.filter((f) => f.deposit_payment_id).map((f) => [f.deposit_payment_id as string, f]));
+  const byId = new Map(invoices.map((f) => [f.id, f]));
+  return payments
+    .filter((p) => p.status === 'recu' && Number(p.amount) > 0 && !p.from_financing && p.method !== CREDIT_SETTLEMENT_METHOD)
+    .map((p) => ({
+      paymentId: p.id, amount: Number(p.amount), paidAt: String(p.paid_at).slice(0, 10), method: p.method,
+      invoice: byPayment.get(p.id) ?? (p.deposit_invoice_id ? byId.get(p.deposit_invoice_id) ?? { id: p.deposit_invoice_id, number: null, issue_date: '', total_ttc: 0, total_vat: 0, deposit_payment_id: null } : null),
+    }));
+}
+
+/** Émet (ou retrouve) la facture d acompte d un règlement perçu : fonction serveur `deposit_invoice_create`. */
+export async function generateDepositInvoice(paymentId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('deposit_invoice_create' as never, { _payment: paymentId } as never);
+  if (error) throw error;
+  return data as unknown as string;
+}
+
+/** Acomptes déjà facturés (FAA) repris sur une facture finale : détail pour le PDF / l UBL (`PrepaidAmount`). */
+export type PrepaidInvoice = { id: string; number: string | null; issue_date: string; total_ht: number; total_vat: number; total_ttc: number };
+export async function listPrepaidInvoices(invoiceId: string): Promise<PrepaidInvoice[]> {
+  const { data, error } = await supabase.from('document_payments').select('deposit_invoice_id' as never).eq('document_id', invoiceId);
+  if (error) throw error;
+  const ids = [...new Set(((data ?? []) as unknown as { deposit_invoice_id: string | null }[]).map((p) => p.deposit_invoice_id).filter(Boolean))] as string[];
+  if (!ids.length) return [];
+  const { data: docs, error: de } = await supabase.from('documents').select('id, number, issue_date, total_ht, total_vat, total_ttc').in('id', ids).order('issue_date');
+  if (de) throw de;
+  return (docs ?? []).map((d) => ({ ...d, total_ht: Number(d.total_ht), total_vat: Number(d.total_vat), total_ttc: Number(d.total_ttc) }));
 }
 
 export type DocumentFull = { doc: DocumentRow; lines: DocumentLine[] };
@@ -783,6 +1020,7 @@ export type NewPayment = {
   fromFinancing?: boolean;       // versé par l'organisme de financement (mission 05, carte 9)
   reversalOf?: string | null;    // contre-passation du règlement visé (PDV010 : jamais de suppression)
   transferredFrom?: string | null; // acompte reporté à la conversion (pas un nouvel encaissement)
+  depositInvoiceId?: string | null; // acompte reporté déjà facturé (FAA) : déduit de la facture finale
 };
 
 /** Modes de règlement paramétrés (reference_values), visibles en caisse en premier. */
@@ -793,7 +1031,8 @@ export async function listPaymentMethods(companyId: string): Promise<PaymentMeth
     .eq('company_id', companyId).eq('table_key', 'payment_method').eq('is_active', true)
     .order('sort_order');
   if (error) throw error;
-  return (data ?? []).map((r) => ({
+  // « Regle par avoir » (AVO) est un lettrage pose par generateCreditNote, jamais un choix de caisse.
+  return (data ?? []).filter((r) => r.code !== CREDIT_SETTLEMENT_METHOD).map((r) => ({
     code: r.code, label: r.label,
     visiblePos: (r.extra as { visible_pos?: boolean } | null)?.visible_pos !== false,
   }));
@@ -833,9 +1072,11 @@ export async function addPayments(documentId: string, lines: NewPayment[]): Prom
       // Colonnes de la migration 20261103170000 : envoyées seulement si renseignées.
       ...(l.reversalOf ? { reversal_of: l.reversalOf } : {}),
       ...(l.transferredFrom ? { transferred_from: l.transferredFrom } : {}),
+      ...(l.depositInvoiceId ? { deposit_invoice_id: l.depositInvoiceId } : {}),
     }));
   if (rows.length === 0) return;
-  const { error } = await supabase.from('document_payments').insert(rows);
+  // `deposit_invoice_id` : colonne de la migration 20261103180000, hors types générés tant qu elle n est pas posée.
+  const { error } = await supabase.from('document_payments').insert(rows as never);
   if (error) throw error;
   await recomputePaid(documentId);
 }

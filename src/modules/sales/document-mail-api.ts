@@ -41,6 +41,29 @@ export function plainTextToHtml(text: string): string {
   return linked.replace(/\r?\n/g, '<br>');
 }
 
+/** Empreinte SHA-256 (hex) d'un fichier : même calcul que `graph-send-email` (trace `events`). */
+export async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Documents dont l'envoi met le comptable en copie (adresse de la fiche société, vide = personne). */
+export const ACCOUNTANT_COPY_DOC_TYPES = ['FAC', 'AVO', 'FAA'] as const;
+
+/** Copie comptable (pure, testée) : seulement pour une facture / un avoir / une facture d'acompte, adresse valide, différente du destinataire. */
+export function accountantCopy(docType: string, accountantEmail: string | null | undefined, to: string): string[] {
+  const a = String(accountantEmail ?? '').trim().toLowerCase();
+  if (!(ACCOUNTANT_COPY_DOC_TYPES as readonly string[]).includes(docType)) return [];
+  if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(a) || a === to.trim().toLowerCase()) return [];
+  return [a];
+}
+
+/** Adresse du comptable de la société (colonne de la migration 20261103180000, tolérée absente). */
+export async function getAccountantEmail(companyId: string): Promise<string | null> {
+  const { data } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
+  return ((data as Record<string, unknown> | null)?.accountant_email as string | null) ?? null;
+}
+
 export type SendDocumentMailInput = {
   full: DocumentFull;
   /** null : ticket sans client (PDV010), PDF rangé seulement dans la GED du document. */
@@ -69,9 +92,11 @@ export type DryRunPreview = { html: string; attachments: { name: string; content
 export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDocumentMailResult> {
   const { doc } = p.full;
   const pdf = p.pdf ?? await generateSalesPdf(p.full);
+  const cc = accountantCopy(doc.doc_type, await getAccountantEmail(doc.company_id), p.to);
   const { data, error } = await supabase.functions.invoke('graph-send-email', {
     body: {
       companyId: doc.company_id, ...(p.contactId ? { contactId: p.contactId } : {}), to: p.to.trim(), from: p.from || undefined,
+      ...(cc.length ? { cc } : {}),
       subject: p.subject, body: plainTextToHtml(p.body), origin: clientAppUrl(),
       ...(p.locale ? { locale: p.locale } : {}),
       attachments: [{ name: pdf.fileName, contentType: 'application/pdf', contentBytes: bytesToBase64(pdf.bytes) }],
@@ -96,11 +121,12 @@ export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDo
   // Archivage en GED (le mail est parti : une erreur ici ne doit pas faire croire à un échec d'envoi).
   let archived = true;
   try {
-    const note = t('salesMail.gedNote').replace('{to}', p.to.trim()).replace('{from}', r.from ?? '').replace('{date}', new Date().toLocaleString('fr-BE'));
+    const hash = await sha256Hex(pdf.bytes);
+    const note = `${t('salesMail.gedNote').replace('{to}', p.to.trim()).replace('{from}', r.from ?? '').replace('{date}', new Date().toLocaleString('fr-BE'))}${cc.length ? ` (cc ${cc.join(', ')})` : ''} · SHA-256 ${hash}`;
     const stamp = Date.now();
     const file = new File([pdfBlob(pdf.bytes)], pdf.fileName, { type: 'application/pdf' });
-    if (p.contactId) await uploadAttachment(doc.company_id, 'contact', p.contactId, file, stamp, note, SALES_GED_FOLDER);
-    await uploadAttachment(doc.company_id, 'document', doc.id, file, stamp, note, null);
+    if (p.contactId) await uploadAttachment(doc.company_id, 'contact', p.contactId, file, stamp, note, SALES_GED_FOLDER, hash);
+    await uploadAttachment(doc.company_id, 'document', doc.id, file, stamp, note, null, hash);
   } catch {
     archived = false;
   }

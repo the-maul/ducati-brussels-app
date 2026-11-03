@@ -17,7 +17,7 @@ export async function listAttachments(entityType: string, entityId: string): Pro
 }
 
 /** Dépose un fichier dans la GED de l'entité et renvoie son chemin de stockage. */
-export async function uploadAttachment(companyId: string, entityType: string, entityId: string, file: File, stamp: number, note?: string, folder?: string | null): Promise<string> {
+export async function uploadAttachment(companyId: string, entityType: string, entityId: string, file: File, stamp: number, note?: string, folder?: string | null, contentHash?: string | null): Promise<string> {
   const path = `${companyId}/${entityType}/${entityId}/${stamp}_${slug(file.name)}`;
   const { error: ue } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type || undefined });
   if (ue) throw ue;
@@ -26,6 +26,7 @@ export async function uploadAttachment(companyId: string, entityType: string, en
     company_id: companyId, entity_type: entityType, entity_id: entityId, file_name: file.name,
     storage_path: path, content_type: file.type || null, size_bytes: file.size, note: note || null,
     folder: folder || null, uploaded_by: user?.id ?? null,
+    ...(contentHash ? { content_hash: contentHash } : {}),
   });
   if (error) throw error;
   return path;

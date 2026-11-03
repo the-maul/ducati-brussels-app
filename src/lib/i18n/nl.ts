@@ -1265,6 +1265,36 @@ export const nl: DictionaryShape = {
     confirmIrreversible: 'Onomkeerbaar: daarna geen wijziging of verwijdering meer (een creditnota om te annuleren).',
     confirmCreateInvoice: 'Factuur aanmaken',
     confirmCreateCredit: 'Creditnota aanmaken',
+    status_avoir_emis: "Gecompenseerd door creditnota",
+    type_FAA: "Voorschotfactuur",
+    confirmInvoiceCredited: "De oorspronkelijke factuur wordt « gecompenseerd door een creditnota »: ze blijft in het verkoopdagboek.",
+    confirmInvoiceCreditedPartial: "Gedeeltelijke creditnota: de oorspronkelijke factuur blijft open voor het saldo.",
+    confirmCreditHint: "Kies de te crediteren aantallen (alles = volledige creditnota). Een genummerd document wordt niet meer gewijzigd.",
+    creditQty: "Aantal te crediteren",
+    creditAlready: "reeds gecrediteerd",
+    creditNoteNothing: "Niets te crediteren: kies minstens één aantal.",
+    creditOf: "Creditnota op factuur",
+    depositOf: "Voorschot op bestelling",
+    openSource: "oorspronkelijk document openen",
+  },
+
+  // Factures d'acompte (lot facture légale, 03/11/2026)
+  depositInvoice: {
+    title: "Voorschotfacturen",
+    hintRequired: "Motor of btw-plichtige klant: elk ontvangen voorschot krijgt een voorschotfactuur (btw verschuldigd bij ontvangst).",
+    hintOnDemand: "Particulier, geen motor: voorschotfactuur op vraag van de klant.",
+    issue: "Voorschotfactuur opmaken",
+    issued: "Voorschotfactuur {number}",
+    deadline: "Op te maken vóór {date}",
+    created: "Voorschotfactuur opgemaakt.",
+  },
+
+  // Mentions légales des factures, factures d'acompte et avoirs (FR + langue du client)
+  invoiceLegal: {
+    creditRef: "Creditnota met betrekking tot factuur nr. {number} van {date}.",
+    ar4: "Btw terug te storten aan de Staat in de mate waarin ze oorspronkelijk in aftrek werd gebracht (KB nr. 4, art. 4 §1).",
+    depositInvoice: "Voorschotfactuur: voorschot ontvangen op {paid} op bestelling nr. {number} van {date}. Btw opeisbaar bij ontvangst (art. 17 §1 W.Btw).",
+    prepaid: "Reeds gefactureerd voorschot: voorschotfactuur nr. {number} van {date}, {ttc} incl. btw waarvan btw {vat}, afgetrokken van het te betalen bedrag.",
   },
 
   // PDF des documents de vente (mission 05 carte 8, mission 02 carte 6) — textes imprimés
@@ -1289,6 +1319,7 @@ export const nl: DictionaryShape = {
     signatureTitle: 'Voor akkoord', signatureHint: 'Datum, vermelding "gelezen en goedgekeurd" en handtekening van de klant',
     cgvTitle: 'Algemene verkoopvoorwaarden',
     page: 'Pagina {i} / {n}',
+    companyNumber: "Ondernemingsnummer",
   },
 
   // Envoi d'un document de vente par e-mail avec son PDF (mission 05 carte 8, mission 02 carte 6)
@@ -1297,6 +1328,7 @@ export const nl: DictionaryShape = {
     introNoClient: 'Ticket zonder klant: de pdf wordt bij het bericht gevoegd en bij de documenten van het ticket bewaard.',
     toNotSaved: 'Adres alleen voor deze verzending gebruikt: het wordt op geen enkele fiche bewaard.',
     archiveHintNoClient: 'Na verzending wordt de pdf in het DMS van het ticket bewaard; de verzending wordt in de historiek genoteerd.',
+    accountantCopy: "Kopie aan de boekhouder: {email}",
     previewPdf: 'PDF-voorbeeld',
     title: 'Het document per e-mail verzenden',
     intro: 'De PDF van het document wordt bij het bericht gevoegd. Een kopie wordt bij de documenten van de klant bewaard.',
@@ -1516,6 +1548,10 @@ export const nl: DictionaryShape = {
     exportWinbooks: 'Winbooks-export', exportUbl: 'UBL-export (Peppol)', empty: 'Geen boeking voor de periode.',
     colNumber: 'Nr.', colDate: 'Datum', colHt: 'Totaal excl. btw', colVat: 'Btw', colTtc: 'Totaal incl. btw', colPaid: 'Betaald',
     vatRate: 'Tarief', baseHt: 'Basis excl. btw', vatAmount: 'Btw', total: 'Totaal', ublHint: 'Genereert het UBL-bestand om via Falco op Peppol te verzenden.',
+    ubl_missingCompanyNumber: "Bedrijfsfiche onvolledig: vul het ondernemingsnummer (KBO) in bij Instellingen → Bedrijven.",
+    ubl_missingPeppolId: "Bedrijfsfiche onvolledig: vul de Peppol-identificatie 0208:KBO-nummer in bij Instellingen → Bedrijven.",
+    ubl_missingVat: "Bedrijfsfiche onvolledig: vul het btw-nummer in bij Instellingen → Bedrijven.",
+    prepaidDeducted: "gefactureerd voorschot {amount} afgetrokken",
     // Moteur d'écritures comptables
     entries: 'Boekingen', generate: 'Boekingen genereren', generated: 'stuk(ken) gegenereerd',
     noEntries: 'Geen boeking gegenereerd voor de periode. Klik op "Boekingen genereren".',
@@ -3078,6 +3114,13 @@ export const nl: DictionaryShape = {
     coTitle: 'Vennootschappen', coNew: 'Nieuwe vennootschap', coCreate: 'Vennootschap aanmaken', coSave: 'Opslaan',
     coCode: 'Code', coName: 'Naam', coLegalName: 'Maatschappelijke naam', coVat: 'Btw-nummer', coAddress: 'Adres',
     coZip: 'Postcode', coCity: 'Gemeente', coCountry: 'Land', coIban: 'IBAN', coPeppol: 'Peppol-identificatie',
+    coCompanyNumber: "Ondernemingsnummer (KBO)",
+    coRpm: "RPR (rechtbank)",
+    coRpmPlaceholder: "RPR Waals-Brabant",
+    coPeppolUse: "{id} gebruiken",
+    coPeppolHint: "Verplicht voor de UBL/Peppol-export: 0208 gevolgd door het KBO-nummer (10 cijfers).",
+    coAccountantEmail: "E-mail van de boekhouder (kopie van de facturen)",
+    coAccountantEmailPlaceholder: "leeg = geen kopie",
     coSalesAccount: 'Verkooprekening', coCustomerAccount: 'Klantenrekening', coVatAccount: 'Btw-rekening',
     coActive: 'Actief', coSaved: 'Vennootschap opgeslagen', coSecLegal: 'Identiteit & btw', coSecAccounting: 'Boekhouding (UBL / Winbooks)',
     coInboundMailbox: 'Gevolgde Outlook-mailbox (inkomende mails → klantenfiche)',
@@ -3273,6 +3316,7 @@ export const nl: DictionaryShape = {
       status_paid: 'Betaald',
       status_due: 'Te betalen',
       status_annulee: 'Geannuleerd',
+      status_avoir_emis: "Gecompenseerd door creditnota",
       back: '← Al mijn facturen',
     },
     docTypes: {
@@ -3474,6 +3518,8 @@ export const nl: DictionaryShape = {
     // Mission 05, carte 10 : acompte encaissé → pièces à commander ; factures échues impayées
     depositTitle: 'Voorschot ontvangen: onderdelen te bestellen',
     depositLine: '{n} onderde(e)l(en) te bestellen',
+    depositInvoiceTitle: "Voorschotfactuur op te maken",
+    depositInvoiceLine: "Voorschot van {amount} te factureren vóór {date}",
     unpaidTitle: 'Vervallen onbetaalde facturen',
     unpaidLine: 'Saldo {amount} · vervallen op {date}',
     unpaidSeeAll: '"Te innen saldi" openen',

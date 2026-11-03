@@ -13,7 +13,7 @@ export const PREP_STEPS: readonly PrepStep[] = ['commande', 'prepare', 'monte'];
 /** Types de documents qu'on peut préparer (bouton « Préparer » des listes). */
 export const PREPARABLE_DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC'] as const;
 export function canPrepareDocument(d: { doc_type: string; status: string }): boolean {
-  return (PREPARABLE_DOC_TYPES as readonly string[]).includes(d.doc_type) && d.status !== 'annulee';
+  return (PREPARABLE_DOC_TYPES as readonly string[]).includes(d.doc_type) && d.status !== 'annulee' && d.status !== 'avoir_emis';
 }
 
 export type PickingDetailLine = {

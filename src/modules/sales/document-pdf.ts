@@ -78,6 +78,9 @@ export type SalesPdfInput = {
     zip?: string | null;
     city?: string | null;
     vatNumber?: string | null;
+    /** N° d'entreprise BCE et RPM (CSA art. 2:20, lot facture légale du 03/11/2026). */
+    companyNumber?: string | null;
+    rpm?: string | null;
     iban?: string | null;
     bic?: string | null;
     footer?: string | null;
@@ -103,6 +106,11 @@ export type SalesPdfInput = {
   titleOverride?: string | null;
   /** Signature électronique enregistrée : remplace la case « Bon pour accord ». */
   signature?: SalesPdfSignature | null;
+  /**
+   * Mentions légales déjà rédigées (FR + langue du client, `invoice-legal.ts`) : référence de l'avoir,
+   * AR 4, facture d'acompte, acomptes déduits, détaxe. Fournies, elles remplacent la mention détaxe seule.
+   */
+  legalMentions?: string[] | null;
 };
 
 export type VatPied = {
@@ -323,6 +331,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const coLines = [
     co.address ?? '', [co.zip, co.city].filter(Boolean).join(' '),
     co.legalName ?? '', co.vatNumber ? `${tr('salesPdf.vat')} : ${co.vatNumber}` : '',
+    co.companyNumber ? `${tr('salesPdf.companyNumber')} : ${co.companyNumber}${co.rpm ? ` · ${co.rpm}` : ''}` : '',
     co.iban ? `IBAN : ${co.iban}${co.bic ? ` · BIC : ${co.bic}` : ''}` : '',
   ].filter(Boolean);
   for (const l of coLines) { doc.text(l, M, leftY + 3); leftY += 3.6; }
@@ -533,7 +542,8 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   // ---- Mentions, validité, notes, pied -----------------------------------------------------
   const paragraphs: { text: string; style: 'normal' | 'italic' | 'bold' }[] = [];
   if (d.isMarge) paragraphs.push({ text: tr('salesPdf.margeMention'), style: 'italic' });
-  else if (d.taxExempt) paragraphs.push({ text: tr('sales.taxExemptMention'), style: 'italic' });
+  else if (d.taxExempt && !d.legalMentions) paragraphs.push({ text: tr('sales.taxExemptMention'), style: 'italic' });
+  for (const m of d.legalMentions ?? []) paragraphs.push({ text: m, style: 'italic' });
   if (d.validity) paragraphs.push({ text: d.validity, style: 'bold' });
   if (d.notes) paragraphs.push({ text: d.notes, style: 'normal' });
   if (co.footer) paragraphs.push({ text: co.footer, style: 'normal' });

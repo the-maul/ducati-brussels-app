@@ -1266,6 +1266,36 @@ export const fr = {
     confirmIrreversible: 'Irréversible : ni modification, ni suppression ensuite (un avoir pour annuler).',
     confirmCreateInvoice: 'Créer la facture',
     confirmCreateCredit: 'Créer l\'avoir',
+    status_avoir_emis: "Compensée par un avoir",
+    type_FAA: "Facture d'acompte",
+    confirmInvoiceCredited: "La facture d'origine sera « compensée par un avoir » : elle reste au journal des ventes.",
+    confirmInvoiceCreditedPartial: "Avoir partiel : la facture d'origine reste ouverte pour le reste.",
+    confirmCreditHint: "Choisissez les quantités à créditer (tout = avoir total). Un document numéroté ne se modifie plus.",
+    creditQty: "Qté à créditer",
+    creditAlready: "déjà créditée",
+    creditNoteNothing: "Rien à créditer : choisissez au moins une quantité.",
+    creditOf: "Avoir sur la facture",
+    depositOf: "Acompte sur la commande",
+    openSource: "ouvrir le document d'origine",
+  },
+
+  // Factures d'acompte (lot facture légale, 03/11/2026)
+  depositInvoice: {
+    title: "Factures d'acompte",
+    hintRequired: "Moto ou client assujetti : chaque acompte encaissé reçoit sa facture d'acompte (TVA due à l'encaissement).",
+    hintOnDemand: "Particulier, hors moto : facture d'acompte sur demande du client.",
+    issue: "Émettre la facture d'acompte",
+    issued: "Facture d'acompte {number}",
+    deadline: "À émettre avant le {date}",
+    created: "Facture d'acompte émise.",
+  },
+
+  // Mentions légales des factures, factures d'acompte et avoirs (FR + langue du client)
+  invoiceLegal: {
+    creditRef: "Note de crédit relative à la facture n° {number} du {date}.",
+    ar4: "TVA à reverser à l'État dans la mesure où elle a été initialement déduite (AR n° 4, art. 4 §1).",
+    depositInvoice: "Facture d'acompte : acompte encaissé le {paid} sur la commande n° {number} du {date}. TVA exigible à l'encaissement (art. 17 §1 CTVA).",
+    prepaid: "Acompte déjà facturé : facture d'acompte n° {number} du {date}, {ttc} TVAC dont TVA {vat}, déduit du montant à payer.",
   },
 
   // PDF des documents de vente (mission 05 carte 8, mission 02 carte 6) — textes imprimés
@@ -1291,6 +1321,7 @@ export const fr = {
     signatureTitle: 'Bon pour accord', signatureHint: 'Date, mention « lu et approuvé » et signature du client',
     cgvTitle: 'Conditions générales de vente',
     page: 'Page {i} / {n}',
+    companyNumber: "N° d'entreprise",
   },
 
   // Envoi d'un document de vente par e-mail avec son PDF (mission 05 carte 8, mission 02 carte 6)
@@ -1299,6 +1330,7 @@ export const fr = {
     introNoClient: 'Ticket sans client : le PDF est joint au message et rangé dans les documents du ticket.',
     toNotSaved: 'Adresse utilisée pour cet envoi seulement : elle n\'est enregistrée sur aucune fiche.',
     archiveHintNoClient: 'Après l\'envoi, le PDF est rangé dans la GED du ticket ; l\'envoi est noté dans l\'historique.',
+    accountantCopy: "Copie au comptable : {email}",
     previewPdf: 'Aperçu PDF',
     title: 'Envoyer le document par e-mail',
     intro: 'Le PDF du document est joint au message. Une copie est rangée dans les documents du client.',
@@ -1518,6 +1550,10 @@ export const fr = {
     exportWinbooks: 'Export Winbooks', exportUbl: 'Export UBL (Peppol)', empty: 'Aucune écriture sur la période.',
     colNumber: 'N°', colDate: 'Date', colHt: 'Total HT', colVat: 'TVA', colTtc: 'Total TTC', colPaid: 'Réglé',
     vatRate: 'Taux', baseHt: 'Base HT', vatAmount: 'TVA', total: 'Total', ublHint: 'Génère le fichier UBL à transmettre via Falco sur Peppol.',
+    ubl_missingCompanyNumber: "Fiche société incomplète : saisissez le n° d'entreprise (BCE) dans Paramètres → Sociétés.",
+    ubl_missingPeppolId: "Fiche société incomplète : saisissez l'identifiant Peppol 0208:n° BCE dans Paramètres → Sociétés.",
+    ubl_missingVat: "Fiche société incomplète : saisissez le n° de TVA dans Paramètres → Sociétés.",
+    prepaidDeducted: "acompte facturé {amount} déduit",
     // Moteur d'écritures comptables
     entries: 'Écritures comptables', generate: 'Générer les écritures', generated: 'pièce(s) générée(s)',
     noEntries: 'Aucune écriture générée sur la période. Cliquez sur « Générer les écritures ».',
@@ -3083,6 +3119,13 @@ export const fr = {
     coTitle: 'Sociétés', coNew: 'Nouvelle société', coCreate: 'Créer la société', coSave: 'Enregistrer',
     coCode: 'Code', coName: 'Nom', coLegalName: 'Raison sociale', coVat: 'N° TVA', coAddress: 'Adresse',
     coZip: 'Code postal', coCity: 'Ville', coCountry: 'Pays', coIban: 'IBAN', coPeppol: 'Identifiant Peppol',
+    coCompanyNumber: "N° d'entreprise (BCE)",
+    coRpm: "RPM (tribunal)",
+    coRpmPlaceholder: "RPM Brabant wallon",
+    coPeppolUse: "Utiliser {id}",
+    coPeppolHint: "Obligatoire pour l'export UBL / Peppol : 0208 suivi du n° BCE (10 chiffres).",
+    coAccountantEmail: "E-mail du comptable (copie des factures)",
+    coAccountantEmailPlaceholder: "vide = pas de copie",
     coSalesAccount: 'Compte de vente', coCustomerAccount: 'Compte client', coVatAccount: 'Compte TVA',
     coActive: 'Active', coSaved: 'Société enregistrée', coSecLegal: 'Identité & TVA', coSecAccounting: 'Comptabilité (UBL / Winbooks)',
     coInboundMailbox: 'Boîte Outlook écoutée (mails entrants → fiche client)',
@@ -3279,6 +3322,7 @@ export const fr = {
       status_paid: 'Payée',
       status_due: 'À payer',
       status_annulee: 'Annulée',
+      status_avoir_emis: "Compensée par un avoir",
       back: '← Toutes mes factures',
     },
     docTypes: {
@@ -3480,6 +3524,8 @@ export const fr = {
     // Mission 05, carte 10 : acompte encaissé → pièces à commander ; factures échues impayées
     depositTitle: 'Acompte reçu : pièces à commander',
     depositLine: '{n} pièce(s) à commander',
+    depositInvoiceTitle: "Facture d'acompte à émettre",
+    depositInvoiceLine: "Acompte de {amount} à facturer avant le {date}",
     unpaidTitle: 'Factures échues impayées',
     unpaidLine: 'Reste {amount} · échue le {date}',
     unpaidSeeAll: 'Ouvrir « Soldes à encaisser »',

@@ -19,7 +19,7 @@ test('facture UBL : profil Peppol + montants', () => {
   expect(xml).toContain('<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>');
   expect(xml).toContain('<cbc:ID>FAC-2026-00001</cbc:ID>');
   expect(xml).toContain('<cbc:PayableAmount currencyID="EUR">121.00</cbc:PayableAmount>');
-  expect(xml).toContain('schemeID="9925"'); // endpoint TVA belge
+  expect(xml).toContain('schemeID="0208"'); // endpoint Peppol belge : n° BCE tiré du n° de TVA (lot du 03/11/2026)
 });
 
 test('avoir UBL : type 381 + racine CreditNote', () => {
@@ -28,7 +28,7 @@ test('avoir UBL : type 381 + racine CreditNote', () => {
   expect(xml).toContain('<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>');
 });
 
-test('détaxe : catégorie exonérée', () => {
+test('détaxe : catégorie export G (plus E / VATEX-EU-AE, lot du 03/11/2026)', () => {
   const xml = buildUblInvoice({ ...base, taxExempt: true, totalVat: 0, totalTtc: 100 });
-  expect(xml).toContain('<cbc:ID>E</cbc:ID>');
+  expect(xml).toContain('<cbc:ID>G</cbc:ID>');
 });

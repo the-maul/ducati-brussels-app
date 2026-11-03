@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
-  getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, getVoMarginPeriods,
+  journalTotals, getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, getVoMarginPeriods,
   getVoMarginPurchases, loadVatMarginSettings, exportVoRegister, exportVoMarginWinbooks, printVoMarginAttestation, getAccountingCutover, setAccountingCutover,
   type VoMarginRow, type MarginGranularity,
 } from '@/modules/accounting/api';
@@ -49,8 +49,8 @@ function AccountingPage() {
   const cutover = useQuery({ queryKey: ['acct-cutover', activeCompanyId], queryFn: () => getAccountingCutover(activeCompanyId!), enabled: !!activeCompanyId });
   const setCut = useMutation({ mutationFn: (d: string) => setAccountingCutover(activeCompanyId!, d), onSuccess: () => { cutover.refetch(); vat.refetch(); entries.refetch(); } });
 
-  const totalHt = (journal.data ?? []).reduce((s, r) => s + r.total_ht, 0);
-  const totalTtc = (journal.data ?? []).reduce((s, r) => s + r.total_ttc, 0);
+  // Acomptes déjà facturés (FAA) déduits de la facture finale : la vente n est comptée qu une fois.
+  const { ht: totalHt, ttc: totalTtc } = journalTotals(journal.data ?? []);
 
   return (
     <>
@@ -86,7 +86,11 @@ function AccountingPage() {
                 {journal.data && journal.data.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{t('accounting.empty')}</td></tr>}
                 {journal.data?.map((r) => (
                   <tr key={r.document_id} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: r.document_id } })} title={t('accounting.openInvoice')}>
-                    <td className="px-3 py-2 font-mono text-[12px] text-info underline">{r.number ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[12px] text-info underline">
+                      {r.number ?? '—'}
+                      {r.status === 'avoir_emis' && <span className="ml-1 text-muted-foreground no-underline">({t('sales.status_avoir_emis')})</span>}
+                      {(r.prepaid_ttc ?? 0) !== 0 && <span className="ml-1 text-muted-foreground no-underline">({t('accounting.prepaidDeducted').replace('{amount}', eur(r.prepaid_ttc ?? 0))})</span>}
+                    </td>
                     <td className="px-3 py-2 font-mono text-[12px]">{r.issue_date}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.total_ht)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.total_vat)}</td>

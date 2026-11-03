@@ -12,6 +12,7 @@ import { tIn, type Locale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { signedUrl } from '@/modules/documents/ged-api';
 import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
+import { invoiceLegalMentions, formatCompanyNumber, type PrepaidMention } from './invoice-legal';
 import {
   buildSalesDocumentPdf, validityMention, salesPdfFileName, vehicleBlockLines,
   type SalesPdfInput, type SalesPdfSignature, type ValidityRule, type VehicleBlockSource,
@@ -64,6 +65,35 @@ export async function loadValidityRules(companyId: string): Promise<ValidityRule
     months: Number((r.extra as { months?: number } | null)?.months ?? 0),
     active: r.is_active,
   }));
+}
+
+/** Types dont le PDF porte les mentions légales de facturation (lot facture légale, 03/11/2026). */
+export const LEGAL_MENTION_DOC_TYPES = ['FAC', 'AVO', 'FAA', 'TIK'] as const;
+
+/**
+ * Mentions légales d'un document (FR + langue du client) : avoir → facture d'origine (n° + date) et AR 4 ;
+ * facture d'acompte → encaissement et commande ; facture finale → acomptes déjà facturés déduits ;
+ * détaxe. null pour un devis, un BC, une réservation (mention détaxe seule, comme avant).
+ */
+export async function loadLegalMentions(
+  doc: DocumentFull['doc'], payments: Record<string, unknown>[], locale: Locale,
+): Promise<string[] | null> {
+  if (!(LEGAL_MENTION_DOC_TYPES as readonly string[]).includes(doc.doc_type)) return null;
+  const source = doc.source_document_id && (doc.doc_type === 'AVO' || doc.doc_type === 'FAA')
+    ? (await supabase.from('documents').select('number, issue_date').eq('id', doc.source_document_id).maybeSingle()).data
+    : null;
+  let prepaid: PrepaidMention[] = [];
+  const faaIds = [...new Set(payments.map((p) => p.deposit_invoice_id as string | null).filter(Boolean))] as string[];
+  if (doc.doc_type === 'FAC' && faaIds.length) {
+    const { data: faa } = await supabase.from('documents').select('number, issue_date, total_ttc, total_vat').in('id', faaIds).order('issue_date');
+    prepaid = (faa ?? []).map((f) => ({ number: f.number, issueDate: f.issue_date, ttc: Number(f.total_ttc), vat: Number(f.total_vat) }));
+  }
+  return invoiceLegalMentions({
+    docType: doc.doc_type, locale, totalVat: Number(doc.total_vat), taxExempt: !!doc.tax_exempt,
+    source: source ? { number: source.number, issueDate: source.issue_date } : null,
+    depositPaidAt: doc.doc_type === 'FAA' ? String(payments[0]?.paid_at ?? doc.issue_date) : null,
+    prepaid,
+  });
 }
 
 export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInput> {
@@ -129,6 +159,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
   }
   const signature = proposal ? await loadSignature((doc as ProposalDocExtra).accepted_signature_id) : null;
 
+  const legalMentions = await loadLegalMentions(doc, (payments ?? []) as Record<string, unknown>[], locale);
+
   const pays = (payments ?? []).filter((p) => Number(p.amount) !== 0).map((p) => ({
     date: String(p.paid_at).slice(0, 10),
     label: `${String(p.note ?? '').toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : ''}${p.method}`,
@@ -150,6 +182,7 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
       legalName: s(co.legal_name) && s(co.legal_name) !== s(co.name) ? s(co.legal_name) : null,
       address: s(co.address) || null, zip: s(co.zip) || null, city: s(co.city) || null,
       vatNumber: s(co.vat_number) || null, iban: s(co.iban) || null, bic: s(co.bic) || null,
+      companyNumber: formatCompanyNumber(s(co.company_number)) || null, rpm: s(co.rpm) || null,
       footer: s(co.invoice_footer) || null, cgv: s(co.cgv_text) || null,
       logo: logoImg ? { dataUrl: logoImg.dataUrl, format: 'JPEG', w: logoImg.w, h: logoImg.h } : null,
     },
@@ -177,6 +210,7 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     locale,
     titleOverride: proposal ? t('checkup.pdfTitle') : null,
     signature,
+    legalMentions,
   };
 }
 

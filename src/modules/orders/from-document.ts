@@ -26,7 +26,7 @@ export const ORDERABLE_MGMT_TYPES = ['A', 'N'] as const;
 
 export function canOrderFromDocument(doc: { doc_type: string; status: string }): boolean {
   return (ORDERABLE_DOC_TYPES as readonly string[]).includes(doc.doc_type)
-    && !['brouillon', 'annulee', 'converti'].includes(doc.status);
+    && !['brouillon', 'annulee', 'converti', 'avoir_emis'].includes(doc.status);
 }
 
 const num = (v: unknown) => {

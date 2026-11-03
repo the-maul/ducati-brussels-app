@@ -1265,6 +1265,36 @@ export const it: DictionaryShape = {
     confirmIrreversible: 'Irreversibile: nessuna modifica né eliminazione in seguito (una nota di credito per annullare).',
     confirmCreateInvoice: 'Crea la fattura',
     confirmCreateCredit: 'Crea la nota di credito',
+    status_avoir_emis: "Compensata da nota di credito",
+    type_FAA: "Fattura d'acconto",
+    confirmInvoiceCredited: "La fattura d'origine sarà « compensata da una nota di credito »: resta nel registro delle vendite.",
+    confirmInvoiceCreditedPartial: "Nota di credito parziale: la fattura d'origine resta aperta per il saldo.",
+    confirmCreditHint: "Scegli le quantità da accreditare (tutto = nota di credito totale). Un documento numerato non si modifica più.",
+    creditQty: "Qtà da accreditare",
+    creditAlready: "già accreditata",
+    creditNoteNothing: "Niente da accreditare: scegli almeno una quantità.",
+    creditOf: "Nota di credito sulla fattura",
+    depositOf: "Acconto sull'ordine",
+    openSource: "apri il documento d'origine",
+  },
+
+  // Factures d'acompte (lot facture légale, 03/11/2026)
+  depositInvoice: {
+    title: "Fatture d'acconto",
+    hintRequired: "Moto o cliente con partita IVA: ogni acconto incassato riceve la sua fattura d'acconto (IVA dovuta all'incasso).",
+    hintOnDemand: "Privato, senza moto: fattura d'acconto su richiesta del cliente.",
+    issue: "Emetti la fattura d'acconto",
+    issued: "Fattura d'acconto {number}",
+    deadline: "Da emettere entro il {date}",
+    created: "Fattura d'acconto emessa.",
+  },
+
+  // Mentions légales des factures, factures d'acompte et avoirs (FR + langue du client)
+  invoiceLegal: {
+    creditRef: "Nota di credito relativa alla fattura n. {number} del {date}.",
+    ar4: "IVA da riversare allo Stato nella misura in cui è stata inizialmente detratta (Decreto reale n. 4, art. 4 §1).",
+    depositInvoice: "Fattura d'acconto: acconto incassato il {paid} sull'ordine n. {number} del {date}. IVA esigibile all'incasso (art. 17 §1 Codice IVA belga).",
+    prepaid: "Acconto già fatturato: fattura d'acconto n. {number} del {date}, {ttc} IVA incl. di cui IVA {vat}, dedotto dall'importo da pagare.",
   },
 
   // PDF des documents de vente (mission 05 carte 8, mission 02 carte 6) — textes imprimés
@@ -1289,6 +1319,7 @@ export const it: DictionaryShape = {
     signatureTitle: 'Per accettazione', signatureHint: 'Data, dicitura "letto e approvato" e firma del cliente',
     cgvTitle: 'Condizioni generali di vendita',
     page: 'Pagina {i} / {n}',
+    companyNumber: "N. d'impresa",
   },
 
   // Envoi d'un document de vente par e-mail avec son PDF (mission 05 carte 8, mission 02 carte 6)
@@ -1297,6 +1328,7 @@ export const it: DictionaryShape = {
     introNoClient: 'Scontrino senza cliente: il PDF è allegato al messaggio e archiviato nei documenti dello scontrino.',
     toNotSaved: 'Indirizzo usato solo per questo invio: non viene salvato in nessuna scheda.',
     archiveHintNoClient: 'Dopo l\'invio, il PDF è archiviato nella GED dello scontrino; l\'invio è annotato nello storico.',
+    accountantCopy: "Copia al commercialista: {email}",
     previewPdf: 'Anteprima PDF',
     title: 'Invia il documento per e-mail',
     intro: 'Il PDF del documento è allegato al messaggio. Una copia viene archiviata nei documenti del cliente.',
@@ -1516,6 +1548,10 @@ export const it: DictionaryShape = {
     exportWinbooks: 'Export Winbooks', exportUbl: 'Export UBL (Peppol)', empty: 'Nessuna scrittura nel periodo.',
     colNumber: 'N.', colDate: 'Data', colHt: 'Totale IVA escl.', colVat: 'IVA', colTtc: 'Totale IVA incl.', colPaid: 'Pagato',
     vatRate: 'Aliquota', baseHt: 'Base IVA escl.', vatAmount: 'IVA', total: 'Totale', ublHint: 'Genera il file UBL da trasmettere tramite Falco su Peppol.',
+    ubl_missingCompanyNumber: "Scheda società incompleta: inserisci il n. d'impresa (BCE) in Impostazioni → Società.",
+    ubl_missingPeppolId: "Scheda società incompleta: inserisci l'identificativo Peppol 0208:n. BCE in Impostazioni → Società.",
+    ubl_missingVat: "Scheda società incompleta: inserisci la partita IVA in Impostazioni → Società.",
+    prepaidDeducted: "acconto fatturato {amount} dedotto",
     // Moteur d'écritures comptables
     entries: 'Scritture contabili', generate: 'Genera le scritture', generated: 'documento/i generato/i',
     noEntries: 'Nessuna scrittura generata nel periodo. Clicca su "Genera le scritture".',
@@ -3078,6 +3114,13 @@ export const it: DictionaryShape = {
     coTitle: 'Società', coNew: 'Nuova società', coCreate: 'Crea la società', coSave: 'Salva',
     coCode: 'Codice', coName: 'Nome', coLegalName: 'Ragione sociale', coVat: 'Partita IVA', coAddress: 'Indirizzo',
     coZip: 'CAP', coCity: 'Città', coCountry: 'Paese', coIban: 'IBAN', coPeppol: 'Identificativo Peppol',
+    coCompanyNumber: "N. d'impresa (BCE)",
+    coRpm: "RPM (tribunale)",
+    coRpmPlaceholder: "RPM Brabant wallon",
+    coPeppolUse: "Usa {id}",
+    coPeppolHint: "Obbligatorio per l'export UBL / Peppol: 0208 seguito dal n. BCE (10 cifre).",
+    coAccountantEmail: "E-mail del commercialista (copia delle fatture)",
+    coAccountantEmailPlaceholder: "vuoto = nessuna copia",
     coSalesAccount: 'Conto vendite', coCustomerAccount: 'Conto clienti', coVatAccount: 'Conto IVA',
     coActive: 'Attiva', coSaved: 'Società salvata', coSecLegal: 'Identità e IVA', coSecAccounting: 'Contabilità (UBL / Winbooks)',
     coInboundMailbox: 'Casella Outlook monitorata (e-mail in entrata → scheda cliente)',
@@ -3273,6 +3316,7 @@ export const it: DictionaryShape = {
       status_paid: 'Pagata',
       status_due: 'Da pagare',
       status_annulee: 'Annullata',
+      status_avoir_emis: "Compensata da nota di credito",
       back: '← Tutte le mie fatture',
     },
     docTypes: {
@@ -3474,6 +3518,8 @@ export const it: DictionaryShape = {
     // Mission 05, carte 10 : acompte encaissé → pièces à commander ; factures échues impayées
     depositTitle: 'Acconto ricevuto: ricambi da ordinare',
     depositLine: '{n} ricambio/i da ordinare',
+    depositInvoiceTitle: "Fattura d'acconto da emettere",
+    depositInvoiceLine: "Acconto di {amount} da fatturare entro il {date}",
     unpaidTitle: 'Fatture scadute non pagate',
     unpaidLine: 'Saldo {amount} · scaduta il {date}',
     unpaidSeeAll: 'Apri «Saldi da incassare»',

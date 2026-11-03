@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList, Receipt } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -158,6 +158,14 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid,
     refetchInterval: 120_000,
   });
+  // Facture d acompte a emettre avant le 15 du mois suivant (administrateurs, comptable, vendeur : filtre en base).
+  const depositInvoiceKey = ['deposit-invoice-alerts', activeCompanyId, uid];
+  const { data: depositInvoiceData } = useQuery({
+    queryKey: depositInvoiceKey,
+    queryFn: () => listDocumentAlerts(activeCompanyId!, uid!, 'deposit_invoice_due'),
+    enabled: !!activeCompanyId && !!uid,
+    refetchInterval: 120_000,
+  });
   const webOrderKey = ['web-order-alerts', activeCompanyId, uid];
   const { data: webOrderData } = useQuery({
     queryKey: webOrderKey,
@@ -207,13 +215,15 @@ function NotificationsBell() {
   const unreadUnpaid = unpaidAlerts.filter((n) => !n.read);
   const webOrders = seesWebOrders ? webOrderData ?? [] : [];
   const unreadWebOrders = webOrders.filter((n) => !n.read);
+  const depositInvoiceAlerts = depositInvoiceData ?? [];
+  const unreadDepositInvoices = depositInvoiceAlerts.filter((n) => !n.read);
   const proposalAlerts = proposalData ?? [];
   const unreadProposals = proposalAlerts.filter((n) => !n.read);
   const registerDue = seesRegister ? registerData?.due_this_month ?? 0 : 0;
   const registerLate = seesRegister ? registerData?.overdue ?? 0 : 0;
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length + registerLate;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length + registerDue + registerLate;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length + registerDue + registerLate + unreadDepositInvoices.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -364,6 +374,16 @@ function NotificationsBell() {
           <DocumentAlertSection
             title={t('notif.depositTitle')} alerts={depositAlerts} icon={ShoppingCart} tone="warning"
             line={(n) => t('notif.depositLine').replace('{n}', String(n.payload.missing_lines ?? 0))}
+            onRead={(id) => markRead.mutate([id])} fmt={fmt}
+          />
+        )}
+
+        {depositInvoiceAlerts.length > 0 && (
+          <DocumentAlertSection
+            title={t('notif.depositInvoiceTitle')} alerts={depositInvoiceAlerts} icon={Receipt} tone="warning"
+            line={(n) => t('notif.depositInvoiceLine')
+              .replace('{amount}', eur(Number(n.payload.amount ?? 0)))
+              .replace('{date}', n.payload.deadline ? new Date(`${n.payload.deadline}T00:00:00`).toLocaleDateString('fr-BE') : '—')}
             onRead={(id) => markRead.mutate([id])} fmt={fmt}
           />
         )}

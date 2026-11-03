@@ -24,7 +24,7 @@ export async function listContactDocuments(contactId: string): Promise<DocumentR
 /** Échéances non soldées d'un client (factures avec reste dû). */
 export async function listContactDueItems(contactId: string): Promise<DocumentRow[]> {
   const { data, error } = await supabase
-    .from('documents').select('*').eq('contact_id', contactId).eq('doc_type', 'FAC').neq('status', 'annulee')
+    .from('documents').select('*').eq('contact_id', contactId).eq('doc_type', 'FAC').not('status', 'in', '("annulee","avoir_emis")')
     .order('due_date', { ascending: true });
   if (error) throw error;
   return (data ?? []).filter((d) => Number(d.total_ttc) - Number(d.paid_amount) > 0.005);
@@ -41,7 +41,7 @@ export async function listArticleSales(articleId: string): Promise<ArticleSaleLi
   return (data ?? [])
     .map((r) => {
       const d = r.documents as unknown as { issue_date: string; number: string | null; doc_type: string; status: string };
-      return d && d.doc_type === 'FAC' && d.status !== 'annulee'
+      return d && d.doc_type === 'FAC' && d.status !== 'annulee' && d.status !== 'avoir_emis'
         ? { issue_date: d.issue_date, quantity: Number(r.quantity), line_ht: Number(r.line_ht), number: d.number }
         : null;
     })

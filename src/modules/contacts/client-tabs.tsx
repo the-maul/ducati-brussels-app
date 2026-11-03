@@ -101,7 +101,7 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
                   <td className="px-3 py-2 font-mono text-[12px] text-info underline">{d.number ?? '—'}</td>
                   <td className="px-3 py-2">{d.doc_type}</td>
                   <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
-                  <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' ? 'neutral' : 'warning'} label={d.status} /></td>
+                  <td className="px-3 py-2"><StatusBadge tone={d.status === 'payee' ? 'success' : d.status === 'annulee' || d.status === 'avoir_emis' ? 'neutral' : 'warning'} label={t(`sales.status_${d.status}`)} /></td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.total_ttc))}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(Number(d.paid_amount))}</td>
                   <td className="px-3 py-2 text-right">

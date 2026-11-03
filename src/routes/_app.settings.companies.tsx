@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listCompanies, updateCompany, createCompany, type Company, type CompanyPatch } from '@/modules/settings/companies-api';
+import { listCompanies, updateCompany, createCompany, LEGAL_COMPANY_FIELDS, normalizeCompanyNumber, suggestedPeppolId, type Company, type CompanyPatch } from '@/modules/settings/companies-api';
 import { MailSignatureSettings } from '@/modules/settings/mail-signature-settings';
 import { t, pageTitle } from '@/lib/i18n';
 
@@ -70,7 +70,10 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
     round_sale_prices_up: company.round_sale_prices_up,
     price_floor_threshold: Number((company as Record<string, unknown>).price_floor_threshold ?? 1),
     price_floor_min: Number((company as Record<string, unknown>).price_floor_min ?? 2),
+    // Facture legale : seulement si la migration 20261103180000 est posee (sinon l enregistrement echouerait).
+    ...Object.fromEntries(LEGAL_COMPANY_FIELDS.filter((k) => k in company).map((k) => [k, (company as Record<string, unknown>)[k] ?? ''])),
   });
+  const hasLegal = LEGAL_COMPANY_FIELDS.every((k) => k in company);
   const set = (k: keyof CompanyPatch, v: string | boolean) => setF((p) => ({ ...p, [k]: v }));
   const [msg, setMsg] = useState<string | null>(null);
   const save = useMutation({ mutationFn: () => updateCompany(company.id, f), onSuccess: () => { setMsg(t('settings.coSaved')); onSaved(); } });
@@ -82,6 +85,8 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
         <Field label={t('settings.coName')}><Input value={f.name ?? ''} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label={t('settings.coLegalName')}><Input value={f.legal_name ?? ''} onChange={(e) => set('legal_name', e.target.value)} /></Field>
         <Field label={t('settings.coVat')}><Input value={f.vat_number ?? ''} onChange={(e) => set('vat_number', e.target.value)} className="font-mono" placeholder="BE0..." /></Field>
+        {hasLegal && <Field label={t('settings.coCompanyNumber')}><Input value={f.company_number ?? ''} onChange={(e) => set('company_number', e.target.value)} onBlur={() => { const n = normalizeCompanyNumber(f.company_number); if (n) set('company_number', n); }} className="font-mono" placeholder="0472540151" /></Field>}
+        {hasLegal && <Field label={t('settings.coRpm')}><Input value={f.rpm ?? ''} onChange={(e) => set('rpm', e.target.value)} placeholder={t('settings.coRpmPlaceholder')} /></Field>}
         <Field label={t('settings.coAddress')}><Input value={f.address ?? ''} onChange={(e) => set('address', e.target.value)} /></Field>
         <Field label={t('settings.coZip')}><Input value={f.zip ?? ''} onChange={(e) => set('zip', e.target.value)} /></Field>
         <Field label={t('settings.coCity')}><Input value={f.city ?? ''} onChange={(e) => set('city', e.target.value)} /></Field>
@@ -89,7 +94,16 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: () => vo
       </Section>
       <Section title={t('settings.coSecAccounting')}>
         <Field label={t('settings.coIban')}><Input value={f.iban ?? ''} onChange={(e) => set('iban', e.target.value)} className="font-mono" /></Field>
-        <Field label={t('settings.coPeppol')}><Input value={f.peppol_id ?? ''} onChange={(e) => set('peppol_id', e.target.value)} className="font-mono" placeholder="9925:BE0..." /></Field>
+        <Field label={t('settings.coPeppol')}>
+          <Input value={f.peppol_id ?? ''} onChange={(e) => set('peppol_id', e.target.value)} className="font-mono" placeholder={suggestedPeppolId(f.company_number) || '0208:0123456789'} />
+          {hasLegal && !f.peppol_id && suggestedPeppolId(f.company_number) && (
+            <button type="button" className="mt-1 text-[12px] text-info underline" onClick={() => set('peppol_id', suggestedPeppolId(f.company_number))}>
+              {t('settings.coPeppolUse').replace('{id}', suggestedPeppolId(f.company_number))}
+            </button>
+          )}
+          <p className="mt-1 text-[12px] text-muted-foreground">{t('settings.coPeppolHint')}</p>
+        </Field>
+        {hasLegal && <Field label={t('settings.coAccountantEmail')}><Input type="email" value={f.accountant_email ?? ''} onChange={(e) => set('accountant_email', e.target.value)} placeholder={t('settings.coAccountantEmailPlaceholder')} /></Field>}
         <Field label={t('settings.coSalesAccount')}><Input value={f.sales_account_default ?? ''} onChange={(e) => set('sales_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coCustomerAccount')}><Input value={f.customer_account_default ?? ''} onChange={(e) => set('customer_account_default', e.target.value)} className="font-mono" /></Field>
         <Field label={t('settings.coVatAccount')}><Input value={f.vat_account_default ?? ''} onChange={(e) => set('vat_account_default', e.target.value)} className="font-mono" /></Field>
