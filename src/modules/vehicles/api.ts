@@ -230,3 +230,35 @@ export async function attachVehicleOwner(vehicleId: string, contactId: string, f
   });
   if (error) throw error;
 }
+
+/* ------------------------------------------------------------------------
+ * Mission 08, carte 2 — moto choisie sur un document de vente.
+ * ---------------------------------------------------------------------- */
+
+/** Motos dont un contact est le propriétaire actuel (`vehicle_owners.is_current`), la plus récente d'abord. */
+export async function listContactCurrentVehicles(contactId: string): Promise<Vehicle[]> {
+  const { data, error } = await supabase
+    .from('vehicle_owners').select('from_date, vehicles(*)')
+    .eq('contact_id', contactId).eq('is_current', true)
+    .order('from_date', { ascending: false }).limit(20);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.vehicles as unknown as Vehicle | null).filter((v): v is Vehicle => !!v);
+}
+
+/** Recherche d'une moto du parc par VIN, plaque, modèle ou marque (moto à vendre ou de passage). */
+export async function searchVehiclesForSale(companyId: string, term: string, limit = 8): Promise<Vehicle[]> {
+  const s = sanitize(term);
+  if (s.length < 2) return [];
+  const { data, error } = await supabase
+    .from('vehicles').select('*').eq('company_id', companyId)
+    .or([`vin.ilike.%${s}%`, `plate.ilike.%${s}%`, `model.ilike.%${s}%`, `brand.ilike.%${s}%`].join(','))
+    .order('created_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Vehicle[];
+}
+
+/** Libellé court d'une moto dans un sélecteur : « Ducati Monster 2024 · 1-ABC-123 · ZDM… ». */
+export function vehiclePickLabel(v: Pick<Vehicle, 'brand' | 'model' | 'vin' | 'plate' | 'model_year'>): string {
+  const name = [vehicleLabel(v), v.model_year ?? ''].filter(Boolean).join(' ');
+  return [name, v.plate, v.vin].filter(Boolean).join(' · ');
+}

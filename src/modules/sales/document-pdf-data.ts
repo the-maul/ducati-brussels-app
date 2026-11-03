@@ -13,8 +13,8 @@ import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { signedUrl } from '@/modules/documents/ged-api';
 import type { DocumentFull } from './write-api';
 import {
-  buildSalesDocumentPdf, validityMention, salesPdfFileName, dmy,
-  type SalesPdfInput, type SalesPdfSignature, type ValidityRule,
+  buildSalesDocumentPdf, validityMention, salesPdfFileName, vehicleBlockLines,
+  type SalesPdfInput, type SalesPdfSignature, type ValidityRule, type VehicleBlockSource,
 } from './document-pdf';
 
 /** Sous-type « Proposition d'intervention » (check-up atelier, ATE009, migration 20261031110000). */
@@ -110,17 +110,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     c.vat_number ? `${t('salesPdf.vat')} : ${s(c.vat_number)}` : '',
   ].map(s).filter(Boolean) : [];
 
-  const vehicleLines = v ? [
-    v.vin ? `${t('salesPdf.vin')} : ${s(v.vin)}` : '',
-    v.brand ? `${t('salesPdf.brand')} : ${s(v.brand)}` : '',
-    v.model ? `${t('salesPdf.model')} : ${s(v.model)}` : '',
-    v.plate ? `${t('salesPdf.plate')} : ${s(v.plate)}` : '',
-    v.mileage != null ? `${t('salesPdf.mileage')} : ${s(v.mileage)}` : '',
-    v.color ? `${t('salesPdf.color')} : ${s(v.color)}` : '',
-    v.displacement != null ? `${t('salesPdf.displacement')} : ${s(v.displacement)}` : '',
-    v.first_registration_date ? `${t('salesPdf.firstRegistration')} : ${dmy(s(v.first_registration_date))}` : '',
-    v.engine_number ? `${t('salesPdf.engineNumber')} : ${s(v.engine_number)}` : '',
-  ].filter(Boolean) : [];
+  // Bloc moto (mission 08, carte 2) : modèle, année, VIN, plaque, km… dans la langue du client.
+  const vehicleLines = vehicleBlockLines(v as VehicleBlockSource | null, locale);
 
   // Proposition d'intervention : titre, vignettes des photos, lignes reportées, signature.
   const proposal = isProposalDoc(doc);

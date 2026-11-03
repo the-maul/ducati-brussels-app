@@ -68,6 +68,14 @@ export function documentValidationError(p: {
 /** Message lisible d'un refus de validation, dans la langue de l'utilisateur. */
 export const documentValidationMessage = (e: DocumentValidationError): string => t(`sales.${e}`);
 
+/**
+ * Un brouillon se rouvre, se modifie, se valide ou se supprime ; un document validé est figé
+ * (B7 : il s'annule par un avoir, il ne se modifie pas). Mission 08, carte 1 (03/11/2026).
+ */
+export const isDraftDocument = (doc: Pick<DocumentRow, 'status'>): boolean => doc.status === 'brouillon';
+export const canEditDocument = isDraftDocument;
+export const canDeleteDocument = isDraftDocument;
+
 /** Ligne enregistrée → ligne à recopier (conversion, duplication, avoir). */
 export function rowToLineInput(l: DocumentLine, sign: 1 | -1 = 1): LineInput {
   const lt = (LINE_TYPES as readonly string[]).includes(l.line_type) ? (l.line_type as LineType) : 'article';
@@ -161,13 +169,66 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
   return (data as string) ?? null;
 }
 
+/** Colonnes d'en-tête communes à la création et à la modification d'un brouillon. */
+function headerColumns(p: {
+  docType: string; contactId?: string | null; vehicleId?: string | null; issueDate: string; dueDate?: string | null;
+  notes?: string | null; lines: LineInput[]; pied: PiedInput;
+}) {
+  const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, p.pied);
+  return {
+    doc_type: p.docType, contact_id: p.contactId ?? null, vehicle_id: p.vehicleId ?? null,
+    issue_date: p.issueDate, due_date: p.dueDate ?? null, notes: p.notes ?? null, total_ht, total_vat, total_ttc,
+    price_mode: p.pied.priceMode ?? 'ttc', tax_exempt: !!p.pied.taxExempt,
+    global_discount_pct: p.pied.globalDiscountPct ?? 0, global_discount_amount: p.pied.globalDiscountAmount ?? 0,
+    shipping_ht: p.pied.shippingHt ?? 0, shipping_taxed: p.pied.shippingTaxed !== false,
+    shipping_vat_rate: p.pied.shippingVatRate ?? 21, forced_ttc: p.pied.forcedTtc ?? null,
+  };
+}
+
+/** Lignes à insérer dans `document_lines` (une ligne texte ou vide ne porte aucun montant). */
+function lineRows(docId: string, lines: LineInput[], taxExempt?: boolean) {
+  return lines.map((l, i) => {
+    const tot = lineTotals(l, taxExempt);
+    const amount = lineHasAmount(l);
+    return {
+      document_id: docId, article_id: amount ? l.article_id ?? null : null, designation: l.designation,
+      reference: l.reference ?? null, line_type: l.line_type ?? 'article',
+      quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0, vat_rate: l.vat_rate,
+      discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: tot.ht, line_ttc: tot.ttc, sort_order: i,
+    };
+  });
+}
+
+/**
+ * Mouvements de stock à la validation (B4 triple stock, B7 traçabilité append-only) :
+ * FAC / TIK débitent le réel, RES / BL réservent, les autres types ne touchent à rien.
+ * Un échec ici laisse le document validé avec un stock partiel : connu, voir M06 §7.
+ */
+async function recordSaleStockMoves(docType: string, lines: LineInput[], number: string | null): Promise<void> {
+  const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(docType);
+  const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(docType);
+  if (!realOut && !reserve) return;
+  for (const l of lines) {
+    if (!lineMovesStock(l) || !l.article_id) continue;
+    const qty = Math.abs(l.quantity);
+    const args = realOut
+      ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
+      : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
+    const { error: se } = await supabase.rpc('record_stock_move', {
+      // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
+      _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
+      _ref: number ?? undefined, _note: undefined, ...args,
+    });
+    if (se) throw se;
+  }
+}
+
 export async function createDocument(p: {
   companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
   lines: LineInput[]; pied?: PiedInput; sourceDocumentId?: string | null;
 }): Promise<string> {
   const pied = p.pied ?? {};
-  const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, pied);
   const validated = p.status === 'validee';
 
   // Refus clair plutôt qu'un document validé sans client ou sans ligne (audit du 31/10/2026).
@@ -181,13 +242,8 @@ export async function createDocument(p: {
   // lignes sont refusées (ex. moto sans VIN, trigger en base), l'en-tête orphelin est retiré et
   // aucun numéro n'a été consommé : plus de document validé vide avec un numéro (constat du 30/10).
   const { data: doc, error } = await supabase.from('documents').insert({
-    company_id: p.companyId, doc_type: p.docType, number: null, contact_id: p.contactId ?? null,
-    vehicle_id: p.vehicleId ?? null, status: 'brouillon', issue_date: p.issueDate, due_date: p.dueDate ?? null,
-    notes: p.notes ?? null, total_ht, total_vat, total_ttc, source_document_id: p.sourceDocumentId ?? null,
-    price_mode: pied.priceMode ?? 'ttc', tax_exempt: !!pied.taxExempt,
-    global_discount_pct: pied.globalDiscountPct ?? 0, global_discount_amount: pied.globalDiscountAmount ?? 0,
-    shipping_ht: pied.shippingHt ?? 0, shipping_taxed: pied.shippingTaxed !== false,
-    shipping_vat_rate: pied.shippingVatRate ?? 21, forced_ttc: pied.forcedTtc ?? null,
+    company_id: p.companyId, number: null, status: 'brouillon', source_document_id: p.sourceDocumentId ?? null,
+    ...headerColumns({ ...p, pied }),
   }).select('id').single();
   if (error) throw error;
   const docId = doc.id as string;
@@ -198,17 +254,7 @@ export async function createDocument(p: {
   };
 
   if (p.lines.length) {
-    const rows = p.lines.map((l, i) => {
-      const tot = lineTotals(l, pied.taxExempt);
-      const amount = lineHasAmount(l);
-      return {
-        document_id: docId, article_id: amount ? l.article_id ?? null : null, designation: l.designation,
-        reference: l.reference ?? null, line_type: l.line_type ?? 'article',
-        quantity: amount ? l.quantity : 0, unit_price_ht: amount ? l.unit_price_ht : 0, vat_rate: l.vat_rate,
-        discount_pct: amount ? l.discount_pct || 0 : 0, line_ht: tot.ht, line_ttc: tot.ttc, sort_order: i,
-      };
-    });
-    const { error: le } = await supabase.from('document_lines').insert(rows);
+    const { error: le } = await supabase.from('document_lines').insert(lineRows(docId, p.lines, pied.taxExempt));
     if (le) return discard(le);
   }
 
@@ -220,26 +266,53 @@ export async function createDocument(p: {
   const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', docId);
   if (ve) return discard(ve);
 
-  // Mouvement de stock à la validation (B4 triple stock, B7 traçabilité append-only).
-  // Un échec ici laisse le document validé avec un stock partiel : connu, voir M06 §7.
-  const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(p.docType);
-  const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(p.docType);
-  if (realOut || reserve) {
-    for (const l of p.lines) {
-      if (!lineMovesStock(l) || !l.article_id) continue;
-      const qty = Math.abs(l.quantity);
-      const args = realOut
-        ? { _type: 'sortie' as const, _qty: -qty, _is_reservation: false }      // débite le réel
-        : { _type: 'reservation' as const, _qty: qty, _is_reservation: true };  // débite le disponible (réservé)
-      const { error: se } = await supabase.rpc('record_stock_move', {
-        // undefined : ces parametres sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
-        _article: l.article_id, _unit_cost: undefined, _bin: undefined, _origin: 'sale',
-        _ref: number ?? undefined, _note: undefined, ...args,
-      });
-      if (se) throw se;
-    }
-  }
+  await recordSaleStockMoves(p.docType, p.lines, number);
   return docId;
+}
+
+/**
+ * Rouvre un brouillon (mission 08, carte 1, 03/11/2026) : en-tête, lignes, pied, client, moto et
+ * type sont réécrits ; le document reste en brouillon ou est validé (numéro pris une seule fois,
+ * mêmes contrôles qu'à la création). Refusé si le document n'est plus un brouillon.
+ * Ordre d'écriture : en-tête → nouvelles lignes insérées → anciennes lignes retirées → numéro +
+ * statut → stock. Si les nouvelles lignes sont refusées, les anciennes restent en place.
+ */
+export async function updateDraftDocument(p: {
+  documentId: string; companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
+  issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
+  lines: LineInput[]; pied?: PiedInput;
+}): Promise<string> {
+  const pied = p.pied ?? {};
+  const validated = p.status === 'validee';
+  const { doc, lines: oldLines } = await getDocumentFull(p.documentId);
+  if (!isDraftDocument(doc)) throw new Error(t('sales.notDraft'));
+  if (validated) {
+    const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines });
+    if (refused) throw new Error(documentValidationMessage(refused));
+  }
+
+  const { error: he } = await supabase.from('documents').update(headerColumns({ ...p, pied }))
+    .eq('id', p.documentId).eq('status', 'brouillon');
+  if (he) throw he;
+
+  if (p.lines.length) {
+    const { error: le } = await supabase.from('document_lines').insert(lineRows(p.documentId, p.lines, pied.taxExempt));
+    if (le) throw le;
+  }
+  if (oldLines.length) {
+    const { error: de } = await supabase.from('document_lines').delete().in('id', oldLines.map((l) => l.id));
+    if (de) throw de;
+  }
+
+  if (!validated) return p.documentId;
+
+  // Le numéro n'est pris qu'ici, une seule fois : un brouillon rouvert dix fois n'en consomme aucun.
+  const number = await nextNumber(p.companyId, p.docType);
+  const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', p.documentId);
+  if (ve) throw ve;
+
+  await recordSaleStockMoves(p.docType, p.lines, number);
+  return p.documentId;
 }
 
 /**
@@ -468,8 +541,10 @@ export async function duplicateDocument(id: string): Promise<string> {
  * brouillons : un document validé/payé ne se supprime pas (B7, avoir/annulation sinon).
  */
 export async function deleteDocument(id: string): Promise<void> {
-  const { error } = await supabase.from('documents').delete().eq('id', id).eq('status', 'brouillon');
+  // La suppression est tracée dans `events` par le trigger d'audit de `documents` (M06 §7).
+  const { data, error } = await supabase.from('documents').delete().eq('id', id).eq('status', 'brouillon').select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(t('sales.notDraft'));
 }
 
 /**

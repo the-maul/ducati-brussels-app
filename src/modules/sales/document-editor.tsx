@@ -7,10 +7,10 @@
  * Devis atelier (mission 02) : frais de devis accident (fixe) ou diagnostic (tarif horaire,
  * plafonné) posés en ligne dédiée, sans doublon — voir modules/workshop/quote-fees.ts.
  */
-import { useEffect, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText, Bike } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -20,11 +20,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
+import { getVehicle, listContactCurrentVehicles, searchVehiclesForSale, vehiclePickLabel, type Vehicle } from '@/modules/vehicles/api';
+import { useConfirm } from '@/components/confirm-provider';
 import {
-  createDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount,
-  documentValidationError, documentValidationMessage,
-  type LineInput, type LineType, type SaleArticle, type PiedInput,
+  createDocument, updateDraftDocument, deleteDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount,
+  documentValidationError, documentValidationMessage, rowToLineInput, isDraftDocument,
+  type LineInput, type LineType, type SaleArticle, type PiedInput, type DocumentFull,
 } from './write-api';
+import { resolveInitialDocType, loadDefaultDocType, EDITOR_DOC_TYPES } from './default-doc-type';
+import { requiresConfirmation } from './confirm';
+import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from './confirm-document-dialog';
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
@@ -39,7 +44,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { EcatalogPasteButton, EcatalogLink, type EcatalogPick } from './ecatalog-paste';
 import { looksLikeDucatiReference } from './ecatalog';
 
-const DOC_TYPES = ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'] as const;
+const DOC_TYPES = EDITOR_DOC_TYPES;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -50,33 +55,58 @@ const blankLine = (type: LineType = 'article', designation = ''): EditLine => ({
   _key: `l${counter++}`, article_id: null, designation, quantity: type === 'texte' || type === 'vide' ? 0 : 1,
   unit_price_ht: 0, vat_rate: 21, discount_pct: 0, line_type: type,
 });
+/** Lignes d'un brouillon rouvert (mission 08, carte 1) : telles qu'enregistrées, modifiables. */
+const draftLines = (full: DocumentFull): EditLine[] => {
+  const ls = full.lines.map((l) => ({ ...rowToLineInput(l), _key: `l${counter++}` }));
+  return ls.length ? ls : [blankLine()];
+};
+const numStr = (n: number | string | null | undefined) => (n == null || Number(n) === 0 ? '' : String(Number(n)));
 
-export function DocumentEditor({ companyId, initialContactId, initialVehicleId, initialDocType, workshopOrNumber, workshop }: {
+/**
+ * Éditeur d'un nouveau document, ou d'un brouillon rouvert (`draft`, mission 08, carte 1) :
+ * mêmes écrans, même enregistrement ; un brouillon se valide (numéro pris à ce moment seulement)
+ * ou se supprime ; un document validé n'arrive jamais ici (route `/sales/$id/edit`).
+ */
+export function DocumentEditor({ companyId, initialContactId, initialVehicleId, initialDocType, workshopOrNumber, workshop, draft }: {
   companyId: string; initialContactId?: string; initialVehicleId?: string; initialDocType?: string; workshopOrNumber?: string; workshop?: boolean;
+  draft?: DocumentFull;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const confirmDialog = useConfirm();
   const { profile, user } = useAuth();
-  const operatorName = profile?.full_name?.trim() || profile?.email || user?.email || '';
+  const operatorName = draft?.doc.operator || profile?.full_name?.trim() || profile?.email || user?.email || '';
   const roundUp = useRoundSalePrices(companyId);
-  // Type proposé : devis atelier depuis un OR, sinon le type demandé par le lien (ex. DEV), sinon facture.
-  const [docType, setDocType] = useState<string>(
-    workshop ? 'DEV' : (DOC_TYPES as readonly string[]).includes(initialDocType ?? '') ? (initialDocType as string) : 'FAC',
-  );
+  // Type proposé (mission 08, carte 3) : brouillon rouvert → son type ; devis atelier depuis un OR
+  // → DEV ; lien `?docType=` ; sinon le réglage de la société, sinon « Devis / proforma ».
+  const requestedType = draft?.doc.doc_type ?? initialDocType;
+  const [docType, setDocTypeState] = useState<string>(() => resolveInitialDocType({ requested: requestedType, workshop }));
+  const typeTouched = useRef(!!draft || !!workshop || !!requestedType);
+  const setDocType = (v: string) => { typeTouched.current = true; setDocTypeState(v); };
+  const { data: companyDefaultType } = useQuery({
+    queryKey: ['sales-default-doc-type', companyId], queryFn: () => loadDefaultDocType(companyId), enabled: !typeTouched.current,
+  });
+  useEffect(() => {
+    if (companyDefaultType && !typeTouched.current) setDocTypeState(resolveInitialDocType({ companyDefault: companyDefaultType }));
+  }, [companyDefaultType]);
   const [contact, setContact] = useState<Contact | null>(null);
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState('');
-  const [lines, setLines] = useState<EditLine[]>([blankLine()]);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [issueDate, setIssueDate] = useState(() => draft?.doc.issue_date ?? new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(draft?.doc.due_date ?? '');
+  const [lines, setLines] = useState<EditLine[]>(() => (draft ? draftLines(draft) : [blankLine()]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Validation d'une facture / d'un ticket : confirmation avec récapitulatif avant d'écrire (cartes 4 et 6).
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmDocumentRequest | null>(null);
 
-  // Pied de facture
-  const [priceMode, setPriceMode] = useState<'ht' | 'ttc'>('ttc');
-  const [taxExempt, setTaxExempt] = useState(false);
-  const [discountPct, setDiscountPct] = useState('');
-  const [discountAmount, setDiscountAmount] = useState('');
-  const [shippingHt, setShippingHt] = useState('');
-  const [shippingTaxed, setShippingTaxed] = useState(true);
-  const [forcedTtc, setForcedTtc] = useState('');
+  // Pied de facture (repris du brouillon rouvert)
+  const [priceMode, setPriceMode] = useState<'ht' | 'ttc'>((draft?.doc.price_mode as 'ht' | 'ttc') ?? 'ttc');
+  const [taxExempt, setTaxExempt] = useState(!!draft?.doc.tax_exempt);
+  const [discountPct, setDiscountPct] = useState(numStr(draft?.doc.global_discount_pct));
+  const [discountAmount, setDiscountAmount] = useState(numStr(draft?.doc.global_discount_amount));
+  const [shippingHt, setShippingHt] = useState(numStr(draft?.doc.shipping_ht));
+  const [shippingTaxed, setShippingTaxed] = useState(draft ? draft.doc.shipping_taxed !== false : true);
+  const [forcedTtc, setForcedTtc] = useState(numStr(draft?.doc.forced_ttc));
 
   // Devis atelier : frais de devis (accident fixe / diagnostic au tarif horaire plafonné)
   const [workshopQuote, setWorkshopQuote] = useState(!!workshop);
@@ -108,13 +138,20 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // Précharge le client fourni par le lien (fiche client → « Nouveau document », OR → devis).
   // Lecture directe de la fiche : l'ancienne recherche sans terme ne renvoyait que les 500 premiers
   // contacts sur 8 000, et le client arrivait vide sans un mot (constat du 30/10/2026).
+  const preContactId = draft?.doc.contact_id ?? initialContactId ?? undefined;
   const { data: preContact, isError: preContactFailed } = useQuery({
-    queryKey: ['contact-pre', initialContactId],
-    queryFn: () => getContact(initialContactId as string),
-    enabled: !!initialContactId,
+    queryKey: ['contact-pre', preContactId],
+    queryFn: () => getContact(preContactId as string),
+    enabled: !!preContactId,
   });
   useEffect(() => { if (preContact) setContact(preContact); }, [preContact]);
-  useEffect(() => { if (preContactFailed || (initialContactId && preContact === null)) toast.error(t('sales.needClient')); }, [preContactFailed, preContact, initialContactId]);
+  useEffect(() => { if (preContactFailed || (preContactId && preContact === null)) toast.error(t('sales.needClient')); }, [preContactFailed, preContact, preContactId]);
+  // Moto fournie par le lien (devis atelier depuis un OR) ou enregistrée sur le brouillon (carte 2).
+  const preVehicleId = draft?.doc.vehicle_id ?? initialVehicleId ?? undefined;
+  const { data: preVehicle } = useQuery({
+    queryKey: ['vehicle-pre', preVehicleId], queryFn: () => getVehicle(preVehicleId as string), enabled: !!preVehicleId,
+  });
+  useEffect(() => { if (preVehicle) setVehicle(preVehicle); }, [preVehicle]);
 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
@@ -151,27 +188,63 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // Erreur toujours visible : sous les totaux ET en toast (le bouton Valider est en bas, pas le message).
   const fail = (msg: string) => { setError(msg); toast.error(msg); setBusy(false); };
 
+  // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
+  const payloadLines = () => lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l);
+
   const save = async (status: 'brouillon' | 'validee') => {
+    setError(null);
+    const payload = payloadLines();
+    // Refus clairs avant d'écrire : sans ligne, validation sans client, validation à 0 € (audit du 31/10/2026).
+    const refused = documentValidationError({ docType, status, contactId: contact?.id ?? null, lines: payload, requireAmount: true });
+    if (refused) { fail(documentValidationMessage(refused)); return; }
+    // Facture : confirmation avec récapitulatif avant de consommer un numéro et de sortir le stock (cartes 4 et 6).
+    if (status === 'validee' && requiresConfirmation(docType)) {
+      setConfirmRequest({
+        action: 'validate', docType, clientName: contact ? contactDisplayName(contact) : null, totalTtc: totals.total_ttc,
+        lines: payload.map((l) => ({ designation: l.designation, quantity: l.quantity, lineTtc: lineHasAmount(l) ? r2(l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) * (1 + (taxExempt ? 0 : l.vat_rate || 0) / 100)) : 0 })),
+      });
+      return;
+    }
+    await write(status);
+  };
+
+  const write = async (status: 'brouillon' | 'validee') => {
     setBusy(true); setError(null);
     try {
-      // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
-      const payload = lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l);
-      // Refus clairs avant d'écrire : sans ligne, validation sans client, validation à 0 € (audit du 31/10/2026).
-      const refused = documentValidationError({ docType, status, contactId: contact?.id ?? null, lines: payload, requireAmount: true });
-      if (refused) { fail(documentValidationMessage(refused)); return; }
-      const notes = workshopQuote ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ') : null;
-      const id = await createDocument({
-        companyId, docType, contactId: contact?.id ?? null, vehicleId: initialVehicleId ?? null, issueDate, dueDate: dueDate || null,
+      const payload = payloadLines();
+      const notes = workshopQuote
+        ? [t('sales.workshopQuote'), workshopOrNumber ? `OR ${workshopOrNumber}` : ''].filter(Boolean).join(' — ')
+        : draft?.doc.notes ?? null;
+      const common = {
+        companyId, docType, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, issueDate, dueDate: dueDate || null,
         status, notes, lines: payload, pied,
-      });
+      };
+      const id = draft ? await updateDraftDocument({ documentId: draft.doc.id, ...common }) : await createDocument(common);
+      if (draft) qc.invalidateQueries({ queryKey: ['doc-full', id] });
+      setConfirmRequest(null);
+      if (status === 'brouillon') toast.success(t('sales.draftSaved'));
       navigate({ to: '/sales/$documentId', params: { documentId: id } });
+    } catch (e) { fail(errorMessage(e)); }
+  };
+
+  // Suppression d'un brouillon (jamais d'un document validé) : confirmation, trace `events` par la base.
+  const removeDraft = async () => {
+    if (!draft || !isDraftDocument(draft.doc)) return;
+    const ok = await confirmDialog({ variant: 'delete', title: t('sales.deleteDraft'), message: t('sales.deleteConfirm') });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await deleteDocument(draft.doc.id);
+      qc.invalidateQueries({ queryKey: ['documents', companyId] });
+      toast.success(t('sales.deleted'));
+      navigate({ to: '/sales' });
     } catch (e) { fail(errorMessage(e)); }
   };
 
   return (
     <div className="space-y-4">
       {/* En-tête */}
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
         <Field label={t('sales.type')}>
           <Select value={docType} onValueChange={setDocType}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -185,6 +258,16 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               <button type="button" onClick={() => setContact(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
             </div>
           ) : <ContactPicker companyId={companyId} onPick={setContact} />}
+        </Field>
+        {/* Moto du document (mission 08, carte 2) : motos du client, sinon recherche dans le parc. */}
+        <Field label={t('sales.vehicle')}>
+          {vehicle ? (
+            <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm" title={vehiclePickLabel(vehicle)}>
+              <Bike className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{vehiclePickLabel(vehicle)}</span>
+              <button type="button" onClick={() => setVehicle(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
+            </div>
+          ) : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} />}
         </Field>
         <Field label={t('sales.date')}><Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></Field>
         <Field label={t('sales.dueDate')}><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
@@ -388,10 +471,18 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
 
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {draft && (
+          <Button variant="outline" className="mr-auto text-danger" onClick={removeDraft} disabled={busy}><Trash2 /> {t('sales.deleteDraft')}</Button>
+        )}
         <Button variant="outline" onClick={() => save('brouillon')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('sales.draft')}</Button>
         <Button onClick={() => save('validee')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('sales.validate')}</Button>
       </div>
+
+      <ConfirmDocumentDialog
+        companyId={companyId} request={confirmRequest} pending={busy}
+        onConfirm={() => write('validee')} onCancel={() => setConfirmRequest(null)}
+      />
     </div>
   );
 }
@@ -426,6 +517,47 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
               <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Moto du document (mission 08, carte 2) : à l'ouverture, les motos dont le client est le
+ * propriétaire actuel ; dès 2 caractères, recherche par VIN / plaque / modèle dans tout le parc
+ * (moto à vendre, moto de passage).
+ */
+function VehiclePicker({ companyId, contactId, onPick }: { companyId: string; contactId: string | null; onPick: (v: Vehicle) => void }) {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const [deb, setDeb] = useState('');
+  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
+  const ownQ = useQuery({ queryKey: ['contact-vehicles', contactId], queryFn: () => listContactCurrentVehicles(contactId as string), enabled: !!contactId });
+  const searchQ = useQuery({ queryKey: ['vehicle-pick', companyId, deb], queryFn: () => searchVehiclesForSale(companyId, deb), enabled: deb.length >= 2 });
+  const searching = deb.length >= 2;
+  const own = ownQ.data ?? [];
+  const found = searchQ.data ?? [];
+  const showOwn = open && !searching && own.length > 0;
+  const showFound = searching && searchQ.isFetched;
+  const pick = (v: Vehicle) => { onPick(v); setTerm(''); setOpen(false); };
+  const row = (v: Vehicle) => (
+    <button key={v.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v)}
+      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
+      <Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{vehiclePickLabel(v)}</span>
+    </button>
+  );
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input value={term} onChange={(e) => setTerm(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={t('sales.vehiclePlaceholder')} className="h-9 pl-9" />
+      {(showOwn || showFound) && (
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
+          {showOwn && <p className="px-3 pt-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.vehicleOfClient')}</p>}
+          {showOwn && own.map(row)}
+          {showFound && found.length === 0 && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('sales.vehicleNone')}</p>}
+          {showFound && found.map(row)}
         </div>
       )}
     </div>

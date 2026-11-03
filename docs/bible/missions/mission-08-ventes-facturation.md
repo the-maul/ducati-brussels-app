@@ -79,21 +79,25 @@ imprimer tout ça sans un mot.
 - *Pourquoi* : « Enregistrer en brouillon » est une impasse ; un vendeur qui prépare un devis en deux fois le perd. Un devis validé ne se modifie pas non plus : pour changer une ligne, il faut tout refaire (dupliquer → modifier → valider, et l'ancien reste).
 - *Test* : Ventes → Nouveau → Brouillon → l'ouvrir → modifier une ligne → Valider → numéro attribué.
 - *Avis* : indispensable, à faire en premier. Même éditeur, chargé depuis le document ; réservé aux brouillons (un document validé reste figé, B7).
+- **Fait le 03/11/2026 (à valider)** : `/sales/$documentId/edit` ouvre le brouillon dans l'éditeur (clic sur un brouillon dans la liste des ventes ou l'onglet Documents de la fiche client ; bouton « Modifier le brouillon » sur sa fiche). Lignes, client, moto, type, dates et pied se modifient ; « Brouillon » réenregistre, « Valider » prend le numéro (`next_document_number`, une seule fois) avec les règles du 31/10, « Supprimer le brouillon » après confirmation (trace `events` par le trigger d'audit). Un document validé renvoie « Ce document n'est plus un brouillon ».
 
 **Carte 2 — Choisir la moto sur le devis**
 - *Pourquoi* : l'éditeur ne permet pas de rattacher un véhicule (seul un devis ouvert depuis un OR en a un). Un devis moto sans fiche moto = pas de VIN, pas de bloc véhicule sur le PDF, pas d'historique par VIN (B9, VEN004).
 - *Test* : Nouveau devis → choisir une moto du parc ou du stock → le PDF montre VIN / modèle.
 - *Avis* : nécessaire pour vendre une moto ; petit sélecteur dans l'en-tête, comme le client.
+- **Fait le 03/11/2026 (à valider)** : champ « Véhicule » dans l'en-tête de l'éditeur : à l'ouverture, les motos dont le client est le propriétaire actuel (`vehicle_owners.is_current`) ; dès 2 caractères, recherche VIN / plaque / modèle / marque dans tout le parc. `documents.vehicle_id` existait déjà (juin 2026, index `idx_documents_vehicle` depuis le 05/10) : **aucune migration**. Bloc moto du PDF et de l'impression (`vehicleBlockLines`) : marque, modèle, **année**, VIN, plaque, km si connu… dans la langue du client. La fiche moto (section « Factures & documents ») et l'espace client (factures de la moto) lisaient déjà `vehicle_id`.
 
 **Carte 3 — Proposer « Devis / proforma » par défaut, pas « Facture »**
 - *Pourquoi* : le type proposé est Facture ; un clic sur Valider par réflexe consomme un numéro de facture et sort le stock. Depuis la fiche client, le vendeur veut d'abord un devis.
 - *Test* : fiche client → Nouveau document → le type affiché est Devis / proforma ; Ventes → Nouveau aussi.
 - *Avis* : décision client (G8 ouvrait sur « Facture » ?) ; le lien `?docType=DEV` existe déjà depuis cet audit, il suffit de l'utiliser.
+- **Fait le 03/11/2026 (décision M-81, à valider)** : « Devis / proforma » proposé par défaut (fiche client → Nouveau document, Ventes → Nouveau). Priorités : devis atelier depuis un OR → DEV ; `?docType=` ; réglage par société **Paramètres → Tables → « Type de document par défaut (Ventes) »** (code DEV / BC / RES / BL / FAC / TIK, première ligne active) ; sinon DEV. La facture reste à un clic dans la liste des types.
 
 **Carte 4 — Frais de devis atelier : refuser la ligne à 0 €**
 - *Pourquoi* : sans tarif horaire (Paramètres → Tables → Frais de devis atelier), la case « Devis atelier » ajoute « Diagnostic (4 h) » à 0 €, et c'est exactement le devis `DEV-2026-00001` de Simon.
 - *Test* : tarif vide → le bouton « Ajouter les frais » refuse et renvoie vers le paramètre ; tarif rempli → ligne au bon prix.
 - *Avis* : franc, petit, à faire avec la carte 1 ; et **renseigner le tarif** en production dès maintenant.
+- **Non faite au 03/11/2026** : le lot « cartes 1 à 4 » de Simon visait les cartes 1, 2, 3 et la confirmation (carte 6) ; le refus de la ligne de frais à 0 € reste à faire.
 
 **Carte 5 — TVA sur la marge pour une occasion de particulier (type O)**
 - *Pourquoi* : la facture d'une occasion calcule la TVA sur le prix total ; le registre VO (M12) la recalcule sur la marge : les deux ne concordent pas (B2). Première vente d'occasion = première facture fausse.
@@ -106,6 +110,7 @@ imprimer tout ça sans un mot.
 - *Pourquoi* : « Convertir en facture » et « Générer un avoir » agissent au premier clic : numéro consommé, stock sorti ou réintégré, facture annulée. Pas de retour possible.
 - *Test* : clic → fenêtre « Créer la facture FAC-… pour X € ? » → Annuler ne fait rien.
 - *Avis* : petit, à faire ; même fenêtre que la suppression d'un brouillon.
+- **Fait le 03/11/2026 (à valider)** : fenêtre `AlertDialog` avant « Convertir en facture », « Générer un avoir » et « Valider » une facture depuis l'éditeur : type, **numéro qui sera attribué** (aperçu de la séquence, « FAC-2026-00006 »), client, total TTC, lignes (8 au plus), conséquences (« Le stock réel sera débité », « Le document d'origine passera en converti », « Irréversible »), bouton principal « Créer la facture » / « Créer l'avoir ». Annuler ne fait rien. Les conversions en BC / RES / BL restent au premier clic (réversibles : pas de numéro de facture, réservation libérable). Logique pure dans `confirm.ts`.
 
 **Carte 7 — Une seule transaction pour créer un document**
 - *Pourquoi* : l'écran enchaîne en-tête, lignes, numéro, mouvements de stock depuis le navigateur. Depuis cet audit, un refus des lignes ne laisse plus d'orphelin, mais un échec **après** le numéro laisse un document validé sans stock sorti. La bonne forme est une fonction SQL `document_create` (tout ou rien) + le garde-fou en base écrit dans `supabase/migrations/20261031130000_m6_ventes_corrections.sql` (non appliqué).
@@ -139,9 +144,13 @@ imprimer tout ça sans un mot.
 - *Avis* : décision client ; rien à coder, une ligne dans Paramètres → Sociétés.
 
 ## 4. Décisions
-Aucune nouvelle décision : les corrections du 31/10 n'ont changé aucune règle métier (un document
-validé a un client sauf le ticket de caisse ; un devis sans aucun montant ne se valide pas depuis
-l'écran de vente, un brouillon reste libre).
+- 31/10 : aucune nouvelle décision, les corrections n'ont changé aucune règle métier (un document
+  validé a un client sauf le ticket de caisse ; un devis sans aucun montant ne se valide pas depuis
+  l'écran de vente, un brouillon reste libre).
+- 03/11/2026, Simon : « cartes 1 à 4 nickel, gogogo » → **M-81** (devis / proforma proposé par
+  défaut, réglable par société) et **M-82** (un brouillon se rouvre, se modifie, se valide ou se
+  supprime ; un document validé est figé ; facture et avoir demandent confirmation avec le numéro
+  qui sera pris). Voir [`decisions.md`](../decisions.md).
 
 ## 5. Ce qui a changé dans l'application (31/10/2026, branche `lot-ventes-audit`, à valider)
 
@@ -165,6 +174,45 @@ Module [M06](../modules/M06-ventes-caisse.md) (§9 pour l'historique) :
 Vérifié en base, transactions annulées, en simulant un administrateur : numérotation par société et
 par type (`DEV-2026-00003` puis `-00004`, `FAC-2026-00005`, `BC-2026-00001`), création
 en-tête → lignes → validation (opérateur écrit par le serveur, 3 lignes `events`).
+
+## 5 bis. Cartes 1, 2, 3 et 6 (03/11/2026, branche `lot-ventes-1-4`, VEN002, à valider)
+
+- `src/modules/sales/write-api.ts` : `updateDraftDocument` (en-tête → nouvelles lignes → anciennes
+  lignes retirées → numéro + statut → stock ; refus si le document n'est plus un brouillon),
+  `isDraftDocument` / `canEditDocument` / `canDeleteDocument`, `deleteDocument` refuse un document
+  validé ; `createDocument` partage `headerColumns`, `lineRows`, `recordSaleStockMoves`.
+- `src/modules/sales/document-editor.tsx` : prop `draft` (brouillon rouvert : lignes, client, moto,
+  pied repris), sélecteur **Véhicule** (`VehiclePicker`), type par défaut (`default-doc-type.ts`),
+  confirmation avant validation d'une facture (`confirm-document-dialog.tsx`), « Supprimer le
+  brouillon ».
+- `src/routes/_app.sales.$documentId_.edit.tsx` (nouvelle route `/sales/$documentId/edit`,
+  `routeTree.gen.ts` complété), `_app.sales.$documentId.tsx` (boutons Modifier / Supprimer d'un
+  brouillon, confirmation avant facture et avoir), `_app.sales.index.tsx` et
+  `contacts/client-tabs.tsx` (un brouillon s'ouvre dans l'éditeur).
+- `src/modules/sales/confirm.ts` (logique pure : `requiresConfirmation`, `confirmedConversions`,
+  `buildConfirmSummary`), `default-doc-type.ts` (`resolveInitialDocType`, `loadDefaultDocType`),
+  `document-pdf.ts` (`vehicleBlockLines`, repris par `document-pdf-data.ts` et `print-document.ts`),
+  `vehicles/api.ts` (`listContactCurrentVehicles`, `searchVehiclesForSale`, `vehiclePickLabel`),
+  `settings/reference-tables.ts` (table `sales_default_doc_type`).
+- Dictionnaires FR / NL / EN / IT : `sales.editDraft`, `deleteDraft`, `notDraft`, `vehicle*`,
+  `confirm*`, `salesPdf.year`, `pageTitles.salesEdit`.
+- Tests : `tests/sales-brouillon-moto-confirmation.test.ts` (19 cas, base simulée : brouillon →
+  modification → validation avec un seul numéro ; refus sur un document validé ; suppression d'un
+  brouillon seulement ; bloc moto FR / NL ; type par défaut ; confirmation obligatoire pour FAC et
+  AVO, récapitulatif).
+- **Aucune migration** : `documents.vehicle_id` et son index existent en production.
+
+**Comment tester** (navigateur, après déploiement) :
+1. Fiche client → « Nouveau document » : le type affiché est « Devis / proforma » ; le champ
+   « Véhicule » propose les motos du client, puis cherche dans le parc dès 2 caractères.
+2. Une ligne, « Brouillon » → la fiche s'ouvre avec « Modifier le brouillon » / « Supprimer le
+   brouillon » ; liste des ventes et onglet Documents : un clic sur le brouillon rouvre l'éditeur.
+3. Modifier une ligne, « Brouillon » encore, puis « Valider » → numéro `DEV-2026-…` attribué une
+   fois ; « Aperçu PDF » montre le bloc moto (modèle, année, VIN, plaque, km) dans la langue du client.
+4. Sur le devis validé : « Convertir en → Facture » → fenêtre avec « FAC-2026-0000x », client,
+   total, lignes, « Le stock réel sera débité » ; Annuler ne crée rien ; « Créer la facture » crée.
+5. Sur la facture : « Générer un avoir » → même fenêtre (stock réintégré, facture annulée).
+6. Dans l'éditeur, type « Facture » + « Valider » → même confirmation avant d'écrire.
 
 ## 6. Risques et points d'attention
 - **Facture d'OR sans client** : refusée désormais par `createDocument` (« Choisissez un client »).

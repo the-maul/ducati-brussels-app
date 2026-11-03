@@ -72,6 +72,7 @@ import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases
 import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchases.suppliers'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
+import { Route as AppSalesDocumentIdEditRouteImport } from './routes/_app.sales.$documentId_.edit'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
@@ -429,6 +430,11 @@ const AppSalesDocumentIdRoute = AppSalesDocumentIdRouteImport.update({
   path: '/$documentId',
   getParentRoute: () => AppSalesRoute,
 } as any)
+const AppSalesDocumentIdEditRoute = AppSalesDocumentIdEditRouteImport.update({
+  id: '/$documentId_/edit',
+  path: '/$documentId/edit',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
   id: '/balances',
   path: '/balances',
@@ -703,6 +709,7 @@ export interface FileRoutesByFullPath {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -796,6 +803,7 @@ export interface FileRoutesByTo {
   '/purchases/proposal': typeof AppPurchasesProposalRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -903,6 +911,7 @@ export interface FileRoutesById {
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
+  '/_app/sales/$documentId_/edit': typeof AppSalesDocumentIdEditRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -1011,6 +1020,7 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/purchases/suppliers'
     | '/sales/$documentId'
+    | '/sales/$documentId/edit'
     | '/sales/balances'
     | '/sales/new'
     | '/sales/web-orders'
@@ -1104,6 +1114,7 @@ export interface FileRouteTypes {
     | '/purchases/proposal'
     | '/purchases/reorder'
     | '/sales/$documentId'
+    | '/sales/$documentId/edit'
     | '/sales/balances'
     | '/sales/new'
     | '/sales/web-orders'
@@ -1210,6 +1221,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/reorder'
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
+    | '/_app/sales/$documentId_/edit'
     | '/_app/sales/balances'
     | '/_app/sales/new'
     | '/_app/sales/web-orders'
@@ -1716,6 +1728,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesDocumentIdRouteImport
       parentRoute: typeof AppSalesRoute
     }
+    '/_app/sales/$documentId_/edit': {
+      id: '/_app/sales/$documentId_/edit'
+      path: '/$documentId/edit'
+      fullPath: '/sales/$documentId/edit'
+      preLoaderRoute: typeof AppSalesDocumentIdEditRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/sales/balances': {
       id: '/_app/sales/balances'
       path: '/balances'
@@ -2133,6 +2152,7 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 
 interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
+  AppSalesDocumentIdEditRoute: typeof AppSalesDocumentIdEditRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
@@ -2141,6 +2161,7 @@ interface AppSalesRouteChildren {
 
 const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
+  AppSalesDocumentIdEditRoute: AppSalesDocumentIdEditRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,

@@ -20,6 +20,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Ventes : devis par défaut, brouillon modifiable, document validé figé (mission 08, cartes 1 à 4)
+
+- **M-81** — **« Devis / proforma » est le type proposé par défaut** quand on crée un document
+  depuis une fiche client ou depuis Ventes → Nouveau ; la facture reste à un clic. Le lien
+  `?docType=` et le devis atelier (depuis un OR) gardent la priorité ; réglage par société dans
+  Paramètres → Tables → « Type de document par défaut (Ventes) ». *Simon · 03/11/2026
+  (« cartes 1 à 4 nickel, gogogo »).* M06.
+- **M-82** — **Un brouillon se rouvre, se modifie, se valide ou se supprime ; un document validé
+  est figé.** Le numéro n'est pris qu'à la validation, une seule fois. Avant de créer une
+  **facture** (validation ou conversion) ou un **avoir**, l'écran demande confirmation avec le
+  récapitulatif : type, numéro qui sera attribué, client, total TTC, lignes, conséquences (stock,
+  irréversible). Les conversions en bon de commande, réservation ou BL restent au premier clic.
+  *Simon · 03/11/2026.* M06, M09.
+
+---
+
 ## 2026-10-30 — Relances d'entretien : le marketing envoie, le commercial rappelle (mission 07, cartes 6 et 7)
 
 - **M-72** — **Les relances d'entretien sont des mails automatiques préparés par le marketing, pas

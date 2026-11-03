@@ -96,7 +96,8 @@ export function DocumentsTab({ contactId }: { contactId: string }) {
             const showPays = pays.length > 0 || (open && b.clientDue > 0.005);
             return (
               <Fragment key={d.id}>
-                <tr className={`cursor-pointer hover:bg-accent ${showPays ? '' : 'border-b border-border last:border-0'}`} onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}>
+                {/* Un brouillon s'ouvre dans l'éditeur (mission 08, carte 1), un document validé sur sa fiche. */}
+                <tr className={`cursor-pointer hover:bg-accent ${showPays ? '' : 'border-b border-border last:border-0'}`} onClick={() => navigate({ to: d.status === 'brouillon' ? '/sales/$documentId/edit' : '/sales/$documentId', params: { documentId: d.id } })}>
                   <td className="px-3 py-2 font-mono text-[12px] text-info underline">{d.number ?? '—'}</td>
                   <td className="px-3 py-2">{d.doc_type}</td>
                   <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>

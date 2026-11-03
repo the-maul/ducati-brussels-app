@@ -336,7 +336,7 @@ function SalesList() {
             {rows?.map((d) => {
               const avail = availByDoc.get(d.id);
               return (
-                <tr key={d.id} onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}
+                <tr key={d.id} onClick={() => navigate({ to: d.status === 'brouillon' ? '/sales/$documentId/edit' : '/sales/$documentId', params: { documentId: d.id } })}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
                   <td className="px-3 py-2 font-mono text-[12px]">{d.number ?? '—'}</td>
                   <td className="px-3 py-2">{t(`sales.type_${d.doc_type}`)}</td>

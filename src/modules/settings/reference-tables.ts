@@ -41,6 +41,9 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   // Sans ligne pour DEV : « Devis valable 1 mois ». Ligne inactive = aucune mention.
   { key: 'sales_document_validity', label: 'Validité des documents (PDF)', group: 'vente',
     extraColumns: [{ key: 'months', label: 'Durée (mois)', type: 'number' }] },
+  // Type proposé à l'ouverture de l'éditeur de vente (mission 08, carte 3) : code = DEV, BC, RES,
+  // BL, FAC ou TIK ; la première ligne active compte. Sans ligne : « Devis / proforma ».
+  { key: 'sales_default_doc_type', label: 'Type de document par défaut (Ventes)', group: 'vente', extraColumns: [] },
   { key: 'civility', label: 'Civilités', group: 'autre',
     extraColumns: [
       { key: 'professional', label: 'Professionnel', type: 'bool' },

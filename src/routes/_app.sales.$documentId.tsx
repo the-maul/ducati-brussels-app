@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -10,7 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { requiresConfirmation } from '@/modules/sales/confirm';
+import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from '@/modules/sales/confirm-document-dialog';
+import { useConfirm } from '@/components/confirm-provider';
 import { documentBalance } from '@/modules/sales/balance';
 import { DocumentBalanceBlock, FinancingDialog } from '@/modules/sales/balance-panel';
 import { listFinancingOrgs } from '@/modules/sales/financing-api';
@@ -99,14 +102,39 @@ function DocumentView() {
   const contactQ = useQuery({ queryKey: ['doc-contact', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId });
   const vehicleId = data?.doc.vehicle_id ?? null;
   const vehicleQ = useQuery({ queryKey: ['doc-vehicle', vehicleId], queryFn: () => getVehicle(vehicleId!), enabled: !!vehicleId });
+  // Confirmation avant une facture ou un avoir (mission 08, cartes 4 et 6) : numéro consommé,
+  // stock sorti ou réintégré, facture annulée — rien ne se défait ensuite.
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmDocumentRequest | null>(null);
   const convert = useMutation({
     mutationFn: (target: string) => convertDocument(documentId, target),
-    onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
+    onSuccess: (newId) => { setConfirmRequest(null); navigate({ to: '/sales/$documentId', params: { documentId: newId } }); },
   });
   const credit = useMutation({
     mutationFn: () => generateCreditNote(documentId),
-    onSuccess: (newId) => navigate({ to: '/sales/$documentId', params: { documentId: newId } }),
+    onSuccess: (newId) => { setConfirmRequest(null); navigate({ to: '/sales/$documentId', params: { documentId: newId } }); },
   });
+  const askOrRun = (action: 'convert' | 'creditNote', target: string) => {
+    if (!data) return;
+    if (!requiresConfirmation(target)) { convert.mutate(target); return; }
+    const sign = target === 'AVO' ? -1 : 1;
+    setConfirmRequest({
+      action, docType: target, clientName: contactQ.data ? contactDisplayName(contactQ.data) : null,
+      totalTtc: sign * Number(data.doc.total_ttc),
+      lines: data.lines.filter((l) => l.line_type !== 'vide').map((l) => ({ designation: l.designation, quantity: sign * Number(l.quantity), lineTtc: sign * Number(l.line_ttc) })),
+    });
+  };
+  const runConfirmed = (r: ConfirmDocumentRequest) => { if (r.action === 'creditNote') credit.mutate(); else convert.mutate(r.docType); };
+  // Brouillon : modifier ou supprimer (mission 08, carte 1) ; un document validé est figé.
+  const confirmDialog = useConfirm();
+  const removeDraft = useMutation({
+    meta: { success: false, error: false },
+    mutationFn: () => deleteDocument(documentId),
+    onSuccess: () => { toast.success(t('sales.deleted')); navigate({ to: '/sales' }); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const onDeleteDraft = async () => {
+    if (await confirmDialog({ variant: 'delete', title: t('sales.deleteDraft'), message: t('sales.deleteConfirm') })) removeDraft.mutate();
+  };
   const [mailOpen, setMailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const pdfPreview = useMutation({
@@ -163,18 +191,33 @@ function DocumentView() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
-              <Button key={tt} size="sm" variant="outline" onClick={() => convert.mutate(tt)} disabled={readOnly || convert.isPending}>
+              <Button key={tt} size="sm" variant="outline" onClick={() => askOrRun('convert', tt)} disabled={readOnly || convert.isPending}>
                 {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
               </Button>
             ))}
             {doc.doc_type === 'FAC' && (
-              <Button size="sm" variant="outline" onClick={() => credit.mutate()} disabled={readOnly || credit.isPending}>
+              <Button size="sm" variant="outline" onClick={() => askOrRun('creditNote', 'AVO')} disabled={readOnly || credit.isPending}>
                 {credit.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {t('sales.creditNote')}
               </Button>
             )}
           </div>
         )}
+        {isDraftDocument(doc) && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <span className="text-[12px] text-muted-foreground">{t('sales.draftHint')}</span>
+            <Button size="sm" onClick={() => navigate({ to: '/sales/$documentId/edit', params: { documentId } })} disabled={readOnly}>
+              <Pencil /> {t('sales.editDraft')}
+            </Button>
+            <Button size="sm" variant="outline" className="text-danger" onClick={onDeleteDraft} disabled={readOnly || removeDraft.isPending}>
+              {removeDraft.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} {t('sales.deleteDraft')}
+            </Button>
+          </div>
+        )}
       </div>
+      <ConfirmDocumentDialog
+        companyId={doc.company_id} request={confirmRequest} pending={convert.isPending || credit.isPending}
+        onConfirm={runConfirmed} onCancel={() => setConfirmRequest(null)}
+      />
 
       {(contactId || doc.code_client_legacy) && (
         <div className="mb-4 text-[13px]">

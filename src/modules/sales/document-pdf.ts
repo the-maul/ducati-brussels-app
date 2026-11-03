@@ -179,6 +179,36 @@ export const dmy = (iso: string | null | undefined): string => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso);
 };
 
+/** Champs de la fiche moto repris sur le document (mission 08, carte 2). */
+export type VehicleBlockSource = {
+  vin?: string | null; brand?: string | null; model?: string | null; model_year?: number | null;
+  plate?: string | null; mileage?: number | null; color?: string | null; displacement?: number | null;
+  first_registration_date?: string | null; engine_number?: string | null;
+};
+
+/**
+ * Bloc véhicule du PDF et de l'impression, dans la langue du client (I18N004) : modèle, année,
+ * VIN, plaque, kilométrage si connu, puis couleur, cylindrée, mise en circulation, n° moteur.
+ * Pur : `document-pdf-data.ts` et `print-document.ts` lui passent la ligne `vehicles`.
+ */
+export function vehicleBlockLines(v: VehicleBlockSource | null | undefined, locale?: Locale): string[] {
+  if (!v) return [];
+  const t = trIn(locale);
+  const s = (x: unknown) => (x == null ? '' : String(x));
+  return [
+    v.brand ? `${t('salesPdf.brand')} : ${s(v.brand)}` : '',
+    v.model ? `${t('salesPdf.model')} : ${s(v.model)}` : '',
+    v.model_year != null ? `${t('salesPdf.year')} : ${s(v.model_year)}` : '',
+    v.vin ? `${t('salesPdf.vin')} : ${s(v.vin)}` : '',
+    v.plate ? `${t('salesPdf.plate')} : ${s(v.plate)}` : '',
+    v.mileage != null ? `${t('salesPdf.mileage')} : ${s(v.mileage)} km` : '',
+    v.color ? `${t('salesPdf.color')} : ${s(v.color)}` : '',
+    v.displacement != null ? `${t('salesPdf.displacement')} : ${s(v.displacement)}` : '',
+    v.first_registration_date ? `${t('salesPdf.firstRegistration')} : ${dmy(s(v.first_registration_date))}` : '',
+    v.engine_number ? `${t('salesPdf.engineNumber')} : ${s(v.engine_number)}` : '',
+  ].filter(Boolean);
+}
+
 /**
  * Mention de validité : la règle de la société pour ce type (si elle existe, active ou non),
  * sinon la règle par défaut. « {date} » dans le texte est remplacé par la date limite ; sans

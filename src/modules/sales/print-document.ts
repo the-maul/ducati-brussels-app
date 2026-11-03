@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
 import type { DocumentFull } from './write-api';
+import { vehicleBlockLines, type VehicleBlockSource } from './document-pdf';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 
@@ -89,22 +90,19 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   }).join('');
 
   // Bloc détail véhicule (3 colonnes) sous les lignes, pour une vente V/O/P.
-  const vehBlock = v ? `
+  // Mêmes lignes que le PDF (mission 08, carte 2 : modèle, année, VIN, plaque, km…), plus les
+  // champs propres au gabarit G8, réparties sur trois colonnes.
+  const vehLines = v ? [
+    ...vehicleBlockLines(v as VehicleBlockSource, locale),
+    v.legacy_state ? `${t('salesPdf.state')} : ${v.legacy_state}` : '',
+    v.antipollution ? `${t('salesPdf.antipollution')} : ${v.antipollution}` : '',
+    v.cylinders != null ? `${t('salesPdf.cylinders')} : ${v.cylinders}` : '',
+    v.power_cv != null ? `${t('salesPdf.powerCv')} : ${v.power_cv}` : '',
+  ].filter(Boolean) : [];
+  const perCol = Math.ceil(vehLines.length / 3);
+  const vehBlock = vehLines.length ? `
     <div class="vehblock">
-      <div>${[
-        v.vin ? `${esc(t('salesPdf.vin'))} : ${esc(v.vin)}` : '', v.model ? `${esc(t('salesPdf.model'))} : ${esc(v.model)}` : '',
-        v.mileage != null ? `${esc(t('salesPdf.mileage'))} : ${esc(v.mileage)}` : '', v.antipollution ? `${esc(t('salesPdf.antipollution'))} : ${esc(v.antipollution)}` : '',
-        v.cylinders != null ? `${esc(t('salesPdf.cylinders'))} : ${esc(v.cylinders)}` : '',
-      ].filter(Boolean).join('<br>')}</div>
-      <div>${[
-        v.legacy_state ? `${esc(t('salesPdf.state'))} : ${esc(v.legacy_state)}` : '', v.plate ? `${esc(t('salesPdf.plate'))} : ${esc(v.plate)}` : '',
-        v.displacement != null ? `${esc(t('salesPdf.displacement'))} : ${esc(v.displacement)}` : '', v.color ? `${esc(t('salesPdf.color'))} : ${esc(v.color)}` : '',
-        v.first_registration_date ? `${esc(t('salesPdf.firstRegistration'))} : ${dmy(v.first_registration_date as string)}` : '',
-      ].filter(Boolean).join('<br>')}</div>
-      <div>${[
-        v.brand ? `${esc(t('salesPdf.brand'))} : ${esc(v.brand)}` : '', v.engine_number ? `${esc(t('salesPdf.engineNumber'))} : ${esc(v.engine_number)}` : '',
-        v.power_cv != null ? `${esc(t('salesPdf.powerCv'))} : ${esc(v.power_cv)}` : '',
-      ].filter(Boolean).join('<br>')}</div>
+      ${[0, 1, 2].map((c) => `<div>${vehLines.slice(c * perCol, (c + 1) * perCol).map(esc).join('<br>')}</div>`).join('')}
     </div>` : '';
 
   const brutTtc = lines.reduce((s, l) => s + Number(l.line_ttc), 0);
