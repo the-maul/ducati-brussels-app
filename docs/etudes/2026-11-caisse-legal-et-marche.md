@@ -134,7 +134,7 @@ agence si absent ou partiel (hors validation client et compta). Les lignes **L**
 | C7 | **Facture d'acompte** : à l'encaissement d'un acompte sur un document avec client (RES / BC / DEV accepté), émettre **FAC d'acompte** numérotée (série FAC ou série propre `FAA-`), PDF, UBL si B2B, **déduite** sur la facture finale avec référence (« Acompte facturé n° … du … »). Régime marge : sans TVA apparente. | L4, L2 | Absent | 2,5 |
 | C8 | **Avoir** : imprimer la **référence de la facture d'origine** et la mention **« TVA à reverser à l'État dans la mesure où elle a été initialement déduite »** ; **remboursement d'un ticket** (avoir sans client ou « remboursement » TIK négatif) inscrit au Z en « remboursements ». | L5, L20 | Partiel | 1,5 |
 | C9 | **Jamais supprimer un règlement** : remplacer `deletePayment` par un **règlement négatif** motivé (et verrou si la session est clôturée ou la période transférée) ; même chose pour la purge des devis **validés** (garder, marquer). | L14 | Partiel | 1 |
-| C10 | **Registre des véhicules à moteur** (art. 28) : table `vehicle_register` par société / siège : n° d'ordre, date d'entrée, plaque ou VIN, n° TVA UE donneur d'ordre, code de nature (réparation, entretien, vente VN, vente VO, reprise, dépôt, essai…), date de sortie, référence facture ou motif ; **alimentée automatiquement** par l'OR (entrée = réception, sortie = restitution, facture = facture de l'OR), par la réception VN, la reprise (M7) et la vente de moto ; **alerte** « véhicule sorti il y a > 1 mois sans facture » ; export PDF / CSV ; exclusion cyclomoteurs A / B. | L16 | Absent | 3 |
+| C10 | **Registre des véhicules à moteur** (art. 28) : table `vehicle_register` par société / siège : n° d'ordre, date d'entrée, plaque ou VIN, n° TVA UE donneur d'ordre, code de nature (réparation, entretien, vente VN, vente VO, reprise, dépôt, essai…), date de sortie, référence facture ou motif ; **alimentée automatiquement** par l'OR (entrée = réception, sortie = restitution, facture = facture de l'OR), par la réception VN, la reprise (M7) et la vente de moto ; **alerte** « véhicule sorti il y a > 1 mois sans facture » ; export PDF / CSV ; exclusion cyclomoteurs A / B. | L16 | **Fait (03/11)** : code + migration `20261103190000` non appliquée | 3 |
 | C11 | **Délai de facturation** : alerte « BL / OR terminé non facturé avant le 15 du mois suivant ». | L3 | Absent | 0,5 |
 | C12 | **Conservation 10 ans** : export annuel figé (factures, tickets, Z, registres) en GED + procédure écrite. | L13 | Partiel | 0,5 |
 | C13 | **Peppol** : connecteur Falco (déjà chiffré 03/11). | L15 | Partiel | 4 à 6 (déjà prévu) |
@@ -179,7 +179,7 @@ agence si absent ou partiel (hors validation client et compta). Les lignes **L**
 | U9 | **Regroupement de BL** en une facture mensuelle (client pro) | Absent (G8 p.135) | 1,5 |
 | U10 | **Numéro de série / VIN sur une ligne de vente** (types V / O / P) depuis le POS | Partiel (éditeur oui, POS non) | 1 |
 | U11 | **Tarifs clients** (remise par famille / fournisseur / quantité, promotion visible en Express) | Partiel (classe de remise Ducati M-… ; pas de tarif par client) | 3 |
-| U12 | Registre des véhicules (voir C10) | Absent | C10 |
+| U12 | Registre des véhicules (voir C10) | Fait (03/11) | C10 |
 
 ### 3.4 CONFORT
 

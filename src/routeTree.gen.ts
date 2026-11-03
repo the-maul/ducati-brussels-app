@@ -73,7 +73,6 @@ import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases
 import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchases.suppliers'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
-import { Route as AppSalesDocumentIdEditRouteImport } from './routes/_app.sales.$documentId_.edit'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
@@ -99,6 +98,7 @@ import { Route as AppVehiclesIndexRouteImport } from './routes/_app.vehicles.ind
 import { Route as AppVehiclesVehicleIdRouteImport } from './routes/_app.vehicles.$vehicleId'
 import { Route as AppVehiclesDeclarationsRouteImport } from './routes/_app.vehicles.declarations'
 import { Route as AppVehiclesNewRouteImport } from './routes/_app.vehicles.new'
+import { Route as AppVehiclesRegisterRouteImport } from './routes/_app.vehicles.register'
 import { Route as AppWorkshopIndexRouteImport } from './routes/_app.workshop.index'
 import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orId'
 import { Route as AppWorkshopChronoRouteImport } from './routes/_app.workshop.chrono'
@@ -115,6 +115,7 @@ import { Route as AppPurchasesBasketsBasketIdRouteImport } from './routes/_app.p
 import { Route as AppPurchasesSuppliersIndexRouteImport } from './routes/_app.purchases.suppliers.index'
 import { Route as AppPurchasesSuppliersSupplierIdRouteImport } from './routes/_app.purchases.suppliers.$supplierId'
 import { Route as AppPurchasesSuppliersNewRouteImport } from './routes/_app.purchases.suppliers.new'
+import { Route as AppSalesDocumentIdEditRouteImport } from './routes/_app.sales.$documentId_.edit'
 import { Route as AppSettingsTablesIndexRouteImport } from './routes/_app.settings.tables.index'
 import { Route as AppSettingsTablesTableKeyRouteImport } from './routes/_app.settings.tables.$tableKey'
 import { Route as AppWorkshopAccidentsIndexRouteImport } from './routes/_app.workshop.accidents.index'
@@ -440,11 +441,6 @@ const AppSalesDocumentIdRoute = AppSalesDocumentIdRouteImport.update({
   path: '/$documentId',
   getParentRoute: () => AppSalesRoute,
 } as any)
-const AppSalesDocumentIdEditRoute = AppSalesDocumentIdEditRouteImport.update({
-  id: '/$documentId_/edit',
-  path: '/$documentId/edit',
-  getParentRoute: () => AppSalesRoute,
-} as any)
 const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
   id: '/balances',
   path: '/balances',
@@ -570,6 +566,11 @@ const AppVehiclesNewRoute = AppVehiclesNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AppVehiclesRoute,
 } as any)
+const AppVehiclesRegisterRoute = AppVehiclesRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => AppVehiclesRoute,
+} as any)
 const AppWorkshopIndexRoute = AppWorkshopIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -657,6 +658,11 @@ const AppPurchasesSuppliersNewRoute =
     path: '/new',
     getParentRoute: () => AppPurchasesSuppliersRoute,
   } as any)
+const AppSalesDocumentIdEditRoute = AppSalesDocumentIdEditRouteImport.update({
+  id: '/$documentId_/edit',
+  path: '/$documentId/edit',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSettingsTablesIndexRoute = AppSettingsTablesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -744,7 +750,6 @@ export interface FileRoutesByFullPath {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
-  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -766,6 +771,7 @@ export interface FileRoutesByFullPath {
   '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
   '/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/vehicles/new': typeof AppVehiclesNewRoute
+  '/vehicles/register': typeof AppVehiclesRegisterRoute
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
@@ -790,6 +796,7 @@ export interface FileRoutesByFullPath {
   '/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
@@ -842,7 +849,6 @@ export interface FileRoutesByTo {
   '/purchases/proposal': typeof AppPurchasesProposalRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
-  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -863,6 +869,7 @@ export interface FileRoutesByTo {
   '/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
   '/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/vehicles/new': typeof AppVehiclesNewRoute
+  '/vehicles/register': typeof AppVehiclesRegisterRoute
   '/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
@@ -887,6 +894,7 @@ export interface FileRoutesByTo {
   '/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/sales/$documentId/edit': typeof AppSalesDocumentIdEditRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
@@ -955,7 +963,6 @@ export interface FileRoutesById {
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
-  '/_app/sales/$documentId_/edit': typeof AppSalesDocumentIdEditRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
@@ -977,6 +984,7 @@ export interface FileRoutesById {
   '/_app/vehicles/$vehicleId': typeof AppVehiclesVehicleIdRoute
   '/_app/vehicles/declarations': typeof AppVehiclesDeclarationsRoute
   '/_app/vehicles/new': typeof AppVehiclesNewRoute
+  '/_app/vehicles/register': typeof AppVehiclesRegisterRoute
   '/_app/workshop/$orId': typeof AppWorkshopOrIdRoute
   '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
   '/_app/workshop/kits': typeof AppWorkshopKitsRoute
@@ -1001,6 +1009,7 @@ export interface FileRoutesById {
   '/_app/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/_app/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/_app/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
+  '/_app/sales/$documentId_/edit': typeof AppSalesDocumentIdEditRoute
   '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/_app/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/_app/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
@@ -1069,7 +1078,6 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/purchases/suppliers'
     | '/sales/$documentId'
-    | '/sales/$documentId/edit'
     | '/sales/balances'
     | '/sales/new'
     | '/sales/web-orders'
@@ -1091,6 +1099,7 @@ export interface FileRouteTypes {
     | '/vehicles/$vehicleId'
     | '/vehicles/declarations'
     | '/vehicles/new'
+    | '/vehicles/register'
     | '/workshop/$orId'
     | '/workshop/chrono'
     | '/workshop/kits'
@@ -1115,6 +1124,7 @@ export interface FileRouteTypes {
     | '/purchases/baskets/$basketId'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
+    | '/sales/$documentId/edit'
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
@@ -1167,7 +1177,6 @@ export interface FileRouteTypes {
     | '/purchases/proposal'
     | '/purchases/reorder'
     | '/sales/$documentId'
-    | '/sales/$documentId/edit'
     | '/sales/balances'
     | '/sales/new'
     | '/sales/web-orders'
@@ -1188,6 +1197,7 @@ export interface FileRouteTypes {
     | '/vehicles/$vehicleId'
     | '/vehicles/declarations'
     | '/vehicles/new'
+    | '/vehicles/register'
     | '/workshop/$orId'
     | '/workshop/chrono'
     | '/workshop/kits'
@@ -1212,6 +1222,7 @@ export interface FileRouteTypes {
     | '/purchases/baskets/$basketId'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
+    | '/sales/$documentId/edit'
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
@@ -1279,7 +1290,6 @@ export interface FileRouteTypes {
     | '/_app/purchases/reorder'
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
-    | '/_app/sales/$documentId_/edit'
     | '/_app/sales/balances'
     | '/_app/sales/new'
     | '/_app/sales/web-orders'
@@ -1301,6 +1311,7 @@ export interface FileRouteTypes {
     | '/_app/vehicles/$vehicleId'
     | '/_app/vehicles/declarations'
     | '/_app/vehicles/new'
+    | '/_app/vehicles/register'
     | '/_app/workshop/$orId'
     | '/_app/workshop/chrono'
     | '/_app/workshop/kits'
@@ -1325,6 +1336,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/baskets/$basketId'
     | '/_app/purchases/suppliers/$supplierId'
     | '/_app/purchases/suppliers/new'
+    | '/_app/sales/$documentId_/edit'
     | '/_app/settings/tables/$tableKey'
     | '/_app/workshop/accidents/$fileId'
     | '/_app/workshop/journey/$orId'
@@ -1797,13 +1809,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesDocumentIdRouteImport
       parentRoute: typeof AppSalesRoute
     }
-    '/_app/sales/$documentId_/edit': {
-      id: '/_app/sales/$documentId_/edit'
-      path: '/$documentId/edit'
-      fullPath: '/sales/$documentId/edit'
-      preLoaderRoute: typeof AppSalesDocumentIdEditRouteImport
-      parentRoute: typeof AppSalesRoute
-    }
     '/_app/sales/balances': {
       id: '/_app/sales/balances'
       path: '/balances'
@@ -1979,6 +1984,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVehiclesNewRouteImport
       parentRoute: typeof AppVehiclesRoute
     }
+    '/_app/vehicles/register': {
+      id: '/_app/vehicles/register'
+      path: '/register'
+      fullPath: '/vehicles/register'
+      preLoaderRoute: typeof AppVehiclesRegisterRouteImport
+      parentRoute: typeof AppVehiclesRoute
+    }
     '/_app/workshop/': {
       id: '/_app/workshop/'
       path: '/'
@@ -2090,6 +2102,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/purchases/suppliers/new'
       preLoaderRoute: typeof AppPurchasesSuppliersNewRouteImport
       parentRoute: typeof AppPurchasesSuppliersRoute
+    }
+    '/_app/sales/$documentId_/edit': {
+      id: '/_app/sales/$documentId_/edit'
+      path: '/$documentId/edit'
+      fullPath: '/sales/$documentId/edit'
+      preLoaderRoute: typeof AppSalesDocumentIdEditRouteImport
+      parentRoute: typeof AppSalesRoute
     }
     '/_app/settings/tables/': {
       id: '/_app/settings/tables/'
@@ -2264,20 +2283,20 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 
 interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
-  AppSalesDocumentIdEditRoute: typeof AppSalesDocumentIdEditRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
+  AppSalesDocumentIdEditRoute: typeof AppSalesDocumentIdEditRoute
 }
 
 const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
-  AppSalesDocumentIdEditRoute: AppSalesDocumentIdEditRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
+  AppSalesDocumentIdEditRoute: AppSalesDocumentIdEditRoute,
 }
 
 const AppSalesRouteWithChildren = AppSalesRoute._addFileChildren(
@@ -2367,6 +2386,7 @@ interface AppVehiclesRouteChildren {
   AppVehiclesVehicleIdRoute: typeof AppVehiclesVehicleIdRoute
   AppVehiclesDeclarationsRoute: typeof AppVehiclesDeclarationsRoute
   AppVehiclesNewRoute: typeof AppVehiclesNewRoute
+  AppVehiclesRegisterRoute: typeof AppVehiclesRegisterRoute
   AppVehiclesIndexRoute: typeof AppVehiclesIndexRoute
 }
 
@@ -2374,6 +2394,7 @@ const AppVehiclesRouteChildren: AppVehiclesRouteChildren = {
   AppVehiclesVehicleIdRoute: AppVehiclesVehicleIdRoute,
   AppVehiclesDeclarationsRoute: AppVehiclesDeclarationsRoute,
   AppVehiclesNewRoute: AppVehiclesNewRoute,
+  AppVehiclesRegisterRoute: AppVehiclesRegisterRoute,
   AppVehiclesIndexRoute: AppVehiclesIndexRoute,
 }
 
@@ -2504,11 +2525,15 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
+
 import type { startInstance } from './start.ts'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
+
     router: Awaited<ReturnType<typeof getRouter>>
+
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

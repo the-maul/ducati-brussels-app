@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Bike, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, Plus, Bike, AlertTriangle, ClipboardList } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,9 @@ function VehiclesList() {
               {pendingDecl > 0 && (
                 <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1.5 font-data text-[12px] font-bold tabular-nums text-warning">{pendingDecl}</span>
               )}
+            </Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/vehicles/register' })}>
+              <ClipboardList /> {t('vehicleRegister.title')}
             </Button>
             {canWrite && (
               <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined, declaration: undefined } })}>

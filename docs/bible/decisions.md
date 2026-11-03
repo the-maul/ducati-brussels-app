@@ -8,6 +8,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Registre des véhicules à moteur tenu par le DMS (AR n° 1 art. 28)
+
+- **M-88** — **Le DMS tient le registre des véhicules à moteur** (étude caisse, C10 / D5, et « intègre
+  déjà tout ce que tu peux sans validation » de Simon, 03/11). Un registre **par société** (siège =
+  adresse de la société), numéro d'ordre **continu par année**, alimenté **automatiquement** par
+  l'atelier (OR ouvert → entrée, OR facturé → sortie), les reprises validées, les réceptions de motos
+  neuves, les dépôts-ventes et les ventes ; **append-only**, une erreur se corrige par une **ligne de
+  rectification** ; la référence de facture doit être inscrite **avant la fin du mois qui suit la sortie**
+  (compteur dans la cloche admin / chef d'atelier). Motos de démonstration et de courtoisie, et OR internes
+  sur une moto du stock, non inscrits. **À valider par le comptable** : liste des codes de nature
+  (1, 2, 3, 4 repris de la circulaire 2018/C/47, VN interne — non relus sur le texte officiel), siège
+  unique ou plusieurs, date de départ de la reprise d'historique. Migration `20261103190000` **non
+  appliquée** (backup + go attendus). *Agence · 03/11.*
+  [M03](modules/M03-vehicules.md), [M08](modules/M08-atelier.md), [M07](modules/M07-reprise-occasion.md), [M12](modules/M12-compta.md)
+
+---
+
 ## 2026-11-03 — Étude caisse remise le 03/11/2026 : cadre légal belge et marché des logiciels de caisse
 
 - **Q — étude caisse** : étude remise le 03/11/2026

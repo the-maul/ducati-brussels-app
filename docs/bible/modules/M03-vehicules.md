@@ -110,6 +110,43 @@ Menu latéral : **Véhicules** (`/vehicles`). L'extension se télécharge dans *
 - **Km déclaré ≠ km constaté** (mission 07 carte 5, 31/10) : `vehicles.mileage` reste le kilométrage constaté par la concession (OR, carte grise, My Ducati) ; ce que le client déclare va dans `declared_km` (daté) et `last_service_at / last_service_km / last_service_where`. Le calcul du prochain entretien prend le plus grand des deux km. Depuis l'inscription, la borne ou « Ajouter ma moto », la déclaration attend sur la moto déclarée et n'est recopiée sur la fiche qu'à la validation, **seulement dans les champs vides**.
 - **Multi-société** : `company_id` + RLS `is_member` ; suppression réservée à l'administrateur (`vehicles_delete` → `is_admin`). Audit par trigger `audit_row` (B7).
 
+- **Registre des véhicules à moteur (« registre des garagistes », AR n° 1 art. 28, circulaire 2018/C/47, M-88)**,
+  03/11/2026 : table `vehicle_register` **par société** (le siège d'exploitation est l'adresse de la société,
+  recopiée sur chaque ligne). Une ligne par **entrée** : n° d'ordre **continu par société et par année**
+  (affiché `AAAA-0001`), date d'entrée, plaque et/ou VIN, donneur d'ordre et son **n° TVA UE** s'il est
+  établi hors Belgique, **code de nature d'opération** (`reference_values`, `vehicle_register_nature` :
+  `1` réparation / entretien hors garantie, `2` sous garantie, `3` devis, `4` VO / reprise / dépôt,
+  `VN` interne — **codes à confirmer par le comptable**, `extra.verified = false`). À la **sortie** : date,
+  puis **référence de la facture** ou **motif** de l'absence de document, à inscrire au plus tard le
+  **dernier jour du mois qui suit la sortie** (`invoice_due_by`).
+  - **Le registre se tient tout seul (déclencheurs SQL)** : ouverture d'un OR → entrée (code 1, ou 2 si
+    garantie acceptée) ; OR facturé → sortie + facture ; validation d'une reprise (`repris` → `stock_vo`)
+    → entrée code 4 ; annulation → sortie « moto rendue » ; fiche créée en `stock_vn` avec article
+    (réception) → entrée VN ; dépôt-vente → entrée code 4, vendu → sortie + facture, restitué → sortie
+    sans document ; vente d'une moto (même chemin que `_moto_sortie_de_stock`) → sortie de la ligne de stock.
+    Un OR interne sur une moto déjà inscrite au titre du stock (PDI, préparation) **ne crée pas de seconde
+    entrée**. Pas de plaque ni de VIN (moto du site à compléter, M-40) : pas d'inscription.
+  - **Append-only (B7)** : aucun droit direct d'écriture ; garde SQL : rien ne se modifie ni ne se supprime,
+    seuls les champs de sortie vides se remplissent. Une erreur = **ligne de rectification** (nouveau numéro,
+    `rectifies_id`), l'ancienne reste lisible et barrée (`rectified_by_id`) ; une annulation est une
+    rectification `is_void`. Chaque inscription, sortie et rectification est tracée dans `events`.
+  - **Écran** Véhicules → **Registre des véhicules à moteur** (`/vehicles/register`) : année / mois,
+    filtres (tout, en cours, sortis sans facture, en retard, clos), export **CSV** et **PDF** (A4 paysage,
+    colonnes de l'art. 28), sortie à la main, ligne manuelle et rectification (**admin**), reprise
+    d'historique (admin). Encadré **Registre** sur la fiche moto. **Cloche** (admin, chef d'atelier) :
+    « N facture(s) à inscrire avant la fin du mois » + en retard.
+  - **Reprise d'historique** : `vehicle_register_backfill(_company, _from)` (défaut : 1er janvier de l'année)
+    inscrit OR, reprises, motos en stock et dépôts existants à leur **date réelle**, dans l'ordre
+    chronologique, marqués « reprise d'historique » ; idempotente (rejouée : 0 ligne). Essai à blanc du
+    03/11 sur ITALBIKE depuis 2000 : 67 lignes (61 motos en stock, 5 OR, 1 reprise), 0 trou de numérotation.
+  - **Sources (consultées le 03/11/2026)** : AR n° 1 du 29/12/1992, art. 28 et 29, texte consolidé
+    (https://refli.be/en/lex/1992003823 ; Justel) ; circulaire 2018/C/47 du 19/04/2018 (remplace AFER
+    16/2004 ; texte intégral non trouvé en ligne, résumés : Certifisc https://www.certifisc.be/fr/posts/wat-is-het-garageregister ,
+    Billit https://www.billit.eu/fr-be/resources/blog/qu-est-ce-qu-un-registre-de-garage-et-qui-doit-tenir-un-tel-registre/ ,
+    Traxio https://www.traxio.be/fr/articles/tva-comment-tenir-ou-completer-le-registre-des-garages ) ;
+    sanction : art. 70 §4 CTVA et AR n° 44 (1 500 à 5 000 €). Un éditeur (Karbill) cite d'autres codes
+    (A, D, V, S, R, O) : c'est pourquoi la liste reste **paramétrable et à confirmer**.
+
 ## 5. État en production
 
 Vérifié le 18/09/2026 **dans le code uniquement** (connecteur Supabase non authentifié pendant la session ;
@@ -168,6 +205,7 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | VEH008 | Alerte véhicule en stock > 4 mois | ⬜ manquant | `dormant_stock` filtre `mgmt_type = 'A'` (pièces) ; seul le compteur « jours en stock » existe sur la fiche |
 | VEH009 | Garantie et conformité | 🟦 partiel | champs garantie + import My Ducati + bulletins ; campagnes de rappel non gérées |
 | VEH010 | Migration véhicules G8 | ✅ fait | `src/modules/migration/vehicles-import.ts`, `tools/migration/import_g8.py` (3 299 véhicules annoncés) |
+| — | Registre des véhicules à moteur (AR n° 1 art. 28 ; commit référencé VEH010 faute de code dédié) | 🟦 code fait, migration **non appliquée** | `src/modules/vehicles/register*.ts(x)`, migration `20261103190000`, `tests/vehicle-register.test.ts` |
 | ATE017 | Recherche par VIN avec historique | 🟦 partiel | recherche globale + fiche ; historique OR incomplet (voir VEH004) |
 | B9 | N° de série V/O/P, recherche croisée | 🟦 partiel | VIN + propriétaires + documents ; pas d'unicité du VIN |
 
@@ -195,3 +233,4 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-10-05 | **Retour client du 21/09, carte « Inscription en ligne » : marques et modèles TOUTES MARQUES avec recherche.** `vehicle_brands` / `vehicle_models` alimentées par le jeu de données du **domaine public vPIC/NHTSA** (**1 667 marques actives, 10 558 modèles**, dont 1 942 avec leurs années de commercialisation) (motoplanete.com n'est pas recopié, décision M-49) + nos propres fiches ; écran marque → modèle → année avec recherche (inscription, borne), suggestions dans « Ajouter ma moto » ; saisie libre conservée et versée dans la file « marques à valider » (M-50) | branche `lot-marques`, migrations `20261005100000` + `20261005101000` (**appliquées le 05/10**) |
 | 2026-11-03 | **Mission 08, carte 2** : moto choisie sur un document de vente (motos du client, recherche dans le parc), bloc moto avec l'année sur le PDF ; `listContactCurrentVehicles`, `searchVehiclesForSale`, `vehiclePickLabel` dans `vehicles/api.ts` ; aucune migration (`documents.vehicle_id` et son index existaient) | branche `lot-ventes-1-4` |
 | 2026-09-21 | **Mission 06, carte 2** : modèles Ducati par année (familles, cylindrées, modèles, millésimes ; filtre Europe par nom de modèle, depuis 2000) importés par fichiers d'extraction ou par l'extension ; extension My Ducati v0.10.0 (section catalogue) | branche `lot-catalogue`, migration `20260921100000_m3_catalogue_ducati_modeles` (appliquée le 21/09) |
+| 2026-11-03 | **Registre des véhicules à moteur** (AR n° 1 art. 28, M-88) : table append-only, déclencheurs OR / reprise / réception / dépôt-vente / vente, écran `/vehicles/register` (filtres, CSV, PDF, rectification), encadré sur la fiche moto, compteur dans la cloche, reprise d'historique idempotente | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |

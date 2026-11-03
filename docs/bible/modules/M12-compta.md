@@ -56,6 +56,7 @@ Tout doit donc rester paramétrable (comptes, taux, journaux) et exportable.
 - **SEPA** : la génération du pain.008 **enregistre immédiatement** l'encaissement (règlement `DOM`) sur chaque facture ; un rejet se traite par « Impayé » (règlement négatif, B7).
 - **Clôture** : `close_fiscal_year` fige la période (trigger `trg_documents_closed_period` refuse tout document daté dedans) et archive un arrêté de stock.
 - **Relances** : au plus une relance par facture échue tous les 7 jours (`enqueue_notification`, dédoublonnage sur `template` + `entity_id`).
+- **Registre des véhicules à moteur (AR n° 1 art. 28, M-88, 03/11)** : second registre légal à côté du registre VO (TVA marge). Tenu par le DMS (étude caisse D5) dans `vehicle_register`, exportable en **CSV** et **PDF** pour le comptable ou un contrôle ; **référence de facture au plus tard fin du mois suivant la sortie** (compteur dans la cloche). Codes de nature et tolérances à **confirmer par le comptable** (paramétrables, Paramètres → Tables). Conservation : art. 60 CTVA, **10 ans** depuis 2023 (les guides de 2018 disent 7 ans). Voir [M03](M03-vehicules.md) §4.
 
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
@@ -113,3 +114,4 @@ Invariants : **B2** partiel (registre VO fait, calcul à la vente et en écritur
 | 2026-06-12 | Date de bascule comptable | `a16d7a4`, `20260612310000_m12_accounting_cutover.sql` |
 | 2026-06-12 | Relances factures planifiées | `20260612240000_m10_notifications.sql` |
 | 2026-09-11 | Paramètres RPC corrigés, retour visuel | `7d31b6d`, `7f6ce22` |
+| 2026-11-03 | **Registre des véhicules à moteur** (art. 28) : export CSV / PDF, alerte de facture à inscrire (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |

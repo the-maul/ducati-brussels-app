@@ -68,6 +68,8 @@ Menu latéral : **Reprises motos clients** (`/tradein`). Le dépôt-vente (`/con
 - **Numérotation** : séquence `REP` par société ; les préfixes `ORO-`, `OCC-` et `DEP-` prévus par CLAUDE.md §4.3 **ne sont pas utilisés** (l'ORO est le dossier REP lui-même ; l'article occasion prend la référence REP ; le n° de dépôt-vente est saisi à la main).
 - **Multi-société + audit** : `company_id` + RLS `is_member` sur toutes les tables (lignes d'ORO via l'en-tête) ; triggers `audit_row` sur `oro`, `oro_lines`, `consignments`.
 
+- **Registre des véhicules à moteur (AR n° 1 art. 28, M-88, 03/11)** : la **validation** d'une reprise (la fiche passe `repris` → `stock_vo`) inscrit l'entrée de la moto (code 4, vendeur = premier propriétaire) ; l'annulation inscrit la sortie « moto rendue » ; la vente inscrit la sortie et la facture. Le **dépôt-vente** inscrit l'entrée à sa création (code 4), la sortie à la vente (facture) ou à la **restitution** (sans document). Voir [M03](M03-vehicules.md) §4.
+
 ## 5. État en production
 
 Vérifié le 18/09/2026 **dans le code uniquement** : le connecteur Supabase n'était pas authentifié pendant la
@@ -154,3 +156,4 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 | 2026-08-01 | Usure détaillée, galerie photos avec retouche, PDF allégé, édition à tout moment | `777d0f8` |
 | 2026-09-14 | Constat : tout le chantier reprises est « complet dans le code et mort en production » | `docs/etat-projet.md` §2 |
 | 2026-09-23 | **Mission 03, « Motos à vendre »** (M-36) : article de type **D** créé pour les motos en dépôt-vente, vente → moto vendue + nouveau propriétaire + dépublication | branche `lot-motos`, migrations `20260923150000` + `20260923151000` (appliquées le 23/09) |
+| 2026-11-03 | **Registre des véhicules à moteur** : reprise validée et dépôt-vente inscrits à l'entrée, vente / restitution à la sortie (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |

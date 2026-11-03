@@ -70,6 +70,8 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   { key: 'country', label: 'Pays', group: 'autre',
     extraColumns: [{ key: 'default', label: 'Par défaut', type: 'bool' }] },
   { key: 'exposition_code', label: "Codes d'exposition", group: 'vehicule', extraColumns: [] },
+  // M3, registre des vehicules a moteur (AR n° 1 art. 28) : codes de nature d'operation (a confirmer par le comptable).
+  { key: 'vehicle_register_nature', label: "Registre des véhicules : natures d'opération", group: 'vehicule', extraColumns: [] },
   { key: 'financing_org', label: 'Organismes de financement', group: 'autre', extraColumns: [] },
   { key: 'insurance_firm', label: "Cabinets d'assurance", group: 'atelier', extraColumns: [] },
   { key: 'insurance_expert', label: 'Experts assurance', group: 'atelier', extraColumns: [] },

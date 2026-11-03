@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import {
 } from '@/modules/crm/api';
 import { listPortalAppointmentRequests, APPT_REQUEST_ROLES } from '@/modules/workshop/planning-api';
 import { VEHICLE_DECL_NOTIF_ROLES } from '@/modules/vehicles/declarations-api';
+import { registerPending, REGISTER_NOTIF_ROLES } from '@/modules/vehicles/register-api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { ExcelThresholdAlert } from '@/modules/orders/excel-alert';
 import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-alerts';
@@ -86,6 +87,7 @@ function NotificationsBell() {
   const seesIban = has(IBAN_NOTIF_ROLES);
   const seesVehicleDecl = has(VEHICLE_DECL_NOTIF_ROLES);
   const seesWebOrders = has(WEB_ORDER_ROLES);
+  const seesRegister = has(REGISTER_NOTIF_ROLES);
 
   const [scope, setScopeState] = useState<BellScope>(readScope);
   const setScope = (s: BellScope) => {
@@ -163,6 +165,15 @@ function NotificationsBell() {
     enabled: !!activeCompanyId && !!uid && seesWebOrders,
     refetchInterval: 120_000,
   });
+  // VEH010 : registre des vehicules a moteur, sorties dont la facture doit etre inscrite
+  // avant la fin du mois (art. 28 AR n° 1) — administrateur et chef d'atelier.
+  const { data: registerData } = useQuery({
+    queryKey: ['vehicle-register-pending', activeCompanyId],
+    queryFn: () => registerPending(activeCompanyId!),
+    enabled: !!activeCompanyId && seesRegister,
+    refetchInterval: 300_000,
+    retry: false,
+  });
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -198,9 +209,11 @@ function NotificationsBell() {
   const unreadWebOrders = webOrders.filter((n) => !n.read);
   const proposalAlerts = proposalData ?? [];
   const unreadProposals = proposalAlerts.filter((n) => !n.read);
-  const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length;
+  const registerDue = seesRegister ? registerData?.due_this_month ?? 0 : 0;
+  const registerLate = seesRegister ? registerData?.overdue ?? 0 : 0;
+  const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length + registerLate;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length + registerDue + registerLate;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
@@ -398,6 +411,26 @@ function NotificationsBell() {
                 </DropdownMenuItem>
               );
             })}
+          </>
+        )}
+
+        {registerDue + registerLate > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('notif.registerTitle')}</DropdownMenuLabel>
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/vehicles/register" className="flex flex-col items-start gap-0.5">
+                <span className="flex w-full items-center gap-1.5">
+                  <ClipboardList className={`size-3.5 shrink-0 ${registerLate > 0 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`} />
+                  <span className="truncate text-[13px] font-medium">
+                    {t('notif.registerDue').replace('{n}', String(registerDue))}
+                  </span>
+                </span>
+                {registerLate > 0 && (
+                  <span className="text-[11px] font-medium text-[var(--danger)]">{t('notif.registerLate').replace('{n}', String(registerLate))}</span>
+                )}
+              </Link>
+            </DropdownMenuItem>
           </>
         )}
 
