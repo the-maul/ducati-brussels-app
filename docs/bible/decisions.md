@@ -1282,3 +1282,6 @@ Détail : [`../process-commandes-pieces.md`](../process-commandes-pieces.md) §5
 - **Produit multi-clients** : d'autres concessions suivront ; aucun matériel imposé — chaque poste branche ses propres appareils (imprimante ticket, tiroir, étiquettes, douchette, écran client, terminal).
 - **QR de paiement sans supplément** : accepté par Domenico (le « +5 % » du 30/07 est abandonné).
 - **Terminal** : CCV A77 (matériel PAX, Android), réf. A77-OAW-RES-2SEU, fourni par Omespay ; qui ouvre l'API (PAX, CCV ou Omespay) : étude en cours.
+- **Entretiens (Simon, 03/11)** : « Entretien annuel » = Annual Service, « Entretien annuel + huile » = Oil Service (manuel Ducati) ; motifs 15 000 / 30 000 km retirés.
+- **Réservation des pièces (Simon, 03/11)** : dès qu'un RDV d'entretien est bloqué (en ligne, téléphone, comptoir), les pièces du kit sont réservées et attribuées au client ; si la réservation passe sous le minimax, la pièce part dans la nouvelle commande.
+- **Caisse / paiements / facturation / compta (Simon, 03/11)** : en pause jusqu'à la réunion avec Domenico et son comptable ; rien de neuf n'est lancé sur les missions 11 à 14 d'ici là.
