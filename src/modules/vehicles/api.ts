@@ -258,7 +258,7 @@ export async function searchVehiclesForSale(companyId: string, term: string, lim
 }
 
 /** Libellé court d'une moto dans un sélecteur : « Ducati Monster 2024 · 1-ABC-123 · ZDM… ». */
-export function vehiclePickLabel(v: Pick<Vehicle, 'brand' | 'model' | 'vin' | 'plate' | 'model_year'>): string {
+export function vehiclePickLabel(v: Pick<Vehicle, 'brand' | 'model' | 'vin' | 'plate'> & { model_year?: number | null }): string {
   const name = [vehicleLabel(v), v.model_year ?? ''].filter(Boolean).join(' ');
   return [name, v.plate, v.vin].filter(Boolean).join(' · ');
 }

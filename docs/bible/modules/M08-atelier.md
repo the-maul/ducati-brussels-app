@@ -173,6 +173,7 @@ rattachées à une moto ; extract DCS du 29/10 : 228 lignes, 223 motos connues.
 - Spécification G8 détaillée : `docs/g8-fonctions-m8-atelier.md`.
 
 ## 7. Limites connues, dettes, pièges
+- **Choix de la moto sur l'OR (corrigé le 03/11/2026, ATE001)** : jusque-là l'en-tête de l'OR cherchait la moto dans tout le parc sans tenir compte du client (les motos du client n'apparaissaient jamais), et à la réouverture de l'OR le client était retrouvé via `listContacts` plafonné à 500 sur plus de 8 000 contacts : au-delà, la case client revenait vide. Désormais un seul composant `src/modules/vehicles/vehicle-picker.tsx` (logique pure `vehicle-pick.ts`, tests `tests/or-choix-moto.test.ts`) sert l'OR, le RDV du planning et les documents de vente : motos du client (propriétaire courant, `vehicle_owners.is_current`) en tête, puis recherche VIN / plaque / modèle dans le parc, client sans moto → message + « Ajouter une moto à ce client », erreur de chargement → toast, et le client est chargé par `getContact(id)`. Piège qui reste : une moto choisie n'est pas rattachée automatiquement au client (si elle appartient à quelqu'un d'autre, c'est volontaire : moto de passage).
 - **Réécriture des lignes à chaque enregistrement** : depuis le 31/10, `writeLines` appelle `repair_order_write_lines` (suppression + insertion **en une transaction**) ; l'audit enregistre toujours des suppressions / insertions à chaque sauvegarde (les identifiants de lignes changent : c'est `checkup_key` et `proposal_line_id`, recopiés, qui relient les cartes à la proposition). Tant que la migration 20261031110000 n'est pas appliquée, l'ancien chemin non atomique reste en service.
 - **Transformation en facture non atomique** : facture créée, puis OR passé `facture` dans un second appel ; en cas d'échec du second, l'OR reste facturable une deuxième fois.
 - **Garantie = prix 0, pas de cession** : les pièces en garantie sortent du stock via une facture client à 0 €, sans **cession interne de garantie** ni **facture interne à Ducati** (ATE020). Le coût de la garantie n'est donc suivi nulle part.
@@ -247,6 +248,7 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 
 | Date | Changement | Commit ou migration |
 |---|---|---|
+| 2026-11-03 | **Créer un OR montre bien les motos du client, le client ne s'efface plus** (bug client, ATE001) : sélecteur de moto partagé OR / RDV / documents de vente (`vehicles/vehicle-picker.tsx`), motos du client en tête puis recherche parc, client sans moto → « Ajouter une moto à ce client », client et moto de l'OR chargés par id (plus via la liste plafonnée à 500), bouton « Nouvel OR » sur la fiche moto, `/workshop/new?contactId=&vehicleId=` | branche `fix-or-motos-du-client` |
 | 2026-06-11 | OR (cycle B8) + garantie B10 avec refus partiel, transformation en facture | `65216de`, `20260610340000_m8_repair_orders.sql` |
 | 2026-06-11 | Chronos B11 (pointeuse) | `95b0085`, `20260610350000_m8_chrono.sql` |
 | 2026-06-11 | Planning / RDV, création d'OR depuis le RDV | `3e973a6`, `20260610360000_m8_appointments.sql` |

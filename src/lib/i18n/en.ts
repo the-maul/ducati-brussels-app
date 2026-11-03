@@ -2063,6 +2063,7 @@ export const en: DictionaryShape = {
     filterAll: 'All statuses',
     // en-tête
     client: 'Customer', clientPlaceholder: 'Customer…', vehicle: 'Vehicle', vehiclePlaceholder: 'VIN, plate, model…',
+    headerLoadError: 'The customer or the bike of this repair order could not be loaded. Reload the page.',
     mileage: 'Mileage', operator: 'Operator', repairType: 'Repair type', status: 'Status',
     workDescription: 'Work requested', receptionNotes: 'Observations at reception',
     // garantie / accident
@@ -5144,5 +5145,18 @@ export const en: DictionaryShape = {
     basketNote: 'Missing service parts ({service})',
     rdvReason: 'Appointment reason',
     rdvReasonNone: 'No reason',
+  },
+
+  vehiclePick: {
+    placeholder: 'VIN, plate or model…',
+    ofClient: 'Customer bikes',
+    park: 'Other bikes in the fleet',
+    loading: 'Loading…',
+    noClient: 'Pick a customer first, or type a VIN, plate or model.',
+    noneForClient: 'This customer has no bike on file.',
+    addForClient: 'Add a bike to this customer',
+    noneFound: 'No bike found in the fleet.',
+    searchHint: 'Type a VIN, plate or model to search the whole fleet.',
+    loadError: 'The bikes could not be loaded. Try again.',
   },
 };

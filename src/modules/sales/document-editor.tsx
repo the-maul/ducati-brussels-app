@@ -20,7 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
-import { getVehicle, listContactCurrentVehicles, searchVehiclesForSale, vehiclePickLabel, type Vehicle } from '@/modules/vehicles/api';
+import { getVehicle, vehiclePickLabel, type Vehicle } from '@/modules/vehicles/api';
+import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import { useConfirm } from '@/components/confirm-provider';
 import {
   createDocument, updateDraftDocument, deleteDocument, computeTotals, searchSaleArticles, searchLabourArticles, lineHasAmount,
@@ -267,7 +268,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               <span className="truncate">{vehiclePickLabel(vehicle)}</span>
               <button type="button" onClick={() => setVehicle(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
             </div>
-          ) : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} />}
+          ) : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('sales.vehiclePlaceholder')} />}
         </Field>
         <Field label={t('sales.date')}><Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></Field>
         <Field label={t('sales.dueDate')}><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
@@ -517,47 +518,6 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
               <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
             </div>
           ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Moto du document (mission 08, carte 2) : à l'ouverture, les motos dont le client est le
- * propriétaire actuel ; dès 2 caractères, recherche par VIN / plaque / modèle dans tout le parc
- * (moto à vendre, moto de passage).
- */
-function VehiclePicker({ companyId, contactId, onPick }: { companyId: string; contactId: string | null; onPick: (v: Vehicle) => void }) {
-  const [term, setTerm] = useState('');
-  const [open, setOpen] = useState(false);
-  const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const ownQ = useQuery({ queryKey: ['contact-vehicles', contactId], queryFn: () => listContactCurrentVehicles(contactId as string), enabled: !!contactId });
-  const searchQ = useQuery({ queryKey: ['vehicle-pick', companyId, deb], queryFn: () => searchVehiclesForSale(companyId, deb), enabled: deb.length >= 2 });
-  const searching = deb.length >= 2;
-  const own = ownQ.data ?? [];
-  const found = searchQ.data ?? [];
-  const showOwn = open && !searching && own.length > 0;
-  const showFound = searching && searchQ.isFetched;
-  const pick = (v: Vehicle) => { onPick(v); setTerm(''); setOpen(false); };
-  const row = (v: Vehicle) => (
-    <button key={v.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v)}
-      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-      <Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{vehiclePickLabel(v)}</span>
-    </button>
-  );
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={term} onChange={(e) => setTerm(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={t('sales.vehiclePlaceholder')} className="h-9 pl-9" />
-      {(showOwn || showFound) && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {showOwn && <p className="px-3 pt-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.vehicleOfClient')}</p>}
-          {showOwn && own.map(row)}
-          {showFound && found.length === 0 && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('sales.vehicleNone')}</p>}
-          {showFound && found.map(row)}
         </div>
       )}
     </div>

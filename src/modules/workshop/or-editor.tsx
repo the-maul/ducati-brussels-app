@@ -15,10 +15,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { toast } from 'sonner';
+import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { searchSaleArticles, type SaleArticle } from '@/modules/sales/write-api';
-import { searchVehicles, type VehicleLite, type RepairOrderFull } from './api';
+import { getVehicle, vehiclePickLabel } from '@/modules/vehicles/api';
+import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
+import { pickContact, clearContact, pickVehicle, clearVehicle, type ClientVehicleSelection, type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
+import { type RepairOrderFull } from './api';
 import { computeRoTotals, type RoLineInput } from './write-api';
 import { loadHourlyRateHt } from './maintenance-api';
 import { listWorkshopReasons } from './checkup/api';
@@ -44,8 +48,10 @@ export type OrPayload = {
 
 export type OrEditorIntent = 'save' | 'proposal';
 
-export function OrEditor({ companyId, initial, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions }: {
+export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions }: {
   companyId: string; initial?: RepairOrderFull | null; busy: boolean; error?: string | null;
+  /** Nouvel OR ouvert depuis une fiche client / moto : client et moto pre-remplis. */
+  defaultContactId?: string | null; defaultVehicleId?: string | null;
   /** `intent = 'proposal'` : enregistrer puis envoyer la proposition au client. */
   onSubmit: (p: OrPayload, intent: OrEditorIntent) => void;
   /** La migration du check-up est en base (onglet et motif actifs). */
@@ -59,8 +65,15 @@ export function OrEditor({ companyId, initial, busy, error, onSubmit, checkupRea
 }) {
   const o = initial?.or;
   const ox = (o ?? null) as (Record<string, unknown> | null);
-  const [contact, setContact] = useState<Contact | null>(null);
-  const [vehicle, setVehicle] = useState<VehicleLite | null>(o?.vehicle_id ? { id: o.vehicle_id, vin: null, plate: null, brand: null, model: null } : null);
+  // Client + moto : deux cases independantes (ATE001) — choisir l'une ne touche jamais l'autre.
+  const contactIdToLoad = o?.contact_id ?? defaultContactId;
+  const vehicleIdToLoad = o?.vehicle_id ?? defaultVehicleId;
+  const [sel, setSel] = useState<ClientVehicleSelection<Contact, VehiclePickRow>>({
+    contact: null,
+    vehicle: vehicleIdToLoad ? { id: vehicleIdToLoad, vin: null, plate: null, brand: null, model: null } : null,
+  });
+  const contact = sel.contact;
+  const vehicle = sel.vehicle;
   const [mileage, setMileage] = useState(o?.mileage != null ? String(o.mileage) : '');
   const [operator, setOperator] = useState(o?.operator ?? '');
   const [repairType, setRepairType] = useState(o?.repair_type ?? '');
@@ -81,12 +94,21 @@ export function OrEditor({ companyId, initial, busy, error, onSubmit, checkupRea
   const [cards, setCards] = useState<CheckupCard[]>(() => linesToCards(initialLines));
   const [tab, setTab] = useState<'fiche' | 'checkup'>(() => (cards.length > 0 ? 'checkup' : 'fiche'));
 
-  // précharge contact si édition
-  const { data: preContact } = useQuery({
-    queryKey: ['ro-contact', o?.contact_id], enabled: !!o?.contact_id,
-    queryFn: async () => (o?.contact_id ? (await listContacts(companyId, '')).find((c) => c.id === o.contact_id) ?? null : null),
+  // Precharge du client et de la moto (edition, ou nouvel OR depuis une fiche) — par id, jamais
+  // via la liste des contacts (plafonnee a 500 : au-dela, le client « disparaissait », ATE001).
+  const preContactQ = useQuery({
+    queryKey: ['ro-contact', contactIdToLoad], enabled: !!contactIdToLoad, staleTime: Infinity,
+    queryFn: () => getContact(contactIdToLoad as string),
   });
-  useEffect(() => { if (preContact) setContact(preContact); }, [preContact]);
+  const preVehicleQ = useQuery({
+    queryKey: ['ro-vehicle', vehicleIdToLoad], enabled: !!vehicleIdToLoad, staleTime: Infinity,
+    queryFn: () => getVehicle(vehicleIdToLoad as string),
+  });
+  const preContact = preContactQ.data;
+  const preVehicle = preVehicleQ.data;
+  useEffect(() => { if (preContact) setSel((s) => (s.contact ? s : pickContact(s, preContact))); }, [preContact]);
+  useEffect(() => { if (preVehicle) setSel((s) => (s.vehicle && s.vehicle.id !== preVehicle.id ? s : pickVehicle(s, preVehicle))); }, [preVehicle]);
+  useEffect(() => { if (preContactQ.error || preVehicleQ.error) toast.error(t('workshop.headerLoadError')); }, [preContactQ.error, preVehicleQ.error]);
 
   // Motifs d'entrée (Paramètres → Tables) et taux horaire de l'atelier (frais de devis atelier).
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
@@ -112,10 +134,14 @@ export function OrEditor({ companyId, initial, busy, error, onSubmit, checkupRea
       {/* En-tête */}
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('workshop.client')}>
-          {contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}
+          {contact
+            ? <Picked label={contactDisplayName(contact)} onClear={() => setSel((s) => clearContact(s))} />
+            : <ContactPicker companyId={companyId} onPick={(c) => setSel((s) => pickContact(s, c))} />}
         </Field>
         <Field label={t('workshop.vehicle')}>
-          {vehicle ? <Picked label={[vehicle.vin, vehicle.model].filter(Boolean).join(' ') || vehicle.id.slice(0, 8)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} onPick={setVehicle} />}
+          {vehicle
+            ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
+            : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
         <Field label={t('workshop.mileage')}><Input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="text-right tabular-nums" /></Field>
         {checkupReady && (
@@ -265,18 +291,6 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
           ))}
         </div>
       )}
-    </div>
-  );
-}
-function VehiclePicker({ companyId, onPick }: { companyId: string; onPick: (v: VehicleLite) => void }) {
-  const [term, setTerm] = useState(''); const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['ro-vpick', companyId, deb], queryFn: () => searchVehicles(companyId, deb), enabled: deb.length >= 2 });
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('workshop.vehiclePlaceholder')} className="h-9 pl-9" />
-      {data && data.length > 0 && deb.length >= 2 && <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">{data.map((v) => <button key={v.id} type="button" onClick={() => onPick(v)} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"><span className="font-mono text-[12px]">{v.vin ?? v.plate ?? '—'}</span> {[v.brand, v.model].filter(Boolean).join(' ')}</button>)}</div>}
     </div>
   );
 }

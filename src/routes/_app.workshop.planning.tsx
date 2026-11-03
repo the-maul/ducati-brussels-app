@@ -11,7 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
-import { searchVehicles, type VehicleLite } from '@/modules/workshop/api';
+import { vehiclePickLabel } from '@/modules/vehicles/api';
+import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
+import { type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
 import { listAppointments, createAppointment, updateAppointmentStatus, createOrFromAppointment, type Appointment } from '@/modules/workshop/planning-api';
 import { listWorkshopReasons } from '@/modules/workshop/checkup/api';
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
@@ -127,7 +129,7 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
   const [work, setWork] = useState('');
   const [notify, setNotify] = useState(false);
   const [contact, setContact] = useState<Contact | null>(null);
-  const [vehicle, setVehicle] = useState<VehicleLite | null>(null);
+  const [vehicle, setVehicle] = useState<VehiclePickRow | null>(null);
   // Motif du RDV (mission 09, carte 3) : un motif entretien + une moto → controle des pieces du kit.
   const [reasonCode, setReasonCode] = useState('');
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
@@ -165,7 +167,7 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
           <Field label={t('workshop.rdvDuration')}><Input type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} className="text-right tabular-nums" /></Field>
           <Field label={t('workshop.mechanicName')}><Input value={mechanic} onChange={(e) => setMechanic(e.target.value)} /></Field>
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>
-          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={[vehicle.vin, vehicle.model].filter(Boolean).join(' ') || '—'} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} onPick={setVehicle} />}</Field>
+          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
           <Field label={t('partsPopup.rdvReason')}>
             <Select value={reasonCode || NO_REASON} onValueChange={(v) => setReasonCode(v === NO_REASON ? '' : v)}>
               <SelectTrigger><SelectValue placeholder={t('partsPopup.rdvReasonNone')} /></SelectTrigger>
@@ -212,18 +214,6 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
           ))}
         </div>
       )}
-    </div>
-  );
-}
-function VehiclePicker({ companyId, onPick }: { companyId: string; onPick: (v: VehicleLite) => void }) {
-  const [term, setTerm] = useState(''); const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['rdv-vpick', companyId, deb], queryFn: () => searchVehicles(companyId, deb), enabled: deb.length >= 2 });
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('workshop.vehiclePlaceholder')} className="h-9 pl-9" />
-      {data && data.length > 0 && deb.length >= 2 && <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">{data.map((v) => <button key={v.id} type="button" onClick={() => onPick(v)} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"><span className="font-mono text-[12px]">{v.vin ?? v.plate ?? '—'}</span> {[v.brand, v.model].filter(Boolean).join(' ')}</button>)}</div>}
     </div>
   );
 }

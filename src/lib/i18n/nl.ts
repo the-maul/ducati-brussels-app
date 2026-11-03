@@ -2063,6 +2063,7 @@ export const nl: DictionaryShape = {
     filterAll: 'Alle statussen',
     // en-tête
     client: 'Klant', clientPlaceholder: 'Klant…', vehicle: 'Voertuig', vehiclePlaceholder: 'VIN, nummerplaat, model…',
+    headerLoadError: 'De klant of de motor van de werkorder kon niet worden geladen. Herlaad de pagina.',
     mileage: 'Kilometerstand', operator: 'Operator', repairType: 'Soort herstelling', status: 'Status',
     workDescription: 'Gevraagde werken', receptionNotes: 'Opmerkingen bij ontvangst',
     // garantie / accident
@@ -5144,5 +5145,18 @@ export const nl: DictionaryShape = {
     basketNote: 'Ontbrekende onderhoudsonderdelen ({service})',
     rdvReason: 'Reden van de afspraak',
     rdvReasonNone: 'Geen reden',
+  },
+
+  vehiclePick: {
+    placeholder: 'VIN, kenteken of model…',
+    ofClient: 'Motoren van de klant',
+    park: 'Andere motoren van het park',
+    loading: 'Laden…',
+    noClient: 'Kies eerst een klant, of typ een VIN, kenteken of model.',
+    noneForClient: 'Deze klant heeft geen motor in zijn park.',
+    addForClient: 'Een motor toevoegen aan deze klant',
+    noneFound: 'Geen motor gevonden in het park.',
+    searchHint: 'Typ een VIN, kenteken of model om in het hele park te zoeken.',
+    loadError: 'De motoren konden niet worden geladen. Probeer opnieuw.',
   },
 };

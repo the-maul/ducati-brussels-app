@@ -2068,6 +2068,7 @@ export const fr = {
     filterAll: 'Tous les statuts',
     // en-tête
     client: 'Client', clientPlaceholder: 'Client…', vehicle: 'Véhicule', vehiclePlaceholder: 'VIN, plaque, modèle…',
+    headerLoadError: 'Le client ou la moto de l\'OR n\'a pas pu être chargé. Rechargez la page.',
     mileage: 'Kilométrage', operator: 'Opérateur', repairType: 'Type de réparation', status: 'Statut',
     workDescription: 'Travaux demandés', receptionNotes: 'Observations à la réception',
     // garantie / accident
@@ -5152,6 +5153,20 @@ export const fr = {
     basketNote: "Pièces d'entretien manquantes ({service})",
     rdvReason: 'Motif du rendez-vous',
     rdvReasonNone: 'Aucun motif',
+  },
+
+  // Choix d'une moto après le client (OR, RDV, document de vente) — ATE001, 03/11/2026
+  vehiclePick: {
+    placeholder: 'VIN, plaque ou modèle…',
+    ofClient: 'Motos du client',
+    park: 'Autres motos du parc',
+    loading: 'Chargement…',
+    noClient: 'Choisissez d\'abord un client, ou tapez un VIN, une plaque ou un modèle.',
+    noneForClient: 'Ce client n\'a aucune moto dans son parc.',
+    addForClient: 'Ajouter une moto à ce client',
+    noneFound: 'Aucune moto trouvée dans le parc.',
+    searchHint: 'Tapez un VIN, une plaque ou un modèle pour chercher dans tout le parc.',
+    loadError: 'Les motos n\'ont pas pu être chargées. Réessayez.',
   },
 } as const;
 

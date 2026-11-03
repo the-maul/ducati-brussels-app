@@ -2063,6 +2063,7 @@ export const it: DictionaryShape = {
     filterAll: 'Tutti gli stati',
     // en-tête
     client: 'Cliente', clientPlaceholder: 'Cliente…', vehicle: 'Veicolo', vehiclePlaceholder: 'VIN, targa, modello…',
+    headerLoadError: 'Il cliente o la moto dell\'ordine di riparazione non sono stati caricati. Ricarica la pagina.',
     mileage: 'Chilometraggio', operator: 'Operatore', repairType: 'Tipo di riparazione', status: 'Stato',
     workDescription: 'Lavori richiesti', receptionNotes: 'Osservazioni all\'accettazione',
     // garantie / accident
@@ -5144,5 +5145,18 @@ export const it: DictionaryShape = {
     basketNote: 'Pezzi di tagliando mancanti ({service})',
     rdvReason: 'Motivo dell\'appuntamento',
     rdvReasonNone: 'Nessun motivo',
+  },
+
+  vehiclePick: {
+    placeholder: 'VIN, targa o modello…',
+    ofClient: 'Moto del cliente',
+    park: 'Altre moto del parco',
+    loading: 'Caricamento…',
+    noClient: 'Scegli prima un cliente, oppure digita un VIN, una targa o un modello.',
+    noneForClient: 'Questo cliente non ha nessuna moto nel suo parco.',
+    addForClient: 'Aggiungere una moto a questo cliente',
+    noneFound: 'Nessuna moto trovata nel parco.',
+    searchHint: 'Digita un VIN, una targa o un modello per cercare in tutto il parco.',
+    loadError: 'Le moto non sono state caricate. Riprova.',
   },
 };

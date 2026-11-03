@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ExternalLink, Mail, MessageSquare, Send } from 'lucide-react';
+import { Loader2, ExternalLink, Mail, MessageSquare, Send, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -60,15 +60,27 @@ function EditVehicle() {
         title={vehicleLabel(vehicle)}
         description={vehicle.vin ?? undefined}
         actions={
-          vehicle.vin ? (
+          <>
+            {vehicle.vin ? (
+              <Button
+                variant="outline"
+                onClick={() => window.open(ducatiVinHistoryUrl(vehicle.vin!), '_blank', 'noopener,noreferrer')}
+                title={ducatiVinHistoryUrl(vehicle.vin)}
+              >
+                <ExternalLink /> {t('vehicles.ducatiHistory')}
+              </Button>
+            ) : null}
+            {/* Nouvel OR depuis la fiche moto : moto et proprietaire courant pre-remplis (ATE001). */}
             <Button
               variant="outline"
-              onClick={() => window.open(ducatiVinHistoryUrl(vehicle.vin!), '_blank', 'noopener,noreferrer')}
-              title={ducatiVinHistoryUrl(vehicle.vin)}
+              onClick={() => navigate({
+                to: '/workshop/new',
+                search: { vehicleId, contactId: owners?.find((o) => o.is_current)?.contact_id ?? undefined },
+              })}
             >
-              <ExternalLink /> {t('vehicles.ducatiHistory')}
+              <Wrench /> {t('workshop.newOr')}
             </Button>
-          ) : undefined
+          </>
         }
       />
 

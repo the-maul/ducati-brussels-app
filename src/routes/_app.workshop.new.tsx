@@ -11,13 +11,18 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/new')({
   head: () => ({ meta: [{ title: pageTitle('workshopNew') }] }),
-  validateSearch: (s: Record<string, unknown>) => ({ contactId: typeof s.contactId === 'string' ? s.contactId : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    contactId: typeof s.contactId === 'string' ? s.contactId : undefined,
+    vehicleId: typeof s.vehicleId === 'string' ? s.vehicleId : undefined,
+  }),
   component: NewOr,
 });
 
 function NewOr() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
+  // Ouvert depuis une fiche client ou moto : client et moto pre-remplis (ATE001).
+  const { contactId, vehicleId } = Route.useSearch();
   const [error, setError] = useState<string | null>(null);
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   const m = useMutation({
@@ -34,7 +39,7 @@ function NewOr() {
   return (
     <>
       <PageHeader title={t('workshop.newOr')} actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>} />
-      <OrEditor companyId={activeCompanyId} busy={m.isPending} error={error} checkupReady={schema.data === true} onSubmit={(p) => { setError(null); m.mutate(p); }} />
+      <OrEditor companyId={activeCompanyId} defaultContactId={contactId ?? null} defaultVehicleId={vehicleId ?? null} busy={m.isPending} error={error} checkupReady={schema.data === true} onSubmit={(p) => { setError(null); m.mutate(p); }} />
     </>
   );
 }
