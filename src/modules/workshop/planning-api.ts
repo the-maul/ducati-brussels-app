@@ -47,16 +47,27 @@ export type NewAppointment = {
   companyId: string; contactId?: string | null; vehicleId?: string | null; mechanicName?: string;
   workshop?: string; startsAt: string; plannedMinutes: number; workDescription?: string;
   receptionNotes?: string; loanerVehicle?: string; notifySms?: boolean;
+  /** Motif du RDV (reference_values workshop_reason) ; un motif entretien declenche le controle des pieces du kit (mission 09, carte 3). */
+  reasonCode?: string | null;
 };
 export async function createAppointment(p: NewAppointment): Promise<string> {
-  const { data, error } = await supabase.from('workshop_appointments').insert({
+  const base = {
     company_id: p.companyId, contact_id: p.contactId ?? null, vehicle_id: p.vehicleId ?? null,
     mechanic_name: p.mechanicName ?? null, workshop: p.workshop ?? null, starts_at: p.startsAt,
     planned_minutes: p.plannedMinutes, work_description: p.workDescription ?? null,
     reception_notes: p.receptionNotes ?? null, loaner_vehicle: p.loanerVehicle ?? null, notify_sms: !!p.notifySms,
-  }).select('id').single();
-  if (error) throw error;
-  return data.id as string;
+  };
+  // `reason_code` vient de la migration 20261103120000 (non appliquee) : on ne l'envoie que s'il est
+  // renseigne, et si la colonne manque encore en base, le RDV est quand meme cree sans motif.
+  const withReason = p.reasonCode ? { ...base, reason_code: p.reasonCode } : base;
+  const first = await supabase.from('workshop_appointments').insert(withReason as typeof base).select('id').single();
+  if (!first.error) return first.data.id as string;
+  if (p.reasonCode && /reason_code/.test(first.error.message)) {
+    const { data, error } = await supabase.from('workshop_appointments').insert(base).select('id').single();
+    if (error) throw error;
+    return data.id as string;
+  }
+  throw first.error;
 }
 
 export async function updateAppointmentStatus(id: string, status: string): Promise<void> {

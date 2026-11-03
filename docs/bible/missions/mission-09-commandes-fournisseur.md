@@ -132,10 +132,10 @@ part **par mail à `cas.dwe@ducati.com`**.
 |---|---|---|
 | 1 | **Le panier standard** | Plusieurs paniers ouverts ; lignes venues du minimax (stock sous le minimum → quantité pour remonter au-dessus ; `stock_max` ajouté), de l'atelier, du comptoir (commandes de pièces), du site ; bouton « Enlever ce qui est déjà en stock » ; minimum 250 € HTVA ; validation = date + opérateur + champ « Numéro de commande (DCS) » vide, modifiable après ; statut « Commandée » ; écran « Toutes nos commandes » filtrable par type / statut / période. |
 | 2 | **Le fichier `ExportDucati`** | Génération exacte (Line Number, Product Code, Day, Month, Year, Quantity, nom client en G), téléchargement, fichier conservé avec la commande (GED), régénérable. |
-| 3 | **Popup entretien → panier** | À la prise d'un RDV ou à l'ouverture d'un OR avec motif entretien : pièces du kit absentes du stock → « Mettre en commande ? » → lignes dans le panier standard (ou urgent si la date est proche). |
+| 3 | **Popup entretien → panier** — 🟦 fait le 03/11/2026, à valider (voir §7) | À la prise d'un RDV ou à l'ouverture d'un OR avec motif entretien : pièces du kit absentes du stock → « Mettre en commande ? » → lignes dans le panier standard (ou urgent si la date est proche). |
 | 4 | **Commande urgente** | Panier séparé, une par jour, +12 % sur le prix de vente des lignes (réglable), pas de minimum, même fichier et même circuit. |
 | 5 | **Dossier accident** | Fiche dossier (moto / VIN, client, assurance, expert, n° de sinistre, urgence), devis lié, photos (téléphone / tablette, PDF assemblé), photo du châssis obligatoire, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis le devis, contrôle 1 500 € HTVA, bouton « Envoyer le dossier » → mail Outlook à technique.dwe@ducati.com avec les 4 pièces jointes, dossier et mail conservés, statut (brouillon / envoyé / accordé / pièces reçues / réparé). |
-| 6 | **Commande démo / courtoisie** | Accessoires uniquement, classeur Ducati rempli (onglet choisi, `Q COMMANDE`, code concession), minimum 2 000 € par onglet, envoi par mail à cas.dwe@ducati.com, classeur conservé. |
+| 6 | **Commande démo / courtoisie** — 🟦 fait le 03/11/2026, à valider (voir §7) | Accessoires uniquement, classeur Ducati rempli (onglet choisi, `Q COMMANDE`, code concession), minimum 2 000 € par onglet, envoi par mail à cas.dwe@ducati.com, classeur conservé. |
 | 7 | **Disponibilité automatique des pièces** | Établir, source par source, ce que le DMS peut savoir automatiquement : stock Ducati Bruxelles (DMS), disponible chez Ducati (état E/F du tarif + disponibilité DCS / portail dealer, à vérifier avec Domenico), disponible chez un fournisseur tiers. Afficher ces statuts dans le DMS (recherche, devis, panier). **Ensuite** : import de tout le catalogue dans Shopify comme produits « sur commande » avec ces statuts. |
 
 ## 6. Décisions
@@ -144,3 +144,104 @@ part **par mail à `cas.dwe@ducati.com`**.
   mission ; +12 % pour l'urgente (remplace +10 %).
 - **M-79** (30/10) : une commande validée garde son fichier Excel et son mail d'envoi ; le numéro DCS
   se saisit à la main après coup.
+- **M-81** (03/11) : le panier démo / courtoisie est le classeur ouvert existant (`excel_orders`,
+  kind = `demo`), accessoires uniquement ; le classeur Ducati vierge (prix concession) n'entre jamais
+  dans le dépôt : il est déposé une fois par an dans la GED privée depuis Paramètres, rempli cellule
+  par cellule (D2, blocs motos, `Q COMMANDE`) et conservé avec la commande.
+- **M-82** (03/11) : un entretien prévu (RDV ou OR avec motif entretien) dont le kit n'est pas en
+  stock déclenche un popup une seule fois par pièce et par OR / RDV ; urgente proposée si le RDV est
+  à moins de 5 jours (réglable), standard sinon ; « Pas maintenant » est mémorisé aussi.
+
+## 7. Livré le 03/11/2026 — cartes 3 et 6 (à valider)
+
+Branche `lot-demo-et-popup`, migration `supabase/migrations/20261103120000_m4_commande_demo.sql`
+(**non appliquée**, essayée en transaction annulée sur la base de production le 03/11 : aucune
+erreur). Elle ne dépend que des tables en place (`excel_orders`, `excel_catalog`,
+`workshop_appointments`, `attachments`, `events`) : le panier démo n'attend pas `supplier_baskets`.
+Aucune fonction serveur à déployer (`graph-send-email` existante réutilisée).
+
+### Carte 6 — commande démo / courtoisie (ACH003)
+
+**Pour l'utilisateur** (Pièces → Commandes de pièces → Commande démo / courtoisie, `/orders/excel`) :
+1. Le panier démo est le classeur ouvert : badge « Panier démo — accessoires uniquement », onglet
+   choisi (Demo / Courtoisie / Showroom) pour les ajouts, blocs **Moto 1 à 4** de l'onglet (modèle,
+   n° de commande, n° de série), recherche dans le catalogue accessoires, **ajout par référence**
+   (une pièce détachée ou un vêtement est refusé avec la raison), chargement d'une commande client
+   (les non-accessoires sont refusés et listés).
+2. **Minimum 2 000 € par onglet utilisé** (réglage existant « Minimum € HTVA par onglet Excel ») :
+   message orange par onglet avec ce qui manque, bouton Commander grisé tant que ce n'est pas atteint.
+3. **Télécharger le classeur rempli** : le classeur Ducati vierge de l'année (déposé dans Paramètres
+   → « Déposer le classeur Ducati de l'année », administrateur) est rempli : D2 = code concession,
+   I3..O5 = motos, colonne L `Q COMMANDE` des lignes concernées ; formules, noms définis, onglets
+   Feuil12 / Feuil2 conservés ; n° `CEX-` attribué au 1er téléchargement (comme le 19/09).
+4. **Commander (mail à Ducati)** : fenêtre d'envoi (boîte Outlook au choix, destinataire
+   `cas.dwe@ducati.com` réglable dans Paramètres → Tables → Règles des types de commande, ligne
+   `excel`, colonne « Adresse Ducati du classeur démo », objet « Commande <onglet> — <société> —
+   <date> », classeur en pièce jointe, « Vérifier sans envoyer »). Ordre réel : classeur conservé en
+   GED (dossier « Commandes Excel ») → mail → statut **« Commandée »** (date, opérateur, mail et
+   classeur conservés, trace `events`), nouveau classeur vide ouvert.
+5. **Historique** : commandées (date, mail, classeur téléchargeable) et anciens classeurs archivés ;
+   **n° DCS** saisi à la main dans la ligne (fonction `excel_order_set_dcs_number`, tracée).
+
+**Technique** : `src/modules/orders/demo-rules.ts` (règles pures), `demo-workbook.ts` (SheetJS :
+lecture / remplissage / écriture compressée), `demo-api.ts`, `demo-mail-dialog.tsx`,
+`demo-template-card.tsx` (Paramètres), `src/routes/_app.orders.excel.tsx` ; trigger
+`excel_order_lines_accessory_guard` (référence ∉ `excel_catalog` → refus, en disant si c'est un
+vêtement du catalogue Ducati ou une pièce du DMS), fonctions `excel_order_mark_ordered`
+(numéro, minimum par onglet, accessoires, classeur conservé obligatoire) et
+`excel_order_set_dcs_number`, lignes figées dès « commandee ». Tests `tests/orders-demo.test.ts`.
+Limite : SheetJS (édition communautaire) ne réécrit pas la mise en forme (couleurs, largeurs) ;
+valeurs, formules, noms et onglets sont conservés (vérifié sur le classeur réel : 866 références,
+1,6 Mo compressé, 0,5 s).
+
+### Carte 3 — un entretien prévu sans les pièces en stock propose de les commander (ATE013)
+
+**Pour l'utilisateur** :
+1. **Prise d'un rendez-vous** (Atelier → Planning → Nouveau RDV) : nouveau champ **Motif du
+   rendez-vous** (même liste que l'OR : Entretien annuel, 15 000 km, Vidange…). Avec un motif
+   entretien et une moto reliée au catalogue, après l'enregistrement : popup **« 4 pièces manquent
+   pour cet entretien : les mettre en commande ? »** avec la liste (référence, désignation, qté du
+   kit, stock libre, déjà en commande, manque), choix **Standard** / **Urgente** (urgente proposée si
+   le RDV est à moins de N jours, N = Paramètres → Tables → Règles des types de commande, ligne
+   `urgente`, colonne « urgente si RDV à moins de (jours) », défaut 5), bouton **Mettre en commande**
+   ou **Pas maintenant**.
+2. **Ouverture d'un OR** avec motif entretien : même popup à l'ouverture de la fiche (la moto est là :
+   urgente proposée). Le bouton existant **« Commander les pièces manquantes »** de l'OR reste là
+   pour les mécaniciens.
+3. Pas de popup si rien ne manque ; **jamais deux fois les mêmes pièces** pour le même OR / RDV
+   (mémoire `workshop_parts_prompts`, « Pas maintenant » compris) ; une nouvelle pièce du kit, elle,
+   est reproposée.
+4. **Mettre en commande** → `basket_add_lines(_company, _kind, _lines)` (panier standard / urgent de
+   la carte 1). **Si cette fonction n'est pas en base** (carte 1 pas encore appliquée), **repli** :
+   une commande de pièces du type choisi est créée en brouillon (mission 02 : `part_orders` +
+   `part_order_line_save`), reliée au client de l'OR, note « Pièces d'entretien manquantes
+   (<échéance>) — OR <n°> » ; le message le dit (« panier standard pas encore en base »).
+
+**Technique** : `src/modules/workshop/parts-popup-rules.ts` (manquant = kit − max(réel − réservé, 0)
+− en commande, doublons additionnés, mémoire, standard / urgente), `parts-popup-api.ts` (kit de
+l'échéance : `maintenance_kit_for_model_year` + `maintenance_kit_detail`, mémoire, panier / repli),
+`parts-popup.tsx`, `src/routes/_app.workshop.planning.tsx`, `_app.workshop.$orId.tsx`,
+`planning-api.ts` (`reason_code` du RDV, créé sans motif si la colonne manque encore). Table
+`workshop_parts_prompts` (append-only, RLS membre) + fonction `workshop_parts_prompt_log` (trace
+`events`). Tests `tests/workshop-parts-popup.test.ts`. Dépend des kits de la mission 07 (migrations
+`20260923160000` à `20260923163000`, **non appliquées**) : sans kit en base, aucun popup.
+
+### À tester (03/11)
+
+1. Appliquer la migration `20261103120000_m4_commande_demo.sql`. Paramètres → carte **« Classeur
+   Ducati de l'année »** → déposer `Fichier de commande Demo Crtsy Shwrm 2026_FR VIERGE.xlsx`.
+2. Commandes de pièces → **Commande démo / courtoisie** : onglet Demo, Moto 1 (modèle, n° de commande,
+   n° de série), ajouter par référence `96782441AA` (accepté) puis une référence de pièce détachée
+   (refusée : « c'est une pièce détachée ») ; monter l'onglet au-dessus de 2 000 € (le message
+   orange disparaît).
+3. **Télécharger le classeur rempli** : ouvrir le .xlsx dans Excel → D2 = 100645, I3..I5 = la moto,
+   colonne L remplie sur la ligne de la référence, D7 / E7 recalculés, onglets Feuil2 présents.
+4. **Commander (mail à Ducati)** → destinataire = votre adresse → **Vérifier sans envoyer** puis
+   **Envoyer et commander** : mail reçu avec le classeur ; l'écran repart d'un classeur vide ;
+   Historique : ligne « Commandée », classeur téléchargeable, saisir le **n° DCS**.
+5. Atelier → Planning → Nouveau RDV : moto reliée au catalogue (avec kit), motif « Entretien
+   15 000 km », date dans 3 jours → popup avec **Urgente** proposée → **Mettre en commande** →
+   commande de pièces en brouillon (ou panier urgent si la carte 1 est appliquée). Rouvrir : plus de
+   popup pour ces pièces. Même RDV à 10 jours → Standard proposé.
+6. Ouvrir un OR avec la même moto et motif entretien → popup à l'ouverture → **Pas maintenant** →
+   recharger la fiche : plus de popup.

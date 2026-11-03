@@ -174,10 +174,11 @@ export async function listClientOrdersForExcel(companyId: string): Promise<Clien
 /**
  * Charge les pièces d'une commande client dans un onglet du classeur ouvert.
  * Chaque ligne garde le lien vers la commande client et son client (routage à la réception).
- * Le prix dealer est repris du catalogue Ducati (référence identique), sinon 0.
- * Les lignes déjà chargées ne sont pas dupliquées. Retourne le nombre de lignes ajoutées.
+ * Le prix dealer est repris du catalogue Ducati (référence identique).
+ * Les lignes déjà chargées ne sont pas dupliquées. Mission 09 carte 6 : une référence absente
+ * du classeur accessoires Ducati (pièce, vêtement) est REFUSÉE et renvoyée dans `refused`.
  */
-export async function importClientOrderIntoExcel(companyId: string, excelOrderId: string, partOrderId: string, tab: ExcelTab): Promise<number> {
+export async function importClientOrderIntoExcel(companyId: string, excelOrderId: string, partOrderId: string, tab: ExcelTab): Promise<{ added: number; refused: string[] }> {
   const [{ data: po, error: pe }, { data: pls, error: le }, { data: already, error: ae }] = await Promise.all([
     sb.from('part_orders').select('id, contact_id').eq('id', partOrderId).single(),
     sb.from('part_order_lines').select('id, reference, designation, qty_client, qty_shop, sort_order').eq('order_id', partOrderId).order('sort_order'),
@@ -187,22 +188,24 @@ export async function importClientOrderIntoExcel(companyId: string, excelOrderId
   const done = new Set(((already ?? []) as { part_order_line_id: string | null }[]).map((r) => r.part_order_line_id));
   const todo = ((pls ?? []) as { id: string; reference: string | null; designation: string; qty_client: number; qty_shop: number; sort_order: number }[])
     .filter((l) => !done.has(l.id) && (l.reference ?? '').trim() !== '');
-  if (todo.length === 0) return 0;
+  if (todo.length === 0) return { added: 0, refused: [] };
   const refs = [...new Set(todo.map((l) => l.reference!.trim()))];
   const { data: cat, error: ce } = await sb.from('excel_catalog').select('id, reference, description, price_dealer').eq('company_id', companyId).in('reference', refs);
   if (ce) throw ce;
   const byRef = new Map(((cat ?? []) as { id: string; reference: string; description: string | null; price_dealer: number | null }[]).map((c) => [c.reference, c]));
   const contactId = (po as { contact_id: string | null }).contact_id;
-  await addExcelLines(todo.map((l, i) => {
-    const c = byRef.get(l.reference!.trim());
+  const accepted = todo.filter((l) => byRef.has(l.reference!.trim()));
+  const refused = [...new Set(todo.filter((l) => !byRef.has(l.reference!.trim())).map((l) => l.reference!.trim()))];
+  await addExcelLines(accepted.map((l, i) => {
+    const c = byRef.get(l.reference!.trim())!;
     return {
-      excel_order_id: excelOrderId, tab, reference: l.reference!.trim(), description: c?.description ?? l.designation,
-      qty: Number(l.qty_client) + Number(l.qty_shop), price_dealer: Number(c?.price_dealer ?? 0), extra_discount: 0,
-      moto_label: null, moto_vin: null, contact_id: contactId, catalog_id: c?.id ?? null,
+      excel_order_id: excelOrderId, tab, reference: l.reference!.trim(), description: c.description ?? l.designation,
+      qty: Number(l.qty_client) + Number(l.qty_shop), price_dealer: Number(c.price_dealer ?? 0), extra_discount: 0,
+      moto_label: null, moto_vin: null, contact_id: contactId, catalog_id: c.id,
       part_order_id: partOrderId, part_order_line_id: l.id, sort_order: Date.now() % 1_000_000_000 + i,
     };
   }));
-  return todo.length;
+  return { added: accepted.length, refused };
 }
 
 /** Noms des clients liés aux lignes (affichage « pour qui »). */

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/')({
@@ -107,6 +108,10 @@ function SettingsIndex() {
           <span className="font-ui text-[15px] font-bold">{t('appClient.settings.cardTitle')}</span>
           <span className="text-sm text-muted-foreground">{t('appClient.settings.cardDesc')}</span>
         </Link>
+
+        {/* Mission 09 carte 6 : le classeur Ducati vierge (prix concession) est depose ici,
+            une fois par an, dans la GED privee ; il n'est jamais dans le depot. */}
+        <DemoTemplateCard />
 
         <Link
           to="/settings/extension"

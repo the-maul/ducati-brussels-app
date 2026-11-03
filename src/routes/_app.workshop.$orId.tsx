@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, AlertTriangle } from 'lucide-react';
@@ -15,6 +15,8 @@ import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
+import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
+import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { createProposalFromOr, getProposalSignToken, listDeferredToPlan, proposalSignUrl, type DeferredIntervention } from '@/modules/workshop/checkup/api';
 import { approvalState, canStartWork } from '@/modules/workshop/checkup/rules';
 import { ApprovalPanel, VerbalApprovalDialog } from '@/modules/workshop/checkup/approval-panel';
@@ -46,6 +48,10 @@ function OrView() {
   const [verbalOpen, setVerbalOpen] = useState(false);
   const [mail, setMail] = useState<ProposalMail | null>(null);
   const [deferredStep, setDeferredStep] = useState<DeferredIntervention[] | null>(null);
+  // Popup « pieces d'entretien manquantes » (mission 09, carte 3) : une fois par ouverture d'ecran,
+  // seulement pour un OR a motif entretien ; la memoire sur l'OR evite de redemander les memes pieces.
+  const [partsPopupDone, setPartsPopupDone] = useState(false);
+  const partsPopupDone_ = useCallback(() => setPartsPopupDone(true), []);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
@@ -143,6 +149,8 @@ function OrView() {
 
   const { or } = data;
   const orx = or as typeof or & { customer_approval?: string | null; proposal_document_id?: string | null };
+  // Colonne de la migration 20261031110000 (non appliquee) : inconnue de types.ts.
+  const reasonCode = ((or as unknown as Record<string, unknown>).reason_code as string | null | undefined) ?? null;
   const invoiced = or.status === 'facture';
   const pending = or.warranty_status === 'en_attente';
   const checkupReady = schema.data === true;
@@ -217,6 +225,15 @@ function OrView() {
         <OrderFromWorkshopDialog
           orId={orId} companyId={activeCompanyId!} label={`OR ${or.number ?? ''}`.trim()}
           onClose={() => setOrderOpen(false)}
+        />
+      )}
+      {!partsPopupDone && !invoiced && or.status !== 'annule' && isMaintenanceReasonCode(reasonCode) && (
+        <MaintenancePartsPopup
+          ctx={{
+            companyId: activeCompanyId!, vehicleId: or.vehicle_id, contactId: or.contact_id, reasonCode,
+            orId, orNumber: or.number, appointmentAt: null,
+          }}
+          onDone={partsPopupDone_}
         />
       )}
       <VerbalApprovalDialog key={String(verbalOpen)} orId={orId} open={verbalOpen} onClose={() => setVerbalOpen(false)} onDone={refresh} />

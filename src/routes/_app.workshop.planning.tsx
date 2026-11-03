@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -13,6 +13,9 @@ import { listContacts, contactDisplayName, type Contact } from '@/modules/contac
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { searchVehicles, type VehicleLite } from '@/modules/workshop/api';
 import { listAppointments, createAppointment, updateAppointmentStatus, createOrFromAppointment, type Appointment } from '@/modules/workshop/planning-api';
+import { listWorkshopReasons } from '@/modules/workshop/checkup/api';
+import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
+import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/planning')({
@@ -113,6 +116,8 @@ function PlanningPage() {
   );
 }
 
+const NO_REASON = '__none__';
+
 function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyId: string; defaultDate: string; onClose: () => void; onCreated: () => void }) {
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState('09:00');
@@ -123,15 +128,32 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
   const [notify, setNotify] = useState(false);
   const [contact, setContact] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<VehicleLite | null>(null);
+  // Motif du RDV (mission 09, carte 3) : un motif entretien + une moto → controle des pieces du kit.
+  const [reasonCode, setReasonCode] = useState('');
+  const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
+  const [created, setCreated] = useState<{ id: string; startsAt: string } | null>(null);
+  const popupDone = useCallback(() => onCreated(), [onCreated]);
 
   const create = useMutation({
     mutationFn: () => createAppointment({
       companyId, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mechanicName: mechanic,
       startsAt: new Date(`${date}T${time}`).toISOString(), plannedMinutes: Math.round(num(minutes)) || 60,
-      workDescription: work, loanerVehicle: loaner, notifySms: notify,
+      workDescription: work, loanerVehicle: loaner, notifySms: notify, reasonCode: reasonCode || null,
     }),
-    onSuccess: onCreated,
+    onSuccess: (id) => {
+      if (vehicle?.id && isMaintenanceReasonCode(reasonCode)) setCreated({ id, startsAt: new Date(`${date}T${time}`).toISOString() });
+      else onCreated();
+    },
   });
+
+  if (created) {
+    return (
+      <MaintenancePartsPopup
+        ctx={{ companyId, vehicleId: vehicle?.id ?? null, contactId: contact?.id ?? null, reasonCode, appointmentId: created.id, appointmentAt: created.startsAt }}
+        onDone={popupDone}
+      />
+    );
+  }
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -144,6 +166,15 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
           <Field label={t('workshop.mechanicName')}><Input value={mechanic} onChange={(e) => setMechanic(e.target.value)} /></Field>
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>
           <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={[vehicle.vin, vehicle.model].filter(Boolean).join(' ') || '—'} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} onPick={setVehicle} />}</Field>
+          <Field label={t('partsPopup.rdvReason')}>
+            <Select value={reasonCode || NO_REASON} onValueChange={(v) => setReasonCode(v === NO_REASON ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder={t('partsPopup.rdvReasonNone')} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_REASON}>{t('partsPopup.rdvReasonNone')}</SelectItem>
+                {(reasonsQ.data ?? []).map((r) => <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label={t('workshop.rdvLoaner')}><Input value={loaner} onChange={(e) => setLoaner(e.target.value)} /></Field>
           <Field label={t('workshop.workDescription')}><Input value={work} onChange={(e) => setWork(e.target.value)} /></Field>
           <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('workshop.rdvNotify')}</label>

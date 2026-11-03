@@ -96,6 +96,10 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { key: 'max_per_day', label: 'Maximum par jour', type: 'number' },
       { key: 'fallback', label: 'Sous le minimum, repasse en (code)', type: 'text' },
       { key: 'min_ht_per_tab', label: 'Minimum € HTVA par onglet Excel', type: 'number' },
+      // Mission 09 carte 6 (ligne « excel ») : adresse Ducati qui reçoit le classeur démo / courtoisie.
+      { key: 'mail_to', label: 'Adresse Ducati du classeur démo (ligne excel)', type: 'text' },
+      // Mission 09 carte 3 (ligne « urgente ») : popup entretien → urgente si le RDV est à moins de N jours.
+      { key: 'urgent_within_days', label: 'Pièces d\'entretien : urgente si RDV à moins de (jours, ligne urgente)', type: 'number' },
     ] },
 ];
 
