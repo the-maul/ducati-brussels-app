@@ -169,6 +169,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const payload = await req.json().catch(() => ({}));
   const { companyId, contactId, to, subject, body, attachments, from, origin, trace } = payload ?? {};
+  // Copie facultative (dossier accident, mission 09 carte 5) : tableau ou chaine « a, b » ; adresses valides seulement.
+  const ccRaw = Array.isArray(payload?.cc) ? payload.cc : typeof payload?.cc === 'string' ? payload.cc.split(/[,;]/) : [];
+  const cc: string[] = [...new Set((ccRaw as unknown[]).map((a) => String(a ?? '').trim().toLowerCase()).filter((a) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(a)))];
   // Case « Inviter le client à rejoindre son espace » de la fenêtre d'envoi (Simon, 05/10) :
   // cochée par défaut ; décochée, le bloc d'invitation n'est pas ajouté.
   const invite = payload?.invite !== false;
@@ -204,12 +207,15 @@ Deno.serve(async (req) => {
   // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
   const atts = toGraphAttachments(attachments);
 
-  // Document à tracer : il doit appartenir à la société (sinon on n'envoie rien).
-  const traceId = trace && trace.entityType === 'documents' && typeof trace.entityId === 'string' && /^[0-9a-f-]{36}$/i.test(trace.entityId)
+  // Entité à tracer (document de vente, ou dossier accident — mission 09 carte 5) : elle doit
+  // appartenir à la société (sinon on n'envoie rien).
+  const TRACEABLE = ['documents', 'accident_files'];
+  const traceType: string | null = trace && TRACEABLE.includes(String(trace.entityType)) ? String(trace.entityType) : null;
+  const traceId = traceType && typeof trace.entityId === 'string' && /^[0-9a-f-]{36}$/i.test(trace.entityId)
     ? trace.entityId : null;
   if (trace && !traceId) return J({ error: 'bad_trace' }, 400);
   if (traceId) {
-    const d = await (await db(`documents?select=id&id=eq.${traceId}&company_id=eq.${companyId}&limit=1`)).json();
+    const d = await (await db(`${traceType}?select=id&id=eq.${traceId}&company_id=eq.${companyId}&limit=1`)).json();
     if (!Array.isArray(d) || d.length === 0) return J({ error: 'unknown_document' }, 400);
   }
 
@@ -233,13 +239,13 @@ Deno.serve(async (req) => {
   const footer = kind ? footerHtml(kind, o, recipient, signature ? null : contact, locale) : '';
 
   // Corps déjà en HTML (éditeur enrichi) + signature + pied de mail.
-  const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), signature, footer, to, attachments: atts });
+  const graphBody = buildGraphMessage({ subject, bodyHtml: String(body || ''), signature, footer, to, cc, attachments: atts });
 
   if (dryRun) {
     return J({
       ok: true, dryRun: true, from: mailbox, to, subject, footer: kind, signature: signature !== '',
       html: graphBody.message.body.content, attachments: attachmentsSummary(atts),
-      trace: traceId ? { entityType: 'documents', entityId: traceId } : null,
+      trace: traceId ? { entityType: traceType, entityId: traceId } : null,
     });
   }
 
@@ -257,9 +263,9 @@ Deno.serve(async (req) => {
     await db('events', {
       method: 'POST', headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({
-        company_id: companyId, actor_id: user.id, action: 'email_sent', entity_type: 'documents',
+        company_id: companyId, actor_id: user.id, action: 'email_sent', entity_type: traceType,
         entity_id: traceId, origin: 'screen',
-        new_data: { to, from: mailbox, subject, contact_id: contactId ?? null, attachments: attachmentsSummary(atts), footer: kind },
+        new_data: { to, cc: cc.length ? cc : undefined, from: mailbox, subject, contact_id: contactId ?? null, attachments: attachmentsSummary(atts), footer: kind },
       }),
     });
   }

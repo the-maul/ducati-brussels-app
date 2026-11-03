@@ -87,6 +87,9 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { key: 'max_hours', label: 'Heures max (diagnostic)', type: 'number' },
       { key: 'vat_rate', label: 'TVA %', type: 'number' },
     ] },
+  // Dossier accident (mission 09 carte 5) : code `to` = destinataire du mail (libellé = adresse),
+  // code `cc` = copie facultative (aucune par défaut, décision client du 03/11/2026).
+  { key: 'accident_file_mail', label: 'Mail du dossier accident', group: 'atelier', extraColumns: [] },
   // Commandes de pièces (mission 02) : une ligne par type de commande, code = type (standard, urgente,
   // accident, excel…). Lu et contrôlé côté serveur par part_order_rules / part_order_check_rules.
   { key: 'order_threshold', label: 'Règles des types de commande', group: 'achat',

@@ -36,6 +36,18 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Dossier accident : complet ou rien, sans copie par défaut (mission 09, carte 5)
+
+- **M-83** — **Le dossier accident part de l'atelier vers Ducati West Europe, complet ou pas du tout, sans
+  copie par défaut.** Complet = devis du DMS lié, formulaire Excel « Aide Réparation Moto Accidentée »
+  généré dans le modèle Ducati depuis les lignes pièces du devis, au moins 4 photos avant réparation,
+  une photo du n° de châssis gravé, devis ≥ 1 500 € HTVA (en dessous : commande standard). Le mail part
+  d'Outlook (boîte partagée ou adresse de l'utilisateur) à `technique.dwe@ducati.com` (réglable dans
+  Paramètres → Tables → « Mail du dossier accident ») ; le champ « Copie » existe mais **reste vide par
+  défaut** (Simon, 03/11 après-midi : ne pas pré-remplir `xavier.labranche@ducati.com`), modifiable à la
+  main ou réglable dans la même table. Les 4 pièces jointes sont régénérées à chaque envoi et conservées
+  dans la GED du dossier avec le mail (date, destinataires, objet). *Client / Simon · 03/11.* M8, M9.
+
 ## 2026-10-30 — Relances d'entretien : le marketing envoie, le commercial rappelle (mission 07, cartes 6 et 7)
 
 - **M-72** — **Les relances d'entretien sont des mails automatiques préparés par le marketing, pas

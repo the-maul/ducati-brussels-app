@@ -11,7 +11,7 @@ import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
 import { updateRepairOrder, transformToInvoice, checkupSchemaReady, type RoInput } from '@/modules/workshop/write-api';
 import { OrEditor, type OrPayload, type OrEditorIntent } from '@/modules/workshop/or-editor';
-import { AccidentHelpDialog } from '@/modules/workshop/accident-help-dialog';
+import { openAccidentFile } from '@/modules/workshop/accident/api';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
@@ -43,7 +43,6 @@ function OrView() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [accidentOpen, setAccidentOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
   const [verbalOpen, setVerbalOpen] = useState(false);
   const [mail, setMail] = useState<ProposalMail | null>(null);
@@ -56,6 +55,13 @@ function OrView() {
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   const companyName = companies.find((c) => c.id === activeCompanyId)?.name ?? '';
+  // Mission 09 carte 5 : le dossier accident (fiche, photos, devis, formulaire Ducati, mail) remplace l'ancienne fenetre d'aide.
+  const accident = useMutation({
+    mutationFn: () => openAccidentFile({ companyId: activeCompanyId!, vehicleId: data?.or.vehicle_id, contactId: data?.or.contact_id, repairOrderId: orId, expertName: data?.or.expert_name }),
+    meta: { success: false },
+    onSuccess: (fileId) => navigate({ to: '/workshop/accidents/$fileId', params: { fileId } }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
   const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); };
 
   const toInput = (p: OrPayload): RoInput => ({
@@ -184,7 +190,7 @@ function OrView() {
               </Button>
             )}
             {!invoiced && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
-            <Button variant="outline" onClick={() => setAccidentOpen(true)}><LifeBuoy /> {t('accident.btn')}</Button>
+            <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
         }
@@ -220,7 +226,6 @@ function OrView() {
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
         <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
       </div>
-      <AccidentHelpDialog key={String(accidentOpen)} open={accidentOpen} onOpenChange={setAccidentOpen} orFull={data} />
       {orderOpen && (
         <OrderFromWorkshopDialog
           orId={orId} companyId={activeCompanyId!} label={`OR ${or.number ?? ''}`.trim()}

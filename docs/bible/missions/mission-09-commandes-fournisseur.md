@@ -53,8 +53,10 @@ foi**, réglable dans Paramètres.)
 
 ### C. Commande pour ACCIDENT = ouverture d'un dossier accident
 
-Un dossier accident envoyé à Ducati West Europe (`technique.dwe@ducati.com`, copie au responsable
-DWE), comprenant **quatre pièces jointes** (texte de Ducati) :
+Un dossier accident envoyé à Ducati West Europe (`technique.dwe@ducati.com` ; **sans copie par
+défaut** — décision du 03/11/2026, le champ « Copie » existe mais reste vide, une copie se règle dans
+Paramètres → Tables → « Mail du dossier accident », code `cc`), comprenant **quatre pièces jointes**
+(texte de Ducati) :
 
 1. **Fichier de commande** — Excel au format exact de
    `Formulaire Commande - Moto accidentée -.xlsx` (feuille 1 : titre « Aide Réparation Moto
@@ -104,8 +106,9 @@ part **par mail à `cas.dwe@ducati.com`**.
    (nom du client sur certaines lignes de la capture) : Simon demande à Domenico si le DCS la lit ;
    en attendant on la remplit (sans effet si le DCS l'ignore).
 3. Mail du dossier accident : **oui pour `technique.dwe@ducati.com`** ; `xavier.labranche@ducati.com`
-   était en copie du mail réel de Domenico (Ducati West Europe) : copie facultative, pré-remplie,
-   modifiable.
+   était en copie du mail réel de Domenico (Ducati West Europe). **Précision du 03/11 (après-midi) :
+   ne PAS pré-remplir cette copie** — le champ « Copie » existe, vide par défaut, modifiable à la
+   main ; une copie permanente se règle dans Paramètres → Tables (`accident_file_mail`, code `cc`).
 4. Pièces du catalogue sur le site : **d'abord éclaircir la disponibilité automatique** (en stock
    Ducati Bruxelles / disponible chez Ducati / disponible chez un fournisseur) pour qu'un client
    — et le DMS — ne commande jamais une pièce qu'on ne peut pas avoir. **On construit d'abord
@@ -134,7 +137,7 @@ part **par mail à `cas.dwe@ducati.com`**.
 | 2 | **Le fichier `ExportDucati`** | Génération exacte (Line Number, Product Code, Day, Month, Year, Quantity, nom client en G), téléchargement, fichier conservé avec la commande (GED), régénérable. |
 | 3 | **Popup entretien → panier** — 🟦 fait le 03/11/2026, à valider (voir §7) | À la prise d'un RDV ou à l'ouverture d'un OR avec motif entretien : pièces du kit absentes du stock → « Mettre en commande ? » → lignes dans le panier standard (ou urgent si la date est proche). |
 | 4 | **Commande urgente** | Panier séparé, une par jour, +12 % sur le prix de vente des lignes (réglable), pas de minimum, même fichier et même circuit. |
-| 5 | **Dossier accident** | Fiche dossier (moto / VIN, client, assurance, expert, n° de sinistre, urgence), devis lié, photos (téléphone / tablette, PDF assemblé), photo du châssis obligatoire, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis le devis, contrôle 1 500 € HTVA, bouton « Envoyer le dossier » → mail Outlook à technique.dwe@ducati.com avec les 4 pièces jointes, dossier et mail conservés, statut (brouillon / envoyé / accordé / pièces reçues / réparé). |
+| 5 | **Dossier accident** — **faite le 03/11/2026, à valider** (voir §7) | Fiche dossier (moto / VIN, client, assurance, expert, n° de sinistre, urgence), devis lié, photos (téléphone / tablette, PDF assemblé), photo du châssis obligatoire, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis le devis, contrôle 1 500 € HTVA, bouton « Envoyer le dossier » → mail Outlook à technique.dwe@ducati.com avec les 4 pièces jointes, dossier et mail conservés, statut (brouillon / envoyé / accordé / pièces reçues / réparé / clos). |
 | 6 | **Commande démo / courtoisie** — 🟦 fait le 03/11/2026, à valider (voir §7) | Accessoires uniquement, classeur Ducati rempli (onglet choisi, `Q COMMANDE`, code concession), minimum 2 000 € par onglet, envoi par mail à cas.dwe@ducati.com, classeur conservé. |
 | 7 | **Disponibilité automatique des pièces** | Établir, source par source, ce que le DMS peut savoir automatiquement : stock Ducati Bruxelles (DMS), disponible chez Ducati (état E/F du tarif + disponibilité DCS / portail dealer, à vérifier avec Domenico), disponible chez un fournisseur tiers. Afficher ces statuts dans le DMS (recherche, devis, panier). **Ensuite** : import de tout le catalogue dans Shopify comme produits « sur commande » avec ces statuts. |
 
@@ -151,8 +154,12 @@ part **par mail à `cas.dwe@ducati.com`**.
 - **M-82** (03/11) : un entretien prévu (RDV ou OR avec motif entretien) dont le kit n'est pas en
   stock déclenche un popup une seule fois par pièce et par OR / RDV ; urgente proposée si le RDV est
   à moins de 5 jours (réglable), standard sinon ; « Pas maintenant » est mémorisé aussi.
+- **M-83** (03/11) : le mail du dossier accident part **sans copie par défaut** (champ « Copie » vide,
+  modifiable ; copie permanente réglable dans Paramètres → Tables → « Mail du dossier accident »).
+  Un dossier accident **part complet ou ne part pas** (devis lié, formulaire généré, ≥ 4 photos, photo du
+  châssis, devis ≥ 1 500 € HTVA) ; sous 1 500 € HTVA, c'est une commande standard.
 
-## 7. Livré le 03/11/2026 — cartes 3 et 6 (à valider)
+## 7. Livré le 03/11/2026 — cartes 3, 5 et 6 (à valider)
 
 Branche `lot-demo-et-popup`, migration `supabase/migrations/20261103120000_m4_commande_demo.sql`
 (**non appliquée**, essayée en transaction annulée sur la base de production le 03/11 : aucune
@@ -245,3 +252,51 @@ l'échéance : `maintenance_kit_for_model_year` + `maintenance_kit_detail`, mém
    popup pour ces pièces. Même RDV à 10 jours → Standard proposé.
 6. Ouvrir un OR avec la même moto et motif entretien → popup à l'ouverture → **Pas maintenant** →
    recharger la fiche : plus de popup.
+### Carte 5 — Dossier accident (03/11/2026, branche `lot-dossier-accident`, à valider)
+
+**Ce qui est fait.** Atelier → **Dossiers accident** (liste) ; un dossier s'ouvre depuis la fiche d'un
+**OR** (« Ouvrir un dossier accident », qui retrouve le dossier déjà ouvert pour cet OR) ou depuis un
+**devis** avec moto (même bouton). Sur la fiche : moto / VIN / client (de l'OR ou du devis), assurance,
+n° de sinistre, expert et son e-mail, interrupteur « Dossier urgent » + note (reprise dans le mail) ;
+**devis lié** (choisir un devis existant de cette moto, ou « Créer un devis » qui ouvre Ventes → nouveau
+devis atelier ; total HT, dont pièces HT ; sous 1 500 € HTVA : badge « passe en commande standard »,
+sinon la **remise prévue de 15 % des pièces**) ; **photos** (appareil ou galerie, plusieurs à la fois,
+légende par photo, bouton « Photo du châssis » pour marquer LA photo du n° gravé, horodatage = date de
+la photo) ; **rapport de l'expert** (PDF déposé, facultatif, conservé mais pas joint au mail) ;
+**formulaire Ducati** (« Générer le formulaire » : les lignes pièces du devis — référence, désignation,
+quantité, pas la main-d'œuvre ni les frais de devis — écrites **dans le modèle Ducati lui-même**
+(`public/modeles/formulaire-commande-moto-accidentee.xlsx`, feuille 1 : C4 châssis, C5 client, blocs
+B-D / I-K / P-R à partir de la ligne 8, 39 lignes par bloc), téléchargé et rangé dans la GED du
+dossier) ; checklist **« Dossier complet ? »** (devis, formulaire, ≥ 4 photos, photo du châssis,
+≥ 1 500 €) ; **« Envoyer le dossier »** grisé tant qu'elle n'est pas verte. La fenêtre d'envoi reprend
+celle des documents de vente : boîte d'envoi (boîte partagée ou adresse de l'utilisateur), destinataire
+`technique.dwe@ducati.com` (Paramètres → Tables → « Mail du dossier accident », code `to`), **copie vide**
+(code `cc` si on en veut une), objet « Dossier Accident : CLIENT - modèle 6 derniers du VIN », corps =
+texte de Domenico (+ « Dossier urgent : … »), **4 pièces jointes régénérées à l'envoi** (formulaire
+.xlsx, devis PDF du DMS, PDF des photos — une par page, titre « Photos avant réparation — modèle — VIN »,
+légende et horodatage —, photo du châssis en JPG), « Vérifier sans envoyer » (simulation serveur). Après
+l'envoi : statut « envoyé », `sent_at / sent_to / sent_cc / mail_subject`, pièces rangées dans la GED du
+dossier, trace `events` (`email_sent` sur `accident_files`), bouton « Renvoyer ». Statuts suivants
+choisis à la main : accordé → pièces reçues → réparé → clos.
+
+**Où.** `src/modules/workshop/accident/` (`rules.ts` règles pures, `form-xlsx.ts` modèle rempli via
+fflate, `photos-pdf.ts`, `api.ts`, `send.ts`, `accident-file-screen.tsx`, `accident-photos.tsx`,
+`accident-send-dialog.tsx`, `accident-files-list.tsx`), routes `_app.workshop.accidents.index.tsx` et
+`_app.workshop.accidents.$fileId.tsx`, migration `20261103110000_m8_dossiers_accident.sql`
+(**non appliquée**), fonction `graph-send-email` (copie `cc`, trace sur `accident_files`) **à redéployer**,
+tests `tests/workshop-accident-file.test.ts`. L'ancienne fenêtre « Aide réparation Ducati »
+(`accident-help-dialog.tsx`, `mailto:`) est retirée : le dossier la remplace.
+
+**Comment tester** (après `db push` et `functions deploy graph-send-email`) :
+1. Ouvrir un OR avec moto et client → « Ouvrir un dossier accident » : la fiche s'ouvre, statut Brouillon,
+   checklist tout en ✗.
+2. Devis lié : « Créer un devis » → devis atelier avec quelques pièces (> 1 500 € HT) et de la MO → valider →
+   revenir au dossier → choisir ce devis ; vérifier le total, la remise prévue 15 % des pièces ; essayer un
+   devis < 1 500 € : badge « passe en commande standard », bouton Envoyer grisé.
+3. Photos (tablette) : 4 photos + 1 du n° de châssis marquée « Photo du châssis » ; légendes.
+4. « Générer le formulaire » : ouvrir le .xlsx : C4 = VIN, C5 = client, pièces en B/C/D dès la ligne 8,
+   bordures et logo du modèle intacts.
+5. Checklist verte → « Envoyer le dossier » → mettre **sa propre adresse** en destinataire → « Vérifier sans
+   envoyer » (aperçu, 4 pièces jointes) → « Envoyer » : mail reçu avec les 4 fichiers ; dossier « Envoyé »,
+   pièces dans la GED du dossier, bouton « Renvoyer ».
+6. Paramètres → Tables → « Mail du dossier accident » : changer `to`, ajouter `cc` → la fenêtre d'envoi suit.

@@ -284,7 +284,9 @@ export function base64Size(b64: string): number {
  * Corps de la requête Graph /sendMail : message, puis signature (21/09), puis pied de mail
  * (invitation à l'application).
  */
-export function buildGraphMessage(p: { subject: string; bodyHtml: string; signature?: string; footer: string; to: string; attachments: GraphAttachment[] }) {
+export function buildGraphMessage(p: { subject: string; bodyHtml: string; signature?: string; footer: string; to: string; cc?: string[]; attachments: GraphAttachment[] }) {
+  // Copie (dossier accident, mission 09 carte 5) : vide par defaut, jamais de doublon du destinataire.
+  const cc = (p.cc ?? []).map((a) => String(a).trim()).filter((a) => a && a.toLowerCase() !== String(p.to).trim().toLowerCase());
   return {
     message: {
       subject: p.subject,
@@ -295,6 +297,7 @@ export function buildGraphMessage(p: { subject: string; bodyHtml: string; signat
           + String(p.bodyHtml || '') + (p.signature ?? '') + p.footer + '</div>',
       },
       toRecipients: [{ emailAddress: { address: p.to } }],
+      ...(cc.length ? { ccRecipients: cc.map((a) => ({ emailAddress: { address: a } })) } : {}),
       ...(p.attachments.length ? { attachments: p.attachments } : {}),
     },
     saveToSentItems: true,

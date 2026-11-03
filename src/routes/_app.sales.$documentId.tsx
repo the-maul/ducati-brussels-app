@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart, Pencil, Trash2, LifeBuoy } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -37,6 +37,7 @@ import { DocumentOrdersPanel } from '@/modules/orders/document-orders-panel';
 import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-dialog';
 import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { useAuth } from '@/lib/auth/auth-context';
+import { openAccidentFile } from '@/modules/workshop/accident/api';
 import { t, tIn, pageTitle } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { useReadOnly } from '@/lib/auth/read-only-context';
@@ -136,6 +137,13 @@ function DocumentView() {
     if (await confirmDialog({ variant: 'delete', title: t('sales.deleteDraft'), message: t('sales.deleteConfirm') })) removeDraft.mutate();
   };
   const [mailOpen, setMailOpen] = useState(false);
+  // Mission 09 carte 5 : depuis un devis, ouvrir (ou retrouver) le dossier accident de cette moto.
+  const accident = useMutation({
+    mutationFn: () => openAccidentFile({ companyId: data!.doc.company_id, vehicleId: data!.doc.vehicle_id, contactId: data!.doc.contact_id, quoteDocumentId: documentId }),
+    meta: { success: false },
+    onSuccess: (fileId) => navigate({ to: '/workshop/accidents/$fileId', params: { fileId } }),
+    onError: (e) => toast.error(errorMessage(e)),
+  });
   const [smsOpen, setSmsOpen] = useState(false);
   const pdfPreview = useMutation({
     mutationFn: () => openSalesPdfPreview(data!),
@@ -178,6 +186,7 @@ function DocumentView() {
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
+            {doc.doc_type === 'DEV' && doc.vehicle_id && <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setSmsOpen(true)}><MessageSquare /> {t('sales.sendSms')}</Button>}
             <Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>
           </div>
