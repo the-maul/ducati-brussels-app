@@ -21,7 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
-import { useIsDirty } from '@/lib/use-dirty';
+import { useIsDirty, useLeaveGuard } from '@/lib/use-dirty';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -427,8 +427,10 @@ export function ContactForm({
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
   // Rien de modifié = rien à enregistrer : le bouton reste grisé.
   const dirty = useIsDirty(f);
+  // Bouton Retour : confirmation avant de quitter si quelque chose a change (UX010).
+  useLeaveGuard(dirty);
 
-  const isPro = f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
+  const isPro =f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
   const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
 

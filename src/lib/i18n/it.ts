@@ -95,6 +95,9 @@ export const it: DictionaryShape = {
     delete: 'Elimina',
     cancel: 'Annulla',
     confirm: 'Conferma',
+    leaveTitle: 'Modifiche non salvate',
+    leaveMessage: 'Le modifiche di questa pagina non sono state salvate. Uscire dalla pagina senza salvare?',
+    leave: 'Esci senza salvare',
   },
 
   // Société / contexte (multi-société COM005)

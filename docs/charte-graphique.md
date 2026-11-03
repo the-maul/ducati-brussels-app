@@ -158,6 +158,7 @@ Palette dédiée aux types d'intervention / catégories — désaturée pour ten
 
 - **Sidebar** : fond `--ducati-black`, items en `--font-ui` 14px. Item actif = fond `#2B2B2B` + barre verticale `--ducati-red` 3px à gauche (reprise du soulignement rouge de la nav du site). Repliable à 64px (icônes seules).
 - **Modules sidebar** : Dashboard · Véhicules (neuf/occasion) · Atelier & SAV · Pièces & Accessoires · Ventes & Facturation · Clients (CRM) · Caisse · E-shop · Rapports · Paramètres.
+- **Bouton « Retour »** (UX010) : première ligne de la zone de travail, au-dessus du fil d'Ariane et du titre, sur toute page qui n'est pas une entrée du menu. Bouton tertiaire/ghost, icône flèche gauche 16px + libellé « Retour », texte `--gray-600` ; 32px sur poste fixe, 44px sur écrans tactiles. Un seul par écran, toujours au même endroit : rendu par l'ossature (`AppShell`), jamais par la page. Les « Retour à … » spécifiques d'une page (ex. « Retour à l'OR ») restent possibles dans les actions de l'en-tête.
 - **Espacement** : échelle 4px → `4, 8, 12, 16, 24, 32, 48`. Padding standard des cards : 16px. Gouttière entre cards : 16px.
 - **Radius** : 6px (cards, inputs, boutons), 4px (badges), 0 sur les documents imprimables.
 - **Ombres** : quasi inexistantes. `0 1px 2px rgba(0,0,0,.06)` max sur les cards ; modals : `0 8px 32px rgba(0,0,0,.18)`.

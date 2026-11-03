@@ -16,6 +16,7 @@ import { reportError } from "../lib/error-reporting";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { LocaleProvider, t, useLocale } from "@/lib/i18n";
 import { ConfirmProvider } from "@/components/confirm-provider";
+import { BackHistoryTracker } from "@/components/layout/page-back";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -156,6 +157,8 @@ function RootComponent() {
         {/* Langue de l'utilisateur : re-monte l'arbre sous lui quand elle change (sans rechargement). */}
         <LocaleProvider>
           <LocaleHeadSync />
+          {/* Bouton Retour (UX010) : note les pages visitees pour savoir si la precedente est dans l'app. */}
+          <BackHistoryTracker />
           {/* useConfirm() jette hors provider : monte ici pour couvrir toutes les routes. */}
           <ConfirmProvider>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}

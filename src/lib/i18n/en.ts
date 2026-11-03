@@ -95,6 +95,9 @@ export const en: DictionaryShape = {
     delete: 'Delete',
     cancel: 'Cancel',
     confirm: 'Confirm',
+    leaveTitle: 'Unsaved changes',
+    leaveMessage: 'Changes on this page have not been saved. Leave the page without saving?',
+    leave: 'Leave without saving',
   },
 
   // Société / contexte (multi-société COM005)

@@ -28,7 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
-import { useIsDirty } from '@/lib/use-dirty';
+import { useIsDirty, useLeaveGuard } from '@/lib/use-dirty';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import {
@@ -157,6 +157,8 @@ export function VehicleForm({
   const [ownerFrom, setOwnerFrom] = useState(() => new Date().toISOString().slice(0, 10));
   // Rien de modifié = rien à enregistrer : le bouton reste grisé (sauf pré-remplissage à créer).
   const dirty = useIsDirty(f);
+  // Bouton Retour : confirmation avant de quitter si quelque chose a change (UX010).
+  useLeaveGuard(dirty);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // Carte 7 : champs lus sur la carte grise (surlignés tant que l'employé n'y a pas touché).

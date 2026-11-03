@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { MobileBottomNav } from './mobile-bottom-nav';
+import { PageBack } from './page-back';
 import { MyDucatiListener } from '@/components/myducati-listener';
 import { CatalogImportListener } from '@/components/catalog-import-listener';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -50,7 +51,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={onMenu} />
         {/* pb-20 : laisse la place à la barre basse sur smartphone */}
-        <main className="flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6">{children}</main>
+        <main className="flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6">
+          {/* Bouton Retour sur toutes les pages sauf les entrees du menu (UX010). */}
+          <PageBack />
+          {children}
+        </main>
       </div>
 
       <MobileBottomNav onMore={() => setMobileOpen(true)} />

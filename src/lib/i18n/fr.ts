@@ -106,6 +106,9 @@ export const fr = {
     delete: 'Supprimer',
     cancel: 'Annuler',
     confirm: 'Confirmer',
+    leaveTitle: 'Modifications non enregistrées',
+    leaveMessage: 'Des modifications de cette page ne sont pas enregistrées. Quitter la page sans les enregistrer ?',
+    leave: 'Quitter sans enregistrer',
   },
 
   // Société / contexte (multi-société COM005)

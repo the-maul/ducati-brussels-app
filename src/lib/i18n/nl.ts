@@ -95,6 +95,9 @@ export const nl: DictionaryShape = {
     delete: 'Verwijderen',
     cancel: 'Annuleren',
     confirm: 'Bevestigen',
+    leaveTitle: 'Niet-opgeslagen wijzigingen',
+    leaveMessage: 'Wijzigingen op deze pagina zijn niet opgeslagen. De pagina verlaten zonder op te slaan?',
+    leave: 'Verlaten zonder op te slaan',
   },
 
   // Société / contexte (multi-société COM005)
