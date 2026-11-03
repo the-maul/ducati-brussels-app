@@ -20,6 +20,52 @@ export {
   type FollowupMode,
 } from '../../../supabase/functions/_shared/followups-mode';
 
+/**
+ * CRM012 (03/11/2026, M-87) — Seules les echeances FIABLES declenchent une relance d'entretien.
+ * La source de l'echeance vient de `vehicle_maintenance_due.source` (M8, decision M-73) : OR du DMS,
+ * facture G8 relue, declaration du client, extract DCS... ou « plan » = ESTIMATION depuis la mise en
+ * circulation (fenetre de 180 jours), qui n'est pas une echeance connue. Constat en prod : 1 470
+ * relances sur 1 604 seraient parties sur une estimation. D'ou un reglage par societe
+ * `followup_settings.sources`, par defaut SANS « plan » ; la base applique la meme regle
+ * (migration 20261103210000).
+ */
+export const FOLLOWUP_SOURCES = ['or_dms', 'invoice_g8', 'client', 'dcs_extract', 'plan'] as const;
+export type FollowupSource = (typeof FOLLOWUP_SOURCES)[number];
+/** Sources qui ne sont qu'une estimation : jamais retenues par defaut. */
+export const ESTIMATED_SOURCES: readonly FollowupSource[] = ['plan'];
+/** Le defaut : toutes les sources connues, sans les estimations. */
+export const DEFAULT_FOLLOWUP_SOURCES: readonly FollowupSource[] = FOLLOWUP_SOURCES.filter((s) => !ESTIMATED_SOURCES.includes(s));
+
+/**
+ * Les sources retenues telles que la base les lit : inconnu / absent → defaut ; un tableau est
+ * nettoye (valeurs inconnues ignorees, doublons retires, ordre de confiance conserve). Un tableau
+ * vide reste vide (aucune relance d'entretien).
+ */
+export function normalizeFollowupSources(v: unknown): FollowupSource[] {
+  if (!Array.isArray(v)) return [...DEFAULT_FOLLOWUP_SOURCES];
+  const wanted = new Set(v.map((x) => String(x ?? '').trim().toLowerCase()));
+  return FOLLOWUP_SOURCES.filter((s) => wanted.has(s));
+}
+
+/** L'echeance peut-elle declencher une relance ? Sans source connue, on la garde (comme la base). */
+export function isRetainedSource(source: string | null | undefined, sources: readonly string[]): boolean {
+  const s = String(source ?? '').trim();
+  return s === '' || sources.includes(s);
+}
+
+/** Ce que ferait la planification : les echeances gardees et celles ecartees par leur source. */
+export function splitBySource<T extends { source?: string | null }>(rows: readonly T[], sources: readonly string[]): { kept: T[]; excluded: T[] } {
+  const kept: T[] = [];
+  const excluded: T[] = [];
+  for (const r of rows) (isRetainedSource(r.source, sources) ? kept : excluded).push(r);
+  return { kept, excluded };
+}
+
+/** Couleur du badge de source : une estimation se voit (warning), le reste est neutre. */
+export function sourceTone(source: string | null | undefined): 'warning' | 'neutral' {
+  return ESTIMATED_SOURCES.includes(source as FollowupSource) ? 'warning' : 'neutral';
+}
+
 export const FOLLOWUP_KINDS = ['entretien', 'intervention_reportee', 'manuel'] as const;
 export type FollowupKind = (typeof FOLLOWUP_KINDS)[number];
 /** Kinds qui ont un modele de mail (le kind « manuel » porte son propre texte). */

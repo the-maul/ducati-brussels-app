@@ -28,7 +28,7 @@ import {
   type Followup, type FollowupTemplate, type RenderedFollowup,
 } from '@/modules/crm/followups-api';
 import {
-  counters, fillTemplate, followupTab, statusTone, unknownVars, canSendNow, FOLLOWUP_LOCALES, TEMPLATE_KINDS, TEMPLATE_VARS, LEAD_DAYS, CALLBACK_DAYS,
+  counters, fillTemplate, followupTab, statusTone, sourceTone, unknownVars, canSendNow, FOLLOWUP_LOCALES, TEMPLATE_KINDS, TEMPLATE_VARS, LEAD_DAYS, CALLBACK_DAYS,
   type FollowupStatus, type FollowupTab, type FollowupLocale, type TemplateKind,
 } from '@/modules/crm/followups-rules';
 import { FollowupModeBanner, useFollowupSettings } from '@/modules/crm/followup-mode-banner';
@@ -43,6 +43,11 @@ import { FollowupModeBanner, useFollowupSettings } from '@/modules/crm/followup-
  * CRM011 (03/11/2026) : bandeau « Envoi des relances » en tete, toujours visible. Arrete (defaut) :
  * rien ne part, « Envoyer maintenant » grise ; test : tout part a l'adresse de test, badge « test »
  * sur les lignes envoyees ; actif : confirmation « Un vrai mail part chez <client> » avant l'envoi.
+ *
+ * CRM012 (03/11/2026, M-87) : seules les echeances FIABLES declenchent une relance d'entretien. Les
+ * sources retenues se cochent dans le bandeau (« Estimation du plan » decochee par defaut) ; chaque
+ * relance d'entretien porte un badge de source ; une relance ecartee par sa source est annulee avec
+ * le motif « source non retenue ».
  */
 export const Route = createFileRoute('/_app/crm/relances')({
   head: () => ({ meta: [{ title: pageTitle('crmFollowups') }] }),
@@ -56,6 +61,13 @@ const TABS: FollowupTab[] = ['a_envoyer', 'en_attente', 'a_rappeler'];
 const fmtDate = (iso: string | null | undefined) => (iso ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString('fr-BE', { dateStyle: 'short' }) : '—');
 const fmtDateTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const todayIso = () => new Date().toISOString().slice(0, 10);
+/** Motif d'une relance annulee par la planification (cle i18n connue, sinon le texte brut). */
+const cancelReason = (raw: string | null) => {
+  if (!raw) return null;
+  const key = `followups.reason_${raw.replace(/[^a-z0-9]+/gi, '_')}`;
+  const v = t(key);
+  return v === key ? raw : v;
+};
 const errMsg = (e: unknown) => {
   const m = (e as { message?: string } | null)?.message ?? String(e);
   const key = `followups.err_${m}`;
@@ -223,7 +235,10 @@ function FollowupsPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">
                       {date}
-                      {f.last_error && (
+                      {f.last_error && f.status === 'annulee' && (
+                        <div className="text-[11px] text-muted-foreground" title={f.last_error}>{cancelReason(f.last_error)}</div>
+                      )}
+                      {f.last_error && f.status !== 'annulee' && (
                         <div className="flex items-center gap-1 text-[11px] text-[var(--danger)]" title={f.last_error}>
                           <AlertTriangle className="size-3 shrink-0" /> {t('followups.sendError')}
                         </div>
@@ -244,6 +259,12 @@ function FollowupsPage() {
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center gap-1 text-[12px]"><Wrench className="size-3.5 text-muted-foreground" aria-hidden /> {t(`followups.kind_${f.kind}`)}</span>
+                      {/* CRM012 : la source de l'echeance (une estimation se voit) */}
+                      {f.source && (
+                        <div className="mt-0.5" title={t('followups.sourceOf')}>
+                          <StatusBadge tone={sourceTone(f.source)} label={t(`followups.src_${f.source}`)} />
+                        </div>
+                      )}
                       {f.crm_card_id && (
                         <div className="text-[11px]">
                           <Link to="/crm" search={{ lead: f.crm_card_id }} className="text-[var(--info)] hover:underline">{t('followups.openCard')}</Link>

@@ -23,6 +23,20 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Relances : seules les échéances fiables déclenchent un mail (CRM012)
+
+- **M-87** — **Une relance d'entretien automatique ne part que sur une échéance fiable.** Sources
+  retenues par défaut : OR du DMS, facture G8, déclaré par le client, extract DCS. La source
+  **« plan »** (estimation depuis la mise en circulation, fenêtre de 180 jours, M-73) **ne déclenche
+  pas de relance** sauf si un administrateur la coche en connaissance de cause (réglage par société
+  `followup_settings.sources`, bandeau de CRM → Relances, confirmation avant d'activer). Une relance
+  planifiée dont la source n'est plus retenue est annulée (`source_non_retenue`) ; chaque relance porte
+  la source de son échéance. Constat : essai à blanc en prod le 03/11 après l'import DCS, 1 604
+  relances dont 1 470 sur « plan » (437 dues le jour même) ; avec le défaut, 134 relances (extract
+  DCS), 20 dues le jour même. *Agence / Simon · 03/11/2026.* M10, M08.
+
+---
+
 ## 2026-11-03 — Relances : rien ne part chez les clients avant la mise en production (CRM011, mission 07 cartes 6-7)
 
 - **M-86** — **Les relances par mail ne partent chez les clients que le jour de la mise en production,
