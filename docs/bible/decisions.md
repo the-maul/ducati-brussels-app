@@ -8,6 +8,21 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Étude caisse remise le 03/11/2026 : cadre légal belge et marché des logiciels de caisse
+
+- **Q — étude caisse** : étude remise le 03/11/2026
+  ([`../etudes/2026-11-caisse-legal-et-marche.md`](../etudes/2026-11-caisse-legal-et-marche.md)),
+  suite à la décision du client de **garder la caisse dans le DMS**. Constats : sept points légaux
+  manquent encore au DMS — facture obligatoire dès 125 € TTC pour les pièces et accessoires moto
+  vendus à un particulier (AR n° 1, art. 1er), arrondi à 5 centimes des espèces et plafond de
+  3 000 €, journal des recettes = rapport Z numéroté et figé, registre des véhicules à moteur
+  (AR n° 1, art. 28), facture d'acompte, mention légale sur l'avoir, annulation d'un règlement par
+  contre-passation. ≈ 13 à 14 jours hors Falco, TVA marge et terminal déjà chiffrés. Onze décisions
+  posées au client et au comptable (§4 de l'étude). **Décisions en attente.** *Agence · 03/11.*
+  [M06](modules/M06-ventes-caisse.md), [M12](modules/M12-compta.md), [M08](modules/M08-atelier.md)
+
+---
+
 ## 2026-11-03 — Caisse du magasin : Shopify POS ou DMS (mission 03, question 3)
 
 - **Q — caisse Shopify** : proposition remise le 03/11/2026
