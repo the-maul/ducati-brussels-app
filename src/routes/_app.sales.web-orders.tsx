@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, CheckCircle2, CircleDashed, Clock, Ban, FlaskConical, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, XCircle,
+  AlertTriangle, CheckCircle2, CircleDashed, Clock, Ban, FlaskConical, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, ShoppingBasket, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -22,7 +22,8 @@ import {
   type WebOrder, type WebOrderDisplayStatus,
 } from '@/modules/sales/web-orders-api';
 import { eur } from '@/modules/sales/balance-panel';
-import { t, pageTitle } from '@/lib/i18n';
+import { fillBasketFromShopify } from '@/modules/purchases/basket-api';
+import { t, pageTitle, fillVars } from '@/lib/i18n';
 
 /**
  * Ventes → « Commandes du site » (mission 03, carte « Une vente sur le site crée la vente et la
@@ -104,6 +105,17 @@ function WebOrdersPage() {
       refresh();
     },
     onError: (e) => { toast.error(`${t('webOrders.errorPrefix')} : ${errMsg(e)}`); refresh(); },
+  });
+  // Mission 09 (carte 1, site) : les pièces de la commande sans stock vont dans le panier Ducati standard.
+  const toBasket = useMutation({
+    meta: { success: false, error: false },
+    mutationFn: (o: WebOrder) => fillBasketFromShopify(activeCompanyId!, o.shopifyOrderId),
+    onSuccess: (r) => {
+      if (r.added + r.merged === 0) toast.warning(t('basket.nothingToAdd'));
+      else toast.success(fillVars(t('basket.fromShopifyDone'), { n: r.added + r.merged, skip: r.skipped.length }));
+      qc.invalidateQueries({ queryKey: ['supplier-baskets', activeCompanyId] });
+    },
+    onError: (e) => toast.error(`${t('webOrders.errorPrefix')} : ${errMsg(e)}`),
   });
 
   if (!allowed) {
@@ -305,6 +317,17 @@ function WebOrdersPage() {
                       ))}
                     </td>
                     <td className="px-3 py-2 text-right">
+                      {!o.cancelledAt && o.lines.some((l) => l.articleId) && (
+                        <Button
+                          variant="outline" size="sm" className="mb-1"
+                          disabled={toBasket.isPending && toBasket.variables?.id === o.id}
+                          onClick={() => toBasket.mutate(o)}
+                          title={t('basket.fromShopifyHint')}
+                        >
+                          {toBasket.isPending && toBasket.variables?.id === o.id ? <Loader2 className="size-4 animate-spin" /> : <ShoppingBasket className="size-4" />}
+                          {t('basket.addToBasket')}
+                        </Button>
+                      )}
                       {canRetry(o) && s?.importEnabled && (
                         <Button
                           variant="outline" size="sm"

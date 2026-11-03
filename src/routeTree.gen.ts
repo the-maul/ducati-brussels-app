@@ -66,6 +66,7 @@ import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify
 import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
+import { Route as AppPurchasesBasketsRouteImport } from './routes/_app.purchases.baskets'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
 import { Route as AppPurchasesProposalRouteImport } from './routes/_app.purchases.proposal'
 import { Route as AppPurchasesReorderRouteImport } from './routes/_app.purchases.reorder'
@@ -109,6 +110,8 @@ import { Route as MonEspaceFacturesIndexRouteImport } from './routes/mon-espace.
 import { Route as MonEspaceFacturesDocumentIdRouteImport } from './routes/mon-espace.factures.$documentId'
 import { Route as MonEspaceMotosIndexRouteImport } from './routes/mon-espace.motos.index'
 import { Route as MonEspaceMotosVehicleIdRouteImport } from './routes/mon-espace.motos.$vehicleId'
+import { Route as AppPurchasesBasketsIndexRouteImport } from './routes/_app.purchases.baskets.index'
+import { Route as AppPurchasesBasketsBasketIdRouteImport } from './routes/_app.purchases.baskets.$basketId'
 import { Route as AppPurchasesSuppliersIndexRouteImport } from './routes/_app.purchases.suppliers.index'
 import { Route as AppPurchasesSuppliersSupplierIdRouteImport } from './routes/_app.purchases.suppliers.$supplierId'
 import { Route as AppPurchasesSuppliersNewRouteImport } from './routes/_app.purchases.suppliers.new'
@@ -402,6 +405,11 @@ const AppPurchasesOrderIdRoute = AppPurchasesOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => AppPurchasesRoute,
 } as any)
+const AppPurchasesBasketsRoute = AppPurchasesBasketsRouteImport.update({
+  id: '/baskets',
+  path: '/baskets',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
 const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -619,6 +627,18 @@ const MonEspaceMotosVehicleIdRoute = MonEspaceMotosVehicleIdRouteImport.update({
   path: '/motos/$vehicleId',
   getParentRoute: () => MonEspaceRoute,
 } as any)
+const AppPurchasesBasketsIndexRoute =
+  AppPurchasesBasketsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppPurchasesBasketsRoute,
+  } as any)
+const AppPurchasesBasketsBasketIdRoute =
+  AppPurchasesBasketsBasketIdRouteImport.update({
+    id: '/$basketId',
+    path: '/$basketId',
+    getParentRoute: () => AppPurchasesBasketsRoute,
+  } as any)
 const AppPurchasesSuppliersIndexRoute =
   AppPurchasesSuppliersIndexRouteImport.update({
     id: '/',
@@ -718,6 +738,7 @@ export interface FileRoutesByFullPath {
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
+  '/purchases/baskets': typeof AppPurchasesBasketsRouteWithChildren
   '/purchases/new': typeof AppPurchasesNewRoute
   '/purchases/proposal': typeof AppPurchasesProposalRoute
   '/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -766,11 +787,13 @@ export interface FileRoutesByFullPath {
   '/workshop/': typeof AppWorkshopIndexRoute
   '/mon-espace/factures/': typeof MonEspaceFacturesIndexRoute
   '/mon-espace/motos/': typeof MonEspaceMotosIndexRoute
+  '/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/purchases/baskets/': typeof AppPurchasesBasketsIndexRoute
   '/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables/': typeof AppSettingsTablesIndexRoute
   '/workshop/accidents/': typeof AppWorkshopAccidentsIndexRoute
@@ -861,11 +884,13 @@ export interface FileRoutesByTo {
   '/workshop': typeof AppWorkshopIndexRoute
   '/mon-espace/factures': typeof MonEspaceFacturesIndexRoute
   '/mon-espace/motos': typeof MonEspaceMotosIndexRoute
+  '/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/purchases/baskets': typeof AppPurchasesBasketsIndexRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables': typeof AppSettingsTablesIndexRoute
   '/workshop/accidents': typeof AppWorkshopAccidentsIndexRoute
@@ -924,6 +949,7 @@ export interface FileRoutesById {
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
+  '/_app/purchases/baskets': typeof AppPurchasesBasketsRouteWithChildren
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/purchases/proposal': typeof AppPurchasesProposalRoute
   '/_app/purchases/reorder': typeof AppPurchasesReorderRoute
@@ -972,11 +998,13 @@ export interface FileRoutesById {
   '/_app/workshop/': typeof AppWorkshopIndexRoute
   '/mon-espace/factures/': typeof MonEspaceFacturesIndexRoute
   '/mon-espace/motos/': typeof MonEspaceMotosIndexRoute
+  '/_app/purchases/baskets/$basketId': typeof AppPurchasesBasketsBasketIdRoute
   '/_app/purchases/suppliers/$supplierId': typeof AppPurchasesSuppliersSupplierIdRoute
   '/_app/purchases/suppliers/new': typeof AppPurchasesSuppliersNewRoute
   '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/_app/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/_app/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/_app/purchases/baskets/': typeof AppPurchasesBasketsIndexRoute
   '/_app/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/_app/settings/tables/': typeof AppSettingsTablesIndexRoute
   '/_app/workshop/accidents/': typeof AppWorkshopAccidentsIndexRoute
@@ -1035,6 +1063,7 @@ export interface FileRouteTypes {
     | '/parts/shopify'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
+    | '/purchases/baskets'
     | '/purchases/new'
     | '/purchases/proposal'
     | '/purchases/reorder'
@@ -1083,11 +1112,13 @@ export interface FileRouteTypes {
     | '/workshop/'
     | '/mon-espace/factures/'
     | '/mon-espace/motos/'
+    | '/purchases/baskets/$basketId'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
+    | '/purchases/baskets/'
     | '/purchases/suppliers/'
     | '/settings/tables/'
     | '/workshop/accidents/'
@@ -1178,11 +1209,13 @@ export interface FileRouteTypes {
     | '/workshop'
     | '/mon-espace/factures'
     | '/mon-espace/motos'
+    | '/purchases/baskets/$basketId'
     | '/purchases/suppliers/$supplierId'
     | '/purchases/suppliers/new'
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
+    | '/purchases/baskets'
     | '/purchases/suppliers'
     | '/settings/tables'
     | '/workshop/accidents'
@@ -1240,6 +1273,7 @@ export interface FileRouteTypes {
     | '/_app/parts/shopify'
     | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
+    | '/_app/purchases/baskets'
     | '/_app/purchases/new'
     | '/_app/purchases/proposal'
     | '/_app/purchases/reorder'
@@ -1288,11 +1322,13 @@ export interface FileRouteTypes {
     | '/_app/workshop/'
     | '/mon-espace/factures/'
     | '/mon-espace/motos/'
+    | '/_app/purchases/baskets/$basketId'
     | '/_app/purchases/suppliers/$supplierId'
     | '/_app/purchases/suppliers/new'
     | '/_app/settings/tables/$tableKey'
     | '/_app/workshop/accidents/$fileId'
     | '/_app/workshop/journey/$orId'
+    | '/_app/purchases/baskets/'
     | '/_app/purchases/suppliers/'
     | '/_app/settings/tables/'
     | '/_app/workshop/accidents/'
@@ -1712,6 +1748,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPurchasesOrderIdRouteImport
       parentRoute: typeof AppPurchasesRoute
     }
+    '/_app/purchases/baskets': {
+      id: '/_app/purchases/baskets'
+      path: '/baskets'
+      fullPath: '/purchases/baskets'
+      preLoaderRoute: typeof AppPurchasesBasketsRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
     '/_app/purchases/new': {
       id: '/_app/purchases/new'
       path: '/new'
@@ -2013,6 +2056,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonEspaceMotosVehicleIdRouteImport
       parentRoute: typeof MonEspaceRoute
     }
+    '/_app/purchases/baskets/': {
+      id: '/_app/purchases/baskets/'
+      path: '/'
+      fullPath: '/purchases/baskets/'
+      preLoaderRoute: typeof AppPurchasesBasketsIndexRouteImport
+      parentRoute: typeof AppPurchasesBasketsRoute
+    }
+    '/_app/purchases/baskets/$basketId': {
+      id: '/_app/purchases/baskets/$basketId'
+      path: '/$basketId'
+      fullPath: '/purchases/baskets/$basketId'
+      preLoaderRoute: typeof AppPurchasesBasketsBasketIdRouteImport
+      parentRoute: typeof AppPurchasesBasketsRoute
+    }
     '/_app/purchases/suppliers/': {
       id: '/_app/purchases/suppliers/'
       path: '/'
@@ -2151,6 +2208,19 @@ const AppPartsRouteWithChildren = AppPartsRoute._addFileChildren(
   AppPartsRouteChildren,
 )
 
+interface AppPurchasesBasketsRouteChildren {
+  AppPurchasesBasketsBasketIdRoute: typeof AppPurchasesBasketsBasketIdRoute
+  AppPurchasesBasketsIndexRoute: typeof AppPurchasesBasketsIndexRoute
+}
+
+const AppPurchasesBasketsRouteChildren: AppPurchasesBasketsRouteChildren = {
+  AppPurchasesBasketsBasketIdRoute: AppPurchasesBasketsBasketIdRoute,
+  AppPurchasesBasketsIndexRoute: AppPurchasesBasketsIndexRoute,
+}
+
+const AppPurchasesBasketsRouteWithChildren =
+  AppPurchasesBasketsRoute._addFileChildren(AppPurchasesBasketsRouteChildren)
+
 interface AppPurchasesSuppliersRouteChildren {
   AppPurchasesSuppliersSupplierIdRoute: typeof AppPurchasesSuppliersSupplierIdRoute
   AppPurchasesSuppliersNewRoute: typeof AppPurchasesSuppliersNewRoute
@@ -2170,6 +2240,7 @@ const AppPurchasesSuppliersRouteWithChildren =
 
 interface AppPurchasesRouteChildren {
   AppPurchasesOrderIdRoute: typeof AppPurchasesOrderIdRoute
+  AppPurchasesBasketsRoute: typeof AppPurchasesBasketsRouteWithChildren
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
   AppPurchasesProposalRoute: typeof AppPurchasesProposalRoute
   AppPurchasesReorderRoute: typeof AppPurchasesReorderRoute
@@ -2179,6 +2250,7 @@ interface AppPurchasesRouteChildren {
 
 const AppPurchasesRouteChildren: AppPurchasesRouteChildren = {
   AppPurchasesOrderIdRoute: AppPurchasesOrderIdRoute,
+  AppPurchasesBasketsRoute: AppPurchasesBasketsRouteWithChildren,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
   AppPurchasesProposalRoute: AppPurchasesProposalRoute,
   AppPurchasesReorderRoute: AppPurchasesReorderRoute,

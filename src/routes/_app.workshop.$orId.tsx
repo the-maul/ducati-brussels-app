@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
+import { BasketFromWorkshopDialog } from '@/modules/purchases/basket-from-workshop-dialog';
 import { createProposalFromOr, getProposalSignToken, listDeferredToPlan, proposalSignUrl, type DeferredIntervention } from '@/modules/workshop/checkup/api';
 import { approvalState, canStartWork } from '@/modules/workshop/checkup/rules';
 import { ApprovalPanel, VerbalApprovalDialog } from '@/modules/workshop/checkup/approval-panel';
@@ -44,6 +45,7 @@ function OrView() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [basketOpen, setBasketOpen] = useState(false);
   const [verbalOpen, setVerbalOpen] = useState(false);
   const [mail, setMail] = useState<ProposalMail | null>(null);
   const [deferredStep, setDeferredStep] = useState<DeferredIntervention[] | null>(null);
@@ -190,6 +192,7 @@ function OrView() {
               </Button>
             )}
             {!invoiced && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
+            {!invoiced && <Button variant="outline" onClick={() => setBasketOpen(true)}><ShoppingBasket /> {t('basket.addToStandard')}</Button>}
             <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
@@ -239,6 +242,12 @@ function OrView() {
             orId, orNumber: or.number, appointmentAt: null,
           }}
           onDone={partsPopupDone_}
+        />
+      )}
+      {basketOpen && (
+        <BasketFromWorkshopDialog
+          orId={orId} companyId={activeCompanyId!} contactId={or.contact_id ?? null} label={`OR ${or.number ?? ''}`.trim()}
+          onClose={() => setBasketOpen(false)}
         />
       )}
       <VerbalApprovalDialog key={String(verbalOpen)} orId={orId} open={verbalOpen} onClose={() => setVerbalOpen(false)} onDone={refresh} />

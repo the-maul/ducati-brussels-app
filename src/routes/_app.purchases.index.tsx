@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Truck, Users, ShoppingCart, PackageCheck } from 'lucide-react';
+import { Loader2, Plus, Truck, Users, ShoppingCart, ShoppingBasket, PackageCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ function PurchasesList() {
             {/* search explicite : `highlight` est facultatif mais l'objet est exige. */}
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/reorder', search: { highlight: undefined } })}><ShoppingCart /> {t('purchases.reorderTitle')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/proposal' })}><PackageCheck /> {t('purchases.proposalBtn')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/purchases/baskets' })}><ShoppingBasket /> {t('basket.title')}</Button>
             {canWrite && (
               <>
                 <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</Button>

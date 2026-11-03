@@ -23,6 +23,7 @@ import {
   Palette,
   ClipboardCheck,
   ShoppingCart,
+  ShoppingBasket,
   Wallet,
   BellRing,
   type LucideIcon,
@@ -54,6 +55,8 @@ export const mainNav: NavItem[] = [
   // signale les cas en attente. Il porte aussi les liens Shopify et la création des articles manquants,
   // c'est pourquoi on ne le supprime pas.
   { labelKey: 'nav.purchases', to: '/purchases', icon: Truck },
+  // Paniers de commande Ducati (mission 09, 03/11/2026) : sous Achats, memes droits.
+  { labelKey: 'nav.supplierBaskets', to: '/purchases/baskets', icon: ShoppingBasket, child: true },
   { labelKey: 'nav.orders', to: '/orders', icon: ShoppingCart },
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },

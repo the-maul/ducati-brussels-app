@@ -98,6 +98,12 @@ part **par mail à `cas.dwe@ducati.com`**.
   `ExportDucati.xls`** exact, le **numéro DCS** saisi à la main, le fichier **conservé** avec la
   commande, le **dossier accident** complet (photos, formulaire, mail), l'**envoi par mail** des
   classeurs, les **pièces du catalogue commandables sur Shopify**.
+- **Fait le 03/11/2026 (cartes 1, 2 et 4, à valider — détail au §8)** : le panier Ducati
+  (`supplier_baskets`, plusieurs paniers ouverts, minimax automatique quotidien, comptoir, atelier,
+  site, « Enlever ce qui est déjà en stock », minimum 250 € HTVA), le fichier `ExportDucati.xls`
+  exact (Excel 97, téléchargé et conservé en GED, régénérable), le numéro DCS saisi après coup,
+  l'urgente séparée (une par jour, sans minimum, +12 %), l'écran Achats → **Commandes fournisseur**.
+  Restent : popup entretien (carte 3), dossier accident (5), démo (6), disponibilité (7).
 
 ## 4. Questions posées à Simon le 30/10/2026 — réponses du 03/11/2026
 
@@ -133,10 +139,10 @@ part **par mail à `cas.dwe@ducati.com`**.
 
 | # | Carte | Ce qu'elle livre |
 |---|---|---|
-| 1 | **Le panier standard** | Plusieurs paniers ouverts ; lignes venues du minimax (stock sous le minimum → quantité pour remonter au-dessus ; `stock_max` ajouté), de l'atelier, du comptoir (commandes de pièces), du site ; bouton « Enlever ce qui est déjà en stock » ; minimum 250 € HTVA ; validation = date + opérateur + champ « Numéro de commande (DCS) » vide, modifiable après ; statut « Commandée » ; écran « Toutes nos commandes » filtrable par type / statut / période. |
-| 2 | **Le fichier `ExportDucati`** | Génération exacte (Line Number, Product Code, Day, Month, Year, Quantity, nom client en G), téléchargement, fichier conservé avec la commande (GED), régénérable. |
+| 1 | **Le panier standard** — 🟦 fait le 03/11/2026, à valider | Plusieurs paniers ouverts ; lignes venues du minimax (stock sous le minimum → quantité pour remonter au-dessus ; `stock_max` ajouté), de l'atelier, du comptoir (commandes de pièces), du site ; bouton « Enlever ce qui est déjà en stock » ; minimum 250 € HTVA ; validation = date + opérateur + champ « Numéro de commande (DCS) » vide, modifiable après ; statut « Commandée » ; écran « Toutes nos commandes » filtrable par type / statut / période. Détail au §8. |
+| 2 | **Le fichier `ExportDucati`** — 🟦 fait le 03/11/2026, à valider | Génération exacte (Line Number, Product Code, Day, Month, Year, Quantity, nom client en G), téléchargement, fichier conservé avec la commande (GED), régénérable. Format .xls (Excel 97), test cellule par cellule. |
 | 3 | **Popup entretien → panier** — 🟦 fait le 03/11/2026, à valider (voir §7) | À la prise d'un RDV ou à l'ouverture d'un OR avec motif entretien : pièces du kit absentes du stock → « Mettre en commande ? » → lignes dans le panier standard (ou urgent si la date est proche). |
-| 4 | **Commande urgente** | Panier séparé, une par jour, +12 % sur le prix de vente des lignes (réglable), pas de minimum, même fichier et même circuit. |
+| 4 | **Commande urgente** — 🟦 fait le 03/11/2026, à valider | Panier séparé, une par jour, +12 % sur le prix de vente des lignes (réglable), pas de minimum, même fichier et même circuit. |
 | 5 | **Dossier accident** — **faite le 03/11/2026, à valider** (voir §7) | Fiche dossier (moto / VIN, client, assurance, expert, n° de sinistre, urgence), devis lié, photos (téléphone / tablette, PDF assemblé), photo du châssis obligatoire, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis le devis, contrôle 1 500 € HTVA, bouton « Envoyer le dossier » → mail Outlook à technique.dwe@ducati.com avec les 4 pièces jointes, dossier et mail conservés, statut (brouillon / envoyé / accordé / pièces reçues / réparé / clos). |
 | 6 | **Commande démo / courtoisie** — 🟦 fait le 03/11/2026, à valider (voir §7) | Accessoires uniquement, classeur Ducati rempli (onglet choisi, `Q COMMANDE`, code concession), minimum 2 000 € par onglet, envoi par mail à cas.dwe@ducati.com, classeur conservé. |
 | 7 | **Disponibilité automatique des pièces** | Établir, source par source, ce que le DMS peut savoir automatiquement : stock Ducati Bruxelles (DMS), disponible chez Ducati (état E/F du tarif + disponibilité DCS / portail dealer, à vérifier avec Domenico), disponible chez un fournisseur tiers. Afficher ces statuts dans le DMS (recherche, devis, panier). **Ensuite** : import de tout le catalogue dans Shopify comme produits « sur commande » avec ces statuts. |
@@ -300,3 +306,126 @@ tests `tests/workshop-accident-file.test.ts`. L'ancienne fenêtre « Aide répar
    envoyer » (aperçu, 4 pièces jointes) → « Envoyer » : mail reçu avec les 4 fichiers ; dossier « Envoyé »,
    pièces dans la GED du dossier, bouton « Renvoyer ».
 6. Paramètres → Tables → « Mail du dossier accident » : changer `to`, ajouter `cc` → la fenêtre d'envoi suit.
+- **M-84** (03/11) : le panier Ducati compte son minimum **au prix d'achat** (PA, sinon PAMP, sinon
+  prix de vente HTVA, signalé) ; la commande du panier **ne touche pas au stock** (B7) ni à l'état
+  des commandes de pièces (elles restent suivies par leur propre cycle) ; une ligne peut revenir
+  plusieurs fois dans le fichier (une par client). Voir [`../decisions.md`](../decisions.md).
+- **M-85** (03/11) : les codes des règles de commande (Paramètres → Tables) sont lus **sans tenir
+  compte de la casse** : l'écran les écrit en majuscules (`URGENTE`), l'énum en minuscules, et aucune
+  règle n'était trouvée en production avant la correction.
+
+## 8. Livré le 03/11/2026 — cartes 1, 2 et 4 (à valider)
+
+Migration `supabase/migrations/20261103100000_m4_paniers_de_commande.sql` (**non appliquée**, testée
+le 03/11 en transaction annulée : minimax 15 pièces seed, relance idempotente, commande standard
+42 940 €, urgente +12 %, 2e urgente du jour refusée, numéro DCS, fichier, « enlever ce qui est en
+stock », gardes, cron, 0 mouvement de stock). Commande : `npx supabase@2.117.0 db push --linked`
+(ou le fichier en SQL Editor). Code : `src/modules/purchases/basket.ts` (règles pures), `basket-xls.ts`
+(fichier), `basket-export.ts` (téléchargement + GED), `basket-api.ts`, `basket-ui.tsx`,
+`basket-from-workshop-dialog.tsx` ; écrans `src/routes/_app.purchases.baskets.index.tsx`,
+`_app.purchases.baskets.$basketId.tsx` ; boutons dans `_app.purchases.proposal.tsx`,
+`_app.sales.web-orders.tsx`, `_app.workshop.$orId.tsx`. Test `tests/purchases-baskets.test.ts`.
+
+### Ce qui existe
+
+- **Paniers** (`supplier_baskets`) : type `standard` / `urgente` / `demo` (le démo est servi par la
+  carte 6), libellé, statut **ouvert → commandée → reçue** (ou annulé), `ordered_at` / `ordered_by`
+  (opérateur connecté, posé par le serveur), `dcs_order_number` (vide à la validation, saisi à la
+  main après), `file_path` (fichier conservé en GED), `total_ht`, `surcharge_pct` figé. **Plusieurs
+  paniers ouverts** par société. **Lignes** (`supplier_basket_lines`) : article, quantité, origine
+  (`minimax` / `atelier` / `comptoir` / `site` / `manuel`), référence d'origine (n° d'OR, de
+  commande de pièces, de commande du site), ligne d'origine, client (colonne G), prix d'achat et de
+  vente à l'ajout, stock réel à l'ajout. RLS `is_member` ; le statut, le fichier, le numéro DCS et
+  les totaux ne changent que par les fonctions (trigger de garde), chaque action est tracée dans
+  `events` (`basket_open`, `basket_lines_add`, `basket_fill_minimax`, `basket_order`,
+  `basket_dcs_number`, `basket_file`, `basket_remove_in_stock`, `basket_line_qty` / `_delete`,
+  `basket_receive`, `basket_cancel`).
+- **Minimax** : `articles.stock_max` (existait déjà en base, migration `if not exists`) ;
+  `basket_fill_minimax(_company, _basket)` : toute pièce stockée (`A`, active) avec `stock_min > 0`
+  et stock réel sous le minimum → quantité = `greatest(stock_max, stock_min) − stock réel − déjà en
+  commande` (CMD validées + commandes de pièces + lignes des autres paniers en cours + lignes non
+  minimax de ce panier) ; relancer met à jour les quantités (pas de doublon) et retire les lignes
+  minimax dont le besoin a disparu. Bouton « Remplir depuis les minimums » (liste et panier) et
+  **tâche pg_cron `basket-minimax-daily`** (04:00 UTC) sur le panier standard ouvert le plus récent,
+  créé s'il n'existe pas (`_cron_basket_minimax`). `stock_min` / `stock_max` se règlent sur la fiche
+  article (champs « Stock mini » / « Stock maxi », déjà présents).
+- **Comptoir** : Achats → Commandes de pièces à passer → par fournisseur, bouton **« Mettre dans le
+  panier »** sur les pièces cochées (`basket_fill_from_part_orders`) : qté client → ligne au nom du
+  client, qté magasin → ligne pour le stock ; une pièce d'une commande **urgente** va dans le panier
+  urgente, les autres dans le standard ; ignorées : déjà dans une CMD (`purchase_line_id`), déjà dans
+  un panier en cours, commande non validée, sans article.
+- **Atelier** : sur un OR, bouton **« Ajouter au panier standard »** → pièces manquantes de l'OR
+  (même calcul que « Commander les pièces manquantes » : kit + pièces du technicien − libre − en
+  commande − brouillons), cochables, quantité modifiable → `basket_add_lines` (origine `atelier`,
+  réf. = n° d'OR, client de l'OR).
+- **Site** : Ventes → Commandes du site, bouton **« Mettre dans le panier »** par commande
+  (`basket_fill_from_shopify`) : lignes avec article dont le stock réel ne couvre pas la quantité
+  (quantité − stock réel), origine `site`, réf. = n° Shopify, client de la commande.
+- **« Enlever ce qui est déjà en stock »** (`basket_remove_in_stock`) : retire les lignes dont le
+  stock réel ≥ quantité.
+- **Validation** (`basket_check` / `basket_order`) : règles lues dans Paramètres → Tables → Règles des
+  types de commande (`part_order_rules`, désormais **insensible à la casse**, M-85) : standard
+  **minimum 250 € HTVA** ; urgente **sans minimum**, **une par jour** (paniers urgente commandés le
+  même jour, heure de Bruxelles, verrou de société), **+12 %** (`surcharge_pct`, valeur par défaut
+  passée de 10 à 12 par la migration là où elle n'avait pas été modifiée) ; panier vide refusé ;
+  messages en clair. Total HTVA = Σ qté × PA (sinon PAMP, sinon PV HTVA — signalé « au PV »). À la
+  validation : date + opérateur, statut « Commandée », supplément figé, numéro DCS vide ; le
+  navigateur génère le fichier, le télécharge et le dépose en GED (`basket_set_file`). Le +12 % se
+  voit sur la colonne « PV client HTVA » des lignes commandées pour un client (le prix d'achat n'est
+  jamais touché) ; la commande de pièces urgente, elle, applique déjà le supplément à sa validation.
+- **Fichier `ExportDucati.xls`** (`basket-xls.ts`) : feuille unique `Sheet1`, ligne 1 = `Line Number`,
+  `Product Code`, `Day`, `Month`, `Year`, `Quantity` (A-F), lignes 2-3 vides, données dès la **ligne
+  4** : n° 1..n, référence, jour, mois, année (date de la commande, nombres), quantité ; **colonne G
+  = NOM PRENOM** en majuscules pour les lignes commandées pour un client (société sinon), vide pour
+  le stock ; une ligne par ligne du panier (la même référence peut revenir, une par client). Format
+  **Excel 97 / BIFF8** (SheetJS `bookType: 'biff8'`), nom `ExportDucati.xls` / `ExportDucati_URGENTE.xls`.
+  Téléchargé à la commande, conservé en GED (bucket `ged`, entité `supplier_basket`, dossier
+  « Commandes fournisseur »), lien « Fichier conservé », **« Régénérer et conserver »** à volonté.
+- **Numéro DCS** : champ « Numéro de commande (DCS) » sur un panier commandé ou reçu
+  (`basket_set_dcs_number`, tracé) ; badge « Numéro DCS à saisir » tant qu'il est vide.
+- **Écran Achats → Commandes fournisseur** (`/purchases/baskets`, entrée de menu sous Achats, mêmes
+  droits) : liste par statut / type / période, compteurs, total des paniers commandés, n° DCS,
+  fichier à retélécharger ; panier : lignes (réf., désignation, origine, client, qté modifiable,
+  stock réel, PA, PV client, montant), règles du type en direct, GED, boutons.
+- **Pour les autres lots** : `basket_add_lines(_company uuid, _kind text, _lines jsonb)` avec
+  `_lines = [{article_id, qty, origin, origin_ref, origin_line_id, contact_id}]` (origine parmi
+  `minimax | atelier | comptoir | site | manuel`) ajoute au panier **ouvert le plus récent** du type
+  (créé s'il n'existe pas, libellé « Standard du JJ/MM/AAAA ») et renvoie `{basket_id, added, merged,
+  skipped}` ; une ligne de même article / origine / référence / client est cumulée.
+  `basket_add_lines_to(_basket, _lines)` vise un panier précis ; `basket_current(_company, _kind)`
+  donne (ou crée) le panier ouvert. TypeScript : `addBasketLines` / `addBasketLinesTo` dans
+  `src/modules/purchases/basket-api.ts`. Le démo (carte 6) utilise `kind = 'demo'` (règle « excel »,
+  pas de minimum par panier : le classeur a le sien).
+
+### Limites et questions
+
+- Le panier **ne fait pas passer** la commande de pièces à « Envoyée » et ne crée pas de CMD M04 :
+  les deux circuits coexistent (la proposition par fournisseur reste pour les autres fournisseurs).
+  À trancher : faut-il qu'une pièce mise au panier disparaisse de « Commandes de pièces à passer » ?
+- Le minimum est compté au **prix d'achat** ; beaucoup d'articles n'en ont pas (PV utilisé, signalé).
+  Si Domenico veut le minimum au prix de vente, c'est un réglage de `basket_check` (M-84).
+- La **réception** d'un panier (statut « reçue ») est un simple marquage : le stock entre toujours par
+  Achats → Nouvelle réception (B7). Le lien panier ↔ réception n'est pas modélisé.
+- La colonne G n'est pas encore confirmée par le DCS (§4 q. 2) : remplie en attendant.
+
+### À tester
+
+1. Achats → **Commandes fournisseur** → **Remplir depuis les minimums** : un panier standard s'ouvre
+   avec les pièces sous leur mini (seed : 15 lignes SEED-A), quantités = maxi − stock. Relancer : rien
+   ne double. Changer « Stock mini / maxi » d'une pièce (Pièces → fiche) et relancer.
+2. Sur un OR avec un kit d'entretien non stocké : **Ajouter au panier standard** → la fenêtre liste les
+   manquantes → le panier s'ouvre, origine « Atelier OR-… », client de l'OR.
+3. Achats → Commandes de pièces à passer : cocher des pièces → **Mettre dans le panier** : les pièces
+   d'une commande urgente vont dans un panier urgente, les autres dans le standard ; recliquer :
+   « ignorées (déjà dans un panier) ».
+4. Ventes → Commandes du site → **Mettre dans le panier** sur une commande avec une pièce sans stock.
+5. Panier : **Enlever ce qui est déjà en stock** ; modifier une quantité ; sous 250 € HTVA le badge dit
+   « Pas encore commandable » et le bouton **Commander** est grisé ; au-dessus : **Commander** → le
+   fichier `ExportDucati.xls` se télécharge (ligne 4 = première pièce, colonne G = nom du client),
+   le panier passe « Commandée » avec date et opérateur, le fichier est dans la GED du panier.
+6. Saisir le **numéro de commande (DCS)** → enregistré, visible dans la liste. **Régénérer et
+   conserver** → nouveau fichier en GED.
+7. **Nouveau panier urgente** + une pièce → **Commander** (pas de minimum, PV client +12 %, fichier
+   `ExportDucati_URGENTE.xls`) ; un second panier urgente le même jour → refus « 1 par jour au maximum ».
+8. Paramètres → Tables → Règles des types de commande : l'urgente affiche 12 % ; changer le minimum
+   standard (ex. 300) → le panier suit.

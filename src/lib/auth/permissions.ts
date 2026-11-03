@@ -42,6 +42,8 @@ export const PAGE_RULES: PageRule[] = [
   // Rapprochements avant Pièces : préfixe plus long.
   { to: '/parts/links', write: ['magasinier'], read: ['mecanicien', 'chef_atelier'] },
   { to: '/parts', write: ['magasinier', 'chef_atelier', 'comptable'], read: ['vendeur', 'mecanicien', 'marketing'] },
+  // Achats -> commandes fournisseur (paniers Ducati, mission 09, 03/11/2026) : memes droits que les achats.
+  { to: '/purchases/baskets', write: ['magasinier', 'mecanicien', 'chef_atelier'], read: ['comptable'] },
   { to: '/purchases', write: ['magasinier', 'mecanicien', 'chef_atelier'], read: ['comptable'] },
   { to: '/orders', write: ['vendeur', 'magasinier', 'mecanicien', 'chef_atelier'], read: ['comptable'] },
   { to: '/stock', write: ['magasinier', 'mecanicien', 'chef_atelier'], read: ['vendeur', 'comptable', 'marketing'] },
@@ -87,6 +89,8 @@ export const PAGE_ALIASES: Record<string, string> = {
   '/preparation': '/picking',
   // Clients (CRM) -> relances d'entretien par mail (31/10/2026, M-72) : memes droits que le CRM.
   '/crm/relances': '/crm',
+  // Achats -> commandes fournisseur (paniers Ducati, mission 09) : memes droits que les achats.
+  '/purchases/baskets': '/purchases',
 };
 
 /** La règle qui gouverne un chemin : le préfixe le plus long qui corresponde. */

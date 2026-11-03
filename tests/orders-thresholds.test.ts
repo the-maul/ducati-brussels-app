@@ -17,13 +17,13 @@ const base = { isActive: true, configured: true, minHt: null, surchargePct: 0, m
 // Réglage initial de Paramètres → Tables → Règles des types de commande
 const RULES: OrderRule[] = [
   { ...base, code: 'standard', label: 'Commande standard', sortOrder: 1, minHt: 250 },
-  { ...base, code: 'urgente', label: 'Commande urgente', sortOrder: 2, minHt: 0, surchargePct: 10, maxPerDay: 1 },
+  { ...base, code: 'urgente', label: 'Commande urgente', sortOrder: 2, minHt: 0, surchargePct: 12, maxPerDay: 1 },
   { ...base, code: 'accident', label: 'Commande accident', sortOrder: 3, minHt: 1500, fallback: 'standard' },
   { ...base, code: 'excel', label: 'Commande Excel', sortOrder: 4, minHtPerTab: 2000 },
 ];
 
-test('supplément : urgente = +10 %, les autres 0 %', () => {
-  expect(surchargeForKind('urgente', RULES)).toBe(10);
+test('supplément : urgente = +12 % (M-78, 03/11/2026), les autres 0 %', () => {
+  expect(surchargeForKind('urgente', RULES)).toBe(12);
   expect(surchargeForKind('standard', RULES)).toBe(0);
   expect(surchargeForKind('excel', RULES)).toBe(0);
   expect(surchargeForKind('accident', RULES)).toBe(0);
@@ -44,8 +44,8 @@ test('urgente : pas de minimum bloquant', () => {
   expect(resolveKind('urgente', 0, RULES)).toEqual({ effectiveKind: 'urgente', thresholdMet: true });
 });
 
-test('prix client ligne : urgente applique +10 %', () => {
-  expect(clientLinePrice(100, 2, 'urgente', RULES)).toBe(220);
+test('prix client ligne : urgente applique +12 %', () => {
+  expect(clientLinePrice(100, 2, 'urgente', RULES)).toBe(224);
   expect(clientLinePrice(100, 2, 'standard', RULES)).toBe(200);
 });
 
@@ -73,7 +73,7 @@ test('contrôle : standard sous 250 € refusée, au-dessus acceptée', () => {
 test('contrôle : urgente, une seule par jour et par société', () => {
   const first = checkOrderRules({ kind: 'urgente', totalHt: 30, lineCount: 1, validatedToday: 0, isDraft: true }, RULES);
   expect(first.ok).toBe(true);
-  expect(first.surchargePct).toBe(10);
+  expect(first.surchargePct).toBe(12);
   const second = checkOrderRules({ kind: 'urgente', totalHt: 30, lineCount: 1, validatedToday: 1, isDraft: true }, RULES);
   expect(second.ok).toBe(false);
   expect(second.errors[0]).toMatchObject({ code: 'daily_limit', max: 1 });

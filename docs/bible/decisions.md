@@ -47,6 +47,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   défaut** (Simon, 03/11 après-midi : ne pas pré-remplir `xavier.labranche@ducati.com`), modifiable à la
   main ou réglable dans la même table. Les 4 pièces jointes sont régénérées à chaque envoi et conservées
   dans la GED du dossier avec le mail (date, destinataires, objet). *Client / Simon · 03/11.* M8, M9.
+## 2026-11-03 — Panier de commande Ducati : minimax, comptoir, atelier, site, urgente +12 %, fichier ExportDucati (mission 09, cartes 1, 2, 4)
+
+- **M-84** — **Le panier est la commande Ducati en préparation.** Plusieurs paniers ouverts par société
+  (standard, urgente, démo) ; le minimax quotidien remplit le standard depuis le **stock réel** (pas le
+  disponible) vers `stock_max`, en déduisant ce qui est déjà en commande ; le minimum (standard 250 € HTVA)
+  est compté **au prix d'achat** (PA, sinon PAMP, sinon prix de vente HTVA signalé) ; l'urgente est
+  **une par jour, sans minimum, +12 %** sur le prix de vente des lignes commandées pour un client (jamais
+  sur le prix d'achat). À la commande : date + opérateur, statut « Commandée », fichier `ExportDucati.xls`
+  (Excel 97) téléchargé **et conservé** en GED, numéro DCS **vide puis saisi à la main**. La commande du
+  panier **ne touche pas au stock** (B7 : il entre à la réception) ni à l'état des commandes de pièces :
+  les deux circuits coexistent jusqu'à la validation de Domenico. *Mission 09 §7 · 03/11.* M04, M05.
+- **M-85** — **Les codes des règles de commande se lisent sans tenir compte de la casse.** L'écran
+  Paramètres écrit `URGENTE`, `STANDARD`… alors que l'énum est en minuscules : avant la correction, aucune
+  règle n'était trouvée en production (ni minimum, ni « une par jour », ni supplément). La migration du
+  03/11 corrige `part_order_rules`, passe le supplément urgente de 10 à 12 % (M-78) là où la valeur par
+  défaut n'avait pas été touchée, et insère les règles par défaut d'une société qui n'en a aucune.
+  *Constat en base · 03/11.* M04.
 
 ## 2026-10-30 — Relances d'entretien : le marketing envoie, le commercial rappelle (mission 07, cartes 6 et 7)
 

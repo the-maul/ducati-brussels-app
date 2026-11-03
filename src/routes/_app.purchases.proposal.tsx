@@ -9,7 +9,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, FileDown, FileQuestion, Loader2, Mail, PackageCheck, Truck, Info,
+  AlertTriangle, ArrowLeft, CheckCircle2, FileDown, FileQuestion, Loader2, Mail, PackageCheck, ShoppingBasket, Truck, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -36,6 +36,8 @@ import {
   createSupplierOrder, getSupplierProposal, setProposalLineSupplier, type SupplierOrderResult,
 } from '@/modules/purchases/proposal-api';
 import { SupplierMailDialog, type SupplierMailKind } from '@/modules/purchases/supplier-mail-dialog';
+import { fillBasketFromPartOrders } from '@/modules/purchases/basket-api';
+import { fillVars } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/purchases/proposal')({
   head: () => ({ meta: [{ title: pageTitle('purchasesProposal') }] }),
@@ -97,6 +99,20 @@ function ProposalPage() {
       qc.invalidateQueries({ queryKey: ['part-orders'] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('proposal.errGeneric')),
+  });
+
+  // Mission 09 (carte 1, comptoir) : les pièces cochées vont dans le panier Ducati (urgente ou standard
+  // selon le type de la commande de pièces) ; déjà dans une CMD ou dans un panier en cours = ignorées.
+  const toBasket = useMutation({
+    meta: { success: false },
+    mutationFn: (g: SupplierGroup) => fillBasketFromPartOrders(activeCompanyId!, selectedOf(g).map((l) => l.line_id)),
+    onSuccess: (r) => {
+      const std = r.standard ? r.standard.added + r.standard.merged : 0;
+      const urg = r.urgente ? r.urgente.added + r.urgente.merged : 0;
+      if (std + urg === 0) toast.warning(t('basket.nothingToAdd'));
+      else toast.success(fillVars(t('basket.fromProposalDone'), { std, urg, skip: r.skipped.length }));
+      qc.invalidateQueries({ queryKey: ['supplier-baskets', activeCompanyId] });
+    },
   });
 
   const selectable = (l: ProposalRow) => !isExcel(l) && !!l.supplier_id;
@@ -175,6 +191,9 @@ function ProposalPage() {
                       </Button>
                       <Button size="sm" variant="outline" disabled={sel.length === 0} onClick={() => setMail({ kind: 'order', group: g, lines: sel })}>
                         <Mail /> {t('proposal.actMailOrder')}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={sel.length === 0 || toBasket.isPending} onClick={() => toBasket.mutate(g)}>
+                        {toBasket.isPending && toBasket.variables?.key === g.key ? <Loader2 className="animate-spin" /> : <ShoppingBasket />} {t('basket.addToBasket')}
                       </Button>
                       <Button size="sm" disabled={sel.length === 0 || create.isPending} onClick={() => setConfirm(g)}>
                         {create.isPending && create.variables?.key === g.key ? <Loader2 className="animate-spin" /> : <PackageCheck />} {t('proposal.actValidate')}
