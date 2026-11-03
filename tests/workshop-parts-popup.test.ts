@@ -36,8 +36,15 @@ describe('pieces manquantes = kit − stock − en commande', () => {
     expect(missing[0].qtyNeeded).toBe(5);
     expect(missing[0].qtyMissing).toBe(4);
   });
-  test('pieces « a confirmer » ou sans article ni reference : pas proposees', () => {
-    expect(missingKitParts([line({ reference: 'X', confidence: 'a_confirmer' }), { ...line({ reference: '' }), articleId: null }])).toEqual([]);
+  test('pieces « absentes » du catalogue ou sans article ni reference : pas proposees', () => {
+    expect(missingKitParts([line({ reference: 'X', confidence: 'absent' }), { ...line({ reference: '' }), articleId: null }])).toEqual([]);
+  });
+  test('deux references pour la meme piece (« on garde les deux », M-90) : les deux sont proposees', () => {
+    const missing = missingKitParts([
+      line({ reference: '42710251A', quantity: 2, confidence: 'a_confirmer' }),
+      line({ reference: '44440312B', quantity: 1, confidence: 'a_confirmer' }),
+    ]);
+    expect(missing.map((m) => [m.reference, m.qtyMissing])).toEqual([['42710251A', 2], ['44440312B', 1]]);
   });
 });
 

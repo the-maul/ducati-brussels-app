@@ -15,6 +15,8 @@ import { test, expect } from 'bun:test';
 import {
   deduceFamilies, catalogLineMatches, resolveFamily, engineFamilyKey, kitSignature,
   buildPickingDraft, workshopMissingQty, dcsKindOfWorkshopOrder, kitToConfirmCount, kitIsReady,
+  kitLineFlag, kitMultiRefCount, kitAbsentCount, generationPercent,
+  serviceKindOf, kitLineSource, addGenerationTotals, EMPTY_GENERATION_TOTALS,
   type NeedRule, type CatalogRule, type CatalogLine, type PartFamily, type KitItem,
 } from '../src/modules/workshop/kits/rules';
 
@@ -153,24 +155,34 @@ test('courroies de distribution : plusieurs références = plusieurs pièces, un
   expect(parts.every((p) => p.confidence === 'sur')).toBe(true);
 });
 
-test('filtre à air : plusieurs variantes = à confirmer par l\'atelier, on n\'en choisit aucune', () => {
+test('filtre à huile en deux références sur la même moto : on garde les deux (M-90), chacune sa ligne et sa quantité', () => {
+  // cas réel Panigale V4 2024 : 42710251A sur deux vues (×2), 44440312B sur une (×1)
   const lines = [
-    line({ reference: '42610191A', description: 'FILTRE A AIR', drawingId: 'a', drawingDescription: 'ADMISSION' }),
-    line({ reference: '42610491A', description: 'FILTRE A AIR', drawingId: 'b', drawingDescription: 'FILTRE A AIR' }),
+    line({ reference: '42710251A', description: 'FILTRE A HUILE', drawingId: 'a', drawingDescription: 'CARTER HUILE' }),
+    line({ reference: '42710251A', description: 'FILTRE A HUILE', drawingId: 'b', drawingDescription: 'POMPE A HUILE COMPLETE' }),
+    line({ reference: '44440312B', description: 'FILTRE A HUILE', drawingId: 'c', drawingDescription: 'FILTRE A HUILE' }),
   ];
-  const [p] = resolveFamily(fam('filtre_air'), RULE.filtre_air, lines);
-  expect(p.confidence).toBe('a_confirmer');
-  expect(p.references).toEqual(['42610191A', '42610491A']);
+  const parts = resolveFamily(fam('filtre_huile'), RULE.filtre_huile, lines);
+  expect(parts).toHaveLength(2);
+  expect(parts.map((p) => [p.reference, p.quantity])).toEqual([['42710251A', 2], ['44440312B', 1]]);
+  // les deux lignes savent qu'elles sont des variantes l'une de l'autre et restent « à confirmer »
+  expect(parts.every((p) => p.confidence === 'a_confirmer')).toBe(true);
+  expect(parts.every((p) => p.references.join(',') === '42710251A,44440312B')).toBe(true);
 });
 
-test('une famille obligatoire absente du catalogue passe « à confirmer », une famille optionnelle « non applicable »', () => {
-  expect(resolveFamily(fam('filtre_air'), RULE.filtre_air, [])[0].confidence).toBe('a_confirmer');
+test('une seule référence trouvée : ligne sûre', () => {
+  const [p] = resolveFamily(fam('filtre_air'), RULE.filtre_air, [line({ reference: '42610191A', description: 'FILTRE A AIR' })]);
+  expect(p).toMatchObject({ reference: '42610191A', references: ['42610191A'], quantity: 1, confidence: 'sur' });
+});
+
+test('une famille obligatoire absente du catalogue est « absente » (signalée), une famille optionnelle « non applicable »', () => {
+  expect(resolveFamily(fam('filtre_air'), RULE.filtre_air, [])[0]).toMatchObject({ reference: null, references: [], confidence: 'absent' });
   expect(resolveFamily(fam('joint_bougie', { optional: true }), RULE.joint_bougie, [])[0].confidence).toBe('non_applicable');
 });
 
-test('sans règle de catalogue, rien n\'est inventé', () => {
+test('sans règle de catalogue, rien n\'est inventé : besoin absent', () => {
   expect(resolveFamily(fam('filtre_huile'), undefined, [line({ reference: 'x', description: 'FILTRE A HUILE' })])[0].confidence)
-    .toBe('a_confirmer');
+    .toBe('absent');
 });
 
 // --- famille de moteur et signature de kit ---------------------------------
@@ -194,11 +206,22 @@ test('deux motos au même moteur partagent la clé, une moto sans pièce moteur 
 });
 
 test('la signature du kit ne dépend pas de l\'ordre des lignes mais bien des quantités', () => {
-  const a = [{ familyCode: 'bougie', references: ['A'], quantity: 2 }, { familyCode: 'filtre_huile', references: ['B'], quantity: 1 }];
-  const b = [{ familyCode: 'filtre_huile', references: ['B'], quantity: 1 }, { familyCode: 'bougie', references: ['A'], quantity: 2 }];
-  const c = [{ familyCode: 'bougie', references: ['A'], quantity: 4 }, { familyCode: 'filtre_huile', references: ['B'], quantity: 1 }];
+  const a = [{ familyCode: 'bougie', reference: 'A', quantity: 2 }, { familyCode: 'filtre_huile', reference: 'B', quantity: 1 }];
+  const b = [{ familyCode: 'filtre_huile', reference: 'B', quantity: 1 }, { familyCode: 'bougie', reference: 'A', quantity: 2 }];
+  const c = [{ familyCode: 'bougie', reference: 'A', quantity: 4 }, { familyCode: 'filtre_huile', reference: 'B', quantity: 1 }];
   expect(kitSignature(a)).toBe(kitSignature(b));
   expect(kitSignature(a)).not.toBe(kitSignature(c));
+  // deux références gardées pour le même besoin : deux lignes, donc une signature différente d'une seule
+  const d = [...a, { familyCode: 'filtre_huile', reference: 'B2', quantity: 1 }];
+  expect(kitSignature(d)).not.toBe(kitSignature(a));
+});
+
+test('avancement de la génération par lots, en pour cent', () => {
+  expect(generationPercent(0, 370)).toBe(0);
+  expect(generationPercent(40, 370)).toBe(11);
+  expect(generationPercent(370, 370)).toBe(100);
+  expect(generationPercent(400, 370)).toBe(100);
+  expect(generationPercent(10, 0)).toBe(0);
 });
 
 // --- étage 3 : la picking list et le manquant ------------------------------
@@ -263,13 +286,77 @@ test('seule la commande urgente sort un fichier DCS URGENTE (ACH001)', () => {
 
 // --- état d'un kit ---------------------------------------------------------
 
-test('un kit n\'est prêt que si chaque ligne a un article et est confirmée', () => {
+test('un kit n\'est prêt que si chaque ligne a un article et qu\'aucune n\'est absente ; « à confirmer » ne bloque plus', () => {
   const ok = [kitItem({ id: '1', designation: 'A' }), kitItem({ id: '2', designation: 'B' })];
   expect(kitIsReady(ok)).toBe(true);
   expect(kitToConfirmCount(ok)).toBe(0);
 
   const doubt = [...ok, kitItem({ id: '3', designation: 'Huile', articleId: null, confidence: 'a_confirmer' })];
-  expect(kitIsReady(doubt)).toBe(false);
+  expect(kitIsReady(doubt)).toBe(false);          // pas d'article désigné
   expect(kitToConfirmCount(doubt)).toBe(1);
+
+  // deux références gardées, toutes deux avec un article : le kit sert (M-90)
+  const both = [...ok,
+    kitItem({ id: '4', designation: 'FILTRE A HUILE', reference: '42710251A', confidence: 'a_confirmer', catalogRefs: ['42710251A', '44440312B'] }),
+    kitItem({ id: '5', designation: 'FILTRE A HUILE', reference: '44440312B', confidence: 'a_confirmer', catalogRefs: ['42710251A', '44440312B'] })];
+  expect(kitIsReady(both)).toBe(true);
+  expect(kitToConfirmCount(both)).toBe(2);
+
+  const absent = [...ok, kitItem({ id: '6', designation: 'Filtre à air', articleId: null, confidence: 'absent' })];
+  expect(kitIsReady(absent)).toBe(false);
   expect(kitIsReady([])).toBe(false);
+});
+
+test('ce que l\'écran dit d\'une ligne : plusieurs références, article à désigner, absente, rien', () => {
+  expect(kitLineFlag({ confidence: 'a_confirmer', catalogRefs: ['A', 'B'] })).toBe('plusieurs_refs');
+  expect(kitLineFlag({ confidence: 'a_confirmer', catalogRefs: ['A'] })).toBe('a_designer');
+  expect(kitLineFlag({ confidence: 'a_confirmer' })).toBe('a_designer');
+  expect(kitLineFlag({ confidence: 'absent', catalogRefs: [] })).toBe('absent');
+  expect(kitLineFlag({ confidence: 'sur', catalogRefs: ['A'] })).toBe(null);
+  const items = [
+    kitItem({ id: '1', designation: 'a', confidence: 'a_confirmer', catalogRefs: ['A', 'B'] }),
+    kitItem({ id: '2', designation: 'b', confidence: 'a_confirmer', catalogRefs: ['A', 'B'] }),
+    kitItem({ id: '3', designation: 'c', confidence: 'absent' }),
+    kitItem({ id: '4', designation: 'd' }),
+  ];
+  expect(kitMultiRefCount(items)).toBe(2);
+  expect(kitAbsentCount(items)).toBe(1);
+});
+
+// --- type d'entretien et provenance (03/11, M-91 / M-92) -------------------
+
+test("type d'entretien : plan, manuel et extract DCS parlent du même entretien", () => {
+  // plan (posters)
+  expect(serviceKindOf('first_1000')).toBe('first_1000');
+  expect(serviceKindOf('oil')).toBe('oil');
+  expect(serviceKindOf('annual')).toBe('annual');
+  expect(serviceKindOf('desmo_plus_annual_ou_oil')).toBe('desmo');
+  // manuels
+  expect(serviceKindOf('oil_service_1000')).toBe('first_1000');
+  expect(serviceKindOf('oil_service')).toBe('oil');
+  expect(serviceKindOf('annual_service')).toBe('annual');
+  expect(serviceKindOf('temporel')).toBe('annual');
+  expect(serviceKindOf('15000_km', 15000, 12)).toBe('oil');
+  expect(serviceKindOf('30000_km', 30000, 24)).toBe('desmo');
+  // « 10 000 km » n'est pas le 1er entretien des 1 000 km
+  expect(serviceKindOf('10000_km', 10000)).toBe('oil');
+  expect(serviceKindOf('1000_km', 1000)).toBe('first_1000');
+  // extract DCS (normalisé comme dans le popup)
+  expect(serviceKindOf('annual_service')).toBe('annual');
+  expect(serviceKindOf('oil_service_1000km_600mi')).toBe('first_1000');
+  expect(serviceKindOf('liquide_freins_embrayage')).toBe(null);
+});
+
+test("provenance affichée d'une ligne : manuel, plan, règle ou atelier", () => {
+  expect(kitLineSource({ origin: 'deduit', provenance: { besoin: 'manuel', reference: 'catalogue' } })).toBe('manuel');
+  expect(kitLineSource({ origin: 'deduit', provenance: { besoin: 'plan' } })).toBe('plan');
+  expect(kitLineSource({ origin: 'deduit', provenance: { besoin: 'regle' } })).toBe('regle');
+  expect(kitLineSource({ origin: 'deduit', provenance: null })).toBe('regle');
+  expect(kitLineSource({ origin: 'ajoute', provenance: { besoin: 'manuel' } })).toBe('atelier');
+});
+
+test("les compteurs des lots s'additionnent, les valeurs manquantes valent zéro", () => {
+  const a = addGenerationTotals(EMPTY_GENERATION_TOTALS, { modelYears: 15, created: 4, linked: 30, itemsMultiRef: 2 });
+  const b = addGenerationTotals(a, { modelYears: 15, created: 1, reused: 9, itemsAbsent: 1 });
+  expect(b).toEqual({ modelYears: 30, created: 5, reused: 9, linked: 30, skipped: 0, itemsMultiRef: 2, itemsAbsent: 1 });
 });

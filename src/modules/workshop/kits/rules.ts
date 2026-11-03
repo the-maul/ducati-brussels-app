@@ -12,10 +12,14 @@
  *                 (« Remplacement des bougies ») ou non (« Contrôle des bougies ») ;
  *   2. PIÈCE    — on cherche la référence dans les vues éclatées du catalogue Ducati
  *                 DU MODÈLE-ANNÉE concerné ; plusieurs références = soit toutes
- *                 nécessaires (2 courroies), soit une ambiguïté à trancher par l'atelier ;
+ *                 nécessaires (2 courroies), soit des variantes : depuis le 03/11 (M-90,
+ *                 « on garde les deux ») chaque référence fait SA ligne de kit, marquée
+ *                 « plusieurs références dans le catalogue » ; l'atelier retire à l'écran ;
  *   3. MANQUANT — besoin − libre − en commande − déjà en brouillon.
  *
- * Rien n'est inventé : ce qui n'est pas sûr sort en `a_confirmer`.
+ * Rien n'est inventé. Trois niveaux : `sur`, `a_confirmer` (plusieurs références, ou article
+ * du DMS à désigner : ne bloque pas l'usage), `absent` (aucune référence trouvée : signalé,
+ * jamais proposé à la commande).
  */
 
 /** Famille de pièce d'entretien (table `maintenance_part_families`). */
@@ -54,13 +58,18 @@ export type CatalogLine = {
   quantity?: number | null;
 };
 
-export type Confidence = 'sur' | 'a_confirmer' | 'non_applicable';
+export type Confidence = 'sur' | 'a_confirmer' | 'absent' | 'non_applicable';
 
-/** Une pièce déduite pour une échéance d'entretien. */
+/**
+ * Une pièce déduite pour une échéance d'entretien : UNE ligne par référence (M-90).
+ * `reference` est la référence de cette ligne ; `references` toutes celles trouvées pour le
+ * besoin (plus d'une = « plusieurs références dans le catalogue »).
+ */
 export type DeducedPart = {
   familyCode: string;
   kind: PartFamilyKind;
   optional: boolean;
+  reference: string | null;
   references: string[];
   quantity: number | null;
   confidence: Confidence;
@@ -119,9 +128,13 @@ export function resolveFamily(
   rule: CatalogRule | undefined,
   lines: CatalogLine[],
 ): DeducedPart[] {
-  if (!rule) {
-    return [{ familyCode: family.code, kind: family.kind, optional: family.optional, references: [], quantity: null, confidence: family.optional ? 'non_applicable' : 'a_confirmer' }];
-  }
+  // aucune référence trouvée : signalé « absent » (famille ferme) ou non applicable (optionnelle)
+  const none = (): DeducedPart[] => [{
+    familyCode: family.code, kind: family.kind, optional: family.optional,
+    reference: null, references: [], quantity: null,
+    confidence: family.optional ? 'non_applicable' : 'absent',
+  }];
+  if (!rule) return none();
   const matched = lines.filter((l) => catalogLineMatches(l, rule));
   // une même référence peut revenir sur plusieurs vues (culasse verticale + horizontale)
   const byRef = new Map<string, number>();
@@ -133,22 +146,21 @@ export function resolveFamily(
     byRef.set(l.reference, (byRef.get(l.reference) ?? 0) + Math.max(num(l.quantity) || 1, 1));
   }
   const refs = [...byRef.keys()].sort();
-  if (refs.length === 0) {
-    return [{ familyCode: family.code, kind: family.kind, optional: family.optional, references: [], quantity: null, confidence: family.optional ? 'non_applicable' : 'a_confirmer' }];
-  }
+  if (refs.length === 0) return none();
   if (rule.takeAll) {
+    // toutes nécessaires (2 courroies) : chacune est une pièce à part entière, sûre
     return refs.map((ref) => ({
       familyCode: family.code, kind: family.kind, optional: family.optional,
-      references: [ref], quantity: byRef.get(ref) ?? 1, confidence: 'sur' as Confidence,
+      reference: ref, references: [ref], quantity: byRef.get(ref) ?? 1, confidence: 'sur' as Confidence,
     }));
   }
-  const qty = refs.reduce((s, r) => s + (byRef.get(r) ?? 0), 0);
-  return [{
+  // variantes : on garde TOUTES les références (M-90), une ligne chacune avec sa quantité ;
+  // plus d'une = « plusieurs références dans le catalogue », l'atelier retire à l'écran
+  return refs.map((ref) => ({
     familyCode: family.code, kind: family.kind, optional: family.optional,
-    references: refs, quantity: qty,
-    // plusieurs variantes possibles : l'atelier tranche, on n'en choisit aucune au hasard
+    reference: ref, references: refs, quantity: byRef.get(ref) ?? 1,
     confidence: refs.length > 1 ? 'a_confirmer' : 'sur',
-  }];
+  }));
 }
 
 /**
@@ -169,11 +181,17 @@ export function engineFamilyKey(parts: Pick<DeducedPart, 'familyCode' | 'referen
 }
 
 /** Signature du contenu d'un kit : deux modèles-années au même contenu partagent le kit. */
-export function kitSignature(parts: Pick<DeducedPart, 'familyCode' | 'references' | 'quantity'>[]): string {
+export function kitSignature(parts: Pick<DeducedPart, 'familyCode' | 'reference' | 'quantity'>[]): string {
   return parts
-    .map((p) => `${p.familyCode}#${[...p.references].sort().join('+')}#${p.quantity ?? ''}`)
+    .map((p) => `${p.familyCode}#${p.reference ?? ''}#${p.quantity ?? ''}`)
     .sort()
     .join(',');
+}
+
+/** Avancement de la génération par lots, en pour cent (0 quand le parc est inconnu). */
+export function generationPercent(offset: number, total: number): number {
+  if (!(num(total) > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((num(offset) / num(total)) * 100)));
 }
 
 // ---------------------------------------------------------------------------
@@ -190,9 +208,103 @@ export type KitItem = {
   quantity: number;
   unit?: string | null;
   kind: PartFamilyKind;
-  confidence: 'sur' | 'a_confirmer';
+  confidence: KitConfidence;
   origin: 'deduit' | 'ajoute';
+  /** Toutes les références trouvées pour ce besoin ; plus d'une = plusieurs références dans le catalogue. */
+  catalogRefs?: string[] | null;
+  /** D'où vient la ligne (besoin, référence, quantité) — colonne `provenance` (03/11). */
+  provenance?: KitProvenance | null;
 };
+
+/**
+ * Provenance d'une ligne de kit générée (M-92) : le BESOIN vient du manuel d'atelier, sinon du
+ * plan Ducati, sinon de la règle « annuel + huile = vidange + filtre » ; la RÉFÉRENCE et sa
+ * quantité viennent des vues éclatées du catalogue ; la quantité d'un consommable vient des
+ * ravitaillements du manuel.
+ */
+export type KitProvenance = {
+  besoin?: 'manuel' | 'plan' | 'regle' | null;
+  echeance?: string | null;
+  operations?: string[] | null;
+  reference?: 'catalogue' | null;
+  quantite?: 'catalogue' | 'manuel' | null;
+  produit?: 'manuel' | null;
+  repris_de?: string | null;
+};
+
+/** La source affichée d'une ligne : manuel, plan, règle, ou ajout de l'atelier. */
+export type KitLineSource = 'manuel' | 'plan' | 'regle' | 'atelier';
+
+export function kitLineSource(i: Pick<KitItem, 'origin' | 'provenance'>): KitLineSource {
+  if (i.origin === 'ajoute') return 'atelier';
+  const b = i.provenance?.besoin;
+  return b === 'manuel' || b === 'plan' ? b : 'regle';
+}
+
+/** Type d'entretien (M-91) : 1er entretien, annuel + huile, annuel, desmo. */
+export type ServiceKind = 'first_1000' | 'oil' | 'annual' | 'desmo';
+
+/**
+ * Même règle que la fonction SQL `maintenance_service_kind` : le type d'une échéance d'après son
+ * code (plan, manuel ou extract DCS), ses km, ses mois et le drapeau « premier entretien ».
+ */
+export function serviceKindOf(
+  code: string | null | undefined, km?: number | null, months?: number | null, firstService?: boolean | null,
+): ServiceKind | null {
+  const c = String(code ?? '').toLowerCase();
+  if (firstService || km === 1000 || /(^|[^0-9])1[_ ]?000([^0-9]|$)/.test(c) || /(first|premier|1er)/.test(c)) return 'first_1000';
+  if (/(desmo|valve|soupape)/.test(c)) return 'desmo';
+  if (/(oil|huile)/.test(c)) return 'oil';
+  if (/(annual|annuel|temporel|12_?mois)/.test(c)) return 'annual';
+  if (months != null && km == null) return 'annual';
+  if (km != null && km >= 10000 && km <= 15000) return 'oil';
+  if (km != null && km >= 20000 && km <= 30000) return 'desmo';
+  if (km === 36000 || km === 45000) return 'oil';
+  if (km === 48000 || km === 60000) return 'desmo';
+  return null;
+}
+
+/** Compteurs d'un lot de génération (retour de `maintenance_kit_generate`). */
+export type GenerationTotals = {
+  modelYears: number; created: number; reused: number; linked: number; skipped: number;
+  itemsMultiRef: number; itemsAbsent: number;
+};
+
+export function addGenerationTotals(a: GenerationTotals, b: Partial<GenerationTotals>): GenerationTotals {
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    modelYears: a.modelYears + n(b.modelYears), created: a.created + n(b.created), reused: a.reused + n(b.reused),
+    linked: a.linked + n(b.linked), skipped: a.skipped + n(b.skipped),
+    itemsMultiRef: a.itemsMultiRef + n(b.itemsMultiRef), itemsAbsent: a.itemsAbsent + n(b.itemsAbsent),
+  };
+}
+
+export const EMPTY_GENERATION_TOTALS: GenerationTotals = {
+  modelYears: 0, created: 0, reused: 0, linked: 0, skipped: 0, itemsMultiRef: 0, itemsAbsent: 0,
+};
+
+/** Niveau d'une ligne de kit : sûr, à confirmer (ne bloque pas), absent (signalé, jamais commandé). */
+export type KitConfidence = 'sur' | 'a_confirmer' | 'absent';
+
+/** Ce que l'écran dit d'une ligne : rien, plusieurs références, article à désigner, absente. */
+export type KitLineFlag = 'plusieurs_refs' | 'a_designer' | 'absent' | null;
+
+export function kitLineFlag(i: Pick<KitItem, 'confidence' | 'catalogRefs'>): KitLineFlag {
+  if (i.confidence === 'absent') return 'absent';
+  if ((i.catalogRefs?.length ?? 0) > 1) return 'plusieurs_refs';
+  if (i.confidence === 'a_confirmer') return 'a_designer';
+  return null;
+}
+
+/** Lignes « plusieurs références dans le catalogue » (M-90 : on les garde toutes). */
+export function kitMultiRefCount(items: Pick<KitItem, 'confidence' | 'catalogRefs'>[]): number {
+  return items.filter((i) => kitLineFlag(i) === 'plusieurs_refs').length;
+}
+
+/** Besoins sans aucune référence trouvée. */
+export function kitAbsentCount(items: Pick<KitItem, 'confidence'>[]): number {
+  return items.filter((i) => i.confidence === 'absent').length;
+}
 
 /** Une ligne « pièce » de l'OR, ajoutée par le technicien (parcours → « Reporter sur l'OR »). */
 export type WorkshopLine = { articleId: string | null; designation: string; quantity: number };
@@ -272,12 +384,15 @@ export function dcsKindOfWorkshopOrder(kind: string): 'STANDARD' | 'URGENTE' {
   return kind === 'urgente' ? 'URGENTE' : 'STANDARD';
 }
 
-/** Compte des lignes d'un kit qui attendent une confirmation de l'atelier. */
-export function kitToConfirmCount(items: KitItem[]): number {
+/** Compte des lignes d'un kit qui attendent encore un choix de l'atelier (plusieurs références, article à désigner). */
+export function kitToConfirmCount(items: Pick<KitItem, 'confidence'>[]): number {
   return items.filter((i) => i.confidence === 'a_confirmer').length;
 }
 
-/** Un kit est prêt à servir quand toutes ses lignes ont un article et sont confirmées. */
-export function kitIsReady(items: KitItem[]): boolean {
-  return items.length > 0 && items.every((i) => i.articleId !== null && i.confidence === 'sur');
+/**
+ * Un kit est prêt à servir quand toutes ses lignes ont un article et qu'aucune n'est absente.
+ * « À confirmer » ne bloque plus (M-90) : le kit propose tout, l'atelier retire ce qu'il ne veut pas.
+ */
+export function kitIsReady(items: Pick<KitItem, 'articleId' | 'confidence'>[]): boolean {
+  return items.length > 0 && items.every((i) => i.articleId !== null && i.confidence !== 'absent');
 }

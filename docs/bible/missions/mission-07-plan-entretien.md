@@ -33,7 +33,7 @@ motos déclarées et « Ajouter ma moto » (mission 04) ; cloche par rôle.
 | # | Carte | Dépend de |
 |---|---|---|
 | 1 | Plans d'entretien par modèle et par année — 🟦 fait le 21/09, à valider (§5) | 06-2 |
-| 2 | Forfaits d'entretien avec pièces, temps et devis automatique — 🟦 fait 23/09 (kits, picking list, commande) | 07-1, 06-3 |
+| 2 | Forfaits d'entretien avec pièces, temps et devis automatique — 🟦 fait 23/09 (kits, picking list, commande) ; **03/11 : génération pour tout le parc depuis les manuels / plans, « annuel » et « annuel + huile » pour chaque modèle-année, deux références gardées (M-90 à M-92), migration à appliquer puis génération à lancer** | 07-1, 06-3 |
 | 3 | Lier nos documents d'entretien au modèle — 🟦 fait le 23/09, à valider (§5) : manuels d'atelier chargés, onglet « Manuels d'atelier » | 06-2 |
 | 4 | Prochain entretien de chaque moto — 🟦 fait le 31/10, à valider (§5) : échéance et source sur la fiche moto, extract DCS importable en un clic, `vehicles_maintenance_upcoming` pour les relances | 07-1, 06-4 |
 | 5 | Demander km et derniers entretiens quand une moto est enregistrée — 🟦 fait le 31/10, à valider (§5) : espace client, inscription, borne, fiche moto | 07-4 |
@@ -401,6 +401,125 @@ stock.**
 6. Relancer « Commander les pièces manquantes » : la fenêtre doit dire **« Rien à commander »**
    (ce qui est déjà en brouillon n'est pas recommandé).
 
+### 03/11 — Carte 2, suite « Les kits pour tout le parc » (ATE013b, M-90 à M-92) — à valider
+
+> Demande de Simon (03/11) : « deux références pour le même besoin sur la même moto : on garde les
+> deux » ; les entretiens réels sont surtout « entretien annuel » et « entretien annuel + huile » (+ le
+> 1er entretien 1 000 km) ; les kits doivent venir des manuels d'atelier et des plans Ducati. Constat :
+> **0 kit en base** — la génération du 23/09 n'avait jamais été lancée et ne servait que les 370
+> modèles-années reliés à un manuel.
+
+**Pour l'utilisateur**
+- **Atelier → Kits d'entretien → « Proposer les kits »** parcourt maintenant **tout le parc** (les 2 399
+  modèles-années du catalogue Ducati qui ont des vues éclatées), par lots de 15, avec une **barre
+  d'avancement** (« 450 / 2 399 modèles-années (19 %), 120 kits créés, 6 lignes à plusieurs
+  références… »). Relancer ne recrée rien ; un kit corrigé par l'atelier n'est jamais touché (M-41).
+- Chaque modèle-année reçoit **au minimum** les kits **« Entretien annuel + huile »** et **« Entretien
+  annuel »**, plus **« 1er entretien 1 000 km »** quand le manuel ou le plan le prévoit, et les autres
+  échéances de son manuel (Desmo, 30 000 km…).
+- Dans la liste : le **type d'entretien**, la **source** (Manuel d'atelier / Plan Ducati / Règle +
+  catalogue), le nombre de lignes **« à plusieurs réf. »** et de besoins **absents** ; un bouton
+  **« Plusieurs références (n) »** ne montre que les kits concernés.
+- Dans un kit : chaque ligne dit **d'où elle vient** (manuel / plan / règle / atelier ; référence :
+  catalogue ; quantité : manuel) — survol = les opérations du manuel ou du plan qui la demandent.
+  **Deux références pour le même besoin → deux lignes**, chacune avec sa quantité, marquées
+  **« Plusieurs références »** avec l'autre référence ; l'atelier retire celle qu'il n'utilise pas.
+  Une ligne **« Absente du catalogue »** est signalée et n'est jamais proposée à la commande.
+- Le popup « pièces manquantes » (M-82) propose désormais **les deux références** (plus seulement les
+  lignes « sûres ») ; il retrouve le kit par le **type** d'entretien (« oil » du plan = « OIL Service »
+  ou « 15 000 km » du manuel).
+
+**Comment le kit est construit (M-92)** — le BESOIN (quoi remplacer), dans cet ordre :
+1. le **manuel d'atelier** du modèle-année (opérations de l'échéance ; produit et quantité en litres
+   des tableaux de ravitaillements) ;
+2. sinon le **plan Ducati** rattaché (opérations du poster ; dans la colonne « annuel », une
+   opération à périodicité propre — courroies 60 mois, fourche 36 mois, liquide de frein 24 mois,
+   huile 24 mois sur les modèles récents — reste hors du kit annuel) ;
+3. sinon la **règle « annuel + huile = vidange moteur + filtre »** (filtre à huile, bouchon, huile).
+La RÉFÉRENCE et sa quantité viennent toujours des **vues éclatées du catalogue de CE modèle-année**,
+l'article du DMS de **la société du kit**. « Annuel » : l'Annual Service du manuel ou du plan tel quel
+(il contient parfois déjà la vidange, ex. Streetfighter V4 SP2 : on ne fabrique pas d'« annuel +
+huile » qui doublerait l'huile — l'Annual Service est repris, noté « repris de ») ; à défaut de
+colonne annuelle dans un manuel à grille kilométrique, la colonne huile « ou 12 mois » en tient lieu ;
+sans aucune source (règle seule), le kit annuel est **vide**, à compléter une fois par l'atelier.
+
+**Essai à blanc en production (03/11, transaction annulée, aucune écriture conservée)**
+
+Sur les **200 premiers modèles-années** (ordre de génération) :
+
+| Mesure | Valeur |
+|---|---|
+| Modèles-années parcourus | 200 (dont **42 avec un manuel d'atelier**, 5 avec un plan) |
+| Source du besoin | manuel 36 · plan 0 · règle 164 |
+| Ont « annuel » + « annuel + huile » | **200 / 200** ; « 1 000 km » : 36 |
+| Kits créés / réutilisés | 131 créés, 407 rattachements réutilisés (même moteur, même contenu) |
+| Lignes de kit | 416 : 265 sûres, **6 à plusieurs références (3 besoins)**, 143 à désigner (consommables sans article), 2 absentes |
+| Provenance des lignes | besoin : manuel 358 · règle 58 ; référence : catalogue 271 ; quantité : manuel 116 |
+| Temps | 13,5 s pour 200 (≈ 70 ms par modèle-année) |
+
+Sur **tout le parc** (5 tranches de 500, chacune annulée) : 2 399 modèles-années, **370 avec un manuel**
+(284 servis par le manuel, 33 par le plan, 2 081 par la règle), **2 398 avec « annuel » et « annuel +
+huile »** (1 sans famille de moteur), 317 avec « 1 000 km » ; besoins absents : 51 filtres à huile, 16
+courroies de distribution, 3 courroies de pompe à eau.
+
+**10 exemples réels de besoins à plusieurs références** (prix TTC des articles du DMS) — en tout,
+4 couples de références distincts sur le parc :
+
+| # | Moto (source) | Entretien | Besoin | Références gardées |
+|---|---|---|---|---|
+| 1 | PANIGALE V4 S 2022 (manuel) | 15 000 km (huile) | filtre à huile | `42710251A` FILTRE A HUILE ×2, 4,14 € · `44440312B` FILTRE A HUILE ×1, 21,26 € |
+| 2 | PANIGALE V4 SP2 2023 (manuel, 7 motos) | OIL Service | filtre à huile | idem |
+| 3 | PANIGALE V4 2022 (plan) | Oil Service | filtre à huile | idem |
+| 4 | PANIGALE V4 S 2023 USA (règle, 29 motos) | annuel + huile | filtre à huile | idem |
+| 5 | STREETFIGHTER V4 3G 2027 (manuel) | Oil Service 1000 | filtre à huile | idem |
+| 6 | PANIGALE 25° ANNIVERSARIO 916 2020 (manuel) | 1 000 km | filtre à huile | idem |
+| 7 | 1199 Panigale R 2013 (manuel) | 24 000 km (desmo) | crépine | `42710171A` FILTRE A HUILE A FILET ×1, 5,20 € · `89420112B` SOUS-ENSEMBLE CREPINE DE FILTRATION ×1, 50,53 € |
+| 8 | 959 Panigale ABS 2019 (manuel) | 24 000 km (desmo) | crépine | `42710171A` ×1, 5,20 € · `89420113B` SOUS-ENSEMBLE CREPINE DE FILTRATION ×2, 50,53 € |
+| 9 | PANIGALE R 2017 (manuel) | 48 000 km (desmo) | crépine | `42710171A` ×1 · `89420113B` ×1 |
+| 10 | Diavel AMG 2013 (manuel) | 30 000 km | filtre à air | `42610201A` FILTRE A AIR ×1, 70,38 € · `42610261A` FILTRE A AIR ×1, 90,28 € |
+
+Idempotence et M-41 vérifiés dans la même transaction : deuxième passage = 0 kit créé ; un kit corrigé
+(quantité 7) garde sa version, son contenu et sa moto.
+
+**Technique**
+- Migration **écrite, essayée en transaction annulée, PAS appliquée** :
+  `supabase/migrations/20261103200000_m8_kits_generation.sql` — niveaux `sur` / `a_confirmer` /
+  `absent`, colonnes `maintenance_kit_items.catalog_refs` + `provenance`, `maintenance_kits.service_kind`
+  + `source` + `service_km`, table d'alias `maintenance_service_aliases` (code → type, corrigeable sans
+  migration), `maintenance_service_kind(_code, _km, _months, _first)`, besoins `_maintenance_manual_needs`
+  / `_maintenance_plan_needs`, résolution `_maintenance_parts_for_needs`, pose d'un kit
+  `_maintenance_kit_put`, **`maintenance_kit_generate`** (même signature, tout le catalogue),
+  **`maintenance_kit_generate_all(_company, _batch, _offset, _max_batches)`**, `maintenance_kits_list` /
+  `maintenance_kit_detail` (type de retour enrichi), `maintenance_kit_for_model_year` (**même
+  signature**, recherche par type). Commande : `npx supabase@2.117.0 db query --linked --project-ref
+  ujmrosbgkvgvwfnuryna -f supabase/migrations/20261103200000_m8_kits_generation.sql` (**backup d'abord**,
+  règle 5.0), puis la génération.
+- **Lancer la génération** (après la migration) : écran Atelier → Kits → « Proposer les kits » (≈ 3 min),
+  ou `python tools/migration/generer_kits.py --apply` (clé de service, lots de 15, reprise
+  `--depuis <offset>`), ou en SQL `set statement_timeout = 0; select
+  maintenance_kit_generate_all('<société>');`. Essai à blanc : `python tools/migration/generer_kits.py`
+  (200 modèles-années, transaction annulée, migration rejouée dans la transaction).
+- Code : `kits/rules.ts` (`serviceKindOf`, `kitLineSource`, `kitLineFlag`, `kitIsReady` : « à
+  confirmer » ne bloque plus, `addGenerationTotals`, `generationPercent`), `kits/api.ts`,
+  `kits/kits-screen.tsx`, `parts-popup-rules.ts` (seule une ligne absente est écartée) ; tests
+  `tests/maintenance-kits.test.ts`, `tests/workshop-parts-popup.test.ts`.
+- Non touché (consigne) : le check-up ne pré-remplit encore que les lignes `sur` avec article (les
+  lignes à plusieurs références n'y arrivent pas) ; la picking list d'un OR reprend toutes les lignes
+  du kit, y compris une ligne absente (désignation sans article, à trouver).
+
+### À tester (03/11)
+
+1. Appliquer la migration (après backup), puis Atelier → Kits d'entretien → **« Proposer les kits »** :
+   la barre avance jusqu'à 2 399 ; la liste montre des kits « Entretien annuel + huile », « Entretien
+   annuel », « 1er entretien 1 000 km » avec leur source.
+2. Bouton **« Plusieurs références »** : ouvrir un kit PANIGALE V4 « OIL Service » : deux lignes filtre
+   à huile `42710251A` ×2 et `44440312B` ×1, marquées « Plusieurs références ». Retirer celle que
+   l'atelier n'utilise pas : la version monte. Relancer « Proposer les kits » : le kit ne bouge plus.
+3. Ouvrir un OR d'entretien d'une Panigale V4 reliée au catalogue : le popup des pièces manquantes
+   propose les deux filtres s'ils manquent.
+4. Ouvrir un kit d'une moto sans manuel (ex. un modèle USA) : source « Règle + catalogue », lignes
+   filtre + bouchon + huile ; le kit « Entretien annuel » est vide, à compléter.
+
 ### 31/10 — Cartes 6 et 7 « Relances d'entretien » et « Rendez-vous d'entretien » (CRM006, VEN001 côté entretien ; décision M-72)
 
 **Pour l'utilisateur**
@@ -558,9 +677,9 @@ stock.**
   chercher dans les articles (mission 06) pour sortir un devis complémentaire (ATE009).
 - **Derniers entretiens de la moto** : le choix de l'entretien dû part de la mise en service ; avec
   l'historique des OR et My Ducati (carte 4), il partirait du dernier entretien réel.
-- **Trancher les 100 besoins « à confirmer »** (carte 2) : surtout des filtres à huile (deux
-  références sur le même modèle-année, vues « CARTER HUILE » et « POMPE A HUILE COMPLETE ») et des
-  courroies. À faire une fois par famille de moteur, pas par moto : 44 familles au total.
+- ~~**Trancher les 100 besoins « à confirmer »**~~ — **remplacé le 03/11 (M-90)** : on garde les deux
+  références, une ligne chacune, marquées « plusieurs références » ; l'atelier retire à l'écran celle
+  qu'il n'utilise pas, une fois par famille de moteur.
 - **Désigner les articles des consommables** (carte 2) : huile moteur, liquide de refroidissement,
   liquide de frein, huile de fourche. Le manuel donne le produit et la quantité, l'atelier choisit
   l'article du DMS **une fois pour toutes** (`maintenance_fluid_article_set`) ; toutes les lignes de

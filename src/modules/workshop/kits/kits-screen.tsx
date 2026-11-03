@@ -3,8 +3,11 @@
  * famille de moteur et par entretien, proposé automatiquement à partir du catalogue et
  * corrigeable par l'atelier »).
  *
- * Gauche : la liste des kits (famille de moteur × échéance), avec le nombre de pièces, ce
- * qui reste à confirmer et le nombre de modèles-années servis.
+ * Gauche : la liste des kits (famille de moteur × échéance), avec le type d'entretien, la
+ * source (manuel / plan / règle), le nombre de pièces, les besoins à plusieurs références
+ * (M-90 : on les garde toutes), les besoins absents et le nombre de modèles-années servis.
+ * « Proposer les kits » parcourt TOUT le parc par lots (délai serveur 8 s) avec une barre
+ * d'avancement ; relancer ne recrée rien et ne touche jamais un kit corrigé (M-41).
  * Droite : le contenu du kit choisi — pièce, référence, quantité, casier, stock réel,
  * en commande — avec ajout, changement de quantité et retrait. Chaque correction fait une
  * nouvelle version du kit, tracée.
@@ -17,47 +20,60 @@ import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search } from 
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import { searchOrderArticles, type OrderArticleHit } from '@/modules/orders/api';
-import { listKits, getKitDetail, generateKits, saveKitItem, deleteKitItem, type KitRow } from './api';
-import { fmtQty, kitToConfirmCount } from './rules';
+import { listKits, getKitDetail, generateKits, saveKitItem, deleteKitItem, KIT_GENERATION_BATCH, type KitRow } from './api';
+import {
+  fmtQty, kitToConfirmCount, kitLineFlag, kitMultiRefCount, kitAbsentCount, kitLineSource, generationPercent,
+  addGenerationTotals, EMPTY_GENERATION_TOTALS, type GenerationTotals,
+} from './rules';
+
+/** Garde-fou de la boucle : 2 399 modèles-années / 15 par lot = 160 lots ; on laisse de la marge. */
+const MAX_GENERATION_PASSES = 1000;
 
 export function KitsScreen({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ offset: number; total: number; totals: GenerationTotals } | null>(null);
+  const [onlyMulti, setOnlyMulti] = useState(false);
 
   const kitsQ = useQuery({ queryKey: ['maintenance-kits', companyId, search], queryFn: () => listKits(companyId, search) });
 
-  /** Génération par lots : le serveur coupe à 8 s, on avance tranche par tranche. */
+  /**
+   * Tout le parc, par lots : le serveur coupe à 8 s, on avance tranche par tranche jusqu'au
+   * bout (`done`). Idempotent : une relance après coupure reprend sans rien dupliquer.
+   */
   const generate = useMutation({
     meta: { success: false, error: false },
     mutationFn: async () => {
       let offset = 0;
-      let created = 0;
-      let linked = 0;
-      for (let pass = 0; pass < 60; pass += 1) {
-        const r = await generateKits(companyId, 8, offset);
-        created += r.created;
-        linked += r.linked;
+      let totals = EMPTY_GENERATION_TOTALS;
+      for (let pass = 0; pass < MAX_GENERATION_PASSES; pass += 1) {
+        const r = await generateKits(companyId, KIT_GENERATION_BATCH, offset);
+        totals = addGenerationTotals(totals, r);
         offset = r.nextOffset;
-        setProgress(t('kits.generating').replace('{n}', String(offset)).replace('{c}', String(created)));
+        setProgress({ offset, total: r.totalModelYears, totals });
         if (r.done) break;
       }
-      return { created, linked };
+      return totals;
     },
     onSuccess: (r) => {
       setProgress(null);
-      toast.success(t('kits.generated').replace('{c}', String(r.created)).replace('{l}', String(r.linked)));
+      toast.success(t('kits.generated')
+        .replace('{c}', String(r.created)).replace('{l}', String(r.linked))
+        .replace('{m}', String(r.itemsMultiRef)).replace('{a}', String(r.itemsAbsent)));
       qc.invalidateQueries({ queryKey: ['maintenance-kits'] });
     },
     onError: (e) => { setProgress(null); setError(e instanceof Error ? e.message : t('kits.errGenerate')); },
   });
 
-  const kits = kitsQ.data ?? [];
+  const allKits = kitsQ.data ?? [];
+  const kits = onlyMulti ? allKits.filter((k) => k.multiRefCount > 0) : allKits;
+  const multiKits = allKits.filter((k) => k.multiRefCount > 0).length;
 
   return (
     <div className="space-y-4">
@@ -69,8 +85,22 @@ export function KitsScreen({ companyId }: { companyId: string }) {
         <Button variant="outline" onClick={() => { setError(null); generate.mutate(); }} disabled={generate.isPending}>
           {generate.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('kits.generate')}
         </Button>
-        {progress && <span className="text-[12px] text-muted-foreground">{progress}</span>}
+        <Button variant={onlyMulti ? 'secondary' : 'ghost'} aria-pressed={onlyMulti} onClick={() => setOnlyMulti((v) => !v)}>
+          <AlertTriangle /> {t('kits.filterMulti').replace('{n}', String(multiKits))}
+        </Button>
       </div>
+
+      {progress && (
+        <div className="space-y-1 rounded-md border border-border p-3" role="status" aria-live="polite">
+          <Progress value={generationPercent(progress.offset, progress.total)} />
+          <p className="text-[12px] tabular-nums text-muted-foreground">
+            {t('kits.generating')
+              .replace('{n}', String(progress.offset)).replace('{t}', String(progress.total))
+              .replace('{p}', String(generationPercent(progress.offset, progress.total)))
+              .replace('{c}', String(progress.totals.created)).replace('{m}', String(progress.totals.itemsMultiRef))}
+          </p>
+        </div>
+      )}
 
       <p className="text-[12px] text-muted-foreground">{t('kits.intro')}</p>
       {/* Tant que les migrations ne sont pas appliquées, la fonction SQL n'existe pas :
@@ -97,13 +127,18 @@ export function KitsScreen({ companyId }: { companyId: string }) {
                     className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition-colors ${selected === k.id ? 'bg-accent' : 'hover:bg-accent'}`}
                   >
                     <span className="font-ui text-[13px] font-bold">{k.engineFamilyLabel}</span>
-                    <span className="text-[13px]">{k.serviceLabel}</span>
+                    <span className="text-[13px]">
+                      {k.serviceKind ? t(`kits.kind_${k.serviceKind}`) : k.serviceLabel}
+                      {k.serviceKind && k.serviceLabel && <span className="ml-1 text-[11px] text-muted-foreground">({k.serviceLabel})</span>}
+                    </span>
                     <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                       <span className="tabular-nums">{t('kits.itemsCount').replace('{n}', String(k.itemsCount))}</span>
                       <span className="tabular-nums">{t('kits.modelYears').replace('{n}', String(k.modelYearsCount))}</span>
                       <span className="tabular-nums">v{k.version}</span>
                       {k.editedAt && <StatusBadge tone="info" label={t('kits.edited')} />}
-                      {k.toConfirmCount > 0 && <StatusBadge tone="warning" label={t('kits.toConfirm').replace('{n}', String(k.toConfirmCount))} />}
+                      {k.source && <span>{t(`kits.source_${k.source}`)}</span>}
+                      {k.multiRefCount > 0 && <StatusBadge tone="warning" label={t('kits.multiRefCount').replace('{n}', String(k.multiRefCount))} />}
+                      {k.absentCount > 0 && <StatusBadge tone="danger" label={t('kits.absentCount').replace('{n}', String(k.absentCount))} />}
                     </span>
                   </button>
                 </li>
@@ -154,17 +189,31 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
 
   const items = itemsQ.data ?? [];
   const toConfirm = kitToConfirmCount(items);
+  const multi = kitMultiRefCount(items);
+  const absent = kitAbsentCount(items);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-ui text-[15px] font-bold">{kit ? `${kit.engineFamilyLabel} — ${kit.serviceLabel}` : t('kits.title')}</h2>
+        <h2 className="font-ui text-[15px] font-bold">
+          {kit ? `${kit.engineFamilyLabel} — ${kit.serviceKind ? t(`kits.kind_${kit.serviceKind}`) : kit.serviceLabel}` : t('kits.title')}
+        </h2>
         {kit && <span className="text-[12px] text-muted-foreground">{t('kits.version').replace('{n}', String(kit.version))}</span>}
       </div>
 
-      {toConfirm > 0 && (
+      {multi > 0 && (
         <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.toConfirmHint').replace('{n}', String(toConfirm))}
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.multiRefHint').replace('{n}', String(multi))}
+        </p>
+      )}
+      {toConfirm - multi > 0 && (
+        <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.toConfirmHint').replace('{n}', String(toConfirm - multi))}
+        </p>
+      )}
+      {absent > 0 && (
+        <p className="flex items-start gap-2 rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.absentHint').replace('{n}', String(absent))}
         </p>
       )}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
@@ -192,12 +241,27 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
                 <td className="px-3 py-2">
                   {i.reference && <span className="mr-2 font-mono text-[12px] text-muted-foreground">{i.reference}</span>}
                   {i.designation}
-                  {i.confidence === 'a_confirmer' && <StatusBadge tone="warning" label={t('kits.badgeToConfirm')} />}
+                  {kitLineFlag(i) === 'plusieurs_refs' && (
+                    <span className="ml-2 inline-flex flex-wrap items-center gap-1">
+                      <StatusBadge tone="warning" label={t('kits.badgeMultiRef')} />
+                      <span className="text-[11px] text-muted-foreground">
+                        {t('kits.otherRefs').replace('{refs}', (i.catalogRefs ?? []).filter((r) => r !== i.reference).join(', '))}
+                      </span>
+                    </span>
+                  )}
+                  {kitLineFlag(i) === 'a_designer' && <StatusBadge className="ml-2" tone="warning" label={t('kits.badgeToConfirm')} />}
+                  {kitLineFlag(i) === 'absent' && <StatusBadge className="ml-2" tone="danger" label={t('kits.badgeAbsent')} />}
+                  {i.note && <span className="ml-2 block text-[11px] text-muted-foreground">{i.note}</span>}
                   {(i.fluidSpec || i.fluidProduct) && (
                     <span className="ml-2 block text-[11px] text-muted-foreground">{i.fluidProduct ?? i.fluidSpec}</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-[12px] text-muted-foreground">{t(`kits.origin_${i.origin}`)}</td>
+                <td className="px-3 py-2 text-[12px] text-muted-foreground" title={(i.provenance?.operations ?? []).join(' ; ') || undefined}>
+                  {t(`kits.lineSource_${kitLineSource(i)}`)}
+                  {i.provenance?.reference === 'catalogue' && <span className="block text-[11px]">{t('kits.refFromCatalog')}</span>}
+                  {i.provenance?.quantite === 'manuel' && <span className="block text-[11px]">{t('kits.qtyFromManual')}</span>}
+                  {i.provenance?.repris_de && <span className="block text-[11px]">{t('kits.takenFrom').replace('{s}', i.provenance.repris_de)}</span>}
+                </td>
                 <td className="px-3 py-2">
                   <QtyCell
                     value={i.quantity} unit={i.unit}

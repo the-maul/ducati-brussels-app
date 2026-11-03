@@ -20,8 +20,12 @@ export type KitStockLine = {
   realQty: number;
   reservedQty: number;
   onOrderQty: number;
-  /** une piece « a confirmer » du kit (mission 07) n'est pas proposee */
-  confidence?: 'sur' | 'a_confirmer';
+  /**
+   * Niveau de la ligne de kit (mission 07). Depuis le 03/11 (M-90) « a confirmer » = plusieurs
+   * references dans le catalogue ou article a designer : la ligne EST proposee (le kit garde
+   * les deux). Seule une ligne « absent » (aucune reference trouvee) ne l'est jamais.
+   */
+  confidence?: 'sur' | 'a_confirmer' | 'absent';
 };
 
 export type MissingPart = {
@@ -49,13 +53,14 @@ export function partKey(p: { articleId: string | null; reference: string | null 
 /**
  * Pieces du kit non couvertes par le stock reel ni par une commande en cours.
  * Les lignes d'un meme article sont additionnees ; les pieces deja proposees (`asked`)
- * sont ecartees ; les pieces sans article ni reference, ou « a confirmer », aussi.
+ * sont ecartees ; les pieces sans article ni reference, ou « absentes » du catalogue, aussi.
+ * Une ligne « a confirmer » (plusieurs references : on garde les deux, M-90) est proposee.
  */
 export function missingKitParts(kit: KitStockLine[], asked: Iterable<string> = []): MissingPart[] {
   const skip = new Set(asked);
   const merged = new Map<string, MissingPart>();
   for (const k of kit) {
-    if (k.confidence === 'a_confirmer') continue;
+    if (k.confidence === 'absent') continue;
     if (!k.articleId && !String(k.reference ?? '').trim()) continue;
     const key = partKey(k);
     if (skip.has(key)) continue;

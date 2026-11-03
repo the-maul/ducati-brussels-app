@@ -31,7 +31,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 | Atelier → Pointeuse (`/workshop/chrono`) | Pointer l'arrivée / le départ, démarrer / arrêter le travail sur un OR ouvert, pointages du jour |
 | Atelier → **Plans d'entretien** (`/workshop/maintenance-plans`, mission 07) | Compteurs (plans par usage, échéances, temps en vigueur, **taux horaire HT** ou « À saisir ») ; onglet **Plans** : filtre famille / usage / texte, fiche du plan (modèles, années, usage, liste des contrôles, documents), **modèles du catalogue Ducati rattachés** (état Lié / À valider / Détaché, motif, boutons **Rattacher** / **Détacher**, recherche d'un modèle du catalogue pour rattacher un ou tous ses millésimes), **échéances** (intervalle au premier atteint km ou mois, temps Ducati en vigueur, **main-d'œuvre HT = heures × taux**, opérations, historique des anciennes valeurs avec « remplacé par ») ; bouton **Proposer les rattachements** (relançable) ; onglet **Couverture du catalogue** : modèles-années Europe depuis 2000 sans plan. Rattacher / détacher / proposer : administrateur ou chef d'atelier |
 | Atelier → Plans d'entretien → onglet **Extract DCS** (mission 07 carte 4, 31/10) | **Importer l'extract DCS** « ENTRETIEN EN RETARD 180 JOURS + 6 MOIS A VENIR » (feuille Export) : choisir le fichier, **Vérifier** (essai à blanc : lignes lues, doublons, motos connues / inconnues avec les VIN inconnus, lignes déjà importées, propriétaires avec e-mail), **Importer** (relançable sans doublon) ; extracts déjà importés ; **Recalculer toutes les motos**. Administrateur ou chef d'atelier |
-| Atelier → **Kits d'entretien** (`/workshop/kits`, mission 07 carte 2) | La liste des kits **famille de moteur × échéance** (pièces, lignes « à confirmer », modèles-années servis, version) ; bouton **Proposer les kits** (avance par lots) ; contenu d'un kit avec référence, quantité, **casier**, disponible et « en commande » ; **ajouter** une pièce (recherche référence / désignation / code-barres), **changer une quantité**, **retirer** une ligne — chaque correction crée une version |
+| Atelier → **Kits d'entretien** (`/workshop/kits`, mission 07 carte 2) | La liste des kits **famille de moteur × échéance** (type d'entretien, source manuel / plan / règle, pièces, lignes « à plusieurs réf. », besoins absents, modèles-années servis, version ; filtre « Plusieurs références ») ; bouton **Proposer les kits** (tout le parc par lots, barre d'avancement, 03/11) ; provenance de chaque ligne ; contenu d'un kit avec référence, quantité, **casier**, disponible et « en commande » ; **ajouter** une pièce (recherche référence / désignation / code-barres), **changer une quantité**, **retirer** une ligne — chaque correction crée une version |
 | Rapports (M13) → Productivité atelier | Présence et travail par mécanicien sur la période |
 
 ## 3. Où trouver quoi
@@ -120,16 +120,28 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
   migration n'est pas posée, l'ancien chemin (suppression puis insertion, sans les colonnes du
   check-up) reste utilisé et l'écran dit que le check-up attend la migration.
 
-### Kits de pièces d'entretien (M-20, M-38 à M-43)
+### Kits de pièces d'entretien (M-20, M-38 à M-43, M-90 à M-92)
+
+- **03/11 — Tout le parc, au minimum « annuel » et « annuel + huile »** (M-91) : chaque modèle-année du
+  catalogue (2 399) reçoit les kits « Entretien annuel + huile » (Oil Service), « Entretien annuel »
+  (Annual Service) et « 1er entretien 1 000 km » si sa source le prévoit. Le **besoin** vient du manuel
+  d'atelier, sinon du plan Ducati, sinon de la règle « vidange + filtre » (M-92) ; la **référence** des
+  vues éclatées du modèle-année ; chaque ligne garde sa **provenance** (`maintenance_kit_items.provenance`).
+  Un Annual Service qui contient déjà la vidange est repris tel quel pour « annuel + huile » (pas de
+  double huile). `maintenance_kit_generate_all` = tout le parc, idempotent, par lots.
+- **Deux références pour le même besoin : on garde les deux** (M-90) : une ligne par référence avec sa
+  quantité, `catalog_refs` = toutes les références, niveau `a_confirmer` qui **ne bloque plus** (le kit
+  sert, le popup propose les deux) ; `absent` = aucune référence trouvée, signalé, jamais commandé.
 
 - **Les pièces d'un entretien se déduisent, elles ne se saisissent pas** : libellés d'opérations des
   manuels (`wsm_operations` balisées par échéance ∪ `wsm_service_procedures`) → besoin par famille de
   pièce → référence dans les **vues éclatées du catalogue Ducati de CE modèle-année** → article du
   DMS. Consommables : produit, spécification et quantité des **tableaux de ravitaillements**.
   Quantités prises dans la colonne « quantité » de la vue éclatée, jamais supposées.
-- **Rien n'est inventé.** Trois niveaux : `sur`, `a_confirmer` (plusieurs références possibles, ou
-  aucune alors que l'opération l'exige, ou article du consommable pas encore désigné),
-  `non_applicable` (famille optionnelle absente du catalogue). Plusieurs références = **toutes
+- **Rien n'est inventé.** Niveaux : `sur`, `a_confirmer` (plusieurs références — on les garde toutes,
+  M-90 —, ou article du consommable pas encore désigné ; ne bloque pas), `absent` (aucune référence
+  alors que l'opération l'exige, 03/11), `non_applicable` (famille optionnelle absente du catalogue,
+  jamais en kit). Plusieurs références = **toutes
   nécessaires** (courroies, joints de pompe à eau : `take_all`) ou **variantes à trancher** (filtres).
 - **Un kit = famille de moteur × échéance × contenu** (M-40). La famille de moteur est la signature
   filtre à huile + bougie + courroie de distribution du modèle-année.
@@ -152,7 +164,13 @@ Vérifié le 18/09/2026 (code + base).
 - **Tables sans écran** : `workshop_operations` (40 lignes), `repair_order_operations`, `workshop_tasks` (0 ligne) et la fonction `workshop_load` existent en base depuis `20260612250000_m8_workshop_extra.sql` (commit `6d7b17a`, qui n'a touché que la migration et `types.ts`) mais **aucun code de `src/` ne les utilise**.
 - **Sécurité** : `or_worked_minutes` et `workshop_load` sont exécutables sans être connecté ; `workshop_load` contourne le contrôle de société pour un appel anonyme (`auth.uid() is null or …`). Voir `00-architecture.md` §9.
 
-**Kits d'entretien (23/09, non déployé).** Les quatre migrations de la carte 2 sont écrites et
+**Kits d'entretien (03/11).** Tables et fonctions de la carte 2 en base, **0 kit** : la génération n'a
+jamais été lancée. Migration `20261103200000_m8_kits_generation.sql` (tout le parc, M-90 à M-92)
+**écrite, essayée en transaction annulée, non appliquée** ; essai à blanc : 200 modèles-années → 131
+kits, 200 / 200 avec « annuel » et « annuel + huile » ; parc complet : 2 398 / 2 399 (voir mission 07).
+Après application : lancer « Proposer les kits » (ou `tools/migration/generer_kits.py --apply`).
+
+**Kits d'entretien (23/09).** Les quatre migrations de la carte 2 sont écrites et
 testées **en transaction annulée sur la base de production** (déduction, génération des kits, picking
 list depuis un OR, calcul du manquant, création d'une commande urgente reliée à l'OR, édition et
 versionnement d'un kit, non-écrasement d'un kit corrigé). Elles ne sont **pas appliquées** : aucun
@@ -195,11 +213,16 @@ rattachées à une moto ; extract DCS du 29/10 : 228 lignes, 223 motos connues.
   les pièces jointes de l'OR.
 - **Pas d'historique OR sur la fiche véhicule** : seules `src/modules/contacts/api.ts` (fiche client) et le module atelier lisent `repair_orders` ; la fiche véhicule (M3) ne liste pas les OR du VIN.
 
-- **Kits d'entretien : 86 modèles-années sans proposition.** Ce sont ceux dont la grille du manuel
-  n'est pas balisée par échéance (M-30) ; l'écran ne propose rien pour eux plutôt que d'inventer.
-- **Kits : 100 besoins restent « à confirmer »** (surtout des filtres à huile présents en deux
-  références sur le même modèle-année, vues « CARTER HUILE » et « POMPE A HUILE COMPLETE »). À
-  trancher une fois par famille de moteur (44 en tout), pas par moto.
+- **Kits : la règle seule pour 2 081 modèles-années** (03/11) : sans manuel ni plan rattaché (surtout
+  variantes USA / autres marchés et modèles d'avant 2012), le kit « annuel + huile » est filtre +
+  bouchon + huile (quantité d'huile à ajuster) et le kit « annuel » est **vide**, à compléter une fois
+  par famille de moteur. Les 86 modèles-années à grille non balisée (M-30) passent aussi par le plan
+  ou la règle.
+- **Kits : plusieurs références gardées** (M-90) : 4 couples distincts sur le parc (filtre à huile
+  `42710251A` / `44440312B` des V4, crépine `42710171A` / `89420112B`-`89420113B`, filtre à air
+  `42610201A` / `42610261A`) ; l'atelier retire la ligne inutile. Le **check-up** ne pré-remplit encore
+  que les lignes `sur` avec article ; la **picking list** d'un OR reprend aussi une ligne absente
+  (désignation sans article).
 - **Consommables sans article tant que l'atelier ne l'a pas désigné** : le manuel donne le produit
   (SHELL Advance 15W-50) et la quantité (3,8 l), pas une référence Ducati. La ligne de kit part en
   « à confirmer » et n'entre pas dans le calcul du manquant à commander. Réglage une fois pour
@@ -231,7 +254,7 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Atelier, 24 exigences
 | ATE010 | États personnalisés et codes couleur | partiel | 5 statuts fixes avec badge couleur + icône ; non paramétrables |
 | ATE011 | Checklists par type de véhicule | partiel (23/09) | **Parcours d'entretien pas à pas** : opérations de l'entretien cochables, procédures du manuel étape par étape (`/workshop/journey/$orId`, mission 07 carte 8), sur données de démonstration ; tables `workshop_operations` / `repair_order_operations` toujours sans écran |
 | ATE012 | Notes internes non visibles du client | partiel | Colonne `repair_orders.notes` en base, non exposée par l'éditeur (`or-editor.tsx` ne gère que `reception_notes`) |
-| ATE013 | Kits / combos de pièces | partiel (23/09) | **Kits d'entretien par famille de moteur × échéance** (mission 07 carte 2, M-20/M-40/M-41) : proposition depuis les manuels + le catalogue (97,8 % des besoins fermes résolus), correction par l'atelier, versionnement, picking list depuis l'OR et commande des manquantes. Reste : le devis d'entretien chiffré (pièces + MO) et l'insertion d'un kit comme ligne de forfait sur un OR |
+| ATE013 | Kits / combos de pièces | partiel (03/11) | **Kits d'entretien par famille de moteur × échéance** (mission 07 carte 2, M-20/M-40/M-41) : proposition depuis les manuels + le catalogue (97,8 % des besoins fermes résolus), correction par l'atelier, versionnement, picking list depuis l'OR et commande des manquantes ; **03/11 (ATE013b, M-90 à M-92)** : génération pour tout le parc (manuel > plan > règle), « annuel » et « annuel + huile » pour chaque modèle-année, deux références gardées, provenance par ligne — migration à appliquer. Reste : le devis d'entretien chiffré (pièces + MO) et l'insertion d'un kit comme ligne de forfait sur un OR |
 | ATE014 | Nomenclatures d'entretien auto (modèle + km) | partiel (31/10) | Plans d'entretien par modèle / années / usage (mission 07 carte 1) **+ parcours technicien : entretien dû, opérations, procédures, couples, temps UT** (carte 8) ; **+ kits de pièces par famille de moteur et par entretien** (carte 2, 23/09) ; **+ prochain entretien de chaque moto avec sa source, extract DCS importable, déclaration du client** (cartes 4 et 5, 31/10, migration non appliquée) |
 | ATE015 | Pointage du temps par intervention | fait | `chrono-api.ts`, `/workshop/chrono` |
 | ATE016 | Suivi garantie Ducati / magasin | partiel | `warranty_status` + lignes garantie ; pas de distinction Ducati / magasin ni de dossier de garantie |
@@ -267,6 +290,7 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-10-31 | **Prochain entretien de chaque moto** (mission 07 cartes 4 et 5, ATE014, M-73 / M-74) : `vehicle_maintenance_due` avec sa source, import de l'extract DCS (onglet + script), encadré sur la fiche moto, km et dernier entretien déclarés par le client (espace client, inscription, borne), `vehicles_maintenance_upcoming` pour les relances | `20261031100000_m8_prochain_entretien.sql` (**non appliquée**) |
 | 2026-10-31 | **Check-up à l'accueil, proposition d'intervention, accord client signé, interventions reportées** (ATE008 / ATE009, M-75 à M-77) : motif d'entrée, onglet Check-up tablette (cartes état / photo / temps / pièces / prix), devis « Proposition d'intervention » envoyé dans la langue du client et visible dans l'espace client, signature d'un clic ou au doigt, accord verbal tracé, garde-fou, date des reportées au comptoir, encadrés fiche moto / client, cloche | branche `lot-checkup-atelier`, `20261031110000_m8_checkup_et_accord_client.sql` (**non appliquée**, essayée en transaction annulée), fonction `proposal-sign` **à déployer** |
 | 2026-11-03 | **Un entretien prévu sans les pièces en stock propose de les commander** (mission 09 carte 3, ATE013, M-82) : motif du RDV (`workshop_appointments.reason_code`, même liste que l'OR) ; à la prise d'un RDV d'entretien et à l'ouverture d'un OR avec motif entretien, popup « N pièces manquent pour cet entretien : les mettre en commande ? » (kit de l'échéance − stock libre − en commande), Standard / Urgente (urgente si RDV à moins de N jours, réglage ligne `urgente`), « Mettre en commande » → `basket_add_lines` (panier de la carte 1) ou repli commande de pièces en brouillon ; mémoire `workshop_parts_prompts` (jamais deux fois les mêmes pièces, « Pas maintenant » compris), trace `events`. Code `src/modules/workshop/parts-popup*`, planning, fiche OR ; tests `tests/workshop-parts-popup.test.ts` | `20261103120000_m4_commande_demo.sql` (**non appliquée**, essayée en transaction annulée le 03/11) |
+| 2026-11-03 | **Kits d'entretien pour tout le parc** (mission 07 carte 2 suite, ATE013b, M-90 à M-92) : besoin lu dans le manuel, sinon le plan, sinon la règle « vidange + filtre » ; « annuel » et « annuel + huile » (+ 1 000 km) pour chacun des 2 399 modèles-années ; deux références pour le même besoin gardées toutes les deux ; provenance par ligne ; `maintenance_kit_generate_all` ; écran « Proposer les kits » avec barre d'avancement ; script `tools/migration/generer_kits.py` | `20261103200000_m8_kits_generation.sql` (**non appliquée**, essayée en transaction annulée) |
 | 2026-11-03 | **Dossiers accident** (mission 09 carte 5, ACH005, M-83) : fiche, devis lié (seuil 1 500 € HTVA, remise 15 %), photos avec photo du châssis, rapport d'expert, formulaire Excel « Aide Réparation Moto Accidentée » rempli dans le modèle Ducati, PDF de photos, mail Outlook à Ducati avec 4 pièces jointes (copie vide par défaut), checklist « complet ou rien », statuts ; l'ancienne fenêtre « Aide réparation Ducati » est retirée | branche `lot-dossier-accident`, `20261103110000_m8_dossiers_accident.sql` (**non appliquée**, essayée en transaction annulée), fonction `graph-send-email` **à redéployer** |
 | 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |
 | 2026-11-03 | **Registre des véhicules à moteur** : entrée à l'ouverture de l'OR, sortie à sa facture (déclencheur SQL, M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |

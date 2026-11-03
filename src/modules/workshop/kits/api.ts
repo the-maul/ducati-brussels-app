@@ -12,7 +12,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { OrderNeed } from '@/modules/orders/from-document';
-import type { KitItem } from './rules';
+import type { KitItem, KitProvenance, ServiceKind } from './rules';
 
 type LooseResult = { data: unknown; error: { message: string } | null };
 const loose = supabase as unknown as { rpc: (fn: string, args?: Record<string, unknown>) => Promise<LooseResult> };
@@ -46,6 +46,14 @@ export type KitRow = {
   toConfirmCount: number;
   modelYearsCount: number;
   updatedAt: string;
+  /** lignes « plusieurs références dans le catalogue » (M-90) */
+  multiRefCount: number;
+  /** besoins sans aucune référence trouvée */
+  absentCount: number;
+  /** type d'entretien (1er entretien, annuel + huile, annuel, desmo) ; null = autre échéance */
+  serviceKind: ServiceKind | null;
+  /** d'où vient le besoin : manuel d'atelier, plan Ducati ou règle « vidange + filtre » */
+  source: 'manuel' | 'plan' | 'catalogue' | null;
 };
 
 export async function listKits(companyId: string, search?: string | null): Promise<KitRow[]> {
@@ -66,6 +74,10 @@ export async function listKits(companyId: string, search?: string | null): Promi
     toConfirmCount: num(r.to_confirm_count),
     modelYearsCount: num(r.model_years_count),
     updatedAt: String(r.updated_at),
+    multiRefCount: num(r.multi_ref_count),
+    absentCount: num(r.absent_count),
+    serviceKind: (r.service_kind as ServiceKind) ?? null,
+    source: (r.source as KitRow['source']) ?? null,
   }));
 }
 
@@ -94,6 +106,8 @@ export async function getKitDetail(kitId: string): Promise<KitDetailLine[]> {
     kind: (r.kind as KitItem['kind']) ?? 'piece',
     confidence: (r.confidence as KitItem['confidence']) ?? 'sur',
     origin: (r.origin as KitItem['origin']) ?? 'deduit',
+    catalogRefs: Array.isArray(r.catalog_refs) ? (r.catalog_refs as string[]) : [],
+    provenance: (r.provenance as KitProvenance) ?? null,
     mgmtType: (r.mgmt_type as string) ?? null,
     bins: (r.bins as string[]) ?? [],
     realQty: num(r.real_qty),
@@ -107,24 +121,41 @@ export async function getKitDetail(kitId: string): Promise<KitDetailLine[]> {
 }
 
 export type KitGenerationResult = {
-  modelYears: number; created: number; reused: number; linked: number; skipped: number;
-  nextOffset: number; done: boolean;
+  modelYears: number; created: number; reused: number; linked: number;
+  /** kits corrigés par l'atelier : contenu respecté, modèle-année seulement rattaché (M-41) */
+  skipped: number;
+  unknownFamily: number; unlinked: number; archived: number;
+  itemsSur: number; itemsMultiRef: number; itemsAbsent: number;
+  /** modèles-années du catalogue avec vues éclatées : le parc que la génération parcourt */
+  totalModelYears: number;
+  /** modèles-années servis par le manuel, le plan, la règle ; et ceux qui ont un manuel relié */
+  sourceManuel: number; sourcePlan: number; sourceRegle: number; withManual: number;
+  nextOffset: number; done: boolean; elapsedMs: number;
 };
+
+/** Taille d'un lot depuis l'écran : ~0,1 s par modèle-année mesuré le 03/11, délai PostgREST 8 s. */
+export const KIT_GENERATION_BATCH = 15;
 
 /**
  * Génère les kits par lots. Le `statement_timeout` du serveur est à 8 s : on avance
  * par tranches de modèles-années et on boucle côté écran (motif `tools/accessories-loader`).
+ * Tout le parc en une fois : `maintenance_kit_generate_all` (SQL / script, sans délai).
  */
 export async function generateKits(
-  companyId: string, limit = 20, offset = 0, modelYearId?: string | null,
+  companyId: string, limit = KIT_GENERATION_BATCH, offset = 0, modelYearId?: string | null,
 ): Promise<KitGenerationResult> {
   const r = await rpc<Record<string, unknown>>('maintenance_kit_generate', {
     _company: companyId, _limit: limit, _offset: offset, _model_year: modelYearId ?? null,
   });
   return {
     modelYears: num(r?.model_years), created: num(r?.created), reused: num(r?.reused),
-    linked: num(r?.linked), skipped: num(r?.skipped), nextOffset: num(r?.next_offset),
-    done: r?.done === true,
+    linked: num(r?.linked), skipped: num(r?.skipped),
+    unknownFamily: num(r?.unknown_family), unlinked: num(r?.unlinked), archived: num(r?.archived),
+    itemsSur: num(r?.items_sur), itemsMultiRef: num(r?.items_multi_ref), itemsAbsent: num(r?.items_absent),
+    totalModelYears: num(r?.total_model_years),
+    sourceManuel: num(r?.source_manuel), sourcePlan: num(r?.source_plan),
+    sourceRegle: num(r?.source_regle), withManual: num(r?.with_manual),
+    nextOffset: num(r?.next_offset), done: r?.done === true, elapsedMs: num(r?.elapsed_ms),
   };
 }
 

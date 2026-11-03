@@ -8,6 +8,29 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Kits d'entretien : tout le parc, depuis les manuels, deux références gardées (ATE013b)
+
+- **M-90** — **Deux références pour le même besoin sur la même moto : on garde les deux.** Pas de
+  dédoublonnage : une ligne de kit par référence, chacune avec sa quantité de la vue éclatée, marquée
+  « plusieurs références dans le catalogue » ; ce niveau ne bloque plus l'usage (le kit sert, le popup
+  « pièces manquantes » propose les deux) ; l'atelier retire à l'écran celle qu'il n'utilise pas (version
+  + 1, M-41). Un besoin sans aucune référence est « absent » : signalé, jamais commandé. Remplace la
+  carte « trancher les 100 besoins à confirmer ». *Simon · 03/11/2026.* [M08](modules/M08-atelier.md),
+  [mission 07](missions/mission-07-plan-entretien.md)
+- **M-91** — **Chaque modèle-année a au minimum les kits « entretien annuel » et « entretien annuel +
+  huile »**, plus « 1er entretien 1 000 km » quand le manuel ou le plan le prévoit (les entretiens réels
+  de l'atelier ; « Annual Service » / « Oil Service » de l'extract DCS). Un Annual Service qui contient
+  déjà la vidange sert tel quel aux deux (pas de double huile) ; sans source, le kit annuel est vide et
+  se complète une fois par l'atelier. *Simon · 03/11/2026.* [M08](modules/M08-atelier.md)
+- **M-92** — **Le besoin d'un kit vient du manuel d'atelier, sinon du plan Ducati, sinon de la règle
+  « annuel + huile = vidange + filtre »** ; la référence et sa quantité viennent toujours des vues
+  éclatées du catalogue du modèle-année, l'article de la société du kit ; chaque ligne garde sa
+  provenance (besoin, référence, quantité). Dans la colonne « annuel » d'un plan, une opération à
+  périodicité propre (courroies 60 mois, liquide de frein 24 mois…) reste hors du kit annuel. *Simon /
+  agence · 03/11/2026.* [M08](modules/M08-atelier.md), [mission 07](missions/mission-07-plan-entretien.md)
+
+---
+
 ## 2026-11-03 — Registre des véhicules à moteur tenu par le DMS (AR n° 1 art. 28)
 
 - **M-88** — **Le DMS tient le registre des véhicules à moteur** (étude caisse, C10 / D5, et « intègre
