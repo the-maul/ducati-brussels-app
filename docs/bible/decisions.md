@@ -38,6 +38,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Facturation : étude Falco, Peppol, facture belge et comptabilité
+
+- **Q — facturation / compta** : étude remise le 03/11/2026
+  ([`../etudes/2026-11-facturation-peppol-compta.md`](../etudes/2026-11-facturation-peppol-compta.md)).
+  Constats : Falco = un abonnement Expert **par société** (2 × 40 €/mois HTVA), API sans webhook
+  (polling), UBL importé conservé tel quel ; Peppol B2B obligatoire depuis le 01/01/2026, B2C et
+  étranger non ; e-reporting 2028 = avant-projet B2B seulement ; identifiant Peppol belge =
+  `0208:` + n° BCE ; TVA marge en UBL = catégorie `E` + texte (scénario BEG 9) et **globalisation par
+  période** (AR 53 art. 3), pas par véhicule ; **facture d'acompte obligatoire** dès l'encaissement
+  sur une moto, même à un particulier ; facture obligatoire pour toute moto et au-delà de 125 € TTC
+  en pièces / atelier ; un avoir fait aujourd'hui **sortir la facture du journal des ventes** (bug) ;
+  `ducatibxl.be` : SPF correct, **DKIM et DMARC absents**. Dix décisions à prendre avec Domenico et
+  son comptable (§6 de l'étude), 4 lots estimés 17 à 25 jours. **Décisions en attente.** *Agence ·
+  03/11.* [M06](modules/M06-ventes-caisse.md), [M09](modules/M09-documents.md), [M12](modules/M12-compta.md)
+
+---
+
 ## 2026-11-03 — Caisse du magasin : Shopify POS ou DMS (mission 03, question 3)
 
 - **Q — caisse Shopify** : proposition remise le 03/11/2026
