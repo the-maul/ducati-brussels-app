@@ -36,6 +36,8 @@ import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from './confirm-do
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t } from '@/lib/i18n';
+import { useFormDraft } from '@/lib/use-form-draft';
+import { FormDraftBanner } from '@/components/form-draft-banner';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { useAuth } from '@/lib/auth/auth-context';
 import { buildQuoteFeeLine, applyQuoteFee, clampDiagnosticHours, quoteFeeDesignation, type QuoteFeeKind } from '@/modules/workshop/quote-fees';
@@ -70,9 +72,13 @@ const numStr = (n: number | string | null | undefined) => (n == null || Number(n
  * mêmes écrans, même enregistrement ; un brouillon se valide (numéro pris à ce moment seulement)
  * ou se supprime ; un document validé n'arrive jamais ici (route `/sales/$id/edit`).
  */
-export function DocumentEditor({ companyId, initialContactId, initialVehicleId, initialDocType, workshopOrNumber, workshop, draft }: {
+export function DocumentEditor({ companyId, initialContactId, initialVehicleId, initialDocType, workshopOrNumber, workshop, draft, draftKey, onDraftDiscard }: {
   companyId: string; initialContactId?: string; initialVehicleId?: string; initialDocType?: string; workshopOrNumber?: string; workshop?: boolean;
   draft?: DocumentFull;
+  /** Nouveau document : cle du brouillon de saisie dans l'onglet (UX011, `useFormDraft`). */
+  draftKey?: string | null;
+  /** « Recommencer a zero » : l'appelant remonte l'editeur vierge. */
+  onDraftDiscard?: () => void;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -171,6 +177,33 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   });
   useEffect(() => { if (preVehicle) setVehicle(preVehicle); }, [preVehicle]);
 
+  // Saisie en cours gardee dans l'onglet (UX011) : nouveau document seulement (un brouillon
+  // enregistre en base se rouvre deja tel quel). Client et moto passes par l'adresse priment.
+  const formDraft = useFormDraft({
+    key: draft ? null : draftKey ?? null,
+    value: {
+      docType, contact, vehicle, issueDate, dueDate, lines, priceMode, taxExempt, discountPct, discountAmount,
+      shippingHt, shippingTaxed, forcedTtc, workshopQuote, feeKind, feeHours,
+    },
+    // Le type par defaut de la societe et les fiches prechargees par leur id ne comptent pas comme une saisie.
+    fingerprint: (v) => ({
+      ...v, docType: typeTouched.current ? v.docType : null,
+      contact: v.contact?.id ?? preContactId ?? null, vehicle: v.vehicle?.id ?? preVehicleId ?? null,
+      lines: v.lines.map(({ _key, _stock, ...l }) => l),
+    }),
+    accept: (d) => !initialContactId || !d.contact || d.contact.id === initialContactId,
+    restore: (d) => {
+      if (d.docType) setDocType(d.docType);
+      if (d.contact && (!initialContactId || d.contact.id === initialContactId)) setContact(d.contact);
+      if (!initialVehicleId || d.vehicle?.id === initialVehicleId) { if (d.vehicle) setVehicle(d.vehicle); }
+      setIssueDate(d.issueDate); setDueDate(d.dueDate);
+      if (d.lines?.length) setLines(d.lines.map((l) => ({ ...l, _key: `l${counter++}` })));
+      setPriceMode(d.priceMode); setTaxExempt(d.taxExempt); setDiscountPct(d.discountPct); setDiscountAmount(d.discountAmount);
+      setShippingHt(d.shippingHt); setShippingTaxed(d.shippingTaxed); setForcedTtc(d.forcedTtc);
+      setWorkshopQuote(d.workshopQuote); setFeeKind(d.feeKind); setFeeHours(d.feeHours);
+    },
+  });
+
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
   // Un article de type T devient une ligne « main d'œuvre » (quantité en heures, sans stock).
@@ -239,6 +272,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
       };
       const id = draft ? await updateDraftDocument({ documentId: draft.doc.id, ...common }) : await createDocument(common);
       if (draft) qc.invalidateQueries({ queryKey: ['doc-full', id] });
+      formDraft.clear();
       setConfirmRequest(null);
       if (status === 'brouillon') toast.success(t('sales.draftSaved'));
       navigate({ to: '/sales/$documentId', params: { documentId: id } });
@@ -261,6 +295,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
 
   return (
     <div className="space-y-4">
+      {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       {/* En-tête */}
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
         <Field label={t('sales.type')}>

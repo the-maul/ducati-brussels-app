@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { DocumentEditor } from '@/modules/sales/document-editor';
 import { t, pageTitle } from '@/lib/i18n';
+import { useState } from 'react';
+import { formDraftKey } from '@/lib/form-draft';
 
 export const Route = createFileRoute('/_app/sales/new')({
   head: () => ({ meta: [{ title: pageTitle('salesNew') }] }),
@@ -24,11 +26,13 @@ function NewDocument() {
   const { activeCompanyId } = useAuth();
   const { contactId, vehicleId, orNumber, workshop, docType } = Route.useSearch();
   const navigate = useNavigate();
+  // Brouillon de saisie (UX011), par societe ; « Recommencer a zero » remonte l'editeur vierge.
+  const [editorKey, setEditorKey] = useState(0);
   if (!activeCompanyId) return null;
   return (
     <>
       <PageHeader title={t('sales.newDoc')} actions={<Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>} />
-      <DocumentEditor companyId={activeCompanyId} initialContactId={contactId} initialVehicleId={vehicleId} initialDocType={docType} workshopOrNumber={orNumber} workshop={workshop} />
+      <DocumentEditor key={editorKey} draftKey={formDraftKey('/sales/new', activeCompanyId)} onDraftDiscard={() => setEditorKey((k) => k + 1)} companyId={activeCompanyId} initialContactId={contactId} initialVehicleId={vehicleId} initialDocType={docType} workshopOrNumber={orNumber} workshop={workshop} />
     </>
   );
 }

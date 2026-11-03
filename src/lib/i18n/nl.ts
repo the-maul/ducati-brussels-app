@@ -98,6 +98,8 @@ export const nl: DictionaryShape = {
     leaveTitle: 'Niet-opgeslagen wijzigingen',
     leaveMessage: 'Wijzigingen op deze pagina zijn niet opgeslagen. De pagina verlaten zonder op te slaan?',
     leave: 'Verlaten zonder op te slaan',
+    draftRestored: 'Uw lopende invoer is hersteld: u gaat verder waar u was gebleven.',
+    draftDiscard: 'Opnieuw beginnen',
   },
 
   // Société / contexte (multi-société COM005)

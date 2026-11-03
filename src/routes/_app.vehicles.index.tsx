@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch, useSearchText } from '@/lib/use-list-search';
 import { Search, Loader2, Plus, Bike, AlertTriangle, ClipboardList } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -13,8 +15,13 @@ import { listPendingDeclarations } from '@/modules/vehicles/declarations-api';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
+/** Etat de la liste garde dans l'adresse (UX011). */
+const VEHICLES_LIST = { q: '', status: 'all', toComplete: false };
+const VEHICLES_CHOICES = { status: ['all', ...VEHICLE_STATUSES.map((s) => s.value as string)] };
+
 export const Route = createFileRoute('/_app/vehicles/')({
   head: () => ({ meta: [{ title: pageTitle('vehicles') }] }),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, VEHICLES_LIST, VEHICLES_CHOICES),
   component: VehiclesList,
 });
 
@@ -31,16 +38,16 @@ function VehiclesList() {
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
-  const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [status, setStatus] = useState<VehicleStatus | 'all'>('all');
+  // Recherche, statut et « a completer » dans l'adresse (UX011) : Retour depuis une fiche moto
+  // retrouve la meme liste.
+  const [ls, setLs] = useListSearch(VEHICLES_LIST, VEHICLES_CHOICES);
+  const debounced = ls.q;
+  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q }));
+  const status = ls.status as VehicleStatus | 'all';
+  const setStatus = (v: VehicleStatus | 'all') => setLs({ status: v });
   // Mission 03, M-40 : motos « à compléter » (VIN ou prix d'achat manquant) — non facturables.
-  const [toComplete, setToComplete] = useState(false);
-
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(search), 300);
-    return () => clearTimeout(id);
-  }, [search]);
+  const toComplete = ls.toComplete;
+  const setToComplete = (v: boolean | ((p: boolean) => boolean)) => setLs((cur) => ({ toComplete: typeof v === 'function' ? v(cur.toComplete) : v }));
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete],

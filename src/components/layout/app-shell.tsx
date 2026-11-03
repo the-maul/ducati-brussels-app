@@ -51,7 +51,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={onMenu} />
         {/* pb-20 : laisse la place à la barre basse sur smartphone */}
-        <main className="flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6">
+        {/* id + data-scroll-restoration-id : le routeur garde la position de defilement de cette
+            zone par page et la restaure au Retour (UX011) ; une nouvelle page repart en haut. */}
+        <main id="app-main" data-scroll-restoration-id="app-main" className="flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6">
           {/* Bouton Retour sur toutes les pages sauf les entrees du menu (UX010). */}
           <PageBack />
           {children}

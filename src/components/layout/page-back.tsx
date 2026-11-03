@@ -1,27 +1,33 @@
 /**
  * PageBack — le bouton « Retour » present en tete de toutes les pages de
- * l'application (UX010, demande client du 03/11/2026).
+ * l'application (UX010, demande client du 03/11/2026 ; revu par UX011 le meme jour :
+ * « Retour revient exactement ou on etait »).
  *
  * Rendu par l'AppShell au-dessus du contenu, donc avant le fil d'Ariane de
  * `PageHeader` : aucune page n'y echappe, meme celles qui n'ont pas d'en-tete.
  * Masque sur les entrees du menu de gauche (tableau de bord, listes de rubrique).
  *
  * Comportement (logique pure dans `src/lib/back-navigation.ts`) :
- * - page precedente connue et dans l'application → un pas en arriere dans l'historique ;
- * - sinon (lien direct, rechargement, creation qui a ouvert la fiche) → page parente ;
- * - formulaire modifie non enregistre → confirmation d'abord (`useLeaveGuard`).
+ * - page precedente connue et dans l'application → retour dans l'historique du navigateur
+ *   (en sautant le formulaire de creation deja utilise et la meme page), donc la page d'avant
+ *   avec son adresse complete : recherche, filtres, onglet, page (`list-search.ts`) ; le
+ *   defilement est restaure par le routeur (`scrollRestoration`, zone `#app-main`) ;
+ * - sinon (lien direct, page jamais vue dans cet onglet) → page parente ;
+ * - formulaire modifie non enregistre → confirmation d'abord (`useLeaveGuard`) ; quitter
+ *   par Retour = abandon explicite : le brouillon du formulaire est efface (`form-draft.ts`).
  *
  * Pas de raccourci Escape : la touche sert deja a fermer dialogues, menus et
  * listes deroulantes, et un retour de page par erreur ferait perdre une saisie.
- * Alt+Fleche gauche (natif) reste disponible.
+ * Alt+Fleche gauche (natif) reste disponible (il garde le brouillon).
  */
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/confirm-provider';
 import { t } from '@/lib/i18n';
-import { decideBack, isRootPage, previousVisit, recordVisit } from '@/lib/back-navigation';
+import { decideBack, isRootPage, previousVisits, recordVisit } from '@/lib/back-navigation';
+import { discardActiveDrafts } from '@/lib/form-draft';
 import { hasUnsavedChanges } from '@/lib/use-dirty';
 
 type HistoryState = { __TSR_index?: number } | undefined;
@@ -46,16 +52,17 @@ export function BackHistoryTracker() {
   return null;
 }
 
-export function PageBack() {
+/**
+ * La meme action que le bouton Retour, pour les boutons « Retour » propres a un ecran :
+ * confirmation si modifie, historique sinon page parente.
+ */
+export function useGoBack(): () => Promise<void> {
   const { pathname } = useLocation();
   const index = useHistoryIndex();
   const router = useRouter();
   const navigate = useNavigate();
   const confirm = useConfirm();
-
-  if (isRootPage(pathname)) return null;
-
-  const goBack = async () => {
+  return useCallback(async () => {
     if (hasUnsavedChanges()) {
       const ok = await confirm({
         title: t('confirm.leaveTitle'),
@@ -65,10 +72,21 @@ export function PageBack() {
       });
       if (!ok) return;
     }
-    const decision = decideBack(pathname, previousVisit(index));
-    if (decision.kind === 'history') router.history.back();
-    else navigate({ href: decision.to });
-  };
+    // Retour = on abandonne la saisie de cet ecran (les autres chemins de sortie la gardent).
+    discardActiveDrafts();
+    const decision = decideBack(pathname, previousVisits(index));
+    if (decision.kind === 'history') {
+      if (decision.steps <= 1) router.history.back();
+      else router.history.go(-decision.steps);
+    } else navigate({ href: decision.to });
+  }, [pathname, index, router, navigate, confirm]);
+}
+
+export function PageBack() {
+  const { pathname } = useLocation();
+  const goBack = useGoBack();
+
+  if (isRootPage(pathname)) return null;
 
   return (
     <div className="-ml-2 mb-2 md:mb-3">

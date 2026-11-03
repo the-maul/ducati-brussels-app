@@ -27,9 +27,12 @@ import { PrepareButton } from '@/modules/sales/prepare-button';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { useReadOnly } from '@/lib/auth/read-only-context';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch, useSearchText } from '@/lib/use-list-search';
 
 export const Route = createFileRoute('/_app/sales/')({
   head: () => ({ meta: [{ title: pageTitle('sales') }] }),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, SALES_LIST, SALES_CHOICES),
   component: SalesList,
 });
 
@@ -66,6 +69,13 @@ const EMPTY_FILTERS: FiltersState = {
   availability: 'all',
 };
 
+/** Etat de la liste garde dans l'adresse (UX011) : recherche `q` + filtres. */
+const SALES_LIST = { q: '', ...EMPTY_FILTERS };
+const SALES_CHOICES = {
+  department: ['all', 'store', 'eshop'],
+  availability: ['all', 'total', 'partial', 'order', 'none'],
+} as const;
+
 function countActive(f: FiltersState): number {
   let n = 0;
   if (f.department !== 'all') n++;
@@ -96,10 +106,15 @@ function SalesList() {
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
   const qc = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Recherche et filtres : dans l'adresse (UX011) — Retour depuis un document les retrouve.
+  const [ls, setLs] = useListSearch(SALES_LIST, SALES_CHOICES);
+  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q }));
+  const f = ls as FiltersState;
+  const setF = (next: FiltersState | ((p: FiltersState) => FiltersState)) =>
+    setLs((cur) => (typeof next === 'function' ? next(cur as FiltersState) : next));
+  // Panneau des filtres ouvert d'office si un filtre est actif (retour sur la liste).
+  const [filtersOpen, setFiltersOpen] = useState(() => countActive(f) > 0);
   const [purgeOpen, setPurgeOpen] = useState(false);
-  const [f, setF] = useState<FiltersState>(EMPTY_FILTERS);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
 

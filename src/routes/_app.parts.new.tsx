@@ -8,6 +8,7 @@ import { withTranslatedDesignation } from '@/modules/articles/translate/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
+import { clearFormDraft, formDraftKey } from '@/lib/form-draft';
 
 type NewArticleSearch = { reference?: string; designation?: string; mgmt?: 'A' | 'M'; from?: 'catalog' };
 
@@ -32,6 +33,9 @@ function NewArticle() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // Brouillon de saisie (UX011), par societe ; efface a l'enregistrement.
+  const draftKey = activeCompanyId ? formDraftKey('/parts/new', activeCompanyId) : null;
+  const [formKey, setFormKey] = useState(0);
 
   const m = useSaveMutation({
     // Le libelle saisi passe par le moteur de traduction (I18N002) : designation = FR,
@@ -39,6 +43,7 @@ function NewArticle() {
     mutationFn: async (payload: ArticleInsert) => createArticle(await withTranslatedDesignation(payload, activeCompanyId!)),
     success: t('feedback.created'),
     onSuccess: () => {
+      if (draftKey) clearFormDraft(draftKey);
       qc.invalidateQueries({ queryKey: ['articles'] });
       // La pièce du catalogue est désormais reliée à cet article (lien par la référence).
       qc.invalidateQueries({ queryKey: ['ducati-catalog'] });
@@ -54,13 +59,16 @@ function NewArticle() {
     <>
       <PageHeader title={t('articles.new')} />
       <ArticleForm
+        key={formKey}
+        draftKey={draftKey}
+        onDraftDiscard={() => setFormKey((k) => k + 1)}
         initial={null}
         preset={preset}
         companyId={activeCompanyId}
         status={m.status}
         error={error}
         onSubmit={(p) => { setError(null); m.mutate(p); }}
-        onCancel={() => navigate({ to: '/parts' })}
+        onCancel={() => { if (draftKey) clearFormDraft(draftKey); navigate({ to: '/parts' }); }}
       />
     </>
   );

@@ -26,9 +26,13 @@ import { CatalogSearchHint } from '@/modules/catalog/catalog-search-hint';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch, useOnChange, useSearchText } from '@/lib/use-list-search';
 
 export const Route = createFileRoute('/_app/parts/')({
   head: () => ({ meta: [{ title: pageTitle('parts') }] }),
+  // Recherche, filtres et page dans l'adresse (UX011) : Retour depuis une fiche les retrouve.
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, PARTS_LIST, PARTS_CHOICES),
   component: ArticlesList,
 });
 
@@ -67,6 +71,13 @@ const EMPTY_FILTERS: FiltersState = {
   brand: '', size: '', color: '', paLocked: false, pvLocked: false, toComplete: false, links: '',
 };
 
+/** Etat de la liste garde dans l'adresse (UX011) : recherche `q`, page (0 = premiere), filtres. */
+const PARTS_LIST: { q: string; page: number } & FiltersState = { q: '', page: 0, ...EMPTY_FILTERS };
+const PARTS_CHOICES = {
+  stock: ['all', 'pos', 'neg', 'zero'],
+  links: ['', 'shopify', 'not_shopify', 'ducati', 'g8', 'none'],
+} as const;
+
 function countActive(f: FiltersState): number {
   let n = 0;
   if (f.supplierId) n++;
@@ -90,12 +101,19 @@ function ArticlesList() {
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
   const qc = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
   const [labelsOpen, setLabelsOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [f, setF] = useState<FiltersState>(EMPTY_FILTERS);
-  const [page, setPage] = useState(0);
+  // Recherche, filtres et page : dans l'adresse (UX011), pas dans l'etat de l'ecran.
+  const [ls, setLs] = useListSearch(PARTS_LIST, PARTS_CHOICES);
+  const f: FiltersState = ls;
+  const page = ls.page;
+  const debounced = ls.q;
+  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q, page: 0 }));
+  // Tout changement de critere ramene a la premiere page.
+  const setF = (next: FiltersState | ((p: FiltersState) => FiltersState)) =>
+    setLs((cur) => ({ ...(typeof next === 'function' ? next(cur) : next), page: 0 }));
+  const setPage = (v: number | ((p: number) => number)) => setLs((cur) => ({ page: typeof v === 'function' ? v(cur.page) : v }));
+  // Panneau des filtres ouvert d'office si un filtre est actif (retour sur la liste).
+  const [filtersOpen, setFiltersOpen] = useState(() => countActive(f) > 0);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
 
@@ -111,16 +129,9 @@ function ArticlesList() {
     onError: () => toast.error(t('articles.errDuplicate')),
   });
 
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(search), 300);
-    return () => clearTimeout(id);
-  }, [search]);
-
   // Changement de société : les filtres de l'ancienne société (uuid fournisseur,
-  // marques…) n'ont plus de sens — remise à zéro.
-  useEffect(() => { setF(EMPTY_FILTERS); }, [activeCompanyId]);
-  // Tout changement de critère ramène à la première page.
-  useEffect(() => { setPage(0); }, [debounced, f, activeCompanyId]);
+  // marques…) n'ont plus de sens — remise à zéro (jamais au montage : l'adresse fait foi).
+  useOnChange(activeCompanyId, () => setF(EMPTY_FILTERS));
 
   // TOUT est filtré en base, stock compris (fonction `article_list_page`).
   // Avant le 23/09/2026 le stock était croisé dans le navigateur à partir de la

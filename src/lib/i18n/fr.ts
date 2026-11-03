@@ -109,6 +109,8 @@ export const fr = {
     leaveTitle: 'Modifications non enregistrées',
     leaveMessage: 'Des modifications de cette page ne sont pas enregistrées. Quitter la page sans les enregistrer ?',
     leave: 'Quitter sans enregistrer',
+    draftRestored: 'Saisie en cours retrouvée : vous reprenez là où vous en étiez.',
+    draftDiscard: 'Recommencer à zéro',
   },
 
   // Société / contexte (multi-société COM005)

@@ -11,6 +11,9 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
+    // Seule la zone de travail defile (AppShell) : sans ce selecteur, une nouvelle page
+    // heritait du defilement de la precedente, et Retour ne retrouvait pas la position (UX011).
+    scrollToTopSelectors: ['#app-main'],
     defaultPreloadStaleTime: 0,
   });
 

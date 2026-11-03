@@ -37,6 +37,8 @@ import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/l
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
+import { useFormDraft } from '@/lib/use-form-draft';
+import { FormDraftBanner } from '@/components/form-draft-banner';
 import type {
   Contact, ContactInsert, ContactType, CustomerSegment, LicenseCategory, ContactStatus, SaleVatType,
 } from './api';
@@ -407,7 +409,13 @@ export function ContactForm({
   onSubmit,
   onCancel,
   lockType,
+  draftKey,
+  onDraftDiscard,
 }: {
+  /** Creation : cle du brouillon de saisie (UX011, `useFormDraft`). */
+  draftKey?: string | null;
+  /** « Recommencer a zero » : l'appelant remonte le formulaire vierge. */
+  onDraftDiscard?: () => void;
   initial: Contact | null;
   companyId: string;
   status: SaveStatus;
@@ -429,6 +437,8 @@ export function ContactForm({
   const dirty = useIsDirty(f);
   // Bouton Retour : confirmation avant de quitter si quelque chose a change (UX010).
   useLeaveGuard(dirty);
+  // Nouveau client : saisie gardee dans l'onglet si l'on ouvre un autre ecran (UX011).
+  const formDraft = useFormDraft({ key: initial ? null : draftKey ?? null, value: f, restore: setF });
 
   const isPro =f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
@@ -534,6 +544,7 @@ export function ContactForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       {/* Fiche deja existante (même e-mail ou même numéro) : on propose de l'ouvrir. */}
       <Dialog open={dupes !== null} onOpenChange={(o) => { if (!o) closeDupes(); }}>
         <DialogContent>

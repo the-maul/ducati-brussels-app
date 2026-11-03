@@ -29,6 +29,8 @@ import { listWorkshopReasons } from './checkup/api';
 import { cardsToLines, linesToCards, nonCheckupLines, PROPOSED_STATES, type CheckupCard } from './checkup/rules';
 import { CheckupTab } from './checkup/checkup-tab';
 import { t } from '@/lib/i18n';
+import { useFormDraft } from '@/lib/use-form-draft';
+import { FormDraftBanner } from '@/components/form-draft-banner';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -48,8 +50,12 @@ export type OrPayload = {
 
 export type OrEditorIntent = 'save' | 'proposal';
 
-export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions }: {
+export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions, draftKey = null, onDraftDiscard }: {
   companyId: string; initial?: RepairOrderFull | null; busy: boolean; error?: string | null;
+  /** Nouvel OR : cle du brouillon de saisie (UX011, `useFormDraft`) ; null en edition. */
+  draftKey?: string | null;
+  /** « Recommencer a zero » : l'appelant remonte l'editeur vierge. */
+  onDraftDiscard?: () => void;
   /** Nouvel OR ouvert depuis une fiche client / moto : client et moto pre-remplis. */
   defaultContactId?: string | null; defaultVehicleId?: string | null;
   /** `intent = 'proposal'` : enregistrer puis envoyer la proposition au client. */
@@ -94,6 +100,25 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [cards, setCards] = useState<CheckupCard[]>(() => linesToCards(initialLines));
   const [tab, setTab] = useState<'fiche' | 'checkup'>(() => (cards.length > 0 ? 'checkup' : 'fiche'));
 
+  // Saisie en cours gardee dans l'onglet (UX011) : on ouvre la fiche moto ou « Ajouter une moto »,
+  // Retour retrouve l'OR tel qu'on l'a laisse. Le client et la moto passes par l'adresse priment.
+  const formDraft = useFormDraft({
+    key: draftKey ?? null,
+    value: { sel, mileage, operator, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, lines },
+    fingerprint: (v) => ({ ...v, sel: [v.sel.contact?.id ?? contactIdToLoad ?? null, v.sel.vehicle?.id ?? null], lines: v.lines.map(({ _key, ...l }) => l) }),
+    accept: (d) => !defaultContactId || !d.sel.contact || d.sel.contact.id === defaultContactId,
+    restore: (d) => {
+      setSel((s) => ({
+        contact: d.sel.contact ?? s.contact,
+        vehicle: defaultVehicleId && d.sel.vehicle?.id !== defaultVehicleId ? s.vehicle : d.sel.vehicle,
+      }));
+      setMileage(d.mileage); setOperator(d.operator); setRepairType(d.repairType); setReasonCode(d.reasonCode);
+      setWork(d.workDescription); setNotes(d.receptionNotes); setStatus(d.status); setWarranty(d.warrantyStatus);
+      setExpertName(d.expertName); setExpertDate(d.expertDate);
+      if (d.lines?.length) setLines(d.lines.map((l) => ({ ...l, _key: `ro${counter++}` })));
+    },
+  });
+
   // Precharge du client et de la moto (edition, ou nouvel OR depuis une fiche) — par id, jamais
   // via la liste des contacts (plafonnee a 500 : au-dela, le client « disparaissait », ATE001).
   const preContactQ = useQuery({
@@ -131,6 +156,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
 
   const fiche = (
     <div className="space-y-4">
+      {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       {/* En-tête */}
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('workshop.client')}>

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch } from '@/lib/use-list-search';
 import { Loader2, Plus, Timer, CalendarDays, BookOpen, LifeBuoy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -13,8 +14,12 @@ import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/workshop/')({
   head: () => ({ meta: [{ title: pageTitle('workshop') }] }),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, WORKSHOP_LIST),
   component: WorkshopList,
 });
+
+/** Etat de la liste garde dans l'adresse (UX011). */
+const WORKSHOP_LIST = { status: 'all' };
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neutral' : s === 'pret' ? 'info' : 'warning');
@@ -24,7 +29,10 @@ function WorkshopList() {
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
-  const [status, setStatus] = useState('all');
+  // Onglet de statut dans l'adresse (UX011) : Retour depuis un OR retrouve le meme filtre.
+  const [ls, setLs] = useListSearch(WORKSHOP_LIST);
+  const status = ls.status;
+  const setStatus = (v: string) => setLs({ status: v });
   const { data, isLoading } = useQuery({
     queryKey: ['repair-orders', activeCompanyId, status],
     queryFn: () => listRepairOrders(activeCompanyId!, status === 'all' ? undefined : status),

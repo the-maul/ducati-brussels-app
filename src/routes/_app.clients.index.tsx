@@ -17,6 +17,8 @@ import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { formatPhone } from '@/lib/phone';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch, useSearchText } from '@/lib/use-list-search';
 
 type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
@@ -32,8 +34,18 @@ const ALL_COLS: { key: ColKey; label: () => string }[] = [
 
 const PAGE_SIZES = [25, 50, 100, 200];
 
+/** Etat de la liste garde dans l'adresse (UX011). `page` : 0 = premiere page. */
+const CLIENTS_LIST = { q: '', type: 'all', archived: false, page: 0, size: 50, sort: 'name' };
+const CLIENTS_CHOICES = { sort: ['name', 'recent'] } as const;
+
 export const Route = createFileRoute('/_app/clients/')({
   head: () => ({ meta: [{ title: pageTitle('clients') }] }),
+  validateSearch: (s: Record<string, unknown>) => {
+    const v = listSearchFromRaw(s, CLIENTS_LIST, CLIENTS_CHOICES);
+    // Taille de page hors liste proposee : on retombe sur la taille par defaut.
+    if (v.size !== undefined && !PAGE_SIZES.includes(v.size)) delete v.size;
+    return v;
+  },
   component: ClientsList,
 });
 
@@ -42,16 +54,24 @@ function ClientsList() {
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
-  const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
+  // Recherche, type, archives, page, taille et tri : dans l'adresse (UX011) — Retour depuis
+  // une fiche retrouve la meme liste. Tout changement de critere ramene a la premiere page.
+  const [ls, setLs] = useListSearch(CLIENTS_LIST, CLIENTS_CHOICES);
+  const debounced = ls.q;
+  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q, page: 0 }));
+  const typeFilter = ls.type;
+  const setTypeFilter = (type: string) => setLs({ type, page: 0 });
+  const showArchived = ls.archived;
+  const setShowArchived = (v: boolean | ((p: boolean) => boolean)) => setLs((cur) => ({ archived: typeof v === 'function' ? v(cur.archived) : v }));
+  const page = ls.page;
+  const setPage = (v: number | ((p: number) => number)) => setLs((cur) => ({ page: typeof v === 'function' ? v(cur.page) : v }));
+  const pageSize = ls.size;
+  const setPageSize = (size: number) => setLs({ size, page: 0 });
   // Tri : par nom par défaut, ou par date d'arrivée. Sans ce second mode, une fiche
   // créée automatiquement depuis un mail se range à sa place alphabétique parmi
   // 8 000 autres et personne ne la voit passer.
-  const [sort, setSort] = useState<ContactSort>('name');
+  const sort = ls.sort as ContactSort;
+  const setSort = (v: ContactSort) => setLs({ sort: v, page: 0 });
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(['type', 'city', 'contact', 'flags']));
   // Sélection limitée à la page affichée : on ne coche jamais 8 000 fiches d'un clic.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -73,12 +93,6 @@ function ClientsList() {
   }
   const colCount = 3 + visibleCols.size;
 
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(search), 300);
-    return () => clearTimeout(id);
-  }, [search]);
-  // Revenir à la 1re page quand le filtre/recherche/taille change
-  useEffect(() => { setPage(0); }, [debounced, typeFilter, pageSize]);
   // La sélection ne porte que sur les lignes visibles : dès que le jeu de lignes
   // change, on la vide plutôt que de garder des fiches devenues invisibles.
   useEffect(() => { setSelectedIds(new Set()); }, [debounced, typeFilter, pageSize, page, showArchived]);
@@ -145,7 +159,7 @@ function ClientsList() {
             <SelectItem value="banque_leasing">{t('contacts.type_banque_leasing')}</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={(v) => { setSort(v as ContactSort); setPage(0); }}>
+        <Select value={sort} onValueChange={(v) => setSort(v as ContactSort)}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="name">{t('contacts.sortName')}</SelectItem>

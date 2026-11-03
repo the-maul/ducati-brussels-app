@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Bike, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
   placeholder?: string;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [deb, setDeb] = useState('');
@@ -54,7 +55,9 @@ export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
   const pick = (v: Vehicle) => { onPick(v); setTerm(''); setOpen(false); };
   const addForClient = () => {
     if (!contactId) return;
-    navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined } });
+    // `retour` (UX011) : une fois la moto creee, on revient sur cet ecran (OR, document)
+    // avec la nouvelle moto choisie et la saisie restauree (brouillon du formulaire).
+    navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined, retour: location.href } });
   };
   const row = (v: Vehicle) => (
     <button key={v.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v)}

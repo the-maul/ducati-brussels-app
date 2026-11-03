@@ -16,6 +16,7 @@ import { contactDisplayName, getContact } from '@/modules/contacts/api';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
+import { safeReturnPath, withSearchParams } from '@/lib/back-navigation';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuidOrUndefined = (v: unknown) => (typeof v === 'string' && UUID_RE.test(v) ? v : undefined);
@@ -31,17 +32,27 @@ const uuidOrUndefined = (v: unknown) => (typeof v === 'string' && UUID_RE.test(v
  */
 export const Route = createFileRoute('/_app/vehicles/new')({
   head: () => ({ meta: [{ title: pageTitle('vehicleNew') }] }),
-  validateSearch: (s: Record<string, unknown>) => ({
+  // `?retour=<adresse>` (UX011) : ouvert depuis un formulaire (OR, document de vente) par
+  // « Ajouter une moto » — apres creation on y revient, la nouvelle moto choisie (`vehicleId`).
+  validateSearch: (s: Record<string, unknown>): { contact: string | undefined; declaration: string | undefined; retour?: string } => ({
     contact: uuidOrUndefined(s.contact),
     declaration: uuidOrUndefined(s.declaration),
+    ...(safeReturnPath(s.retour) ? { retour: safeReturnPath(s.retour) } : {}),
   }),
   component: NewVehicle,
 });
 
 function NewVehicle() {
   const { activeCompanyId } = useAuth();
-  const { contact: contactId, declaration: declarationId } = Route.useSearch();
+  const { contact: contactId, declaration: declarationId, retour } = Route.useSearch();
   const navigate = useNavigate();
+  // Retour au formulaire d'origine, la moto choisie ; `replace` : le formulaire de creation de
+  // la moto sort de l'historique (Retour depuis l'OR ne repasse pas par lui).
+  const backToOrigin = (vehicleId?: string) => {
+    if (!retour) return false;
+    navigate({ href: vehicleId ? withSearchParams(retour, { vehicleId }) : retour, replace: true });
+    return true;
+  };
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +92,7 @@ function NewVehicle() {
     success: contactId ? t('motoClient.created') : t('feedback.created'),
     onSuccess: invalidate,
     // Différé de SETTLE_MS : laisse voir la coche du bouton avant de quitter l'écran.
-    onDone: (v) => navigate({ to: '/vehicles/$vehicleId', params: { vehicleId: v.id } }),
+    onDone: (v) => { if (!backToOrigin(v.id)) navigate({ to: '/vehicles/$vehicleId', params: { vehicleId: v.id } }); },
     onError: (e) => setError(
       e instanceof VinExistsError ? t('motoClient.vinExistsBlock')
         : e instanceof Error ? e.message : t('vehicles.errSave'),
@@ -92,10 +103,11 @@ function NewVehicle() {
     mutationFn: ({ vehicleId, ownerFrom }: { vehicleId: string; ownerFrom: string }) => (declaration
       ? attachDeclaration(declaration.id, vehicleId, ownerFrom)
       : attachVehicleOwner(vehicleId, contactId!, ownerFrom)),
-    onSuccess: () => {
+    onSuccess: (_r, { vehicleId }) => {
       invalidate();
       toast.success(t('motoClient.attached'));
       if (declaration) navigate({ to: '/vehicles/declarations' });
+      else if (backToOrigin(vehicleId)) return;
       else navigate({ to: '/clients/$contactId', params: { contactId: contactId! } });
     },
     onError: (e) => setError(e instanceof Error ? e.message : t('vehicles.errSave')),
@@ -145,6 +157,7 @@ function NewVehicle() {
         attaching={attach.isPending}
         onCancel={() => (declaration
           ? navigate({ to: '/vehicles/declarations' })
+          : backToOrigin() ? undefined
           : client
             ? navigate({ to: '/clients/$contactId', params: { contactId: client.id } })
             : navigate({ to: '/vehicles' }))}

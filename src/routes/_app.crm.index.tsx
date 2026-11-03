@@ -15,16 +15,24 @@ import { LeadDetail } from '@/modules/crm/lead-detail';
 import { PhoneInput } from '@/components/phone-input';
 import { toE164 } from '@/lib/phone';
 import { t, pageTitle } from '@/lib/i18n';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch } from '@/lib/use-list-search';
 
 /** Catégories de lead (source) — filtre CRM. */
 const LEAD_SOURCES = ['MAIL', 'WEB', 'COMPTOIR', 'REP', 'VN', 'VO', 'ATELIER', 'PIECE', 'FINANCEMENT'] as const;
 
+/** Etat du tableau garde dans l'adresse (UX011). */
+const CRM_LIST = { source: 'all', pipeline: 'commercial' };
+const CRM_CHOICES = { source: ['all', ...LEAD_SOURCES], pipeline: PIPELINES as readonly string[] };
+
 // ?lead=<id> ouvre directement une carte (lien « Ouvrir la carte CRM » des Relances, M10).
 export const Route = createFileRoute('/_app/crm/')({
   head: () => ({ meta: [{ title: pageTitle('crm') }] }),
-  validateSearch: (s: Record<string, unknown>): { lead?: string } => (
-    typeof s.lead === 'string' && /^[0-9a-f-]{36}$/i.test(s.lead) ? { lead: s.lead } : {}
-  ),
+  // + filtre de source et CRM affiche dans l'adresse (UX011) : Retour retrouve le meme tableau.
+  validateSearch: (s: Record<string, unknown>): { lead?: string; source?: string; pipeline?: string } => ({
+    ...listSearchFromRaw(s, CRM_LIST, CRM_CHOICES),
+    ...(typeof s.lead === 'string' && /^[0-9a-f-]{36}$/i.test(s.lead) ? { lead: s.lead } : {}),
+  }),
   component: CrmPage,
 });
 
@@ -45,9 +53,12 @@ function CrmPage() {
     getLead(leadParam).then((l) => { if (l) setSelected(l); }).catch(() => undefined);
   }, [leadParam, openedParam]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [sourceFilter, setSourceFilter] = useState('all');
+  const [ls, setLs] = useListSearch(CRM_LIST, CRM_CHOICES);
+  const sourceFilter = ls.source;
+  const setSourceFilter = (v: string) => setLs({ source: v });
   // Le CRM affiché. Un seul aujourd'hui (commercial) ; l'atelier s'ajoutera à PIPELINES.
-  const [pipeline, setPipeline] = useState<Pipeline>('commercial');
+  const pipeline = ls.pipeline as Pipeline;
+  const setPipeline = (p: Pipeline) => setLs({ pipeline: p });
   const { data, isLoading } = useQuery({ queryKey: ['leads', activeCompanyId, pipeline], queryFn: () => listLeads(activeCompanyId!, pipeline), enabled: !!activeCompanyId });
   // Ce qu'il faut faire sur chaque carte, et qui s'en charge : une seule requête.
   const openTasks = useQuery({ queryKey: ['lead-open-tasks', activeCompanyId], queryFn: () => listOpenTasksByLead(activeCompanyId!), enabled: !!activeCompanyId });

@@ -98,6 +98,8 @@ export const it: DictionaryShape = {
     leaveTitle: 'Modifiche non salvate',
     leaveMessage: 'Le modifiche di questa pagina non sono state salvate. Uscire dalla pagina senza salvare?',
     leave: 'Esci senza salvare',
+    draftRestored: 'Inserimento in corso ripristinato: riprende da dove si era fermato.',
+    draftDiscard: 'Ricomincia da zero',
   },
 
   // Société / contexte (multi-société COM005)

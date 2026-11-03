@@ -12,11 +12,17 @@ import { countOrders, DISPATCH_STATUSES } from '@/modules/orders/status-flow';
 import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel } from '@/modules/orders/order-ui';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
+import { listSearchFromRaw } from '@/lib/list-search';
+import { useListSearch } from '@/lib/use-list-search';
 
 export const Route = createFileRoute('/_app/orders/')({
   head: () => ({ meta: [{ title: pageTitle('orders') }] }),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, ORDERS_LIST),
   component: OrdersList,
 });
+
+/** Etat de la liste garde dans l'adresse (UX011). */
+const ORDERS_LIST = { kind: 'all', status: 'all' };
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-BE') : '—');
 
@@ -25,8 +31,12 @@ function OrdersList() {
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
-  const [kind, setKind] = useState<OrderKind | 'all'>('all');
-  const [status, setStatus] = useState<OrderDispatchStatus | 'all'>('all');
+  // Filtres type / statut dans l'adresse (UX011) : Retour depuis une commande les retrouve.
+  const [ls, setLs] = useListSearch(ORDERS_LIST);
+  const kind = ls.kind as OrderKind | 'all';
+  const setKind = (v: OrderKind | 'all') => setLs({ kind: v });
+  const status = ls.status as OrderDispatchStatus | 'all';
+  const setStatus = (v: OrderDispatchStatus | 'all') => setLs({ status: v });
   const filters = { kind: kind === 'all' ? undefined : kind, status: status === 'all' ? undefined : status };
 
   const { data, isLoading } = useQuery({

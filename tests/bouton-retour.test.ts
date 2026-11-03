@@ -12,8 +12,11 @@ import {
   normalizePath,
   parentPathOf,
   previousVisit,
+  previousVisits,
   recordVisit,
   resetVisits,
+  safeReturnPath,
+  withSearchParams,
 } from '../src/lib/back-navigation';
 import { mainNav } from '../src/lib/navigation';
 
@@ -110,9 +113,9 @@ describe('isAppPath / isCreationPage', () => {
 
 describe('decideBack — historique du navigateur ou page parente ?', () => {
   it('page precedente dans l app → historique', () => {
-    expect(decideBack('/parts/abc', '/parts')).toEqual({ kind: 'history' });
-    expect(decideBack('/clients/42', '/sales/doc-1')).toEqual({ kind: 'history' });
-    expect(decideBack('/workshop/journey/or-9', '/workshop/or-9')).toEqual({ kind: 'history' });
+    expect(decideBack('/parts/abc', '/parts')).toEqual({ kind: 'history', steps: 1 });
+    expect(decideBack('/clients/42', '/sales/doc-1')).toEqual({ kind: 'history', steps: 1 });
+    expect(decideBack('/workshop/journey/or-9', '/workshop/or-9')).toEqual({ kind: 'history', steps: 1 });
   });
   it('pas de page precedente (lien direct, rechargement) → parent', () => {
     expect(decideBack('/parts/abc', null)).toEqual({ kind: 'parent', to: '/parts' });
@@ -134,7 +137,49 @@ describe('decideBack — historique du navigateur ou page parente ?', () => {
   });
   it('mais un formulaire de creation ouvert avant une AUTRE rubrique reste joignable', () => {
     // Depuis « nouvelle vente », on ouvre une fiche client pour verifier : Retour revient a la vente.
-    expect(decideBack('/clients/42', '/sales/new')).toEqual({ kind: 'history' });
+    expect(decideBack('/clients/42', '/sales/new')).toEqual({ kind: 'history', steps: 1 });
+  });
+});
+
+describe('UX011 — Retour revient exactement ou on etait', () => {
+  it('fiche creee : on saute le formulaire de creation et on revient a la page d avant lui', () => {
+    // Liste filtree → nouvel article → fiche : Retour = la liste (2 pas), avec ses filtres.
+    expect(decideBack('/parts/abc', ['/parts/new', '/parts'])).toEqual({ kind: 'history', steps: 2 });
+    // Fiche client → « Ajouter une moto » → fiche moto : Retour = la fiche client, pas la liste des motos.
+    expect(decideBack('/vehicles/v-1', ['/vehicles/new', '/clients/42'])).toEqual({ kind: 'history', steps: 2 });
+    // Nouvel OR enregistre : Retour = la liste de l'atelier telle qu'on l'a laissee.
+    expect(decideBack('/workshop/or-9', ['/workshop/new', '/workshop'])).toEqual({ kind: 'history', steps: 2 });
+  });
+  it('fiche ouverte depuis le formulaire Nouvel OR : Retour = le formulaire (sa saisie est restauree)', () => {
+    expect(decideBack('/vehicles/v-1', ['/workshop/new', '/workshop'])).toEqual({ kind: 'history', steps: 1 });
+  });
+  it('retour du formulaire avec ?retour= (meme page) : on saute le doublon', () => {
+    // /workshop/new → /vehicles/new remplace par /workshop/new?vehicleId=… : deux entrees « Nouvel OR ».
+    expect(decideBack('/workshop/new', ['/workshop/new', '/workshop'])).toEqual({ kind: 'history', steps: 2 });
+  });
+  it('un trou ou une page publique arrete la remontee → parent', () => {
+    expect(decideBack('/parts/abc', ['/parts/new'])).toEqual({ kind: 'parent', to: '/parts' });
+    expect(decideBack('/parts/abc', ['/parts/new', null, '/parts'])).toEqual({ kind: 'parent', to: '/parts' });
+    expect(decideBack('/parts/abc', ['/parts/new', '/login'])).toEqual({ kind: 'parent', to: '/parts' });
+    expect(decideBack('/parts/abc', [])).toEqual({ kind: 'parent', to: '/parts' });
+  });
+});
+
+describe('parametre de retour (?retour=)', () => {
+  it('accepte un chemin de l application, avec sa recherche', () => {
+    expect(safeReturnPath('/workshop/new')).toBe('/workshop/new');
+    expect(safeReturnPath('/sales/new?contactId=abc')).toBe('/sales/new?contactId=abc');
+  });
+  it('refuse un autre site, une page publique, du vide', () => {
+    for (const bad of ['https://evil.example', '//evil.example', '/\\evil', 'workshop/new', '', '/login', '/mon-espace/x', 42, null, undefined]) {
+      expect(safeReturnPath(bad)).toBeUndefined();
+    }
+  });
+  it('ajoute la moto creee sans perdre les autres parametres', () => {
+    expect(withSearchParams('/workshop/new', { vehicleId: 'v-1' })).toBe('/workshop/new?vehicleId=v-1');
+    expect(withSearchParams('/workshop/new?contactId=c-1', { vehicleId: 'v-1' })).toBe('/workshop/new?contactId=c-1&vehicleId=v-1');
+    expect(withSearchParams('/sales/new?vehicleId=old#lignes', { vehicleId: 'v-2' })).toBe('/sales/new?vehicleId=v-2#lignes');
+    expect(withSearchParams('/sales/new?vehicleId=old', { vehicleId: null })).toBe('/sales/new');
   });
 });
 
@@ -155,14 +200,26 @@ describe('suivi des pages visitees (index d historique → chemin)', () => {
     recordVisit(1, '/parts/new');
     recordVisit(1, '/parts/abc');
     expect(previousVisit(1)).toBe('/parts');
-    expect(decideBack('/parts/abc', previousVisit(1))).toEqual({ kind: 'history' });
+    expect(decideBack('/parts/abc', previousVisit(1))).toEqual({ kind: 'history', steps: 1 });
   });
 
-  it('push apres creation : la precedente est le formulaire, la decision choisit le parent', () => {
+  it('push apres creation : seule la precedente connue (formulaire) → parent ; avec la suite → 2 pas', () => {
     recordVisit(0, '/parts');
     recordVisit(1, '/parts/new');
     recordVisit(2, '/parts/abc');
     expect(decideBack('/parts/abc', previousVisit(2))).toEqual({ kind: 'parent', to: '/parts' });
+    expect(previousVisits(2)).toEqual(['/parts/new', '/parts']);
+    expect(decideBack('/parts/abc', previousVisits(2))).toEqual({ kind: 'history', steps: 2 });
+  });
+
+  it('previousVisits s arrete au premier trou et respecte le maximum', () => {
+    recordVisit(3, '/clients');
+    recordVisit(4, '/clients/42');
+    recordVisit(5, '/vehicles/v-1');
+    expect(previousVisits(5)).toEqual(['/clients/42', '/clients']);
+    expect(previousVisits(5, 1)).toEqual(['/clients/42']);
+    expect(previousVisits(0)).toEqual([]);
+    expect(previousVisits(null)).toEqual([]);
   });
 
   it('rechargement (memoire vide) ou index inconnu → rien de connu → parent', () => {

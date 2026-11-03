@@ -25,6 +25,8 @@ import {
 import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
 import { ArticleWebSection } from './article-web';
+import { useFormDraft } from '@/lib/use-form-draft';
+import { FormDraftBanner } from '@/components/form-draft-banner';
 
 /** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
 export type RoundingRule = { sort_order: number; up_to: number; step: number; mode: 'up' | 'nearest' };
@@ -259,8 +261,12 @@ function recomputePricing(f: FormState, edited: 'pa' | 'coef' | 'pvht' | 'pvttc'
 }
 
 export function ArticleForm({
-  initial, preset, companyId, status, error, onSubmit, onCancel,
+  initial, preset, companyId, status, error, onSubmit, onCancel, draftKey, onDraftDiscard,
 }: {
+  /** Creation : cle du brouillon de saisie (UX011, `useFormDraft`). */
+  draftKey?: string | null;
+  /** « Recommencer a zero » : l'appelant remonte le formulaire vierge. */
+  onDraftDiscard?: () => void;
   initial: Article | null;
   /** Création pré-remplie (ex. depuis le catalogue Ducati) : champs repris, bouton Créer actif d'emblée. */
   preset?: Partial<Pick<Article, 'reference' | 'designation' | 'mgmt_type'>>;
@@ -285,6 +291,12 @@ export function ArticleForm({
   const dirty = useIsDirty(f);
   // Bouton Retour : confirmation avant de quitter si quelque chose a change (UX010).
   useLeaveGuard(dirty);
+  // Nouvel article : saisie gardee dans l'onglet si l'on ouvre un autre ecran (UX011). Une
+  // creation pre-remplie depuis le catalogue ne reprend que le brouillon de la meme reference.
+  const formDraft = useFormDraft({
+    key: initial ? null : draftKey ?? null, value: f, restore: setF,
+    accept: (d) => !preset?.reference || d.reference === preset.reference,
+  });
   const [localError, setLocalError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
   // Table d'arrondis (appliquée au PV calculé).
@@ -326,6 +338,7 @@ export function ArticleForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       <div className="flex items-center rounded-md border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
         <Check label={t('articles.publishable')} checked={f.publishable} onChange={(v) => set('publishable', v)} />
       </div>

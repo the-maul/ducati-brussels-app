@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { OrEditor, type OrPayload } from '@/modules/workshop/or-editor';
 import { createRepairOrder, checkupSchemaReady } from '@/modules/workshop/write-api';
 import { t, pageTitle } from '@/lib/i18n';
+import { clearFormDraft, formDraftKey } from '@/lib/form-draft';
 
 export const Route = createFileRoute('/_app/workshop/new')({
   head: () => ({ meta: [{ title: pageTitle('workshopNew') }] }),
@@ -25,6 +26,9 @@ function NewOr() {
   const { contactId, vehicleId } = Route.useSearch();
   const [error, setError] = useState<string | null>(null);
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
+  // Brouillon de saisie (UX011) : par societe ; efface a l'enregistrement, remis a zero a la demande.
+  const draftKey = activeCompanyId ? formDraftKey('/workshop/new', activeCompanyId) : null;
+  const [editorKey, setEditorKey] = useState(0);
   const m = useMutation({
     mutationFn: (p: OrPayload) => createRepairOrder({
       companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage,
@@ -32,14 +36,17 @@ function NewOr() {
       status: p.status, warrantyStatus: p.warrantyStatus, expertName: p.expertName, expertDate: p.expertDate || null,
       reasonCode: p.reasonCode, lines: p.lines,
     }),
-    onSuccess: (id) => navigate({ to: '/workshop/$orId', params: { orId: id } }),
+    onSuccess: (id) => {
+      if (draftKey) clearFormDraft(draftKey);
+      navigate({ to: '/workshop/$orId', params: { orId: id } });
+    },
     onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
   });
   if (!activeCompanyId) return null;
   return (
     <>
       <PageHeader title={t('workshop.newOr')} actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>} />
-      <OrEditor companyId={activeCompanyId} defaultContactId={contactId ?? null} defaultVehicleId={vehicleId ?? null} busy={m.isPending} error={error} checkupReady={schema.data === true} onSubmit={(p) => { setError(null); m.mutate(p); }} />
+      <OrEditor key={editorKey} draftKey={draftKey} onDraftDiscard={() => setEditorKey((k) => k + 1)} companyId={activeCompanyId} defaultContactId={contactId ?? null} defaultVehicleId={vehicleId ?? null} busy={m.isPending} error={error} checkupReady={schema.data === true} onSubmit={(p) => { setError(null); m.mutate(p); }} />
     </>
   );
 }
