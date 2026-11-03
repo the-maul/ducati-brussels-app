@@ -137,13 +137,13 @@ Estimations en jours de travail d'agent, test compris. « Dépend de » = carte 
 
 | # | Carte | Pourquoi | Test à faire dans l'app | Jours | Dépend de |
 |---|---|---|---|---|---|
-| 1 | **L'entretien choisi est enregistré sur l'OR** | Couture n° 1 : un seul « entretien choisi » (échéance Ducati du manuel de la moto : Annual Service, Oil Service, Oil Service 1000, Desmo / Valve Check) posé à l'ouverture de l'OR ou repris du RDV, proposé d'après le prochain entretien connu et le km ; lu par le check-up, le popup, la picking list et le parcours (qui démarre dessus sans redemander). Motifs alignés : « Entretien annuel », « Entretien annuel + huile », « 1 000 km », « Desmo », « Autre ». | RDV « Entretien annuel + huile » → Créer l'OR : l'OR affiche « Oil Service » pour la Streetfighter V4 SP2 ; Démarrer le parcours : il s'ouvre sur Oil Service sans écran de choix. | 2 | Question 1 |
+| 1 | ✅ **L'entretien choisi est enregistré sur l'OR** (fait 03/11, §10) | Couture n° 1 : un seul « entretien choisi » (échéance Ducati du manuel de la moto : Annual Service, Oil Service, Oil Service 1000, Desmo / Valve Check) posé à l'ouverture de l'OR ou repris du RDV, proposé d'après le prochain entretien connu et le km ; lu par le check-up, le popup, la picking list et le parcours (qui démarre dessus sans redemander). Motifs alignés : « Entretien annuel », « Entretien annuel + huile », « 1 000 km », « Desmo », « Autre ». | RDV « Entretien annuel + huile » → Créer l'OR : l'OR affiche « Oil Service » pour la Streetfighter V4 SP2 ; Démarrer le parcours : il s'ouvre sur Oil Service sans écran de choix. | 2 | Question 1 |
 | 2 | **Les kits en base, consommables désignés** | Sans kit, popup, pièces du check-up, picking et manquant sont vides (0 kit aujourd'hui). Lot de l'autre agent ; ici seulement : désigner une fois les articles huile moteur / liquides (`maintenance_fluid_article_set`), vente au litre. | Atelier → Kits : un kit « Oil Service » a filtre + bouchon + huile 3,4 l avec un article et un casier. | 0,5 (+ lot kits) | lot kits, question 4 |
 | 3 | **Figures des manuels visibles en production** | Couture n° 9 : URL signées du stockage `wsm-images` au lieu de `/manuels/`. | Parcours d'une moto reliée à un manuel → une procédure : les figures s'affichent et se zooment, sur la tablette de l'atelier. | 0,5 | — |
 | 4 | **Le check-up se pré-remplit depuis le manuel et le kit** | Le pré-remplissage lit les 59 posters (282 motos) ; les manuels couvrent 1 348 motos et donnent opérations + temps UT ; le kit donne les pièces au prix de vente. | OR d'une moto reliée à un manuel, motif « Entretien annuel » → Check-up → Pré-remplir : une carte « Annual Service » avec temps Ducati, pièces du kit et prix, puis les opérations. | 1,5 | 1, 2 |
 | 5 | **Les pièces de l'entretien deviennent des lignes de l'OR** | Couture n° 3 : à la validation de l'entretien (check-up ou ouverture), les pièces du kit entrent en lignes pièce de l'OR (article, quantité, PV) ; le report du parcours propose des pièces **avec article** (recherche) et non à 0 € ; la picking list ne reprend plus les actions OK / reportées. | OR entretien → les lignes du kit sont sur l'OR ; facture → les pièces sont facturées et le stock baisse d'autant. | 1,5 | 2, 4 |
-| 6 | **Réserver les pièces de l'entretien dans le stock** | Couture n° 2 : réservation (mouvements `reservation`, origine atelier, réf. n° d'OR) des pièces de l'OR disponibles, à l'accord client ou à la picking list ; libérée à la facture ou à l'annulation ; disponible et casier visibles sur l'OR. Règle critique (tests obligatoires, règle 7). | OR avec filtre à huile (40 en stock) → « Réserver » : Stock affiche réservé 1, disponible 39 ; facture → réservé 0, réel 39. | 2 | 5, question 2 |
-| 7 | **Une seule façon de commander depuis l'atelier : le panier** | Couture n° 7 : popup, « Commander les pièces manquantes » et « Ajouter au panier » fusionnés en un bouton « Commander ce qui manque » (standard, ou urgente si RDV < N jours) ; les lignes du panier comptent « en commande » dans le manquant. | Ajouter au panier depuis l'OR → rouvrir : « Rien à commander » ; le panier montre la ligne avec le n° d'OR. | 1 | 6, question 3 |
+| 6 | ✅ **Réserver les pièces de l'entretien dans le stock** (fait 03/11, dès le RDV, §10) | Couture n° 2 : réservation (mouvements `reservation`, origine atelier, réf. n° d'OR) des pièces de l'OR disponibles, à l'accord client ou à la picking list ; libérée à la facture ou à l'annulation ; disponible et casier visibles sur l'OR. Règle critique (tests obligatoires, règle 7). | OR avec filtre à huile (40 en stock) → « Réserver » : Stock affiche réservé 1, disponible 39 ; facture → réservé 0, réel 39. | 2 | 5, question 2 |
+| 7 | 🟦 **Une seule façon de commander depuis l'atelier : le panier** (début 03/11, §10) | Couture n° 7 : popup, « Commander les pièces manquantes » et « Ajouter au panier » fusionnés en un bouton « Commander ce qui manque » (standard, ou urgente si RDV < N jours) ; les lignes du panier comptent « en commande » dans le manquant. | Ajouter au panier depuis l'OR → rouvrir : « Rien à commander » ; le panier montre la ligne avec le n° d'OR. | 1 | 6, question 3 |
 | 8 | **Picking list avant l'entretien** | Couture n° 4 : la liste lit l'entretien de l'OR (carte 1), plus le parcours ; message clair si rien à préparer ; boutons picking / commander aussi au début du parcours. | OR sans parcours → Créer la picking list : les pièces du kit et de l'OR, casiers, disponible. | 0,5 | 1, 5 |
 | 9 | **Chaque opération montre ses pièces** | Demande « chaque étape avec les pièces » : les besoins du kit sont déjà reliés aux libellés d'opérations (`matched_labels`) ; les afficher sur l'opération (référence, quantité, casier, préparée oui / non). | Parcours Oil Service → opération « Vidange de l'huile moteur et remplacement du filtre » : filtre 44440312B, bouchon, huile 3,4 l, casier AT/STOCK BAS. | 1,5 | 2, 8 |
 | 10 | **Le chrono du parcours est la pointeuse (B11)** | Couture n° 8 : un démarrage / arrêt d'opération écrit un pointage `travail` (colonne `journey_operation`) au nom du technicien connecté ; temps passé de l'OR = un seul total ; temps passé / Ducati / facturé par OR et par mécanicien (Rapports). | Démarrer 10 min sur une opération → Pointeuse et fiche OR montrent 10 min ; Rapports → Productivité : ligne du mécanicien. | 2 | question 5 |
@@ -271,3 +271,38 @@ choisi n'est pas membre de la societe. »), 11 types préchargés, dossier accid
 
 Application (après backup et go) :
 `npx supabase@2.117.0 db query --linked --project-ref ujmrosbgkvgvwfnuryna -f supabase/migrations/20261103230000_m8_page_or.sql`
+
+## 10. Cartes 1 et 6 (et début de 7) — fait le 03/11/2026 (ATE015)
+
+Décisions de Simon du 03/11 (questions 1 et 2 du §6) : **M-109 à M-113** ([décisions](../decisions.md)).
+Branche `lot-atelier-entretien-reservation`, migration `20261103270000_m8_entretien_reservation.sql` **écrite, essayée en
+transaction annulée (22 / 22), non appliquée** (suppose 150000 … 260000 appliquées, dont 200000 kits).
+L'écran marche avant la migration : pas de bloc de réservation (message), l'ancien popup reste l'outil de commande.
+
+| Ce qui change | Où |
+|---|---|
+| `repair_orders.service_code` et `workshop_appointments.service_code` (annual / oil / first_1000 / desmo), posés par le motif (déclencheur), colonne « Entretien » des motifs dans Paramètres → Tables ; motif « Entretien annuel + huile » ajouté, « 1er entretien 1 000 km » renommé, 15 000 / 30 000 km inactifs | migration §1-2, `service-code.ts`, `settings/reference-tables.ts`, `checkup/api.ts` |
+| Kit de l'entretien = kits réunis (annuel + huile = Annual + Oil, une pièce une fois) : `_workshop_service_kit_items`, `workshop_service_kit` ; lu par la réservation, le check-up (pré-remplissage), la picking list (`picking_open_for_repair_order` : plus besoin du parcours), la commande depuis l'OR (`repair_order_order_needs`) | migration §3, §7 |
+| Parcours technicien : s'ouvre sur l'entretien de l'OR sans écran de choix (première ouverture) | `journey/journey-screen.tsx` |
+| Prochain entretien : un OR facturé avec un entretien choisi compte « OR du DMS » | migration §8 |
+| Réservation au RDV : `stock_reservations` + mouvements `reservation` / `liberation` origine `atelier` ; déclencheurs sur le RDV (création, statut, moto, entretien, date, OR, suppression), l'OR (facture, annulation, entretien) et les entrées en stock ; le manque au panier (urgente < N jours, standard sinon) ; minimax immédiat | migration §4-6 |
+| Espace client : « Quel entretien ? » (annuel, annuel + huile, 1 000 km, « je ne sais pas » = l'échéance connue de la moto) ; la demande réserve aussi | `portal/appointments.tsx`, `portal_request_appointment` (5e paramètre optionnel) |
+| Écrans : bloc « Pièces réservées » sur l'OR et sur le RDV (planning, bouton « Pièces », et juste après la prise du RDV) — statut couleur + icône + libellé (réservée / à commander / commandée / reçue ; sortie / libérée) ; fiche article → Stock : réservations atelier en cours ; caisse et documents de vente : avertissement « pièce réservée pour le RDV de X le … » | `workshop/reservations/*`, `articles/article-tabs.tsx`, `sales/pos-sale.tsx`, `sales/document-editor.tsx` |
+| Début carte 7 : avec la réservation en base, plus de popup ni de « Commander les pièces manquantes » (commande de pièces) sur l'OR ; le manque va au panier ; la réservation de l'OR compte comme libre pour lui et ses lignes de panier comme « en commande » | `_app.workshop.$orId.tsx`, `repair_order_order_needs` |
+
+**Essai à blanc (03/11, transaction annulée, administrateur simulé, ITALBIKE)** — script
+`supabase/tests/m8_entretien_reservation.sql`, 22 / 22 « ok » : RDV « Entretien annuel » sur une Streetfighter V4
+(kit d'essai) → filtre 44440312B réservé (40 → 39 disponibles), pièce à 1 en stock (besoin 2) → 1 réservée,
+1 au panier standard (atelier, client) ; minimum 2 / maximum 4 → ligne **minimax 4** au panier standard, gardée
+par le minimax de nuit ; RDV déplacé → date suivie, aucun mouvement ; RDV annulé → tout libéré ; RDV « annuel +
+huile » à 2 jours → filtre 1 seule fois, manque au panier **urgente** ; OR depuis le RDV → la réservation suit
+l'OR (aucun mouvement, entretien oil posé) ; picking list sans parcours → les 2 pièces ; facture → réel du filtre
+−1 **une seule fois**, réservé 0, « consommée » ; pièce absente de la facture → libérée ; somme des mouvements
+atelier = 0 ; prochain entretien « OR du DMS ». Rien gardé (vérifié après coup).
+
+Application (après backup et go) : `npx supabase@2.117.0 db query --linked --project-ref ujmrosbgkvgvwfnuryna -f supabase/migrations/20261103270000_m8_entretien_reservation.sql`
+
+Reste : carte 5 (les pièces de l'entretien deviennent des lignes de l'OR — d'ici là le bloc signale « pas encore
+sur les lignes de l'OR »), fin de la carte 7 (un seul bouton « Commander ce qui manque », paniers comptés « en
+commande » partout), carte 8 (picking : reprise faite, message « rien à préparer » à faire). Question **Q21** :
+le motif « Vidange » (doublon de « Entretien annuel + huile » ?) — gardé sans entretien en attendant.

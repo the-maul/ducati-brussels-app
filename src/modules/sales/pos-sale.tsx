@@ -22,6 +22,7 @@
  * à l'encaissement en espèces si le poste le prévoit (réglage de la société), bouton « Ouvrir le
  * tiroir » tracé dans `events`. Impression automatique du ticket une fois réglé (réglage).
  */
+import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-warning';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -106,7 +107,9 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   const mustInvoice = invoiceRequired(cart, rules ?? []);
   const noSession = !sessionLoading && posSessionError(session) === 'noSession';
 
-  const add = (a: SaleArticle) => setCart((c) => {
+  // Piece reservee pour un RDV atelier : avertissement clair (mission 10, carte 6), la vente reste possible.
+  const add = (a: SaleArticle) => { void warnIfReservedForWorkshop(a, (cart.find((l) => l.article_id === a.id)?.quantity ?? 0) + 1); addToCart(a); };
+  const addToCart = (a: SaleArticle) => setCart((c) => {
     const existing = c.find((l) => l.article_id === a.id);
     if (existing) return c.map((l) => (l.article_id === a.id ? { ...l, quantity: l.quantity + 1 } : l));
     return [...c, {

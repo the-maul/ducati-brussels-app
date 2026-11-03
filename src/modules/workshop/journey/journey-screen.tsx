@@ -6,7 +6,7 @@
  * L'avancement est enregistré à chaque geste et la reprise se fait là où le technicien s'est arrêté.
  * **Rien n'est facturé automatiquement** : le récapitulatif propose des lignes, l'OR reste maître.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -33,8 +33,20 @@ import {
 } from './rules';
 import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, Procedure } from './types';
 import { t } from '@/lib/i18n';
+import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
 
-const uid = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+/** Demarre une fois l'entretien de l'OR, puis laisse l'ecran des operations prendre la main. */
+function AutoStart({ onStart }: { onStart: () => void }) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    onStart();
+  }, [onStart]);
+  return <div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div>;
+}
+
+const uid =() => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const today = () => new Date().toISOString().slice(0, 10);
 
 type View = 'choose' | 'ops' | 'procedure' | 'summary';
@@ -210,6 +222,14 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
       null,
       { date: vehicle?.firstRegistrationDate ?? null },
     );
+    // Mission 10, carte 1 : l'entretien choisi de l'OR ouvre le parcours sans ecran de choix
+    // (premiere ouverture seulement ; « Choisir un autre entretien » reste possible ensuite).
+    const orx = ro.or as unknown as { service_code?: string | null; reason_code?: string | null };
+    const orService = isServiceCode(orx.service_code) ? orx.service_code : serviceCodeForReason(orx.reason_code ?? null);
+    const auto = !state && saved.isSuccess && !saved.data && orService
+      ? due.find((d) => serviceKindOf(d.service.service, d.service.km ?? null, d.service.mois ?? null) === orService) ?? null
+      : null;
+    if (auto) return <AutoStart onStart={() => startService(auto.service.service)} />;
     return (
       <div>
         {banners}

@@ -120,6 +120,23 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
   migration n'est pas posée, l'ancien chemin (suppression puis insertion, sans les colonnes du
   check-up) reste utilisé et l'écran dit que le check-up attend la migration.
 
+### L'entretien choisi et la réservation des pièces au RDV (03/11/2026, M-109 à M-113)
+
+- **Une seule notion** : `service_code` sur l'OR et le RDV (annual = Annual Service / Entretien annuel, oil =
+  Oil Service / Entretien annuel + huile, first_1000, desmo), posé par le **motif** (colonne « Entretien » des
+  motifs, Paramètres → Tables ; déclencheur `_trg_workshop_service_code`). Il pilote le kit (kits réunis,
+  annuel + huile = Annual + Oil sans doublon), le check-up, la picking list (plus besoin du parcours), le
+  parcours (ouvert sur l'entretien de l'OR), la commande depuis l'OR et le prochain entretien.
+- **Réservation dès le RDV** (planning, téléphone, comptoir, espace client) : déclencheurs sur
+  `workshop_appointments` ; le manque au panier (urgente < N jours, standard sinon), minimax immédiat ; RDV
+  annulé → libéré, déplacé → suivi, OR ouvert → suit l'OR, facture → consommé (la facture sort le stock, une
+  seule fois). OR sans RDV : bouton « Réserver / mettre à jour » du bloc « Pièces réservées ».
+- Écrans : bloc « Pièces réservées » (OR, RDV), fiche article → Stock, avertissement au comptoir.
+- Migration `20261103270000_m8_entretien_reservation.sql` **non appliquée** ; essai à blanc 22 / 22 (`supabase/tests/m8_entretien_reservation.sql`).
+  Détail : [mission 10 §10](../missions/mission-10-atelier-bout-en-bout.md).
+- Piège : les pièces réservées ne sont pas encore des **lignes de l'OR** (carte 5) : à la facture, une pièce
+  réservée absente des lignes est **libérée**, pas facturée (le bloc le signale).
+
 ### Kits de pièces d'entretien (M-20, M-38 à M-43, M-90 à M-92)
 
 - **03/11 — Tout le parc, au minimum « annuel » et « annuel + huile »** (M-91) : chaque modèle-année du
@@ -276,6 +293,7 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | 2026-11-03 | **Page OR (ATE001b, retours client)** : opérateur choisi dans l'équipe (connecté par défaut, `operator_id`), type de réparation en liste réglable pré-remplie par le motif, garantie / expert affichés seulement quand ils servent, recherche d'article unique en surcouche (OR, check-up, ventes) mieux classée, PU HT déduit du TTC + TVA de l'article + remise client + MO au taux horaire, OR accident → dossier accident en brouillon et bandeau sur l'OR | branche `fix-page-or`, `20261103230000_m8_page_or.sql` (**non appliquée**, essayée en transaction annulée) |
 | 2026-11-03 | **Créer un OR montre bien les motos du client, le client ne s'efface plus** (bug client, ATE001) : sélecteur de moto partagé OR / RDV / documents de vente (`vehicles/vehicle-picker.tsx`), motos du client en tête puis recherche parc, client sans moto → « Ajouter une moto à ce client », client et moto de l'OR chargés par id (plus via la liste plafonnée à 500), bouton « Nouvel OR » sur la fiche moto, `/workshop/new?contactId=&vehicleId=` | branche `fix-or-motos-du-client` |
 | 2026-11-03 | **Mission 10 « Atelier de bout en bout »** : audit du parcours complet (9 étapes, 11 coutures, 19 cartes, voir [mission 10](../missions/mission-10-atelier-bout-en-bout.md)) ; constaté en base : migrations atelier du 23/09 au 03/11 **appliquées** (parcours, kits, picking depuis l'OR, check-up, prochain entretien, panier, popup), 0 kit, 0 parcours, 0 réservation ; corrigé : « Reporter sur l'OR » garde l'état du check-up, « Créer l'OR » depuis un RDV reprend le motif, bandeau « prochain entretien » du check-up sur la ligne courante | branche `mission-10-atelier` |
+| 2026-11-03 | **L'entretien choisi suit la moto de l'OR, ses pièces sont réservées dès le RDV, le manque part en commande** (mission 10 cartes 1 et 6, début 7, ATE015, M-109 à M-113) : `service_code` sur l'OR et le RDV, motifs alignés sur le manuel, kits réunis, réservation `stock_reservations` au RDV (y compris espace client), minimax immédiat, libération / suivi de l'OR / consommation à la facture, bloc « Pièces réservées », avertissement au comptoir | branche `lot-atelier-entretien-reservation`, `20261103270000_m8_entretien_reservation.sql` (non appliquée) |
 | 2026-06-11 | OR (cycle B8) + garantie B10 avec refus partiel, transformation en facture | `65216de`, `20260610340000_m8_repair_orders.sql` |
 | 2026-06-11 | Chronos B11 (pointeuse) | `95b0085`, `20260610350000_m8_chrono.sql` |
 | 2026-06-11 | Planning / RDV, création d'OR depuis le RDV | `3e973a6`, `20260610360000_m8_appointments.sql` |

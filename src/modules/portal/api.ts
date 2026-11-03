@@ -334,10 +334,23 @@ export const listProposals = (): Promise<PortalProposal[]> =>
 export const updateProfile = (patch: ProfilePatch) =>
   rpc<PortalProfile>('portal_update_profile', { p: patch });
 
-export const requestAppointment = (p: { vehicleId: string | null; reason: string; date: string; slot: AppointmentSlot }) =>
-  rpc<string>('portal_request_appointment', {
-    p_vehicle_id: p.vehicleId, p_reason: p.reason, p_date: p.date, p_slot: p.slot,
-  });
+/**
+ * Demande de RDV. `service` (mission 10, migration 20261103270000) = l'entretien choisi par le client
+ * ('annual' | 'oil' | 'first_1000' | 'auto') : les pieces de son kit sont reservees des la demande.
+ * Avant la migration, la fonction ne connait pas ce parametre : on renvoie la demande sans lui.
+ */
+export const requestAppointment = async (p: { vehicleId: string | null; reason: string; date: string; slot: AppointmentSlot; service?: string | null }) => {
+  const base = { p_vehicle_id: p.vehicleId, p_reason: p.reason, p_date: p.date, p_slot: p.slot };
+  if (!p.service) return rpc<string>('portal_request_appointment', base);
+  const { data, error } = await (supabase.rpc as unknown as (
+    f: string, a?: Record<string, unknown>,
+  ) => Promise<{ data: Json; error: { message: string; code?: string } | null }>)('portal_request_appointment', { ...base, p_service: p.service });
+  if (!error) return data as unknown as string;
+  if (error.code === 'PGRST202' || /Could not find the function|schema cache/i.test(error.message)) {
+    return rpc<string>('portal_request_appointment', base);
+  }
+  throw new Error(portalErrorMessage(error));
+};
 
 export const cancelAppointmentRequest = (id: string) =>
   rpc<null>('portal_cancel_appointment_request', { p_appointment_id: id });

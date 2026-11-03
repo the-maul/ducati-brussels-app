@@ -23,6 +23,7 @@ import { ArticlePicker } from '../or-editor';
 import { articleLinePrice } from '@/modules/sales/article-price';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { checkupPhotoUrl, prefillFromMaintenancePlan, uploadCheckupPhoto, vehicleMaintenanceDue } from './api';
+import type { ServiceCode } from '../service-code';
 import {
   CHECKUP_STATES, blankCard, blankPart, cardPrice, cardRate, checkupTotals, isMaintenanceReason, PROPOSED_STATES,
   type CheckupCard, type CheckupPart, type CheckupState,
@@ -41,16 +42,18 @@ const STATE_STYLE: Record<CheckupState, { icon: LucideIcon; tone: 'success' | 'd
 };
 
 export function CheckupTab({
-  companyId, orId, vehicleId, reasonCode, cards, onChange, rate, rateLoading, busy, error, approvalPending, hasClient,
+  companyId, orId, vehicleId, reasonCode, serviceCode = null, cards, onChange, rate, rateLoading, busy, error, approvalPending, hasClient,
   onSave, onSendProposal, extraActions,
 }: {
   companyId: string; orId: string; vehicleId: string | null; reasonCode: string | null;
+  /** Entretien choisi de l'OR (mission 10, carte 1) : pilote l'echeance et les pieces du pre-remplissage. */
+  serviceCode?: ServiceCode | null;
   cards: CheckupCard[]; onChange: (cards: CheckupCard[]) => void;
   rate: number | null; rateLoading: boolean; busy: boolean; error?: string | null; approvalPending: boolean; hasClient: boolean;
   onSave: () => void; onSendProposal: () => void; extraActions?: ReactNode;
 }) {
   const totals = checkupTotals(cards, rate);
-  const maintenance = isMaintenanceReason(reasonCode);
+  const maintenance = !!serviceCode || isMaintenanceReason(reasonCode);
   const dueQ = useQuery({ queryKey: ['vehicle-maintenance-due', vehicleId], queryFn: () => vehicleMaintenanceDue(vehicleId!), enabled: !!vehicleId, staleTime: 300_000 });
 
   const update = (key: string, patch: Partial<CheckupCard>) => onChange(cards.map((c) => (c.key === key ? { ...c, ...patch } : c)));
@@ -58,7 +61,7 @@ export function CheckupTab({
   const add = () => onChange([...cards, blankCard({ state: 'a_faire', hourly_rate_ht: rate ?? null })]);
 
   const prefill = useMutation({
-    mutationFn: () => prefillFromMaintenancePlan(companyId, vehicleId, reasonCode ?? ''),
+    mutationFn: () => prefillFromMaintenancePlan(companyId, vehicleId, reasonCode ?? '', serviceCode),
     meta: { success: false, error: false },
     onSuccess: (r) => {
       if (r.reason) { toast.info(t(`checkup.prefill_${r.reason}`)); return; }

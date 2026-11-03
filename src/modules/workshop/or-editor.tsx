@@ -45,6 +45,7 @@ import { loadHourlyRateHt } from './maintenance-api';
 import { listWorkshopReasons } from './checkup/api';
 import { cardsToLines, linesToCards, nonCheckupLines, PROPOSED_STATES, type CheckupCard } from './checkup/rules';
 import { CheckupTab } from './checkup/checkup-tab';
+import { serviceCodeForReason, serviceLabelKey, type ServiceCode } from './service-code';
 import { t } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
@@ -169,7 +170,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   useEffect(() => { if (preContactQ.error || preVehicleQ.error) toast.error(t('workshop.headerLoadError')); }, [preContactQ.error, preVehicleQ.error]);
 
   // Motifs d'entrée (Paramètres → Tables) et taux horaire de l'atelier (frais de devis atelier).
-  const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
+  const savedReason = (ox?.reason_code as string | null | undefined) ?? null;
+  const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId, savedReason], queryFn: () => listWorkshopReasons(companyId, savedReason), staleTime: 300_000 });
+  // L'entretien choisi (mission 10, carte 1, M-110) : donne par le motif, enregistre sur l'OR par la base.
+  const serviceCode: ServiceCode | null = reasonCode
+    ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode))
+    : null;
   const rateQ = useQuery({ queryKey: ['maintenance', 'rate', companyId], queryFn: () => loadHourlyRateHt(companyId), staleTime: 300_000 });
   const rate = rateQ.data ?? null;
   const teamQ = useQuery({ queryKey: ['company-team', companyId], queryFn: () => listCompanyTeam(companyId), staleTime: 300_000 });
@@ -256,6 +262,11 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                 {(reasonsQ.data ?? []).map((r) => <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            {serviceCode && (
+              <p className="text-[12px] text-muted-foreground" title={t('reservation.serviceFromReason')}>
+                {t('reservation.serviceLabel')} : <b className="text-foreground">{t(serviceLabelKey(serviceCode))}</b>
+              </p>
+            )}
           </Field>
         )}
         <Field label={t('workshop.repairType')}>
@@ -394,7 +405,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <TabsContent value="fiche" className="mt-4">{fiche}</TabsContent>
         <TabsContent value="checkup" className="mt-4">
           <CheckupTab
-            companyId={companyId} orId={o.id} vehicleId={vehicle?.id ?? null} reasonCode={reasonCode || null}
+            companyId={companyId} orId={o.id} vehicleId={vehicle?.id ?? null} reasonCode={reasonCode || null} serviceCode={serviceCode}
             cards={cards} onChange={setCards} rate={rate} rateLoading={rateQ.isLoading}
             busy={busy} error={error} approvalPending={approvalPending}
             hasClient={!!contact}

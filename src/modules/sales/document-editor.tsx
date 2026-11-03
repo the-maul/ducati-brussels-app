@@ -7,6 +7,7 @@
  * Devis atelier (mission 02) : frais de devis accident (fixe) ou diagnostic (tarif horaire,
  * plafonné) posés en ligne dédiée, sans doublon — voir modules/workshop/quote-fees.ts.
  */
+import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-warning';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -208,7 +209,8 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
   // Un article de type T devient une ligne « main d'œuvre » (quantité en heures, sans stock).
-  const pickArticle = (key: string, a: SaleArticle) => setLine(key, {
+  const pickArticle = (key: string, a: SaleArticle) => { void warnIfReservedForWorkshop(a, Number(lines.find((l) => l._key === key)?.quantity ?? 1) || 1); pickArticleLine(key, a); };
+  const pickArticleLine = (key: string, a: SaleArticle) => setLine(key, {
     article_id: a.id, designation: a.designation, reference: a.reference,
     unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
     line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null,

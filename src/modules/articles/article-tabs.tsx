@@ -18,6 +18,7 @@ import { getArticle, listPredecessorArticles, getReplacementChain, getReplacemen
 import { ShopifyReplacementSwitch } from './shopify-switch';
 import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importApplicabilityCsv } from './applicability-api';
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
+import { ArticleReservationsPanel } from '@/modules/workshop/reservations/article-reservations-panel';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
 import { t } from '@/lib/i18n';
 
@@ -409,6 +410,7 @@ export function StockTab({ articleId }: { articleId: string }) {
         <StockCard label={t('articleTabs.stockReserved')} value={stock.data?.reserved} loading={stock.isLoading} muted />
         <StockCard label={t('articleTabs.stockAvailable')} value={stock.data?.available} loading={stock.isLoading} accent />
       </div>
+      <ArticleReservationsPanel articleId={articleId} />
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
         <div className="space-y-1">

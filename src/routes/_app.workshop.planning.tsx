@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, Search, FileText, Package } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,15 @@ import { listAppointments, createAppointment, updateAppointmentStatus, createOrF
 import { listWorkshopReasons } from '@/modules/workshop/checkup/api';
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
+import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-parts-dialog';
+import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
+import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
+
+/** Entretien choisi d'un RDV : colonne de la migration 20261103270000, sinon le motif. */
+const apptService = (a: Appointment): string | null => {
+  const x = a as Appointment & { service_code?: string | null; reason_code?: string | null };
+  return isServiceCode(x.service_code) ? x.service_code : serviceCodeForReason(x.reason_code ?? null);
+};
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/planning')({
@@ -43,6 +52,8 @@ function PlanningPage() {
   const qc = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [showNew, setShowNew] = useState(false);
+  const [partsFor, setPartsFor] = useState<Appointment | null>(null);
+  const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
   const weekEnd = addDays(weekStart, 7);
 
   const { data, isLoading } = useQuery({
@@ -105,6 +116,9 @@ function PlanningPage() {
                     {a.or_id
                       ? <Button size="sm" variant="ghost" className="h-7" onClick={() => navigate({ to: '/workshop/$orId', params: { orId: a.or_id! } })}><FileText className="size-3.5" /> {t('workshop.viewOr')}</Button>
                       : <Button size="sm" variant="ghost" className="h-7" onClick={() => makeOr.mutate(a)} disabled={makeOr.isPending}>{t('workshop.createOrFromRdv')}</Button>}
+                    {reservationSchema.data === true && apptService(a) && (
+                      <Button size="sm" variant="ghost" className="h-7" onClick={() => setPartsFor(a)}><Package className="size-3.5" /> {t('reservation.button')}</Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -113,14 +127,17 @@ function PlanningPage() {
         ))}
       </div>
 
-      {showNew && <NewRdvDialog companyId={activeCompanyId!} defaultDate={ymd(weekStart)} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refresh(); }} />}
+      {showNew && <NewRdvDialog companyId={activeCompanyId!} defaultDate={ymd(weekStart)} reservationsOn={reservationSchema.data === true} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refresh(); }} />}
+      {partsFor && (
+        <ReservedPartsDialog appointmentId={partsFor.id} startsAt={partsFor.starts_at} serviceCode={apptService(partsFor)} onClose={() => setPartsFor(null)} />
+      )}
     </>
   );
 }
 
 const NO_REASON = '__none__';
 
-function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyId: string; defaultDate: string; onClose: () => void; onCreated: () => void }) {
+function NewRdvDialog({ companyId, defaultDate, reservationsOn, onClose, onCreated }: { companyId: string; defaultDate: string; reservationsOn: boolean; onClose: () => void; onCreated: () => void }) {
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState('09:00');
   const [minutes, setMinutes] = useState('60');
@@ -148,6 +165,11 @@ function NewRdvDialog({ companyId, defaultDate, onClose, onCreated }: { companyI
     },
   });
 
+  if (created && reservationsOn) {
+    // Les pieces du kit viennent d'etre reservees par la base (M-111) ; le manque est au panier.
+    const svc = reasonCode ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode)) : null;
+    return <ReservedPartsDialog appointmentId={created.id} startsAt={created.startsAt} serviceCode={svc} onClose={popupDone} />;
+  }
   if (created) {
     return (
       <MaintenancePartsPopup

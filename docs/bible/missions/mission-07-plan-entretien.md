@@ -689,3 +689,13 @@ Idempotence et M-41 vérifiés dans la même transaction : deuxième passage = 0
   le kit, ce qui achève ATE013.
 - **Écran de couverture entretien → pièces** : la fonction `maintenance_parts_coverage` existe et
   est appelable par lots ; un onglet la rendrait visible sans passer par SQL.
+
+## Suite du 03/11/2026 (nuit) — les kits servent l'entretien choisi de l'OR (mission 10, M-109 / M-110)
+
+Les kits du 03/11 (commit 8951f03, M-90 à M-92) sont lus par **type d'entretien** (`service_kind`) depuis
+l'entretien choisi de l'OR / du RDV (`service_code`) : `_workshop_service_kit_items` réunit les kits de
+l'entretien — « Entretien annuel + huile » = kit Annual Service + kit Oil Service, **une pièce une seule fois**
+(la plus grande quantité ; un consommable sans article prend l'article désigné, `maintenance_fluid_articles`).
+Mêmes kits pour la réservation au RDV, le check-up, la picking list et la commande depuis l'OR. Les kits
+restent sans mouvement de stock (la réservation est un mouvement à part, M05). Migration `20261103270000_m8_entretien_reservation.sql`
+(non appliquée), voir [mission 10 §10](mission-10-atelier-bout-en-bout.md).

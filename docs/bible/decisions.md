@@ -1302,3 +1302,32 @@ Détail : [`../process-commandes-pieces.md`](../process-commandes-pieces.md) §5
 - **Entretiens (Simon, 03/11)** : « Entretien annuel » = Annual Service, « Entretien annuel + huile » = Oil Service (manuel Ducati) ; motifs 15 000 / 30 000 km retirés.
 - **Réservation des pièces (Simon, 03/11)** : dès qu'un RDV d'entretien est bloqué (en ligne, téléphone, comptoir), les pièces du kit sont réservées et attribuées au client ; si la réservation passe sous le minimax, la pièce part dans la nouvelle commande.
 - **Caisse / paiements / facturation / compta (Simon, 03/11)** : en pause jusqu'à la réunion avec Domenico et son comptable ; rien de neuf n'est lancé sur les missions 11 à 14 d'ici là.
+
+## 2026-11-03 (nuit) — L'entretien choisi suit l'OR, ses pièces sont réservées dès le RDV (mission 10, cartes 1 et 6, ATE015)
+- **M-109** (Simon, 03/11) : les entretiens sont ceux du **manuel Ducati**, avec les mots de l'atelier :
+  « Entretien annuel » = **Annual Service** (`annual`), « Entretien annuel + huile » = **Oil Service** (`oil`),
+  « 1er entretien 1 000 km » (`first_1000`). Les motifs « 15 000 km » / « 30 000 km » (posters) sont **retirés**
+  de la liste (inactifs en base pour les anciens OR). « Annuel + huile » = kit Annual + kit Oil, **une pièce
+  une seule fois** (la plus grande quantité) : quand le manuel met déjà la vidange dans l'Annual Service, les deux
+  motifs donnent le même kit (pas de double huile). « Vidange » reste un motif sans entretien (question Q21).
+- **M-110** : l'entretien choisi est **une donnée de l'OR et du RDV** (`service_code`), posée par le motif
+  (Paramètres → Tables → Motifs d'entrée, colonne « Entretien ») ; elle pilote le kit, le check-up, la picking
+  list, le parcours technicien (qui s'ouvre dessus sans écran de choix), la commande depuis l'OR et le prochain
+  entretien (un OR facturé avec un entretien choisi compte « OR du DMS »). Fin des 4 notions parallèles.
+- **M-111** (Simon, 03/11) : les pièces du kit de **sa** moto pour **cet** entretien sont **réservées dès que le
+  RDV est pris** (planning, téléphone, comptoir, espace client) — table `stock_reservations` + mouvements
+  append-only `reservation` / `liberation` origine `atelier` (B7) ; disponible = réel − réservé (+ en commande).
+  Ce qui manque part au panier Ducati (`basket_add_lines`, origine atelier, client en colonne G) : **urgente si le
+  RDV est à moins de N jours** (réglage des commandes, 5 par défaut) ou si la moto est là, standard sinon ; le
+  panier reste validé par l'atelier. Un OR ouvert **sans RDV** réserve au bouton « Réserver / mettre à jour ».
+- **M-112** (Simon, 03/11) : si la réservation fait passer une pièce **sous son minimum**, elle entre tout de suite
+  dans le **panier standard ouvert, origine minimax**. Le minimax compte désormais les réservations : stock du
+  minimax = réel − réservé − manque des RDV (le manque compté en besoin et en commande s'annule). Remplace la
+  règle « une réservation n'achète pas » (M05).
+- **M-113** : RDV annulé ou supprimé → réservation **libérée** ; RDV déplacé → réservation **déplacée** (date
+  suivie, aucun mouvement) ; OR ouvert depuis le RDV → la réservation **suit l'OR** ; facture de l'OR → réservation
+  libérée dans la même transaction et **la facture fait la seule sortie** (statut « consommée » ; une pièce
+  réservée absente de la facture est libérée) ; entrée en stock → ce qui manquait est re-réservé. Le comptoir
+  (caisse, documents de vente) est **averti** quand il vend une pièce réservée pour un RDV (« réservée pour le RDV
+  de X le … »), sans blocage. *Client · 03/11.* [mission 10](missions/mission-10-atelier-bout-en-bout.md),
+  [M08](modules/M08-atelier.md), [M05](modules/M05-stock.md)

@@ -21,6 +21,9 @@ import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-work
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { BasketFromWorkshopDialog } from '@/modules/purchases/basket-from-workshop-dialog';
+import { ReservedPartsBlock } from '@/modules/workshop/reservations/reserved-parts-block';
+import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
+import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
 import { createProposalFromOr, getProposalSignToken, listDeferredToPlan, proposalSignUrl, type DeferredIntervention } from '@/modules/workshop/checkup/api';
 import { approvalState, canStartWork } from '@/modules/workshop/checkup/rules';
 import { ApprovalPanel, VerbalApprovalDialog } from '@/modules/workshop/checkup/approval-panel';
@@ -59,6 +62,8 @@ function OrView() {
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
+  // Reservation des pieces au RDV (mission 10, carte 6) : en base, elle remplace le popup et la commande de pieces.
+  const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
   const companyName = companies.find((c) => c.id === activeCompanyId)?.name ?? '';
   // Dossier accident deja ouvert pour cet OR (bandeau et bouton « Voir le dossier accident »).
   const accidentSchema = useQuery({ queryKey: ['accident-schema'], queryFn: accidentSchemaReady, staleTime: Infinity });
@@ -77,7 +82,7 @@ function OrView() {
     onSuccess: (fileId) => navigate({ to: '/workshop/accidents/$fileId', params: { fileId } }),
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); };
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); qc.invalidateQueries({ queryKey: ['reserved-parts'] }); };
 
   const toInput = (p: OrPayload): RoInput => ({
     companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator, operatorId: p.operatorId,
@@ -193,6 +198,10 @@ function OrView() {
   const busy = save.isPending || proposal.isPending;
   const accidentOr = isAccidentOr({ reasonCode, repairType: or.repair_type });
   const accidentFile = accidentFileQ.data ?? null;
+  // L'entretien choisi enregistre sur l'OR (colonne de la migration 20261103270000), sinon deduit du motif.
+  const savedService = (or as unknown as Record<string, unknown>).service_code;
+  const serviceCode = isServiceCode(savedService) ? savedService : serviceCodeForReason(reasonCode);
+  const reservationsOn = reservationSchema.data === true;
 
   const onSubmit = (p: OrPayload, intent: OrEditorIntent) => {
     setError(null);
@@ -219,7 +228,8 @@ function OrView() {
                 {toPicking.isPending ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {t('workshop.createPicking')}
               </Button>
             )}
-            {!invoiced && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
+            {/* Une seule facon de commander (carte 7, debut) : avec la reservation en base, le manque va au panier. */}
+            {!invoiced && !reservationsOn && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => setBasketOpen(true)}><ShoppingBasket /> {t('basket.addToStandard')}</Button>}
             <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('accidentFile.openExisting') : t('accidentFile.open')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
@@ -267,6 +277,11 @@ function OrView() {
           />
         ) : null}
       />
+      {(serviceCode || isMaintenanceReasonCode(reasonCode)) && or.status !== 'annule' && (
+        <div className="mt-6">
+          <ReservedPartsBlock orId={orId} serviceCode={serviceCode} readOnly={invoiced} />
+        </div>
+      )}
       <div className="mt-6">
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
         <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
@@ -277,7 +292,8 @@ function OrView() {
           onClose={() => setOrderOpen(false)}
         />
       )}
-      {!partsPopupDone && !invoiced && or.status !== 'annule' && isMaintenanceReasonCode(reasonCode) && (
+      {/* Repli avant la migration de reservation : l'ancien popup « pieces manquantes ». */}
+      {!partsPopupDone && !invoiced && or.status !== 'annule' && reservationSchema.data === false && isMaintenanceReasonCode(reasonCode) && (
         <MaintenancePartsPopup
           ctx={{
             companyId: activeCompanyId!, vehicleId: or.vehicle_id, contactId: or.contact_id, reasonCode,

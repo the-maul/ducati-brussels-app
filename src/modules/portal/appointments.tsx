@@ -23,6 +23,8 @@ import { AppointmentStatus, Card, EmptyState, ErrorBox, Loading, PortalPage, Sec
 
 const REASONS = ['entretien', 'pneus', 'reparation', 'garantie', 'diagnostic', 'accessoires', 'autre'] as const;
 const NO_VEHICLE = 'none';
+const PORTAL_SERVICES = ['annual', 'oil', 'first_1000', 'auto'] as const;
+type PortalService = (typeof PORTAL_SERVICES)[number];
 
 function isoDay(offsetDays: number) {
   const d = new Date();
@@ -145,6 +147,8 @@ function RequestForm({ defaultVehicleId, followupToken, onClose, onDone }: {
   const vehicles = useQuery({ queryKey: ['portal', 'vehicles'], queryFn: listVehicles });
   const [vehicle, setVehicle] = useState<string>(defaultVehicleId ?? '');
   const [reason, setReason] = useState<string>('entretien');
+  // Quel entretien (mission 10) : les pieces de son kit sont mises de cote des la demande.
+  const [service, setService] = useState<PortalService>('auto');
   const [details, setDetails] = useState('');
   const [date, setDate] = useState(isoDay(3));
   const [slot, setSlot] = useState<AppointmentSlot>('matin');
@@ -159,6 +163,7 @@ function RequestForm({ defaultVehicleId, followupToken, onClose, onDone }: {
       reason: [t(`portal.reasons.${reason}`), details.trim()].filter(Boolean).join(' : '),
       date,
       slot,
+      service: reason === 'entretien' && selectedVehicle && selectedVehicle !== NO_VEHICLE ? service : null,
     }),
     meta: { success: t('portal.appointments.sent') },
     onSuccess: async () => {
@@ -208,6 +213,22 @@ function RequestForm({ defaultVehicleId, followupToken, onClose, onDone }: {
             ))}
           </div>
         </div>
+
+        {reason === 'entretien' && selectedVehicle && selectedVehicle !== NO_VEHICLE && (
+          <div className="space-y-1.5">
+            <Label>{t('reservation.portalServiceLabel')}</Label>
+            <div className="flex flex-wrap gap-2">
+              {PORTAL_SERVICES.map((s) => (
+                <button key={s} type="button" onClick={() => setService(s)} aria-pressed={service === s}
+                  className={cn('rounded-md border px-3 py-2 text-[13px]',
+                    service === s ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground')}>
+                  {t(`reservation.portalService_${s}`)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[12px] text-muted-foreground">{t('reservation.portalServiceHint')}</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="appt-details">{t('portal.appointments.details')}</Label>

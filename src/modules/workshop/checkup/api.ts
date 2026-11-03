@@ -20,6 +20,8 @@ import { getKitDetail, getKitForModelYear } from '../kits/api';
 import { getPlanServices, listPlansForModelYear, getCatalogModelYear, loadHourlyRateHt } from '../maintenance-api';
 import { pickCurrent, planForUsage, DEFAULT_USAGE } from '../maintenance-plans';
 import { blankCard, blankPart, pickServiceForReason, newCheckupKey, type CheckupCard } from './rules';
+import { pickServiceForCode, serviceCodeForReason, type ServiceCode } from '../service-code';
+import { getServiceKit } from '../reservations/api';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 /** Requete sur une table inconnue de types.ts (deferred_interventions, vehicle_maintenance_due). */
@@ -54,26 +56,39 @@ const num = (v: unknown): number => {
 
 export const WORKSHOP_REASON_TABLE_KEY = 'workshop_reason';
 
-/** Memes valeurs que celles prechargees par la migration (repli tant qu'elle n'est pas posee). */
-export const DEFAULT_WORKSHOP_REASONS: { code: string; label: string }[] = [
-  { code: 'entretien_annuel', label: 'Entretien annuel' },
-  { code: 'entretien_1000', label: 'Entretien 1 000 km' },
-  { code: 'entretien_15000', label: 'Entretien 15 000 km' },
-  { code: 'entretien_30000', label: 'Entretien 30 000 km' },
-  { code: 'vidange', label: 'Vidange' },
-  { code: 'pneus', label: 'Pneus' },
-  { code: 'freins', label: 'Freins' },
-  { code: 'accident', label: 'Accident' },
-  { code: 'garantie', label: 'Garantie' },
-  { code: 'diagnostic', label: 'Diagnostic' },
-  { code: 'autre', label: 'Autre' },
+/** Motif d'entree et l'entretien qu'il donne (colonne « Entretien » du motif, sinon la regle d'origine). */
+export type WorkshopReason = { code: string; label: string; serviceCode: ServiceCode | null };
+
+/**
+ * Memes valeurs que celles prechargees par les migrations (repli tant qu'elles ne sont pas posees).
+ * Depuis le 03/11 (M-109) : « Entretien annuel + huile » (Oil Service) ajoute, « 15 000 km » et
+ * « 30 000 km » retires de la liste (gardes inactifs en base pour les anciens OR).
+ */
+export const DEFAULT_WORKSHOP_REASONS: WorkshopReason[] = [
+  { code: 'entretien_annuel', label: 'Entretien annuel', serviceCode: 'annual' },
+  { code: 'entretien_annuel_huile', label: 'Entretien annuel + huile', serviceCode: 'oil' },
+  { code: 'entretien_1000', label: '1er entretien 1 000 km', serviceCode: 'first_1000' },
+  { code: 'vidange', label: 'Vidange', serviceCode: null },
+  { code: 'pneus', label: 'Pneus', serviceCode: null },
+  { code: 'freins', label: 'Freins', serviceCode: null },
+  { code: 'accident', label: 'Accident', serviceCode: null },
+  { code: 'garantie', label: 'Garantie', serviceCode: null },
+  { code: 'diagnostic', label: 'Diagnostic', serviceCode: null },
+  { code: 'autre', label: 'Autre', serviceCode: null },
 ];
 
-export async function listWorkshopReasons(companyId: string): Promise<{ code: string; label: string }[]> {
+/**
+ * Motifs actifs ; `keep` = le motif deja pose sur l'OR / le RDV, garde dans la liste meme s'il a ete
+ * retire (ancien OR « Entretien 15 000 km »).
+ */
+export async function listWorkshopReasons(companyId: string, keep?: string | null): Promise<WorkshopReason[]> {
   try {
     const rows = await listRef(companyId, WORKSHOP_REASON_TABLE_KEY);
-    const active = rows.filter((r) => r.is_active).map((r) => ({ code: r.code, label: r.label }));
-    return active.length ? active : DEFAULT_WORKSHOP_REASONS;
+    const out = rows.filter((r) => r.is_active || (!!keep && r.code === keep)).map((r) => ({
+      code: r.code, label: r.label,
+      serviceCode: serviceCodeForReason(r.code, ((r.extra ?? {}) as { service_code?: string | null }).service_code ?? null),
+    }));
+    return out.length ? out : DEFAULT_WORKSHOP_REASONS;
   } catch {
     return DEFAULT_WORKSHOP_REASONS;
   }
@@ -108,7 +123,12 @@ export type PrefillResult = { cards: CheckupCard[]; serviceName: string | null; 
  * « Entretien … » (temps Ducati en vigueur x taux horaire + pieces du kit) puis une carte par
  * operation du plan. Rien n'est invente : sans plan, aucune carte.
  */
-export async function prefillFromMaintenancePlan(companyId: string, vehicleId: string | null, reasonCode: string): Promise<PrefillResult> {
+/**
+ * Depuis le 03/11 (mission 10, carte 1) : l'entretien choisi de l'OR (`serviceCode`, M-110) choisit
+ * l'echeance du plan et les pieces viennent des kits reunis de cet entretien (workshop_service_kit) ;
+ * sans entretien choisi (ancien OR), l'ancienne regle par motif reste.
+ */
+export async function prefillFromMaintenancePlan(companyId: string, vehicleId: string | null, reasonCode: string, serviceCode?: ServiceCode | null): Promise<PrefillResult> {
   if (!vehicleId) return { cards: [], serviceName: null, reason: 'no_vehicle' };
   const { data: v } = await supabase.from('vehicles')
     .select('id, ducati_model_year_id, maintenance_usage').eq('id', vehicleId).maybeSingle();
@@ -127,13 +147,13 @@ export async function prefillFromMaintenancePlan(companyId: string, vehicleId: s
     const iv = pickCurrent(s.intervals, year);
     return { id: s.id, code: s.code, name: s.name, kmFirst: iv?.km_first ?? null, kmInterval: iv?.km_interval ?? null, months: iv?.months ?? null, raw: s };
   });
-  const picked = pickServiceForReason(candidates, reasonCode);
+  const picked = (serviceCode ? pickServiceForCode(candidates, serviceCode) : null) ?? pickServiceForReason(candidates, reasonCode);
   if (!picked) return { cards: [], serviceName: null, reason: 'no_plan' };
   const time = pickCurrent(picked.raw.times, year);
   const hours = time?.hours != null ? num(time.hours) : 0;
 
   // Pieces du kit de l'echeance (si les kits de la mission 07 sont en base et retrouvent l'echeance).
-  const parts = await kitPartsFor(companyId, myId, [picked.code, picked.name]);
+  const parts = (serviceCode ? await serviceKitParts(vehicleId, serviceCode) : null) ?? await kitPartsFor(companyId, myId, [picked.code, picked.name]);
 
   const head = blankCard({
     label: picked.name, state: 'a_faire', hours, hourly_rate_ht: rate ?? null, parts, origin: 'plan', suggested_hours: hours || null,
@@ -143,6 +163,20 @@ export async function prefillFromMaintenancePlan(companyId: string, vehicleId: s
     .filter(Boolean)
     .map((text) => blankCard({ label: text, state: 'a_faire', hours: 0, hourly_rate_ht: rate ?? null, origin: 'plan' }));
   return { cards: [head, ...ops], serviceName: picked.name, reason: null };
+}
+
+/** Pieces des kits reunis de l'entretien choisi (null = fonction absente : ancien chemin). */
+async function serviceKitParts(vehicleId: string, serviceCode: ServiceCode): Promise<CheckupCard['parts'] | null> {
+  try {
+    const items = await getServiceKit(vehicleId, serviceCode);
+    if (!items) return null;
+    return items.filter((i) => i.articleId && i.confidence === 'sur').map((i) => blankPart({
+      article_id: i.articleId, reference: i.reference, designation: i.designation,
+      quantity: i.quantity || 1, unit_price_ht: num(i.salePriceHt), vat_rate: num(i.vatRate) || 21,
+    }));
+  } catch {
+    return null;
+  }
 }
 
 const normalizeCode = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');

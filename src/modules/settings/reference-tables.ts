@@ -91,7 +91,15 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   { key: 'workshop_repair_type', label: 'Types de réparation', group: 'atelier', extraColumns: [] },
   // Motif d'entrée de la moto à l'accueil de l'atelier (check-up, ATE009) : un code commençant par
   // « entretien » (ou « vidange ») pré-remplit les actions du plan d'entretien de la moto.
-  { key: 'workshop_reason', label: "Motifs d'entrée atelier", group: 'atelier', extraColumns: [] },
+  // Entretien donné par le motif (mission 10, M-109 / M-110) : il pilote le kit, la réservation des
+  // pièces au RDV, le check-up, la picking list et le parcours. Vide = motif sans entretien.
+  { key: 'workshop_reason', label: "Motifs d'entrée atelier", group: 'atelier',
+    extraColumns: [{ key: 'service_code', label: 'Entretien', type: 'select', options: [
+      { value: 'annual', label: 'Entretien annuel (Annual Service)' },
+      { value: 'oil', label: 'Entretien annuel + huile (Oil Service)' },
+      { value: 'first_1000', label: '1er entretien 1 000 km' },
+      { value: 'desmo', label: 'Desmo Service' },
+    ] }] },
   { key: 'workshop_operation', label: 'Opérations atelier', group: 'atelier', extraColumns: [] },
   { key: 'workshop_task', label: 'Tâches hors facturation', group: 'atelier', extraColumns: [] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
