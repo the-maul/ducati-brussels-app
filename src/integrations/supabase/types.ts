@@ -1036,45 +1036,63 @@ export type Database = {
       cash_sessions: {
         Row: {
           closed_at: string | null
+          closed_by: string | null
           company_id: string
           counted_cash: number | null
           created_at: string
           denominations: Json
+          expected_cash: number | null
           id: string
           note: string | null
           opened_at: string
           opened_by: string | null
           opening_float: number
+          register_code: string
           status: string
           updated_at: string
+          variance_reason: string | null
+          z_number: string | null
+          z_report: Json | null
         }
         Insert: {
           closed_at?: string | null
+          closed_by?: string | null
           company_id: string
           counted_cash?: number | null
           created_at?: string
           denominations?: Json
+          expected_cash?: number | null
           id?: string
           note?: string | null
           opened_at?: string
           opened_by?: string | null
           opening_float?: number
+          register_code?: string
           status?: string
           updated_at?: string
+          variance_reason?: string | null
+          z_number?: string | null
+          z_report?: Json | null
         }
         Update: {
           closed_at?: string | null
+          closed_by?: string | null
           company_id?: string
           counted_cash?: number | null
           created_at?: string
           denominations?: Json
+          expected_cash?: number | null
           id?: string
           note?: string | null
           opened_at?: string
           opened_by?: string | null
           opening_float?: number
+          register_code?: string
           status?: string
           updated_at?: string
+          variance_reason?: string | null
+          z_number?: string | null
+          z_report?: Json | null
         }
         Relationships: [
           {
@@ -2485,6 +2503,7 @@ export type Database = {
       document_payments: {
         Row: {
           amount: number
+          cash_session_id: string | null
           document_id: string
           due_date: string | null
           from_financing: boolean
@@ -2496,10 +2515,13 @@ export type Database = {
           qr_reference: string | null
           received_at: string | null
           received_by: string | null
+          reversal_of: string | null
           status: string
+          transferred_from: string | null
         }
         Insert: {
           amount: number
+          cash_session_id?: string | null
           document_id: string
           due_date?: string | null
           from_financing?: boolean
@@ -2511,10 +2533,13 @@ export type Database = {
           qr_reference?: string | null
           received_at?: string | null
           received_by?: string | null
+          reversal_of?: string | null
           status?: string
+          transferred_from?: string | null
         }
         Update: {
           amount?: number
+          cash_session_id?: string | null
           document_id?: string
           due_date?: string | null
           from_financing?: boolean
@@ -2526,7 +2551,9 @@ export type Database = {
           qr_reference?: string | null
           received_at?: string | null
           received_by?: string | null
+          reversal_of?: string | null
           status?: string
+          transferred_from?: string | null
         }
         Relationships: [
           {
@@ -2648,6 +2675,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          cash_session_id: string | null
           code_client_legacy: string | null
           company_id: string
           compta_transferred: boolean
@@ -2689,6 +2717,7 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          cash_session_id?: string | null
           code_client_legacy?: string | null
           company_id: string
           compta_transferred?: boolean
@@ -2730,6 +2759,7 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          cash_session_id?: string | null
           code_client_legacy?: string | null
           company_id?: string
           compta_transferred?: boolean
@@ -10868,6 +10898,10 @@ export type Database = {
         Args: { _company: string; _from: string; _to: string }
         Returns: Json
       }
+      cash_z_report_session: {
+        Args: { _session: string }
+        Returns: Json
+      }
       close_fiscal_year: {
         Args: { _company: string; _from: string; _label?: string; _to: string }
         Returns: string
@@ -11621,6 +11655,10 @@ export type Database = {
           total_ht: number
           total_ttc: number
         }[]
+      }
+      document_invoice_required: {
+        Args: { _document: string }
+        Returns: string
       }
       document_set_financing: {
         Args: {
@@ -12668,6 +12706,7 @@ export type Database = {
       qr_payment_lock: {
         Args: { _payment: string }
         Returns: {
+          cash_session_id: string | null
           code_client_legacy: string | null
           company_id: string
           compta_transferred: boolean

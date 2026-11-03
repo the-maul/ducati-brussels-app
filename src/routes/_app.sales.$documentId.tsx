@@ -185,7 +185,8 @@ function DocumentView() {
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '').catch((e) => toast.error(errorMessage(e)))}><Printer /> {t('sales.print')}</Button>
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId)} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
-            {contactId && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
+            {/* Ticket sans client : envoi à une adresse saisie, non enregistrée (PDV010). */}
+            {(contactId || (doc.doc_type === 'TIK' && doc.number)) && <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('sales.sendMail')}</Button>}
             {doc.doc_type === 'DEV' && doc.vehicle_id && <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>}
             {contactId && <Button variant="outline" onClick={() => setSmsOpen(true)}><MessageSquare /> {t('sales.sendSms')}</Button>}
             <Button variant="outline" onClick={() => navigate({ to: '/sales' })}><ArrowLeft /> {t('sales.backToList')}</Button>
@@ -408,8 +409,8 @@ function DocumentView() {
           onClose={() => { setAssociate(null); linesStockQ.refetch(); allocationsQ.refetch(); }}
         />
       )}
-      {mailOpen && contactQ.data && (
-        <DocumentMailDialog full={data} contact={contactQ.data} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} onClose={() => setMailOpen(false)} />
+      {mailOpen && (contactQ.data || !contactId) && (
+        <DocumentMailDialog full={data} contact={contactQ.data ?? null} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} onClose={() => setMailOpen(false)} />
       )}
       {smsOpen && contactQ.data && (
         <SendSmsDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setSmsOpen(false)} />

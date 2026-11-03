@@ -1,11 +1,13 @@
 /**
  * M6 (POS) — Écran Caisse : ouverture (fond), mouvements de fond de caisse,
- * journal Z (encaissements par mode, ventilation TVA), clôture avec calcul monnaie.
+ * rapport X de la session (encaissements par mode, ventilation TVA, remises, remboursements,
+ * ventes > 500 EUR), clôture avec calcul monnaie, motif d'écart obligatoire et journal Z
+ * numéroté, figé, archivé en PDF dans la GED (PDV010, 03/11/2026).
  * Réf. G8 Facturation p.128-131, p.164-179. Libellés via i18n.
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Lock, Wallet, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, Lock, Wallet, AlertTriangle, FileDown, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,11 +17,17 @@ import {
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import {
-  getOpenSession, listSessions, openSession, closeSession, addMovement, listSessionMovements, getZReport,
+  getOpenSession, listSessions, openSession, closeSession, addMovement, listSessionMovements, getSessionReport,
+  frozenZ, archiveZPdf, type CashSession,
 } from './cash-api';
 import { listPaymentMethods } from './write-api';
-import { expectedCash, cashVariance } from './cash-rules';
-import { t } from '@/lib/i18n';
+import { expectedCash, cashVariance, varianceReasonMissing } from './cash-rules';
+import type { ZReport } from './z-report';
+import { buildZPdf, openPdfBytes } from './z-report-pdf';
+import { t, fillVars } from '@/lib/i18n';
+import { errorMessage } from '@/lib/mutation-feedback';
+import { toast } from 'sonner';
+import { ZReportView } from './z-report-view';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -59,12 +67,14 @@ function OpenForm({ companyId }: { companyId: string }) {
 }
 
 /* ---------------- Session ouverte ---------------- */
-function OpenSession({ companyId, session }: { companyId: string; session: { id: string; opened_at: string; opening_float: number } }) {
+function OpenSession({ companyId, session }: { companyId: string; session: CashSession }) {
   const qc = useQueryClient();
   const nowIso = useMemo(() => new Date().toISOString(), []); // borne haute figée pour cette vue
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
   const { data: movements } = useQuery({ queryKey: ['cash-mov', session.id], queryFn: () => listSessionMovements(companyId, session.opened_at, nowIso) });
-  const { data: z } = useQuery({ queryKey: ['cash-z', session.id], queryFn: () => getZReport(companyId, session.opened_at, nowIso) });
+  // Rapport X : calculé sur la session (tickets et règlements rattachés), non numéroté.
+  const { data: z } = useQuery({ queryKey: ['cash-z', session.id], queryFn: () => getSessionReport(session) });
+  const [closed, setClosed] = useState<CashSession | null>(null);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['cash-mov', session.id] });
@@ -87,8 +97,34 @@ function OpenSession({ companyId, session }: { companyId: string; session: { id:
 
       {z && <ZPanel z={z} />}
 
-      <ClosePanel sessionId={session.id} theoreticalCash={theoreticalCash} onClosed={() => { qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); qc.invalidateQueries({ queryKey: ['cash-sessions', companyId] }); }} />
+      <ClosePanel companyId={companyId} sessionId={session.id} theoreticalCash={theoreticalCash} onClosed={setClosed} />
+      {closed && <ClosedDialog session={closed} onDone={() => { setClosed(null); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); qc.invalidateQueries({ queryKey: ['cash-sessions', companyId] }); qc.invalidateQueries({ queryKey: ['cash-closures', companyId] }); }} />}
     </div>
+  );
+}
+
+/* ---------------- Après clôture : numéro du Z, PDF archivé ---------------- */
+function ClosedDialog({ session, onDone }: { session: CashSession; onDone: () => void }) {
+  const z = frozenZ(session);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const openZ = async () => {
+    if (!z) return;
+    try { openPdfBytes(await buildZPdf(z)); } catch (e) { setPdfError(errorMessage(e)); }
+  };
+  return (
+    <AlertDialog open onOpenChange={(o) => { if (!o) onDone(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2"><CheckCircle2 className="size-5 text-success" /> {session.z_number ? fillVars(t('cash.closedTitle'), { number: session.z_number }) : t('cash.closedTitleNoZ')}</AlertDialogTitle>
+          <AlertDialogDescription>{z ? t('cash.closedBody') : t('cash.closedBodyNoZ')}</AlertDialogDescription>
+        </AlertDialogHeader>
+        {pdfError && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{pdfError}</p>}
+        <AlertDialogFooter>
+          {z && <Button variant="outline" onClick={openZ}><FileDown /> {t('cash.openZPdf')}</Button>}
+          <AlertDialogAction onClick={onDone}>{t('cash.done')}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -144,67 +180,35 @@ function MovementPanel({ companyId, sessionId, methods, movements, onChanged }: 
   );
 }
 
-/* ---------------- Journal Z ---------------- */
-function ZPanel({ z }: { z: import('./cash-api').ZReport }) {
-  return (
-    <div className="space-y-4 rounded-md border border-border bg-card p-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.z')}</p>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div>
-          <p className="mb-1 text-[12px] font-bold">{t('cash.byMethod')}</p>
-          <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>{t('cash.method')}</Th><Th className="text-right">{t('cash.sales')}</Th><Th className="text-right">{t('cash.deposits')}</Th><Th className="text-right">{t('cash.refunds')}</Th><Th className="text-right">{t('cash.total')}</Th></tr></thead>
-            <tbody>
-              {z.payments_by_method.map((p) => (
-                <tr key={p.method} className="border-b border-border last:border-0">
-                  <td className="px-2 py-1.5">{p.method}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{eur(p.sales)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{eur(p.deposits)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{eur(p.refunds)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-bold">{eur(p.total)}</td>
-                </tr>
-              ))}
-              {z.payments_by_method.length === 0 && <tr><td colSpan={5} className="px-2 py-3 text-center text-muted-foreground">—</td></tr>}
-            </tbody>
-          </table>
-          <div className="mt-2 flex justify-between font-data text-[13px] tabular-nums text-muted-foreground">
-            <span>{t('cash.cashIn')} : {eur(z.cash_in)}</span><span>{t('cash.cashOut')} : {eur(z.cash_out)}</span>
-          </div>
-        </div>
-        <div>
-          <p className="mb-1 text-[12px] font-bold">{t('cash.vat')}</p>
-          <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th className="text-right">{t('cash.vatRate')}</Th><Th className="text-right">{t('cash.baseHt')}</Th><Th className="text-right">{t('cash.vatAmount')}</Th></tr></thead>
-            <tbody>
-              {z.vat_breakdown.map((v) => (
-                <tr key={v.vat_rate} className="border-b border-border last:border-0">
-                  <td className="px-2 py-1.5 text-right tabular-nums">{v.vat_rate}%</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{eur(v.base_ht)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{eur(v.vat)}</td>
-                </tr>
-              ))}
-              {z.vat_breakdown.length === 0 && <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">—</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+/* ---------------- Rapport X de la session ouverte ---------------- */
+function ZPanel({ z }: { z: ZReport }) {
+  return <ZReportView z={z} />;
 }
 
 /* ---------------- Clôture + calcul monnaie ---------------- */
-function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: string; theoreticalCash: number; onClosed: () => void }) {
+function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { companyId: string; sessionId: string; theoreticalCash: number; onClosed: (s: CashSession) => void }) {
   const [qtys, setQtys] = useState<Record<string, string>>({});
   const counted = DENOMS.reduce((s, d) => s + d * num(qtys[String(d)] ?? ''), 0);
   const variance = cashVariance(counted, theoreticalCash);
+  const [reason, setReason] = useState('');
   const [ask, setAsk] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Un écart (compté ≠ théorique) se motive avant la clôture (PDV010) ; la base le refuse aussi.
+  const reasonMissing = varianceReasonMissing(variance, reason);
   const close = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const denoms: Record<string, number> = {};
       for (const d of DENOMS) { const q = num(qtys[String(d)] ?? ''); if (q > 0) denoms[String(d)] = q; }
-      return closeSession(sessionId, Math.round(counted * 100) / 100, denoms);
+      const closed = await closeSession(sessionId, Math.round(counted * 100) / 100, denoms, reason);
+      // Journal Z figé → PDF rangé dans la GED de la session (l'échec de l'archive ne défait pas la clôture).
+      const z = frozenZ(closed);
+      if (z) {
+        try { await archiveZPdf(companyId, z, await buildZPdf(z)); } catch { toast.warning(t('cash.zArchiveFailed')); }
+      }
+      return closed;
     },
-    onSuccess: () => { setAsk(false); onClosed(); },
+    onSuccess: (closed) => { setAsk(false); setError(null); onClosed(closed); },
+    onError: (e) => setError(errorMessage(e)),
   });
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
@@ -222,10 +226,18 @@ function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: strin
         <span>{t('cash.countedCash')} : <b>{eur(counted)}</b></span>
         <span className={Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}>{t('cash.variance')} : <b>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</b></span>
       </div>
+      {Math.abs(variance) > 0.004 && (
+        <div className="space-y-1">
+          <Label>{t('cash.varianceReason')}</Label>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('cash.varianceReasonHint')} />
+          {reasonMissing && <p className="text-[12px] text-warning">{t('cash.varianceReasonNeeded')}</p>}
+        </div>
+      )}
+      {error && !ask && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
       <div className="flex justify-end">
-        <Button variant="destructive" onClick={() => setAsk(true)} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
+        <Button variant="destructive" onClick={() => { setError(null); setAsk(true); }} disabled={close.isPending || reasonMissing}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
       </div>
-      {/* La clôture est définitive (règlements et mouvements de la session figés) : on confirme. */}
+      {/* La clôture est définitive (règlements et mouvements de la session figés, Z numéroté) : on confirme. */}
       <AlertDialog open={ask} onOpenChange={(o) => { if (!close.isPending) setAsk(o); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -236,7 +248,9 @@ function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: strin
             <dt className="text-muted-foreground">{t('cash.theoretical')}</dt><dd className="text-right">{eur(theoreticalCash)}</dd>
             <dt className="text-muted-foreground">{t('cash.countedCash')}</dt><dd className="text-right">{eur(counted)}</dd>
             <dt className="text-muted-foreground">{t('cash.variance')}</dt><dd className={`text-right ${Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}`}>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</dd>
+            {reason.trim() && <><dt className="text-muted-foreground">{t('cash.varianceReason')}</dt><dd className="text-right">{reason.trim()}</dd></>}
           </dl>
+          {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={close.isPending}>{t('action.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); close.mutate(); }} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeDo')}</AlertDialogAction>
@@ -248,16 +262,17 @@ function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: strin
 }
 
 /* ---------------- Sessions passées ---------------- */
-function PastSessions({ sessions }: { sessions: { id: string; status: string; opened_at: string; closed_at: string | null; opening_float: number; counted_cash: number | null }[] }) {
+function PastSessions({ sessions }: { sessions: CashSession[] }) {
   return (
     <div>
       <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.pastSessions')}</p>
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>{t('cash.colOpened')}</Th><Th>{t('cash.colClosed')}</Th><Th className="text-right">{t('cash.colFloat')}</Th><Th className="text-right">{t('cash.colCounted')}</Th><Th>{t('cash.colStatus')}</Th></tr></thead>
+          <thead className="bg-muted"><tr><Th>{t('cash.colZ')}</Th><Th>{t('cash.colOpened')}</Th><Th>{t('cash.colClosed')}</Th><Th className="text-right">{t('cash.colFloat')}</Th><Th className="text-right">{t('cash.colCounted')}</Th><Th>{t('cash.colStatus')}</Th></tr></thead>
           <tbody>
             {sessions.map((s) => (
               <tr key={s.id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 font-bold">{s.z_number ?? '—'}</td>
                 <td className="px-3 py-2">{new Date(s.opened_at).toLocaleString('fr-BE')}</td>
                 <td className="px-3 py-2">{s.closed_at ? new Date(s.closed_at).toLocaleString('fr-BE') : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(Number(s.opening_float))}</td>

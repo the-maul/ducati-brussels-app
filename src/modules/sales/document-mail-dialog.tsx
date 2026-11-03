@@ -4,6 +4,8 @@
  * selon la règle du CRM (boîtes partagées de la société + adresse de l'utilisateur si même
  * domaine ; par défaut celle qui a reçu le dernier mail du client) ; objet et message
  * pré-remplis modifiables ; « Vérifier sans envoyer » = simulation côté serveur.
+ * Ticket sans client (PDV010, 03/11/2026) : `contact` null, l'adresse est saisie pour cet envoi
+ * seulement (elle n'est enregistrée sur aucune fiche) ; le PDF est rangé dans la GED du ticket.
  */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +21,7 @@ import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMailboxes, listCommunications } from '@/modules/crm/api';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
-import { t, tIn } from '@/lib/i18n';
+import { t, tIn, getLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { errorMessage } from '@/lib/mutation-feedback';
 import type { DocumentFull } from './write-api';
@@ -29,7 +31,7 @@ import { sendDocumentMail, mailErrorLabel, type DryRunPreview } from './document
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
 export function DocumentMailDialog({ full, contact, companyName, onClose, preset, onSent }: {
-  full: DocumentFull; contact: Contact; companyName: string; onClose: () => void;
+  full: DocumentFull; contact: Contact | null; companyName: string; onClose: () => void;
   /** Objet et message proposés à la place des textes par défaut (ex. proposition d'intervention avec son lien de signature). */
   preset?: { subject: string; body: string } | null;
   /** Appelé après un envoi réel réussi (pas après une simulation). */
@@ -42,21 +44,21 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
 
   // Objet et message proposés dans la LANGUE DU CLIENT (fiche contact, I18N004), modifiables ;
   // la fenêtre elle-même reste dans la langue de l'utilisateur.
-  const locale = contactLocale(contact);
+  const locale = contact ? contactLocale(contact) : getLocale();
   const tc = (key: string) => tIn(locale, key);
   const vars = {
     type: tc(`sales.type_${doc.doc_type}`), number: doc.number ?? tc('sales.draftSuffix'),
-    company: companyName, client: contactDisplayName(contact),
+    company: companyName, client: contact ? contactDisplayName(contact) : '',
   };
   const isReservation = doc.doc_type === 'RES';
-  const [to, setTo] = useState(contact.email ?? '');
+  const [to, setTo] = useState(contact?.email ?? '');
   const [subject, setSubject] = useState(preset?.subject ?? fill(tc(isReservation ? 'salesMail.subjectRes' : 'salesMail.subjectDefault'), vars));
   const [body, setBody] = useState(preset?.body ?? fill(tc(isReservation ? 'salesMail.bodyRes' : 'salesMail.bodyDefault'), vars));
   const [preview, setPreview] = useState<DryRunPreview & { from: string } | null>(null);
 
   // Boîtes d'envoi : même règle que les échanges du CRM (communications-panel).
   const mailboxesQ = useQuery({ queryKey: ['company-mailboxes', doc.company_id], queryFn: () => listCompanyMailboxes(doc.company_id) });
-  const commsQ = useQuery({ queryKey: ['comms', contact.id], queryFn: () => listCommunications(contact.id) });
+  const commsQ = useQuery({ queryKey: ['comms', contact?.id], queryFn: () => listCommunications(contact!.id), enabled: !!contact });
   const shared = (mailboxesQ.data ?? []).map((m) => m.address.toLowerCase());
   const sameDomain = shared.some((a) => a.split('@')[1] === myEmail.split('@')[1]);
   const senders = [...shared, ...(myEmail && sameDomain && !shared.includes(myEmail) ? [myEmail] : [])];
@@ -84,7 +86,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
 
   const run = useMutation({
     mutationFn: (dryRun: boolean) => sendDocumentMail({
-      full, contactId: contact.id, to, from: fromBox || undefined, subject, body, dryRun, pdf: pdfQ.data, locale,
+      full, contactId: contact?.id ?? null, to, from: fromBox || undefined, subject, body, dryRun, pdf: pdfQ.data, locale,
     }),
     meta: { success: false, error: false },
     onSuccess: (r) => {
@@ -93,7 +95,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
       toast.success(fill(t('salesMail.sent'), { to: to.trim(), from: r.from }));
       if (!r.archived) toast.warning(t('salesMail.archiveFailed'));
       qc.invalidateQueries({ queryKey: ['attachments'] });
-      qc.invalidateQueries({ queryKey: ['comms', contact.id] });
+      if (contact) qc.invalidateQueries({ queryKey: ['comms', contact.id] });
       onSent?.();
       onClose();
     },
@@ -105,7 +107,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{t('salesMail.title')}</DialogTitle>
-          <DialogDescription>{t('salesMail.intro')}</DialogDescription>
+          <DialogDescription>{contact ? t('salesMail.intro') : t('salesMail.introNoClient')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -125,7 +127,8 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
             <div className="space-y-1.5">
               <Label>{t('salesMail.to')}</Label>
               <Input type="email" value={to} onChange={(e) => { setTo(e.target.value); setPreview(null); }} placeholder={t('salesMail.toPlaceholder')} />
-              {!contact.email && <p className="text-[12px] text-muted-foreground">{t('salesMail.noClientEmail')}</p>}
+              {contact && !contact.email && <p className="text-[12px] text-muted-foreground">{t('salesMail.noClientEmail')}</p>}
+              {!contact && <p className="text-[12px] text-muted-foreground">{t('salesMail.toNotSaved')}</p>}
             </div>
           </div>
           <div className="space-y-1.5">
@@ -145,7 +148,7 @@ export function DocumentMailDialog({ full, contact, companyName, onClose, preset
             {pdfQ.data && <Button type="button" size="sm" variant="outline" onClick={openPdf}><Eye /> {t('salesMail.openPdf')}</Button>}
           </div>
           {isReservation && <p className="text-[12px] text-muted-foreground">{t('salesMail.resAllLines')}</p>}
-          <p className="text-[12px] text-muted-foreground">{t('salesMail.archiveHint')}</p>
+          <p className="text-[12px] text-muted-foreground">{contact ? t('salesMail.archiveHint') : t('salesMail.archiveHintNoClient')}</p>
           {preview && (
             <div className="space-y-1 rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">
               <p className="flex items-center gap-1.5 font-medium"><ShieldCheck className="size-3.5" /> {t('salesMail.dryRunOk')}</p>

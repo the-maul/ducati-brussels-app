@@ -9,6 +9,9 @@ import {
   detectVatScheme, vatSchemeError, marginPurchasePrice, MARGIN_SALE_DOC_TYPES,
   type VatScheme, type ArticleVatInfo,
 } from './vat-scheme';
+import { applyCashRounding, CASH_ROUNDING_METHOD } from './cash-rounding';
+import { reversalLine } from './cash-rules';
+import { INVOICE_FAMILY_TABLE_KEY, type InvoiceFamilyRule } from './pos-rules';
 
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
@@ -70,11 +73,14 @@ export type DocumentValidationError = 'needLine' | 'needClient' | 'needAmount';
  */
 export function documentValidationError(p: {
   docType: string; status: 'brouillon' | 'validee'; contactId?: string | null; lines: LineInput[]; requireAmount?: boolean;
+  /** Type du document d'origine : l'avoir d'un ticket anonyme reste sans client (PDV010, remboursement au comptoir). */
+  sourceDocType?: string | null;
 }): DocumentValidationError | null {
   const kept = p.lines.filter((l) => l.line_type === 'vide' || l.designation.trim());
   if (!kept.some((l) => l.line_type !== 'vide')) return 'needLine';
   if (p.status !== 'validee') return null;
-  if (!p.contactId && !(NO_CLIENT_DOC_TYPES as readonly string[]).includes(p.docType)) return 'needClient';
+  const anonymousCreditNote = p.docType === 'AVO' && (NO_CLIENT_DOC_TYPES as readonly string[]).includes(p.sourceDocType ?? '');
+  if (!p.contactId && !anonymousCreditNote && !(NO_CLIENT_DOC_TYPES as readonly string[]).includes(p.docType)) return 'needClient';
   if (p.requireAmount && !kept.some((l) => lineHasAmount(l) && Math.abs(lineHtRaw(l)) > 0.004)) return 'needAmount';
   return null;
 }
@@ -315,12 +321,16 @@ export async function createDocument(p: {
   marginPurchasePrice?: number | null;
   /** Régime imposé par le document d'origine (avoir), sinon déduit des articles. */
   vatSchemeOverride?: VatScheme | null;
+  /** Session de caisse (PDV010) : un ticket s'y rattache d'office en base ; une facture ou un avoir du comptoir sur demande. */
+  cashSessionId?: string | null;
+  /** Type du document d'origine (avoir d'un ticket sans client). */
+  sourceDocType?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
 
   // Refus clair plutôt qu'un document validé sans client ou sans ligne (audit du 31/10/2026).
   if (validated) {
-    const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines });
+    const refused = documentValidationError({ docType: p.docType, status: 'validee', contactId: p.contactId, lines: p.lines, sourceDocType: p.sourceDocType });
     if (refused) throw new Error(documentValidationMessage(refused));
   }
   // Régime de TVA d'après les articles (moto O → marge, sans TVA ; refus des mélanges, B2).
@@ -328,6 +338,14 @@ export async function createDocument(p: {
     lines: p.lines, pied: p.pied ?? {}, docType: p.docType, status: p.status, knownPurchasePrice: p.marginPurchasePrice,
     forcedScheme: p.vatSchemeOverride ?? null,
   });
+  // Un ticket ne se valide pas caisse fermée (PDV010) : la base le refuse aussi, mais après le
+  // numéro ; on vérifie avant pour ne pas consommer un numéro de ticket pour rien.
+  if (validated && p.docType === 'TIK') {
+    const { getOpenSession } = await import('./cash-api');
+    const open = await getOpenSession(p.companyId);
+    if (!open) throw new Error(t('pos.noSessionBody'));
+    if (p.cashSessionId && p.cashSessionId !== open.id) throw new Error(t('pos.sessionMismatch'));
+  }
 
   // Ordre d'écriture (pas de transaction côté navigateur) : en-tête en brouillon SANS numéro,
   // puis les lignes, puis seulement le numéro et le statut « validée », puis le stock. Si les
@@ -335,6 +353,9 @@ export async function createDocument(p: {
   // aucun numéro n'a été consommé : plus de document validé vide avec un numéro (constat du 30/10).
   const header = {
     company_id: p.companyId, number: null, status: 'brouillon', source_document_id: p.sourceDocumentId ?? null,
+    // Colonne posée par la migration 20261103170000 : envoyée seulement quand elle sert (un ticket
+    // est rattaché en base par le trigger), pour que la vente marche aussi avant la migration.
+    ...(p.cashSessionId ? { cash_session_id: p.cashSessionId } : {}),
     ...headerColumns({ ...p, pied, marginPurchasePrice: mpp }),
   };
   let { data: doc, error } = await supabase.from('documents').insert(header).select('id').single();
@@ -356,6 +377,15 @@ export async function createDocument(p: {
 
   if (!validated) return docId;
 
+  // Facture obligatoire (PDV010, AR n° 1 art. 1er § 2) : vérifiée en base sur le brouillon AVANT de
+  // prendre un numéro de ticket (le trigger de validation refuserait de toute façon).
+  if (p.docType === 'TIK') {
+    const { data: why, error: we } = await supabase.rpc('document_invoice_required', { _document: docId });
+    // Fonction absente (migration 20261103170000 pas encore posée) : la vente continue comme avant.
+    if (we && !isMissingDbObject(we)) return discard(we);
+    if (!we && why) return discard(new Error(invoiceRequiredMessage(why as 'vehicle' | 'threshold')));
+  }
+
   // Numéro attribué à la validation seulement (par société et par type, séquences M0).
   let number: string | null = null;
   try { number = await nextNumber(p.companyId, p.docType); } catch (e) { return discard(e); }
@@ -365,6 +395,18 @@ export async function createDocument(p: {
   await recordSaleStockMoves(p.docType, p.lines, number);
   return docId;
 }
+
+/**
+ * Objet de base absent (colonne, fonction RPC) : migration pas encore appliquée. PGRST204 / 42703
+ * colonne, PGRST202 / 42883 fonction, PGRST205 / 42P01 table.
+ */
+export function isMissingDbObject(e: unknown): boolean {
+  const code = (e as { code?: string } | null)?.code;
+  return code === 'PGRST204' || code === '42703' || code === 'PGRST202' || code === '42883' || code === 'PGRST205' || code === '42P01';
+}
+
+/** Message au vendeur quand la loi impose une facture à la place du ticket (PDV010). */
+export const invoiceRequiredMessage = (why: 'vehicle' | 'threshold'): string => t(why === 'vehicle' ? 'pos.invoiceVehicle' : 'pos.invoiceThreshold');
 
 /**
  * Rouvre un brouillon (mission 08, carte 1, 03/11/2026) : en-tête, lignes, pied, client, moto et
@@ -444,6 +486,8 @@ export type SaleArticle = {
   bin_location: string | null;
   /** Référence remplacée (mission 05, carte 3) et groupe d'équivalences. */
   superseded_by_id: string | null; equivalence_group: string | null;
+  /** Famille « RR-SS-CC » : facture obligatoire au-delà de 125 € pour une pièce du véhicule (PDV010). */
+  category_path?: string | null;
 };
 /**
  * Recherche d'article pour une ligne de vente (référence, désignation, réf. fournisseur,
@@ -457,12 +501,12 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
   if (error) throw error;
   const rows = data ?? [];
   // Remplacement / équivalences (non renvoyés par la fonction SQL) : un seul aller-retour.
-  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null }>();
+  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null; category_path: string | null }>();
   if (rows.length) {
     const { data: l, error: le } = await supabase
-      .from('articles').select('id, superseded_by_id, equivalence_group').in('id', rows.map((a) => a.article_id));
+      .from('articles').select('id, superseded_by_id, equivalence_group, category_path').in('id', rows.map((a) => a.article_id));
     if (le) throw le;
-    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group });
+    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path });
   }
   return rows.map((a) => ({
     id: a.article_id, reference: a.reference, designation: a.designation,
@@ -471,6 +515,7 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
     real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
     superseded_by_id: links.get(a.article_id)?.superseded_by_id ?? null,
     equivalence_group: links.get(a.article_id)?.equivalence_group ?? null,
+    category_path: links.get(a.article_id)?.category_path ?? null,
   }));
 }
 
@@ -490,7 +535,7 @@ export async function searchLabourArticles(companyId: string, term: string): Pro
     id: a.id, reference: a.reference, designation: a.designation,
     sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
     mgmt_type: 'T', bin_location: null, real_qty: 0, reserved_qty: 0, on_order_qty: 0,
-    superseded_by_id: a.superseded_by_id, equivalence_group: a.equivalence_group,
+    superseded_by_id: a.superseded_by_id, equivalence_group: a.equivalence_group, category_path: null,
   }));
 }
 
@@ -540,10 +585,12 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
   const srcPayments = await listPayments(sourceId);
   const acomptes = srcPayments.filter((p) => p.status === 'recu' && Number(p.amount) !== 0);
   if (acomptes.length > 0) {
+    // `transferredFrom` (PDV010) : l'argent a déjà été encaissé le jour de l'acompte ; le report n'est
+    // pas un nouvel encaissement (hors journal Z, hors plafond espèces).
     await addPayments(newId, acomptes.map((p) => ({
       method: p.method, amount: Number(p.amount), status: 'recu',
       note: `Acompte reporté ${doc.doc_type} ${doc.number ?? ''}`.trim(),
-      fromFinancing: !!p.from_financing,
+      fromFinancing: !!p.from_financing, transferredFrom: p.id,
     })));
   }
 
@@ -591,12 +638,19 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
   // Avoir d'une vente en régime de la marge (M-89) : même régime, aucune TVA, prix de reprise
   // figé repris tel quel (le registre de la marge retire la vente de la période de l'avoir).
   const mpp = (doc as DocumentMargeExtra).margin_purchase_price;
+  // Un ticket annulé au comptoir : l'avoir et son remboursement entrent dans le journal Z de la
+  // caisse ouverte (« remboursements », PDV010). Caisse fermée : l'avoir se rattache à rien et le
+  // remboursement en espèces sera refusé par la base (les espèces passent par le tiroir).
+  const { getOpenSession } = await import('./cash-api');
+  const open = doc.cash_session_id ? await getOpenSession(doc.company_id) : null;
+
   const today = new Date().toISOString().slice(0, 10);
   const avoId = await createDocument({
     companyId: doc.company_id, docType: 'AVO', contactId: doc.contact_id, vehicleId: doc.vehicle_id,
     issueDate: today, dueDate: null, status: 'validee', notes: doc.notes,
     lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: invoiceId,
     marginPurchasePrice: mpp == null ? null : Number(mpp), vatSchemeOverride: docVatScheme(doc),
+    cashSessionId: open?.id ?? null, sourceDocType: doc.doc_type,
   });
 
   // Réintégration du stock : entrée réel +qté pour chaque ligne article (B4).
@@ -609,21 +663,36 @@ export async function generateCreditNote(invoiceId: string): Promise<string> {
     if (error) throw error;
   }
 
-  // Remboursement : règlements négatifs reprenant les règlements perçus de la facture.
+  // Remboursement : règlements négatifs reprenant les règlements perçus de la facture (les
+  // contre-passations et leurs cibles s'annulent, l'arrondi « ARR » d'origine n'est pas repris :
+  // le remboursement en espèces est lui-même arrondi à 5 cents, PDV010).
   const paid = await listPayments(invoiceId);
-  const refunds = paid.filter((p) => p.status === 'recu' && Number(p.amount) !== 0);
-  if (refunds.length > 0) {
-    await addPayments(avoId, refunds.map((p) => ({
-      method: p.method, amount: -Math.abs(Number(p.amount)), status: 'recu',
-      note: `Remboursement ${doc.number ?? ''}`.trim(),
-    })));
-  }
+  const refunds = refundLines(paid, doc.number);
+  if (refunds.length > 0) await addPayments(avoId, refunds);
 
   // La facture est annulée par l'avoir.
   const { error: ue } = await supabase.from('documents').update({ status: 'annulee' }).eq('id', invoiceId);
   if (ue) throw ue;
 
   return avoId;
+}
+
+/**
+ * Lignes de remboursement d'un avoir (PDV010) : un règlement négatif par mode réellement perçu
+ * (somme des perçus du mode, contre-passations déduites, arrondi `ARR` ignoré), puis l'arrondi
+ * légal à 5 cents appliqué au remboursement en espèces comme à l'encaissement. Logique pure,
+ * testée dans tests/caisse-legale.test.ts.
+ */
+export function refundLines(paid: { method: string; amount: number | string; status: string | null }[], sourceNumber: string | null): NewPayment[] {
+  const byMethod = new Map<string, number>();
+  for (const p of paid) {
+    if ((p.status ?? 'recu') !== 'recu' || p.method === CASH_ROUNDING_METHOD) continue;
+    byMethod.set(p.method, Math.round(((byMethod.get(p.method) ?? 0) + Number(p.amount)) * 100) / 100);
+  }
+  const note = `Remboursement ${sourceNumber ?? ''}`.trim();
+  const lines: NewPayment[] = [...byMethod].filter(([, amount]) => amount > 0.004)
+    .map(([method, amount]) => ({ method, amount: -amount, status: 'recu', note }));
+  return applyCashRounding(lines).map((l) => ({ ...l, note: l.note ?? note }));
 }
 
 export type DocumentFull = { doc: DocumentRow; lines: DocumentLine[] };
@@ -712,6 +781,8 @@ export type NewPayment = {
   givenAmount?: number | null;   // espèces remises (pour le rendu de monnaie)
   note?: string | null;
   fromFinancing?: boolean;       // versé par l'organisme de financement (mission 05, carte 9)
+  reversalOf?: string | null;    // contre-passation du règlement visé (PDV010 : jamais de suppression)
+  transferredFrom?: string | null; // acompte reporté à la conversion (pas un nouvel encaissement)
 };
 
 /** Modes de règlement paramétrés (reference_values), visibles en caisse en premier. */
@@ -725,6 +796,21 @@ export async function listPaymentMethods(companyId: string): Promise<PaymentMeth
   return (data ?? []).map((r) => ({
     code: r.code, label: r.label,
     visiblePos: (r.extra as { visible_pos?: boolean } | null)?.visible_pos !== false,
+  }));
+}
+
+/**
+ * Facture obligatoire par famille d'article (PDV010) : Paramètres → Tables → « Facture obligatoire
+ * par famille » (`invoice_required_family`, extra.requires_invoice). Table absente : aucune règle.
+ */
+export async function listInvoiceFamilyRules(companyId: string): Promise<InvoiceFamilyRule[]> {
+  const { data, error } = await supabase
+    .from('reference_values').select('code, is_active, extra')
+    .eq('company_id', companyId).eq('table_key', INVOICE_FAMILY_TABLE_KEY);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    code: r.code, active: r.is_active !== false,
+    requiresInvoice: (r.extra as { requires_invoice?: boolean } | null)?.requires_invoice === true,
   }));
 }
 
@@ -744,6 +830,9 @@ export async function addPayments(documentId: string, lines: NewPayment[]): Prom
       status: l.status ?? 'recu', due_date: l.dueDate ?? null,
       given_amount: l.givenAmount ?? null, note: l.note ?? null,
       from_financing: !!l.fromFinancing,
+      // Colonnes de la migration 20261103170000 : envoyées seulement si renseignées.
+      ...(l.reversalOf ? { reversal_of: l.reversalOf } : {}),
+      ...(l.transferredFrom ? { transferred_from: l.transferredFrom } : {}),
     }));
   if (rows.length === 0) return;
   const { error } = await supabase.from('document_payments').insert(rows);
@@ -751,9 +840,27 @@ export async function addPayments(documentId: string, lines: NewPayment[]): Prom
   await recomputePaid(documentId);
 }
 
-export async function deletePayment(paymentId: string, documentId: string): Promise<void> {
-  const { error } = await supabase.from('document_payments').delete().eq('id', paymentId);
+/**
+ * Annule un règlement PERÇU par contre-passation (PDV010, CDE art. III.86 : on ne corrige pas, on
+ * contre-passe) : ligne inverse datée, même mode, motif obligatoire, auteur tracé par l'audit. La
+ * suppression physique (`deletePayment`) n'existe plus ; la base la refuse de toute façon.
+ */
+export async function reversePayment(payment: Pick<PaymentRow, 'id' | 'method' | 'amount' | 'status'>, documentId: string, reason: string): Promise<void> {
+  let line;
+  try { line = reversalLine(payment, reason); } catch (e) {
+    throw new Error(t((e as Error).message === 'needReason' ? 'sales.reverseNeedReason' : 'sales.reverseNotReceived'));
+  }
+  await addPayments(documentId, [{ method: line.method, amount: line.amount, status: 'recu', note: line.note, reversalOf: line.reversalOf }]);
+}
+
+/** Annule un règlement ATTENDU (différé jamais perçu) : statut « annulé » motivé, rien n'est effacé. */
+export async function cancelDeferredPayment(paymentId: string, documentId: string, reason: string): Promise<void> {
+  const motif = reason.trim();
+  if (!motif) throw new Error(t('sales.reverseNeedReason'));
+  const { data, error } = await supabase.from('document_payments')
+    .update({ status: 'annule', note: motif }).eq('id', paymentId).eq('status', 'attendu').select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(t('sales.reverseNotDeferred'));
   await recomputePaid(documentId);
 }
 

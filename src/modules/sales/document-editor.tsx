@@ -516,7 +516,8 @@ function Row({ label, value, muted, strong, big }: { label: string; value: strin
 }
 
 /* ---------------- Pickers ---------------- */
-function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
+/** Recherche d'un client (nom, fiches liées) ; aussi utilisée par la vente comptoir (facture obligatoire, PDV010). */
+export function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
   const [term, setTerm] = useState('');
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);

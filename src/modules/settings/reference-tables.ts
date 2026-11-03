@@ -49,6 +49,12 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   // `grid_base` (03), `grid_vat` (54), `winbooks_vat_code` (code TVA de l'OD, ex. MARGE),
   // `winbooks_journal` (OD). Grilles et code TVA à confirmer par le comptable.
   { key: 'vat_margin_settings', label: 'TVA marge (occasions) — réglages', group: 'vente', extraColumns: [] },
+  // Facture obligatoire au-delà de 125 € TTC (PDV010, AR n° 1 art. 1er § 2, 9°) : code = début de la
+  // famille de l'article (R11, 03-05, « ACCESSOIRES ET EQUIPEMENTS/ACC AGV »…), le plus long l'emporte ;
+  // coché = pièce / accessoire / prestation DU VÉHICULE (facture), décoché = équipement du pilote,
+  // cadeau (ticket possible). Une moto exige toujours une facture. Préchargement à vérifier avec Domenico.
+  { key: 'invoice_required_family', label: 'Facture obligatoire par famille (> 125 €)', group: 'vente',
+    extraColumns: [{ key: 'requires_invoice', label: 'Facture obligatoire', type: 'bool' }] },
   { key: 'civility', label: 'Civilités', group: 'autre',
     extraColumns: [
       { key: 'professional', label: 'Professionnel', type: 'bool' },

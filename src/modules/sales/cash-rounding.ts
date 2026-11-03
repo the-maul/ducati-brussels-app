@@ -54,8 +54,11 @@ export function applyCashRounding<T extends CashRoundingLine>(lines: T[]): (T | 
   return out;
 }
 
-/** Monnaie a rendre : especes remises par le client moins les especes arrondies a encaisser. */
+/**
+ * Monnaie a rendre : especes remises par le client moins les especes arrondies a encaisser, elle
+ * aussi arrondie a 5 cents (PDV010 : on ne rend pas 1 ou 2 cents, meme regle que l encaissement).
+ */
 export function changeDue(given: number, roundedCash: number): number {
   const c = cents(given) - cents(roundedCash);
-  return c > 0 ? c / 100 : 0;
+  return c > 0 ? roundToFiveCents(c / 100) : 0;
 }

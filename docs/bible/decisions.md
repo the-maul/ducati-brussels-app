@@ -8,6 +8,43 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Caisse conforme au droit belge : ce qui ne demandait pas de choix métier (PDV010)
+
+- **M-93** — **Le journal Z est le journal des recettes, numéroté, figé à la clôture, jamais rouvert.**
+  Numéro d'ordre continu par société et par caisse (séquence `Z` : `Z-2026-00001`), caisse
+  `CAISSE-1` (une seule aujourd'hui), période, documents, totaux par taux de TVA, remises,
+  remboursements, CA net TVAC, encaissements par mode, **ligne distincte pour toute vente dont le
+  prix unitaire dépasse 500 € TTC**, fond / théorique / compté / écart, **motif obligatoire si
+  l'écart n'est pas nul**. Instantané `cash_sessions.z_report` + PDF en GED de la session ;
+  réimpression depuis l'instantané (« Réimpression du … »). Le rapport X (session ouverte) n'est pas
+  numéroté. Caisse → Clôtures : historique et export CSV du jour ou du mois. *Client (« intègre déjà
+  tout ce que tu peux sans validation ») · 03/11.* Sources : AR n° 1 art. 14 § 2 et 15 § 4 ; AR du
+  13/12/2022. [M06](modules/M06-ventes-caisse.md), [M12](modules/M12-compta.md)
+- **M-94** — **Pas d'encaissement caisse fermée** ; le ticket (`documents.cash_session_id`) et chaque
+  règlement perçu se rattachent à la session ouverte ; le Z se calcule sur la session, plus sur une
+  plage horaire. *Client · 03/11.* [M06](modules/M06-ventes-caisse.md)
+- **M-95** — **Espèces : 3 000 € au plus par vente** (acomptes compris), refus bloquant ; arrondi à
+  5 cents aussi sur le rendu et sur les remboursements. *Loi du 18/09/2017 art. 67 ; CDE VI.7/2 · 03/11.*
+- **M-96** — **Un règlement ne se supprime jamais** : perçu → contre-passation (ligne inverse, même
+  mode, motif obligatoire, auteur tracé), une seule fois ; attendu → « annulé » avec motif (un QR
+  abandonné reste retiré, rien n'a été perçu). Un ticket validé s'annule par un avoir lié, inscrit au Z
+  en « remboursements ». *CDE III.86 · 03/11.*
+- **M-97** — **Facture obligatoire** : toujours pour une moto (V, O, P, D) ; au-delà de 125 € TTC
+  pour une pièce, un accessoire ou une prestation **du véhicule**. La caisse exige alors un client et
+  produit une FAC. Drapeau par famille d'article, Paramètres → Tables → « Facture obligatoire par
+  famille (> 125 €) » (code = début de la famille, le plus long l'emporte). Préchargement : pièces,
+  accessoires moto, pneus, batteries, consommables, main-d'œuvre = oui ; vêtements, casques,
+  intercoms, marchandising, administratif = non. **À vérifier avec Domenico** (liste des familles).
+  *AR n° 1 art. 1er § 2, 1° et 9° · 03/11.* [M06](modules/M06-ventes-caisse.md)
+- **M-98** — **Ticket par e-mail sans client** : adresse saisie pour l'envoi seulement, enregistrée sur
+  aucune fiche (l'envoi reste tracé dans `events`) ; PDF rangé dans la GED du ticket. *AR 13/12/2022 · 03/11.*
+- Migration `20261103170000_m6_caisse_legale.sql` **écrite, essayée à blanc en production (transaction
+  annulée), non appliquée** ; elle suppose `20261103150000_m6_caisse_audit.sql` appliquée (Q14). Restent
+  des choix : D1 (forcer un ticket avec motif), D2 (validation du comptable), D7 (arrondi carte),
+  multi-poste, ticket 80 mm, facture d'acompte (lot facture légale).
+
+---
+
 ## 2026-11-03 — Kits d'entretien : tout le parc, depuis les manuels, deux références gardées (ATE013b)
 
 - **M-90** — **Deux références pour le même besoin sur la même moto : on garde les deux.** Pas de

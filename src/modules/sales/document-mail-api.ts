@@ -43,7 +43,8 @@ export function plainTextToHtml(text: string): string {
 
 export type SendDocumentMailInput = {
   full: DocumentFull;
-  contactId: string;
+  /** null : ticket sans client (PDV010), PDF rangé seulement dans la GED du document. */
+  contactId: string | null;
   to: string;
   from: string | undefined;
   subject: string;
@@ -70,7 +71,7 @@ export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDo
   const pdf = p.pdf ?? await generateSalesPdf(p.full);
   const { data, error } = await supabase.functions.invoke('graph-send-email', {
     body: {
-      companyId: doc.company_id, contactId: p.contactId, to: p.to.trim(), from: p.from || undefined,
+      companyId: doc.company_id, ...(p.contactId ? { contactId: p.contactId } : {}), to: p.to.trim(), from: p.from || undefined,
       subject: p.subject, body: plainTextToHtml(p.body), origin: clientAppUrl(),
       ...(p.locale ? { locale: p.locale } : {}),
       attachments: [{ name: pdf.fileName, contentType: 'application/pdf', contentBytes: bytesToBase64(pdf.bytes) }],
@@ -98,7 +99,7 @@ export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDo
     const note = t('salesMail.gedNote').replace('{to}', p.to.trim()).replace('{from}', r.from ?? '').replace('{date}', new Date().toLocaleString('fr-BE'));
     const stamp = Date.now();
     const file = new File([pdfBlob(pdf.bytes)], pdf.fileName, { type: 'application/pdf' });
-    await uploadAttachment(doc.company_id, 'contact', p.contactId, file, stamp, note, SALES_GED_FOLDER);
+    if (p.contactId) await uploadAttachment(doc.company_id, 'contact', p.contactId, file, stamp, note, SALES_GED_FOLDER);
     await uploadAttachment(doc.company_id, 'document', doc.id, file, stamp, note, null);
   } catch {
     archived = false;

@@ -1,20 +1,28 @@
 /**
  * M6 — Écran de règlement (POS) : multi-modes, partiel, à échéance (différé),
- * rendu de monnaie sur espèces, ajout/suppression de règlements.
+ * rendu de monnaie sur espèces, ajout de règlements.
  * Réf. G8 Facturation p.39-40, p.67-69, p.90. Libellés via i18n.
+ * PDV010 (03/11/2026, droit belge) : un règlement ne se supprime plus. Perçu → contre-passation
+ * (règlement inverse, même mode, motif obligatoire, auteur tracé) ; attendu → annulé avec motif.
+ * Plafond légal des espèces : 3 000 € par vente (acomptes compris), refus bloquant.
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Check, Landmark } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, Landmark, Undo2, Ban, ArrowLeftRight } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/status-badge';
 import {
-  listPaymentMethods, listPayments, addPayments, deletePayment, markPaymentReceived,
-  type NewPayment,
+  listPaymentMethods, listPayments, addPayments, reversePayment, cancelDeferredPayment, markPaymentReceived,
+  type NewPayment, type PaymentRow,
 } from './write-api';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
+import { CASH_LIMIT_EUR, cashLimitExceeded, cashTotal, reversedIds } from './cash-rules';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { CASH_METHOD, applyCashRounding, cashRounding, changeDue } from './cash-rounding';
 
@@ -71,6 +79,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
           fromFinancing: financingAccepted && d.fromFinancing,
         }));
       if (lines.length === 0) throw new Error(t('sales.payNeedAmount'));
+      // Plafond légal des espèces (loi du 18/09/2017, art. 67) : 3 000 € par vente, déjà perçu compris.
+      const existing = (payments ?? []).map((p) => ({ method: p.method, amount: Number(p.amount), status: p.status }));
+      if (cashLimitExceeded(existing, lines)) {
+        throw new Error(fillVars(t('sales.cashLimit'), { amount: eur(cashTotal(existing, lines)), limit: eur(CASH_LIMIT_EUR) }));
+      }
       // Arrondi légal des espèces à 5 cents (Belgique, depuis le 1er décembre 2019) : la ligne
       // espèces est ramenée au montant arrondi, l'écart est porté par un règlement « ARR ».
       await addPayments(documentId, applyCashRounding(lines));
@@ -80,7 +93,16 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
     onError: (e) => setError(errorMessage(e)),
   });
 
-  const del = useMutation({ mutationFn: (id: string) => deletePayment(id, documentId), onSuccess: refresh });
+  // Annulation d'un règlement (jamais de suppression) : contre-passation ou annulation motivée.
+  const [undo, setUndo] = useState<PaymentRow | null>(null);
+  const [undoReason, setUndoReason] = useState('');
+  const [undoError, setUndoError] = useState<string | null>(null);
+  const undoM = useMutation({
+    mutationFn: (p: PaymentRow) => (p.status === 'attendu' ? cancelDeferredPayment(p.id, documentId, undoReason) : reversePayment(p, documentId, undoReason)),
+    onSuccess: () => { setUndo(null); setUndoReason(''); setUndoError(null); refresh(); },
+    onError: (e) => setUndoError(errorMessage(e)),
+  });
+  const reversed = reversedIds((payments ?? []) as { id: string; reversal_of?: string | null }[]);
   const recv = useMutation({ mutationFn: (id: string) => markPaymentReceived(id, documentId), onSuccess: refresh });
 
   // Espèces à encaisser arrondies à 5 cents ; rendu de monnaie = espèces remises − espèces arrondies.
@@ -107,7 +129,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
                 <td className="py-1.5">
                   {p.status === 'attendu'
                     ? <StatusBadge tone="warning" label={`${t('sales.deferred')}${p.due_date ? ` · ${p.due_date}` : ''}`} />
-                    : <StatusBadge tone="success" label={t('sales.received')} />}
+                    : p.status === 'annule'
+                      ? <StatusBadge tone="neutral" icon={Ban} label={t('sales.cancelledBadge')} />
+                      : <StatusBadge tone="success" label={t('sales.received')} />}
+                  {rowReversalOf(p) && <span className="ml-1"><StatusBadge tone="info" icon={ArrowLeftRight} label={t('sales.reversalBadge')} /></span>}
+                  {reversed.has(p.id) && <span className="ml-1"><StatusBadge tone="neutral" icon={Undo2} label={t('sales.reversedBadge')} /></span>}
                   {p.from_financing && <span className="ml-1"><StatusBadge tone="info" icon={Landmark} label={t('balance.orgBadge')} /></span>}
                 </td>
                 <td className="py-1.5 text-right tabular-nums">{eur(Number(p.amount))}</td>
@@ -115,7 +141,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
                   {p.status === 'attendu' && (
                     <Button size="sm" variant="ghost" title={t('sales.markReceived')} onClick={() => recv.mutate(p.id)} disabled={recv.isPending}><Check className="size-4 text-success" /></Button>
                   )}
-                  <Button size="sm" variant="ghost" title={t('action.delete')} onClick={() => del.mutate(p.id)} disabled={del.isPending}><Trash2 className="size-4 text-danger" /></Button>
+                  {canUndo(p, reversed) && (
+                    <Button size="sm" variant="ghost" title={p.status === 'attendu' ? t('sales.cancelDeferred') : t('sales.reverse')} onClick={() => { setUndo(p); setUndoReason(''); setUndoError(null); }}>
+                      {p.status === 'attendu' ? <Ban className="size-4 text-danger" /> : <Undo2 className="size-4 text-danger" />}
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -174,6 +204,28 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
       )}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
+      <AlertDialog open={!!undo} onOpenChange={(o) => { if (!o && !undoM.isPending) setUndo(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{undo?.status === 'attendu' ? t('sales.cancelDeferredTitle') : t('sales.reverseTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {undo && fillVars(t(undo.status === 'attendu' ? 'sales.cancelDeferredBody' : 'sales.reverseBody'), { method: methodLabel(undo.method), amount: eur(Number(undo.amount)) })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.reverseReason')}</label>
+            <Input value={undoReason} onChange={(e) => setUndoReason(e.target.value)} autoFocus />
+          </div>
+          {undoError && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{undoError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={undoM.isPending}>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); if (undo) undoM.mutate(undo); }} disabled={undoM.isPending || !undoReason.trim()}>
+              {undoM.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {undo?.status === 'attendu' ? t('sales.cancelDeferredDo') : t('sales.reverseDo')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={addLine}><Plus /> {acompte ? t('sales.addDeposit') : t('sales.addPayment')}</Button>
         {drafts.length > 0 && (
@@ -184,4 +236,18 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
       </div>
     </div>
   );
+}
+
+/** Contre-passation d'un autre règlement (colonne de la migration 20261103170000, absente avant). */
+const rowReversalOf = (p: PaymentRow): string | null => (p as PaymentRow & { reversal_of?: string | null }).reversal_of ?? null;
+
+/**
+ * Un règlement s'annule une seule fois : attendu → annulé ; perçu (ni contre-passation, ni déjà
+ * contre-passé, ni acompte reporté d'un autre document) → contre-passation.
+ */
+function canUndo(p: PaymentRow, reversed: Map<string, string>): boolean {
+  if (p.status === 'attendu') return true;
+  if (p.status !== 'recu') return false;
+  if (rowReversalOf(p) || reversed.has(p.id)) return false;
+  return !(p as PaymentRow & { transferred_from?: string | null }).transferred_from;
 }

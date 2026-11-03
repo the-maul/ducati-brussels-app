@@ -5,21 +5,35 @@
  * Audit caisse du 03/11/2026 (PDV000) : plus de ticket à 0 € ; le scan n'ajoute un article que
  * s'il est seul à correspondre ; « Nouvelle vente » prévient quand le ticket n'est pas réglé
  * (le ticket reste dû, il s'annule par un avoir depuis sa fiche).
+ * Caisse conforme au droit belge (PDV010, 03/11/2026) :
+ *  - pas de vente caisse fermée : message et bouton « Ouvrir la caisse » ; le ticket se rattache
+ *    à la session ouverte (en base) ;
+ *  - facture obligatoire (AR n° 1 art. 1er § 2) pour une moto, et au-delà de 125 € TTC pour une
+ *    pièce / un accessoire / une prestation du véhicule (famille réglable, Paramètres → Tables) :
+ *    la caisse exige un client et produit une facture FAC ;
+ *  - ticket par e-mail sans client (adresse saisie, non enregistrée).
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { createDocument, computeTotals, searchSaleArticles, getDocumentFull, listPayments, documentValidationMessage, type SaleArticle } from './write-api';
-import { posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDate } from './pos-rules';
+import {
+  createDocument, computeTotals, searchSaleArticles, getDocumentFull, listPayments, documentValidationMessage,
+  listInvoiceFamilyRules, invoiceRequiredMessage, type SaleArticle,
+} from './write-api';
+import { posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDate, invoiceRequired, posSessionError } from './pos-rules';
+import { getOpenSession, type CashSession } from './cash-api';
 import { PaymentPanel } from './payment-panel';
 import { printDocument } from './print-document';
+import { ContactPicker } from './document-editor';
+import { DocumentMailDialog } from './document-mail-dialog';
+import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -27,24 +41,43 @@ import { errorMessage } from '@/lib/mutation-feedback';
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
-type CartLine = { _key: string; article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number };
+type CartLine = {
+  _key: string; article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number;
+  /** Famille et type de gestion : règle de la facture obligatoire (PDV010). */
+  category_path: string | null; mgmt_type: string | null;
+};
 let ck = 0;
 
-export function PosSale({ companyId, companyName }: { companyId: string; companyName: string }) {
+/** La session porte-t-elle les colonnes de la migration 20261103170000 (rattachement possible) ? */
+const sessionLinkable = (s: CashSession | null | undefined): boolean => !!s && 'register_code' in s;
+
+export function PosSale({ companyId, companyName, onOpenCash }: { companyId: string; companyName: string; onOpenCash?: () => void }) {
   const qc = useQueryClient();
   const roundUp = useRoundSalePrices(companyId);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number } | null>(null);
+  const [contact, setContact] = useState<Contact | null>(null);
+  const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number; contact: Contact | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [askUnpaid, setAskUnpaid] = useState(false);
+  const [mailOpen, setMailOpen] = useState(false);
+
+  const { data: session, isLoading: sessionLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
+  const { data: rules } = useQuery({ queryKey: ['invoice-family-rules', companyId], queryFn: () => listInvoiceFamilyRules(companyId) });
 
   const totals = computeTotals(posTicketLines(cart));
+  // Facture imposée par la loi : moto, ou > 125 € TTC avec une pièce / un accessoire du véhicule.
+  const mustInvoice = invoiceRequired(cart, rules ?? []);
+  const noSession = !sessionLoading && posSessionError(session) === 'noSession';
 
   const add = (a: SaleArticle) => setCart((c) => {
     const existing = c.find((l) => l.article_id === a.id);
     if (existing) return c.map((l) => (l.article_id === a.id ? { ...l, quantity: l.quantity + 1 } : l));
-    return [...c, { _key: `c${ck++}`, article_id: a.id, designation: a.designation, quantity: 1, unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate }];
+    return [...c, {
+      _key: `c${ck++}`, article_id: a.id, designation: a.designation, quantity: 1,
+      unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate,
+      category_path: a.category_path ?? null, mgmt_type: a.mgmt_type ?? null,
+    }];
   });
   const setQty = (key: string, q: number) => setCart((c) => c.map((l) => (l._key === key ? { ...l, quantity: q } : l)));
   const remove = (key: string) => setCart((c) => c.filter((l) => l._key !== key));
@@ -55,10 +88,20 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
       // Même règle que l'écran de vente : au moins une ligne et un montant (plus de ticket à 0 €).
       const refused = posCartError(cart);
       if (refused) { setError(refused === 'needLine' ? t('pos.cartEmpty') : documentValidationMessage(refused)); setBusy(false); return; }
+      // Caisse fermée : rien ne s'encaisse (le ticket et les espèces se rattachent à la session).
+      const open = await getOpenSession(companyId);
+      if (!open) { setError(t('pos.noSessionBody')); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); setBusy(false); return; }
+      if (mustInvoice && !contact) { setError(invoiceRequiredMessage(mustInvoice)); setBusy(false); return; }
       const lines = posTicketLines(cart);
-      const id = await createDocument({ companyId, docType: 'TIK', issueDate: localIsoDate(), status: 'validee', lines });
+      // Avec un client : facture (obligatoire au-delà du seuil, toujours possible) ; sans : ticket.
+      const docType = contact ? 'FAC' : 'TIK';
+      const id = await createDocument({
+        companyId, docType, contactId: contact?.id ?? null, issueDate: localIsoDate(), status: 'validee', lines,
+        // Le ticket est rattaché à la session par la base ; la facture du comptoir l'est ici.
+        cashSessionId: docType === 'FAC' && sessionLinkable(open) ? open.id : null,
+      });
       const tot = computeTotals(lines);
-      setActiveDoc({ id, ttc: tot.total_ttc });
+      setActiveDoc({ id, ttc: tot.total_ttc, contact });
     } catch (e) { setError(errorMessage(e) || t('pos.errSale')); }
     setBusy(false);
   };
@@ -66,12 +109,13 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
   // Règlements du ticket en cours : « Nouvelle vente » prévient tant qu'il reste à encaisser.
   const { data: payments } = useQuery({ queryKey: ['payments', activeDoc?.id], queryFn: () => listPayments(activeDoc!.id), enabled: !!activeDoc });
   const remaining = activeDoc ? ticketRemaining(activeDoc.ttc, payments ?? []) : 0;
+  const { data: full } = useQuery({ queryKey: ['doc-full', activeDoc?.id], queryFn: () => getDocumentFull(activeDoc!.id), enabled: !!activeDoc && mailOpen });
 
-  const newSale = () => { setCart([]); setActiveDoc(null); setError(null); setAskUnpaid(false); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setAskUnpaid(false); setMailOpen(false); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
   const askNewSale = () => { if (remaining > 0.005) setAskUnpaid(true); else newSale(); };
   const print = async () => {
     if (!activeDoc) return;
-    try { const full = await getDocumentFull(activeDoc.id); await printDocument(full, companyName); } catch (e) { setError(errorMessage(e)); }
+    try { const f = await getDocumentFull(activeDoc.id); await printDocument(f, companyName); } catch (e) { setError(errorMessage(e)); }
   };
 
   // Encaissement en cours
@@ -79,7 +123,7 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
     return (
       <div className="space-y-4">
         <div className="rounded-md border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">{t('pos.toCollect')}</p>
+          <p className="text-sm text-muted-foreground">{t('pos.toCollect')}{activeDoc.contact ? ` · ${t('pos.invoiceFor')} ${contactDisplayName(activeDoc.contact)}` : ''}</p>
           <p className="font-data text-2xl font-bold tabular-nums">{eur(activeDoc.ttc)}</p>
           {payments && (remaining > 0.005
             ? <p className="mt-1 font-data text-sm tabular-nums text-warning">{t('pos.remaining')} : <b>{eur(remaining)}</b></p>
@@ -89,9 +133,13 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
         {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" asChild><Link to="/sales/$documentId" params={{ documentId: activeDoc.id }}><FileText /> {t('pos.openTicket')}</Link></Button>
+          <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('pos.mailTicket')}</Button>
           <Button variant="outline" onClick={print}><Printer /> {t('pos.printTicket')}</Button>
           <Button onClick={askNewSale}><RotateCcw /> {t('pos.newSale')}</Button>
         </div>
+        {mailOpen && full && (
+          <DocumentMailDialog full={full} contact={activeDoc.contact} companyName={companyName} onClose={() => setMailOpen(false)} />
+        )}
         <AlertDialog open={askUnpaid} onOpenChange={setAskUnpaid}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -109,36 +157,63 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-      {/* Panier */}
-      <div className="space-y-3">
-        <ScanBar companyId={companyId} onAdd={add} />
-        <div className="overflow-hidden rounded-md border border-border">
-          <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>{t('pos.article')}</Th><Th className="w-24 text-right">{t('pos.qty')}</Th><Th className="w-24 text-right">{t('pos.price')}</Th><Th className="w-24 text-right">{t('pos.total')}</Th><Th className="w-10" /></tr></thead>
-            <tbody>
-              {cart.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">{t('pos.cartEmpty')}</td></tr>}
-              {cart.map((l) => (
-                <tr key={l._key} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">{l.designation}</td>
-                  <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-3 py-2 text-right tabular-nums">{eur(l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{eur(l.quantity * l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
-                  <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => remove(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      {noSession && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning bg-warning-bg px-4 py-3">
+          <Wallet className="size-5 text-warning" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-warning">{t('pos.noSessionTitle')}</p>
+            <p className="text-[13px] text-foreground">{t('pos.noSessionBody')}</p>
+          </div>
+          {onOpenCash && <Button onClick={onOpenCash}><Wallet /> {t('cash.open')}</Button>}
         </div>
-      </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
+        {/* Panier */}
+        <div className="space-y-3">
+          <ScanBar companyId={companyId} onAdd={add} />
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full border-collapse font-data text-[13px]">
+              <thead className="bg-muted"><tr><Th>{t('pos.article')}</Th><Th className="w-24 text-right">{t('pos.qty')}</Th><Th className="w-24 text-right">{t('pos.price')}</Th><Th className="w-24 text-right">{t('pos.total')}</Th><Th className="w-10" /></tr></thead>
+              <tbody>
+                {cart.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">{t('pos.cartEmpty')}</td></tr>}
+                {cart.map((l) => (
+                  <tr key={l._key} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2">{l.designation}</td>
+                    <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{eur(l.quantity * l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
+                    <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => remove(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      {/* Total + encaisser */}
-      <div className="space-y-3 rounded-md border border-border bg-card p-4">
-        <div className="flex items-baseline justify-between"><span className="text-sm text-muted-foreground">{t('pos.totalHt')}</span><span className="font-data tabular-nums">{eur(totals.total_ht)}</span></div>
-        <div className="flex items-baseline justify-between"><span className="text-sm text-muted-foreground">{t('pos.totalVat')}</span><span className="font-data tabular-nums">{eur(totals.total_vat)}</span></div>
-        <div className="flex items-baseline justify-between border-t border-border pt-3"><span className="font-bold">{t('pos.totalTtc')}</span><span className="font-data text-2xl font-bold tabular-nums">{eur(totals.total_ttc)}</span></div>
-        {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-        <Button className="w-full" size="lg" onClick={checkout} disabled={busy || cart.length === 0}>{busy ? <Loader2 className="animate-spin" /> : <CreditCard />} {t('pos.checkout')}</Button>
+        {/* Client (facture) + total + encaisser */}
+        <div className="space-y-3 rounded-md border border-border bg-card p-4">
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pos.clientForInvoice')}</label>
+            {contact ? (
+              <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+                <span className="truncate">{contactDisplayName(contact)}</span>
+                <button type="button" title={t('pos.removeClient')} onClick={() => setContact(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
+              </div>
+            ) : <ContactPicker companyId={companyId} onPick={setContact} />}
+            <p className="text-[12px] text-muted-foreground">{contact ? t('pos.willInvoice') : t('pos.clientHint')}</p>
+          </div>
+          {mustInvoice && !contact && (
+            <p className="flex gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><Receipt className="mt-0.5 size-4 shrink-0" /> {invoiceRequiredMessage(mustInvoice)}</p>
+          )}
+          <div className="flex items-baseline justify-between"><span className="text-sm text-muted-foreground">{t('pos.totalHt')}</span><span className="font-data tabular-nums">{eur(totals.total_ht)}</span></div>
+          <div className="flex items-baseline justify-between"><span className="text-sm text-muted-foreground">{t('pos.totalVat')}</span><span className="font-data tabular-nums">{eur(totals.total_vat)}</span></div>
+          <div className="flex items-baseline justify-between border-t border-border pt-3"><span className="font-bold">{t('pos.totalTtc')}</span><span className="font-data text-2xl font-bold tabular-nums">{eur(totals.total_ttc)}</span></div>
+          {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
+          <Button className="w-full" size="lg" onClick={checkout} disabled={busy || cart.length === 0 || noSession || (!!mustInvoice && !contact)}>
+            {busy ? <Loader2 className="animate-spin" /> : <CreditCard />} {contact ? t('pos.checkoutInvoice') : t('pos.checkout')}
+          </Button>
+        </div>
       </div>
     </div>
   );
