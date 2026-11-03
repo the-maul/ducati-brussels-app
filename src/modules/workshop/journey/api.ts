@@ -57,16 +57,27 @@ export async function appendJourneyLines(
   workNote?: string | null,
 ): Promise<void> {
   if (!proposed.length && !workNote) return;
-  const existing: RoLineInput[] = ro.lines.map((l) => ({
-    kind: l.kind as RoLineInput['kind'],
-    article_id: l.article_id,
-    designation: l.designation,
-    quantity: Number(l.quantity),
-    unit_price_ht: Number(l.unit_price_ht),
-    vat_rate: Number(l.vat_rate),
-    discount_pct: Number(l.discount_pct),
-    is_warranty: l.is_warranty,
-  }));
+  // Les lignes existantes sont recopiees AVEC leur etat de check-up (carte, etat, photo, ligne de
+  // proposition) : sans cela, le report du parcours effacait l'etat 'ok' / 'reporte' et une
+  // action refusee par le client redevenait facturable (mission 10, couture parcours -> OR).
+  type CheckupCols = { checkup_key?: string | null; checkup_state?: string | null; photo_path?: string | null; proposal_line_id?: string | null };
+  const existing: RoLineInput[] = ro.lines.map((l) => {
+    const c = l as typeof l & CheckupCols;
+    return {
+      kind: l.kind as RoLineInput['kind'],
+      article_id: l.article_id,
+      designation: l.designation,
+      quantity: Number(l.quantity),
+      unit_price_ht: Number(l.unit_price_ht),
+      vat_rate: Number(l.vat_rate),
+      discount_pct: Number(l.discount_pct),
+      is_warranty: l.is_warranty,
+      checkup_key: c.checkup_key ?? null,
+      checkup_state: c.checkup_state ?? null,
+      photo_path: c.photo_path ?? null,
+      proposal_line_id: c.proposal_line_id ?? null,
+    };
+  });
   const added: RoLineInput[] = proposed.map((p) => ({
     kind: p.kind, article_id: null, designation: p.designation, quantity: p.quantity,
     unit_price_ht: 0, vat_rate: 21, discount_pct: 0, is_warranty: false,

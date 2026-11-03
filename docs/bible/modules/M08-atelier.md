@@ -249,6 +249,7 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acce
 | Date | Changement | Commit ou migration |
 |---|---|---|
 | 2026-11-03 | **Créer un OR montre bien les motos du client, le client ne s'efface plus** (bug client, ATE001) : sélecteur de moto partagé OR / RDV / documents de vente (`vehicles/vehicle-picker.tsx`), motos du client en tête puis recherche parc, client sans moto → « Ajouter une moto à ce client », client et moto de l'OR chargés par id (plus via la liste plafonnée à 500), bouton « Nouvel OR » sur la fiche moto, `/workshop/new?contactId=&vehicleId=` | branche `fix-or-motos-du-client` |
+| 2026-11-03 | **Mission 10 « Atelier de bout en bout »** : audit du parcours complet (9 étapes, 11 coutures, 19 cartes, voir [mission 10](../missions/mission-10-atelier-bout-en-bout.md)) ; constaté en base : migrations atelier du 23/09 au 03/11 **appliquées** (parcours, kits, picking depuis l'OR, check-up, prochain entretien, panier, popup), 0 kit, 0 parcours, 0 réservation ; corrigé : « Reporter sur l'OR » garde l'état du check-up, « Créer l'OR » depuis un RDV reprend le motif, bandeau « prochain entretien » du check-up sur la ligne courante | branche `mission-10-atelier` |
 | 2026-06-11 | OR (cycle B8) + garantie B10 avec refus partiel, transformation en facture | `65216de`, `20260610340000_m8_repair_orders.sql` |
 | 2026-06-11 | Chronos B11 (pointeuse) | `95b0085`, `20260610350000_m8_chrono.sql` |
 | 2026-06-11 | Planning / RDV, création d'OR depuis le RDV | `3e973a6`, `20260610360000_m8_appointments.sql` |

@@ -15,6 +15,7 @@ import { clientAppUrl } from '@/lib/client-app-url';
 import { compressImageFile } from '@/lib/image-tools';
 import { uploadAttachment, signedUrl } from '@/modules/documents/ged-api';
 import { listRef } from '@/modules/settings/reference-api';
+import { t } from '@/lib/i18n';
 import { getKitDetail, getKitForModelYear } from '../kits/api';
 import { getPlanServices, listPlansForModelYear, getCatalogModelYear, loadHourlyRateHt } from '../maintenance-api';
 import { pickCurrent, planForUsage, DEFAULT_USAGE } from '../maintenance-plans';
@@ -182,11 +183,14 @@ export type MaintenanceDue = { label: string | null; due_date: string | null; du
 
 export async function vehicleMaintenanceDue(vehicleId: string): Promise<MaintenanceDue> {
   try {
-    const { data, error } = await loose.from('vehicle_maintenance_due').select('*').eq('vehicle_id', vehicleId).limit(1).maybeSingle();
+    // Une ligne COURANTE par moto (`is_current`) ; l'historique garde les anciennes. La table porte
+    // un `kind` (annual, oil, first_1000, km), pas de libelle : on le traduit comme la fiche moto.
+    const { data, error } = await loose.from('vehicle_maintenance_due').select('*').eq('vehicle_id', vehicleId).eq('is_current', true).limit(1).maybeSingle();
     if (error || !data) return null;
     const r = data as Record<string, unknown>;
+    const kind = typeof r.kind === 'string' && r.kind ? r.kind : null;
     return {
-      label: (r.service_label as string) ?? (r.label as string) ?? null,
+      label: kind ? t(`maintenance.kind_${kind}`) : null,
       due_date: (r.due_date as string) ?? null,
       due_km: r.due_km != null ? num(r.due_km) : null,
     };
