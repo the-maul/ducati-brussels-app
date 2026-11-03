@@ -1192,6 +1192,9 @@ export const en: DictionaryShape = {
     payNeedAmount: 'Enter an amount.',
     received: 'Received', deferred: 'At due date', markReceived: 'Mark as received',
     cashGiven: 'Cash received', change: 'Change',
+    cashRounding: 'Cash rounded to 5 cents',
+    creditNoteSource: 'A credit note can only be generated from an invoice or a till receipt.',
+    creditNoteAlready: 'This document is already cancelled or converted: no credit note possible.',
     // envoi du document (e-mail / SMS)
     sendMail: 'Send by e-mail', sendSms: 'Send by SMS',
     sendMailTitle: 'Send the document by e-mail', sendSmsTitle: 'Send the document by SMS',
@@ -2826,6 +2829,11 @@ export const en: DictionaryShape = {
     totalHt: 'Total excl. VAT', totalVat: 'VAT', totalTtc: 'Total incl. VAT', checkout: 'Collect',
     cartEmpty: 'Empty basket — scan or search an article.', errSale: 'Sale not possible.',
     toCollect: 'To collect', printTicket: 'Print the receipt', newSale: 'New sale',
+    remaining: 'Still to collect', paidOk: 'Receipt paid', openTicket: 'Open the receipt',
+    unpaidTitle: 'Receipt not paid',
+    unpaidBody: '{amount} is still to be collected on this receipt. It will remain due in the balances to collect; to cancel it, generate a credit note from its page.',
+    unpaidConfirm: 'New sale anyway',
+    scanMany: 'Several articles match: pick one from the list.', scanNone: 'No article found.',
   },
 
   // Caisse / Clôture Z (M6 — POS)
@@ -2855,6 +2863,10 @@ export const en: DictionaryShape = {
     denomination: 'Denomination', qty: 'Qty',
     countedCash: 'Cash counted', theoretical: 'Theoretical cash', variance: 'Variance',
     closeConfirm: 'Close the session',
+    alreadyOpen: 'A till session is already open for this company.', alreadyClosed: 'This session is already closed.',
+    amountPositive: 'The amount must be greater than zero.',
+    closeAsk: 'Close the till now?', closeDo: 'Close',
+    closeAskBody: 'Closing is final: the payments and movements of this session can no longer be changed or deleted.',
     // sessions passées
     pastSessions: 'Past sessions',
     colOpened: 'Opened', colClosed: 'Closed', colFloat: 'Float', colCounted: 'Counted', colStatus: 'Status',

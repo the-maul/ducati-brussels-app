@@ -5,15 +5,20 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Lock, Wallet } from 'lucide-react';
+import { Loader2, Plus, Lock, Wallet, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/status-badge';
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import {
   getOpenSession, listSessions, openSession, closeSession, addMovement, listSessionMovements, getZReport,
 } from './cash-api';
 import { listPaymentMethods } from './write-api';
+import { expectedCash, cashVariance } from './cash-rules';
 import { t } from '@/lib/i18n';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -66,8 +71,9 @@ function OpenSession({ companyId, session }: { companyId: string; session: { id:
     qc.invalidateQueries({ queryKey: ['cash-z', session.id] });
   };
 
-  const espTotal = z?.payments_by_method.find((p) => p.method === 'ESP')?.total ?? 0;
-  const theoreticalCash = Number(session.opening_float) + espTotal + (z?.cash_in ?? 0) - (z?.cash_out ?? 0);
+  // Espèces théoriques du tiroir : fond + règlements ESP + entrées − sorties **en espèces** seulement
+  // (un mouvement saisi en carte ou virement ne passe pas par le tiroir ; audit caisse du 03/11/2026).
+  const theoreticalCash = expectedCash(Number(session.opening_float), z, movements ?? []);
 
   return (
     <div className="space-y-6">
@@ -190,14 +196,15 @@ function ZPanel({ z }: { z: import('./cash-api').ZReport }) {
 function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: string; theoreticalCash: number; onClosed: () => void }) {
   const [qtys, setQtys] = useState<Record<string, string>>({});
   const counted = DENOMS.reduce((s, d) => s + d * num(qtys[String(d)] ?? ''), 0);
-  const variance = counted - theoreticalCash;
+  const variance = cashVariance(counted, theoreticalCash);
+  const [ask, setAsk] = useState(false);
   const close = useMutation({
     mutationFn: () => {
       const denoms: Record<string, number> = {};
       for (const d of DENOMS) { const q = num(qtys[String(d)] ?? ''); if (q > 0) denoms[String(d)] = q; }
       return closeSession(sessionId, Math.round(counted * 100) / 100, denoms);
     },
-    onSuccess: onClosed,
+    onSuccess: () => { setAsk(false); onClosed(); },
   });
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
@@ -216,8 +223,26 @@ function ClosePanel({ sessionId, theoreticalCash, onClosed }: { sessionId: strin
         <span className={Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}>{t('cash.variance')} : <b>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</b></span>
       </div>
       <div className="flex justify-end">
-        <Button variant="destructive" onClick={() => close.mutate()} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
+        <Button variant="destructive" onClick={() => setAsk(true)} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
       </div>
+      {/* La clôture est définitive (règlements et mouvements de la session figés) : on confirme. */}
+      <AlertDialog open={ask} onOpenChange={(o) => { if (!close.isPending) setAsk(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="size-5 text-warning" /> {t('cash.closeAsk')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('cash.closeAskBody')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-data text-[13px] tabular-nums">
+            <dt className="text-muted-foreground">{t('cash.theoretical')}</dt><dd className="text-right">{eur(theoreticalCash)}</dd>
+            <dt className="text-muted-foreground">{t('cash.countedCash')}</dt><dd className="text-right">{eur(counted)}</dd>
+            <dt className="text-muted-foreground">{t('cash.variance')}</dt><dd className={`text-right ${Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}`}>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</dd>
+          </dl>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={close.isPending}>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); close.mutate(); }} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeDo')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

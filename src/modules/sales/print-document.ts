@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
 import type { DocumentFull } from './write-api';
-import { vehicleBlockLines, type VehicleBlockSource } from './document-pdf';
+import { vehicleBlockLines, vatBreakdown, type VehicleBlockSource } from './document-pdf';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 
@@ -24,12 +24,15 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   const { doc, lines } = full;
 
   // Données société, client, véhicule, règlements + détection occasion (TVA marge).
-  const [{ data: company }, { data: contact }, { data: payments }, { data: vehicle }] = await Promise.all([
+  const [{ data: company }, { data: contact }, { data: payments }, { data: vehicle }, { data: methods }] = await Promise.all([
     supabase.from('companies').select('*').eq('id', doc.company_id).maybeSingle(),
     doc.contact_id ? supabase.from('contacts').select('*').eq('id', doc.contact_id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from('document_payments').select('*').eq('document_id', doc.id).order('paid_at'),
     doc.vehicle_id ? supabase.from('vehicles').select('*').eq('id', doc.vehicle_id).maybeSingle() : Promise.resolve({ data: null }),
+    // Libellés des modes de règlement (« Espèces » plutôt que « ESP » sur le ticket).
+    supabase.from('reference_values').select('code, label').eq('company_id', doc.company_id).eq('table_key', 'payment_method'),
   ]);
+  const methodLabel = new Map((methods ?? []).map((m) => [m.code, m.label]));
   const co = (company ?? {}) as Record<string, unknown>;
   const c = (contact ?? null) as Record<string, unknown> | null;
   const v = (vehicle ?? null) as Record<string, unknown> | null;
@@ -117,8 +120,22 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     </table>`;
 
   const payRows = (payments ?? []).filter((p) => Number(p.amount) !== 0).map((p) => `
-    <tr><td>${dmy(p.paid_at)}</td><td>${esc((p.note as string) && String(p.note).toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : '')}${esc(p.method)}</td><td class="r">${eur(Number(p.amount))}</td></tr>`).join('');
+    <tr><td>${dmy(p.paid_at)}</td><td>${esc((p.note as string) && String(p.note).toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : '')}${esc(methodLabel.get(p.method) ?? p.method)}</td><td class="r">${eur(Number(p.amount))}</td></tr>`).join('');
   const payBlock = payRows ? `<table class="pays"><tbody>${payRows}</tbody></table>` : '';
+
+  // Ventilation de la TVA par taux (mention obligatoire du ticket et de la facture) : même calcul
+  // que le PDF (`vatBreakdown`), lignes texte / vides ignorées, détaxe = 0 %.
+  const vatRows = vatBreakdown(
+    lines.map((l) => ({ lineType: l.line_type, quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), discountPct: Number(l.discount_pct || 0), vatRate: Number(l.vat_rate) })),
+    {
+      taxExempt: !!doc.tax_exempt, globalDiscountPct: Number(doc.global_discount_pct), globalDiscountAmount: Number(doc.global_discount_amount),
+      shippingHt: Number(doc.shipping_ht), shippingTaxed: doc.shipping_taxed !== false, shippingVatRate: Number(doc.shipping_vat_rate),
+    },
+  );
+  const vatBlock = vatRows.length ? `
+    <table class="vat"><thead><tr><th>${esc(t('salesPdf.vatRate'))}</th><th class="r">${esc(t('salesPdf.vatBase'))}</th><th class="r">${esc(t('salesPdf.vatAmount'))}</th></tr></thead><tbody>
+      ${vatRows.map((v) => `<tr><td>${esc(v.rate)} %</td><td class="r">${eur(v.base)}</td><td class="r">${eur(v.vat)}</td></tr>`).join('')}
+    </tbody></table>` : '';
 
   // Mentions légales (TVA marge, détaxe) : textes du dictionnaire, FR de référence, NL/EN/IT fidèles.
   const margeMention = isMarge
@@ -162,6 +179,9 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   .totals tr:not(:last-child) td{border-bottom:1px solid #eee}
   .totals .strong td{font-weight:800;background:#f5f5f5}
   .pays td{padding:2px 8px;font-size:10px;border-bottom:1px solid #eee;font-variant-numeric:tabular-nums}
+  .vat{width:260px;margin-bottom:8px}
+  .vat th{text-align:left;padding:2px 8px;font-size:9px;text-transform:uppercase;color:#555;border-bottom:1px solid #999}
+  .vat td{padding:2px 8px;font-size:10px;border-bottom:1px solid #eee;font-variant-numeric:tabular-nums}
   .mention{margin-top:12px;font-size:10px;color:#444;font-style:italic}
   .footer-note{margin-top:8px;font-size:11px;color:#333}
   .cgv{page-break-before:always;font-size:10px;color:#333}
@@ -203,7 +223,7 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   ${vehBlock}
 
   <div class="bottom">
-    <div style="max-width:55%">${payBlock}${margeMention}${footerText}</div>
+    <div style="max-width:55%">${vatBlock}${payBlock}${margeMention}${footerText}</div>
     ${totalsBox}
   </div>
   ${cgvPage}

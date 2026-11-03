@@ -1193,6 +1193,9 @@ export const fr = {
     payNeedAmount: 'Saisissez un montant.',
     received: 'Perçu', deferred: 'À échéance', markReceived: 'Marquer perçu',
     cashGiven: 'Espèces reçues', change: 'Rendu de monnaie',
+    cashRounding: 'Espèces arrondies à 5 cents',
+    creditNoteSource: 'Un avoir ne se génère que depuis une facture ou un ticket de caisse.',
+    creditNoteAlready: 'Ce document est déjà annulé ou converti : pas d\'avoir possible.',
     // envoi du document (e-mail / SMS)
     sendMail: 'Envoyer par e-mail', sendSms: 'Envoyer par SMS',
     sendMailTitle: 'Envoyer le document par e-mail', sendSmsTitle: 'Envoyer le document par SMS',
@@ -2831,6 +2834,11 @@ export const fr = {
     totalHt: 'Total HT', totalVat: 'TVA', totalTtc: 'Total TTC', checkout: 'Encaisser',
     cartEmpty: 'Panier vide — scannez ou cherchez un article.', errSale: 'Vente impossible.',
     toCollect: 'À encaisser', printTicket: 'Imprimer le ticket', newSale: 'Nouvelle vente',
+    remaining: 'Reste à encaisser', paidOk: 'Ticket réglé', openTicket: 'Ouvrir le ticket',
+    unpaidTitle: 'Ticket non réglé',
+    unpaidBody: 'Il reste {amount} à encaisser sur ce ticket. Il restera dû dans les soldes à encaisser ; pour l\'annuler, générez un avoir depuis sa fiche.',
+    unpaidConfirm: 'Nouvelle vente quand même',
+    scanMany: 'Plusieurs articles correspondent : choisissez dans la liste.', scanNone: 'Aucun article trouvé.',
   },
 
   // Caisse / Clôture Z (M6 — POS)
@@ -2860,6 +2868,10 @@ export const fr = {
     denomination: 'Coupure', qty: 'Qté',
     countedCash: 'Espèces comptées', theoretical: 'Espèces théoriques', variance: 'Écart',
     closeConfirm: 'Clôturer la session',
+    alreadyOpen: 'Une session de caisse est déjà ouverte pour cette société.', alreadyClosed: 'Cette session est déjà clôturée.',
+    amountPositive: 'Le montant doit être supérieur à zéro.',
+    closeAsk: 'Clôturer la caisse maintenant ?', closeDo: 'Clôturer',
+    closeAskBody: 'La clôture est définitive : les règlements et les mouvements de cette session ne pourront plus être modifiés ni supprimés.',
     // sessions passées
     pastSessions: 'Sessions passées',
     colOpened: 'Ouverte', colClosed: 'Clôturée', colFloat: 'Fond', colCounted: 'Compté', colStatus: 'Statut',

@@ -2,17 +2,27 @@
  * M6 (POS) — Vente comptoir (Express) : scan/recherche d'articles → panier →
  * encaissement → ticket. Crée un TIK validé (stock réel débité) puis encaissement
  * via le panneau de règlement, et impression du ticket.
+ * Audit caisse du 03/11/2026 (PDV000) : plus de ticket à 0 € ; le scan n'ajoute un article que
+ * s'il est seul à correspondre ; « Nouvelle vente » prévient quand le ticket n'est pas réglé
+ * (le ticket reste dû, il s'annule par un avoir depuis sa fiche).
  */
 import { useEffect, useRef, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { createDocument, computeTotals, searchSaleArticles, getDocumentFull, type SaleArticle } from './write-api';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { createDocument, computeTotals, searchSaleArticles, getDocumentFull, listPayments, documentValidationMessage, type SaleArticle } from './write-api';
+import { posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDate } from './pos-rules';
 import { PaymentPanel } from './payment-panel';
 import { printDocument } from './print-document';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
+import { errorMessage } from '@/lib/mutation-feedback';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -27,8 +37,9 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
   const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [askUnpaid, setAskUnpaid] = useState(false);
 
-  const totals = computeTotals(cart.map(({ _key, ...l }) => ({ ...l, discount_pct: 0 })));
+  const totals = computeTotals(posTicketLines(cart));
 
   const add = (a: SaleArticle) => setCart((c) => {
     const existing = c.find((l) => l.article_id === a.id);
@@ -41,17 +52,27 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
   const checkout = async () => {
     setBusy(true); setError(null);
     try {
-      const lines = cart.filter((l) => l.quantity > 0).map(({ _key, ...l }) => ({ ...l, discount_pct: 0 }));
-      if (lines.length === 0) { setError(t('pos.cartEmpty')); setBusy(false); return; }
-      const id = await createDocument({ companyId, docType: 'TIK', issueDate: new Date().toISOString().slice(0, 10), status: 'validee', lines });
+      // Même règle que l'écran de vente : au moins une ligne et un montant (plus de ticket à 0 €).
+      const refused = posCartError(cart);
+      if (refused) { setError(refused === 'needLine' ? t('pos.cartEmpty') : documentValidationMessage(refused)); setBusy(false); return; }
+      const lines = posTicketLines(cart);
+      const id = await createDocument({ companyId, docType: 'TIK', issueDate: localIsoDate(), status: 'validee', lines });
       const tot = computeTotals(lines);
       setActiveDoc({ id, ttc: tot.total_ttc });
-    } catch (e) { setError(e instanceof Error ? e.message : t('pos.errSale')); }
+    } catch (e) { setError(errorMessage(e) || t('pos.errSale')); }
     setBusy(false);
   };
 
-  const newSale = () => { setCart([]); setActiveDoc(null); setError(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
-  const print = async () => { if (activeDoc) { const full = await getDocumentFull(activeDoc.id); printDocument(full, companyName); } };
+  // Règlements du ticket en cours : « Nouvelle vente » prévient tant qu'il reste à encaisser.
+  const { data: payments } = useQuery({ queryKey: ['payments', activeDoc?.id], queryFn: () => listPayments(activeDoc!.id), enabled: !!activeDoc });
+  const remaining = activeDoc ? ticketRemaining(activeDoc.ttc, payments ?? []) : 0;
+
+  const newSale = () => { setCart([]); setActiveDoc(null); setError(null); setAskUnpaid(false); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  const askNewSale = () => { if (remaining > 0.005) setAskUnpaid(true); else newSale(); };
+  const print = async () => {
+    if (!activeDoc) return;
+    try { const full = await getDocumentFull(activeDoc.id); await printDocument(full, companyName); } catch (e) { setError(errorMessage(e)); }
+  };
 
   // Encaissement en cours
   if (activeDoc) {
@@ -60,12 +81,29 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
         <div className="rounded-md border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{t('pos.toCollect')}</p>
           <p className="font-data text-2xl font-bold tabular-nums">{eur(activeDoc.ttc)}</p>
+          {payments && (remaining > 0.005
+            ? <p className="mt-1 font-data text-sm tabular-nums text-warning">{t('pos.remaining')} : <b>{eur(remaining)}</b></p>
+            : <p className="mt-1 font-data text-sm text-success">{t('pos.paidOk')}</p>)}
         </div>
-        <PaymentPanel documentId={activeDoc.id} companyId={companyId} due={activeDoc.ttc} />
-        <div className="flex justify-end gap-2">
+        <PaymentPanel documentId={activeDoc.id} companyId={companyId} due={remaining} />
+        {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" asChild><Link to="/sales/$documentId" params={{ documentId: activeDoc.id }}><FileText /> {t('pos.openTicket')}</Link></Button>
           <Button variant="outline" onClick={print}><Printer /> {t('pos.printTicket')}</Button>
-          <Button onClick={newSale}><RotateCcw /> {t('pos.newSale')}</Button>
+          <Button onClick={askNewSale}><RotateCcw /> {t('pos.newSale')}</Button>
         </div>
+        <AlertDialog open={askUnpaid} onOpenChange={setAskUnpaid}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="size-5 text-warning" /> {t('pos.unpaidTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{fillVars(t('pos.unpaidBody'), { amount: eur(remaining) })}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={newSale}>{t('pos.unpaidConfirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -83,7 +121,7 @@ export function PosSale({ companyId, companyName }: { companyId: string; company
               {cart.map((l) => (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-3 py-2">{l.designation}</td>
-                  <td className="px-2 py-1"><Input type="number" step="1" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{eur(l.quantity * l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
                   <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => remove(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
@@ -110,22 +148,28 @@ function ScanBar({ companyId, onAdd }: { companyId: string; onAdd: (a: SaleArtic
   const roundUp = useRoundSalePrices(companyId);
   const [term, setTerm] = useState('');
   const [deb, setDeb] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 200); return () => clearTimeout(id); }, [term]);
   const { data } = useQuery({ queryKey: ['pos-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
 
-  // Scan : Entrée → si une seule correspondance, l'ajoute et vide le champ.
+  // Scan : Entrée → si une seule correspondance, l'ajoute et vide le champ ; plusieurs → on choisit.
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && data && data.length >= 1) { onAdd(data[0]); setTerm(''); }
+    if (e.key !== 'Enter') return;
+    const one = scanAutoPick(data);
+    if (one) { onAdd(one); setTerm(''); setHint(null); }
+    else if (data && data.length > 1) setHint(t('pos.scanMany'));
+    else if (deb.length >= 2 && data && data.length === 0) setHint(t('pos.scanNone'));
   };
   return (
     <div className="relative">
       <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input ref={inputRef} value={term} onChange={(e) => setTerm(e.target.value)} onKeyDown={onKey} placeholder={t('pos.scan')} className="h-11 pl-9 text-base" autoFocus />
+      <Input ref={inputRef} value={term} onChange={(e) => { setTerm(e.target.value); setHint(null); }} onKeyDown={onKey} placeholder={t('pos.scan')} className="h-11 pl-9 text-base" autoFocus />
+      {hint && <p className="mt-1 text-[12px] text-warning">{hint}</p>}
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
-            <button key={a.id} type="button" onClick={() => { onAdd(a); setTerm(''); inputRef.current?.focus(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
+            <button key={a.id} type="button" onClick={() => { onAdd(a); setTerm(''); setHint(null); inputRef.current?.focus(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
               <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span><Plus className="size-4 text-success" />
             </button>
           ))}

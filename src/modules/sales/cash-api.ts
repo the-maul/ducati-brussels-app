@@ -4,6 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { t } from '@/lib/i18n';
 
 export type CashSession = Database['public']['Tables']['cash_sessions']['Row'];
 export type CashMovement = Database['public']['Tables']['cash_movements']['Row'];
@@ -25,7 +26,13 @@ export async function listSessions(companyId: string): Promise<CashSession[]> {
   return data ?? [];
 }
 
+/**
+ * Ouvre la session du jour. Une seule session ouverte par société (audit caisse du 03/11/2026 :
+ * rien ne l'empêchait ; la migration 20261103150000 pose la même règle en base).
+ */
 export async function openSession(companyId: string, openingFloat: number, note?: string): Promise<string> {
+  if (!(openingFloat >= 0)) throw new Error(t('cash.amountPositive'));
+  if (await getOpenSession(companyId)) throw new Error(t('cash.alreadyOpen'));
   const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase.from('cash_sessions').insert({
     company_id: companyId, opening_float: openingFloat, opened_by: user?.id ?? null, note: note ?? null,
@@ -34,12 +41,14 @@ export async function openSession(companyId: string, openingFloat: number, note?
   return data.id as string;
 }
 
+/** Clôture : seulement une session encore ouverte (une session clôturée ne se rejoue pas). */
 export async function closeSession(sessionId: string, countedCash: number, denominations: Record<string, number>): Promise<void> {
-  const { error } = await supabase.from('cash_sessions').update({
+  const { data, error } = await supabase.from('cash_sessions').update({
     status: 'closed', closed_at: new Date().toISOString(),
     counted_cash: countedCash, denominations,
-  }).eq('id', sessionId);
+  }).eq('id', sessionId).eq('status', 'open').select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(t('cash.alreadyClosed'));
 }
 
 export async function listSessionMovements(companyId: string, fromISO: string, toISO: string): Promise<CashMovement[]> {
@@ -51,6 +60,7 @@ export async function listSessionMovements(companyId: string, fromISO: string, t
 }
 
 export async function addMovement(companyId: string, sessionId: string | null, kind: 'in' | 'out', amount: number, method: string, reason: string): Promise<void> {
+  if (!(amount > 0)) throw new Error(t('cash.amountPositive'));
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from('cash_movements').insert({
     company_id: companyId, session_id: sessionId, kind, amount: Math.abs(amount), method, reason, operator_id: user?.id ?? null,

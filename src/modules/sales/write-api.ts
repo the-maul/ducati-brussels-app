@@ -469,10 +469,21 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
  * perçus (règlements négatifs sur l'avoir), filiation, et passage de la facture en 'annulee'.
  * Mouvements append-only (B7). Retourne l'id de l'avoir.
  */
+/**
+ * Documents qu un avoir peut annuler : la facture et le ticket de caisse (G8 : la vente Express est
+ * une « facture Express », annulee comme une facture). Avant l audit caisse du 03/11/2026, le bouton
+ * « Generer un avoir » d un ticket repondait « document source non facturable ».
+ */
+export const CREDIT_NOTE_SOURCE_TYPES = ['FAC', 'TIK'] as const;
+export function canGenerateCreditNote(doc: Pick<DocumentRow, 'doc_type' | 'status'>): boolean {
+  return (CREDIT_NOTE_SOURCE_TYPES as readonly string[]).includes(doc.doc_type)
+    && !['brouillon', 'annulee', 'converti'].includes(doc.status);
+}
+
 export async function generateCreditNote(invoiceId: string): Promise<string> {
   const { doc, lines } = await getDocumentFull(invoiceId);
-  if (doc.doc_type !== 'FAC') throw new Error('Avoir : document source non facturable');
-  if (doc.status === 'annulee' || doc.status === 'converti') throw new Error('Facture déjà annulée');
+  if (!(CREDIT_NOTE_SOURCE_TYPES as readonly string[]).includes(doc.doc_type)) throw new Error(t('sales.creditNoteSource'));
+  if (!canGenerateCreditNote(doc)) throw new Error(t('sales.creditNoteAlready'));
 
   // Lignes en négatif (qté inversée → totaux négatifs via computeTotals).
   const lineInputs: LineInput[] = lines.map((l) => rowToLineInput(l, -1));

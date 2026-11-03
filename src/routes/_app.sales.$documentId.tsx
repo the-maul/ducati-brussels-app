@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, listPayments, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow } from '@/modules/sales/write-api';
 import { requiresConfirmation } from '@/modules/sales/confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from '@/modules/sales/confirm-document-dialog';
 import { useConfirm } from '@/components/confirm-provider';
@@ -196,7 +196,7 @@ function DocumentView() {
         <StatusBadge tone={statusTone(doc.status)} label={t(`sales.status_${doc.status}`)} />
         {doc.tax_exempt && <StatusBadge tone="info" label={t('sales.taxExempt')} />}
         {docAvailability && <AvailabilityBadge status={docAvailability.status} pct={docAvailability.pct} />}
-        {canConvert && (convertTargets.length > 0 || doc.doc_type === 'FAC') && (
+        {canConvert && (convertTargets.length > 0 || canGenerateCreditNote(doc)) && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
@@ -204,7 +204,7 @@ function DocumentView() {
                 {convert.isPending ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />} {t(`sales.type_${tt}`)}
               </Button>
             ))}
-            {doc.doc_type === 'FAC' && (
+            {canGenerateCreditNote(doc) && (
               <Button size="sm" variant="outline" onClick={() => askOrRun('creditNote', 'AVO')} disabled={readOnly || credit.isPending}>
                 {credit.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />} {t('sales.creditNote')}
               </Button>

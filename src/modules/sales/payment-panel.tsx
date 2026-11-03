@@ -16,10 +16,11 @@ import {
 } from './write-api';
 import { t } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
+import { CASH_METHOD, applyCashRounding, cashRounding, changeDue } from './cash-rounding';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
-const CASH = 'ESP'; // mode espèces → rendu de monnaie
+const CASH = CASH_METHOD; // mode espèces → rendu de monnaie et arrondi légal à 5 cents
 
 type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string; fromFinancing: boolean };
 let dc = 0;
@@ -70,7 +71,9 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
           fromFinancing: financingAccepted && d.fromFinancing,
         }));
       if (lines.length === 0) throw new Error(t('sales.payNeedAmount'));
-      await addPayments(documentId, lines);
+      // Arrondi légal des espèces à 5 cents (Belgique, depuis le 1er décembre 2019) : la ligne
+      // espèces est ramenée au montant arrondi, l'écart est porté par un règlement « ARR ».
+      await addPayments(documentId, applyCashRounding(lines));
     },
     onSuccess: () => { setDrafts([]); setError(null); refresh(); },
     // Motif réel (PostgrestError compris) plutôt que « Erreur » ; le toast global le montre aussi.
@@ -80,10 +83,10 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
   const del = useMutation({ mutationFn: (id: string) => deletePayment(id, documentId), onSuccess: refresh });
   const recv = useMutation({ mutationFn: (id: string) => markPaymentReceived(id, documentId), onSuccess: refresh });
 
-  // Rendu de monnaie : total espèces remises − total espèces à encaisser dans les drafts.
-  const cashDue = drafts.filter((d) => d.method === CASH && !d.deferred).reduce((s, d) => s + num(d.amount), 0);
+  // Espèces à encaisser arrondies à 5 cents ; rendu de monnaie = espèces remises − espèces arrondies.
+  const rounding = cashRounding(drafts.map((d) => ({ method: d.method, amount: num(d.amount), status: d.deferred ? 'attendu' : 'recu' })));
   const cashGiven = drafts.filter((d) => d.method === CASH && !d.deferred).reduce((s, d) => s + num(d.given), 0);
-  const change = cashGiven > cashDue ? cashGiven - cashDue : 0;
+  const change = changeDue(cashGiven, rounding.roundedCash);
   const draftTotal = drafts.reduce((s, d) => s + (d.deferred ? 0 : num(d.amount)), 0);
 
   return (
@@ -160,6 +163,12 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
         </div>
       ))}
 
+      {rounding.delta !== 0 && (
+        <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
+          {t('sales.cashRounding')} : <b className="tabular-nums">{eur(rounding.roundedCash)}</b>
+          <span className="tabular-nums"> ({rounding.delta > 0 ? '+' : '−'} {eur(Math.abs(rounding.delta))})</span>
+        </p>
+      )}
       {change > 0.005 && (
         <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('sales.change')} : <b className="tabular-nums">{eur(change)}</b></p>
       )}

@@ -1192,6 +1192,9 @@ export const nl: DictionaryShape = {
     payNeedAmount: 'Voer een bedrag in.',
     received: 'Ontvangen', deferred: 'Op vervaldag', markReceived: 'Markeren als ontvangen',
     cashGiven: 'Ontvangen contanten', change: 'Wisselgeld',
+    cashRounding: 'Contanten afgerond op 5 cent',
+    creditNoteSource: 'Een creditnota kan alleen vanuit een factuur of een kassaticket worden gemaakt.',
+    creditNoteAlready: 'Dit document is al geannuleerd of omgezet: geen creditnota mogelijk.',
     // envoi du document (e-mail / SMS)
     sendMail: 'Per e-mail verzenden', sendSms: 'Per sms verzenden',
     sendMailTitle: 'Het document per e-mail verzenden', sendSmsTitle: 'Het document per sms verzenden',
@@ -2826,6 +2829,11 @@ export const nl: DictionaryShape = {
     totalHt: 'Totaal excl. btw', totalVat: 'Btw', totalTtc: 'Totaal incl. btw', checkout: 'Innen',
     cartEmpty: 'Lege winkelmand — scan of zoek een artikel.', errSale: 'Verkoop onmogelijk.',
     toCollect: 'Te innen', printTicket: 'Ticket afdrukken', newSale: 'Nieuwe verkoop',
+    remaining: 'Nog te innen', paidOk: 'Ticket betaald', openTicket: 'Ticket openen',
+    unpaidTitle: 'Ticket niet betaald',
+    unpaidBody: 'Er is nog {amount} te innen op dit ticket. Het blijft verschuldigd in de te innen saldi; om het te annuleren maakt u een creditnota vanuit zijn fiche.',
+    unpaidConfirm: 'Toch nieuwe verkoop',
+    scanMany: 'Meerdere artikelen komen overeen: kies in de lijst.', scanNone: 'Geen artikel gevonden.',
   },
 
   // Caisse / Clôture Z (M6 — POS)
@@ -2855,6 +2863,10 @@ export const nl: DictionaryShape = {
     denomination: 'Coupure', qty: 'Aant.',
     countedCash: 'Geteld contant geld', theoretical: 'Theoretisch contant geld', variance: 'Verschil',
     closeConfirm: 'Sessie afsluiten',
+    alreadyOpen: 'Er is al een kassasessie open voor dit bedrijf.', alreadyClosed: 'Deze sessie is al afgesloten.',
+    amountPositive: 'Het bedrag moet groter zijn dan nul.',
+    closeAsk: 'De kassa nu afsluiten?', closeDo: 'Afsluiten',
+    closeAskBody: 'De afsluiting is definitief: de betalingen en bewegingen van deze sessie kunnen niet meer worden gewijzigd of verwijderd.',
     // sessions passées
     pastSessions: 'Vorige sessies',
     colOpened: 'Geopend', colClosed: 'Afgesloten', colFloat: 'Kasgeld', colCounted: 'Geteld', colStatus: 'Status',

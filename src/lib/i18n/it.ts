@@ -1192,6 +1192,9 @@ export const it: DictionaryShape = {
     payNeedAmount: 'Inserisci un importo.',
     received: 'Ricevuto', deferred: 'A scadenza', markReceived: 'Segna come ricevuto',
     cashGiven: 'Contanti ricevuti', change: 'Resto',
+    cashRounding: 'Contanti arrotondati a 5 centesimi',
+    creditNoteSource: 'Una nota di credito si genera solo da una fattura o da uno scontrino.',
+    creditNoteAlready: 'Questo documento è già annullato o convertito: nessuna nota di credito possibile.',
     // envoi du document (e-mail / SMS)
     sendMail: 'Invia per e-mail', sendSms: 'Invia per SMS',
     sendMailTitle: 'Invia il documento per e-mail', sendSmsTitle: 'Invia il documento per SMS',
@@ -2826,6 +2829,11 @@ export const it: DictionaryShape = {
     totalHt: 'Totale IVA escl.', totalVat: 'IVA', totalTtc: 'Totale IVA incl.', checkout: 'Incassa',
     cartEmpty: 'Carrello vuoto — scansionate o cercate un articolo.', errSale: 'Vendita impossibile.',
     toCollect: 'Da incassare', printTicket: 'Stampa lo scontrino', newSale: 'Nuova vendita',
+    remaining: 'Resta da incassare', paidOk: 'Scontrino pagato', openTicket: 'Apri lo scontrino',
+    unpaidTitle: 'Scontrino non pagato',
+    unpaidBody: 'Restano {amount} da incassare su questo scontrino. Resterà dovuto nei saldi da incassare; per annullarlo, generate una nota di credito dalla sua scheda.',
+    unpaidConfirm: 'Nuova vendita comunque',
+    scanMany: 'Più articoli corrispondono: scegliete nell\'elenco.', scanNone: 'Nessun articolo trovato.',
   },
 
   // Caisse / Clôture Z (M6 — POS)
@@ -2855,6 +2863,10 @@ export const it: DictionaryShape = {
     denomination: 'Taglio', qty: 'Qtà',
     countedCash: 'Contanti contati', theoretical: 'Contanti teorici', variance: 'Differenza',
     closeConfirm: 'Chiudi la sessione',
+    alreadyOpen: 'Una sessione di cassa è già aperta per questa società.', alreadyClosed: 'Questa sessione è già chiusa.',
+    amountPositive: 'L\'importo deve essere maggiore di zero.',
+    closeAsk: 'Chiudere la cassa adesso?', closeDo: 'Chiudi',
+    closeAskBody: 'La chiusura è definitiva: i pagamenti e i movimenti di questa sessione non potranno più essere modificati né eliminati.',
     // sessions passées
     pastSessions: 'Sessioni passate',
     colOpened: 'Aperta', colClosed: 'Chiusa', colFloat: 'Fondo', colCounted: 'Contato', colStatus: 'Stato',
