@@ -52,13 +52,99 @@ Sources en §E, toutes consultées le 03/11/2026.
 
 ---
 
+## Terminal CCV A77 (PAX) — qui ouvre l'API ?
+
+> **Fait nouveau (03/11, photos de Domenico)** : le terminal est un **CCV A77 fabriqué par PAX** (Android ;
+> étiquette « A77-OAW-RES-2SEU », S/N 1760353089 ; autocollant « OmEsPay — Your payment provider »,
+> helpdesk +32 2 899 77 60, helpdesk@omespay.be). Ce n'est donc **pas un Duo Base** : le modèle fait partie
+> de ceux que CCV Belgique annonce pilotables « via de Cloud » [C4]. Domenico : « il faut voir avec PAX et pas
+> Omespay pour l'API ».
+
+### La réponse en 5 lignes
+
+1. **C'est CCV qui ouvre l'API, pas PAX** : PAX fabrique la machine, mais l'application de paiement, les clés,
+   la gestion à distance (CCVStore), la Payment API et la certification sont à CCV [DOC, C11, C12, C2, C6].
+2. **Omespay est la porte d'entrée** : il a le contrat, inscrit le commerçant chez CCV (Boarding API réservée
+   aux revendeurs) et assure le premier support ; c'est par lui, ou par le partner manager CCV, que la liaison
+   s'active [DOC, C5, C8, O5].
+3. **PAX ne peut rien ouvrir sur un A77 sous marque CCV** : PAX renvoie lui-même vers « la banque, le PSP ou
+   l'ISO » qui a fourni le terminal ; sur un terminal CCV, ses outils ne s'appliquent pas (SDK Neptune
+   « réservé aux applications CCV », apps installées par le CCVStore et non par PAXSTORE) [DOC, P2, C11].
+4. **Le chemin pour le DMS reste la Payment API cloud de CCV, méthode terminal**. L'« app-to-app » (notre app
+   Android sur le A77 qui appelle le paiement CCV en local) existe, mais exige un contrat d'App Partner CCV, un
+   test par CCV, une diffusion par le CCVStore et une app Android à maintenir : **écarté** [DOC, C11, C13].
+5. **Action** : le mail §B part à Omespay, **CCV Belgique en copie** (partner manager) ; pas de mail à PAX
+   (question facultative en §B.2 si Domenico y tient).
+
+### Qui fait quoi sur ce terminal
+
+| | Rôle | Ce qu'il peut ouvrir pour nous | Ce qu'il ne peut pas faire | Contact | Sources |
+|---|---|---|---|---|---|
+| **PAX** (fabricant) | Le boîtier : Android « PayDroid », lecteur de cartes certifié, n° de série 1760353089. Vend aux acquéreurs et aux PSP, pas aux commerçants | **Rien côté paiement.** Ses outils (PAXSTORE / MAXSTORE, SDK Neptune, POSLink / BroadPOS) servent aux acquéreurs qui gèrent eux-mêmes leur parc et leur application de paiement | Activer une API de paiement sur un terminal CCV ; installer une app sans le propriétaire du parc (« Terminal owner must approve an app before it gets installed ») | Formulaire paxtechnology.com/contact ; PAX renvoie au fournisseur du terminal pour le support | [P1] [P2] [P3] [P4] |
+| **CCV** (marque, application de paiement, gestion du parc) | Application de paiement du terminal (SecPOS Evo ou acCEPT), clés, mises à jour et apps poussées par le **CCVStore**, liaison caisse | **Payment API, méthode terminal** (cloud) : clés `t_` / `l_`, `terminalId` ; **certification** (36 tests) ; programme **App Partner + CCVStore** pour l'app-to-app | — (c'est lui qui décide), mais le contrat commerçant passe par le revendeur | sales.be@ccv.eu (commercial Belgique, partner manager) ; pi-support@ccv.eu (technique, certification) | [C1] [C2] [C4] [C5] [C6] [C11] [C12] |
+| **Omespay** (revendeur) | Contrat de location et de service, inscription du commerçant, premier support ; institution de paiement EMS (CGV) | **Demander l'activation** à CCV, avenant, prix, TID ; mise en relation avec le partner manager | Écrire ou certifier l'API ; installer une app sur le terminal sans CCV | helpdesk@omespay.be, +32 2 899 77 60 (autocollant) ; info@omespay.be | [O5] [O9] [C8] |
+
+### Pourquoi Domenico pense à PAX — ce qui est vrai, ce qui ne l'est pas
+
+- **Vrai** : la machine est une PAX ; PAX publie des SDK et un magasin d'applications (PAXSTORE, présenté
+  aujourd'hui sous le nom MAXSTORE) qui permettent d'installer sa propre application sur un terminal — **chez
+  les acquéreurs qui utilisent le magasin PAX** [P1, P3].
+- **Pas sur ce terminal** : CCV écrit « All apps are managed/pushed/launched via CCVStore » et « The Neptune
+  library cannot be used by customer apps or third-party apps (only CCV apps are allowed to use it) » [DOC, C11].
+  Le « propriétaire du parc » qui approuve les apps est CCV, pas PAX [P3, C12].
+- **POSLink / BroadPOS** : protocole de PAX vers **ses propres** applications de paiement (processeurs surtout
+  américains) ; il n'y a pas d'application BroadPOS sur un A77 CCV [TIERS, P4 ; DÉDUIT].
+- Le **S/N 1760353089** est le numéro du boîtier PAX ; l'API CCV demande le **TID** (identifiant du terminal dans
+  l'application de paiement CCV), imprimé sur les tickets ou visible dans le menu du terminal [DÉDUIT] → à
+  demander (question A1).
+
+### Le mode « app-to-app » (notre application sur le A77)
+
+Ce que c'est [DOC, C11, C13] : mode **« ECR interne »** — notre app Android tourne sur le terminal et pilote
+l'application de paiement CCV par la bibliothèque **mAPI** (basée sur OPI) en local (127.0.0.1) ; elle s'annonce
+par un intent-filter `eu.ccv.service.ECR` et reprend la main après chaque paiement. CCV le documente
+explicitement pour « Pax A920, A77 ».
+
+Ce que ça implique :
+- **accord CCV** : contrat « App Partnership and CCVStore », NDA pour l'app d'exemple mAPI, terminal de
+  développement (« debug ») fourni par CCV ;
+- **test obligatoire par CCV** avant toute mise en ligne, puis **diffusion uniquement par le CCVStore** (pas de
+  Google Play, pas d'APK installé à la main), APK signé V1, numéro de version croissant à chaque mise à jour ;
+- **contraintes du terminal** : redémarrage quotidien (PCI), **aucun navigateur autorisé** sur le terminal
+  (le DMS web ne peut pas y tourner tel quel), A77 sans imprimante (ticket électronique) ;
+- **certification paiement** toujours due (« Every integration that initiates payments on a terminal of CCV
+  needs to be certified ») [C6] ;
+- **une app par marque** : mAPI ne sert que sur CCV ; un autre terminal (Worldline, Viva, PAX d'un autre
+  acquéreur) demanderait une autre app et un autre magasin [DÉDUIT].
+
+Verdict : utile pour une caisse **qui vit sur le terminal** (vente nomade sans PC) ; **pas pour un DMS web
+multi-concessions** qui a déjà PC et tablette. On garde la liaison **cloud**. Date des sources : le guide CCV
+est daté **août 2022** (toujours en ligne le 03/11/2026) ; la page CCVStore est de 2026 (liste des partenaires
+« 2026-05 »).
+
+### Ce qui reste valable pour les autres concessions
+
+- **Règle** : l'API d'un terminal est ouverte par **celui qui possède l'application de paiement et le contrat**
+  (la marque affichée sur l'écran de paiement : CCV, Worldline, Viva…), **jamais par le fabricant du boîtier**
+  (PAX, Ingenico, Verifone fabriquent pour plusieurs marques) ; le revendeur n'est que l'intermédiaire
+  commercial [DÉDUIT de P2, P3, C11].
+- **Dans le DMS** : un seul « terminal de paiement » abstrait, deux modes —
+  **piloté par API cloud** quand le fournisseur l'offre (CCV Payment API, Worldline Terminal API, Mollie, Viva,
+  SumUp…) : envoyer le montant, recevoir le résultat (webhook + relecture), annuler, rembourser ;
+  **« à côté »** sinon : le vendeur encaisse sur le terminal puis confirme dans le DMS. Pas d'app-to-app ni de
+  câble par défaut.
+- **À demander à chaque nouvelle concession** : marque sur l'écran de paiement, qui a le contrat (revendeur,
+  acquéreur), TID, la liaison caisse cloud existe-t-elle pour ce modèle, son prix, la certification.
+
+---
+
 ## A. Questions à poser à Domenico
 
 À poser en une fois (un message, une photo, un relevé), avant d'envoyer le mail §B.
 
 | # | Question | Pourquoi on la pose | Recommandation |
 |---|---|---|---|
-| 1 | **Photo de l'étiquette** au dos du terminal (modèle, n° de série, « TID ») et photo de l'écran d'accueil | L'A77, l'A960 et l'A35 sont pilotables par le cloud ; le **Duo Base ne l'est pas** [C4]. Le TID servira de `terminalId` dans l'API | Si c'est un Duo Base : demander dans le mail un échange contre un A35 / A77 |
+| 1 | ~~Photo de l'étiquette~~ **reçue le 03/11 : CCV A77 (PAX), S/N 1760353089**. Reste : le **TID** (sur un ticket de paiement ou dans le menu du terminal) et une photo de l'écran d'accueil (version du logiciel CCV) | L'A77 est pilotable par le cloud [C4] ; le S/N est celui du boîtier PAX, l'API CCV attend le **TID** comme `terminalId` [DÉDUIT] | Pas d'échange de terminal à demander ; l'API se demande à CCV via Omespay, pas à PAX (voir section « Terminal CCV A77 ») |
 | 2 | **Contrat Omespay** : n° de contrat ou de client, **date d'installation**, durée, société signataire (ITALBIKE STORE ou NL INVEST ?) | Contrat de 24 mois puis 12 mois tacites, préavis 3 mois avant l'échéance [O5] : la date décide si on peut changer et quand | Noter dans l'agenda la date limite du recommandé (échéance − 3 mois) |
 | 3 | **Un relevé mensuel** du terminal (PDF ou papier) — le décompte de l'acquéreur, pas la facture de location | Montre **l'acquéreur réel** (EMS ? CCV Pay ?) et les **frais réels** par réseau. EMS = Bancontact à 0,20 % [T1] ; CCV = montant fixe [C3] | C'est le document le plus utile du dossier : sans lui, on ne peut pas dire si le changement vaut le coup |
 | 4 | **Facture de location** Omespay (montant par mois ou par trimestre, service compris ?) | Comparer au marché (A77 ≈ 29 à 38 €/mois [C3, T1]) | — |
@@ -73,28 +159,37 @@ Sources en §E, toutes consultées le 03/11/2026.
 
 ## B. Mail prêt à envoyer à Omespay
 
-> Domenico l'envoie lui-même, de sa boîte, à son interlocuteur Omespay (à défaut : info@omespay.be,
-> +32 2 899 77 60 [O9]). **Rien n'a été envoyé.** Les crochets sont à remplir avec les réponses aux
-> questions A1, A2 et A8.
+> Domenico l'envoie lui-même, de sa boîte. **Rien n'a été envoyé.** Les crochets sont à remplir avec les
+> réponses aux questions A1, A2 et A8.
+>
+> - **À** : son interlocuteur Omespay, à défaut **helpdesk@omespay.be** (autocollant du terminal) ou
+>   info@omespay.be, +32 2 899 77 60 [O9] — Omespay a le contrat et le premier support.
+> - **Cc** : **CCV Belgique, sales.be@ccv.eu** [C4] — c'est CCV qui ouvre la Payment API, par son partner
+>   manager régional [C5] ; et Simon (agence), contact technique.
+> - **Pas PAX** : PAX fabrique le boîtier mais n'ouvre rien sur un terminal CCV (section « Terminal CCV A77 »).
+>   Question facultative en §B.2.
 
-> **Objet : Liaison de notre terminal CCV à notre logiciel de caisse (API cloud CCV) — ITALBIKE STORE, Waterloo**
+> **Objet : Liaison de notre terminal CCV A77 à notre logiciel de caisse (Payment API CCV) — ITALBIKE STORE, Waterloo**
 >
 > Bonjour [prénom],
 >
 > Nous sommes client Omespay pour le terminal de paiement de la concession Ducati de Waterloo (ITALBIKE
-> STORE SRL, contrat n° [à compléter], terminal [modèle] n° de série [à compléter]). Nous mettons en service un
+> STORE SRL, contrat n° [à compléter], terminal CCV A77 fabriqué par PAX, n° de série 1760353089, TID [à compléter]).
+> Nous mettons en service un
 > logiciel de caisse développé sur mesure par notre agence, The Maul : il tourne dans un navigateur (PC et
 > tablette) avec un serveur en ligne. Nous souhaitons que la caisse **envoie le montant au terminal et
 > reçoive le résultat du paiement** (accepté, refusé, annulé), sans ressaisie par le vendeur.
 >
 > D'après la documentation de CCV, cela se fait par la **Payment API de CCV, méthode « terminal »**
-> (liaison caisse « via le Cloud », annoncée par CCV Belgique pour les A77, A960 et Nexus Pad A35).
-> Pourriez-vous nous répondre sur les points suivants :
+> (liaison caisse « via le Cloud », annoncée par CCV Belgique pour les A77, A960 et Nexus Pad A35). Nous
+> avons compris que cette liaison relève de CCV (application de paiement du terminal) et non de PAX, qui
+> fabrique l'appareil : merci de nous corriger si ce n'est pas le cas. Nous mettons CCV Belgique en copie pour
+> le contact avec le partner manager. Pourriez-vous nous répondre sur les points suivants :
 >
 > **Notre contrat et notre terminal**
-> 1. Quel est **le modèle exact** de notre terminal et sa version de logiciel ? Est-il **compatible avec la
->    liaison cloud** de la Payment API CCV ? Si ce n'est pas le cas (par exemple un Duo Base), quel modèle
->    proposez-vous en échange, et à quelles conditions ?
+> 1. Notre **A77** et sa version de logiciel (application de paiement CCV, SecPOS Evo ou acCEPT) sont-ils
+>    **compatibles avec la liaison cloud** de la Payment API CCV, tels quels ou après mise à jour ? Quel est
+>    son **TID** ? Si ce n'est pas le cas, quel modèle proposez-vous en échange, et à quelles conditions ?
 > 2. Quel est **l'acquéreur** de notre contrat (EMS, CCV Pay, autre) ? La liaison cloud CCV fonctionne-t-elle
 >    avec cet acquéreur ?
 > 3. Quels sont **nos frais actuels** par moyen de paiement (Bancontact, Maestro, Visa / Mastercard débit et
@@ -104,7 +199,8 @@ Sources en §E, toutes consultées le 03/11/2026.
 >
 > **L'activation de la liaison**
 > 5. Pouvez-vous **activer** la Payment API cloud sur notre terminal, ou nous mettre en contact avec le
->    **partner manager CCV** qui le fait ? Faut-il un **avenant** à notre contrat ?
+>    **partner manager CCV** qui le fait (CCV, en copie, peut-il nous le désigner) ? Faut-il un **avenant** à
+>    notre contrat ?
 > 6. **Combien ça coûte**, poste par poste : frais d'activation (une fois), **abonnement mensuel par
 >    terminal**, frais **par transaction** en plus des frais actuels, frais de **certification** de notre
 >    logiciel, déplacement ou intervention éventuelle (vos CGV prévoient 260 € HTVA hors contrat de service) ?
@@ -134,7 +230,20 @@ Sources en §E, toutes consultées le 03/11/2026.
 Différences avec le mail de l'étude paiements (§6.1) : contrat et n° de série joints ; « méthode
 terminal » au lieu de « Cloud Connect » (nom ambigu) ; montant fixe ou pourcentage pour Bancontact ;
 coûts **détaillés poste par poste** ; avenant ; terminal de test ; remboursements ; agence nommée comme
-contact technique.
+contact technique. Mise à jour du 03/11 (photos) : modèle A77 et S/N renseignés, TID demandé, **CCV Belgique
+en copie**, rôle de PAX clarifié dans le mail.
+
+### B.2 (facultatif) Question à PAX
+
+Pas nécessaire : PAX renvoie au fournisseur du terminal [P2] et l'API est celle de CCV [C11]. Si Domenico
+veut une confirmation écrite, quelques lignes par le formulaire paxtechnology.com/contact (en anglais) :
+
+> *Subject: CCV-branded PAX A77 (S/N 1760353089) — integration with a third-party cash register*
+>
+> Hello, our dealership in Belgium uses a PAX A77 supplied and branded by CCV (reseller Omespay). We want our
+> own web-based cash register to send amounts to it and receive the result. Can PAX enable any payment
+> interface on this terminal (cloud API, POSLink, our own app via PAXSTORE), or must this go exclusively
+> through CCV's payment application and its Payment API? Thank you.
 
 ---
 
@@ -186,8 +295,9 @@ Les cartes de crédit (1,25 à 1,5 % partout) pèsent pareil chez tous.
 
 ## D. Recommandation
 
-1. **Domenico envoie d'abord trois choses** : photo de l'étiquette du terminal, un relevé mensuel, la date
-   d'installation du contrat (questions A1 à A3) ; puis il envoie le mail §B, agence en copie.
+1. **Domenico envoie d'abord trois choses** : le TID du terminal (l'étiquette est reçue : A77), un relevé
+   mensuel, la date d'installation du contrat (questions A1 à A3) ; puis il envoie le mail §B à Omespay,
+   **CCV Belgique et l'agence en copie**. Pas besoin de passer par PAX.
 2. **Ne rien changer ni résilier avant la réponse d'Omespay** : 250 € de transfert, préavis de 3 mois.
 3. **Si Omespay active l'API cloud à un coût raisonnable** (ordre de grandeur du marché : quelques €/mois par
    terminal, activation ≤ 150 €) → on code la carte P4 et on passe la certification CCV.
@@ -210,6 +320,16 @@ Les cartes de crédit (1,25 à 1,5 % partout) pèsent pareil chez tous.
 - [C8] https://developer.myccv.eu/documentation/boarding_api/general/getting-started/ — Boarding API « Only autorized resellers ».
 - [C9] https://developer.myccv.eu/reference/use-cases/cloud-connection/CCV_Cloud_Connect.html — ancienne liaison web P400 / V400M, éditeur de caisse certifié (manuels datés 2022/08).
 - [C10] https://www.ccv.eu/en/large-enterprise-solutions/payment-services/cloud-connect — « Cloud-Connect » = bornes de recharge (OCPI).
+
+- [C11] https://developer.myccv.eu/reference/android_app_requirements/android-developer-guidelines-and-faqs-august-2022.pdf (août 2022) — CCVStore seul canal (« All apps are managed/pushed/launched via CCVStore »), contrat « App Partnership and CCVStore », test CCV obligatoire, Neptune réservé aux apps CCV, mAPI / OPI, mode ECR interne (`eu.ccv.service.ECR`, 127.0.0.1), pas de navigateur, redémarrage quotidien, A77 sans imprimante.
+- [C12] https://www.ccv.eu/en/large-enterprise-solutions/payment-services/ccvstore (© 2026, liste des partenaires 2026-05) — « The CCVStore is the B2B app store for our Android payment terminals », apps installées et gérées par le CCVStore, revue de sécurité CCV.
+- [C13] https://developer.myccv.eu/documentation/android_sdk/ — « Integration with an Android terminal (Pax A920, A77, …) », adresse locale 127.0.0.1, intent-filter de retour vers l'app de l'intégrateur.
+
+**PAX (fabricant du boîtier)**
+- [P1] https://www.pax.us/products/mobile/a77/ — A77 Android, compatible PAXSTORE (gestion à distance).
+- [P2] https://www.paxtechnology.com/contact — les propriétaires d'un terminal s'adressent à la « company (Bank, PSP or ISO) that provided you the PAX terminal », qui assure le « first line support ».
+- [P3] https://www.paxtechnology.com/maxstore — « Marketplace owner has full control over all apps and devices » ; « Terminal owner must approve an app before it gets installed ».
+- [P4] https://developer.north.com/blog/tutorial-pax-sdk-payment-application ; https://developer.cybersource.com/docs/cybs/en-us/sis-pax/integration/all/rest/sis-pax.html [TIERS] — POSLink parle à l'application BroadPOS du processeur ; apps PAX livrées par PAXSTORE, approuvées avant installation.
 
 **Omespay**
 - [O1] https://omespay.be/fr/ — moyens annoncés (Bancontact, grandes cartes).
