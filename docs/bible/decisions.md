@@ -55,6 +55,22 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Paiements au comptoir : étude Omespay / terminal Bancontact / QR / écran client (P-2)
+
+- **Q — paiements comptoir** : étude remise le 03/11/2026
+  ([`../etudes/2026-11-paiements-comptoir.md`](../etudes/2026-11-paiements-comptoir.md)). Constats :
+  **Omespay** (Nous 2 SRL, ≈ 3 ETP) n'est ni acquéreur ni PSP mais revendeur de terminaux **CCV** sous
+  contrat 24 mois, sans API propre ; la voie réaliste est la **Payment API cloud de CCV** (à confirmer par
+  Omespay : modèle, activation Cloud Connect, coût). **Le « QR Stripe +5 % » de P-2 est illégal en Belgique**
+  (art. VII.30 § 3 et VI.42 CDE, SPF Économie 15/09/2026 : aucun supplément selon le moyen de paiement) → à
+  remplacer par un QR **sans supplément** (Stripe Checkout Bancontact 0,35 € / cartes 1,5 % + 0,25 €, ou
+  Bancontact Pro On a Display). Aucune fonction Stripe n'existe dans le dépôt, contrairement aux docs.
+  Recommandation : écran client généralisé sur tablette (ticket en direct, QR, terminal, signature), 11 à 16
+  jours. **Décision en attente** (Domenico : terminal, QR sans supplément, tablette ; mail à Omespay prêt).
+  *Agence · 03/11.* [mission 02](missions/mission-02-commandes-pieces.md), [M06](modules/M06-ventes-caisse.md)
+
+---
+
 ## 2026-11-03 — Caisse du magasin : Shopify POS ou DMS (mission 03, question 3)
 
 - **Q — caisse Shopify** : proposition remise le 03/11/2026
