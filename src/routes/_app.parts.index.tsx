@@ -28,6 +28,7 @@ import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useOnChange, useSearchText } from '@/lib/use-list-search';
+import { SupplyStateBadge } from '@/modules/articles/supply-badge';
 
 export const Route = createFileRoute('/_app/parts/')({
   head: () => ({ meta: [{ title: pageTitle('parts') }] }),
@@ -463,6 +464,7 @@ function ArticleRow({ a, roundUp, duplicating, onOpen, onDuplicate, onPropose }:
           {isReplaced && (
             <StatusBadge tone="warning" icon={ArrowRight} label={a.replacement_reference ? `${t('articles.replacedBadge')} → ${a.replacement_reference}` : t('articles.replacedBadge')} />
           )}
+          {!(isReplaced && avail === 'yellow') && <SupplyStateBadge availability={avail} />}
         </span>
       </td>
       <td className="px-3 py-2">

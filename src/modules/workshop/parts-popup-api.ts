@@ -16,6 +16,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { createPartOrder, saveOrderLine } from '@/modules/orders/api';
+import { guardSupplierLines } from '@/modules/articles/supply-guard';
 import { getKitDetail, getKitForModelYear } from './kits/api';
 import { getPlanServices, listPlansForModelYear, getCatalogModelYear } from './maintenance-api';
 import { pickCurrent, planForUsage, DEFAULT_USAGE } from './maintenance-plans';
@@ -104,7 +105,8 @@ export async function logPartsPrompt(p: {
   throw new Error(error.message);
 }
 
-export type BasketResult = { partOrderId: string | null; fallback: boolean; lines: number };
+/** `refused` / `substituted` : garde-fou TAR008 (fin de serie retiree, remplacee sous la nouvelle reference). */
+export type BasketResult = { partOrderId: string | null; fallback: boolean; lines: number; refused?: string[]; substituted?: string[] };
 
 /**
  * Met les pieces dans le panier du type choisi. `basket_add_lines` absent → commande de pieces
@@ -114,15 +116,21 @@ export async function addMissingToBasket(p: {
   companyId: string; kind: PopupKind; missing: MissingPart[];
   contactId?: string | null; vehicleId?: string | null; orId?: string | null; orNumber?: string | null; note?: string | null;
 }): Promise<BasketResult> {
-  const lines = basketLines(p.missing);
-  if (lines.length === 0) return { partOrderId: null, fallback: false, lines: 0 };
+  const raw = basketLines(p.missing);
+  if (raw.length === 0) return { partOrderId: null, fallback: false, lines: 0 };
+  // Garde-fou TAR008 : pas de fin de serie, une piece remplacee part sous la nouvelle reference.
+  const withArticle = raw.filter((l): l is typeof l & { article_id: string } => !!l.article_id);
+  const g = await guardSupplierLines(withArticle);
+  const lines = [...raw.filter((l) => !l.article_id), ...g.lines];
+  if (lines.length === 0) throw new Error(g.refused.join(' '));
+  const notes = { refused: g.refused, substituted: g.substituted };
   const { data, error } = await sb.rpc('basket_add_lines', {
     _company: p.companyId, _kind: p.kind,
     _lines: lines.map((l) => ({ ...l, repair_order_id: p.orId ?? null, contact_id: p.contactId ?? null, vehicle_id: p.vehicleId ?? null, note: p.note ?? null })),
   });
   if (!error) {
     const id = typeof data === 'string' ? data : ((data as { basket_id?: string; id?: string } | null)?.basket_id ?? (data as { id?: string } | null)?.id ?? null);
-    return { partOrderId: id, fallback: false, lines: lines.length };
+    return { partOrderId: id, fallback: false, lines: lines.length, ...notes };
   }
   if (!isMissingObject(error)) throw new Error(error.message);
 
@@ -142,5 +150,5 @@ export async function addMissingToBasket(p: {
       unitPriceHt: Number(a?.sale_price_ht ?? 0), vatRate: Number(a?.vat_rate ?? 21),
     });
   }
-  return { partOrderId: orderId, fallback: true, lines: lines.length };
+  return { partOrderId: orderId, fallback: true, lines: lines.length, ...notes };
 }

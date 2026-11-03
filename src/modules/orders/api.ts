@@ -7,6 +7,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { OrderRule, RuleIssueCode } from './thresholds';
 import type { OrderKindStatus } from './status-flow';
+import { supplierOrderCheck } from '@/modules/articles/supply-guard';
+import { replacedMessage } from '@/modules/articles/supply-state';
 
 // Client non typé pour les tables introduites par la migration orders (pas encore dans types.ts).
 const sb = supabase as unknown as {
@@ -316,8 +318,17 @@ export type SaveOrderLineInput = {
   vatRate: number;
 };
 
-/** Ajoute ou modifie une ligne (brouillon seulement ; refusé par le serveur sinon). */
+/**
+ * Ajoute ou modifie une ligne (brouillon seulement ; refusé par le serveur sinon).
+ * Garde-fou TAR008 sur une NOUVELLE ligne d'article : fin de série chez Ducati refusée ; pièce
+ * remplacée refusée avec la nouvelle référence à commander (jamais sous l'ancien numéro).
+ */
 export async function saveOrderLine(p: SaveOrderLineInput): Promise<void> {
+  if (p.articleId && !p.lineId) {
+    const d = await supplierOrderCheck(p.articleId);
+    if (d && !d.ok) throw new Error(d.message);
+    if (d && d.ok && d.substitutedFrom) throw new Error(replacedMessage(d.substitutedFrom, d.reference));
+  }
   const { error } = await supabase.rpc('part_order_line_save', {
     _order_id: p.orderId,
     _line_id: p.lineId ?? undefined,

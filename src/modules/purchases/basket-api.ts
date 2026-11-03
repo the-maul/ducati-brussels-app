@@ -8,6 +8,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { BasketKind, BasketLine, BasketLineInput, BasketStatus, SupplierBasket } from './basket';
+import { guardSupplierLines } from '@/modules/articles/supply-guard';
 
 const sb = supabase as unknown as {
   from: (t: string) => any;
@@ -72,19 +73,37 @@ export function currentBasket(companyId: string, kind: BasketKind): Promise<stri
   return rpc<string>('basket_current', { _company: companyId, _kind: kind });
 }
 
-export type BasketAddResult = { basket_id: string; added: number; merged: number; skipped: number };
+/**
+ * `refused` : pièces retirées avant l'envoi (fin de série chez Ducati) ; `substituted` : pièces
+ * remplacées commandées sous la dernière référence (TAR008). Messages prêts à afficher.
+ */
+export type BasketAddResult = {
+  basket_id: string; added: number; merged: number; skipped: number;
+  refused?: string[]; substituted?: string[];
+};
+
+/**
+ * Garde-fou TAR008 : une pièce en fin de série n'est jamais commandée, une pièce remplacée
+ * l'est sous la nouvelle référence. Rien de commandable : erreur avec la raison.
+ */
+async function guarded(lines: BasketLineInput[], send: (l: BasketLineInput[]) => Promise<BasketAddResult>): Promise<BasketAddResult> {
+  const g = await guardSupplierLines(lines);
+  if (g.lines.length === 0 && g.refused.length > 0) throw new Error(g.refused.join(' '));
+  const res = await send(g.lines);
+  return { ...res, refused: g.refused, substituted: g.substituted };
+}
 
 /**
  * Ajoute des lignes au panier ouvert le plus récent du type (créé si absent). Fonction partagée
  * avec les autres lots (popup entretien, démo) : basket_add_lines(_company, _kind, _lines).
  */
 export function addBasketLines(companyId: string, kind: BasketKind, lines: BasketLineInput[]): Promise<BasketAddResult> {
-  return rpc<BasketAddResult>('basket_add_lines', { _company: companyId, _kind: kind, _lines: lines });
+  return guarded(lines, (l) => rpc<BasketAddResult>('basket_add_lines', { _company: companyId, _kind: kind, _lines: l }));
 }
 
 /** Ajoute des lignes dans UN panier précis (ligne manuelle depuis l'écran du panier). */
 export function addBasketLinesTo(basketId: string, lines: BasketLineInput[]): Promise<BasketAddResult> {
-  return rpc<BasketAddResult>('basket_add_lines_to', { _basket: basketId, _lines: lines });
+  return guarded(lines, (l) => rpc<BasketAddResult>('basket_add_lines_to', { _basket: basketId, _lines: l }));
 }
 
 /** Quantité d'une ligne ; 0 = suppression. */

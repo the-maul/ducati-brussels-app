@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { t, fillVars } from '@/lib/i18n';
 import { missingNeeds } from '@/modules/orders/from-document';
 import { getRepairOrderNeeds } from '@/modules/workshop/kits/api';
+import { toast } from 'sonner';
 import { addBasketLines } from './basket-api';
 import { fmtQty } from './basket-ui';
 
@@ -50,6 +51,7 @@ export function BasketFromWorkshopDialog({ orId, companyId, contactId, label, on
       article_id: r.articleId, qty: r.qty, origin: 'atelier' as const, origin_ref: label, contact_id: contactId,
     }))),
     onSuccess: (res) => {
+      for (const m of [...(res.substituted ?? []), ...(res.refused ?? [])]) toast.warning(m);
       qc.invalidateQueries({ queryKey: ['supplier-baskets', companyId] });
       onClose();
       navigate({ to: '/purchases/baskets/$basketId', params: { basketId: res.basket_id } });

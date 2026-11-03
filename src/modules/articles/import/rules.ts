@@ -16,7 +16,9 @@
  *  - plancher de prix : PV TTC sous le seuil → remonté au minimum (réglage société)
  *  - prix d'achat deduit de la classe de remise du tarif (grille
  *    supplier_discount_classes, decision client du 29/10/2026) ; verrou G8 respecte
+ *  - etat au tarif Ducati (TAR008) : vide = commandable, E = remplacee, F = fin de serie
  */
+import { t } from '@/lib/i18n';
 
 export type ImportRow = {
   reference: string;
@@ -43,7 +45,7 @@ export type ImportRow = {
   replacement_ref?: string | null;
   /** Classe de remise constructeur (A…E, P, R, S) : base du prix d'achat. */
   discount_group?: string | null;
-  /** État du matériel au tarif : E = courant, F = fin de série. */
+  /** État au tarif Ducati : vide = commandable, E = remplacée, F = fin de série (TAR008). */
   supply_status?: string | null;
   rowIndex: number; // ligne source (pour le rapport)
 };
@@ -274,13 +276,32 @@ export function applyPriceFloor(pv: number, threshold: number, min: number, mode
 }
 
 /**
- * Etat au tarif Ducati -> disponibilite fournisseur de l'article.
- * E = courant (vert), F = fin de serie, jusqu'a epuisement (rouge). Autre ou vide : on ne touche a rien.
+ * Etat au tarif Ducati -> disponibilite fournisseur de l'article (TAR008, comptage du 03/11/2026
+ * sur les trois fichiers ListPrice PARTS / ACCESSORIES / APPAREL) :
+ *  - vide = reference ACTIVE, commandable chez Ducati          -> 'green'
+ *  - E    = reference REMPLACEE (colonne « Remplacement »)     -> 'yellow' (pastille « Remplacee »)
+ *  - F    = FIN DE SERIE sans remplacant, plus commandable     -> 'red'    (pastille « Fin de serie »)
+ * Avant le 03/11 le DMS lisait l'inverse (E = vert, vide = rien). La valeur 'yellow' est celle
+ * de la contrainte existante (green / yellow / red) : l'import fonctionne sans migration.
+ * Colonne absente du fichier (null / undefined) ou autre lettre : on ne touche a rien.
+ * Cellule vide ('') : commandable (parse.ts distingue les deux cas).
  */
-export function availabilityFromStatus(status: string | null | undefined): 'green' | 'red' | null {
-  const v = (status ?? '').trim().toUpperCase();
-  if (v === 'E') return 'green';
+export function availabilityFromStatus(status: string | null | undefined): 'green' | 'yellow' | 'red' | null {
+  if (status == null) return null;
+  const v = status.trim().toUpperCase();
+  if (v === '') return 'green';
+  if (v === 'E') return 'yellow';
   if (v === 'F') return 'red';
+  return null;
+}
+
+/** Anomalie du rapport d'import pour l'etat du tarif (null = rien a signaler). */
+export function supplyStatusAnomaly(dispo: 'green' | 'yellow' | 'red' | null, replacementRef: string | null | undefined): string | null {
+  if (dispo === 'yellow') {
+    const r = replacementRef?.trim();
+    return r ? t('articles.tarifStateReplacedBy').replace('{new}', r) : t('articles.tarifStateReplaced');
+  }
+  if (dispo === 'red') return t('articles.tarifStateDiscontinued');
   return null;
 }
 
@@ -357,7 +378,8 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     patch.is_library = s.new_refs_in_library; // non stockée tant que pas réceptionnée
     const dispoNew = availabilityFromStatus(row.supply_status);
     if (dispoNew) patch.supplier_availability = dispoNew;
-    if (dispoNew === 'red') anomalies.push("Fin de série chez Ducati (état F) : vendue tant qu'il en reste.");
+    const dispoMsgNew = supplyStatusAnomaly(dispoNew, row.replacement_ref);
+    if (dispoMsgNew) anomalies.push(dispoMsgNew);
     if (row.barcode && s.integrate_supplier_barcodes) patch.barcode = row.barcode.trim();
     // Réf. de remplacement (résolue en id à l'application — voir apply.ts)
     const newRepl = row.replacement_ref?.trim();
@@ -371,9 +393,17 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     const p: Record<string, unknown> = s.replaced_to_equivalences
       ? { _suggest_equivalence: existing.superseded_by_id }
       : {};
+    // Seul l'etat au tarif est rafraichi (TAR008) : l'ancienne reference doit porter
+    // « Remplacee » pour ne jamais etre recommandee sous ce numero.
+    const dispoOld = availabilityFromStatus(row.supply_status);
+    const repChanges: FieldChange[] = [];
+    if (dispoOld && existing.supplier_availability !== dispoOld) {
+      repChanges.push({ field: 'supplier_availability', from: existing.supplier_availability ?? null, to: dispoOld });
+      p.supplier_availability = dispoOld;
+    }
     return {
-      rowIndex: row.rowIndex, reference: ref, existingId: existing.id, action: 'skip',
-      changes: [], patch: p, anomalies,
+      rowIndex: row.rowIndex, reference: ref, existingId: existing.id, action: repChanges.length ? 'update' : 'skip',
+      changes: repChanges, patch: p, anomalies,
     };
   }
 
@@ -421,12 +451,14 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   // Coefficient : conservé par défaut (réglage « garder le coefficient »)
   if (!s.keep_coefficient && row.coefficient != null) accept('coefficient', row.coefficient, 'coefficient');
 
-  // Etat au tarif : fin de série signalée, surtout si on en a encore en stock
+  // Etat au tarif (TAR008) : vide = commandable, E = remplacee, F = fin de serie. Signale au
+  // changement d'etat seulement (un tarif relu ne repete pas 40 000 anomalies).
   const dispo = availabilityFromStatus(row.supply_status);
   if (dispo && existing.supplier_availability !== dispo) {
     changes.push({ field: 'supplier_availability', from: existing.supplier_availability ?? null, to: dispo });
     patch.supplier_availability = dispo;
-    if (dispo === 'red') anomalies.push("Passe en fin de série chez Ducati (état F) : vendue tant qu'il en reste.");
+    const dispoMsg = supplyStatusAnomaly(dispo, row.replacement_ref);
+    if (dispoMsg) anomalies.push(dispoMsg);
   }
 
   // PPC : toujours rafraîchi quand présent (donnée fournisseur, pas un prix de vente)

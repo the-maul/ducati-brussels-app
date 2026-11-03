@@ -190,6 +190,7 @@ juin ne les a pas transmis. L'export du 28/10 les donne : 89 verrous de vente, 3
 | 19/10/2026 | Le tarif constructeur est en **HT**. Le TTC se déduit (× 1,21) | vérifié contre le catalogue en ligne |
 | 19/10/2026 | Les règles de prix s'appliquent dans l'ordre : **pourcentage d'abord, arrondi ensuite** | décision client |
 | 19/10/2026 | Une nouvelle référence, c'est le même produit : taper l'ancienne mène à la nouvelle, et le stock bascule | décision Domenico |
+| 03/11/2026 | Colonne « État » du tarif Ducati : **vide = commandable, E = remplacée, F = fin de série sans remplaçant** (comptage des 3 fichiers ListPrice : PARTS 48 274 / 16 921 / 19 521, ACCESSORIES 2 850 / 1 816 / 5 004, APPAREL 6 472 / 2 342 / 23 191). Une pièce F n'est plus commandée ni publiée, son stock se vend ; une pièce E se commande sous la nouvelle référence | TAR008, M-108 |
 | M-25 | Une référence du catalogue égale un article | invariant |
 | B7 | Tout écart de stock passe par un mouvement tracé, jamais par un UPDATE | invariant |
 
@@ -204,6 +205,7 @@ juin ne les a pas transmis. L'export du 28/10 les donne : 89 verrous de vente, 3
    transaction, rien n'est écrit. Les fonctions ont reçu leur propre délai de 120 s le 15/10.
 4. **L'export G8 du stock ne couvre que les articles en stock** (4 050), pas les 93 755.
 5. **Les chaînes de remplacement font plusieurs niveaux** : suivre jusqu'à la dernière disponible.
+6. **La colonne « État » du tarif se lisait à l'envers** jusqu'au 03/11 (E = vert, vide = rien). L'état brut n'est pas stocké : les articles déjà en base ne retrouvent leur état exact qu'au prochain import de tarif (la migration `20261103280000` ne pose que « Remplacée » sur les références Ducati remplacées).
 
 ## 8. Prochaines étapes
 
@@ -222,4 +224,5 @@ migrations non appliquées.
 | 2026-10-19 | Tarif lu en HT, classe de remise et état ajoutés | `M2-TAR001`, `M2-TAR002` |
 | 2026-10-19 | Arrondi des prix après pourcentage | `M2-TAR003` |
 | 2026-10-30 | Grille des classes de remise dans le DMS, prix d'achat calculé à l'import | `TAR007`, migration `20261030120000` (à appliquer) |
+| 2026-11-03 | État du tarif lu correctement (vide = commandable, E = remplacée, F = fin de série), garde-fous de commande et de publication | `TAR008`, migration `20261103280000` (à appliquer) |
 | 2026-10-30 | Chaque libellé entre en quatre langues, original gardé ; script de reprise de l'existant | `I18N002`, migration `20261030140000` (à appliquer), fonction `translate-designations` (à déployer) |

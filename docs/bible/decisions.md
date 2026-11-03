@@ -8,6 +8,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — État du tarif Ducati lu correctement (TAR008, mission 09 carte 7)
+
+- **M-108** — **La colonne « État » du tarif Ducati se lit : vide = commandable, E = remplacée, F = fin de
+  série sans remplaçant.** Comptage du 03/11 sur les trois fichiers ListPrice : vide PARTS 48 274 /
+  ACCESSORIES 2 850 / APPAREL 6 472 ; E 16 921 / 1 816 / 2 342 (presque toutes avec une référence dans
+  « Remplacement ») ; F 19 521 / 5 004 / 23 191 (aucune avec remplacement). Le DMS lisait l'inverse
+  (E = disponible). Stockage dans la colonne existante `articles.supplier_availability` : `green` /
+  `yellow` (« Remplacée ») / `red` (« Fin de série ») — pas de nouvelle valeur, l'import marche sans
+  migration. Une pièce **F** ne part ni dans un panier fournisseur, ni dans une commande de pièces, ni sur
+  Shopify, mais **son stock restant se vend** ; une pièce **E** n'est jamais commandée sous l'ancien
+  numéro (le panier bascule sur la dernière référence de la chaîne, la commande de pièces refuse en
+  donnant la nouvelle). Pastille couleur + icône + libellé dans la recherche d'article (OR, ventes,
+  caisse). L'état brut n'étant stocké nulle part, la migration `20261103280000` (**à appliquer**) ne
+  pose « Remplacée » que sur les références Ducati remplacées connues ; le reste se recalcule au
+  prochain import de tarif. *Simon (comptage des fichiers) · 03/11.* [M02](modules/M02-articles.md),
+  [imports](modules/TRANSVERSE-imports-donnees.md), [mission 09](missions/mission-09-commandes-fournisseur.md)
+
 ## 2026-11-03 — Écran client sur tablette appairée (mission 12, carte P2 ; PDV020)
 
 - **M-103** — **La tablette face au client s'appaire à la caisse sans compte utilisateur.** Au premier

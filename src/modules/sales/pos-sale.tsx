@@ -57,6 +57,7 @@ import { initialSaleFlow, nextSaleFlow, screenModeForFlow, ticketForScreen, type
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
+import { SupplyStateBadge } from '@/modules/articles/supply-badge';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -373,7 +374,7 @@ function ScanBar({ companyId, onAdd }: { companyId: string; onAdd: (a: SaleArtic
         <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
             <button key={a.id} type="button" onClick={() => { onAdd(a); setTerm(''); setHint(null); inputRef.current?.focus(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span><Plus className="size-4 text-success" />
+              <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><SupplyStateBadge availability={a.supplier_availability} className="shrink-0" /><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span><Plus className="size-4 text-success" />
             </button>
           ))}
         </div>

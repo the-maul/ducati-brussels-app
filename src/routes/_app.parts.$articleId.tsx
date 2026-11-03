@@ -201,7 +201,7 @@ function EditArticle() {
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
           {/* Tout sur une page (M-25) : catalogue Ducati et site Shopify de l'article. */}
-          <ArticleSourcesSummary companyId={activeCompanyId} articleId={articleId} publishable={!!article.publishable} />
+          <ArticleSourcesSummary companyId={activeCompanyId} articleId={articleId} publishable={!!article.publishable} discontinued={article.supplier_availability === 'red'} />
           {/* Libelle en quatre langues + original fournisseur (I18N002). */}
           <DesignationLanguages companyId={activeCompanyId} article={article} />
           {/* Images venues des catalogues (Ducati, site) — les photos du magasin sont juste en dessous. */}

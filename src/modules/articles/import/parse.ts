@@ -16,7 +16,7 @@ export const IMPORT_FIELDS = [
   'year_from', 'year_to',
   'replacement_ref',
   // Tarifs constructeur Ducati : classe de remise (sert au prix d'achat) et etat
-  // du materiel (E = courant, F = fin de serie).
+  // de la reference (vide = commandable, E = remplacee, F = fin de serie ; TAR008).
   'discount_group', 'supply_status',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
@@ -228,7 +228,9 @@ export function buildRows(parsed: ParsedCsv, mapping: ColumnMapping, vatRate = D
     vat_rate: parseNum(at(row, 'vat_rate')),
     bin_location: txt(row, 'bin_location'),
     discount_group: txt(row, 'discount_group'),
-    supply_status: txt(row, 'supply_status'),
+    // Etat : une cellule VIDE a un sens (reference active, commandable) -> '' ; colonne absente
+    // du fichier -> null (on ne touche pas a la disponibilite). TAR008.
+    supply_status: mapping.supply_status != null ? (at(row, 'supply_status') ?? '').trim() : null,
     pack_qty: parseNum(at(row, 'pack_qty')),
     color: txt(row, 'color'),
     size: txt(row, 'size'),

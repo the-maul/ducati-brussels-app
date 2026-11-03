@@ -21,6 +21,7 @@ import { t } from '@/lib/i18n';
 import { searchSaleArticles, type SaleArticle } from './write-api';
 import { saleStockStatus } from './availability';
 import { SaleStockBadge } from './availability-badge';
+import { SupplyStateBadge } from '@/modules/articles/supply-badge';
 
 import { moveActive } from './article-line-pick';
 
@@ -108,6 +109,7 @@ export function ArticleLinePicker({ companyId, value, onText, onPick, placeholde
               <span className="flex shrink-0 items-center gap-2">
                 {a.bin_location && <span className="font-data text-[11px] text-muted-foreground">{a.bin_location}</span>}
                 {a.superseded_by_id && <StatusBadge tone="warning" icon={Repeat} label={t('sales.replacedBadge')} />}
+                {!(a.superseded_by_id && a.supplier_availability === 'yellow') && <SupplyStateBadge availability={a.supplier_availability} />}
                 <SaleStockBadge status={saleStockStatus(a)} free={a.real_qty - a.reserved_qty} />
                 <span className="w-20 text-right tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
               </span>

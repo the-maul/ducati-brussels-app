@@ -489,6 +489,8 @@ export type SaleArticle = {
   superseded_by_id: string | null; equivalence_group: string | null;
   /** Famille « RR-SS-CC » : facture obligatoire au-delà de 125 € pour une pièce du véhicule (PDV010). */
   category_path?: string | null;
+  /** Etat au tarif Ducati (TAR008) : green commandable, yellow remplacée, red fin de série (le stock se vend). */
+  supplier_availability?: string | null;
 };
 /**
  * Recherche d'article pour une ligne (OR, check-up, documents de vente, caisse) : un seul chemin.
@@ -530,12 +532,12 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
       }).map((x) => x.r);
   }
   // Remplacement / équivalences / famille / PV TTC (non renvoyés par la fonction de repli) : un seul aller-retour.
-  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null; category_path: string | null; sale_price_ttc: number | null }>();
+  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null; category_path: string | null; sale_price_ttc: number | null; supplier_availability: string | null }>();
   if (rows.length) {
     const { data: l, error: le } = await supabase
-      .from('articles').select('id, superseded_by_id, equivalence_group, category_path, sale_price_ttc').in('id', rows.map((a) => a.article_id));
+      .from('articles').select('id, superseded_by_id, equivalence_group, category_path, sale_price_ttc, supplier_availability').in('id', rows.map((a) => a.article_id));
     if (le) throw le;
-    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path, sale_price_ttc: x.sale_price_ttc });
+    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path, sale_price_ttc: x.sale_price_ttc, supplier_availability: x.supplier_availability });
   }
   return rows.map((a) => {
     const link = links.get(a.article_id);
@@ -549,6 +551,7 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
       superseded_by_id: link?.superseded_by_id ?? null,
       equivalence_group: link?.equivalence_group ?? null,
       category_path: link?.category_path ?? null,
+      supplier_availability: link?.supplier_availability ?? null,
     };
   });
 }

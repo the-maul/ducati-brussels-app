@@ -359,14 +359,20 @@ export function publishTitle(a: Pick<PublishArticle, 'web_title' | 'designation'
 
 export type PublishCheck = { ok: true } | { ok: false; reason: string };
 
-/** Conditions pour publier : mode, case « Publiable », prix, pas déjà relié. */
+/**
+ * Conditions pour publier : mode, case « Publiable », prix, pas déjà relié, et pas en fin de
+ * série chez Ducati (TAR008 : `discontinued` = articles.supplier_availability 'red' ; le stock
+ * restant se vend en magasin, la pièce ne se met pas en ligne).
+ */
 export function canPublish(p: {
   mode: SyncMode; in_trial: boolean; publishable: boolean; is_active: boolean; has_link: boolean; ttc: number | null;
+  discontinued?: boolean;
 }): PublishCheck {
   if (!writeAllowed(p.mode, p.in_trial)) {
     return { ok: false, reason: p.mode === 'arrete' ? 'sync_stopped' : 'not_in_trial' };
   }
   if (!p.is_active) return { ok: false, reason: 'inactive' };
+  if (p.discontinued) return { ok: false, reason: 'discontinued' };
   if (!p.publishable) return { ok: false, reason: 'not_publishable' };
   if (p.has_link) return { ok: false, reason: 'already_linked' };
   if (p.ttc == null) return { ok: false, reason: 'no_price' };

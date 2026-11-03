@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Globe, EyeOff, Upload, RefreshCw, Loader2, CircleSlash, Archive, CheckCircle2, Clock, Info } from 'lucide-react';
+import { Globe, EyeOff, Upload, RefreshCw, Loader2, CircleSlash, Archive, CheckCircle2, Clock, Info, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ const ERR_LABEL: Record<string, string> = {
   already_linked: 'shopifySync.eAlreadyLinked',
   no_price: 'shopifySync.eNoPrice',
   inactive: 'shopifySync.eInactive',
+  discontinued: 'shopifySync.eDiscontinued',
   not_linked: 'shopifySync.eNotLinked',
 };
 
@@ -41,8 +42,10 @@ function resultError(r: PublishResult): string {
   return `${t('shopifySync.eShopify')} : ${r.detail ?? r.error ?? ''}`;
 }
 
-export function ShopifyPublishPanel({ companyId, articleId, publishable }: {
+export function ShopifyPublishPanel({ companyId, articleId, publishable, discontinued = false }: {
   companyId: string; articleId: string; publishable: boolean;
+  /** Fin de serie chez Ducati (TAR008) : ni publication ni remise en ligne ; le stock restant se vend en magasin. */
+  discontinued?: boolean;
 }) {
   const { isAdmin, hasRole } = useAuth();
   const admin = isAdmin();
@@ -105,6 +108,9 @@ export function ShopifyPublishPanel({ companyId, articleId, publishable }: {
       {admin && blocked && (
         <p className="mb-2 flex items-center gap-1.5 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info"><Info className="size-4" />{t(blocked)}</p>
       )}
+      {admin && discontinued && (!link || status !== 'ACTIVE') && (
+        <p className="mb-2 flex items-center gap-1.5 rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger"><Ban className="size-4 shrink-0" />{t('shopifySync.eDiscontinued')}</p>
+      )}
       {admin && !blocked && !link && !publishable && (
         <p className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"><Info className="size-4" />{t('shopifySync.needPublishable')}</p>
       )}
@@ -112,7 +118,7 @@ export function ShopifyPublishPanel({ companyId, articleId, publishable }: {
       {admin && (
         <div className="flex flex-wrap gap-2">
           {(!link || status !== 'ACTIVE') && (
-            <Button type="button" size="sm" onClick={() => setConfirm('publish')} disabled={busy || !!blocked || (!link && !publishable)}>
+            <Button type="button" size="sm" onClick={() => setConfirm('publish')} disabled={busy || !!blocked || discontinued || (!link && !publishable)}>
               {busy && act.variables === 'publish' ? <Loader2 className="animate-spin" /> : <Upload />}
               {t(link ? 'shopifySync.republish' : 'shopifySync.publish')}
             </Button>

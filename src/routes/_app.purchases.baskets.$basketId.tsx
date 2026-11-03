@@ -22,6 +22,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { t, fillVars, pageTitle } from '@/lib/i18n';
@@ -321,7 +322,8 @@ function BasketPage() {
 
       {addOpen && activeCompanyId && (
         <AddLineDialog companyId={activeCompanyId} onClose={() => setAddOpen(false)} onAdd={async (hit, qty) => {
-          await addBasketLinesTo(basketId, [{ article_id: hit.articleId, qty, origin: 'manuel' }]);
+          const res = await addBasketLinesTo(basketId, [{ article_id: hit.articleId, qty, origin: 'manuel' }]);
+          for (const m of res.substituted ?? []) toast.warning(m);
           refresh();
         }} />
       )}

@@ -243,7 +243,7 @@ export function CompatibilityPanel({ companyId, articleId, articleReference }: {
 }
 
 /** Carte « Site Shopify » de la fiche : produit relié (prix site, stock site, en ligne), candidats, « Publier sur le site ». */
-export function ShopifyCard({ companyId, articleId, publishable }: { companyId: string; articleId: string; publishable: boolean }) {
+export function ShopifyCard({ companyId, articleId, publishable, discontinued = false }: { companyId: string; articleId: string; publishable: boolean; discontinued?: boolean }) {
   const { isAdmin } = useAuth();
   const admin = isAdmin();
   const q = useArticleLinks(companyId, articleId);
@@ -290,18 +290,18 @@ export function ShopifyCard({ companyId, articleId, publishable }: { companyId: 
         </div>
       )}
       {q.data && <Candidates links={links} admin={admin} companyId={companyId} />}
-      <div className="mt-4"><ShopifyPublishPanel companyId={companyId} articleId={articleId} publishable={publishable} /></div>
+      <div className="mt-4"><ShopifyPublishPanel companyId={companyId} articleId={articleId} publishable={publishable} discontinued={discontinued} /></div>
     </div>
   );
 }
 
 /** Tout sur une page : en tête de la fiche article, le catalogue Ducati et le site Shopify côte à côte. */
-export function ArticleSourcesSummary({ companyId, articleId, publishable }: { companyId: string; articleId: string; publishable: boolean }) {
+export function ArticleSourcesSummary({ companyId, articleId, publishable, discontinued = false }: { companyId: string; articleId: string; publishable: boolean; discontinued?: boolean }) {
   const { isAdmin, hasRole } = useAuth();
   return (
     <div className="mb-4 grid gap-4 lg:grid-cols-2">
       <DucatiCard companyId={companyId} articleId={articleId} />
-      {(isAdmin() || hasRole('vendeur')) && <ShopifyCard companyId={companyId} articleId={articleId} publishable={publishable} />}
+      {(isAdmin() || hasRole('vendeur')) && <ShopifyCard companyId={companyId} articleId={articleId} publishable={publishable} discontinued={discontinued} />}
     </div>
   );
 }

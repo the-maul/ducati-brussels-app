@@ -42,7 +42,7 @@ test('mapping auto des colonnes du tarif Ducati', () => {
   expect(m.ppc_ht).toBe(7);
   expect(m.ppc_ttc).toBeUndefined();
   expect(m.discount_group).toBe(4);   // Classe de remise
-  expect(m.supply_status).toBe(2);    // État (E = courant, F = fin de série)
+  expect(m.supply_status).toBe(2);    // État (vide = commandable, E = remplacée, F = fin de série)
   expect(m.sale_price_ttc).toBeUndefined(); // pas de PV direct dans ce tarif
   expect(m.purchase_price).toBeUndefined();
 });

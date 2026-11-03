@@ -105,6 +105,13 @@ const errText = (e: unknown) => String((e as Error)?.message ?? e).slice(0, 400)
 const userErrText = (ue: any[]) => ue.map((u) => `${(u.field ?? []).join('.')}: ${u.message}`).join(' ; ').slice(0, 400);
 const loadCtx = (companyId: string, articleId: string) => rpc<Ctx | null>('_shopify_publish_context', { _company: companyId, _article: articleId });
 
+/** Fin de serie chez Ducati (etat F du tarif, TAR008) : jamais publiee ni remise en ligne. */
+async function isDiscontinued(articleId: string): Promise<boolean> {
+  const r = await db(`articles?select=supplier_availability&id=eq.${articleId}&limit=1`);
+  const rows = await r.json().catch(() => null);
+  return Array.isArray(rows) && rows[0]?.supplier_availability === 'red';
+}
+
 /** Description envoyee au site : texte web du DMS + mention des anciennes references (jamais dupliquee). */
 const descriptionOf = (ctx: Ctx) => applyReplacementNotice(ctx.web_description ?? '', ctx.old_references ?? []);
 
@@ -166,6 +173,7 @@ async function doUpdate(token: string, ctx: Ctx, photos: PublishPhoto[], record:
 
 // ── Déjà relié, retiré du site : remise en ligne
 async function doRepublish(token: string, ctx: Ctx, record: RecordFn, simulate: boolean, detail: string | null = null): Promise<StepResult> {
+  if (await isDiscontinued(ctx.article_id)) return { ok: false, error: 'discontinued' };
   const productId = ctx.link!.product_id!;
   const m = buildStatusMutation(productId, 'ACTIVE');
   if (simulate) return { ok: true, simulate: true, mutation: m };
@@ -181,7 +189,7 @@ async function doPublish(token: string, ctx: Ctx, photos: PublishPhoto[], mode: 
   const qty = isStockManaged(ctx.mgmt_type) ? availableQty(ctx.real_qty, ctx.reserved_qty) : null;
   const check = canPublish({
     mode: simulate && mode === 'arrete' ? 'tous' : mode, in_trial: ctx.in_trial, publishable: ctx.publishable,
-    is_active: ctx.is_active !== false, has_link: !!ctx.link, ttc,
+    is_active: ctx.is_active !== false, has_link: !!ctx.link, ttc, discontinued: await isDiscontinued(ctx.article_id),
   });
   if (!check.ok) return { ok: false, error: check.reason };
 

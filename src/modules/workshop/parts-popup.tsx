@@ -78,6 +78,7 @@ export function MaintenancePartsPopup({ ctx, onDone }: { ctx: PartsPopupContext;
     },
     onSuccess: (r) => {
       toast.success(fillVars(t(r.fallback ? 'partsPopup.addedFallback' : 'partsPopup.added'), { n: r.lines, kind: t(`partsPopup.kind_${chosen}`) }));
+      for (const m of [...(r.substituted ?? []), ...(r.refused ?? [])]) toast.warning(m);
       qc.invalidateQueries({ queryKey: ['part-orders'] });
       qc.invalidateQueries({ queryKey: key });
       setClosed(true);
