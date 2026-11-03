@@ -7,6 +7,7 @@ import { PosSale } from '@/modules/sales/pos-sale';
 import { CashScreen } from '@/modules/sales/cash-screen';
 import { ClosuresScreen } from '@/modules/sales/closures-screen';
 import { pairingCodeFromSearch } from '@/modules/sales/customer-screen';
+import { WorkstationPicker } from '@/modules/sales/workstation-picker';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/pos')({
@@ -28,6 +29,8 @@ function PosPage() {
   return (
     <>
       <PageHeader title={t('cash.title')} description={t('cash.subtitle')} />
+      {/* Poste du navigateur et son imprimante ticket (PDV030). */}
+      <div className="mb-4 empty:hidden"><WorkstationPicker companyId={activeCompanyId} /></div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="sale">{t('pos.saleTab')}</TabsTrigger>

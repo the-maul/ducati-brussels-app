@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent, MonitorSmartphone, CreditCard } from 'lucide-react';
+import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent, MonitorSmartphone, CreditCard, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
 import { FollowupModeCard } from '@/modules/crm/followup-mode-banner';
@@ -90,6 +90,16 @@ function SettingsIndex() {
           <Database className="size-6 text-primary" />
           <span className="font-ui text-[15px] font-bold">{t('migration.title')}</span>
           <span className="text-sm text-muted-foreground">{t('migration.subtitle')}</span>
+        </Link>
+
+        {/* PDV030 : postes et peripheriques (aucun materiel impose, un appareil par role et par poste). */}
+        <Link
+          to="/settings/devices"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <Printer className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">{t('devices.cardTitle')}</span>
+          <span className="text-sm text-muted-foreground">{t('devices.cardDesc')}</span>
         </Link>
 
         <Link

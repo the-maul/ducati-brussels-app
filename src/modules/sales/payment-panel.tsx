@@ -42,10 +42,12 @@ let dc = 0;
  * `overdue` : échéance dépassée → couleur --danger, sinon neutre ;
  * `financingAccepted` : propose de marquer un règlement « versé par l'organisme ».
  */
-export function PaymentPanel({ documentId, companyId, due, acompte = false, overdue = false, financingAccepted = false, stripe }: {
+export function PaymentPanel({ documentId, companyId, due, acompte = false, overdue = false, financingAccepted = false, stripe, onSaved }: {
   documentId: string; companyId: string; due: number; acompte?: boolean; overdue?: boolean; financingAccepted?: boolean;
   /** QR Stripe (PDV040) : données affichées dans le lien envoyé au client. */
   stripe?: { totalTtc?: number; docNumber?: string | null; customerName?: string | null; customerEmail?: string | null; customerPhone?: string | null };
+  /** Appele apres l'enregistrement (caisse : ouverture du tiroir sur un encaissement en especes, PDV030). */
+  onSaved?: (lines: NewPayment[]) => void;
 }) {
   const qc = useQueryClient();
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
@@ -94,9 +96,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
       }
       // Arrondi légal des espèces à 5 cents (Belgique, depuis le 1er décembre 2019) : la ligne
       // espèces est ramenée au montant arrondi, l'écart est porté par un règlement « ARR ».
-      await addPayments(documentId, applyCashRounding(lines));
+      const saved = applyCashRounding(lines);
+      await addPayments(documentId, saved);
+      return saved;
     },
-    onSuccess: () => { setDrafts([]); setError(null); refresh(); },
+    onSuccess: (saved) => { setDrafts([]); setError(null); refresh(); onSaved?.(saved); },
     // Motif réel (PostgrestError compris) plutôt que « Erreur » ; le toast global le montre aussi.
     onError: (e) => setError(errorMessage(e)),
   });

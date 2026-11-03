@@ -19,7 +19,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { listStock, type StockRow } from '@/modules/stock/stock-api';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { listTemplates } from './labels/templates-api';
-import { printLabelsWithTemplate, type TemplateLabelItem } from './labels/render';
+import { type TemplateLabelItem } from './labels/render';
+import { printTemplateLabels } from './labels/device-print';
+import { useDeviceSetup } from '@/lib/devices/use-devices';
+import { toast } from 'sonner';
 import { QuickLabelDialog } from './labels/quick-label';
 import type { LabelData, LabelTemplateConfig } from './labels/template-types';
 import { t } from '@/lib/i18n';
@@ -32,6 +35,7 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
   companyId: string | null;
 }) {
   const roundUp = useRoundSalePrices(companyId);
+  const devices = useDeviceSetup(companyId);
   const navigate = useNavigate();
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
@@ -139,7 +143,10 @@ export function LabelsBatchDialog({ open, onOpenChange, companyId }: {
         };
         return { data, qty: qtyFor(r) };
       });
-      printLabelsWithTemplate(cfg, items);
+      // Imprimante d'etiquettes du poste (PDV030) : ZPL si le poste en a une, sinon le navigateur.
+      const r = await printTemplateLabels(devices.ctx, cfg, items);
+      if (!r.ok) toast.error(`${t(`devices.result.${r.code}`)}${r.detail ? ` (${r.detail})` : ''}`);
+      else if (r.code === 'sent') toast.success(t('devices.result.sent'));
     } finally {
       setPrinting(false);
     }

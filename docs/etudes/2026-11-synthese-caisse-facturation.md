@@ -83,12 +83,12 @@ chiffrent la même carte différemment, on garde l'estimation la plus détaillé
 | K9 | Motif obligatoire d'un écart de caisse ; procès-verbal des numéros perdus FAC-2026-00002 à 00004 | A10 | légal | à faire | 0,5 | oui — note de Domenico pour le PV | — |
 | K10 | Alerte « OR ou BL terminé non facturé avant le 15 du mois suivant » | L-C11 | légal | à faire | 0,5 | non | — |
 | K11 | Conservation 10 ans : export annuel figé (factures, tickets, Z, registres) + procédure écrite | L-C12 | légal | à faire | 0,5 | oui — comptable : 7 ou 10 ans (reco : 10) | K5 |
-| K12 | Ticket thermique 80 mm + ouverture du tiroir par l'imprimante, duplicata marqué | L-C6 (partie), L-A7, L-A8, A4 | attendu | à faire | 2 (A) | **oui** — Domenico : imprimante, tiroir, douchette (D11) | — |
+| K12 | Ticket thermique 80 mm + ouverture du tiroir par l'imprimante, duplicata marqué | L-C6 (partie), L-A7, L-A8, A4 | attendu | **fait (03/11)** — PDV030 : ticket 80 / 58 mm par l'imprimante du poste (navigateur, Epson ePOS, Star WebPRNT, Web Serial, WebUSB), duplicata, tiroir à l'encaissement espèces + bouton tracé ; migration `20261103250000` à poser, essai sur une vraie imprimante à faire | 2 (A) | **tranché** — Simon : aucun matériel imposé, chaque poste branche le sien (M-106) | — |
 | K13 | « Vente détaillée » depuis le comptoir : remise ligne / globale, prix modifié, client et création rapide, VIN sur la ligne, main-d'œuvre | L-A2, L-A4, L-U10, A3 | attendu | à faire | 1,5 | non | — |
 | K14 | Mettre un panier en attente / le reprendre | L-A5 | attendu | à faire | 1 | non | — |
 | K15 | Retour / échange depuis le ticket d'origine (scan du TIK), remboursement sur le mode d'origine, inscrit au Z | L-A6, L-C8 (partie), A16 (partie) | attendu | à faire | 1 | non | K5, M2 |
 | K16 | Droits fins de caisse (qui remise, annule, ouvre le tiroir, clôture) | L-A14, A11 | attendu | à faire | 1 | **oui** — Domenico : qui fait quoi | — |
-| K17 | Une session par poste / tiroir (deux PC = deux caisses) | L-A10, A12 | attendu | à faire | 2 | oui — Domenico : combien de tiroirs ? | K6 |
+| K17 | Une session par poste / tiroir (deux PC = deux caisses) | L-A10, A12 | attendu | **partiel (03/11)** — les postes existent (Paramètres → Postes et périphériques, code de caisse par poste imprimé sur le ticket, PDV030) ; la session de caisse reste par société | 1,5 (reste) | oui — Domenico : combien de tiroirs ? | K6 |
 | K18 | Une seule transaction pour créer le ticket et l'encaisser (une coupure ne laisse rien à moitié) | A5 | attendu | à faire | 2,5 (2 à 3) | non (avec la mission 08) | — |
 | K19 | Remise en banque : bordereau daté, report du fond | L-A12, A15 | attendu | à faire | 1,5 (A) | non | K5 |
 | K20 | Rapports du jour par opérateur, par famille, marge du jour ; statistiques par rayon | L-A11, L-F5 | attendu | à faire | 2 | non | K6 |
@@ -216,7 +216,7 @@ d'après le go-live (≈ 11,5 j).
 | Terminal : photo du modèle, date d'échéance du contrat Omespay ; **envoyer le mail à Omespay** (annexe A) | Rester chez Omespay et demander l'API cloud CCV | P4 piloté (5 j) ou terminal « à côté » (0 j) |
 | Seuil 125 € (D1) : liste des familles « pièce / accessoire du véhicule » ; ticket forcé avec motif ? | Facture imposée (nom + adresse suffisent), forçage motivé et tracé | K3 |
 | Plafond 3 000 € espèces (D7) | Bloquant | K4 |
-| Matériel (D11) : imprimante 80 mm, tiroir, douchette, tablette(s) | Epson / Star réseau, tiroir piloté par l'imprimante, une tablette par poste | K12, P2 |
+| Matériel (D11) : imprimante 80 mm, tiroir, douchette, tablette(s) | **Tranché par Simon le 03/11 (M-106) : aucun matériel imposé**, chaque poste branche le sien (Paramètres → Postes et périphériques). Conseil pour un achat : Epson TM-m30 (ePOS) ou Star mC-Print3 (WebPRNT) en réseau, tiroir branché sur l'imprimante, douchette « clavier » USB | K12, P2 |
 | Combien de postes / tiroirs ; qui remise, annule, clôture | À lui de dire | K16, K17 |
 | Vendre sans caisse ouverte (virement, compte client) ? | Non au comptoir, oui depuis Ventes | K6 |
 | Identifiants : n° BCE, RPM, forme juridique des deux sociétés, siège de NL INVEST, IBAN 2e société, créancier SEPA | À saisir dans Paramètres → Sociétés | F2 ; rien ne part sur Peppol sans eux |

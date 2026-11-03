@@ -40,6 +40,29 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
   *Simon · 03/11.* [M06](modules/M06-ventes-caisse.md)
 
 ---
+## 2026-11-03 — Matériel de caisse : aucun matériel imposé, un appareil par rôle et par poste (PDV030)
+
+- **M-106** — **Aucun matériel imposé** (Simon, 03/11 : « tu dois permettre de connecter n'importe quel
+  device pour chaque besoin : on va avoir d'autres clients après Italbike Store »). Chaque besoin est un
+  **rôle** (imprimante ticket, tiroir-caisse, imprimante d'étiquettes, douchette, écran client, terminal
+  de paiement, balance) ; chaque **poste** (caisse 1, comptoir atelier, tablette...) y rattache l'appareil
+  du client avec son **type de connexion** : impression du navigateur (marche partout), Epson ePOS et
+  Star WebPRNT en réseau (HTTPS, sans pilote), Web Serial / WebUSB (Chrome / Edge sur PC), Zebra ZPL
+  réseau pour les étiquettes ; ESC/POS brut sur le port 9100 et relais QZ Tray / PrintNode **prévus,
+  désactivés** (un navigateur ne parle pas au port 9100). Le poste du navigateur est **mémorisé
+  localement** (« Ce poste est : ... »). Réponse à D11 de l'étude légale : pas de modèle imposé ;
+  conseillé pour un comptoir neuf = une imprimante Epson TM-m30 (ePOS) ou Star mC-Print3 (WebPRNT) en
+  réseau avec tiroir branché dessus. *Client · 03/11.* [M06](modules/M06-ventes-caisse.md), [M00](modules/M00-socle.md)
+- **M-107** — **Ticket 80 / 58 mm au comptoir** à la place de l'A4 dès qu'un poste a une imprimante
+  ticket ; **sans poste réglé (ou avant la migration), l'impression A4 reste** (rien ne casse). Mentions :
+  société, TVA, n° d'entreprise, TIK-..., date et heure, caisse (code du poste, sinon de la session),
+  poste, n° du Z si la session est clôturée, lignes, TVA par taux, total, paiements en clair, reçu /
+  rendu, reste à payer, mentions légales ; **« DUPLICATA »** à la réimpression. Le **tiroir s'ouvre à
+  l'encaissement en espèces** si le poste le prévoit (réglage société, actif par défaut), bouton
+  « Ouvrir le tiroir », trace `events` (`drawer_opened`, `receipt_printed`, `receipt_reprinted`).
+  Imprimante en « impression du navigateur » : le tiroir s'ouvre par le réglage du pilote Windows.
+  Migration `20261103250000_m6_postes_peripheriques.sql` **non appliquée** (indépendante des autres).
+  *Agence · 03/11.* [M06](modules/M06-ventes-caisse.md)
 
 ## 2026-11-03 — Facture belge conforme : avoir, facture d'acompte, journal juste, UBL prêt pour Peppol (VEN006, M12)
 

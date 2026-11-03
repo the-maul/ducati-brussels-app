@@ -81,6 +81,7 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.ind
 import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
 import { Route as AppSettingsCommentsRouteImport } from './routes/_app.settings.comments'
 import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
+import { Route as AppSettingsDevicesRouteImport } from './routes/_app.settings.devices'
 import { Route as AppSettingsCustomerDisplaysRouteImport } from './routes/_app.settings.customer-displays'
 import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
@@ -484,6 +485,11 @@ const AppSettingsCompaniesRoute = AppSettingsCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsDevicesRoute = AppSettingsDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsCustomerDisplaysRoute =
   AppSettingsCustomerDisplaysRouteImport.update({
     id: '/customer-displays',
@@ -776,6 +782,7 @@ export interface FileRoutesByFullPath {
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
+  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -878,6 +885,7 @@ export interface FileRoutesByTo {
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
+  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
@@ -995,6 +1003,7 @@ export interface FileRoutesById {
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
   '/_app/settings/comments': typeof AppSettingsCommentsRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
+  '/_app/settings/devices': typeof AppSettingsDevicesRoute
   '/_app/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
   '/_app/settings/extension': typeof AppSettingsExtensionRoute
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
@@ -1113,6 +1122,7 @@ export interface FileRouteTypes {
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
+    | '/settings/devices'
     | '/settings/customer-displays'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -1215,6 +1225,7 @@ export interface FileRouteTypes {
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
+    | '/settings/devices'
     | '/settings/customer-displays'
     | '/settings/extension'
     | '/settings/kiosk'
@@ -1331,6 +1342,7 @@ export interface FileRouteTypes {
     | '/_app/settings/app-client'
     | '/_app/settings/comments'
     | '/_app/settings/companies'
+    | '/_app/settings/devices'
     | '/_app/settings/customer-displays'
     | '/_app/settings/extension'
     | '/_app/settings/kiosk'
@@ -1903,6 +1915,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsCompaniesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/devices': {
+      id: '/_app/settings/devices'
+      path: '/devices'
+      fullPath: '/settings/devices'
+      preLoaderRoute: typeof AppSettingsDevicesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/customer-displays': {
       id: '/_app/settings/customer-displays'
       path: '/customer-displays'
@@ -2379,6 +2398,7 @@ interface AppSettingsRouteChildren {
   AppSettingsAppClientRoute: typeof AppSettingsAppClientRoute
   AppSettingsCommentsRoute: typeof AppSettingsCommentsRoute
   AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
+  AppSettingsDevicesRoute: typeof AppSettingsDevicesRoute
   AppSettingsCustomerDisplaysRoute: typeof AppSettingsCustomerDisplaysRoute
   AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
@@ -2394,6 +2414,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAppClientRoute: AppSettingsAppClientRoute,
   AppSettingsCommentsRoute: AppSettingsCommentsRoute,
   AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
+  AppSettingsDevicesRoute: AppSettingsDevicesRoute,
   AppSettingsCustomerDisplaysRoute: AppSettingsCustomerDisplaysRoute,
   AppSettingsExtensionRoute: AppSettingsExtensionRoute,
   AppSettingsKioskRoute: AppSettingsKioskRoute,

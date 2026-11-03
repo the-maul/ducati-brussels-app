@@ -16,11 +16,16 @@
  * puis le montant à payer, « Payez sur le terminal » si carte, la signature si demandée, le merci
  * (avec l'adresse e-mail tapée par le client si on l'autorise) ; envoi automatique (parcours testé
  * dans customer-screen.ts, `nextSaleFlow`).
+ * Postes et périphériques (PDV030, 03/11/2026) : « Imprimer le ticket » passe par l'imprimante
+ * ticket DU POSTE (ticket 80 / 58 mm : navigateur, Epson ePOS, Star WebPRNT, Web Serial, WebUSB) ;
+ * réimpression = « DUPLICATA » ; sans poste réglé, impression A4 comme avant. Le tiroir s'ouvre
+ * à l'encaissement en espèces si le poste le prévoit (réglage de la société), bouton « Ouvrir le
+ * tiroir » tracé dans `events`. Impression automatique du ticket une fois réglé (réglage).
  */
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt, Inbox } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +40,14 @@ import { posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDa
 import { getOpenSession, type CashSession } from './cash-api';
 import { PaymentPanel } from './payment-panel';
 import { printDocument } from './print-document';
+import { printTicket } from './receipt-print';
+import { CASH_METHOD } from './cash-rounding';
+import { useDeviceSetup } from '@/lib/devices/use-devices';
+import { openDrawer, type DeviceResult } from '@/lib/devices';
+import { logDeviceEvent } from '@/lib/devices/api';
+import { resolveDrawer, resolveReceipt } from '@/lib/devices/resolve';
+import { browserCaps } from '@/lib/devices/types';
+import type { NewPayment } from './write-api';
 import { ContactPicker } from './document-editor';
 import { DocumentMailDialog } from './document-mail-dialog';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
@@ -75,6 +88,14 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   const [screenNonce, setScreenNonce] = useState(0);
   const [allowEmail, setAllowEmail] = useState(true);
   const pushScreen = useCustomerScreenPush(companyId);
+  // Matériel du poste (PDV030) : imprimante ticket, tiroir ; messages de l'appareil.
+  const devices = useDeviceSetup(companyId);
+  const [deviceNote, setDeviceNote] = useState<string | null>(null);
+  const printed = useRef<Set<string>>(new Set());
+  const [, setPrintedTick] = useState(0);
+  const caps = browserCaps();
+  const receiptPlan = resolveReceipt(devices.ctx.devices, caps);
+  const drawerPlan = resolveDrawer(devices.ctx.devices, caps);
 
   const { data: session, isLoading: sessionLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
   const { data: rules } = useQuery({ queryKey: ['invoice-family-rules', companyId], queryFn: () => listInvoiceFamilyRules(companyId) });
@@ -173,12 +194,44 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     />
   );
 
-  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setDeviceNote(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
   const askNewSale = () => { if (remaining > 0.005) setAskUnpaid(true); else newSale(); };
+  const deviceMessage = (r: DeviceResult) => (r.ok ? null : `${t(`devices.result.${r.code}`)}${r.detail ? ` (${r.detail})` : ''}`);
+  // Ticket par le pilote du poste ; 2e impression du même document = duplicata.
   const print = async () => {
+    if (!activeDoc) return;
+    setDeviceNote(null);
+    try {
+      const duplicate = printed.current.has(activeDoc.id);
+      const r = await printTicket(activeDoc.id, companyName, devices.ctx, duplicate);
+      if (r.ok) { printed.current.add(activeDoc.id); setPrintedTick((n) => n + 1); }
+      setDeviceNote(deviceMessage(r));
+    } catch (e) { setError(errorMessage(e)); }
+  };
+  const printA4 = async () => {
     if (!activeDoc) return;
     try { const f = await getDocumentFull(activeDoc.id); await printDocument(f, companyName); } catch (e) { setError(errorMessage(e)); }
   };
+  const drawer = async (reason: 'manual' | 'cash_payment') => {
+    const r = await openDrawer(devices.ctx);
+    if (r.ok) void logDeviceEvent(companyId, 'drawer_opened', devices.workstation?.id ?? null, { reason, document_id: activeDoc?.id ?? null });
+    // Encaissement : un poste sans tiroir (ou tiroir ouvert par le pilote Windows) ne dit rien.
+    if (reason === 'cash_payment' && (r.code === 'noDevice' || r.code === 'driverSetting')) return;
+    setDeviceNote(deviceMessage(r));
+  };
+  const onPaymentsSaved = (lines: NewPayment[]) => {
+    const cashIn = lines.some((l) => l.method === CASH_METHOD && (l.status ?? 'recu') === 'recu' && l.amount > 0);
+    if (cashIn && devices.ctx.settings.open_drawer_on_cash) void drawer('cash_payment');
+  };
+  // Impression automatique du ticket une fois réglé (réglage de la société), une seule fois par ticket.
+  // Pilotes directs seulement : une fenêtre d'impression ouverte sans clic serait bloquée par le navigateur.
+  const directPrinter = ['epson', 'star', 'serial', 'usb'].includes(receiptPlan.kind);
+  useEffect(() => {
+    if (!activeDoc || !payments || !devices.ctx.settings.auto_print_receipt || !directPrinter) return;
+    if (remaining > 0.005 || printed.current.has(activeDoc.id) || payments.length === 0) return;
+    void print();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDoc?.id, payments, remaining]);
 
   // Encaissement en cours
   if (activeDoc) {
@@ -192,18 +245,21 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
             : <p className="mt-1 font-data text-sm text-success">{t('pos.paidOk')}</p>)}
         </div>
         <PaymentPanel
-          documentId={activeDoc.id} companyId={companyId} due={remaining}
+          documentId={activeDoc.id} companyId={companyId} due={remaining} onSaved={onPaymentsSaved}
           stripe={{
             totalTtc: activeDoc.ttc, customerName: activeDoc.contact ? contactDisplayName(activeDoc.contact) : null,
             customerEmail: activeDoc.contact?.email ?? null, customerPhone: activeDoc.contact?.phone ?? null,
           }}
         />
         {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
+        {deviceNote && <p className="flex gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" /> {deviceNote}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <span className="mr-auto">{screenButton}</span>
           <Button variant="outline" asChild><Link to="/sales/$documentId" params={{ documentId: activeDoc.id }}><FileText /> {t('pos.openTicket')}</Link></Button>
           <Button variant="outline" onClick={() => setMailOpen(true)}><Mail /> {t('pos.mailTicket')}</Button>
-          <Button variant="outline" onClick={print}><Printer /> {t('pos.printTicket')}</Button>
+          {drawerPlan.kind !== 'none' && <Button variant="outline" onClick={() => drawer('manual')}><Inbox /> {t('devices.openDrawer')}</Button>}
+          {receiptPlan.kind !== 'legacy_a4' && <Button variant="outline" onClick={printA4}><FileText /> {t('devices.printA4')}</Button>}
+          <Button variant="outline" onClick={print}><Printer /> {printed.current.has(activeDoc.id) ? t('devices.reprintTicket') : t('pos.printTicket')}</Button>
           <Button onClick={askNewSale}><RotateCcw /> {t('pos.newSale')}</Button>
         </div>
         {mailOpen && full && (
