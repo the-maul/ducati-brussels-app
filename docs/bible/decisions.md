@@ -8,6 +8,18 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-03 — Caisse du magasin : Shopify POS ou DMS (mission 03, question 3)
+
+- **Q — caisse Shopify** : proposition remise le 03/11/2026
+  ([`../propositions/2026-11-caisse-shopify-ou-dms.md`](../propositions/2026-11-caisse-shopify-ou-dms.md)).
+  Recommandation de l'agence : **caisse = DMS** (scénario A), Shopify reste le site ; Falco (Horus
+  Software, point d'accès Peppol, API sur plan Expert) branché au DMS par l'UBL. Trois questions à
+  trancher avec Domenico et le comptable (comptable sur Horus ?, prix d'achat de la TVA marge,
+  qui rembourse un retour web au comptoir). **Décision en attente.** *Agence · 03/11.*
+  [mission 03](missions/mission-03-shopify.md), [M06](modules/M06-ventes-caisse.md), [M12](modules/M12-compta.md)
+
+---
+
 ## 2026-10-30 — Relances d'entretien : le marketing envoie, le commercial rappelle (mission 07, cartes 6 et 7)
 
 - **M-72** — **Les relances d'entretien sont des mails automatiques préparés par le marketing, pas

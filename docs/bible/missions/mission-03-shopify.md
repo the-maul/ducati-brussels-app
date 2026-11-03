@@ -97,6 +97,7 @@ L'application est décrite dans le dépôt : [`integrations/shopify-app/shopify.
 6. ~~Frais de port ?~~ **Ligne à part sur la vente du DMS (Simon, 21/09).**
 
 Question 3 (caisse Shopify en magasin) : recommandation du 21/09 = **non** — la caisse Shopify n'accepte pas Bancontact en magasin (seul lecteur Belgique : WisePad 3) et doublerait caisse et stock ; encaisser au comptoir par la caisse du DMS (QR virement + terminal Bancontact au choix). En attente du feu vert de Simon, ainsi que de son accord pour que le DMS écrive sur le site (essai sur 1 à 3 produits).
+**03/11/2026** : proposition complète remise à Domenico — [`../../propositions/2026-11-caisse-shopify-ou-dms.md`](../../propositions/2026-11-caisse-shopify-ou-dms.md) (trois scénarios A / B / C, Bancontact toujours absent de Shopify POS en magasin, Peppol B2B obligatoire depuis le 01/01/2026, Falco = app de facturation Horus avec API UBL sur plan Expert ; recommandation : **caisse = DMS**, connecteur DMS → Falco 4 à 6 jours). Décision attendue.
 
 Décidé le 19/09 : **W-5** l'inscription du site Shopify renvoie vers `/app-client` (page « bientôt disponible ») ; **W-6** liaison des clients Shopify : correspondances exactes seulement en automatique, les autres validées à la main.
 
