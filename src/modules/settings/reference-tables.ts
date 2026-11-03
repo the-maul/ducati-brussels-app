@@ -86,7 +86,9 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   { key: 'financing_org', label: 'Organismes de financement', group: 'autre', extraColumns: [] },
   { key: 'insurance_firm', label: "Cabinets d'assurance", group: 'atelier', extraColumns: [] },
   { key: 'insurance_expert', label: 'Experts assurance', group: 'atelier', extraColumns: [] },
-  { key: 'repair_type', label: 'Types de réparation', group: 'atelier', extraColumns: [] },
+  // Type de réparation de l'OR (liste de la fiche OR, ATE001b, 03/11/2026) : code enregistré sur l'OR,
+  // préchargé par la migration 20261103230000 (ancienne clé `repair_type`, jamais utilisée, vide en base).
+  { key: 'workshop_repair_type', label: 'Types de réparation', group: 'atelier', extraColumns: [] },
   // Motif d'entrée de la moto à l'accueil de l'atelier (check-up, ATE009) : un code commençant par
   // « entretien » (ou « vidange ») pré-remplit les actions du plan d'entretien de la moto.
   { key: 'workshop_reason', label: "Motifs d'entrée atelier", group: 'atelier', extraColumns: [] },

@@ -2363,6 +2363,29 @@ export const en: DictionaryShape = {
   },
 
   // Dossiers accident (M8, mission 09 carte 5, ACH005)
+  // Page OR (ATE001b, 03/11/2026)
+  orPage: {
+    none: 'None',
+    you: '(you)',
+    legacyValue: '{value} (old entry)',
+    operatorPlaceholder: 'Team member…',
+    repairTypePlaceholder: 'Choose the type…',
+    accidentTitle: 'Accident file',
+    accidentLinked: 'File opened for this repair order: photos, quote, Ducati form, sending.',
+    accidentNone: 'Accident repair order: the file opens as a draft when saving, or right away with the button.',
+    accidentOpenFile: 'Open the accident file',
+    accidentCreateFile: 'Create the accident file',
+    accidentFileCreated: 'Accident file opened as a draft (Workshop > Accident files).',
+  },
+
+  // Recherche d'article des lignes (OR, check-up, ventes)
+  articlePick: {
+    placeholder: 'Reference or description…',
+    searching: 'Searching…',
+    none: 'No item found for "{term}": the line will stay as free text.',
+    keyboardHint: 'Arrows to choose, Enter to confirm, Esc to close.',
+  },
+
   accidentFile: {
     title: 'Accident files',
     subtitle: 'Ducati repair assistance: a file goes out complete (quote, form, photos, chassis) or does not go out.',

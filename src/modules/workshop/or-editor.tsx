@@ -1,6 +1,13 @@
 /**
- * M8 — Éditeur d'ordre de réparation (OR). En-tête (client, VIN, km, opérateur, motif d'entrée,
- * type, travaux, observations, garantie) + lignes pièces/MO/texte (garantie par ligne) + totaux.
+ * M8 — Éditeur d'ordre de réparation (OR). En-tête (client, VIN, km, motif d'entrée, type de
+ * réparation, opérateur, statut, garantie, expert) + travaux, observations + lignes pièces/MO/texte
+ * (garantie par ligne) + totaux.
+ *
+ * Depuis le 03/11 (ATE001b, retours client) : opérateur choisi dans l'équipe (connecté par défaut),
+ * type de réparation en liste (Paramètres → Tables, pré-rempli par le motif), garantie et expert
+ * seulement quand ils servent, recherche d'article partagée avec les ventes (surcouche, clavier),
+ * prix de ligne tiré de l'article (HT déduit du TTC, TVA de l'article, remise client), main-d'oeuvre
+ * au taux horaire de l'atelier. Règles pures : `or-page-rules.ts`, `sales/article-price.ts`.
  *
  * Depuis le 31/10 (ATE008 / ATE009) : onglet « Check-up » pensé tablette — une carte par action
  * (état, photo, temps, pièces, prix) — dont les cartes sont des lignes de l'OR réunies par
@@ -10,6 +17,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText } from 'lucide-react';
+import { useAuth } from '@/lib/auth/auth-context';
+import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
+import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
+import { articleLinePrice, customerDiscountPct, labourUnitPrice } from '@/modules/sales/article-price';
+import { resolveCustomerPrice } from '@/modules/contacts/pricing';
+import { listCompanyTeam, listRepairTypes } from './or-page-api';
+import {
+  defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
+  showExpertFields, showWarrantyField, type OperatorChoice,
+} from './or-page-rules';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -18,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
-import { searchSaleArticles, type SaleArticle } from '@/modules/sales/write-api';
+import { type SaleArticle } from '@/modules/sales/write-api';
 import { getVehicle, vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import { pickContact, clearContact, pickVehicle, clearVehicle, type ClientVehicleSelection, type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
@@ -37,6 +54,8 @@ const num = (s: string) => { const n = Number(String(s).replace(',', '.')); retu
 const STATUSES = ['a_faire', 'en_cours', 'pret'] as const;
 const WARRANTY = ['aucune', 'en_attente', 'accepte', 'refus_total', 'refus_partiel'] as const;
 const NO_REASON = ' none';
+const NO_VALUE = ' none';
+const LEGACY = ' legacy';
 
 type EditLine = RoLineInput & { _key: string };
 let counter = 0;
@@ -44,6 +63,8 @@ const blankLine = (): EditLine => ({ _key: `ro${counter++}`, kind: 'piece', arti
 
 export type OrPayload = {
   contactId: string | null; vehicleId: string | null; mileage: number | null; operator: string;
+  /** Membre de l'equipe choisi (null = personne / ancien texte seulement). */
+  operatorId: string | null;
   repairType: string; workDescription: string; receptionNotes: string; status: string; warrantyStatus: string;
   expertName: string; expertDate: string; reasonCode: string | null; lines: RoLineInput[];
 };
@@ -81,7 +102,13 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const contact = sel.contact;
   const vehicle = sel.vehicle;
   const [mileage, setMileage] = useState(o?.mileage != null ? String(o.mileage) : '');
-  const [operator, setOperator] = useState(o?.operator ?? '');
+  // Operateur = un membre de l'equipe, l'utilisateur connecte par defaut (ATE001b) ; ancien texte garde.
+  const { user, profile } = useAuth();
+  const [operatorChoice, setOperatorChoice] = useState<OperatorChoice>(() => defaultOperator({
+    isNew: !o, currentUserId: user?.id ?? null, members: [],
+    savedOperatorId: (ox?.operator_id as string | null | undefined) ?? null, savedOperatorText: o?.operator ?? null,
+  }));
+  const [operatorTouched, setOperatorTouched] = useState(false);
   const [repairType, setRepairType] = useState(o?.repair_type ?? '');
   const [reasonCode, setReasonCode] = useState<string>((ox?.reason_code as string | null) ?? '');
   const [workDescription, setWork] = useState(o?.work_description ?? '');
@@ -104,7 +131,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   // Retour retrouve l'OR tel qu'on l'a laisse. Le client et la moto passes par l'adresse priment.
   const formDraft = useFormDraft({
     key: draftKey ?? null,
-    value: { sel, mileage, operator, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, lines },
+    // Operateur (membre choisi ou ancien texte) et type de reparation (code de la liste) inclus (ATE001b).
+    value: { sel, mileage, operatorChoice, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, lines },
     fingerprint: (v) => ({ ...v, sel: [v.sel.contact?.id ?? contactIdToLoad ?? null, v.sel.vehicle?.id ?? null], lines: v.lines.map(({ _key, ...l }) => l) }),
     accept: (d) => !defaultContactId || !d.sel.contact || d.sel.contact.id === defaultContactId,
     restore: (d) => {
@@ -112,7 +140,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         contact: d.sel.contact ?? s.contact,
         vehicle: defaultVehicleId && d.sel.vehicle?.id !== defaultVehicleId ? s.vehicle : d.sel.vehicle,
       }));
-      setMileage(d.mileage); setOperator(d.operator); setRepairType(d.repairType); setReasonCode(d.reasonCode);
+      setMileage(d.mileage); setRepairType(d.repairType); setReasonCode(d.reasonCode);
+      // Brouillon d'avant le 03/11 (sans operatorChoice) : on garde l'operateur par defaut (connecte).
+      if (d.operatorChoice && (d.operatorChoice.operatorId || d.operatorChoice.legacyText)) {
+        setOperatorChoice({ operatorId: d.operatorChoice.operatorId ?? null, legacyText: d.operatorChoice.legacyText ?? null });
+        setOperatorTouched(true);
+      }
       setWork(d.workDescription); setNotes(d.receptionNotes); setStatus(d.status); setWarranty(d.warrantyStatus);
       setExpertName(d.expertName); setExpertDate(d.expertDate);
       if (d.lines?.length) setLines(d.lines.map((l) => ({ ...l, _key: `ro${counter++}` })));
@@ -139,6 +172,48 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
   const rateQ = useQuery({ queryKey: ['maintenance', 'rate', companyId], queryFn: () => loadHourlyRateHt(companyId), staleTime: 300_000 });
   const rate = rateQ.data ?? null;
+  const teamQ = useQuery({ queryKey: ['company-team', companyId], queryFn: () => listCompanyTeam(companyId), staleTime: 300_000 });
+  const typesQ = useQuery({ queryKey: ['workshop-repair-types', companyId], queryFn: () => listRepairTypes(companyId), staleTime: 300_000 });
+  const members = useMemo(() => teamQ.data ?? [], [teamQ.data]);
+  const repairTypes = useMemo(() => typesQ.data ?? [], [typesQ.data]);
+  const roundUp = useRoundSalePrices(companyId);
+  // Ancien OR (texte seul) : des que l'equipe est chargee, le nom retrouve son membre ;
+  // nouvel OR : l'utilisateur connecte, s'il n'etait pas encore connu au premier rendu.
+  useEffect(() => {
+    if (operatorTouched) return;
+    setOperatorChoice((c) => {
+      if (c.operatorId) return c;
+      const next = defaultOperator({ isNew: !o, currentUserId: user?.id ?? null, members, savedOperatorText: c.legacyText });
+      return next.operatorId !== c.operatorId || next.legacyText !== c.legacyText ? next : c;
+    });
+  }, [members, user?.id, o, operatorTouched]);
+  const teamOptions = workshopTeamOptions(members, [user?.id, operatorChoice.operatorId]);
+  // Ancien texte (« ENTRETIEN ») : rattache a son code des que la liste est chargee ; hors liste, garde tel quel.
+  useEffect(() => {
+    if (!typesQ.isSuccess) return;
+    setRepairType((cur) => {
+      const code = matchRepairTypeCode(cur, repairTypes);
+      return code && code !== cur ? code : cur;
+    });
+  }, [typesQ.isSuccess, repairTypes]);
+  const legacyType = typesQ.isSuccess ? legacyRepairType(repairType, repairTypes) : null;
+  const onReasonChange = (next: string) => {
+    setRepairType((cur) => nextRepairType({ current: cur, previousReason: reasonCode || null, nextReason: next || null }));
+    setReasonCode(next);
+  };
+  const expertVisible = showExpertFields({ reasonCode, repairType, expertName, expertDate });
+  const warrantyVisible = showWarrantyField({ reasonCode, repairType, warrantyStatus });
+  const pickLineArticle = (k: string, a: SaleArticle) => {
+    const price = articleLinePrice(a, { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) });
+    setLine(k, { article_id: a.id, designation: a.designation, ...price });
+    // Remise du client (Tarifs clients) si elle existe : posee ensuite, sans bloquer la saisie.
+    const contactId = contact?.id;
+    if (contactId) {
+      resolveCustomerPrice(companyId, contactId, a.id, 1)
+        .then((r) => { const d = customerDiscountPct(r); if (d > 0) setLines((ls) => ls.map((l) => (l._key === k && l.article_id === a.id ? { ...l, discount_pct: d } : l))); })
+        .catch(() => { /* sans tarif client : prix de base */ });
+    }
+  };
 
   const setLine = (k: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === k ? { ...l, ...patch } : l)));
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
@@ -147,9 +222,11 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const totals = computeRoTotals([...classicInputs, ...cardLines]);
   const proposedCount = cards.filter((c) => PROPOSED_STATES.includes(c.state) && c.label.trim()).length;
 
+  const ownName = profile?.full_name?.trim() || profile?.email || '';
+  const savedOperator = operatorToSave(operatorChoice, members, operatorChoice.operatorId === user?.id ? ownName : (o?.operator ?? ''));
   const payload = (): OrPayload => ({
     contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: mileage ? Math.round(num(mileage)) : null,
-    operator, repairType, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate,
+    operator: savedOperator.operatorText, operatorId: savedOperator.operatorId, repairType, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate,
     reasonCode: reasonCode || null,
     lines: [...classicInputs, ...cardLines],
   });
@@ -172,7 +249,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <Field label={t('workshop.mileage')}><Input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="text-right tabular-nums" /></Field>
         {checkupReady && (
           <Field label={t('checkup.reason')}>
-            <Select value={reasonCode || NO_REASON} onValueChange={(v) => setReasonCode(v === NO_REASON ? '' : v)}>
+            <Select value={reasonCode || NO_REASON} onValueChange={(v) => onReasonChange(v === NO_REASON ? '' : v)}>
               <SelectTrigger><SelectValue placeholder={t('checkup.reasonPlaceholder')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NO_REASON}>{t('checkup.reasonNone')}</SelectItem>
@@ -181,22 +258,57 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             </Select>
           </Field>
         )}
-        <Field label={t('workshop.operator')}><Input value={operator} onChange={(e) => setOperator(e.target.value)} /></Field>
-        <Field label={t('workshop.repairType')}><Input value={repairType} onChange={(e) => setRepairType(e.target.value)} /></Field>
+        <Field label={t('workshop.repairType')}>
+          <Select value={repairType ? (legacyType ? LEGACY : repairType) : NO_VALUE} onValueChange={(v) => { if (v !== LEGACY) setRepairType(v === NO_VALUE ? '' : v); }}>
+            <SelectTrigger><SelectValue placeholder={t('orPage.repairTypePlaceholder')} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_VALUE}>{t('orPage.none')}</SelectItem>
+              {legacyType && <SelectItem value={LEGACY}>{t('orPage.legacyValue').replace('{value}', legacyType)}</SelectItem>}
+              {repairTypes.map((r) => <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t('workshop.operator')}>
+          <Select
+            value={operatorChoice.operatorId ?? (operatorChoice.legacyText ? LEGACY : NO_VALUE)}
+            onValueChange={(v) => {
+              if (v === LEGACY) return;
+              setOperatorTouched(true);
+              setOperatorChoice((c) => (v === NO_VALUE ? { operatorId: null, legacyText: null } : { operatorId: v, legacyText: c.legacyText }));
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder={t('orPage.operatorPlaceholder')} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_VALUE}>{t('orPage.none')}</SelectItem>
+              {operatorChoice.legacyText && !operatorChoice.operatorId && (
+                <SelectItem value={LEGACY}>{t('orPage.legacyValue').replace('{value}', operatorChoice.legacyText)}</SelectItem>
+              )}
+              {teamOptions.map((m) => (
+                <SelectItem key={m.userId} value={m.userId}>
+                  {m.name}{m.userId === user?.id ? ` ${t('orPage.you')}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label={t('workshop.status')}>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{t(`workshop.status_${s}`)}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
-        <Field label={t('workshop.warranty')}>
-          <Select value={warrantyStatus} onValueChange={setWarranty}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{WARRANTY.map((w) => <SelectItem key={w} value={w}>{t(`workshop.warranty_${w}`)}</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
-        <Field label={t('workshop.expertName')}><Input value={expertName} onChange={(e) => setExpertName(e.target.value)} /></Field>
-        <Field label={t('workshop.expertDate')}><Input type="date" value={expertDate} onChange={(e) => setExpertDate(e.target.value)} /></Field>
+        {/* Garantie : seulement pour un OR garantie (ou une prise en charge deja engagee). */}
+        {warrantyVisible && (
+          <Field label={t('workshop.warranty')}>
+            <Select value={warrantyStatus} onValueChange={setWarranty}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{WARRANTY.map((w) => <SelectItem key={w} value={w}>{t(`workshop.warranty_${w}`)}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
+        )}
+        {/* Expert : seulement pour un accident (ou deja renseigne). */}
+        {expertVisible && <Field label={t('workshop.expertName')}><Input value={expertName} onChange={(e) => setExpertName(e.target.value)} /></Field>}
+        {expertVisible && <Field label={t('workshop.expertDate')}><Input type="date" value={expertDate} onChange={(e) => setExpertDate(e.target.value)} /></Field>}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -219,7 +331,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
               return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-2 py-1">
-                    <Select value={l.kind} onValueChange={(v) => setLine(l._key, { kind: v as RoLineInput['kind'] })}>
+                    <Select value={l.kind} onValueChange={(v) => setLine(l._key, v === 'mo'
+                      // Main-d'oeuvre sans prix : taux horaire de l'atelier (Frais de devis atelier).
+                      ? { kind: 'mo', unit_price_ht: labourUnitPrice(l.unit_price_ht, rate) }
+                      : { kind: v as RoLineInput['kind'] })}>
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="piece">{t('workshop.kind_piece')}</SelectItem><SelectItem value="mo">{t('workshop.kind_mo')}</SelectItem><SelectItem value="texte">{t('workshop.kind_texte')}</SelectItem></SelectContent>
                     </Select>
@@ -227,7 +342,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                   <td className="px-2 py-1 min-w-[180px]">
                     {l.article_id || l.kind !== 'piece'
                       ? <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
-                      : <ArticlePicker companyId={companyId} value={l.designation} onText={(v) => setLine(l._key, { designation: v })} onPick={(a) => setLine(l._key, { article_id: a.id, designation: a.designation, unit_price_ht: a.sale_price_ht, vat_rate: a.vat_rate })} />}
+                      : <ArticlePicker companyId={companyId} value={l.designation} onText={(v) => setLine(l._key, { designation: v })} onPick={(a) => pickLineArticle(l._key, a)} />}
                   </td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={l.is_warranty} className="h-8 text-right tabular-nums" /></td>
@@ -320,16 +435,12 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
     </div>
   );
 }
+/**
+ * Recherche d'article d'une ligne de l'OR et du check-up : le composant partage avec les documents
+ * de vente (`ArticleLinePicker`, liste en surcouche, clavier, stock, prix) — ATE001b.
+ */
 export function ArticlePicker({ companyId, value, onText, onPick, className = 'h-8' }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: SaleArticle) => void; className?: string }) {
-  const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
-  const { data } = useQuery({ queryKey: ['ro-apick', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
-  return (
-    <div className="relative">
-      <Input value={value} onChange={(e) => onText(e.target.value)} placeholder={t('workshop.articlePlaceholder')} className={className} />
-      {data && data.length > 0 && deb.length >= 2 && <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">{data.map((a) => <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span></button>)}</div>}
-    </div>
-  );
+  return <ArticleLinePicker companyId={companyId} value={value} onText={onText} onPick={onPick} placeholder={t('workshop.articlePlaceholder')} className={className} />;
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;

@@ -48,6 +48,7 @@ import { ReplacementHint } from './replacement-hint';
 import { StatusBadge } from '@/components/status-badge';
 import { EcatalogPasteButton, EcatalogLink, type EcatalogPick } from './ecatalog-paste';
 import { looksLikeDucatiReference } from './ecatalog';
+import { ArticleLinePicker } from './article-line-picker';
 
 const DOC_TYPES = EDITOR_DOC_TYPES;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -579,36 +580,9 @@ export function ContactPicker({ companyId, onPick }: { companyId: string; onPick
   );
 }
 
+/** Recherche d'article d'une ligne : le composant partage avec l'OR et le check-up (ATE001b). */
 function LinePicker({ companyId, value, onText, onPick }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: SaleArticle) => void }) {
-  const roundUp = useRoundSalePrices(companyId);
-  const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
-  const { data, isFetched } = useQuery({ queryKey: ['sale-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
-  return (
-    <div className="relative">
-      <Input value={value} onChange={(e) => onText(e.target.value)} placeholder={t('sales.lineArticleOrText')} className="h-8" />
-      {/* Recherche sans résultat : on le dit, sinon le vendeur croit que la recherche ne marche pas. */}
-      {isFetched && data && data.length === 0 && deb.length >= 2 && (
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{t('sales.articleNone').replace('{term}', deb)}</p>
-      )}
-      {data && data.length > 0 && deb.length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {data.map((a) => (
-            <button key={a.id} type="button" onClick={() => onPick(a)}
-              title={t('availability.stockHint').replace('{free}', String(a.real_qty - a.reserved_qty)).replace('{real}', String(a.real_qty)).replace('{reserved}', String(a.reserved_qty)).replace('{order}', String(a.on_order_qty))}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
-              <span className="ml-auto flex shrink-0 items-center gap-2">
-                {a.superseded_by_id && <StatusBadge tone="warning" icon={Repeat} label={t('sales.replacedBadge')} />}
-                <SaleStockBadge status={saleStockStatus(a)} free={a.real_qty - a.reserved_qty} />
-                <span className="tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <ArticleLinePicker companyId={companyId} value={value} onText={onText} onPick={onPick} placeholder={t('sales.lineArticleOrText')} />;
 }
 
 /** Ligne main-d'œuvre : articles de type T (liste complète à l'ouverture, filtrée à la frappe). */

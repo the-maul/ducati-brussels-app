@@ -11,7 +11,10 @@ import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
 import { updateRepairOrder, transformToInvoice, checkupSchemaReady, type RoInput } from '@/modules/workshop/write-api';
 import { OrEditor, type OrPayload, type OrEditorIntent } from '@/modules/workshop/or-editor';
-import { openAccidentFile } from '@/modules/workshop/accident/api';
+import { openAccidentFile, accidentSchemaReady, findAccidentFileFor, getAccidentFile } from '@/modules/workshop/accident/api';
+import { AccidentStatusBadge } from '@/modules/workshop/accident/accident-file-screen';
+import { ensureAccidentFileForOr } from '@/modules/workshop/or-page-api';
+import { isAccidentOr } from '@/modules/workshop/or-page-rules';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
@@ -57,6 +60,16 @@ function OrView() {
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   const companyName = companies.find((c) => c.id === activeCompanyId)?.name ?? '';
+  // Dossier accident deja ouvert pour cet OR (bandeau et bouton « Voir le dossier accident »).
+  const accidentSchema = useQuery({ queryKey: ['accident-schema'], queryFn: accidentSchemaReady, staleTime: Infinity });
+  const accidentFileQ = useQuery({
+    queryKey: ['accident-file-for-or', orId],
+    enabled: accidentSchema.data === true && !!activeCompanyId,
+    queryFn: async () => {
+      const id = await findAccidentFileFor(activeCompanyId!, { repairOrderId: orId });
+      return id ? getAccidentFile(id) : null;
+    },
+  });
   // Mission 09 carte 5 : le dossier accident (fiche, photos, devis, formulaire Ducati, mail) remplace l'ancienne fenetre d'aide.
   const accident = useMutation({
     mutationFn: () => openAccidentFile({ companyId: activeCompanyId!, vehicleId: data?.or.vehicle_id, contactId: data?.or.contact_id, repairOrderId: orId, expertName: data?.or.expert_name }),
@@ -67,13 +80,26 @@ function OrView() {
   const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); };
 
   const toInput = (p: OrPayload): RoInput => ({
-    companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator,
+    companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator, operatorId: p.operatorId,
     repairType: p.repairType, workDescription: p.workDescription, receptionNotes: p.receptionNotes, status: p.status,
     warrantyStatus: p.warrantyStatus, expertName: p.expertName, expertDate: p.expertDate || null, reasonCode: p.reasonCode, lines: p.lines,
   });
 
+  // OR accident : a l'enregistrement, le dossier accident s'ouvre en brouillon s'il n'existe pas (ATE001b).
+  const ensureAccident = async (p: OrPayload) => {
+    const file = await ensureAccidentFileForOr({
+      companyId: activeCompanyId!, orId, reasonCode: p.reasonCode, repairType: p.repairType || null, status: p.status,
+      contactId: p.contactId, vehicleId: p.vehicleId, expertName: p.expertName || null,
+    }).catch(() => null);
+    if (file?.created) {
+      qc.invalidateQueries({ queryKey: ['accident-files'] });
+      qc.invalidateQueries({ queryKey: ['accident-file-for-or', orId] });
+      toast.success(t('orPage.accidentFileCreated'));
+    }
+  };
+
   const save = useMutation({
-    mutationFn: (p: OrPayload) => updateRepairOrder(orId, toInput(p)),
+    mutationFn: async (p: OrPayload) => { await updateRepairOrder(orId, toInput(p)); await ensureAccident(p); },
     onSuccess: refresh,
     onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
   });
@@ -165,6 +191,8 @@ function OrView() {
   const approval = approvalState(orx);
   const workAllowed = canStartWork(orx);
   const busy = save.isPending || proposal.isPending;
+  const accidentOr = isAccidentOr({ reasonCode, repairType: or.repair_type });
+  const accidentFile = accidentFileQ.data ?? null;
 
   const onSubmit = (p: OrPayload, intent: OrEditorIntent) => {
     setError(null);
@@ -193,7 +221,7 @@ function OrView() {
             )}
             {!invoiced && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => setBasketOpen(true)}><ShoppingBasket /> {t('basket.addToStandard')}</Button>}
-            <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {t('accidentFile.open')}</Button>
+            <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('accidentFile.openExisting') : t('accidentFile.open')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
         }
@@ -203,6 +231,20 @@ function OrView() {
         {or.warranty_status !== 'aucune' && <StatusBadge tone={pending ? 'warning' : 'info'} label={t(`workshop.warranty_${or.warranty_status}`)} />}
         {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>
+      {/* OR accident : le dossier accident, bien visible (ATE001b). */}
+      {(accidentOr || accidentFile) && accidentSchema.data === true && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
+          <LifeBuoy className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-bold">{t('orPage.accidentTitle')}</p>
+            <p className="text-[12px] text-muted-foreground">{accidentFile ? t('orPage.accidentLinked') : t('orPage.accidentNone')}</p>
+          </div>
+          {accidentFile && <AccidentStatusBadge status={accidentFile.status} />}
+          <Button onClick={() => accident.mutate()} disabled={accident.isPending}>
+            {accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('orPage.accidentOpenFile') : t('orPage.accidentCreateFile')}
+          </Button>
+        </div>
+      )}
       {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
       {!workAllowed && (
         <p className="mb-3 flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">

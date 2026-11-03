@@ -2368,6 +2368,29 @@ export const fr = {
   },
 
   // Dossiers accident (M8, mission 09 carte 5, ACH005)
+  // Page OR (ATE001b, 03/11/2026)
+  orPage: {
+    none: 'Aucun',
+    you: '(vous)',
+    legacyValue: '{value} (ancienne saisie)',
+    operatorPlaceholder: 'Membre de l\'équipe…',
+    repairTypePlaceholder: 'Choisir le type…',
+    accidentTitle: 'Dossier accident',
+    accidentLinked: 'Dossier ouvert pour cet OR : photos, devis, formulaire Ducati, envoi.',
+    accidentNone: 'OR accident : le dossier s\'ouvre en brouillon à l\'enregistrement, ou tout de suite avec le bouton.',
+    accidentOpenFile: 'Ouvrir le dossier accident',
+    accidentCreateFile: 'Créer le dossier accident',
+    accidentFileCreated: 'Dossier accident ouvert en brouillon (Atelier → Dossiers accident).',
+  },
+
+  // Recherche d'article des lignes (OR, check-up, ventes)
+  articlePick: {
+    placeholder: 'Référence ou désignation…',
+    searching: 'Recherche…',
+    none: 'Aucun article trouvé pour « {term} » : la ligne restera en texte libre.',
+    keyboardHint: 'Flèches pour choisir, Entrée pour valider, Échap pour fermer.',
+  },
+
   accidentFile: {
     title: 'Dossiers accident',
     subtitle: 'Aide à la réparation Ducati : un dossier part complet (devis, formulaire, photos, châssis) ou ne part pas.',

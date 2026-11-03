@@ -2363,6 +2363,29 @@ export const nl: DictionaryShape = {
   },
 
   // Dossiers accident (M8, mission 09 carte 5, ACH005)
+  // Page OR (ATE001b, 03/11/2026)
+  orPage: {
+    none: 'Geen',
+    you: '(u)',
+    legacyValue: '{value} (oude invoer)',
+    operatorPlaceholder: 'Teamlid…',
+    repairTypePlaceholder: 'Kies het type…',
+    accidentTitle: 'Ongevallendossier',
+    accidentLinked: 'Dossier geopend voor deze werkorder: foto\'s, offerte, Ducati-formulier, verzending.',
+    accidentNone: 'Ongevalwerkorder: het dossier wordt als concept geopend bij het opslaan, of meteen met de knop.',
+    accidentOpenFile: 'Ongevallendossier openen',
+    accidentCreateFile: 'Ongevallendossier aanmaken',
+    accidentFileCreated: 'Ongevallendossier als concept geopend (Werkplaats → Ongevallendossiers).',
+  },
+
+  // Recherche d'article des lignes (OR, check-up, ventes)
+  articlePick: {
+    placeholder: 'Referentie of omschrijving…',
+    searching: 'Zoeken…',
+    none: 'Geen artikel gevonden voor "{term}": de regel blijft vrije tekst.',
+    keyboardHint: 'Pijltjes om te kiezen, Enter om te bevestigen, Esc om te sluiten.',
+  },
+
   accidentFile: {
     title: 'Ongevaldossiers',
     subtitle: 'Ducati-herstelhulp: een dossier vertrekt volledig (offerte, formulier, foto\'s, chassis) of vertrekt niet.',

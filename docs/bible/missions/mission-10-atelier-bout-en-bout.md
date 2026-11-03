@@ -156,6 +156,14 @@ Estimations en jours de travail d'agent, test compris. « Dépend de » = carte 
 | 17 | **Pièces apportées par le client** | Ligne « pièce client » sans article ni stock, mention sur la facture (pas de garantie pièce). | OR → « + Pièce du client » : ligne à 0 €, mention imprimée, aucun mouvement de stock. | 0,5 | — |
 | 18 | **Moto de courtoisie suivie** (ATE005) | 11 motos « courtoisie » en base, prêt en texte libre : contrat de prêt, km et carburant départ / retour, état, signature, rappel de retour. | RDV avec courtoisie → prêt ouvert sur la moto ; retour : km, alerte si non rendue. | 2 | question 9 |
 | 19 | **Garantie Ducati ou magasin (B10 complet)** | Invariant B10 incomplet : pas de distinction Ducati / magasin, pas de cession garantie, coût jamais suivi (ATE016, ATE020). Assez gros pour une mission à part. | OR garantie Ducati → lignes en cession garantie, état d'avancement, refus partiel re-routé au client. | 3 | question 8 |
+| 20 | **Motif d'entrée et type de réparation : un seul choix à l'accueil** | Doublon apparent sur la page OR (retour du 03/11) : « Accident », « Garantie », « Pneus », « Diagnostic » sont dans les deux listes. *Reco* §9. Chaque motif porte son type (colonne « Type » du motif dans Paramètres → Tables) ; l'OR garde `repair_type` pour l'imputation et les stats, affiché en lecture, modifiable. | Nouvel OR, motif « Garantie Ducati » → type « Garantie Ducati » posé, prise en charge garantie affichée ; aucun deuxième choix à faire. | 0,5 | question 11 |
+| 21 | **Kilométrage contrôlé et repris du RDV** | Le km se saisit à vide : rien n'empêche 1 200 km sur une moto déjà relevée à 18 000 km ; le km du RDV n'est pas repris (couture b). Alerte si km < dernier km connu (OR, déclaration client, DCS), reprise du RDV. | OR d'une moto relevée à 18 000 km → saisir 1 200 : alerte « inférieur au dernier relevé (18 000 km le …) ». | 0,5 | — |
+| 22 | **Barre d'actions de l'OR allégée** | Neuf boutons de même poids en tête de l'OR (facture, devis, parcours, picking, deux façons de commander, dossier accident, retour) : le chef d'atelier ne voit pas l'essentiel. Garder « Transformer en facture » + l'action de l'étape en cours, le reste dans un menu « Plus ». Dépend de la carte 7 (un seul bouton commander). | OR en cours : 3 boutons visibles + « Plus » ; OR accident : bandeau du dossier accident en tête. | 0,5 | 7 |
+| 23 | **Mécanicien affecté distinct de l'opérateur** | L'opérateur (03/11) = qui a l'OR à son nom (réceptionnaire). Le mécanicien du RDV est un texte libre et n'arrive pas sur l'OR. Colonne `mechanic_id` (membre atelier), reprise du RDV, lue par la pointeuse et le planning de charge (carte 14). | RDV avec « John » → Créer l'OR : opérateur = connecté, mécanicien = John ; Pointeuse : John voit l'OR. | 0,5 | question 5, 14 |
+| 24 | **Remise client et PV HT partout** | Le 03/11 la remise du client (Clients → Tarifs clients, `resolve_customer_price`) est posée sur les lignes de l'OR ; pas encore sur les documents de vente ni la caisse ; `sale_article_exact_lookup` (coller une réf. e-catalog) renvoie encore un PV HT vide pour les articles au TTC seul. | Client avec remise 10 % → devis : la ligne a 10 % ; coller une réf. e-catalog d'un article au TTC seul : PU HT non nul. | 0,5 | — |
+| 25 | **Changer l'article d'une ligne** | Une ligne pièce choisie devient un texte modifiable sans référence visible ; pour changer d'article il faut supprimer la ligne. Afficher la référence, le stock et un bouton « changer ». | Ligne « Plaquettes » → changer → rechercher → la ligne garde sa quantité, prend le nouvel article et son prix. | 0,5 | — |
+
+Cartes 20 à 25 ajoutées le 03/11 après les retours du client sur « Nouvel OR » (§9).
 
 Ordre conseillé : **1 → 2 → 3** (indépendantes, ouvrent tout), puis **4 → 5 → 6 → 7 → 8** (la chaîne
 des pièces), **9 → 10 → 11 → 12** (le travail et sa fin), puis 13 à 19. Total ≈ 27 jours ; le cœur
@@ -202,6 +210,10 @@ demandé par Simon (cartes 1 à 12) ≈ 17 jours.
 9. **Motos de courtoisie** : contrat de prêt, caution, km, carburant : à suivre dans le DMS ?
 10. **Restitution** : voulez-vous une fiche de restitution signée par le client (travaux faits,
     reportées, prochain entretien) ?
+11. **Motif et type de réparation** : un seul choix à l'accueil (le motif, qui donne le type), ou
+    garder deux listes ? *Reco* : un seul choix, type déduit et modifiable (carte 20).
+12. **Opérateur** : est-ce le réceptionnaire (qui a l'OR à son nom) ou le mécanicien qui répare ?
+    *Reco* : l'opérateur = réceptionnaire / responsable de l'OR, un champ « Mécanicien » à part (carte 23).
 
 ## 7. Ce qui a changé dans l'application (audit du 03/11)
 
@@ -224,3 +236,38 @@ Trois corrections franches, sans migration (commit de la mission) :
   (vérifié le 03/11) : à corriger lors de la prochaine mise à jour de ces chapitres.
 - **Deux référentiels d'entretien** (posters et manuels) : la carte 1 doit trancher lequel fait foi
   pour le temps et les opérations (*reco* : le manuel de la moto, le poster en repli).
+
+## 9. Retours du client sur « Nouvel OR » (03/11/2026, ATE001b) — fait
+
+Simon a testé « Nouvel OR » (captures du 03/11). Livré sur `main` (branche `fix-page-or`), migration
+`20261103230000_m8_page_or.sql` **écrite, essayée en transaction annulée, non appliquée** ; l'écran
+marche sans elle (repli).
+
+| # | Retour | Ce qui était cassé, et pourquoi | Ce qui change |
+|---|---|---|---|
+| 1 | Opérateur en texte libre (rouge) | Champ `Input` libre, rien ne le reliait à un compte. | Liste de l'équipe (`company_members` : mécaniciens, chef d'atelier, administrateurs dont Domenico ; le connecté y est toujours), **connecté par défaut**, modifiable ; id dans `repair_orders.operator_id` (après migration ; avant : le nom seul), le nom reste dans `operator` ; ancien OR : le texte retrouve son membre (« SIMON ») ou reste affiché « (ancienne saisie) » (« thierry »). |
+| 2 | Type de réparation libre (« on ne doit pas avoir une liste ? ») | `Input` libre ; une table « Types de réparation » (`repair_type`) existait dans Paramètres mais vide et jamais lue. | Liste réglable `workshop_repair_type` (11 types préchargés), pré-remplie par le motif (entretien / vidange → Entretien, accident → Accident / carrosserie, pneus, freins → Réparation, diagnostic) sans écraser un choix manuel ; « ENTRETIEN » des OR de démo retrouve son code, « calandre » reste en « ancienne saisie ». |
+| 3 | « FREIN » : propositions cachées sous le cadre, 2 propositions obscures | La liste était un bloc `absolute` dans le tableau des lignes (`overflow-x-auto`) : coupée par le conteneur. La recherche (`part_order_article_search`, limite 8) triait par référence : sur 1 413 articles « frein », les 8 premiers « 000028810… » (anciens modèles, rien en stock) ; seuls 2 tenaient dans la zone visible. | Un seul composant `ArticleLinePicker` (OR, check-up, documents de vente) : liste en surcouche (Popover, portail), flèches / Entrée / Échap, 20 résultats avec stock, casier et PV HT ; nouvelle fonction `article_line_search` : référence / code-barres exact, début de référence, puis désignation (tous les mots, aussi l'original fournisseur), **en stock d'abord**, catalogue après. Essai : « FREIN » → pédales, pompes, disques, leviers en stock ; « 44440312B » → le filtre à huile en premier. Sans la migration : ancienne fonction, 20 résultats, en stock d'abord. Les désignations sont déjà en FR (`designation` = version FR ; 1 article traduit sur 93 784 : la traduction du catalogue reste à lancer). |
+| 4 | PU HT à 0, TVA 21 en dur | 81 089 articles sur 93 784 n'ont que leur PV TTC (`sale_price_ht` vide) ; la recherche renvoyait `coalesce(sale_price_ht, 0)`. Même défaut dans les ventes, la caisse et le check-up. | PU HT = PV HT, sinon PV TTC / (1 + TVA), arrondi catalogue de la société ; TVA de l'article ; remise du client (Tarifs clients) posée si elle existe (0 règle en base aujourd'hui) ; une ligne passée en main-d'œuvre prend le taux horaire atelier (90 € HT). Corrigé à la source (`searchSaleArticles`) : ventes, caisse, check-up aussi. |
+| 5 | Motif « Accident », aucun dossier dans Dossiers accident | Rien n'ouvrait le dossier à l'enregistrement : seul un bouton parmi neuf en tête de l'OR (OR-2026-00003, motif accident, 0 dossier en base). L'écran Dossiers accident liste bien tous les statuts, brouillons compris. | À l'enregistrement d'un OR accident (motif ou type), le dossier est **créé en brouillon**, lié à l'OR, au client, à la moto et à l'expert (jamais deux) ; bandeau « Dossier accident » bien visible sur l'OR (statut + « Ouvrir le dossier » / « Créer le dossier ») ; le bouton d'en-tête dit « Voir le dossier accident » s'il existe. |
+| 6 | Revue de la page | Garantie et expert toujours affichés ; ordre mélangé. | Ordre : client, moto, km / motif, type, opérateur / statut, puis **garantie seulement pour un OR garantie** et **expert + date seulement pour un accident** (restent visibles s'ils sont remplis) / travaux demandés, observations. Le reste : cartes 20 à 25 ci-dessus. |
+
+**Recommandation motif / type de réparation** : ce ne sont pas les mêmes informations — le **motif**
+dit *pourquoi la moto entre* (il pilote l'entretien choisi, le check-up, le kit, la carte 1), le
+**type** dit *comment l'OR s'impute* (garantie Ducati ou magasin, ORO au coût de revient, PDI, accident :
+stats et facturation, B3 / B10). Mais demander les deux à l'accueil fait doublon (accident, garantie,
+pneus, diagnostic sont dans les deux listes). *Reco* : **un seul choix à l'accueil**, le motif, chaque
+motif portant son type dans Paramètres (carte 20) ; le type reste une colonne de l'OR, pré-rempli,
+visible et modifiable (« Entretien annuel » → Entretien ; « Garantie » se dédouble en « Garantie
+Ducati » / « Garantie magasin »). Pas de fusion sans décision (question 11).
+
+Questions 11 et 12 ajoutées au §6.
+
+**Essai à blanc (03/11, transaction annulée, administrateur simulé, société ITALBIKE)** : colonne
+`operator_id` posée, OR d'essai au nom de « Simon-atelier », opérateur hors société refusé (« L'operateur
+choisi n'est pas membre de la societe. »), 11 types préchargés, dossier accident en brouillon lié à l'OR,
+`article_line_search` : « FREIN » 20 articles en stock en tête, « plaquette frein » (tous les mots),
+« 44440312B » exact en premier. Rien gardé.
+
+Application (après backup et go) :
+`npx supabase@2.117.0 db query --linked --project-ref ujmrosbgkvgvwfnuryna -f supabase/migrations/20261103230000_m8_page_or.sql`

@@ -2363,6 +2363,29 @@ export const it: DictionaryShape = {
   },
 
   // Dossiers accident (M8, mission 09 carte 5, ACH005)
+  // Page OR (ATE001b, 03/11/2026)
+  orPage: {
+    none: 'Nessuno',
+    you: '(tu)',
+    legacyValue: '{value} (vecchio inserimento)',
+    operatorPlaceholder: 'Membro del team…',
+    repairTypePlaceholder: 'Scegli il tipo…',
+    accidentTitle: 'Pratica incidente',
+    accidentLinked: 'Pratica aperta per questo ordine: foto, preventivo, modulo Ducati, invio.',
+    accidentNone: 'Ordine incidente: la pratica si apre in bozza al salvataggio, o subito con il pulsante.',
+    accidentOpenFile: 'Apri la pratica incidente',
+    accidentCreateFile: 'Crea la pratica incidente',
+    accidentFileCreated: 'Pratica incidente aperta in bozza (Officina > Pratiche incidente).',
+  },
+
+  // Recherche d'article des lignes (OR, check-up, ventes)
+  articlePick: {
+    placeholder: 'Riferimento o descrizione…',
+    searching: 'Ricerca…',
+    none: 'Nessun articolo trovato per "{term}": la riga resta testo libero.',
+    keyboardHint: 'Frecce per scegliere, Invio per confermare, Esc per chiudere.',
+  },
+
   accidentFile: {
     title: 'Pratiche incidente',
     subtitle: 'Aiuto alla riparazione Ducati: una pratica parte completa (preventivo, modulo, foto, telaio) o non parte.',

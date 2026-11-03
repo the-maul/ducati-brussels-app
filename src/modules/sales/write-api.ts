@@ -12,6 +12,7 @@ import {
 import { applyCashRounding, CASH_ROUNDING_METHOD } from './cash-rounding';
 import { reversalLine } from './cash-rules';
 import { INVOICE_FAMILY_TABLE_KEY, type InvoiceFamilyRule } from './pos-rules';
+import { articleBaseSaleHt, articleVatRate } from './article-price';
 
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
@@ -490,33 +491,66 @@ export type SaleArticle = {
   category_path?: string | null;
 };
 /**
- * Recherche d'article pour une ligne de vente (référence, désignation, réf. fournisseur,
- * code-barres). Réutilise la fonction SQL de la mission 02 `part_order_article_search`
- * (même calcul du stock et de l'« en commande » que l'écran des commandes de pièces).
+ * Recherche d'article pour une ligne (OR, check-up, documents de vente, caisse) : un seul chemin.
+ * Depuis le 03/11/2026 (ATE001b) : fonction SQL `article_line_search` (migration 20261103230000) —
+ * reference / code-barres exact d'abord, puis designation (tous les mots), en stock avant le
+ * reste, catalogue apres. Sans la migration : `part_order_article_search` (mission 02), resultats
+ * en stock remontes. Dans les deux cas, le PV HT vide se deduit du PV TTC (81 089 articles n'ont
+ * que leur TTC) : sans cela le PU HT restait a 0.
  */
-export async function searchSaleArticles(companyId: string, term: string, limit = 8): Promise<SaleArticle[]> {
+type ArticleHitRow = {
+  article_id: string; reference: string; designation: string; sale_price_ht: number | null; sale_price_ttc?: number | null;
+  vat_rate: number | null; mgmt_type: string | null; bin_location: string | null;
+  real_qty: number | null; reserved_qty: number | null; on_order_qty: number | null;
+};
+let lineSearchMissing = false;
+const rpcLoose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
+const isMissingFn = (e: { code?: string; message: string }) => e.code === 'PGRST202' || e.code === '42883' || /Could not find the function|does not exist/i.test(e.message);
+
+export async function searchSaleArticles(companyId: string, term: string, limit = 20): Promise<SaleArticle[]> {
   const s = term.trim();
   if (s.length < 2) return [];
-  const { data, error } = await supabase.rpc('part_order_article_search', { _company: companyId, _term: s, _limit: limit });
-  if (error) throw error;
-  const rows = data ?? [];
-  // Remplacement / équivalences (non renvoyés par la fonction SQL) : un seul aller-retour.
-  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null; category_path: string | null }>();
+  let rows: ArticleHitRow[] = [];
+  let ranked = false;
+  if (!lineSearchMissing) {
+    const { data, error } = await rpcLoose('article_line_search', { _company: companyId, _term: s, _limit: limit });
+    if (!error) { rows = (data as ArticleHitRow[]) ?? []; ranked = true; }
+    else if (isMissingFn(error)) lineSearchMissing = true;
+    else throw error;
+  }
+  if (!ranked) {
+    const { data, error } = await supabase.rpc('part_order_article_search', { _company: companyId, _term: s, _limit: limit });
+    if (error) throw error;
+    // En stock d'abord (tri stable : l'ordre de la fonction est garde a l'interieur de chaque groupe).
+    rows = ((data ?? []) as ArticleHitRow[]).map((r, i) => ({ r, i }))
+      .sort((a, b) => {
+        const fa = Number(a.r.real_qty ?? 0) - Number(a.r.reserved_qty ?? 0) > 0 ? 0 : 1;
+        const fb = Number(b.r.real_qty ?? 0) - Number(b.r.reserved_qty ?? 0) > 0 ? 0 : 1;
+        return fa - fb || a.i - b.i;
+      }).map((x) => x.r);
+  }
+  // Remplacement / équivalences / famille / PV TTC (non renvoyés par la fonction de repli) : un seul aller-retour.
+  const links = new Map<string, { superseded_by_id: string | null; equivalence_group: string | null; category_path: string | null; sale_price_ttc: number | null }>();
   if (rows.length) {
     const { data: l, error: le } = await supabase
-      .from('articles').select('id, superseded_by_id, equivalence_group, category_path').in('id', rows.map((a) => a.article_id));
+      .from('articles').select('id, superseded_by_id, equivalence_group, category_path, sale_price_ttc').in('id', rows.map((a) => a.article_id));
     if (le) throw le;
-    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path });
+    for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path, sale_price_ttc: x.sale_price_ttc });
   }
-  return rows.map((a) => ({
-    id: a.article_id, reference: a.reference, designation: a.designation,
-    sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
-    mgmt_type: a.mgmt_type ?? null, bin_location: a.bin_location ?? null,
-    real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
-    superseded_by_id: links.get(a.article_id)?.superseded_by_id ?? null,
-    equivalence_group: links.get(a.article_id)?.equivalence_group ?? null,
-    category_path: links.get(a.article_id)?.category_path ?? null,
-  }));
+  return rows.map((a) => {
+    const link = links.get(a.article_id);
+    const vat = articleVatRate(a);
+    return {
+      id: a.article_id, reference: a.reference, designation: a.designation,
+      sale_price_ht: articleBaseSaleHt({ sale_price_ht: a.sale_price_ht, sale_price_ttc: a.sale_price_ttc ?? link?.sale_price_ttc ?? null, vat_rate: vat }),
+      vat_rate: vat,
+      mgmt_type: a.mgmt_type ?? null, bin_location: a.bin_location ?? null,
+      real_qty: Number(a.real_qty ?? 0), reserved_qty: Number(a.reserved_qty ?? 0), on_order_qty: Number(a.on_order_qty ?? 0),
+      superseded_by_id: link?.superseded_by_id ?? null,
+      equivalence_group: link?.equivalence_group ?? null,
+      category_path: link?.category_path ?? null,
+    };
+  });
 }
 
 /**
@@ -526,14 +560,14 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
 export async function searchLabourArticles(companyId: string, term: string): Promise<SaleArticle[]> {
   const s = term.replace(/[,()%*\\]/g, ' ').trim();
   let q = supabase.from('articles')
-    .select('id, reference, designation, sale_price_ht, vat_rate, superseded_by_id, equivalence_group')
+    .select('id, reference, designation, sale_price_ht, sale_price_ttc, vat_rate, superseded_by_id, equivalence_group')
     .eq('company_id', companyId).eq('mgmt_type', 'T').eq('is_active', true).order('reference').limit(20);
   if (s) q = q.or(`reference.ilike.%${s}%,designation.ilike.%${s}%`);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []).map((a) => ({
     id: a.id, reference: a.reference, designation: a.designation,
-    sale_price_ht: Number(a.sale_price_ht ?? 0), vat_rate: Number(a.vat_rate ?? 21),
+    sale_price_ht: articleBaseSaleHt(a), vat_rate: articleVatRate(a),
     mgmt_type: 'T', bin_location: null, real_qty: 0, reserved_qty: 0, on_order_qty: 0,
     superseded_by_id: a.superseded_by_id, equivalence_group: a.equivalence_group, category_path: null,
   }));

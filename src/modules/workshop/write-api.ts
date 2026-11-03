@@ -13,6 +13,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { createDocument, type LineInput } from '@/modules/sales/write-api';
 import { invoiceableRoLines } from './checkup/rules';
+import { operatorIdSchemaReady } from './or-page-api';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -59,6 +60,8 @@ async function nextNumber(companyId: string): Promise<string> {
 export type RoInput = {
   companyId: string; contactId?: string | null; vehicleId?: string | null; mileage?: number | null;
   operator?: string | null; repairType?: string | null; workDescription?: string | null; receptionNotes?: string | null;
+  /** Membre de l'equipe (migration 20261103230000) ; undefined = ne pas toucher. `operator` garde son nom. */
+  operatorId?: string | null;
   status: string; warrantyStatus: string; expertName?: string | null; expertDate?: string | null;
   /** Motif d'entrée (reference_values `workshop_reason`), undefined = ne pas toucher. */
   reasonCode?: string | null;
@@ -137,6 +140,8 @@ async function headerPatch(p: RoInput): Promise<Record<string, unknown>> {
     expert_name: p.expertName ?? null, expert_date: p.expertDate ?? null, ...computeRoTotals(p.lines),
   };
   if (p.reasonCode !== undefined && await checkupSchemaReady()) base.reason_code = p.reasonCode || null;
+  // Operateur choisi dans l'equipe : l'id n'est ecrit que si la colonne existe (sinon le nom suffit).
+  if (p.operatorId !== undefined && await operatorIdSchemaReady()) base.operator_id = p.operatorId || null;
   return base;
 }
 

@@ -20,6 +20,8 @@ import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { SaleArticle } from '@/modules/sales/write-api';
 import { ArticlePicker } from '../or-editor';
+import { articleLinePrice } from '@/modules/sales/article-price';
+import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { checkupPhotoUrl, prefillFromMaintenancePlan, uploadCheckupPhoto, vehicleMaintenanceDue } from './api';
 import {
   CHECKUP_STATES, blankCard, blankPart, cardPrice, cardRate, checkupTotals, isMaintenanceReason, PROPOSED_STATES,
@@ -161,7 +163,12 @@ function CheckupCardView({ index, card, companyId, orId, rate, onChange, onRemov
 
   const setPart = (key: string, patch: Partial<CheckupPart>) => onChange({ parts: card.parts.map((p) => (p.key === key ? { ...p, ...patch } : p)) });
   const removePart = (key: string) => onChange({ parts: card.parts.filter((p) => p.key !== key) });
-  const pickArticle = (key: string, a: SaleArticle) => setPart(key, { article_id: a.id, reference: a.reference, designation: a.designation, unit_price_ht: a.sale_price_ht, vat_rate: a.vat_rate });
+  // Meme prix que la fiche OR et les ventes : PV HT (deduit du TTC si besoin), arrondi catalogue, TVA de l'article.
+  const roundUp = useRoundSalePrices(companyId);
+  const pickArticle = (key: string, a: SaleArticle) => {
+    const price = articleLinePrice(a, { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) });
+    setPart(key, { article_id: a.id, reference: a.reference, designation: a.designation, unit_price_ht: price.unit_price_ht, vat_rate: price.vat_rate });
+  };
 
   return (
     <div className={cn('rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]', deferred && 'opacity-80')}>
