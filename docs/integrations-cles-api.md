@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | 1 | **Supabase** | tout (DB, Auth, Storage, Edge, Realtime) | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_SERVICE_ROLE_KEY`, anon key, project ref `ujmrosbgkvgvwfnuryna` | env User (dev) / Supabase | ✅ |
 | 2 | **GitHub** | dépôt / CI | `GITHUB_TOKEN` (PAT) | env User | ✅ |
-| 3 | **Stripe** | E-shop — paiement en ligne (M11) | `STRIPE_SECRET_KEY` (Edge), `STRIPE_PUBLISHABLE_KEY` (front, optionnel), `STRIPE_WEBHOOK_SECRET` (webhook) | Supabase secrets | 🟡 |
+| 3 | **Stripe** | **QR de paiement Bancontact / carte sans supplément** au comptoir et lien de paiement à distance (M6, PDV040, 03/11/2026) | `STRIPE_SECRET_KEY` (Edge, `sk_test_…` d'abord), `STRIPE_WEBHOOK_SECRET` (`whsec_…`, webhook) ; optionnel `APP_PUBLIC_URL` (adresse de l'application pour la page de retour) | Supabase secrets | 🟡 code fait, à déployer |
 | 4 | **Falco (Peppol)** | Factures sortantes **UBL/Peppol** (M12) | clé/identifiants API Falco + **Peppol participant ID** par société (déjà saisissable dans Paramètres → Sociétés) | Supabase secrets + champ société | 🟡 |
 | 5 | **Winbooks** | Export comptable (M12) | format d'import du comptable (gabarit) ; API si transfert auto | (fichier) / Supabase secrets | 🟡 |
 | 6 | **Resend** (e-mails) | Confirmations commande e-shop, rappels RDV atelier, relances clients (M8/M10/M11/M12) | `RESEND_API_KEY` + domaine expéditeur vérifié | Supabase secrets | 🟡 |
@@ -24,12 +24,38 @@
 
 ## Détails par intégration
 
-### 3. Stripe (paiement e-shop)
-- **Edge Function** `supabase/functions/stripe-checkout` (déjà écrite) crée la session de paiement.
-  - Déploiement : `supabase functions deploy stripe-checkout` puis `supabase secrets set STRIPE_SECRET_KEY=sk_...`
-  - Tant que la clé n'est pas posée, la commande est enregistrée en **« en attente de paiement »** (dégradé propre).
-- **À venir** : `stripe-webhook` (vérifie la signature avec `STRIPE_WEBHOOK_SECRET`, passe la commande en **payée**, génère la facture + sort le stock réel). URL webhook à déclarer dans le dashboard Stripe.
-- Clés : `sk_test_…` puis `sk_live_…` ; `pk_…` côté front si Stripe Elements ; `whsec_…` pour le webhook.
+### 3. Stripe (QR de paiement au comptoir, lien à distance — PDV040, 03/11/2026)
+> Correction : jusqu'au 03/11 ce paragraphe disait « `stripe-checkout` déjà écrite ». C'était faux (rien
+> dans le dépôt depuis la suppression du 18/09). Les deux fonctions ont été écrites le 03/11 pour le **QR
+> sans supplément** (étude `docs/etudes/2026-11-paiements-comptoir.md` §3, décision du 03/11). L'e-shop
+> passe par Shopify Payments (M11), pas par ces fonctions.
+
+- **`supabase/functions/stripe-checkout`** (utilisateur connecté, membre actif) : `status` (clé posée ?
+  mode de la clé, réglage société, adresse du webhook), `create` (règlement **attendu** `STRIPE` + session
+  Stripe Checkout du **montant exact**, Bancontact / carte / Wero selon Paramètres → Paiement Stripe,
+  metadata `company_id` / `document_id` / `payment_id`, retour `/paiement/merci`), `cancel` (session expirée
+  chez Stripe puis règlement annulé).
+- **`supabase/functions/stripe-webhook`** (appelée par Stripe, sans jeton) : signature `Stripe-Signature`
+  vérifiée avec `STRIPE_WEBHOOK_SECRET` (5 min de tolérance), paiement réussi → règlement **reçu** (frais Stripe
+  notés à part), session expirée → **annulé**, idempotent (`stripe_events`).
+- **Aucun supplément** (art. VII.30 § 3 CDE) : frais Stripe (Bancontact 0,35 €, cartes EEE 1,5 % + 0,25 €) à la
+  charge du magasin. **Mode test par défaut** : le réglage société (test / réel) doit correspondre à la clé
+  (`sk_test_…` / `sk_live_…`), sinon rien ne part ; sans clé, le bouton est masqué avec un message.
+- **Mise en route** (dans cet ordre, après backup, règle 5.0) :
+  1. Migration : `npx supabase@2.117.0 db query --linked --project-ref ujmrosbgkvgvwfnuryna -f supabase/migrations/20261103260000_m6_paiement_stripe.sql`
+  2. Fonctions : `npx supabase@2.117.0 functions deploy stripe-checkout --project-ref ujmrosbgkvgvwfnuryna`
+     puis `npx supabase@2.117.0 functions deploy stripe-webhook --project-ref ujmrosbgkvgvwfnuryna`
+     (`verify_jwt = false` pour les deux dans `supabase/config.toml` : contrôle dans le code).
+  3. Secrets : `npx supabase@2.117.0 secrets set STRIPE_SECRET_KEY=sk_test_... --project-ref ujmrosbgkvgvwfnuryna`
+     (facultatif : `APP_PUBLIC_URL=https://<adresse de l'application>`).
+  4. **Webhook à déclarer chez Stripe** (tableau de bord → Développeurs → Webhooks → Ajouter un endpoint) :
+     URL `https://ujmrosbgkvgvwfnuryna.supabase.co/functions/v1/stripe-webhook`, événements
+     `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+     `checkout.session.async_payment_failed`, `checkout.session.expired`, `payment_intent.succeeded` ;
+     copier le secret de signature puis `npx supabase@2.117.0 secrets set STRIPE_WEBHOOK_SECRET=whsec_... --project-ref ujmrosbgkvgvwfnuryna`.
+  5. Paramètres → Paiement Stripe : activer, moyens (Bancontact + carte), mode **Test**.
+  6. Passage en réel : clé `sk_live_…` + nouveau webhook en mode live (son propre `whsec_…`), puis mode **Réel**.
+- Clés : `sk_test_…` puis `sk_live_…` ; `whsec_…` pour le webhook. Pas de clé publique `pk_…` (Checkout hébergé).
 
 ### 4. Falco / Peppol (e-facturation M12)
 - L'**UBL** (Peppol BIS 3.0) est déjà généré (bouton « Export UBL » + tests).
@@ -57,7 +83,7 @@
 ---
 
 ## Récapitulatif « à me fournir »
-1. **Stripe** : `sk_test`, puis `sk_live` + `whsec` (webhook). 
+1. **Stripe** : `sk_test` + `whsec` de test (QR sans supplément, code prêt depuis le 03/11), puis `sk_live` + `whsec` live, compte au nom d'ITALBIKE STORE. 
 2. **Falco** : credentials API + confirmation du Peppol ID par société.
 3. **Resend** : `RESEND_API_KEY` + domaine d'envoi.
 4. **SMS** : fournisseur choisi + clé API + n° expéditeur.

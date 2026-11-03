@@ -5,10 +5,12 @@
  * PDV010 (03/11/2026, droit belge) : un règlement ne se supprime plus. Perçu → contre-passation
  * (règlement inverse, même mode, motif obligatoire, auteur tracé) ; attendu → annulé avec motif.
  * Plafond légal des espèces : 3 000 € par vente (acomptes compris), refus bloquant.
+ * PDV040 (03/11/2026) : « Payer par QR (Bancontact / carte) » (Stripe, sans supplément) en bas du
+ * panneau ; un règlement Stripe en attente ne se confirme ni ne s'annule ici (webhook / « Annuler le QR »).
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Check, Landmark, Undo2, Ban, ArrowLeftRight } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, Landmark, Undo2, Ban, ArrowLeftRight, Clock } from 'lucide-react';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
@@ -25,6 +27,8 @@ import { t, fillVars } from '@/lib/i18n';
 import { CASH_LIMIT_EUR, cashLimitExceeded, cashTotal, reversedIds } from './cash-rules';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { CASH_METHOD, applyCashRounding, cashRounding, changeDue } from './cash-rounding';
+import { StripePayCard } from './stripe-pay-card';
+import { STRIPE_METHOD } from './stripe-pay-rules';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -38,14 +42,18 @@ let dc = 0;
  * `overdue` : échéance dépassée → couleur --danger, sinon neutre ;
  * `financingAccepted` : propose de marquer un règlement « versé par l'organisme ».
  */
-export function PaymentPanel({ documentId, companyId, due, acompte = false, overdue = false, financingAccepted = false }: {
+export function PaymentPanel({ documentId, companyId, due, acompte = false, overdue = false, financingAccepted = false, stripe }: {
   documentId: string; companyId: string; due: number; acompte?: boolean; overdue?: boolean; financingAccepted?: boolean;
+  /** QR Stripe (PDV040) : données affichées dans le lien envoyé au client. */
+  stripe?: { totalTtc?: number; docNumber?: string | null; customerName?: string | null; customerEmail?: string | null; customerPhone?: string | null };
 }) {
   const qc = useQueryClient();
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
   const { data: payments } = useQuery({ queryKey: ['payments', documentId], queryFn: () => listPayments(documentId) });
 
-  const firstMethod = methods?.[0]?.code ?? CASH;
+  // Le moyen « Stripe » ne se saisit jamais à la main : il passe par le QR (PDV040).
+  const manualMethods = (methods ?? []).filter((m) => m.code !== STRIPE_METHOD);
+  const firstMethod = manualMethods[0]?.code ?? CASH;
   const newDraft = (amount = ''): Draft => ({ _key: `d${dc++}`, method: firstMethod, amount, deferred: false, dueDate: '', given: '', fromFinancing: false });
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +135,9 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
               <tr key={p.id} className="border-b border-border last:border-0">
                 <td className="py-1.5">{methodLabel(p.method)}</td>
                 <td className="py-1.5">
-                  {p.status === 'attendu'
+                  {p.status === 'attendu' && p.method === STRIPE_METHOD
+                    ? <StatusBadge tone="warning" icon={Clock} label={t('stripePay.pendingBadge')} />
+                    : p.status === 'attendu'
                     ? <StatusBadge tone="warning" label={`${t('sales.deferred')}${p.due_date ? ` · ${p.due_date}` : ''}`} />
                     : p.status === 'annule'
                       ? <StatusBadge tone="neutral" icon={Ban} label={t('sales.cancelledBadge')} />
@@ -138,10 +148,10 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
                 </td>
                 <td className="py-1.5 text-right tabular-nums">{eur(Number(p.amount))}</td>
                 <td className="w-20 py-1.5 text-right">
-                  {p.status === 'attendu' && (
+                  {p.status === 'attendu' && p.method !== STRIPE_METHOD && (
                     <Button size="sm" variant="ghost" title={t('sales.markReceived')} onClick={() => recv.mutate(p.id)} disabled={recv.isPending}><Check className="size-4 text-success" /></Button>
                   )}
-                  {canUndo(p, reversed) && (
+                  {canUndo(p, reversed) && !(p.method === STRIPE_METHOD && p.status === 'attendu') && (
                     <Button size="sm" variant="ghost" title={p.status === 'attendu' ? t('sales.cancelDeferred') : t('sales.reverse')} onClick={() => { setUndo(p); setUndoReason(''); setUndoError(null); }}>
                       {p.status === 'attendu' ? <Ban className="size-4 text-danger" /> : <Undo2 className="size-4 text-danger" />}
                     </Button>
@@ -160,7 +170,7 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
             <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('sales.payMethod')}</label>
             <Select value={d.method} onValueChange={(v) => setDraft(d._key, { method: v })}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>{(methods ?? []).map((m) => <SelectItem key={m.code} value={m.code}>{m.label}</SelectItem>)}</SelectContent>
+              <SelectContent>{manualMethods.map((m) => <SelectItem key={m.code} value={m.code}>{m.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
@@ -234,6 +244,12 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
           </Button>
         )}
       </div>
+
+      <StripePayCard
+        documentId={documentId} companyId={companyId} due={due} totalTtc={stripe?.totalTtc}
+        docNumber={stripe?.docNumber} customerName={stripe?.customerName}
+        customerEmail={stripe?.customerEmail} customerPhone={stripe?.customerPhone}
+      />
     </div>
   );
 }

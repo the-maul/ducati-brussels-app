@@ -26,6 +26,7 @@ const OUTSIDE_PREFIXES = [
   '/signer',
   '/app-client',
   '/ecran-client',
+  '/paiement',
 ];
 
 /** Entrees du menu de gauche : la ou le bouton n'a pas de sens. */

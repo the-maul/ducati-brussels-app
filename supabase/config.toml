@@ -9,7 +9,8 @@ project_id = "ujmrosbgkvgvwfnuryna"
 # appels sans aucun jeton ; la vraie barrière est le contrôle d'accès dans le code
 # (supabase/functions/_shared/acces.ts, lot sécurité S). Détail : docs/bible/securite-lot-S.md.
 
-# Appelées par pg_cron (en-tête x-cron-secret). Stripe et la vitrine ont été supprimés le 18/09.
+# Appelées par pg_cron (en-tête x-cron-secret). Stripe et la vitrine ont été supprimés le 18/09
+# (Stripe revient le 03/11 pour le QR de paiement : voir stripe-checkout / stripe-webhook plus bas).
 [functions.dispatch-notifications]
 verify_jwt = false
 # Relances d'entretien (M10, 31/10/2026) : pg_cron (x-cron-secret) ou membre connecte (envoi immediat, apercu).
@@ -65,4 +66,13 @@ verify_jwt = false
 # Signature d'une proposition d'intervention par le client : page publique /signer/<jeton>,
 # le jeton (64 hexa, duree limitee) est verifie DANS la fonction, avec la cle de service.
 [functions.proposal-sign]
+verify_jwt = false
+
+# Mission 12 carte P3 (PDV040, 03/11/2026) -- QR Stripe sans supplement.
+# stripe-checkout : utilisateur connecte, membre actif de la societe (controle dans le code).
+[functions.stripe-checkout]
+verify_jwt = false
+# stripe-webhook : appelee par Stripe, sans jeton ; signature Stripe-Signature verifiee dans le
+# code (STRIPE_WEBHOOK_SECRET). La verification du jeton doit rester coupee, sinon Stripe recoit 401.
+[functions.stripe-webhook]
 verify_jwt = false

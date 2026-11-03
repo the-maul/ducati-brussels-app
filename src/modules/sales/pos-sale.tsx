@@ -191,7 +191,13 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
             ? <p className="mt-1 font-data text-sm tabular-nums text-warning">{t('pos.remaining')} : <b>{eur(remaining)}</b></p>
             : <p className="mt-1 font-data text-sm text-success">{t('pos.paidOk')}</p>)}
         </div>
-        <PaymentPanel documentId={activeDoc.id} companyId={companyId} due={remaining} />
+        <PaymentPanel
+          documentId={activeDoc.id} companyId={companyId} due={remaining}
+          stripe={{
+            totalTtc: activeDoc.ttc, customerName: activeDoc.contact ? contactDisplayName(activeDoc.contact) : null,
+            customerEmail: activeDoc.contact?.email ?? null, customerPhone: activeDoc.contact?.phone ?? null,
+          }}
+        />
         {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <span className="mr-auto">{screenButton}</span>

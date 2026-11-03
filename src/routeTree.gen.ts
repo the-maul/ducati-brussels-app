@@ -42,6 +42,7 @@ import { Route as AppWorkshopRouteImport } from './routes/_app.workshop'
 import { Route as MonEspaceIndexRouteImport } from './routes/mon-espace.index'
 import { Route as MonEspaceProfilRouteImport } from './routes/mon-espace.profil'
 import { Route as MonEspaceRendezVousRouteImport } from './routes/mon-espace.rendez-vous'
+import { Route as PaiementMerciRouteImport } from './routes/paiement.merci'
 import { Route as SignerTokenRouteImport } from './routes/signer.$token'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
@@ -85,6 +86,7 @@ import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
 import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
 import { Route as AppSettingsNumberingRouteImport } from './routes/_app.settings.numbering'
+import { Route as AppSettingsStripeRouteImport } from './routes/_app.settings.stripe'
 import { Route as AppSettingsTablesRouteImport } from './routes/_app.settings.tables'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app.settings.users'
 import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
@@ -286,6 +288,11 @@ const MonEspaceRendezVousRoute = MonEspaceRendezVousRouteImport.update({
   id: '/rendez-vous',
   path: '/rendez-vous',
   getParentRoute: () => MonEspaceRoute,
+} as any)
+const PaiementMerciRoute = PaiementMerciRouteImport.update({
+  id: '/paiement/merci',
+  path: '/paiement/merci',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SignerTokenRoute = SignerTokenRouteImport.update({
   id: '/signer/$token',
@@ -501,6 +508,11 @@ const AppSettingsMigrationRoute = AppSettingsMigrationRouteImport.update({
 const AppSettingsNumberingRoute = AppSettingsNumberingRouteImport.update({
   id: '/numbering',
   path: '/numbering',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsStripeRoute = AppSettingsStripeRouteImport.update({
+  id: '/stripe',
+  path: '/stripe',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsTablesRoute = AppSettingsTablesRouteImport.update({
@@ -731,6 +743,7 @@ export interface FileRoutesByFullPath {
   '/workshop': typeof AppWorkshopRouteWithChildren
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/paiement/merci': typeof PaiementMerciRoute
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
@@ -768,6 +781,7 @@ export interface FileRoutesByFullPath {
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
+  '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
@@ -833,6 +847,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/paiement/merci': typeof PaiementMerciRoute
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
@@ -868,6 +883,7 @@ export interface FileRoutesByTo {
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
+  '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
   '/stock/depreciation': typeof AppStockDepreciationRoute
@@ -946,6 +962,7 @@ export interface FileRoutesById {
   '/_app/workshop': typeof AppWorkshopRouteWithChildren
   '/mon-espace/profil': typeof MonEspaceProfilRoute
   '/mon-espace/rendez-vous': typeof MonEspaceRendezVousRoute
+  '/paiement/merci': typeof PaiementMerciRoute
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
@@ -983,6 +1000,7 @@ export interface FileRoutesById {
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
   '/_app/settings/migration': typeof AppSettingsMigrationRoute
   '/_app/settings/numbering': typeof AppSettingsNumberingRoute
+  '/_app/settings/stripe': typeof AppSettingsStripeRoute
   '/_app/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/_app/settings/users': typeof AppSettingsUsersRoute
   '/_app/stock/cessions': typeof AppStockCessionsRoute
@@ -1062,6 +1080,7 @@ export interface FileRouteTypes {
     | '/workshop'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/paiement/merci'
     | '/signer/$token'
     | '/mon-espace/'
     | '/clients/$contactId'
@@ -1099,6 +1118,7 @@ export interface FileRouteTypes {
     | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
+    | '/settings/stripe'
     | '/settings/tables'
     | '/settings/users'
     | '/stock/cessions'
@@ -1164,6 +1184,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/paiement/merci'
     | '/signer/$token'
     | '/mon-espace'
     | '/clients/$contactId'
@@ -1199,6 +1220,7 @@ export interface FileRouteTypes {
     | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
+    | '/settings/stripe'
     | '/settings/users'
     | '/stock/cessions'
     | '/stock/depreciation'
@@ -1276,6 +1298,7 @@ export interface FileRouteTypes {
     | '/_app/workshop'
     | '/mon-espace/profil'
     | '/mon-espace/rendez-vous'
+    | '/paiement/merci'
     | '/signer/$token'
     | '/mon-espace/'
     | '/_app/clients/$contactId'
@@ -1313,6 +1336,7 @@ export interface FileRouteTypes {
     | '/_app/settings/kiosk'
     | '/_app/settings/migration'
     | '/_app/settings/numbering'
+    | '/_app/settings/stripe'
     | '/_app/settings/tables'
     | '/_app/settings/users'
     | '/_app/stock/cessions'
@@ -1369,6 +1393,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MonEspaceRoute: typeof MonEspaceRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  PaiementMerciRoute: typeof PaiementMerciRoute
   SignerTokenRoute: typeof SignerTokenRoute
 }
 
@@ -1604,6 +1629,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/mon-espace/rendez-vous'
       preLoaderRoute: typeof MonEspaceRendezVousRouteImport
       parentRoute: typeof MonEspaceRoute
+    }
+    '/paiement/merci': {
+      id: '/paiement/merci'
+      path: '/paiement/merci'
+      fullPath: '/paiement/merci'
+      preLoaderRoute: typeof PaiementMerciRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/signer/$token': {
       id: '/signer/$token'
@@ -1904,6 +1936,13 @@ declare module '@tanstack/react-router' {
       path: '/numbering'
       fullPath: '/settings/numbering'
       preLoaderRoute: typeof AppSettingsNumberingRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/stripe': {
+      id: '/_app/settings/stripe'
+      path: '/stripe'
+      fullPath: '/settings/stripe'
+      preLoaderRoute: typeof AppSettingsStripeRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/tables': {
@@ -2345,6 +2384,7 @@ interface AppSettingsRouteChildren {
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
   AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
   AppSettingsNumberingRoute: typeof AppSettingsNumberingRoute
+  AppSettingsStripeRoute: typeof AppSettingsStripeRoute
   AppSettingsTablesRoute: typeof AppSettingsTablesRouteWithChildren
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -2359,6 +2399,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsKioskRoute: AppSettingsKioskRoute,
   AppSettingsMigrationRoute: AppSettingsMigrationRoute,
   AppSettingsNumberingRoute: AppSettingsNumberingRoute,
+  AppSettingsStripeRoute: AppSettingsStripeRoute,
   AppSettingsTablesRoute: AppSettingsTablesRouteWithChildren,
   AppSettingsUsersRoute: AppSettingsUsersRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
@@ -2540,6 +2581,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MonEspaceRoute: MonEspaceRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  PaiementMerciRoute: PaiementMerciRoute,
   SignerTokenRoute: SignerTokenRoute,
 }
 export const routeTree = rootRouteImport

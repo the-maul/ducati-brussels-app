@@ -55,13 +55,13 @@ Cloud » (Payment API, méthode terminal) ; le Duo Base ne l'est pas. Reste à s
 |---|---|---|---|---|---|---|
 | P1 | Au moins un moyen électronique : QR de virement SEPA + écran client | légal | **fait** (`d3cef17`, 19/09) | 0 → 0 | non | — |
 | P2 | **Écran client généralisé sur tablette** : ticket en direct, total, QR, « suivez le terminal », merci, mode vitrine ; un écran par poste | attendu | **fait (03/11, à valider)** — tablette appairée par code sans compte, ticket en direct, montant à payer, terminal, QR de virement (Stripe prévu), merci + ticket par e-mail, langue du client ; migration `20261103240000` **à appliquer** ; mode vitrine : non (accueil neutre) | 3,5 → 0 | Domenico : une tablette par poste, Android ou iPad, vitrine ? | K17 (postes) |
-| P3 | **QR instantané sans supplément** : Stripe Checkout (Bancontact 0,35 €, cartes, Wero), règlement passé « reçu » par webhook, même lien dans le mail de commande de pièces ; remplace le « +5 % » | légal (supplément interdit) + attendu | **en cours** (accord de Domenico le 03/11) | 3,5 → 3,5 | Domenico : compte Stripe d'ITALBIKE STORE et clé live | P2 |
+| P3 | **QR instantané sans supplément** : Stripe Checkout (Bancontact 0,35 €, cartes, Wero), règlement passé « reçu » par webhook, même lien dans le mail de commande de pièces ; remplace le « +5 % » | légal (supplément interdit) + attendu | **fait (03/11, à déployer)** — PDV040 : « Payer par QR (Bancontact / carte) » au comptoir et sur le document, lien à distance 24 h, webhook signé idempotent, frais à charge du magasin ; migration `20261103260000`, fonctions `stripe-checkout` / `stripe-webhook` | 3,5 → 3,5 | Domenico : compte Stripe d'ITALBIKE STORE et clé live | P2 |
 | P4 | **Terminal CCV A77 piloté par le DMS** (montant envoyé, résultat reçu), remboursement, certification CCV ; sinon terminal « à côté » (0 j) | attendu | **en cours** (étude : qui ouvre l'API, PAX / CCV / Omespay ; mail Omespay prêt, non envoyé) | 5 → 5 (+ délai Omespay) | Domenico : envoyer le mail à Omespay, relevé mensuel, date du contrat | P2 |
 | P5 | Signature sur l'écran client (BL, prise en charge, décharge) | utile | **socle fait (03/11)** : « Faire signer » sur le comptoir et le document, texte modifiable, PNG + empreinte SHA-256 rangés en GED ; reste à brancher les documents choisis | 1,5 → 0,5 | Domenico : pour quels documents ? | P2 |
 | P6 | Option : QR Bancontact Pro « On a Display » (QR belge, 120 s) | confort | à faire (option) | 2,5 → 2,5 | Domenico + sa banque (tarif) | P2 |
 
 **Bilan** : 13,5 jours estimés (+ 2,5 en option) ; **P2 livré le 03/11** (et le socle de P5) ; **reste
-9 jours** : P3 et P4 en cours (8,5), P5 0,5, + 2,5 si P6.
+5,5 jours** : P3 livré le 03/11 (à déployer), P4 en cours (5), P5 0,5, + 2,5 si P6.
 Ordre : P2 (ne dépend de personne) → P3 (dès la clé Stripe) → P4 (dès la réponse d'Omespay) → P5 → P6.
 
 ## 4. Questions en attente
@@ -84,7 +84,7 @@ paiements, atelier »**, détaillées dans [`2026-11-questions-omespay-domenico.
 
 ## 5. Ce qui a changé dans l'application
 
-P2 (écran client sur tablette) est sur `main` depuis le 03/11 ; P3 et P4 sont **en cours**.
+P2 (écran client sur tablette) et P3 (QR Stripe sans supplément, PDV040) sont sur `main` depuis le 03/11 ; P4 est **en cours**.
 Déjà livré avant : chapitre [M06 Ventes & caisse](../modules/M06-ventes-caisse.md),
 [mission 02](mission-02-commandes-pieces.md) carte 9.
 
@@ -101,8 +101,9 @@ Déjà livré avant : chapitre [M06 Ventes & caisse](../modules/M06-ventes-caiss
   publié ; ne rien promettre à Domenico avant la réponse.
 - **Contrat Omespay** : 24 mois puis 12 mois tacites, préavis 3 mois, 250 € pour changer d'institution
   de paiement : une date d'échéance manquée bloque un an de plus.
-- **Clé Stripe live** : secret à poser côté Supabase, jamais commité ; aucune fonction Stripe n'existe
-  encore dans le dépôt (contrairement à d'anciens documents).
+- **Clé Stripe** : `STRIPE_SECRET_KEY` et `STRIPE_WEBHOOK_SECRET` à poser côté Supabase, jamais commités ;
+  test d'abord (`sk_test_`), le réglage société doit correspondre au mode de la clé. Mise en route :
+  [`integrations-cles-api.md`](../../integrations-cles-api.md) §3.
 - **Produit multi-clients** : l'écran client et le terminal se règlent **par poste** ; ne rien coder en
   dur pour l'A77 ni pour une tablette précise.
 - Les **frais du QR** (Bancontact 0,35 €, cartes 1,5 % + 0,25 €) sont absorbés : ne jamais les ajouter

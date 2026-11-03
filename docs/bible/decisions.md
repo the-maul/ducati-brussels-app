@@ -1050,7 +1050,7 @@ Migration `20261005130000_m9_portail_documents_recto_verso.sql` (**appliquée le
   prévue par la spécification §4.5) ; seule sa partie « matrice » est utilisée, le dessin SVG est fait
   dans l'application (couleurs de la charte). *Équipe · 19/09.*
   [mission 02](missions/mission-02-commandes-pieces.md), [M06](modules/M06-ventes-caisse.md)
-- **P-2 étapes 2 et 3 à faire** — **QR Stripe (+5 %)** : il faudra la **clé Stripe de production**
+- **P-2 étapes 2 et 3 à faire** — *(amendé le 03/11/2026 : QR Stripe **sans supplément**, fait — PDV040, voir l'entrée du 03/11 soir)* **QR Stripe (+5 %)** : il faudra la **clé Stripe de production**
   (`STRIPE_SECRET_KEY` + secret du webhook, en secrets Supabase, jamais commités), le choix Payment Link ou
   PaymentIntent, et la règle du supplément de 5 % (ligne de frais sur le document ?). **Terminal
   Bancontact** : il faudra la **marque et le modèle du terminal** (et son prestataire : Stripe Terminal,
@@ -1242,6 +1242,17 @@ Détail : [`../process-commandes-pieces.md`](../process-commandes-pieces.md) §5
 - **M-81** (03/11/2026, mission 09 carte 6) : la commande démo / courtoisie / showroom est le classeur ouvert existant (`excel_orders`, kind `demo`), **accessoires uniquement** (une pièce ou un vêtement est refusé avec la raison) ; le **classeur Ducati vierge** (prix concession) n'est jamais dans le dépôt : déposé une fois par an dans la GED privée depuis Paramètres, rempli cellule par cellule (D2, blocs motos, `Q COMMANDE`), envoyé par mail à `cas.dwe@ducati.com` (réglable) depuis la boîte Outlook de l'utilisateur et conservé avec la commande ; statut « Commandée », numéro DCS saisi à la main après. [M04](modules/M04-achats.md), [mission 09](missions/mission-09-commandes-fournisseur.md)
 - **M-82** (03/11/2026, mission 09 carte 3) : un entretien prévu (RDV ou OR avec motif entretien) dont le kit n'est pas couvert par le stock réel ni par une commande en cours déclenche un popup « les mettre en commande ? » ; Standard par défaut, **Urgente** proposée si le RDV est à **moins de 5 jours** (réglable, ligne `urgente` des règles de commande) ; les pièces proposées sont mémorisées sur l'OR / le RDV et ne sont **jamais redemandées** (« Pas maintenant » compris) ; sans panier standard en base, repli sur une commande de pièces en brouillon. [M08](modules/M08-atelier.md), [mission 09](missions/mission-09-commandes-fournisseur.md)
 - **M-83** (03/11/2026, audit caisse, Simon) : la caisse **reste dans le DMS** (scenario A de `docs/propositions/2026-11-caisse-shopify-ou-dms.md`). Corrections sans decision : ticket a 0 EUR refuse, **arrondi legal des especes a 5 cents** porte par un reglement `ARR` (le document garde son TTC exact), avoir possible depuis un ticket, TVA par taux sur le ticket imprime, une seule session ouverte, cloture confirmee et definitive. Verrous en base ecrits, **a appliquer apres backup** : `20261103150000_m6_caisse_audit.sql` (document valide fige, reglement d une caisse cloturee fige, session cloturee intouchable, Z corrige). Cartes a trancher : ticket rattache a la session, numero et impression du Z, journal des recettes, plafond 3 000 EUR, ticket 80 mm / tiroir, droits de caisse. [M06](modules/M06-ventes-caisse.md), [audit](../etudes/2026-11-audit-caisse-dms.md)
+
+## 2026-11-03 (soir) — QR Stripe sans supplément livré (PDV040, mission 12 carte P3)
+- **P-2 amendée** (Simon et Domenico, 03/11/2026) : le QR de paiement Stripe est **sans supplément** ; le
+  « +5 % » du 30/07 est **abandonné** (illégal : art. VII.30 § 3 CDE, aucun supplément selon le moyen de
+  paiement). Le client paie exactement le montant du document ou de l'acompte, quel que soit le moyen ; les
+  **frais Stripe** (Bancontact 0,35 €, cartes 1,5 % + 0,25 €) sont **absorbés par le magasin**, notés à part
+  (`document_payments.stripe_fee`) pour la compta, jamais facturés. Confirmation **uniquement** par le webhook
+  signé (règlement attendu → reçu, idempotent), expiration → annulé ; jamais à la main. Mode **test par
+  défaut**, le réglage société (test / réel) doit correspondre à la clé. Lien « à distance » (24 h) envoyé
+  par la messagerie du vendeur (mailto / sms), aucun envoi par le DMS. Remboursement : dans Stripe.
+  *Client · 03/11.* [M06](modules/M06-ventes-caisse.md), [intégrations](../integrations-cles-api.md)
 
 ## 2026-11-03 (soir) — Simon
 - **NL INVEST retirée** : société de management, sortie depuis longtemps. Le DMS n'a qu'une société, ITALBIKE STORE ; un seul compte Falco Expert. Le modèle multi-société reste (autres clients à venir).

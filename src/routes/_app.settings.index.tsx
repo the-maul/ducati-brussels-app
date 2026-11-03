@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent, MonitorSmartphone } from 'lucide-react';
+import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Smartphone, MessageSquareText, GitMerge, Percent, MonitorSmartphone, CreditCard } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
 import { FollowupModeCard } from '@/modules/crm/followup-mode-banner';
@@ -123,6 +123,16 @@ function SettingsIndex() {
         {/* Mission 09 carte 6 : le classeur Ducati vierge (prix concession) est depose ici,
             une fois par an, dans la GED privee ; il n'est jamais dans le depot. */}
         <DemoTemplateCard />
+
+        {/* PDV040 : QR de paiement Stripe (Bancontact / carte), sans supplement. */}
+        <Link
+          to="/settings/stripe"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <CreditCard className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">{t('stripePay.settingsTitle')}</span>
+          <span className="text-sm text-muted-foreground">{t('stripePay.settingsDesc')}</span>
+        </Link>
 
         {/* CRM011 : rappel de l'interrupteur des relances (Arrete / Test / Actif), reglage dans CRM → Relances. */}
         <FollowupModeCard />

@@ -387,6 +387,11 @@ function DocumentView() {
             documentId={documentId} companyId={doc.company_id} due={balance.clientDue} overdue={balance.overdue}
             financingAccepted={doc.financing_status === 'accepte'}
             acompte={(DEPOSIT_DOC_TYPES as readonly string[]).includes(doc.doc_type)}
+            stripe={{
+              totalTtc: Number(doc.total_ttc), docNumber: doc.number,
+              customerName: contactQ.data ? contactDisplayName(contactQ.data) : null,
+              customerEmail: contactQ.data?.email ?? null, customerPhone: contactQ.data?.phone ?? null,
+            }}
           />
         </div>
       )}
