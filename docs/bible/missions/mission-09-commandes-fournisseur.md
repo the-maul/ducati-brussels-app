@@ -97,7 +97,23 @@ part **par mail à `cas.dwe@ducati.com`**.
   commande, le **dossier accident** complet (photos, formulaire, mail), l'**envoi par mail** des
   classeurs, les **pièces du catalogue commandables sur Shopify**.
 
-## 4. Questions posées à Simon le 30/10/2026
+## 4. Questions posées à Simon le 30/10/2026 — réponses du 03/11/2026
+
+1. **+12 % confirmé** pour l'urgente.
+2. Fichier `ExportDucati` : **prendre le format du document chargé (.xls, Excel 97)**. La colonne G
+   (nom du client sur certaines lignes de la capture) : Simon demande à Domenico si le DCS la lit ;
+   en attendant on la remplit (sans effet si le DCS l'ignore).
+3. Mail du dossier accident : **oui pour `technique.dwe@ducati.com`** ; `xavier.labranche@ducati.com`
+   était en copie du mail réel de Domenico (Ducati West Europe) : copie facultative, pré-remplie,
+   modifiable.
+4. Pièces du catalogue sur le site : **d'abord éclaircir la disponibilité automatique** (en stock
+   Ducati Bruxelles / disponible chez Ducati / disponible chez un fournisseur) pour qu'un client
+   — et le DMS — ne commande jamais une pièce qu'on ne peut pas avoir. **On construit d'abord
+   l'information de disponibilité ; ensuite seulement on importe tout dans Shopify comme produits.**
+   La carte 7 devient « Disponibilité automatique des pièces » (sources à établir : stock DMS,
+   état E/F du tarif Ducati, disponibilité DCS / portail Ducati, fournisseurs tiers).
+
+### Questions d'origine
 
 1. Urgente : **+12 %** (nouvelle valeur) et non +10 % — confirmé ?
 2. `ExportDucati.xls` : le DCS exige-t-il le **vieux format .xls** (Excel 97) ou un .xlsx passe-t-il ?
@@ -120,7 +136,7 @@ part **par mail à `cas.dwe@ducati.com`**.
 | 4 | **Commande urgente** | Panier séparé, une par jour, +12 % sur le prix de vente des lignes (réglable), pas de minimum, même fichier et même circuit. |
 | 5 | **Dossier accident** | Fiche dossier (moto / VIN, client, assurance, expert, n° de sinistre, urgence), devis lié, photos (téléphone / tablette, PDF assemblé), photo du châssis obligatoire, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis le devis, contrôle 1 500 € HTVA, bouton « Envoyer le dossier » → mail Outlook à technique.dwe@ducati.com avec les 4 pièces jointes, dossier et mail conservés, statut (brouillon / envoyé / accordé / pièces reçues / réparé). |
 | 6 | **Commande démo / courtoisie** | Accessoires uniquement, classeur Ducati rempli (onglet choisi, `Q COMMANDE`, code concession), minimum 2 000 € par onglet, envoi par mail à cas.dwe@ducati.com, classeur conservé. |
-| 7 | **Pièces du catalogue commandables sur le site** | Selon la réponse à la question 4. |
+| 7 | **Disponibilité automatique des pièces** | Établir, source par source, ce que le DMS peut savoir automatiquement : stock Ducati Bruxelles (DMS), disponible chez Ducati (état E/F du tarif + disponibilité DCS / portail dealer, à vérifier avec Domenico), disponible chez un fournisseur tiers. Afficher ces statuts dans le DMS (recherche, devis, panier). **Ensuite** : import de tout le catalogue dans Shopify comme produits « sur commande » avec ces statuts. |
 
 ## 6. Décisions
 

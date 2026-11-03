@@ -933,3 +933,4 @@ Détail : [`../process-commandes-pieces.md`](../process-commandes-pieces.md) §5
 - **F-7** — ADR-002 : type de gestion **T** pour la main-d'œuvre.
   [`../decisions/ADR-002-type-gestion-T-main-oeuvre.md`](../decisions/ADR-002-type-gestion-T-main-oeuvre.md)
 - **F-8** — Backlog client de Domenico du 25/07 : [`../plan-backlog-italobike-2026-07.md`](../plan-backlog-italobike-2026-07.md).
+- **M-80** (03/11/2026, Simon) : pièces du catalogue sur le site Shopify seulement après avoir construit la disponibilité automatique (stock DMS / Ducati / fournisseur) ; un client ne doit jamais pouvoir commander une pièce qu'on ne peut pas obtenir. Urgente = +12 %. Fichier DCS = .xls (format du document chargé). Dossier accident envoyé à technique.dwe@ducati.com, copie facultative.
