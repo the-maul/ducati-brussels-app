@@ -1,197 +1,300 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Search, Wand2, Check } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Loader2, Lock, Search, Wand2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listArticles, updateArticle, recordPriceChange, MGMT_TYPES, type Article } from '@/modules/articles/api';
-import { t, pageTitle } from '@/lib/i18n';
+import { useReadOnly } from '@/lib/auth/read-only-context';
+import { MGMT_TYPES } from '@/modules/articles/api';
+import { fillVars, t, pageTitle } from '@/lib/i18n';
+import {
+  applyCascade, applyLibraryBatch, deleteArticlesBatch, selectArticleIds, selectArticlesPage,
+  type SelectedArticle, type SelectionFilters,
+} from '@/modules/articles/g8/api';
+import { CASCADE_ACTIONS, cascadeAction, cascadePayload, type CascadeValue } from '@/modules/articles/g8/cascade-actions';
+import { FamilySelects, SelectionFiltersForm, SupplierSelect } from '@/modules/articles/g8/selection-filters';
+import { QueryError, Td, Th, errorText, eur, qty } from '@/modules/articles/g8/ui';
+import { buildFamilyCode } from '@/modules/articles/product-families';
 
+/**
+ * M2 — Modification en cascade des articles (G8 « Modification cascade Art/Lib »), refaite lors
+ * du rattrapage G8 du 18/11/2026 : sélection filtrée calculée en base (plus de plafond à
+ * 1 000 lignes), 29 actions dont les 23 actions G8 hors nomenclature, envoi en librairie /
+ * librairie vers article, suppression (administrateur), case « Confirmer » comme G8.
+ * Les prix passent par price_changes (origine « cascade ») ; les autres champs laissent une
+ * ligne events par article.
+ */
 export const Route = createFileRoute('/_app/parts/cascade')({
   head: () => ({ meta: [{ title: pageTitle('partsCascade') }] }),
   component: CascadePage,
 });
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
-const r4 = (n: number) => Math.round(n * 10000) / 10000;
-
-type Action = 'pv_pct' | 'pa_pct' | 'coef' | 'vat' | 'brand' | 'mgmt_type' | 'bin' | 'lock_sale' | 'unlock_sale' | 'lock_purchase' | 'unlock_purchase';
-
-function computePatch(a: Article, action: Action, value: string): Record<string, unknown> | null {
-  const v = Number(value.replace(',', '.'));
-  const vf = 1 + (a.vat_rate ?? 21) / 100;
-  switch (action) {
-    case 'pv_pct': return Number.isFinite(v) ? { sale_price_ttc: r2(a.sale_price_ttc * (1 + v / 100)) } : null;
-    case 'pa_pct': return Number.isFinite(v) ? { purchase_price: r4(a.purchase_price * (1 + v / 100)) } : null;
-    case 'coef': { if (!Number.isFinite(v)) return null; const pvht = r2(a.purchase_price * v); return { coefficient: r4(v), sale_price_ht: pvht, sale_price_ttc: r2(pvht * vf) }; }
-    case 'vat': return Number.isFinite(v) ? { vat_rate: v } : null;
-    case 'brand': return { brand: value.trim() || null };
-    case 'mgmt_type': return { mgmt_type: value };
-    case 'bin': return { bin_location: value.trim() || null };
-    case 'lock_sale': return { price_sale_locked: true };
-    case 'unlock_sale': return { price_sale_locked: false };
-    case 'lock_purchase': return { price_purchase_locked: true };
-    case 'unlock_purchase': return { price_purchase_locked: false };
-    default: return null;
-  }
-}
-
-const NEEDS_VALUE: Action[] = ['pv_pct', 'pa_pct', 'coef', 'vat', 'brand', 'mgmt_type', 'bin'];
-// Actions touchant un prix → passent par record_price_change (tracé append-only B7).
-const PRICE_ACTIONS: Action[] = ['pv_pct', 'pa_pct', 'coef'];
+const PAGE = 200;
 
 function CascadePage() {
-  const { activeCompanyId } = useAuth();
+  const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [sel, setSel] = useState<Set<string>>(new Set());
-  const [action, setAction] = useState<Action>('pv_pct');
-  const [value, setValue] = useState('');
+  const qc = useQueryClient();
+  const readOnly = useReadOnly();
+  const [filters, setFilters] = useState<SelectionFilters>({});
+  const [applied, setApplied] = useState<SelectionFilters | null>(null);
+  const [rows, setRows] = useState<SelectedArticle[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [scope, setScope] = useState<'all' | 'checked'>('all');
+  const [action, setAction] = useState('pv_pct');
+  const [val, setVal] = useState<CascadeValue>({});
+  const [confirmed, setConfirmed] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
-  const load = async () => {
+  const load = async (f: SelectionFilters, off: number) => {
     if (!activeCompanyId) return;
-    setLoading(true); setError(null); setDone(null);
+    setLoading(true); setError(null);
     try {
-      const data = await listArticles(activeCompanyId, search);
-      setArticles(data);
-      setSel(new Set(data.map((a) => a.id)));
-    } catch (e) { setError(e instanceof Error ? e.message : t('cascade.error')); }
+      const r = await selectArticlesPage(activeCompanyId, f, PAGE, off);
+      setRows(r.rows); setTotal(r.total); setOffset(off); setApplied(f);
+    } catch (e) { setError(e); }
     finally { setLoading(false); }
   };
+  const list = () => { setChecked(new Set()); setResult(null); void load(filters, 0); };
 
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const allSelected = articles.length > 0 && sel.size === articles.length;
+  const def = cascadeAction(action)!;
+  const toggle = (id: string) => setChecked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const pageAllChecked = rows.length > 0 && rows.every((r) => checked.has(r.id));
+  const targetCount = scope === 'all' ? total : checked.size;
 
   const apply = useMutation({
+    meta: { success: false, error: false },
     mutationFn: async () => {
-      let count = 0;
-      for (const a of articles) {
-        if (!sel.has(a.id)) continue;
-        const patch = computePatch(a, action, value);
-        if (!patch || !Object.keys(patch).length) continue;
-        if (PRICE_ACTIONS.includes(action)) {
-          // Modification de prix → tracée (price_changes), origine 'cascade'.
-          await recordPriceChange(a.id, {
-            purchase: patch.purchase_price as number | undefined,
-            saleHt: patch.sale_price_ht as number | undefined,
-            saleTtc: patch.sale_price_ttc as number | undefined,
-            coef: patch.coefficient as number | undefined,
-            origin: 'cascade',
-          });
-        } else {
-          await updateArticle(a.id, patch);
-        }
-        count++;
+      if (!activeCompanyId || !applied) return null;
+      const payload = cascadePayload(def, val);
+      if (!payload.ok) throw new Error(t(payload.error));
+      const ids = scope === 'all' ? await selectArticleIds(activeCompanyId, applied) : Array.from(checked);
+      if (!ids.length) return null;
+      const onProgress = (done: number, n: number) => setProgress({ done, total: n });
+      if (def.special === 'library_in' || def.special === 'library_out') {
+        const r = await applyLibraryBatch(ids, def.special === 'library_in', onProgress);
+        return fillVars(t('g8a.cascade.libraryResult'), { done: r.done, refused: r.refused, unchanged: r.unchanged });
       }
-      return count;
+      if (def.special === 'delete') {
+        const r = await deleteArticlesBatch(activeCompanyId, ids, onProgress);
+        return fillVars(t('g8a.cascade.deleteResult'), { deleted: r.deleted, deactivated: r.deactivated });
+      }
+      const r = await applyCascade(activeCompanyId, ids, action, payload.value, onProgress);
+      return fillVars(t('g8a.cascade.result'), { done: r.done, skipped: r.skipped });
     },
-    onSuccess: (n) => setDone(n),
-    onError: (e) => setError(e instanceof Error ? e.message : t('cascade.error')),
+    onSuccess: (msg) => {
+      setProgress(null); setConfirmed(false);
+      if (msg) setResult(msg);
+      qc.invalidateQueries({ queryKey: ['articles'] });
+      if (applied) void load(applied, offset);
+    },
+    onError: (e) => { setProgress(null); setError(e); },
   });
+
+  const isDelete = def.special === 'delete';
+  const canApply = !readOnly && !!applied && targetCount > 0 && confirmed && !apply.isPending && (!isDelete || isAdmin());
 
   return (
     <>
       <PageHeader
         title={t('cascade.title')}
-        description={t('cascade.description')}
+        description={t('g8a.cascade.description')}
         actions={<Button variant="outline" onClick={() => navigate({ to: '/parts' })}><ArrowLeft /> {t('articles.title')}</Button>}
       />
-      <p className="mb-4 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
-        {t('cascade.noteBefore')} <strong>price_changes</strong> {t('cascade.noteAfter')}
-      </p>
+      <p className="mb-4 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('g8a.cascade.traceNote')}</p>
 
-      {/* Filtre + chargement */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative max-w-md flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('articles.search')} className="pl-9" onKeyDown={(e) => e.key === 'Enter' && load()} />
-        </div>
-        <Button variant="outline" onClick={load} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : <Search />} {t('cascade.load')}</Button>
-      </div>
-
-      {/* Action de masse */}
-      {articles.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-border bg-card p-3">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cascade.action')}</label>
-            <Select value={action} onValueChange={(v) => setAction(v as Action)}>
-              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pv_pct">{t('cascade.actPvPct')}</SelectItem>
-                <SelectItem value="pa_pct">{t('cascade.actPaPct')}</SelectItem>
-                <SelectItem value="coef">{t('cascade.actCoef')}</SelectItem>
-                <SelectItem value="vat">{t('cascade.actVat')}</SelectItem>
-                <SelectItem value="brand">{t('cascade.actBrand')}</SelectItem>
-                <SelectItem value="mgmt_type">{t('cascade.actMgmt')}</SelectItem>
-                <SelectItem value="bin">{t('cascade.actBin')}</SelectItem>
-                <SelectItem value="lock_sale">{t('cascade.lockSale')}</SelectItem>
-                <SelectItem value="unlock_sale">{t('cascade.unlockSale')}</SelectItem>
-                <SelectItem value="lock_purchase">{t('cascade.lockPurchase')}</SelectItem>
-                <SelectItem value="unlock_purchase">{t('cascade.unlockPurchase')}</SelectItem>
-              </SelectContent>
-            </Select>
+      {activeCompanyId && (
+        <div className="mb-4 space-y-3 rounded-md border border-border bg-card p-3">
+          <SelectionFiltersForm companyId={activeCompanyId} value={filters} onChange={setFilters} />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setFilters({})}>{t('g8a.filters.reset')}</Button>
+            <Button onClick={list} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : <Search />} {t('g8a.cascade.list')}</Button>
           </div>
-          {NEEDS_VALUE.includes(action) && (
+        </div>
+      )}
+
+      <QueryError error={error} />
+
+      {applied && (
+        <div className="mb-4 space-y-3 rounded-md border border-border bg-card p-3">
+          <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cascade.value')}</label>
-              {action === 'mgmt_type' ? (
-                <Select value={value} onValueChange={setValue}>
-                  <SelectTrigger className="w-56"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>{MGMT_TYPES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
-                </Select>
-              ) : (
-                <Input value={value} onChange={(e) => setValue(e.target.value)} className="w-40" placeholder={action.includes('pct') ? 'ex. 5 ou -3' : ''} />
-              )}
+              <Label>{t('cascade.action')}</Label>
+              <Select value={action} onValueChange={(v) => { setAction(v); setVal({}); setConfirmed(false); }}>
+                <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {CASCADE_ACTIONS.map((a) => <SelectItem key={a.key} value={a.key}>{t(a.label)}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          <Button onClick={() => { setError(null); setDone(null); apply.mutate(); }} disabled={apply.isPending || sel.size === 0}>
-            {apply.isPending ? <Loader2 className="animate-spin" /> : <Wand2 />} Appliquer ({sel.size})
-          </Button>
-          {done != null && <span className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> {done} article(s) modifié(s).</span>}
-        </div>
-      )}
-
-      {error && <p className="mb-3 rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-
-      {/* Liste sélectionnable */}
-      {articles.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-border">
-          <div className="max-h-[28rem] overflow-auto">
-            <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="sticky top-0 bg-muted">
-                <tr>
-                  <Th className="w-10 text-center"><Checkbox checked={allSelected} onCheckedChange={(v) => setSel(v === true ? new Set(articles.map((a) => a.id)) : new Set())} /></Th>
-                  <Th>{t('cascade.colRef')}</Th><Th>{t('cascade.colDesignation')}</Th><Th className="text-right">{t('cascade.colPa')}</Th><Th className="text-right">{t('cascade.colPvTtc')}</Th><Th className="text-right">{t('cascade.colCoef')}</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {articles.map((a) => (
-                  <tr key={a.id} className="border-b border-border last:border-0 hover:bg-accent">
-                    <td className="px-3 py-1.5 text-center"><Checkbox checked={sel.has(a.id)} onCheckedChange={() => toggle(a.id)} /></td>
-                    <td className="px-3 py-1.5 font-mono text-[12px]">{a.reference}</td>
-                    <td className="px-3 py-1.5">{a.designation}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{a.purchase_price}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{a.sale_price_ttc}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{a.coefficient ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ActionInput companyId={activeCompanyId!} input={def.input} value={val} onChange={setVal} />
+            <div className="space-y-1">
+              <Label>{t('g8a.cascade.scope')}</Label>
+              <Select value={scope} onValueChange={(v) => setScope(v as 'all' | 'checked')}>
+                <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{fillVars(t('g8a.cascade.scopeAll'), { n: total })}</SelectItem>
+                  <SelectItem value="checked">{fillVars(t('g8a.cascade.scopeChecked'), { n: checked.size })}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {def.price && <p className="text-[12px] text-muted-foreground">{t('g8a.cascade.priceNote')}</p>}
+          {isDelete && <p className="rounded-md bg-warning-bg px-3 py-2 text-[12px] text-warning">{t('g8a.cascade.deleteNote')}</p>}
+          {def.special === 'library_in' && <p className="text-[12px] text-muted-foreground">{t('g8a.cascade.libraryNote')}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} />
+              {fillVars(t(isDelete ? 'g8a.cascade.confirmDelete' : 'g8a.cascade.confirmChange'), { n: targetCount })}
+            </label>
+            <Button variant={isDelete ? 'destructive' : 'default'} onClick={() => { setError(null); setResult(null); apply.mutate(); }} disabled={!canApply}>
+              {apply.isPending ? <Loader2 className="animate-spin" /> : isDelete && !isAdmin() ? <Lock /> : <Wand2 />}
+              {fillVars(t('g8a.cascade.apply'), { n: targetCount })}
+            </Button>
+            {progress && <span className="text-[12px] tabular-nums text-muted-foreground">{fillVars(t('g8a.common.progress'), { done: progress.done, total: progress.total })}</span>}
+            {result && <span className="flex items-center gap-1 text-[13px] text-success"><Check className="size-4" /> {result}</span>}
+            {isDelete && !isAdmin() && <span className="text-[12px] text-muted-foreground">{t('g8a.cascade.adminOnly')}</span>}
           </div>
         </div>
       )}
+
+      {applied && (
+        <>
+          <div className="mb-2 flex items-center justify-between text-[13px] text-muted-foreground">
+            <span>{total === 0 ? t('g8a.cascade.none') : fillVars(t('g8a.common.range'), { from: offset + 1, to: offset + rows.length, n: total })}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={loading || offset === 0} onClick={() => void load(applied, Math.max(0, offset - PAGE))}><ChevronLeft /> {t('articles.pagePrev')}</Button>
+              <Button variant="outline" size="sm" disabled={loading || offset + rows.length >= total} onClick={() => void load(applied, offset + PAGE)}>{t('articles.pageNext')} <ChevronRight /></Button>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-md border border-border">
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="w-full border-collapse font-data text-[13px]">
+                <thead className="sticky top-0 bg-muted">
+                  <tr>
+                    <Th className="w-10 text-center">
+                      <Checkbox checked={pageAllChecked} onCheckedChange={(v) => setChecked((s) => {
+                        const n = new Set(s);
+                        for (const r of rows) { if (v === true) n.add(r.id); else n.delete(r.id); }
+                        return n;
+                      })} />
+                    </Th>
+                    <Th>{t('cascade.colRef')}</Th><Th>{t('cascade.colDesignation')}</Th>
+                    <Th className="text-right">{t('g8a.cols.paHt')}</Th><Th className="text-right">{t('g8a.cols.pvHt')}</Th><Th className="text-right">{t('g8a.cols.pvTtc')}</Th>
+                    <Th className="text-right">{t('g8a.cols.ppcHt')}</Th><Th className="text-right">{t('g8a.cols.ppcTtc')}</Th>
+                    <Th>{t('g8a.cols.descriptif')}</Th><Th>{t('g8a.cols.docVisible')}</Th><Th>{t('g8a.cols.bin')}</Th><Th>{t('g8a.cols.supplierRef')}</Th>
+                    <Th className="text-right">{t('g8a.cols.real')}</Th><Th className="text-right">{t('g8a.cols.min')}</Th><Th className="text-right">{t('g8a.cols.max')}</Th>
+                    <Th>{t('g8a.cols.locks')}</Th><Th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((a) => (
+                    <tr key={a.id} className="border-b border-border last:border-0 hover:bg-accent">
+                      <Td className="text-center"><Checkbox checked={checked.has(a.id)} onCheckedChange={() => toggle(a.id)} /></Td>
+                      <Td className="font-mono text-[12px]">{a.reference}{a.is_library && <span className="ml-1 text-[11px] text-info">{t('g8a.cols.lib')}</span>}</Td>
+                      <Td>{a.designation}</Td>
+                      <Td className="text-right tabular-nums">{eur(a.purchase_price)}</Td>
+                      <Td className="text-right tabular-nums">{eur(a.sale_price_ht)}</Td>
+                      <Td className="text-right tabular-nums">{eur(a.sale_price_ttc)}</Td>
+                      <Td className="text-right tabular-nums">{eur(a.ppc_ht)}</Td>
+                      <Td className="text-right tabular-nums">{eur(a.ppc_ttc)}</Td>
+                      <Td className="max-w-[14rem] truncate text-muted-foreground">{a.descriptif ?? ''}</Td>
+                      <Td>{a.show_descriptif_on_documents ? t('g8a.common.yes') : t('g8a.common.no')}</Td>
+                      <Td className="font-mono text-[12px]">{a.bin_location ?? ''}</Td>
+                      <Td className="font-mono text-[12px]">{a.supplier_ref ?? ''}</Td>
+                      <Td className="text-right tabular-nums">{qty(a.real_qty)}</Td>
+                      <Td className="text-right tabular-nums">{qty(a.stock_min)}</Td>
+                      <Td className="text-right tabular-nums">{qty(a.stock_max)}</Td>
+                      <Td className="whitespace-nowrap text-[11px] text-muted-foreground">
+                        {[a.designation_locked && t('g8a.cols.lockDes'), a.price_purchase_locked && t('g8a.cols.lockPa'), a.price_sale_locked && t('g8a.cols.lockPv')].filter(Boolean).join(' · ')}
+                      </Td>
+                      <Td>
+                        <Button size="sm" variant="ghost" title={t('g8a.cascade.openSheet')} onClick={() => navigate({ to: '/parts/$articleId', params: { articleId: a.id } })}>
+                          <ExternalLink className="size-4" />
+                        </Button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+      {apply.isError && <p className="mt-3 rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{errorText(apply.error)}</p>}
     </>
   );
 }
 
-function Th({ children, className = '' }: { children?: ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+function Label({ children }: { children: ReactNode }) {
+  return <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{children}</label>;
+}
+
+const CONTAINER_UNITS = ['NC', 'Kg', 'L', 'M'];
+
+function ActionInput({ companyId, input, value, onChange }: {
+  companyId: string; input: string; value: CascadeValue; onChange: (v: CascadeValue) => void;
+}) {
+  const set = (k: keyof CascadeValue, v: string) => onChange({ ...value, [k]: v });
+  const fam = (value.value ?? '').split('-');
+  switch (input) {
+    case 'none':
+      return null;
+    case 'text':
+      return <div className="space-y-1"><Label>{t('cascade.value')}</Label><Input value={value.value ?? ''} onChange={(e) => set('value', e.target.value)} className="w-56" /></div>;
+    case 'longtext':
+      return <div className="space-y-1"><Label>{t('cascade.value')}</Label><Textarea rows={2} value={value.value ?? ''} onChange={(e) => set('value', e.target.value)} className="w-96" /></div>;
+    case 'number':
+    case 'vat':
+      return <div className="space-y-1"><Label>{t('cascade.value')}</Label><Input value={value.value ?? ''} onChange={(e) => set('value', e.target.value)} className="w-32 text-right tabular-nums" placeholder={input === 'vat' ? '21' : ''} /></div>;
+    case 'percent':
+      return <div className="space-y-1"><Label>{t('cascade.value')}</Label><Input value={value.value ?? ''} onChange={(e) => set('value', e.target.value)} className="w-32 text-right tabular-nums" placeholder={t('g8a.cascade.pctPlaceholder')} /></div>;
+    case 'supplier':
+      return <div className="space-y-1"><Label>{t('g8a.filters.supplier')}</Label><SupplierSelect companyId={companyId} value={value.value ?? ''} onChange={(v) => set('value', v)} allowAll={false} /></div>;
+    case 'family':
+      return (
+        <FamilySelects rayon={fam[0] ?? ''} sousRayon={fam[1] ?? ''} categorie={fam[2] ?? ''}
+          onChange={(v) => set('value', buildFamilyCode(v.rayon, v.sousRayon, v.categorie) || v.rayon)} />
+      );
+    case 'mgmt':
+      return (
+        <div className="space-y-1">
+          <Label>{t('cascade.value')}</Label>
+          <Select value={value.value ?? ''} onValueChange={(v) => set('value', v)}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>{MGMT_TYPES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      );
+    case 'container':
+      return (
+        <>
+          <div className="space-y-1"><Label>{t('g8a.cascade.containerQty')}</Label><Input value={value.qty ?? ''} onChange={(e) => set('qty', e.target.value)} className="w-24 text-right tabular-nums" /></div>
+          <div className="space-y-1">
+            <Label>{t('g8a.cascade.containerUnit')}</Label>
+            <Input list="g8-cascade-units" value={value.unit ?? ''} onChange={(e) => set('unit', e.target.value)} className="w-24" />
+            <datalist id="g8-cascade-units">{CONTAINER_UNITS.map((u) => <option key={u} value={u} />)}</datalist>
+          </div>
+        </>
+      );
+    case 'minmax':
+      return (
+        <>
+          <div className="space-y-1"><Label>{t('articles.stockMin')}</Label><Input value={value.min ?? ''} onChange={(e) => set('min', e.target.value)} className="w-24 text-right tabular-nums" /></div>
+          <div className="space-y-1"><Label>{t('articles.stockMax')}</Label><Input value={value.max ?? ''} onChange={(e) => set('max', e.target.value)} className="w-24 text-right tabular-nums" /></div>
+        </>
+      );
+    default:
+      return null;
+  }
 }
