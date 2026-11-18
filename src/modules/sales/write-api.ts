@@ -200,6 +200,24 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
 }
 
 /**
+ * Valide un brouillon et lui donne son numéro dans la MÊME transaction (`document_assign_number`,
+ * migration 20261118260000) : si la base refuse la validation (client, lignes, caisse…), aucun
+ * numéro n'est consommé et la série reste continue. Le numéro vient de la série du type ou du
+ * compteur unique, selon le mode choisi dans Paramètres → Numérotation.
+ * Tant que la migration n'est pas posée : ancien chemin (numéro, puis statut).
+ */
+async function validateWithNumber(companyId: string, docId: string, docType: string): Promise<string | null> {
+  const rpcUntyped = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+  const { data, error } = await rpcUntyped('document_assign_number', { _document: docId });
+  if (!error) return (data as string) ?? null;
+  if (!isMissingDbObject(error)) throw error;
+  const number = await nextNumber(companyId, docType);
+  const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', docId);
+  if (ve) throw ve;
+  return number;
+}
+
+/**
  * Colonnes d'en-tête communes à la création et à la modification d'un brouillon.
  * Les colonnes du régime de la marge (`vat_scheme`, `margin_purchase_price`) ne sont envoyées
  * que pour un document en marge : un document ordinaire ne les touche pas, il reste écrit tel
@@ -404,11 +422,9 @@ export async function createDocument(p: {
     if (!we && why) return discard(new Error(invoiceRequiredMessage(why as 'vehicle' | 'threshold')));
   }
 
-  // Numéro attribué à la validation seulement (par société et par type, séquences M0).
+  // Numéro attribué à la validation seulement (par société, par type ou compteur unique, séquences M0).
   let number: string | null = null;
-  try { number = await nextNumber(p.companyId, p.docType); } catch (e) { return discard(e); }
-  const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', docId);
-  if (ve) return discard(ve);
+  try { number = await validateWithNumber(p.companyId, docId, p.docType); } catch (e) { return discard(e); }
 
   await recordSaleStockMoves(p.docType, p.lines, number);
   return docId;
@@ -471,9 +487,7 @@ export async function updateDraftDocument(p: {
   if (!validated) return p.documentId;
 
   // Le numéro n'est pris qu'ici, une seule fois : un brouillon rouvert dix fois n'en consomme aucun.
-  const number = await nextNumber(p.companyId, p.docType);
-  const { error: ve } = await supabase.from('documents').update({ status: 'validee', number }).eq('id', p.documentId);
-  if (ve) throw ve;
+  const number = await validateWithNumber(p.companyId, p.documentId, p.docType);
 
   await recordSaleStockMoves(p.docType, p.lines, number);
   return p.documentId;
