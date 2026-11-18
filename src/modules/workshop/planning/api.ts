@@ -68,6 +68,13 @@ export type PlanningSettings = {
   company_id: string; day_start: string; day_end: string; first_weekday: number; days_shown: number;
   slot_minutes: number; belgian_holidays: boolean; show_occupancy: boolean; block_overlaps: boolean;
   loan_terms: string | null;
+  /**
+   * Contrat de pret G8 (migration 20261119180000) : franchise par societe (500 EUR par defaut) et
+   * conditions generales NL / EN / IT. Absents de DEFAULT_SETTINGS expres : tant que la migration
+   * manque, ils ne sont ni lus ni ecrits.
+   */
+  loan_deductible?: number | string;
+  loan_terms_i18n?: Record<string, string>;
 };
 /** Reglages G8 observes (07-atelier.md §14) quand la ligne manque. */
 export const DEFAULT_SETTINGS: Omit<PlanningSettings, 'company_id'> = {

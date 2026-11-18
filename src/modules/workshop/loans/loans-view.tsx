@@ -2,7 +2,8 @@
  * M8 — Motos de pret (G8 « Vehicules de pret », 07-atelier.md §6 et §14) dans le planning :
  *   - Disponibilite : 14 jours × motos de la flotte (libre / reservee / sortie) ;
  *   - Prets : reservation (moto, client, periode, RDV / OR lies), sortie (date, km, carburant),
- *     retour (date, km, carburant), contrat imprimable avec conditions generales, annulation ;
+ *     retour (date, km, carburant), contrat repris de G8 (ecran « Contrat » : conducteur, moto du client,
+ *     franchise, langue ; impression recto contrat / verso conditions generales), annulation ;
  *   - Flotte : modele, marque, immatriculation, chassis, couleur, 1re mise en circulation, km.
  */
 import { useMemo, useState } from 'react';
@@ -16,24 +17,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { t } from '@/lib/i18n';
 import {
-  listLoanerVehicles, saveLoanerVehicle, listLoans, createLoan, loanOut, loanReturn, cancelLoan,
+  listLoanerVehicles, saveLoanerVehicle, listLoans, createLoan, loanOut, loanReturn, cancelLoan, loanContractSchemaReady,
   type LoanerVehicle, type Loan,
 } from './api';
+import type { PlanningSettings } from '../planning/api';
+import { ContractDialog } from './contract-dialog';
 import {
   FUEL_LEVELS, LOAN_TONE, checkOut, checkPeriod, checkReturn, isOverdue, loanDistance, loanerDayState,
   type FuelLevel,
 } from './rules';
-import { printLoanContract } from './contract-print';
 import { addDays, localYmd, parseMileage, startOfDay } from '../planning/rules';
 import { ContactPicker, Field, Picked, contactLabel, fmtDate, fmtDateTime } from '../planning/ui-bits';
 
 const NONE = '__none__';
 const toLocalInput = (d: Date) => `${localYmd(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-export function LoansView({ companyId, companyName, loanTerms }: { companyId: string; companyName: string; loanTerms: string | null }) {
+export function LoansView({ companyId, companyName, settings }: { companyId: string; companyName: string; settings: PlanningSettings }) {
   const qc = useQueryClient();
   const today = startOfDay(new Date());
   const from = addDays(today, -30); const to = addDays(today, 90);
@@ -44,6 +46,8 @@ export function LoansView({ companyId, companyName, loanTerms }: { companyId: st
   const [newLoan, setNewLoan] = useState<{ loanerId?: string; day?: Date } | null>(null);
   const [outFor, setOutFor] = useState<Loan | null>(null);
   const [backFor, setBackFor] = useState<Loan | null>(null);
+  const [contractFor, setContractFor] = useState<Loan | null>(null);
+  const contractReady = useQuery({ queryKey: ['loans-contract-schema'], queryFn: loanContractSchemaReady, staleTime: Infinity });
 
   const active = (fleet.data ?? []).filter((v) => v.is_active);
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
@@ -51,29 +55,6 @@ export function LoansView({ companyId, companyName, loanTerms }: { companyId: st
   const vehicleOf = (id: string) => (fleet.data ?? []).find((v) => v.id === id);
 
   const cancel = useMutation({ mutationFn: (id: string) => cancelLoan(id), onSuccess: () => { toast.success(t('feedback.saved')); refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : t('feedback.error')) });
-
-  const print = async (l: Loan) => {
-    const v = vehicleOf(l.loaner_id);
-    const c: Contact | null = l.contact_id ? await getContact(l.contact_id) : null;
-    const fuel = (f: FuelLevel | null) => (f ? t(`loans.fuel_${f}`) : '');
-    try {
-      printLoanContract({
-        companyName, number: l.number ?? '', issuedAt: new Date().toLocaleDateString('fr-BE'),
-        borrower: {
-          name: c ? contactDisplayName(c) : '', address: c ? [c.address, [c.zip, c.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '',
-          phone: c ? c.mobile || c.phone || '' : '', email: c?.email ?? '',
-          license: c ? [c.license_number, c.license_category].filter(Boolean).join(' · ') : '',
-        },
-        moto: { label: v?.label ?? '', brand: v?.brand ?? '', plate: v?.plate ?? '', vin: v?.vin ?? '', color: v?.color ?? '' },
-        plannedStart: fmtDateTime(l.planned_start), plannedEnd: fmtDateTime(l.planned_end),
-        out: l.out_at ? { at: fmtDateTime(l.out_at), km: String(l.out_km ?? ''), fuel: fuel(l.out_fuel) } : null,
-        back: l.returned_at ? { at: fmtDateTime(l.returned_at), km: String(l.return_km ?? ''), fuel: fuel(l.return_fuel) } : null,
-        orNumber: l.repair_orders?.number ?? null, terms: loanTerms ?? '',
-      });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t('feedback.error'));
-    }
-  };
 
   const stateClass = (s: 'libre' | 'reserve' | 'sorti') => (s === 'sorti' ? 'bg-warning-bg text-warning' : s === 'reserve' ? 'bg-info-bg text-info' : 'bg-success-bg text-success');
 
@@ -148,7 +129,7 @@ export function LoansView({ companyId, companyName, loanTerms }: { companyId: st
                     <TableCell className="whitespace-nowrap text-right">
                       {l.status === 'reserve' && <Button size="sm" variant="ghost" className="h-8" onClick={() => setOutFor(l)}><ArrowRightFromLine className="size-3.5" /> {t('loans.out')}</Button>}
                       {l.status === 'sorti' && <Button size="sm" variant="ghost" className="h-8" onClick={() => setBackFor(l)}><ArrowLeftToLine className="size-3.5" /> {t('loans.back')}</Button>}
-                      <Button size="sm" variant="ghost" className="h-8" onClick={() => void print(l)}><Printer className="size-3.5" /> {t('loans.contractButton')}</Button>
+                      <Button size="sm" variant="ghost" className="h-8" onClick={() => setContractFor(l)}><Printer className="size-3.5" /> {t('loans.contractButton')}</Button>
                       {l.status === 'reserve' && <Button size="sm" variant="ghost" className="h-8" onClick={() => cancel.mutate(l.id)} aria-label={t('loans.cancel')}><XCircle className="size-3.5" /></Button>}
                     </TableCell>
                   </TableRow>
@@ -189,7 +170,12 @@ export function LoansView({ companyId, companyName, loanTerms }: { companyId: st
         </Table>
       </section>
 
-      {editVehicle && <VehicleDialog companyId={companyId} vehicle={editVehicle === 'new' ? null : editVehicle} onClose={() => setEditVehicle(null)} onSaved={() => { setEditVehicle(null); refresh(); }} />}
+      {contractFor && (
+        <ContractDialog companyId={companyId} companyName={companyName} settings={settings} loan={contractFor}
+          loaner={vehicleOf(contractFor.loaner_id) ?? null} canSave={contractReady.data === true}
+          onClose={() => setContractFor(null)} onSaved={refresh} />
+      )}
+      {editVehicle && <VehicleDialog companyId={companyId} withPower={contractReady.data === true} vehicle={editVehicle === 'new' ? null : editVehicle} onClose={() => setEditVehicle(null)} onSaved={() => { setEditVehicle(null); refresh(); }} />}
       {newLoan && <NewLoanDialog companyId={companyId} fleet={active} loans={loans.data ?? []} preset={newLoan} onClose={() => setNewLoan(null)} onSaved={() => { setNewLoan(null); refresh(); }} />}
       {outFor && <MoveDialog mode="out" loan={outFor} vehicle={vehicleOf(outFor.loaner_id) ?? null} onClose={() => setOutFor(null)} onSaved={() => { setOutFor(null); refresh(); }} />}
       {backFor && <MoveDialog mode="back" loan={backFor} vehicle={vehicleOf(backFor.loaner_id) ?? null} onClose={() => setBackFor(null)} onSaved={() => { setBackFor(null); refresh(); }} />}
@@ -197,7 +183,7 @@ export function LoansView({ companyId, companyName, loanTerms }: { companyId: st
   );
 }
 
-function VehicleDialog({ companyId, vehicle, onClose, onSaved }: { companyId: string; vehicle: LoanerVehicle | null; onClose: () => void; onSaved: () => void }) {
+function VehicleDialog({ companyId, withPower, vehicle, onClose, onSaved }: { companyId: string; withPower: boolean; vehicle: LoanerVehicle | null; onClose: () => void; onSaved: () => void }) {
   const [v, setV] = useState<Partial<LoanerVehicle>>(vehicle ?? { is_active: true, sort_order: 0 });
   const [km, setKm] = useState(vehicle?.current_km != null ? String(vehicle.current_km) : '');
   const save = useMutation({
@@ -210,7 +196,7 @@ function VehicleDialog({ companyId, vehicle, onClose, onSaved }: { companyId: st
     onSuccess: () => { toast.success(t('feedback.saved')); onSaved(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('feedback.error')),
   });
-  const txt = (k: 'label' | 'brand' | 'plate' | 'vin' | 'color', label: string) => (
+  const txt = (k: 'label' | 'brand' | 'plate' | 'vin' | 'color' | 'power', label: string) => (
     <Field label={label}><Input value={(v[k] as string | null | undefined) ?? ''} onChange={(e) => setV({ ...v, [k]: e.target.value || null })} /></Field>
   );
   return (
@@ -219,6 +205,7 @@ function VehicleDialog({ companyId, vehicle, onClose, onSaved }: { companyId: st
         <DialogHeader><DialogTitle>{vehicle ? t('loans.editVehicle') : t('loans.addVehicle')}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {txt('label', `${t('loans.model')} *`)}{txt('brand', t('loans.brand'))}{txt('plate', t('loans.plate'))}{txt('vin', t('loans.vin'))}{txt('color', t('loans.color'))}
+          {withPower && txt('power', t('loans.power'))}
           <Field label={t('loans.firstRegistration')}><Input type="date" value={v.first_registration ?? ''} onChange={(e) => setV({ ...v, first_registration: e.target.value || null })} /></Field>
           <Field label={t('loans.km')}><Input value={km} onChange={(e) => setKm(e.target.value)} inputMode="numeric" className="text-right tabular-nums" /></Field>
           <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={v.is_active ?? true} onChange={(e) => setV({ ...v, is_active: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" /> {t('planningG8.active')}</label>
@@ -284,7 +271,8 @@ function MoveDialog({ mode, loan, vehicle, onClose, onSaved }: { mode: 'out' | '
   const [at, setAt] = useState(toLocalInput(new Date()));
   const defaultKm = mode === 'out' ? vehicle?.current_km : loan.out_km;
   const [km, setKm] = useState(defaultKm != null ? String(defaultKm) : '');
-  const [fuel, setFuel] = useState<FuelLevel | ''>(mode === 'back' && loan.out_fuel ? loan.out_fuel : '');
+  // Carburant propose : au retour celui de la sortie, a la sortie celui du dernier retour de la moto.
+  const [fuel, setFuel] = useState<FuelLevel | ''>((mode === 'back' ? loan.out_fuel : vehicle?.current_fuel) ?? '');
   const [notes, setNotes] = useState('');
   const kmValue = useMemo(() => parseMileage(km), [km]);
   const save = useMutation({

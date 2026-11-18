@@ -19,7 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { t } from '@/lib/i18n';
+import { t, LOCALES, type Locale } from '@/lib/i18n';
+import { DEFAULT_LOAN_DEDUCTIBLE, parseDeductible } from '../loans/contract-rules';
 import { listCompanyTeam } from '../or-page-api';
 import { workshopTeamOptions } from '../or-page-rules';
 import {
@@ -214,10 +215,25 @@ function HoursDialog({ companyId, mechanic, hours, onClose, onSaved }: { company
 function SettingsSection({ settings, onChanged }: { settings: PlanningSettings; onChanged: () => void }) {
   const [s, setS] = useState<PlanningSettings>(settings);
   useEffect(() => setS(settings), [settings]);
+  // Contrat de pret G8 : franchise et CG par langue, seulement quand la migration 20261119180000 est en base.
+  const contractReady = settings.loan_deductible !== undefined;
+  const [deductible, setDeductible] = useState(String(settings.loan_deductible ?? DEFAULT_LOAN_DEDUCTIBLE).replace('.', ','));
+  useEffect(() => setDeductible(String(settings.loan_deductible ?? DEFAULT_LOAN_DEDUCTIBLE).replace('.', ',')), [settings]);
+  const [termsLang, setTermsLang] = useState<Locale>('fr');
+  const termsText = termsLang === 'fr' ? s.loan_terms ?? '' : s.loan_terms_i18n?.[termsLang] ?? '';
+  const setTermsText = (text: string) => setS(termsLang === 'fr'
+    ? { ...s, loan_terms: text || null }
+    : { ...s, loan_terms_i18n: { ...(s.loan_terms_i18n ?? {}), [termsLang]: text } });
   const save = useMutation({
     mutationFn: () => {
       if (!(s.day_end > s.day_start)) throw new Error(t('planningG8.errRange'));
-      return savePlanningSettings({ ...s, day_start: s.day_start.slice(0, 5), day_end: s.day_end.slice(0, 5) });
+      const next: PlanningSettings = { ...s, day_start: s.day_start.slice(0, 5), day_end: s.day_end.slice(0, 5) };
+      if (contractReady) {
+        const amount = parseDeductible(deductible);
+        if (amount === null) throw new Error(t('loans.err_deductible'));
+        next.loan_deductible = amount;
+      }
+      return savePlanningSettings(next);
     },
     onSuccess: () => { toast.success(t('feedback.saved')); onChanged(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('feedback.error')),
@@ -252,10 +268,28 @@ function SettingsSection({ settings, onChanged }: { settings: PlanningSettings; 
         </Field>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">{check('belgian_holidays')}{check('show_occupancy')}{check('block_overlaps')}</div>
-      <Field label={t('loans.termsLabel')} className="mt-3">
-        <Textarea rows={6} value={s.loan_terms ?? ''} onChange={(e) => setS({ ...s, loan_terms: e.target.value || null })} />
-      </Field>
-      <p className="mt-1 text-[12px] text-muted-foreground">{t('loans.termsHint')}</p>
+      {contractReady && (
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Field label={t('loans.deductibleLabel')}>
+            <Input value={deductible} onChange={(e) => setDeductible(e.target.value)} inputMode="decimal" className="text-right tabular-nums" />
+          </Field>
+          <p className="col-span-1 self-end pb-2 text-[12px] text-muted-foreground md:col-span-4">{t('loans.deductibleHint')}</p>
+        </div>
+      )}
+      <div className="mt-3 flex items-end gap-3">
+        <Field label={t('loans.termsLabel')} className="flex-1">
+          <Textarea rows={6} value={termsText} onChange={(e) => setTermsText(e.target.value)} />
+        </Field>
+        {contractReady && (
+          <Field label={t('loans.termsLanguage')} className="w-40 self-start">
+            <Select value={termsLang} onValueChange={(v) => setTermsLang(v as Locale)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{LOCALES.map((l) => <SelectItem key={l} value={l}>{t(`locale.${l}`)}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
+        )}
+      </div>
+      <p className="mt-1 text-[12px] text-muted-foreground">{t('loans.termsHint')}{contractReady ? ` ${t('loans.termsHintLang')}` : ''}</p>
     </Section>
   );
 }

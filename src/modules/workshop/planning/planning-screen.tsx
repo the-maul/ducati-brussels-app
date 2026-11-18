@@ -167,7 +167,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
           onNew={(m, at) => setDialog({ appt: null, defaults: { startsAt: at, mechanicId: m } })}
           onNewWaiting={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })} />
       )}
-      {view === 'prets' && <LoansView companyId={companyId} companyName={activeCompany?.name ?? ''} loanTerms={s.loan_terms} />}
+      {view === 'prets' && <LoansView companyId={companyId} companyName={activeCompany?.name ?? ''} settings={s} />}
       {view === 'reglages' && canSettings && <PlanningSettingsView companyId={companyId} base={base} onChanged={refresh} />}
 
       {dialog && (

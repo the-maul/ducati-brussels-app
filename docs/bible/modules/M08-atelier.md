@@ -231,6 +231,38 @@ essai à blanc `supabase/tests/m8_planning_charge_g8.sql`). Tant qu'elles manque
   Contrat imprimable A4 (emprunteur, permis, moto, période, sortie / retour, OR, conditions générales, signatures).
   Les **conditions générales** sont un **projet** écrit par nous : à relire par Domenico (Planning → Réglages).
 
+### Ajouté le 19/11 — rattrapage G8 : contrat de prêt repris de G8 (ATE005, ATE022, à trancher T10)
+Décision client (T10 ✅ « contrat G8 + nos CG ») : le contrat contient **au minimum** tout le contrat G8
+« CONTRAT DE PRÊT DE VÉHICULE DE REMPLACEMENT » (une page A4) ; **nos conditions générales sont acceptées telles
+quelles** (à ajuster plus tard) et s'impriment **au verso**, dans la langue du client. Migration
+`20261119180000_m8_contrat_pret_g8.sql` (**non appliquée**, essai à blanc `supabase/tests/m8_contrat_pret_g8.sql`).
+- **Écran « Contrat »** (Planning → Prêts → bouton Contrat, `loans/contract-dialog.tsx`) : tout est **pré-rempli** et
+  corrigeable — conducteur depuis la fiche client (nom, né le / à = `birth_date` / `birth_place`, adresse, GSM / tél.,
+  permis n° / délivré le / par = `license_issued_by`, à défaut `license_place`) ; **n° licence** saisi sur le prêt (pas
+  sur la fiche client) ; moto du client = celle de l'OR, sinon du RDV, sinon au choix parmi ses motos ; OR n° / du ;
+  **livraison prévue** = « promis le » de l'OR ; franchise ; « Fait à » (ville de la société) ; langue du contrat
+  (langue de la fiche client) ; double exemplaire (coché par défaut). La saisie est gardée sur le prêt (`driver_*`,
+  `customer_vehicle_id`, `delivery_planned_at`, `deductible_amount`, `contract_place`) : le conducteur peut donc être
+  différent du client. Tant que la migration manque, le contrat s'imprime sans rien enregistrer (bandeau d'avertissement).
+- **Impression** (`loans/contract-print.ts`) : par exemplaire (« de l'utilisateur » / « de la concession »), un recto =
+  date, mention police, conducteur, « Dont le véhicule » (marque, modèle, MEC, immatriculation, châssis, OR n° / du,
+  livraison prévue le / à), « Reçoit un véhicule de remplacement en parfait état » (marque, modèle, MEC, immatriculation,
+  châssis, **puissance**), tableau **départ / retour** (date, heure, km, carburant ; vide = pointillés à remplir à la
+  main), phrase de **franchise**, déclaration (« état du véhicule et conditions générales »), « Fait en double exemplaire
+  à … le … », cadre de signature « L'utilisateur (mention manuscrite « lu et approuvé ») » + « Pour la concession » ;
+  un verso = nos conditions générales. Couleurs / polices lues dans les tokens de la charte au moment d'imprimer
+  (aucun hex dans le fichier, test).
+- **Franchise par société** : `workshop_planning_settings.loan_deductible` (500 € par défaut, Planning → Réglages).
+  Un prêt **fige** la franchise du jour de sa création (garde en base) ; elle reste modifiable sur l'écran Contrat.
+- **CG par langue** : FR = `loan_terms` (inchangé), NL / EN / IT = `loan_terms_i18n` (traductions de notre texte
+  posées par la migration si absentes) ; Réglages → choix de la langue au-dessus du texte. Langue vide → FR imprimé.
+- **Moto de prêt** : `power` (puissance imprimée ; à défaut kW / ch de la fiche du parc liée) et `current_fuel`.
+  **Au retour** : la moto de prêt prend le km **et le carburant** du retour (le carburant est proposé à la sortie
+  suivante) ; la fiche moto du parc liée (`vehicle_id`) prend le km de retour s'il est supérieur. Le retard reste
+  signalé par le badge « En retard » (pas d'autre rappel de retour existant).
+- Règles pures : `loans/contract-rules.ts` ; tests `tests/contrat-pret-g8.test.ts` (rubriques G8 présentes dans les
+  quatre langues, double exemplaire, franchise, pré-remplissage, CG par langue, pas de hex).
+
 ### Kits de pièces d'entretien (M-20, M-38 à M-43, M-90 à M-92)
 
 - **03/11 — Tout le parc, au minimum « annuel » et « annuel + huile »** (M-91) : chaque modèle-année du
@@ -560,3 +592,4 @@ Source : `docs/g8-inventaire/nomenclatures-g8.md` (37 nomenclatures, prix de la 
 | 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |
 | 2026-11-03 | **Registre des véhicules à moteur** : entrée à l'ouverture de l'OR, sortie à sa facture (déclencheur SQL, M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-18 | **Rattrapage G8, lot parc** : kit / forfait inséré en lignes (OR et vente), remplacer une référence dans tous les kits, devis de réparation recopiant l'OR, dupliquer un OR | branche `lot-g8-parc`, migration `20261118143000` (**non appliquée**) |
+| 2026-11-19 | **Contrat de prêt repris de G8** (ATE005, ATE022, T10 « contrat G8 + nos CG ») : tout le contrat G8 (conducteur, permis, licence, moto du client + OR + livraison prévue, moto de prêt + puissance, départ / retour date-heure-km-carburant, franchise par société 500 € par défaut, mention police, « lu et approuvé », double exemplaire), pré-rempli, nos CG au verso dans la langue du client ; retour → km + carburant de la moto de prêt et km de sa fiche du parc | branche `lot-contrat-pret`, migration `20261119180000_m8_contrat_pret_g8.sql` (**non appliquée**), essai `supabase/tests/m8_contrat_pret_g8.sql` |
