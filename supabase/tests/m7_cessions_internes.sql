@@ -22,6 +22,10 @@ insert into _ctx values ('company', '3d9f0f13-a691-4d07-ad58-34590df86e33');
 -- Reglage de depart connu (PAMP, archivage et ouverture auto actives)
 update public.reference_values set label = 'pamp'
  where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'cession_settings' and code = 'cost_basis';
+-- Type 03 « Besoin atelier » non comptabilise (valeur G8 d'origine) : en production ce reglage est
+-- modifiable par le client (il y vaut actuellement « comptabilisee »), le test pose donc sa valeur.
+update public.reference_values set extra = extra || '{"accounted":false}'::jsonb
+ where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'cession_type' and code = '03';
 
 with a as (
   insert into public.articles (company_id, reference, designation, mgmt_type, purchase_price, pamp, sale_price_ttc, vat_rate, category_path)

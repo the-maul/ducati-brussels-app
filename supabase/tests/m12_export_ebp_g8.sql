@@ -23,7 +23,7 @@ set local role authenticated;
 do $s$
 declare
   _co uuid := '3d9f0f13-a691-4d07-ad58-34590df86e33';
-  _doc uuid; _pay uuid; _r jsonb; _r2 jsonb; _tr uuid; _n int; _ok boolean;
+  _doc uuid; _ctc uuid; _pay uuid; _r jsonb; _r2 jsonb; _tr uuid; _n int; _ok boolean;
 begin
   insert into _t(check_name, result) select 'role admin reconnu', case when public._accounting_can_transfer(_co) then 'ok' else 'KO' end;
   insert into _t(check_name, result) select 'parametres poses',
@@ -36,8 +36,11 @@ begin
     case when (select count(*) from public.accounting_account_rules where company_id = _co and kind = 'cash_movement') >= 7 then 'ok' else 'KO' end;
 
   -- Facture validee 121 EUR + virement percu
-  insert into public.documents (company_id, doc_type, status, issue_date, total_ht, total_vat, total_ttc, price_mode)
-  values (_co, 'FAC', 'brouillon', current_date, 100, 21, 121, 'ht') returning id into _doc;
+  -- une facture validee a toujours un client (trigger documents_require_client_and_lines)
+  insert into public.contacts (company_id, type, status, first_name, last_name)
+  values (_co, 'particulier', 'client', 'ESSAI', 'EBP G8') returning id into _ctc;
+  insert into public.documents (company_id, doc_type, status, issue_date, total_ht, total_vat, total_ttc, price_mode, contact_id)
+  values (_co, 'FAC', 'brouillon', current_date, 100, 21, 121, 'ht', _ctc) returning id into _doc;
   insert into public.document_lines (document_id, designation, quantity, unit_price_ht, vat_rate, line_ht, line_ttc, sort_order, line_type)
   values (_doc, 'ESSAI EBP', 1, 100, 21, 100, 121, 0, 'article');
   update public.documents set status = 'validee', number = public.next_document_number(_co, 'FAC') where id = _doc;

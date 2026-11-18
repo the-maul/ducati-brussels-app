@@ -51,7 +51,7 @@ begin
   _r := public.article_set_library(array[_a, _c], true);
   insert into _t(check_name, result) values
     ('librairie : A refuse (stock), C accepte', case when (_r->>'refused_stock')::int = 1 and (_r->>'done')::int = 1 then 'ok' else 'FAIL ' || _r::text end),
-    ('librairie : trace events', case when exists (select 1 from public.events where entity_id = _c and action = 'article_library_in') then 'ok' else 'FAIL' end);
+    ('librairie : trace events', case when exists (select 1 from public.events where entity_id = _c::text and action = 'article_library_in') then 'ok' else 'FAIL' end);
 
   -- ------------------------------------------------ cascade : verrou PV respecte, prix traces
   _r := public.article_cascade_apply(_co, array[_a, _b], 'pv_pct', '{"value":"10"}');
@@ -65,7 +65,7 @@ begin
   _r := public.article_cascade_apply(_co, array[_a], 'lock_designation', '{}');
   insert into _t(check_name, result) values
     ('verrou designation pose + events', case when (select designation_locked from public.articles where id = _a)
-      and exists (select 1 from public.events where entity_id = _a and action = 'article_cascade') then 'ok' else 'FAIL' end);
+      and exists (select 1 from public.events where entity_id = _a::text and action = 'article_cascade') then 'ok' else 'FAIL' end);
 
   -- ------------------------------------------------ prix par lots : verrou PV respecte
   _r := public.article_price_batch(_co, jsonb_build_array(

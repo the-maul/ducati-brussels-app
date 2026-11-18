@@ -38,6 +38,10 @@ values ('3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where 
 insert into public.documents (company_id, doc_type, number, contact_id, status, issue_date, total_ttc, paid_amount)
 values ('3d9f0f13-a691-4d07-ad58-34590df86e33', 'FAC', 'ESSAI-FUSION-1', (select v::uuid from _ctx where k = 'absorb'), 'validee',
         current_date, 10, 0);
+-- un document valide a toujours au moins une ligne (trigger documents_require_client_and_lines,
+-- reverifie quand la fusion change le client du document)
+insert into public.document_lines (document_id, designation, quantity, unit_price_ht, vat_rate, line_ht, line_ttc, sort_order, line_type)
+select id, 'ESSAI FUSION', 1, 8.26, 21, 8.26, 10, 0, 'article' from public.documents where number = 'ESSAI-FUSION-1';
 
 -- ------------------------------------------------------------ 1. administrateur simule
 select set_config('request.jwt.claims', '{"sub":"d9409378-a554-4cb2-97d6-e0b84aba204e","role":"authenticated"}', true);

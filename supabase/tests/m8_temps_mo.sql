@@ -43,7 +43,8 @@ begin
     jsonb_build_object('kind', 'mo', 'designation', 'MO_ATELIER', 'quantity', 1.5, 'unit_price_ht', 63.47, 'line_ht', 95.21, 'line_ttc', 115.2,
                        'mechanic_code', 'ESSAI13', 'mechanic_name', 'Jeremy', 'billed_hours', 1.5, 'worked_hours', 2, 'work_date', '2026-11-18'),
     jsonb_build_object('kind', 'mo', 'designation', 'Entretien', 'quantity', 1, 'unit_price_ht', 63.47, 'checkup_key', 'essai-k1', 'checkup_state', 'a_faire'),
-    jsonb_build_object('kind', 'piece', 'designation', 'Filtre', 'quantity', 1, 'unit_price_ht', 10, 'mechanic_code', 'X')));
+    -- montants envoyes par l ecran (write-api.ts calcule line_ht / line_ttc), la fonction ne les recalcule pas
+    jsonb_build_object('kind', 'piece', 'designation', 'Filtre', 'quantity', 1, 'unit_price_ht', 10, 'line_ht', 10, 'line_ttc', 12.1, 'mechanic_code', 'X')));
   select * into _r from public.repair_order_lines where or_id = _or and designation = 'MO_ATELIER';
   _mo := _r.id;
   insert into _t(check_name, result) values

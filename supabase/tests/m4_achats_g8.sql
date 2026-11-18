@@ -21,6 +21,13 @@ create temp table _t(n serial, check_name text, result text) on commit drop;
 create temp table _c(k text primary key, v text) on commit drop;
 grant all on _t, _c to authenticated; grant usage on sequence _t_n_seq to authenticated;
 
+-- article_on_order_for est une fonction interne (revoquee pour authenticated depuis 20260919311000) :
+-- le test la lit via une copie temporaire security definer creee avant le passage en authenticated.
+create function pg_temp.on_order_for(_article uuid, _contact uuid, _document uuid) returns numeric
+language sql stable security definer set search_path = public, pg_temp as $f$
+  select public.article_on_order_for(_article, _contact, _document) $f$;
+grant execute on function pg_temp.on_order_for(uuid, uuid, uuid) to authenticated;
+
 select set_config('request.jwt.claims', '{"sub":"d9409378-a554-4cb2-97d6-e0b84aba204e","role":"authenticated"}', true);
 set local role authenticated;
 
@@ -53,7 +60,7 @@ begin
           and (select total_ht from public.purchase_orders where id = _cmd_id) = 120
           and (select total_ttc from public.purchase_orders where id = _cmd_id) = 145.20 then 'ok' else 'KO ' || _cmd::text end;
   insert into _t(check_name, result) select 'en commande apres la commande : A1 = 5',
-    case when public.article_on_order_for(_a1, null, null) = 5 then 'ok' else 'KO ' || public.article_on_order_for(_a1, null, null) end;
+    case when pg_temp.on_order_for(_a1, null, null) = 5 then 'ok' else 'KO ' || pg_temp.on_order_for(_a1, null, null) end;
 
   -- 2. Reception partielle (rappel de la commande), port 6 reparti
   _rec := public.purchase_doc_save(_co, null,
@@ -69,8 +76,8 @@ begin
          else 'KO stock ' || (select real_qty from public.article_stock(_a1)) || ' pamp ' || (select pamp from public.articles where id = _a1) end;
   insert into _t(check_name, result) select 'commande passee « partielle », reliquat en commande : A1 = 2, A2 = 3',
     case when (select status from public.purchase_orders where id = _cmd_id) = 'partielle'
-          and public.article_on_order_for(_a1, null, null) = 2 and public.article_on_order_for(_a2, null, null) = 3 then 'ok'
-         else 'KO ' || (select status from public.purchase_orders where id = _cmd_id) || ' ' || public.article_on_order_for(_a1, null, null) end;
+          and pg_temp.on_order_for(_a1, null, null) = 2 and pg_temp.on_order_for(_a2, null, null) = 3 then 'ok'
+         else 'KO ' || (select status from public.purchase_orders where id = _cmd_id) || ' ' || pg_temp.on_order_for(_a1, null, null) end;
   insert into _t(check_name, result) select 'etiquettes de reception en file (B12) : 3',
     case when (select sum(qty) from public.label_queue where article_id = _a1) = 3 then 'ok' else 'KO' end;
   insert into _t(check_name, result) select 'reste a recevoir (rappel) : A1 2, A2 3',
@@ -78,6 +85,9 @@ begin
           and (select remaining from public.purchase_open_lines(_co, _sup, 'CMD', _cmd_id) where line_id = _l2) = 3 then 'ok' else 'KO' end;
 
   -- 3. Garde : le statut ne se change pas a la main
+  -- (en production chaque appel d'ecran est une requete = une transaction ; ici tout tient dans une seule
+  --  transaction, il faut donc eteindre le drapeau transactionnel pose par purchase_doc_save)
+  perform set_config('app.purchase_rpc', 'off', true);
   begin
     update public.purchase_orders set status = 'recue' where id = _cmd_id;
     _ok := false;
@@ -98,7 +108,7 @@ begin
     '[]'::jsonb, true);
   insert into _t(check_name, result) select 'commande « recue », plus rien en commande',
     case when (select status from public.purchase_orders where id = _cmd_id) = 'recue'
-          and public.article_on_order_for(_a1, null, null) = 0 and public.article_on_order_for(_a2, null, null) = 0 then 'ok' else 'KO' end;
+          and pg_temp.on_order_for(_a1, null, null) = 0 and pg_temp.on_order_for(_a2, null, null) = 0 then 'ok' else 'KO' end;
 
   -- 5. Retrocession 1 x A1 : sortie, PAMP inchange
   select pamp into _pamp from public.articles where id = _a1;
@@ -187,7 +197,7 @@ begin
          else 'KO ' || public.supplier_open_orders(_sup)::text end;
   perform public.purchase_order_close_remainder(_cmd2, 'essai');
   insert into _t(check_name, result) select 'solde du reliquat : commande « soldee », plus en commande',
-    case when (select status from public.purchase_orders where id = _cmd2) = 'soldee' and public.article_on_order_for(_a1, null, null) = 0
+    case when (select status from public.purchase_orders where id = _cmd2) = 'soldee' and pg_temp.on_order_for(_a1, null, null) = 0
          then 'ok' else 'KO' end;
 
   insert into _t(check_name, result) select 'lectures : infos client, CA, TVA, echeances, historique, liste, suivi',
