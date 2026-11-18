@@ -8,8 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { listPriceRules, addPriceRule, deletePriceRule, resolveCustomerPrice, type Tier } from '@/modules/contacts/pricing';
+import { listPriceRules, addPriceRule, deletePriceRule, type Tier } from '@/modules/contacts/pricing';
 import { searchSaleArticles } from '@/modules/sales/write-api';
+import { CustomerPricer, type PricingContact } from '@/modules/sales/customer-pricing-api';
+import { PriceListsScreen } from '@/modules/contacts/price-lists-screen';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/client-pricing')({
@@ -26,8 +30,27 @@ function parseTiers(s: string): Tier[] {
   }).filter((t) => Number.isFinite(t.min_qty));
 }
 
+/** Tarifs clients : tarifs communs (G8, rattrapage du 18/11) et regles propres a un client. */
 function PricingPage() {
   const { activeCompanyId } = useAuth();
+  return (
+    <>
+      <PageHeader title={t('pricing.title')} description={t('priceLists.subtitle')} />
+      <Tabs defaultValue="lists">
+        <TabsList>
+          <TabsTrigger value="lists">{t('priceLists.tabLists')}</TabsTrigger>
+          <TabsTrigger value="clients">{t('priceLists.tabClients')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="lists" className="pt-4">{activeCompanyId && <PriceListsScreen companyId={activeCompanyId} />}</TabsContent>
+        <TabsContent value="clients" className="pt-4"><ClientRules /></TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+function ClientRules() {
+  const { activeCompanyId } = useAuth();
+  const roundUp = useRoundSalePrices(activeCompanyId);
   const [client, setClient] = useState('');
   const [kind, setKind] = useState('discount_pct');
   const [value, setValue] = useState('');
@@ -37,10 +60,10 @@ function PricingPage() {
   const [artSearch, setArtSearch] = useState('');
   const [simArt, setSimArt] = useState('');
   const [simQty, setSimQty] = useState('1');
-  const [resolved, setResolved] = useState<{ ht: number; ttc: number; kind: string; pct: number } | null>(null);
+  const [resolved, setResolved] = useState<{ ht: number; ttc: number; kind: string; pct: number; list: string | null } | null>(null);
 
   const contacts = useQuery({ queryKey: ['pricing-contacts', activeCompanyId], queryFn: async () => {
-    const { data } = await supabase.from('contacts').select('id, first_name, last_name, company_name').eq('company_id', activeCompanyId!).order('last_name').limit(200);
+    const { data } = await supabase.from('contacts').select('*').eq('company_id', activeCompanyId!).order('last_name').limit(200);
     return data ?? [];
   }, enabled: !!activeCompanyId });
 
@@ -55,16 +78,23 @@ function PricingPage() {
   const sim = useMutation({
     // Simulation de prix : une lecture, pas une écriture — pas de toast.
     meta: { success: false },
-    mutationFn: () => resolveCustomerPrice(activeCompanyId!, client, simArt, Number(simQty) || 1),
-    onSuccess: (r) => setResolved(r ? { ht: r.unit_price_ht, ttc: r.unit_price_ttc, kind: r.rule_kind, pct: r.discount_pct } : null),
+    // Meme calcul que la vente, la caisse et l'OR (tarif commun, regles du client, paliers, dates).
+    mutationFn: async () => {
+      const a = arts.data?.find((x) => x.id === simArt);
+      const c = contacts.data?.find((x) => x.id === client) as PricingContact | undefined;
+      if (!a || !c) return null;
+      const r = await new CustomerPricer(activeCompanyId!, c).price(a.id, effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), Number(simQty) || 1);
+      const net = r.unitPriceHt * (1 - r.discountPct / 100);
+      return { ht: net, ttc: net * (1 + a.vat_rate / 100), kind: r.rule ? `${r.rule.source}:${r.rule.kind}` : 'base', pct: r.discountPct, list: r.listCode };
+    },
+    onSuccess: (r) => setResolved(r),
   });
 
   const cname = (c: { first_name?: string | null; last_name?: string | null; company_name?: string | null }) => c.company_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
 
   return (
     <>
-      <PageHeader title={t('pricing.title')} description={t('pricing.subtitle')} />
-
+      <p className="mb-3 text-[12px] text-muted-foreground">{t('pricing.subtitle')}</p>
       <div className="mb-4 max-w-md">
         <Select value={client} onValueChange={setClient}>
           <SelectTrigger><SelectValue placeholder={t('pricing.pickClient')} /></SelectTrigger>
@@ -134,7 +164,7 @@ function PricingPage() {
                 <div className="rounded-md bg-muted p-3 text-[13px]">
                   <div className="flex justify-between"><span>{t('pricing.resolvedHt')}</span><strong className="tabular-nums">{eur(resolved.ht)}</strong></div>
                   <div className="flex justify-between"><span>{t('pricing.resolvedTtc')}</span><strong className="tabular-nums">{eur(resolved.ttc)}</strong></div>
-                  <div className="mt-1 text-[12px] text-muted-foreground">{t('pricing.applied')} : {t(`pricing.kind_${resolved.kind}`) || resolved.kind} {resolved.pct ? `(−${resolved.pct}%)` : ''}</div>
+                  <div className="mt-1 text-[12px] text-muted-foreground">{t('pricing.applied')} : {resolved.kind === 'base' ? t('priceLists.simBase') : t(`priceLists.simSource_${resolved.kind.split(':')[0]}`)}{resolved.list ? ` ${resolved.list}` : ''} {resolved.pct ? `(−${resolved.pct}%)` : ''}</div>
                 </div>
               )}
             </div>

@@ -209,6 +209,8 @@ async function nextNumber(companyId: string, docType: string): Promise<string | 
 function headerColumns(p: {
   docType: string; contactId?: string | null; vehicleId?: string | null; issueDate: string; dueDate?: string | null;
   notes?: string | null; lines: LineInput[]; pied: PiedInput; marginPurchasePrice?: number | null;
+  /** Conditions de reglement du document (G8 « Conditions », reprises de la fiche client). */
+  paymentTerms?: string | null;
 }) {
   const { total_ht, total_vat, total_ttc } = computeTotals(p.lines, p.pied);
   const marge = p.pied.vatScheme === 'marge';
@@ -219,6 +221,7 @@ function headerColumns(p: {
     global_discount_pct: p.pied.globalDiscountPct ?? 0, global_discount_amount: p.pied.globalDiscountAmount ?? 0,
     shipping_ht: p.pied.shippingHt ?? 0, shipping_taxed: p.pied.shippingTaxed !== false,
     shipping_vat_rate: p.pied.shippingVatRate ?? 21, forced_ttc: p.pied.forcedTtc ?? null,
+    ...(p.paymentTerms !== undefined ? { condition_reglement: p.paymentTerms?.trim() || null } : {}),
   };
   // Colonnes absentes de types.ts tant que la migration n'est pas posée : ajoutées hors typage.
   return marge ? Object.assign(base, margeColumns('marge', p.marginPurchasePrice ?? null)) : base;
@@ -318,6 +321,8 @@ export async function createDocument(p: {
   companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
   lines: LineInput[]; pied?: PiedInput; sourceDocumentId?: string | null;
+  /** Conditions de reglement (fiche client, modifiables a la saisie). Absent : colonne non touchee. */
+  paymentTerms?: string | null;
   /** Prix de reprise déjà figé sur le document d'origine (avoir d'une vente en marge). */
   marginPurchasePrice?: number | null;
   /** Régime imposé par le document d'origine (avoir), sinon déduit des articles. */
@@ -419,7 +424,7 @@ export const invoiceRequiredMessage = (why: 'vehicle' | 'threshold'): string => 
 export async function updateDraftDocument(p: {
   documentId: string; companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
-  lines: LineInput[]; pied?: PiedInput;
+  lines: LineInput[]; pied?: PiedInput; paymentTerms?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
   const { doc, lines: oldLines } = await getDocumentFull(p.documentId);
@@ -616,6 +621,8 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
     companyId: doc.company_id, docType: targetType, contactId: doc.contact_id, vehicleId: doc.vehicle_id,
     issueDate: today, dueDate: doc.due_date, status: 'validee', notes: doc.notes,
     lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: sourceId,
+    // Les conditions de reglement suivent le document (devis -> BC -> facture).
+    ...(doc.condition_reglement ? { paymentTerms: doc.condition_reglement } : {}),
   });
 
   // Report des acomptes perçus de la source (réservation) sur la cible → déduction auto. Un acompte déjà

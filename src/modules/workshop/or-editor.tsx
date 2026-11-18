@@ -22,8 +22,8 @@ import { toRoLine, type InsertLine } from './kits/insert-rules';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
-import { articleLinePrice, customerDiscountPct, labourUnitPrice } from '@/modules/sales/article-price';
-import { resolveCustomerPrice } from '@/modules/contacts/pricing';
+import { articleLinePrice, labourUnitPrice } from '@/modules/sales/article-price';
+import { useCustomerPricer, insurerPriceListForOr, type PricingContact } from '@/modules/sales/customer-pricing-api';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
 import {
   defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
@@ -113,6 +113,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     vehicle: vehicleIdToLoad ? { id: vehicleIdToLoad, vin: null, plate: null, brand: null, model: null } : null,
   });
   const contact = sel.contact;
+  // OR accident : le tarif associe au cabinet d'assurance passe avant celui du client (G8).
+  const { data: insurerList } = useQuery({
+    queryKey: ['or-insurer-price-list', initial?.or?.id ?? null], queryFn: () => insurerPriceListForOr(initial!.or.id),
+    enabled: !!initial?.or?.id, staleTime: 60_000,
+  });
+  const pricer = useCustomerPricer(companyId, contact as PricingContact | null, insurerList ?? null);
   const vehicle = sel.vehicle;
   const [mileage, setMileage] = useState(o?.mileage != null ? String(o.mileage) : '');
   // Operateur = un membre de l'equipe, l'utilisateur connecte par defaut (ATE001b) ; ancien texte garde.
@@ -247,11 +253,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const pickLineArticle = (k: string, a: SaleArticle) => {
     const price = articleLinePrice(a, { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) });
     setLine(k, { article_id: a.id, designation: a.designation, ...price });
-    // Remise du client (Tarifs clients) si elle existe : posee ensuite, sans bloquer la saisie.
-    const contactId = contact?.id;
-    if (contactId) {
-      resolveCustomerPrice(companyId, contactId, a.id, 1)
-        .then((r) => { const d = customerDiscountPct(r); if (d > 0) setLines((ls) => ls.map((l) => (l._key === k && l.article_id === a.id ? { ...l, discount_pct: d } : l))); })
+    // Tarif du client (meme calcul que la vente et la caisse : tarif commun, regles du client,
+    // paliers, dates ; rattrapage G8 du 18/11) pose ensuite, sans bloquer la saisie.
+    if (contact || insurerList) {
+      const qty = Number(lines.find((l) => l._key === k)?.quantity ?? 1) || 1;
+      pricer.price(a.id, price.unit_price_ht, qty)
+        .then((r) => { if (r.rule) setLines((ls) => ls.map((l) => (l._key === k && l.article_id === a.id ? { ...l, unit_price_ht: r.unitPriceHt, discount_pct: r.discountPct } : l))); })
         .catch(() => { /* sans tarif client : prix de base */ });
     }
   };

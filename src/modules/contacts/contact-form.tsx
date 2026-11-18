@@ -37,6 +37,7 @@ import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/l
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { listRef } from '@/modules/settings/reference-api';
 import { findDuplicateContacts, findContactsByEmailOrMobile, contactDisplayName } from './api';
+import { listPriceLists } from '@/modules/sales/customer-pricing-api';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import type {
@@ -159,6 +160,7 @@ const INTEREST_OPTIONS: { key: string; labelKey: string }[] = [
 
 /** Valeur sentinelle : Radix Select interdit un SelectItem de valeur vide. */
 const CIVILITY_NONE = '__none__';
+const PRICE_LIST_NONE = '__none__';
 
 type FormState = {
   type: ContactType;
@@ -213,6 +215,13 @@ type FormState = {
   credit_limit: string;
   segment: CustomerSegment;
   price_list: string;
+  /** Rattrapage G8 du 18/11 : tarif commun (migration 20261118190000), '' = pas de tarif. */
+  price_list_id: string;
+  show_discounts_pos: boolean;
+  receipt_copies: string;
+  credit_limit_blocking: boolean;
+  /** La fiche lue porte deja les colonnes de la migration 20261118190000. */
+  has_price_list_col: boolean;
   category: string;
   is_vip: boolean;
   is_detaxe: boolean;
@@ -290,6 +299,11 @@ function fromContact(c: Contact | null): FormState {
     credit_limit: c?.credit_limit != null ? String(c.credit_limit) : '',
     segment: c?.segment ?? 'standard',
     price_list: c?.price_list ?? '',
+    price_list_id: ext?.price_list_id ?? '',
+    show_discounts_pos: c?.show_discounts_pos ?? true,
+    receipt_copies: c?.receipt_copies ? String(c.receipt_copies) : '',
+    credit_limit_blocking: ext?.credit_limit_blocking ?? false,
+    has_price_list_col: !!ext && 'price_list_id' in ext,
     category: c?.category ?? '',
     is_vip: c?.is_vip ?? false,
     is_detaxe: c?.is_detaxe ?? false,
@@ -369,6 +383,8 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     credit_limit: f.credit_limit.trim() === '' ? 0 : Number(f.credit_limit),
     segment: f.segment,
     price_list: nn(f.price_list),
+    show_discounts_pos: f.show_discounts_pos,
+    receipt_copies: Math.max(0, Math.min(9, Math.round(Number(f.receipt_copies) || 0))),
     category: nn(f.category),
     is_vip: f.is_vip,
     is_detaxe: f.is_detaxe,
@@ -398,6 +414,10 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     notify_model_stock: f.notify_model_stock,
     // Colonne ajoutée par migration 20260726 — pas encore dans types.ts auto-généré
     watch_note: nn(f.watch_note),
+    // Migration 20261118190000 (tarif commun, encours bloquant) : envoyées seulement quand elles
+    // portent une valeur, pour que la fiche s'enregistre aussi avant l'application de la migration.
+    ...(f.price_list_id || f.has_price_list_col ? { price_list_id: f.price_list_id || null } : {}),
+    ...(f.credit_limit_blocking || f.has_price_list_col ? { credit_limit_blocking: f.credit_limit_blocking } : {}),
   });
 }
 
@@ -442,6 +462,8 @@ export function ContactForm({
 
   const isPro =f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
+  // Tarifs communs (null = migration 20261118190000 pas encore appliquee : choix masque).
+  const priceLists = useQuery({ queryKey: ['price-lists', companyId], queryFn: () => listPriceLists(companyId), staleTime: 60_000 });
   const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
 
   // Formes juridiques : table de référence `civility` de Paramètres (lignes « Professionnel »).
@@ -1017,6 +1039,42 @@ export function ContactForm({
               </div>
             )}
           </Section>
+          )}
+
+          {/* ── Conditions et tarifs (G8, rattrapage du 18/11) ─────────────── */}
+          {isClient && (
+            <Section title={t('clientRules.secConditions')}>
+              <Field label={t('clientRules.priceList')}>
+                {priceLists.data === null
+                  ? <p className="text-[12px] text-muted-foreground">{t('clientRules.priceListsMissing')}</p>
+                  : (
+                    <Select value={f.price_list_id || PRICE_LIST_NONE} onValueChange={(v) => set('price_list_id', v === PRICE_LIST_NONE ? '' : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={PRICE_LIST_NONE}>{f.price_list ? `${t('clientRules.priceListNone')} (G8 : ${f.price_list})` : t('clientRules.priceListNone')}</SelectItem>
+                        {(priceLists.data ?? []).filter((l) => l.is_active !== false || l.id === f.price_list_id).map((l) => (
+                          <SelectItem key={l.id} value={l.id}>{l.code}{l.label ? ` — ${l.label}` : ''}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+              </Field>
+              <Field label={t('clientRules.receiptCopies')}>
+                <Input type="number" min="0" max="9" step="1" value={f.receipt_copies} placeholder="0" title={t('clientRules.receiptCopiesHint')}
+                  onChange={(e) => set('receipt_copies', e.target.value)} className="text-right tabular-nums" />
+              </Field>
+              {!showB2B && (
+                <Field label={t('contacts.creditLimit')}>
+                  <Input type="number" step="0.01" min="0" value={f.credit_limit} onChange={(e) => set('credit_limit', e.target.value)} className="text-right tabular-nums" />
+                </Field>
+              )}
+              <div className="col-span-full grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Check label={t('clientRules.showDiscountsPos')} checked={f.show_discounts_pos} onChange={(v) => set('show_discounts_pos', v)} />
+                {priceLists.data !== null && (
+                  <Check label={t('clientRules.creditBlocking')} checked={f.credit_limit_blocking} onChange={(v) => set('credit_limit_blocking', v)} />
+                )}
+              </div>
+            </Section>
           )}
 
           {/* Notes */}

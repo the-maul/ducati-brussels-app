@@ -11,7 +11,7 @@ import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText, Bike, Package, ListPlus } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText, Bike, Package, ListPlus, Tag } from 'lucide-react';
 import { KitInsertDialog } from '@/modules/workshop/kits/kit-insert-dialog';
 import { toSaleLine, type InsertLine } from '@/modules/workshop/kits/insert-rules';
 import { OptionsPickDialog } from '@/modules/vehicles/options-pick-dialog';
@@ -40,7 +40,7 @@ import { requiresConfirmation } from './confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from './confirm-document-dialog';
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -54,13 +54,21 @@ import { StatusBadge } from '@/components/status-badge';
 import { EcatalogPasteButton, EcatalogLink, type EcatalogPick } from './ecatalog-paste';
 import { looksLikeDucatiReference } from './ecatalog';
 import { ArticleLinePicker } from './article-line-picker';
+import { useCustomerPricer, contactOpenBalance, type PricingContact } from './customer-pricing-api';
+import { isBlockedSale, clientPriceDefaults, creditCheck, creditRefuses, dueDateFromTerms, type SaleClientFlags } from './customer-pricing';
+import { ClientSaleBanners } from './client-sale-banners';
+import { TariffPriceDialog } from './tariff-price-dialog';
 
 const DOC_TYPES = EDITOR_DOC_TYPES;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null; _catalogUrl?: string | null };
+/**
+ * `_auto` : prix pose par le catalogue / le tarif du client (recalcule si le client ou la quantite
+ * change) ; faux des que le vendeur touche au prix ou a la remise. `_base` : PV HT catalogue.
+ */
+type EditLine = LineInput & { _key: string; _fee?: QuoteFeeKind | null; _stock?: SaleArticle | null; _catalogUrl?: string | null; _auto?: boolean; _base?: number; _promo?: boolean };
 let counter = 0;
 const blankLine = (type: LineType = 'article', designation = ''): EditLine => ({
   _key: `l${counter++}`, article_id: null, designation, quantity: type === 'texte' || type === 'vide' ? 0 : 1,
@@ -106,6 +114,11 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   }, [companyDefaultType]);
   const [contact, setContact] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  // Tarifs clients (rattrapage G8 du 18/11) : tarif commun, regles du client, paliers, dates.
+  const pricer = useCustomerPricer(companyId, contact as PricingContact | null);
+  const flags = contact as (Contact & SaleClientFlags) | null;
+  const [paymentTerms, setPaymentTerms] = useState<string>(draft?.doc.condition_reglement ?? '');
+  const [tariffLine, setTariffLine] = useState<EditLine | null>(null);
   const [issueDate, setIssueDate] = useState(() => draft?.doc.issue_date ?? new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState(draft?.doc.due_date ?? '');
   const [lines, setLines] = useState<EditLine[]>(() => (draft ? draftLines(draft) : [blankLine()]));
@@ -150,6 +163,22 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // La détaxe n'est valable qu'en mode HT (G8 p.54) : on la coupe si on repasse en TTC.
   useEffect(() => { if (priceMode !== 'ht' && taxExempt) setTaxExempt(false); }, [priceMode, taxExempt]);
 
+  // Cases de la fiche client (G8 « Conditions et tarifs ») a l'arrivee d'un client : detaxe => HT +
+  // TVA 0 % export, mode HT => saisie HT ; conditions de reglement et echeance. Un brouillon rouvert
+  // garde ce qui a ete enregistre.
+  const defaultsFor = useRef<string | null>(draft?.doc.contact_id ?? null);
+  useEffect(() => {
+    if (!contact || defaultsFor.current === contact.id) return;
+    defaultsFor.current = contact.id;
+    const d = clientPriceDefaults(flags);
+    if (d) { setPriceMode(d.priceMode); setTaxExempt(d.taxExempt); }
+    const terms = (contact.payment_terms ?? '').trim();
+    setPaymentTerms(terms);
+    const due = dueDateFromTerms(terms, issueDate);
+    if (due && !dueDate) setDueDate(due);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact?.id]);
+
   // Régime de la marge (B2, M-89) : dès qu'une ligne porte une moto d'occasion de particulier
   // (article O), le document s'affiche sans TVA. Type connu par la recherche (`_stock`) ; pour un
   // brouillon rouvert, lu en base. La décision finale reste celle de `createDocument`.
@@ -189,13 +218,13 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     key: draft ? null : draftKey ?? null,
     value: {
       docType, contact, vehicle, issueDate, dueDate, lines, priceMode, taxExempt, discountPct, discountAmount,
-      shippingHt, shippingTaxed, forcedTtc, workshopQuote, feeKind, feeHours,
+      shippingHt, shippingTaxed, forcedTtc, workshopQuote, feeKind, feeHours, paymentTerms,
     },
     // Le type par defaut de la societe et les fiches prechargees par leur id ne comptent pas comme une saisie.
     fingerprint: (v) => ({
       ...v, docType: typeTouched.current ? v.docType : null,
       contact: v.contact?.id ?? preContactId ?? null, vehicle: v.vehicle?.id ?? preVehicleId ?? null,
-      lines: v.lines.map(({ _key, _stock, ...l }) => l),
+      lines: v.lines.map(({ _key, _stock, _auto, _base, _promo, ...l }) => l),
     }),
     accept: (d) => !initialContactId || !d.contact || d.contact.id === initialContactId,
     restore: (d) => {
@@ -207,6 +236,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
       setPriceMode(d.priceMode); setTaxExempt(d.taxExempt); setDiscountPct(d.discountPct); setDiscountAmount(d.discountAmount);
       setShippingHt(d.shippingHt); setShippingTaxed(d.shippingTaxed); setForcedTtc(d.forcedTtc);
       setWorkshopQuote(d.workshopQuote); setFeeKind(d.feeKind); setFeeHours(d.feeHours);
+      if (typeof d.paymentTerms === 'string') setPaymentTerms(d.paymentTerms);
     },
   });
 
@@ -214,11 +244,35 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   // Article posé sur une ligne (recherche, remplacement par la dernière référence, équivalent).
   // Un article de type T devient une ligne « main d'œuvre » (quantité en heures, sans stock).
   const pickArticle = (key: string, a: SaleArticle) => { void warnIfReservedForWorkshop(a, Number(lines.find((l) => l._key === key)?.quantity ?? 1) || 1); pickArticleLine(key, a); };
-  const pickArticleLine = (key: string, a: SaleArticle) => setLine(key, {
-    article_id: a.id, designation: a.designation, reference: a.reference,
-    unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
-    line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null,
-  });
+  const pickArticleLine = (key: string, a: SaleArticle) => {
+    const base = effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp);
+    const qty = Number(lines.find((l) => l._key === key)?.quantity ?? 1) || 1;
+    setLine(key, {
+      article_id: a.id, designation: a.designation, reference: a.reference,
+      unit_price_ht: base, discount_pct: 0, vat_rate: a.vat_rate, _stock: a,
+      line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null, _auto: true, _base: base, _promo: false,
+    });
+    applyPricing(key, a.id, base, qty);
+  };
+  /** Prix du client (tarif, paliers) pose sur une ligne encore « automatique ». */
+  const applyPricing = (key: string, articleId: string, baseHt: number, qty: number, using = pricer) => {
+    if (!using.contact) return;
+    using.price(articleId, baseHt, qty, issueDate)
+      .then((r) => setLines((ls) => ls.map((l) => (l._key === key && l.article_id === articleId && l._auto
+        ? { ...l, unit_price_ht: r.unitPriceHt, discount_pct: r.discountPct, _promo: r.isPromo } : l))))
+      .catch(() => { /* tarif illisible : prix catalogue garde */ });
+  };
+  // Client choisi ou change : les lignes encore automatiques reprennent son tarif (ou le catalogue).
+  useEffect(() => {
+    setLines((ls) => ls.map((l) => (l._auto && l._base != null ? { ...l, unit_price_ht: l._base, discount_pct: 0, _promo: false } : l)));
+    for (const l of lines) if (l._auto && l.article_id && l._base != null) applyPricing(l._key, l.article_id, l._base, Number(l.quantity) || 1, pricer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricer]);
+  // Quantite modifiee : palier de quantite du tarif.
+  const setQty = (l: EditLine, q: number) => {
+    setLine(l._key, { quantity: q });
+    if (l._auto && l.article_id && l._base != null) applyPricing(l._key, l.article_id, l._base, q || 1);
+  };
   const addLine = (type: LineType, designation = '') => setLines((ls) => [...ls, blankLine(type, designation)]);
   // Article collé depuis l'e-catalog (carte 4) : remplit la dernière ligne article vide, sinon en ajoute une.
   const addEcatalogLine = ({ article: a, catalogUrl, unitPriceHt }: EcatalogPick) => setLines((ls) => {
@@ -229,6 +283,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
       ...base, article_id: a.id, designation: a.designation, reference: a.reference,
       unit_price_ht: unitPriceHt ?? effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
       line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: catalogUrl,
+      _auto: unitPriceHt == null, _base: unitPriceHt ?? effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp),
     };
     return reuse ? [...ls.slice(0, -1), line] : [...ls, line];
   });
@@ -254,13 +309,21 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
     forcedTtc: forcedTtc.trim() ? num(forcedTtc) : null,
   };
-  const totals = computeTotals(lines.map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l), pied);
+  const totals = computeTotals(lines.map(({ _key, _fee, _stock, _catalogUrl, _auto, _base, _promo, ...l }) => l), pied);
+
+  // Encours autorise (G8 « Infos compta ») : reste du + ce document.
+  const { data: openBalance } = useQuery({
+    queryKey: ['contact-open-balance', contact?.id, draft?.doc.id ?? null],
+    queryFn: () => contactOpenBalance(contact!.id, draft?.doc.id ?? null),
+    enabled: !!contact && Number(contact.credit_limit ?? 0) > 0,
+  });
+  const credit = creditCheck(flags, openBalance ?? 0, docType === 'DEV' ? 0 : totals.total_ttc);
 
   // Erreur toujours visible : sous les totaux ET en toast (le bouton Valider est en bas, pas le message).
   const fail = (msg: string) => { setError(msg); toast.error(msg); setBusy(false); };
 
   // Une ligne vide est gardée telle quelle (séparation) ; les autres doivent avoir un libellé.
-  const payloadLines = () => lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, ...l }) => l);
+  const payloadLines = () => lines.filter((l) => l.line_type === 'vide' || l.designation.trim()).map(({ _key, _fee, _stock, _catalogUrl, _auto, _base, _promo, ...l }) => l);
 
   const save = async (status: 'brouillon' | 'validee') => {
     setError(null);
@@ -268,6 +331,11 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     // Refus clairs avant d'écrire : sans ligne, validation sans client, validation à 0 € (audit du 31/10/2026).
     const refused = documentValidationError({ docType, status, contactId: contact?.id ?? null, lines: payload, requireAmount: true });
     if (refused) { fail(documentValidationMessage(refused)); return; }
+    // Client bloque : vente refusee (la base refuse aussi) ; encours bloquant : vente a credit refusee.
+    if (status === 'validee' && isBlockedSale(flags, docType)) { fail(t('clientRules.blockedRefused')); return; }
+    if (status === 'validee' && creditRefuses(credit, docType)) {
+      fail(fillVars(t('clientRules.creditRefused'), { total: eur(credit.total), limit: eur(credit.limit) })); return;
+    }
     // Facture : confirmation avec récapitulatif avant de consommer un numéro et de sortir le stock (cartes 4 et 6).
     if (status === 'validee' && requiresConfirmation(docType)) {
       setConfirmRequest({
@@ -288,7 +356,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         : draft?.doc.notes ?? null;
       const common = {
         companyId, docType, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, issueDate, dueDate: dueDate || null,
-        status, notes, lines: payload, pied,
+        status, notes, lines: payload, pied, paymentTerms,
       };
       const id = draft ? await updateDraftDocument({ documentId: draft.doc.id, ...common }) : await createDocument(common);
       if (draft) qc.invalidateQueries({ queryKey: ['doc-full', id] });
@@ -349,6 +417,9 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         </Field>
       </div>
 
+      {/* Cases de la fiche client (bloque, a surveiller, detaxe, mode HT, encours, tarif) */}
+      {contact && <ClientSaleBanners contact={flags!} credit={credit} docType={docType} pricer={pricer} />}
+
       {/* Lignes */}
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
@@ -361,12 +432,20 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               <Th className="w-20 text-right">{t('sales.colDiscount')}</Th>
               <Th className="w-28 text-right">{t('sales.colLineHt')}</Th>
               <Th className="w-36">{t('availability.colDispo')}</Th>
-              <Th className="w-10" />
+              <Th className="w-20" />
             </tr>
           </thead>
           <tbody>
             {lines.map((l) => {
-              const del = <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>;
+              const canTariff = !!contact && !!l.article_id && !l._fee && l.line_type === 'article';
+              const del = (
+                <td className="whitespace-nowrap px-2 py-1 text-center">
+                  {canTariff && (
+                    <Button size="sm" variant="ghost" title={t('clientRules.tariffButton')} onClick={() => setTariffLine(l)}><Tag className="size-4 text-muted-foreground" /></Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button>
+                </td>
+              );
               if (l.line_type === 'vide') return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td colSpan={7} className="px-3 py-2 text-[12px] italic text-muted-foreground"><Minus className="mr-1 inline size-3.5" />{t('sales.blankLine')}</td>
@@ -386,7 +465,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               const ht = lineHasAmount(l) ? l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) : 0;
               const vatFactor = 1 + (noVat ? 0 : l.vat_rate || 0) / 100;
               const shownPrice = priceMode === 'ttc' ? r2(l.unit_price_ht * vatFactor) : l.unit_price_ht;
-              const onPrice = (v: number) => setLine(l._key, { unit_price_ht: priceMode === 'ttc' ? r2(v / vatFactor) : v });
+              const onPrice = (v: number) => setLine(l._key, { unit_price_ht: priceMode === 'ttc' ? r2(v / vatFactor) : v, _auto: false });
               return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-2 py-1">
@@ -398,6 +477,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                       <>
                         <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
                         {l._stock && <ReplacementHint companyId={companyId} article={l._stock} onReplace={(a) => pickArticle(l._key, a)} />}
+                        {l._promo && <StatusBadge tone="info" icon={Tag} label={t('clientRules.promo')} />}
                         {(l._catalogUrl || looksLikeDucatiReference(l.reference)) && <EcatalogLink reference={l.reference} catalogUrl={l._catalogUrl} />}
                       </>
                     ) : labour ? (
@@ -416,16 +496,16 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
                         onChange={(e) => setFeeQty(l, num(e.target.value))} title={l._fee === 'diagnostic' ? t('sales.feeHoursHint') : undefined} className="h-8 text-right tabular-nums" />
                     ) : labour ? (
                       <div className="flex items-center gap-1">
-                        <Input type="number" step="0.25" min={0} value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" />
+                        <Input type="number" step="0.25" min={0} value={String(l.quantity)} onChange={(e) => setQty(l, num(e.target.value))} className="h-8 text-right tabular-nums" />
                         <span className="text-[12px] text-muted-foreground">{t('sales.hoursUnit')}</span>
                       </div>
                     ) : (
-                      <Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" />
+                      <Input type="number" step="0.001" value={String(l.quantity)} onChange={(e) => setQty(l, num(e.target.value))} className="h-8 text-right tabular-nums" />
                     )}
                   </td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(shownPrice)} onChange={(e) => onPrice(num(e.target.value))} disabled={!!l._fee} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={marge ? '0' : String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} disabled={noVat} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value), _auto: false })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
                   <td className="px-2 py-1">{labour
                     ? <StatusBadge tone="neutral" icon={Clock} label={t('sales.lineType_main_oeuvre')} />
@@ -541,6 +621,10 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               </label>
             </Field>
             <Field label={t('sales.forcedTtc')}><Input type="number" step="0.01" value={forcedTtc} onChange={(e) => setForcedTtc(e.target.value)} className="text-right tabular-nums" placeholder={t('sales.forcedTtcHint')} /></Field>
+            <Field label={t('clientRules.paymentTerms')}>
+              <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} title={t('clientRules.paymentTermsHint')}
+                onBlur={() => { const due = dueDateFromTerms(paymentTerms, issueDate); if (due) setDueDate(due); }} />
+            </Field>
           </div>
           {taxExempt && !marge && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.taxExemptMention')}</p>}
           {marge && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info"><b>{t('sales.margeTitle')}</b> — {t('sales.margeBanner')}</p>}
@@ -567,6 +651,22 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         <Button variant="outline" onClick={() => save('brouillon')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('sales.draft')}</Button>
         <Button onClick={() => save('validee')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('sales.validate')}</Button>
       </div>
+
+      {tariffLine && contact && tariffLine.article_id && (
+        <TariffPriceDialog
+          companyId={companyId} contactId={contact.id} pricer={pricer}
+          article={{ id: tariffLine.article_id, reference: tariffLine.reference ?? '', designation: tariffLine.designation }}
+          baseHt={tariffLine._base ?? tariffLine.unit_price_ht} vatRate={tariffLine.vat_rate}
+          currentNetHt={r2(tariffLine.unit_price_ht * (1 - (tariffLine.discount_pct || 0) / 100))}
+          onClose={() => setTariffLine(null)}
+          onSaved={() => {
+            const l = tariffLine;
+            setTariffLine(null);
+            setLine(l._key, { _auto: true, _base: l._base ?? l.unit_price_ht });
+            applyPricing(l._key, l.article_id as string, l._base ?? l.unit_price_ht, Number(l.quantity) || 1);
+          }}
+        />
+      )}
 
       <ConfirmDocumentDialog
         companyId={companyId} request={confirmRequest} pending={busy}
