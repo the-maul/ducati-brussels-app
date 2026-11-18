@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { t } from '@/lib/i18n';
 import { kitComponents, listKitChoices, pricedArticles, type KitChoice } from './insert-api';
 import { insertLinesTotalHt, kitInsertLines, type InsertLine } from './insert-rules';
+import { loadHourlyRateHt } from '../maintenance-api';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 
@@ -28,10 +29,12 @@ export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert,
   const [mode, setMode] = useState<'detail' | 'forfait'>('detail');
   const [times, setTimes] = useState('1');
 
+  // Taux horaire de l'atelier : la MO d'un forfait sans prix propre le prend (decision Q40, 18/11).
+  const rateQ = useQuery({ queryKey: ['workshop-hourly-rate', companyId], queryFn: () => loadHourlyRateHt(companyId) });
   const list = useQuery({ queryKey: ['kit-choices', companyId, deb, modelYearId], queryFn: () => listKitChoices(companyId, deb, modelYearId) });
   const preview = useQuery({
-    queryKey: ['kit-preview', choice?.source, choice?.id, mode, times],
-    enabled: !!choice,
+    queryKey: ['kit-preview', choice?.source, choice?.id, mode, times, rateQ.data],
+    enabled: !!choice && !rateQ.isLoading,
     queryFn: async () => {
       const comps = await kitComponents(choice!);
       const prices = await pricedArticles([...comps.map((c) => c.articleId ?? ''), choice!.source === 'forfait' ? choice!.id : '']);
@@ -39,6 +42,7 @@ export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert,
         title: `${t('parcG8.kitLineTitle')} ${choice!.label}`, components: comps, articles: prices, effectiveHt,
         times: Number(times.replace(',', '.')) || 1, mode: choice!.source === 'forfait' ? mode : 'detail',
         forfait: choice!.source === 'forfait' ? prices.get(choice!.id) ?? null : null,
+        labourRateHt: rateQ.data ?? null,
       });
     },
   });

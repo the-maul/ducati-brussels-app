@@ -64,7 +64,9 @@ export async function kitComponents(choice: Pick<KitChoice, 'source' | 'id'>): P
     const lines = await getKitDetail(choice.id);
     return lines.map((l) => ({ articleId: l.articleId, reference: l.reference, designation: l.designation, quantity: l.quantity }));
   }
-  const r: Res = await db.from('article_kit_items').select('quantity, component:component_id(id, reference, designation)').eq('kit_id', choice.id);
+  // Ordre de la fiche (sort_order, migration 20261119140000 : forfaits G8 repris dans l'ordre de G8).
+  const r: Res = await db.from('article_kit_items').select('quantity, sort_order, component:component_id(id, reference, designation)')
+    .eq('kit_id', choice.id).order('sort_order', { ascending: true });
   if (r.error) throw new Error(r.error.message);
   return ((r.data ?? []) as { quantity: number; component: { id: string; reference: string; designation: string } | null }[])
     .filter((x) => x.component)

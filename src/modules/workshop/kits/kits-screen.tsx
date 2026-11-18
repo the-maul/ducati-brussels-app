@@ -16,8 +16,9 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search, Replace } from 'lucide-react';
+import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search, Replace, Settings2 } from 'lucide-react';
 import { ReplaceRefDialog } from './replace-ref-dialog';
+import { KitSettingsDialog } from './kit-settings-dialog';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import { t } from '@/lib/i18n';
 import { searchOrderArticles, type OrderArticleHit } from '@/modules/orders/api';
 import { listKits, getKitDetail, generateKits, saveKitItem, deleteKitItem, KIT_GENERATION_BATCH, type KitRow } from './api';
 import {
-  fmtQty, kitToConfirmCount, kitLineFlag, kitMultiRefCount, kitAbsentCount, kitLineSource, generationPercent,
+  fmtQty, kitToDesignateCount, kitQtyToCheckCount, kitLineFlag, kitMultiRefCount, kitAbsentCount, kitLineSource, generationPercent,
   addGenerationTotals, EMPTY_GENERATION_TOTALS, type GenerationTotals,
 } from './rules';
 
@@ -41,6 +42,8 @@ export function KitsScreen({ companyId }: { companyId: string }) {
   const [error, setError] = useState<string | null>(null);
   // Rattrapage G8 : remplacer une reference dans tous les kits et forfaits.
   const [replaceOpen, setReplaceOpen] = useState(false);
+  // Rattrapage G8 (lot forfaits) : liquide -> article, huile par famille moteur, lignes par defaut.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [progress, setProgress] = useState<{ offset: number; total: number; totals: GenerationTotals } | null>(null);
   const [onlyMulti, setOnlyMulti] = useState(false);
 
@@ -92,8 +95,10 @@ export function KitsScreen({ companyId }: { companyId: string }) {
           <AlertTriangle /> {t('kits.filterMulti').replace('{n}', String(multiKits))}
         </Button>
         <Button variant="outline" onClick={() => setReplaceOpen(true)}><Replace /> {t('parcG8.replaceButton')}</Button>
+        <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 /> {t('kitSettings.button')}</Button>
       </div>
       {replaceOpen && <ReplaceRefDialog companyId={companyId} onClose={() => setReplaceOpen(false)} />}
+      {settingsOpen && <KitSettingsDialog companyId={companyId} onClose={() => setSettingsOpen(false)} />}
 
       {progress && (
         <div className="space-y-1 rounded-md border border-border p-3" role="status" aria-live="polite">
@@ -193,7 +198,10 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
   });
 
   const items = itemsQ.data ?? [];
-  const toConfirm = kitToConfirmCount(items);
+  // « A designer » seulement quand AUCUN article n'est rattache : une ligne de liquide rattachee
+  // par le reglage « liquide -> article » dont la quantite reste douteuse est « quantite a verifier ».
+  const toDesignate = kitToDesignateCount(items);
+  const qtyToCheck = kitQtyToCheckCount(items);
   const multi = kitMultiRefCount(items);
   const absent = kitAbsentCount(items);
 
@@ -211,9 +219,14 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
           <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.multiRefHint').replace('{n}', String(multi))}
         </p>
       )}
-      {toConfirm - multi > 0 && (
+      {toDesignate > 0 && (
         <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.toConfirmHint').replace('{n}', String(toConfirm - multi))}
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kits.toConfirmHint').replace('{n}', String(toDesignate))}
+        </p>
+      )}
+      {qtyToCheck > 0 && (
+        <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('kitSettings.qtyToCheckHint').replace('{n}', String(qtyToCheck))}
         </p>
       )}
       {absent > 0 && (
@@ -255,6 +268,7 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
                     </span>
                   )}
                   {kitLineFlag(i) === 'a_designer' && <StatusBadge className="ml-2" tone="warning" label={t('kits.badgeToConfirm')} />}
+                  {kitLineFlag(i) === 'qte_a_verifier' && <StatusBadge className="ml-2" tone="warning" label={t('kitSettings.badgeQtyToCheck')} />}
                   {kitLineFlag(i) === 'absent' && <StatusBadge className="ml-2" tone="danger" label={t('kits.badgeAbsent')} />}
                   {i.note && <span className="ml-2 block text-[11px] text-muted-foreground">{i.note}</span>}
                   {(i.fluidSpec || i.fluidProduct) && (
@@ -265,6 +279,17 @@ function KitDetail({ kitId, companyId, kit }: { kitId: string; companyId: string
                   {t(`kits.lineSource_${kitLineSource(i)}`)}
                   {i.provenance?.reference === 'catalogue' && <span className="block text-[11px]">{t('kits.refFromCatalog')}</span>}
                   {i.provenance?.quantite === 'manuel' && <span className="block text-[11px]">{t('kits.qtyFromManual')}</span>}
+                  {i.provenance?.quantite === 'forfait_g8' && (
+                    <span className="block text-[11px]">{t('kitSettings.qtyFromG8').replace('{f}', i.provenance.forfait_g8 ?? '')}</span>
+                  )}
+                  {i.provenance?.reference === 'forfait_g8' && (
+                    <span className="block text-[11px]">{t('kitSettings.refFromG8').replace('{f}', i.provenance.forfait_g8 ?? '')}</span>
+                  )}
+                  {i.provenance?.liquide?.quantite_source != null && (
+                    <span className="block text-[11px]">
+                      {t('kitSettings.sourceQty').replace('{q}', fmtQty(i.provenance.liquide.quantite_source)).replace('{u}', i.provenance.liquide.unite_source ?? '')}
+                    </span>
+                  )}
                   {i.provenance?.repris_de && <span className="block text-[11px]">{t('kits.takenFrom').replace('{s}', i.provenance.repris_de)}</span>}
                 </td>
                 <td className="px-3 py-2">

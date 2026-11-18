@@ -207,9 +207,11 @@ export type KitItem = {
   designation: string;
   quantity: number;
   unit?: string | null;
-  kind: PartFamilyKind;
+  /** `forfait` : ligne de service G8 (type F / T) — ni stock, ni preparation, ni commande. */
+  kind: PartFamilyKind | 'forfait';
   confidence: KitConfidence;
-  origin: 'deduit' | 'ajoute';
+  /** `defaut` : ligne standard ajoutee par le reglage « lignes par defaut » (rattrapage G8). */
+  origin: 'deduit' | 'ajoute' | 'defaut';
   /** Toutes les références trouvées pour ce besoin ; plus d'une = plusieurs références dans le catalogue. */
   catalogRefs?: string[] | null;
   /** D'où vient la ligne (besoin, référence, quantité) — colonne `provenance` (03/11). */
@@ -223,20 +225,32 @@ export type KitItem = {
  * ravitaillements du manuel.
  */
 export type KitProvenance = {
-  besoin?: 'manuel' | 'plan' | 'regle' | null;
+  besoin?: 'manuel' | 'plan' | 'regle' | 'forfait_g8' | 'defaut' | null;
   echeance?: string | null;
   operations?: string[] | null;
-  reference?: 'catalogue' | null;
-  quantite?: 'catalogue' | 'manuel' | null;
+  /** `forfait_g8` : filtre introuvable dans le catalogue, repris du forfait G8 de la famille moteur. */
+  reference?: 'catalogue' | 'forfait_g8' | null;
+  /** `forfait_g8` : quantite reprise du forfait G8 de la famille moteur (source muette). */
+  quantite?: 'catalogue' | 'manuel' | 'forfait_g8' | null;
+  /** Forfait G8 d'ou viennent la quantite ou la reference (ex. « OIL SERVICE 2 SOUPAPES »). */
+  forfait_g8?: string | null;
+  /** Profil moteur retenu (reglage « quantite par defaut selon la famille moteur »). */
+  profil_moteur?: string | null;
+  /** Ligne de liquide rattachee : quantite et unite d'origine (manuel), litres. */
+  liquide?: { quantite_source?: number | null; unite_source?: string | null; litres?: number | null } | null;
+  /** Kit vide complete par le rattrapage G8. */
+  kit_vide?: boolean | null;
   produit?: 'manuel' | null;
   repris_de?: string | null;
 };
 
 /** La source affichée d'une ligne : manuel, plan, règle, ou ajout de l'atelier. */
-export type KitLineSource = 'manuel' | 'plan' | 'regle' | 'atelier';
+export type KitLineSource = 'manuel' | 'plan' | 'regle' | 'atelier' | 'forfait_g8' | 'defaut';
 
 export function kitLineSource(i: Pick<KitItem, 'origin' | 'provenance'>): KitLineSource {
   if (i.origin === 'ajoute') return 'atelier';
+  if (i.origin === 'defaut' || i.provenance?.besoin === 'defaut') return 'defaut';
+  if (i.provenance?.besoin === 'forfait_g8') return 'forfait_g8';
   const b = i.provenance?.besoin;
   return b === 'manuel' || b === 'plan' ? b : 'regle';
 }
@@ -286,14 +300,28 @@ export const EMPTY_GENERATION_TOTALS: GenerationTotals = {
 /** Niveau d'une ligne de kit : sûr, à confirmer (ne bloque pas), absent (signalé, jamais commandé). */
 export type KitConfidence = 'sur' | 'a_confirmer' | 'absent';
 
-/** Ce que l'écran dit d'une ligne : rien, plusieurs références, article à désigner, absente. */
-export type KitLineFlag = 'plusieurs_refs' | 'a_designer' | 'absent' | null;
+/**
+ * Ce que l'écran dit d'une ligne : rien, plusieurs références, article à désigner, quantité à
+ * vérifier (article rattaché par le réglage « liquide -> article » mais quantité de la source
+ * absente ou douteuse), absente.
+ */
+export type KitLineFlag = 'plusieurs_refs' | 'a_designer' | 'qte_a_verifier' | 'absent' | null;
 
-export function kitLineFlag(i: Pick<KitItem, 'confidence' | 'catalogRefs'>): KitLineFlag {
+export function kitLineFlag(i: Pick<KitItem, 'confidence' | 'catalogRefs'> & { articleId?: string | null }): KitLineFlag {
   if (i.confidence === 'absent') return 'absent';
   if ((i.catalogRefs?.length ?? 0) > 1) return 'plusieurs_refs';
-  if (i.confidence === 'a_confirmer') return 'a_designer';
+  if (i.confidence === 'a_confirmer') return i.articleId ? 'qte_a_verifier' : 'a_designer';
   return null;
+}
+
+/** Lignes dont l'article du DMS reste à désigner (pas de correspondance « liquide -> article »). */
+export function kitToDesignateCount(items: (Pick<KitItem, 'confidence' | 'catalogRefs'> & { articleId?: string | null })[]): number {
+  return items.filter((i) => kitLineFlag(i) === 'a_designer').length;
+}
+
+/** Lignes rattachées dont la quantité reste à vérifier. */
+export function kitQtyToCheckCount(items: (Pick<KitItem, 'confidence' | 'catalogRefs'> & { articleId?: string | null })[]): number {
+  return items.filter((i) => kitLineFlag(i) === 'qte_a_verifier').length;
 }
 
 /** Lignes « plusieurs références dans le catalogue » (M-90 : on les garde toutes). */

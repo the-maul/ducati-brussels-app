@@ -485,6 +485,48 @@ Source : `docs/g8-inventaire/02-articles.md` (Nomenclatures), `07-atelier.md`, `
 - **À trancher** : G8 insère une nomenclature au **prix forfait TTC** ; les kits d'entretien du DMS n'ont pas de prix
   forfait (somme des pièces) ; export Excel de la liste des OR non fait (la liste des OR est le bloquant #4, autre lot).
 
+## Ajouté le 19/11 — rattrapage G8 (lot forfaits G8)
+
+Source : `docs/g8-inventaire/nomenclatures-g8.md` (37 nomenclatures, prix de la vraie base G8). Décisions Q40, Q41
+([journal](../decisions.md)).
+
+- **Articles « forfait » de G8** (Pièces) : CONTRI, PETITES FOURNITURES, APPAREIL DE DIAGNOTI (DDS), PRISE EN
+  CHARGE et les contrôles à 0 € (CONTROLE BATTERIE / DES FREINS / DES NIVEAUX / ECLAIRAGE / ET USURE PN, TENSION
+  DE COURROIES, TENSION ET GRAISSAGE, REGLAGE SOUPAPES, TEST MOTO) en type **F** (ligne de service : ni stock,
+  ni préparation, ni commande, ni réservation) ; MOTO 4XT TECH EN FUT (au litre), HUILE DE FREIN DOT 5, HUILE DE
+  FOURCHE ELF, FILTRE A HUILE 1199, PRODUITS NETTOYAGE MOT (« MAXI POWER ») en type **A** ; la MO des forfaits
+  pointe vers l'article **MO** (type T) existant. Articles déjà présents réutilisés (CHAIN CLEANER, COOLELF,
+  MOTO 4 ROAD, MO). Prix par `price_changes` (bloc séparé `20261119142000`, vraie base G8) ; les pièces Ducati
+  gardent le prix du tarif Ducati.
+- **Les 37 forfaits G8** = articles **N** « nomenclature » (prix = somme des lignes, comme G8) + composants
+  (`article_kit_items`, dans l'ordre de la fiche G8). Toutes les références de pièces existent chez ITALBIKE
+  (aucune manquante). Ils apparaissent dans **Insérer un kit** (OR, ventes) ; la MO d'un forfait sans prix
+  propre prend le **taux horaire de l'atelier** (Q40). Catalogue source : `src/modules/workshop/forfaits/g8-catalog.ts`.
+- **Atelier → Kits → Réglages des kits** (`kits/kit-settings-dialog.tsx`, `kits/settings-api.ts`) :
+  1. **Liquide → article** (table existante `maintenance_fluid_articles` + unité de vente, contenance, unité
+     entière) : huile moteur → MOTO 4XT au litre, fourche → HUILE DE FOURCHE ELF (flacon 0,5 l arrondi),
+     frein → HUILE DE FREIN DOT 5 (flacon 0,5 l), refroidissement → COOLELF au litre ;
+  2. **Quantité d'huile par défaut selon la famille moteur** (`maintenance_engine_profiles`, forfaits G8) :
+     2 soupapes 3,10 l ; 4 soupapes / Testastretta 3,40 l ; 748/749/916/996/998/999 3,40 l + joint 22032083A ;
+     Panigale 1199/1299/899/959 3,40 l + FILTRE A HUILE 1199 ; Multistrada 1200 2010-2012 4,00 l de MOTO 4 ROAD.
+     Motif lu sur le nom de la famille moteur du kit et les modèles du catalogue ; V4 : aucun profil (rien
+     d'inventé). Sert quand la source ne donne pas la quantité (« quantité reprise du forfait G8 » en
+     provenance), pour un filtre introuvable et pour remplir un kit de vidange vide (huile + filtre + joint) ;
+  3. **Lignes ajoutées par défaut à chaque kit** (`maintenance_kit_default_lines`) : DDS, 6 contrôles, tension
+     et graissage, petites fournitures, CONTRI ;
+  4. **Rattrapage** (`maintenance_kits_complete`, par lots, aperçu) ; chaque kit modifié prend une version
+     (`maintenance_kit_versions`, motif « rattrapage G8 »). Le générateur applique la même chose aux kits qu'il crée.
+- Écran Kits : « article à désigner » seulement si aucun article n'est rattaché ; une ligne rattachée dont la
+  quantité est douteuse affiche « Quantité à vérifier ». Provenance visible (forfait G8, quantité source).
+- **Choix du kit d'un modèle-année** (`_workshop_kit_for`) : un kit qui contient des pièces passe avant un kit
+  vide ou fait seulement de lignes standard (avant : 5 RDV ne réservaient rien).
+- Préparation (picking) : les lignes F / T de l'OR et les lignes de service des kits ne sont plus à préparer.
+- Taux MO garantie préchargé 46,94 → **83,00 € HT** (MO GARANTIE DWE, vraie base) par `20261119143000`.
+- Tests : `tests/forfaits-g8.test.ts` (totaux de forfaits = pieds de fiche G8 formation et vraie base,
+  conversion des liquides, profils moteur, MO au taux atelier) ; essai à blanc `supabase/tests/m8_forfaits_g8.sql`.
+- **Piège** : `maintenance_fluid_article_set` (ancienne entrée) versionne désormais chaque kit touché. Lignes
+  encore sans article : `maintenance_kits_unlinked(société)` (courroies sans référence au catalogue).
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |

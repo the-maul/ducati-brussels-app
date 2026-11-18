@@ -8,6 +8,16 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-18 — Forfaits G8 dans le DMS (lot forfaits G8, ATE013)
+
+- **Q40** — **La main-d'œuvre contenue dans un forfait G8 (MO_ATELIER x heures) se facture au taux de
+  l'atelier**, pas à 0 € comme dans G8 aujourd'hui (l'article y a été supprimé par oubli). Le prix d'un forfait
+  inclut donc la MO. Dans le DMS, la ligne pointe vers l'article **MO** (type T) sans prix forcé et prend le taux
+  horaire de l'atelier à l'insertion. *Client (Simon) · 18/11.* [M08](modules/M08-atelier.md)
+- **Q41** — **Dans chaque forfait, la ligne petites fournitures pointe vers l'article PETITES FOURNITURES
+  (12,78 € TTC / 10,56 HT)**, avec la quantité G8 du forfait (1 ou 2), et non plus à 0 € comme dans G8 (où
+  « VISIERE ARAI ORIGINE » a été supprimée). *Client, confirmé par le chef d'atelier · 18/11.* [M08](modules/M08-atelier.md)
+
 ## 2026-11-03 — État du tarif Ducati lu correctement (TAR008, mission 09 carte 7)
 
 - **M-108** — **La colonne « État » du tarif Ducati se lit : vide = commandable, E = remplacée, F = fin de

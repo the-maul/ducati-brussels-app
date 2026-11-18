@@ -53,11 +53,18 @@ export function kitInsertLines(p: {
   forfait?: PricedArticle | null;
   /** Prefixe des lignes de contenu en mode forfait (ex. « - »). */
   bullet?: string;
+  /**
+   * Taux horaire HT de l'atelier : une main-d'oeuvre (type T) SANS prix propre le prend (decision
+   * Q40 du 18/11 : les heures d'un forfait G8 se facturent au taux atelier, pas a 0 € comme G8).
+   */
+  labourRateHt?: number | null;
 }): InsertLine[] {
   const times = p.times && p.times > 0 ? p.times : 1;
   const priceOf = (a: PricedArticle) => {
     const vat = articleVatRate(a);
-    const base = articleBaseSaleHt(a);
+    const own = articleBaseSaleHt(a);
+    const rate = Number(p.labourRateHt);
+    const base = (a.mgmt_type ?? '') === 'T' && !(own > 0) && rate > 0 ? rate : own;
     return { ht: p.effectiveHt ? p.effectiveHt(base, vat) : base, vat };
   };
   const out: InsertLine[] = [];
