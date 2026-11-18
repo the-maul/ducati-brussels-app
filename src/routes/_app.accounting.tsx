@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
+import { AccountingGate } from '@/components/layout/accounting-gate';
 import {
   journalTotals, getSalesJournal, getVatRegister, exportWinbooks, generateEntries, listEntries, getVoMarginRegister, getVoMarginSummary, getVoMarginPeriods,
   getVoMarginPurchases, loadVatMarginSettings, exportVoRegister, exportVoMarginWinbooks, printVoMarginAttestation, getAccountingCutover, setAccountingCutover,
@@ -16,7 +17,7 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting')({
   head: () => ({ meta: [{ title: pageTitle('accounting') }] }),
-  component: AccountingPage,
+  component: () => <AccountingGate><AccountingPage /></AccountingGate>,
 });
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;

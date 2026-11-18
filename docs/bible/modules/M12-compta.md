@@ -85,7 +85,7 @@ Vérifié le 18/09/2026 (code + base).
 - **Prix d'achat du registre VO** : `vo_margin_register` prend `articles.purchase_price` (et non le coût de revient avec l'ORO, B3). Pour une reprise, frais de remise en état exclus : à confirmer avec le comptable.
 - **SEPA optimiste** : l'encaissement est enregistré dès la génération du fichier, avant tout retour de la banque ; les erreurs de `record_sepa_collection` sont ignorées dans la boucle (`sepa.ts`).
 - **Winbooks** : colonnes provisoires ; format à caler dès réception du fichier du comptable.
-- **Rôles** : le menu Comptabilité n'est affiché qu'aux rôles `admin` et `comptable`, mais les tables et fonctions ne contrôlent que l'**appartenance à la société** : tout membre (mécanicien, vendeur) peut appeler les fonctions comptables par l'API.
+- **Rôles** : ~~les tables et fonctions ne contrôlaient que l'appartenance à la société~~ ; réservées à l'administrateur et au comptable le 18/11/2026 (voir « Ajouté le 18/11 »), **une fois `20261118182000` appliquée**.
 - **UBL** (lot facture légale, M-102) : export **refusé** tant que la fiche société n'a pas son n° BCE et son identifiant `0208:` (aucune des deux sociétés ne les a au 03/11 : à saisir dans Paramètres → Sociétés) ; acheteur belge identifié par `0208` + n° BCE tiré de son n° de TVA, étranger par le schéma de TVA de son pays, particulier **sans** identifiant (la liste EAS n'admet plus l'e-mail `EM`, refusé par le validateur) : son UBL n'est pas envoyable sur Peppol (non obligatoire en B2C, il reçoit le PDF) ; client comptoir nommé « Client comptoir ». Validé le 03/11 sur 5 fichiers de test (facture simple, facture d'acompte, facture finale avec acompte, avoir, détaxe) avec le validateur public Peppol (phive, peppol.helger.com, règles OpenPeppol 2026.5 : XSD, CEN EN 16931, PEPPOL) : **5 / 5 sans erreur ni avertissement** (fichiers fictifs dans `tests/fixtures/ubl-peppol/`) ; premier essai de la détaxe refusé (`PEPPOL-EN16931-CL008`, schéma `EM` pour l'acheteur) puis corrigé. Détaxe = export hors UE (`G`) : une livraison intracommunautaire (`K`) n'est pas encore distinguée (étude §3 ligne 11).
 
 ## 7 bis. Ajouté le 18/11 — rattrapage G8 (lot-g8-export-compta)
@@ -167,6 +167,33 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Comptabilité, 7 exig
 
 Invariants : **B2** partiel (registre VO fait, calcul à la vente et en écritures absent) ; **B7** respecté pour les écritures (append-only, audit).
 
+## Ajouté le 18/11 — rattrapage G8
+
+**Fonctions comptables réservées à l'administrateur et au comptable** (bloquant n° 4 de
+`docs/g8-inventaire/comparaison-ventes-caisse-compta.md`, carte F1 de la mission 13 ; grille signée M0-RBAC003).
+Migration `20261118182000_m12_compta_reservee.sql` (**non appliquée**, après `20261103160000` et `20261103180000` ;
+si elles passent après, rejouer ce fichier) ; essai à blanc `supabase/tests/m12_compta_reservee.sql`.
+
+- `can_manage_accounting(société)` : administrateur ou comptable ; sans utilisateur, seuls la clé de service et les
+  tâches internes passent (jamais un visiteur anonyme).
+- **Base** : les fonctions de clôture (`close_fiscal_year`, `pending_deposits`, `pending_effects`), d'écritures
+  (`generate_accounting_entries`, `generate_sales_entries`, `generate_payment_entries`, `generate_margin_period_entries`,
+  `generate_auxiliary_accounts`), de date de bascule (`set_accounting_cutover`), SEPA (`sepa_collectable`,
+  `record_sepa_collection`, `record_sepa_unpaid`) et les journaux (`sales_journal`, `vat_register`, `vo_margin_*`)
+  sont **enveloppées** : l'original devient `_<nom>_acct` (clé de service seulement) et la fonction du même nom vérifie
+  le rôle puis l'appelle (refus : erreur 42501 « accounting_forbidden »). Le corps d'origine n'est pas recopié : la
+  protection marche quelle que soit la version appliquée en base. `debtors_list` reste ouverte (fiche client).
+- **Tables (RLS)** : écritures, lignes d'écriture, plan comptable, correspondances de comptes, mandats SEPA = admin /
+  comptable ; journal des exports (transfert) = admin / comptable, sauf l'inscription d'un **export UBL** fait depuis
+  une facture (tout membre) ; clôtures : lecture par tout membre (période close visible), écriture admin / comptable.
+  Vue `v_vo_margin_declaration` limitée aux sociétés où l'on est admin / comptable.
+- **Écran** : les trois pages (Comptabilité, Clôture, SEPA) passent par `AccountingGate`
+  (`src/components/layout/accounting-gate.tsx`, liste `ACCOUNTING_ROLES` de `src/lib/auth/accounting-access.ts`) en plus de
+  la grille. Test `tests/compta-reservee.test.ts` : grille, écran et base disent la même chose.
+- **Piège** : une migration future qui redéfinit (`create or replace`) une fonction protégée remplace l'enveloppe et
+  **perd le contrôle sans bruit**. Elle doit se terminer par
+  `select public._install_accounting_guard('public.<nom>(<types>)'::regprocedure, '_company');` (le test refuse sinon).
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
@@ -186,6 +213,7 @@ Invariants : **B2** partiel (registre VO fait, calcul à la vente et en écritur
 | 2026-11-03 | **Registre des véhicules à moteur** (art. 28) : export CSV / PDF, alerte de facture à inscrire (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-03 | **Registre de la marge par période** (B2, COM006, M-89) : base globale par période (ventes − achats + report), TVA due, registre par véhicule (avec avoirs), achats sous régime de la marge, vue `v_vo_margin_declaration`, export CSV et OD Winbooks, réglages « TVA marge (occasions) », registre TVA ordinaire sans les ventes marge, écritures au compte 700200 | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
 | 2026-11-03 | Journal des recettes = journaux Z figés de la caisse, export CSV jour / mois (PDV010, voir M06) | migration `20261103170000_m6_caisse_legale.sql` **non appliquée** |
+| 2026-11-18 | **Rattrapage G8** : clôture, écritures, SEPA, date de bascule, journaux et transfert réservés à l'administrateur et au comptable (base, RLS, écran) | branche `lot-g8-stats` ; `20261118182000_m12_compta_reservee.sql` **non appliquée** |
 
 ## Ajouté le 18/11 — rattrapage G8 (encaissements)
 

@@ -6,12 +6,13 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
+import { AccountingGate } from '@/components/layout/accounting-gate';
 import { getDebtorsList, getPendingDeposits, getPendingEffects, closeFiscalYear, listClosures } from '@/modules/accounting/api';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/accounting-closure')({
   head: () => ({ meta: [{ title: pageTitle('accountingClosure') }] }),
-  component: ClosurePage,
+  component: () => <AccountingGate><ClosurePage /></AccountingGate>,
 });
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
