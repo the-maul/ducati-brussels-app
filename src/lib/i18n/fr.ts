@@ -5,6 +5,8 @@
  * mêmes clés (type `DictionaryShape`, test `tests/i18n-dictionnaires.test.ts`).
  * Toute clé ajoutée ici doit l'être dans les trois autres.
  */
+import { g8aFr } from './g8-articles';
+
 export const fr = {
   app: {
     name: 'Ducati Bruxelles',
@@ -6284,6 +6286,8 @@ export const fr = {
     part: 'Article',
     partNew: 'Nouvel article',
     partsCascade: 'Modification en cascade',
+    partsPriceTools: 'Outils de prix',
+    partsReplacements: 'Gestion des remplacements',
     partsCatalog: 'Catalogue Ducati',
     partsFamilies: 'Familles',
     partsImport: 'Import tarif',
@@ -7500,7 +7504,8 @@ export const fr = {
     sampleClient: "Client exemple",
     sampleAddress: "Rue de l'Exemple 1, 1000 Bruxelles",
   },
-
+  // Rattrapage G8 articles (18/11/2026) : libellés dans g8-articles.ts
+  g8a: g8aFr,
 } as const;
 
 export type Dictionary = typeof fr;

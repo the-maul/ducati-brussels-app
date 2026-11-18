@@ -5,6 +5,8 @@
  */
 import type { DictionaryShape } from './fr';
 
+import { g8aNl } from './g8-articles';
+
 export const nl: DictionaryShape = {
   app: {
     name: 'Ducati Bruxelles',
@@ -6268,6 +6270,8 @@ export const nl: DictionaryShape = {
     part: 'Artikel',
     partNew: 'Nieuw artikel',
     partsCascade: 'Wijziging in cascade',
+    partsPriceTools: 'Prijstools',
+    partsReplacements: 'Beheer van vervangingen',
     partsCatalog: 'Ducati-catalogus',
     partsFamilies: 'Families',
     partsImport: 'Prijslijst importeren',
@@ -7481,5 +7485,6 @@ export const nl: DictionaryShape = {
     sampleClient: "Voorbeeldklant",
     sampleAddress: "Voorbeeldstraat 1, 1000 Brussel",
   },
-
+  // Rattrapage G8 articles (18/11/2026) : libellés dans g8-articles.ts
+  g8a: g8aNl,
 };

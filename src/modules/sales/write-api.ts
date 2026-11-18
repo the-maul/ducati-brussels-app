@@ -3,6 +3,7 @@
  * Le POS complet (encaissement multi-modes, clôture Z, avoirs) viendra étoffer ce socle.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { getArticleSaleFlags, type ArticleSaleFlags } from '@/modules/articles/g8/api';
 import type { Database } from '@/integrations/supabase/types';
 import { t } from '@/lib/i18n';
 import {
@@ -46,6 +47,11 @@ export type LineInput = {
   discount_pct: number;
   line_type?: LineType;
   reference?: string | null;
+  /**
+   * G8 « Hors remise pied de page » (articles.no_footer_discount, lot G8 du 18/11/2026) : la remise
+   * globale du document ne s'applique pas à cette ligne. Non enregistré sur la ligne : relu sur l'article.
+   */
+  no_footer_discount?: boolean;
 };
 
 /** Une ligne texte ou vide ne porte jamais de montant (contrôlé aussi en base). */
@@ -159,19 +165,24 @@ function lineTotals(l: LineInput, noVat = false) {
 export function computeTotals(lines: LineInput[], pied: PiedInput = {}) {
   const noVat = piedWithoutVat(pied);
   let linesHt = 0, linesVat = 0;
+  // Lignes soumises à la remise globale (G8 « Hors remise pied de page » : les autres en sont exclues).
+  let discHt = 0, discVat = 0;
   for (const l of lines) {
     const ht = lineHtRaw(l);
+    const vat = noVat ? 0 : (ht * (l.vat_rate || 0)) / 100;
     linesHt += ht;
-    linesVat += noVat ? 0 : (ht * (l.vat_rate || 0)) / 100;
+    linesVat += vat;
+    if (!l.no_footer_discount) { discHt += ht; discVat += vat; }
   }
   // remise globale (sur le HT des lignes uniquement). Un avoir a des lignes négatives : la remise
   // en € suit le signe du document et la TVA est répartie dès que le HT n'est pas nul (avant le
   // 31/10/2026, un avoir sortait avec une TVA à 0 et, avec une remise en €, un HT à 0).
   let discount = 0;
-  if (pied.globalDiscountPct && pied.globalDiscountPct > 0) discount = (linesHt * pied.globalDiscountPct) / 100;
-  else if (pied.globalDiscountAmount && pied.globalDiscountAmount > 0) discount = Math.sign(linesHt) * Math.min(pied.globalDiscountAmount, Math.abs(linesHt));
+  if (pied.globalDiscountPct && pied.globalDiscountPct > 0) discount = (discHt * pied.globalDiscountPct) / 100;
+  else if (pied.globalDiscountAmount && pied.globalDiscountAmount > 0) discount = Math.sign(discHt) * Math.min(pied.globalDiscountAmount, Math.abs(discHt));
   const netLinesHt = linesHt - discount;
-  const netLinesVat = linesHt !== 0 ? linesVat * (netLinesHt / linesHt) : 0;
+  // La TVA des lignes remisées baisse au prorata de la remise ; celle des lignes hors remise reste.
+  const netLinesVat = linesVat - (discHt !== 0 ? discVat * (discount / discHt) : 0);
   // frais de port
   const shipHt = pied.shippingHt || 0;
   const shipVat = !noVat && pied.shippingTaxed !== false && shipHt > 0
@@ -512,6 +523,9 @@ export type SaleArticle = {
   category_path?: string | null;
   /** Etat au tarif Ducati (TAR008) : green commandable, yellow remplacée, red fin de série (le stock se vend). */
   supplier_availability?: string | null;
+  /** G8 « Vente bloquée en caisse » et « Hors remise pied de page » (lot G8 du 18/11/2026). */
+  sale_blocked_pos?: boolean;
+  no_footer_discount?: boolean;
 };
 /**
  * Recherche d'article pour une ligne (OR, check-up, documents de vente, caisse) : un seul chemin.
@@ -560,6 +574,8 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
     if (le) throw le;
     for (const x of l ?? []) links.set(x.id, { superseded_by_id: x.superseded_by_id, equivalence_group: x.equivalence_group, category_path: x.category_path, sale_price_ttc: x.sale_price_ttc, supplier_availability: x.supplier_availability });
   }
+  // Drapeaux G8 de l'article (colonnes de 20261118230000 ; absentes : aucun drapeau).
+  const flags = rows.length ? await getArticleSaleFlags(rows.map((a) => a.article_id)) : new Map<string, ArticleSaleFlags>();
   return rows.map((a) => {
     const link = links.get(a.article_id);
     const vat = articleVatRate(a);
@@ -573,6 +589,8 @@ export async function searchSaleArticles(companyId: string, term: string, limit 
       equivalence_group: link?.equivalence_group ?? null,
       category_path: link?.category_path ?? null,
       supplier_availability: link?.supplier_availability ?? null,
+      sale_blocked_pos: flags.get(a.article_id)?.sale_blocked_pos ?? false,
+      no_footer_discount: flags.get(a.article_id)?.no_footer_discount ?? false,
     };
   });
 }
