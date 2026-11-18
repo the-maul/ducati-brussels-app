@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ExternalLink, Mail, MessageSquare, Send, Wrench } from 'lucide-react';
+import { Loader2, ExternalLink, Mail, MessageSquare, Send, Wrench, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-
 import { VehicleNextServicePanel } from '@/modules/workshop/vehicle-next-service-panel';
 import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { VehicleRegisterPanel } from '@/modules/vehicles/register-panel';
+import { VehiclePartiesPanel, VehicleEconomicsPanel, VehicleBonusesPanel } from '@/modules/vehicles/fiche-g8-panels';
+import { PosterDialog } from '@/modules/vehicles/poster-dialog';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -33,6 +35,7 @@ function EditVehicle() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
 
   const { data: vehicle, isLoading } = useQuery({ queryKey: ['vehicle', vehicleId], queryFn: () => getVehicle(vehicleId) });
   const { data: owners } = useQuery({ queryKey: ['vehicle-owners', vehicleId], queryFn: () => listOwners(vehicleId) });
@@ -81,6 +84,8 @@ function EditVehicle() {
             >
               <Wrench /> {t('workshop.newOr')}
             </Button>
+            {/* Rattrapage G8 : affichette moto (balises, 1 ou 2 par page, PDF). */}
+            <Button variant="outline" onClick={() => setPosterOpen(true)}><FileImage /> {t('parcG8.poster')}</Button>
           </>
         }
       />
@@ -110,6 +115,12 @@ function EditVehicle() {
             })}
           </ul>
         )}
+      </div>
+
+      {/* Rattrapage G8 : proprietaire / detenteur / utilisateur (3 tiers de l'onglet Proprietaire). */}
+      <div className="mb-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.partiesTitle')}</h2>
+        <VehiclePartiesPanel key={vehicle.id} companyId={activeCompanyId} vehicle={vehicle} currentOwnerId={owners?.find((o) => o.is_current)?.contact_id ?? null} />
       </div>
 
       {/* Historique : factures / OR / devis rattachés à cette moto (cliquables) */}
@@ -155,6 +166,18 @@ function EditVehicle() {
         onCancel={() => navigate({ to: '/vehicles' })}
       />
 
+      {/* Rattrapage G8 : bilan economique et primes / aides de la moto. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+          <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.ecoTitle')}</h2>
+          <VehicleEconomicsPanel vehicle={vehicle} />
+        </div>
+        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+          <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.bonusTitle')}</h2>
+          <VehicleBonusesPanel companyId={activeCompanyId} vehicleId={vehicle.id} />
+        </div>
+      </div>
+
       <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('motoParc.title')}</h2>
         <MotoSitePanel companyId={activeCompanyId} vehicle={vehicle} />
@@ -194,6 +217,7 @@ function EditVehicle() {
         <h2 className="mb-2 font-ui text-[15px] font-bold">{t('matching.title')}</h2>
         <InterestedContactsPanel companyId={activeCompanyId} vehicle={vehicle} />
       </div>
+      {posterOpen && <PosterDialog companyId={activeCompanyId} kind="vehicle" initialIds={[vehicle.id]} onClose={() => setPosterOpen(false)} />}
     </>
   );
 }

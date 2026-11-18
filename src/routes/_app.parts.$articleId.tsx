@@ -13,8 +13,9 @@ import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityT
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { ArticleLinkBadges, ArticleSourcesSummary, CompatibilityPanel } from '@/modules/articles/article-links-panel';
 import { Button } from '@/components/ui/button';
-import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
+import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart, FileImage } from 'lucide-react';
 import { ModelChassisPanel } from '@/modules/vehicles/model-chassis-panel';
+import { PosterDialog } from '@/modules/vehicles/poster-dialog';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { withTranslatedDesignation } from '@/modules/articles/translate/api';
@@ -52,6 +53,7 @@ function EditArticle() {
   const readOnly = useReadOnly();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
 
   const { data: article, isLoading } = useQuery({
     queryKey: ['article', articleId],
@@ -141,6 +143,8 @@ function EditArticle() {
               <BookOpen /> {t('articles.openCatalog')}
             </Button>
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
+            {/* Rattrapage G8 : affichette article (balises, 1 ou 2 par page, PDF). */}
+            <Button variant="outline" onClick={() => setPosterOpen(true)}><FileImage /> {t('parcG8.poster')}</Button>
             <Button variant="outline" disabled={readOnly || duplicate.isPending} onClick={() => duplicate.mutate()}>
               <Copy /> {t('articles.duplicate')}
             </Button>
@@ -241,6 +245,7 @@ function EditArticle() {
         <TabsContent value="stats" className="mt-4"><StatsTab articleId={articleId} /></TabsContent>
         <TabsContent value="photos" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="article" entityId={articleId} /></TabsContent>
       </Tabs>
+      {posterOpen && <PosterDialog companyId={activeCompanyId} kind="article" initialIds={[articleId]} onClose={() => setPosterOpen(false)} />}
     </>
   );
 }

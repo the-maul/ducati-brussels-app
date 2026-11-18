@@ -209,6 +209,57 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | ATE017 | Recherche par VIN avec historique | 🟦 partiel | recherche globale + fiche ; historique OR incomplet (voir VEH004) |
 | B9 | N° de série V/O/P, recherche croisée | 🟦 partiel | VIN + propriétaires + documents ; pas d'unicité du VIN |
 
+## Ajouté le 18/11 — rattrapage G8 (lot parc)
+
+Source : `docs/g8-inventaire/03-vehicules.md`, `parcours.md` (14), `comparaison-atelier-parc.md` §11 et bloquants #3, #16.
+
+- **Plusieurs châssis du même modèle (moto neuve) — PRIORITÉ, bloquant #3 levé (côté code).** Constat par
+  lecture du schéma : l'index unique `uq_vehicles_article` (20260923150000) refusait une 2e fiche moto sur le
+  même article ; la réception châssis (M4) lie chaque châssis à l'article de la ligne, donc au **modèle** : le
+  2e DESERTX était refusé **après** son entrée en stock (stock +1 sans fiche). Le déclencheur de synchronisation
+  aurait en plus détaché le 1er châssis. Corrigé selon la logique G8 : **modèle = article V, châssis = fiche
+  moto, stock du modèle = nombre de châssis en stock**.
+  - Migration `20261118140000_m3_chassis_multiples_par_modele.sql` : index unique remplacé par le contrôle
+    `trg_vehicles_article_share_check` (seul un article **V** porte plusieurs châssis ; O / P / D restent
+    « un article = une moto ») ; `_sync_vehicle_article_link` réécrit (un modèle à plusieurs châssis n'a pas de
+    « moto unique », `articles.vehicle_id` = null, aucun châssis n'est jamais détaché) ; **à la vente**, le
+    châssis vendu est celui du document (`documents.vehicle_id`, champ Véhicule de l'éditeur de vente), sinon le
+    **plus ancien en stock** (trace `events` `moto_chassis_choisi_auto`) — même châssis pour le registre
+    (`_moto_vehicle_for_move`, `_vehicle_register_on_sale` redéfinie) ; l'article n'est dépublié qu'au dernier
+    châssis vendu ; `vehicle_chassis_receive()` : fiche moto + entrée de stock de 1 **en une transaction** (VIN
+    normalisé, refus `VIN_EXISTS`) ; `vehicles_parc_check` : nouvelle anomalie `stock_modele_different_des_chassis`.
+  - Réception (`src/modules/purchases/write-api.ts`) : contrôle **avant toute écriture** (un châssis = quantité 1,
+    sur un article, VIN non répété ni déjà dans le parc), puis `vehicle_chassis_receive` ; ancien chemin gardé
+    tant que la migration n'est pas posée.
+  - Fiche article d'un modèle V : onglet **Châssis** (grille G8 : VIN, n° moteur, couleur, statut, entrée, jours
+    de stock, PA, livre de police, code expo) + **Nouveau châssis** (`model-chassis-panel.tsx`, `chassis-api.ts`).
+  - Règles pures `chassis-rules.ts`, test `tests/parc-chassis.test.ts` ; essai à blanc `supabase/tests/m3_chassis_multiples.sql`.
+- **Fiche moto** (migration `20261118141000_m3_fiche_moto_g8.sql`, `fiche-g8-panels.tsx`, `fiche-g8-api.ts`,
+  `economics.ts`) : encadré **Propriétaire / Détenteur / Utilisateur** (`vehicles.holder_contact_id`,
+  `user_contact_id`, flèche « recopier le propriétaire » ; le propriétaire reste l'historique `vehicle_owners`) ;
+  **Bilan économique** (PA net HT, prix de revient HT, PV HT / TVA / TTC, **marge prévisionnelle € et %** en taux de
+  marque, TVA sur la marge pour une O, rien pour un dépôt D, primes, **cote** `vehicles.market_value`, écart à la
+  cote, jours de stock) ; **Primes et aides** (table `vehicle_bonuses` : date, montant, commentaire) et
+  **Liste des primes** par période (Véhicules → bouton) ; **durée de garantie** `vehicles.warranty_months`.
+  Déjà présents avant le lot : n° livre de police, code exposition, jours de stock, type / fin de garantie,
+  démonstration (statut `demo`), dépôt marque (statut `depot_agent`). Test `tests/parc-fiche-moto.test.ts`.
+- **Affichette moto et article** (migration `20261118142000_m3_affichettes_options_modele.sql`, table
+  `poster_templates`) : modèle à **balises G8** ([REFERENCE] [MODELE] [PRIXTTC] [KILOMETRAGE]
+  [MISEENCIRCULATION] [CYLINDREE] [COULEUR] [N° LIVRE DE POLICE]… palette cliquable), « # » titre, « ## »
+  sous-titre, « > » prix, ligne sans donnée retirée ; **1 ou 2 affichettes par page**, **PDF** (jsPDF) ; depuis la
+  fiche moto, la liste Véhicules (plusieurs motos) et la fiche article. `poster-rules.ts`, `poster-pdf.ts`,
+  `poster-dialog.tsx`, test `tests/parc-affichette.test.ts`.
+- **Catalogue d'options par modèle** (même migration : `vehicle_option_models`, `vehicle_options`,
+  `vehicle_option_model_duplicate`) : Véhicules → **Catalogue d'options** (modèles : ajouter, dupliquer,
+  modifier, supprimer ; options : groupe, code, libellé, PA HT, PV TTC, TVA, infos). Dans l'éditeur de vente :
+  **Options du modèle** (modèle proposé d'après l'article de la moto ou son libellé) → une ligne par option et
+  « **PV véhicule + options** ». `options-rules.ts`, test `tests/parc-options.test.ts`.
+- **À trancher (Simon / Domenico)** : véhicule de démonstration et dépôt marque sont des **statuts** dans le DMS,
+  des **cases** dans G8 (une moto démo ne peut pas être en même temps « réservée ») ; sans document de vente
+  rattaché à une moto, le DMS sort le **plus ancien châssis** (G8 demande le châssis) ; l'article créé
+  automatiquement par moto (M-36, référence = VIN) reste le chemin des occasions, des dépôts et des motos créées
+  à la main : seuls la réception et « Nouveau châssis » rattachent au modèle.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
@@ -234,3 +285,4 @@ Ce qui marche : liste, recherche (y compris par propriétaire), création/modifi
 | 2026-11-03 | **Mission 08, carte 2** : moto choisie sur un document de vente (motos du client, recherche dans le parc), bloc moto avec l'année sur le PDF ; `listContactCurrentVehicles`, `searchVehiclesForSale`, `vehiclePickLabel` dans `vehicles/api.ts` ; aucune migration (`documents.vehicle_id` et son index existaient) | branche `lot-ventes-1-4` |
 | 2026-09-21 | **Mission 06, carte 2** : modèles Ducati par année (familles, cylindrées, modèles, millésimes ; filtre Europe par nom de modèle, depuis 2000) importés par fichiers d'extraction ou par l'extension ; extension My Ducati v0.10.0 (section catalogue) | branche `lot-catalogue`, migration `20260921100000_m3_catalogue_ducati_modeles` (appliquée le 21/09) |
 | 2026-11-03 | **Registre des véhicules à moteur** (AR n° 1 art. 28, M-88) : table append-only, déclencheurs OR / reprise / réception / dépôt-vente / vente, écran `/vehicles/register` (filtres, CSV, PDF, rectification), encadré sur la fiche moto, compteur dans la cloche, reprise d'historique idempotente | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
+| 2026-11-18 | **Rattrapage G8, lot parc** : plusieurs châssis par modèle (index unique levé, réception atomique, châssis vendu = celui du document), fiche moto (détenteur / utilisateur, bilan économique, primes, cote, durée de garantie), affichettes à balises, catalogue d'options | branche `lot-g8-parc`, migrations `20261118140000` à `20261118142000` (**non appliquées**) |

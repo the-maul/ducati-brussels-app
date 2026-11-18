@@ -62,7 +62,8 @@ const TEXT_FIELDS = [
   // Mission 06 carte 4 : modèle-année du catalogue Ducati (reconnu par le VIN ou choisi).
   'ducati_model_year_id',
 ] as const;
-const NUM_FIELDS = ['displacement','power_kw','power_cv','cylinders','mileage','model_year','purchase_price','cost_price','display_price'] as const;
+// Rattrapage G8 (18/11) : duree de garantie (mois) et cote, migration 20261118141000 (colonne inconnue = retiree a l'envoi).
+const NUM_FIELDS = ['displacement','power_kw','power_cv','cylinders','mileage','model_year','purchase_price','cost_price','display_price','warranty_months','market_value'] as const;
 const DATE_FIELDS = ['first_registration_date','next_inspection_date','warranty_end','entry_date','sold_date'] as const;
 
 /** Jours en stock : de l'entrée en stock à la sortie (ou à aujourd'hui si encore en stock). */
@@ -102,7 +103,7 @@ export type VehicleSubmitMeta = { ownerFrom: string; scan: CgScan | null };
 function fromVehicle(v: Vehicle | null, client: boolean, prefill?: Partial<Record<string, string>>): F {
   const f: F = {};
   for (const k of TEXT_FIELDS) f[k] = (v?.[k] as string | null) ?? '';
-  for (const k of NUM_FIELDS) { const n = v?.[k] as number | null | undefined; f[k] = n != null ? String(n) : ''; }
+  for (const k of NUM_FIELDS) { const n = (v as Record<string, unknown> | null)?.[k] as number | null | undefined; f[k] = n != null ? String(n) : ''; }
   for (const k of DATE_FIELDS) f[k] = (v?.[k] as string | null) ?? '';
   f.is_restricted = v?.is_restricted ?? false;
   f.papers_100hp = (v as { papers_100hp?: boolean } | null)?.papers_100hp ?? false;
@@ -526,6 +527,7 @@ export function VehicleForm({
         {T('antitheft_code', t('vehicles.antitheftCode'))}
         {T('police_book_number', t('vehicles.policeBook'))}
         {T('warranty_type', t('vehicles.warrantyType'))}
+        {N('warranty_months', t('parcG8.warrantyMonths'))}
         {D('warranty_end', t('vehicles.warrantyEnd'))}
         {T('exposition_code', t('vehicles.expositionCode'))}
         {isClient && notesField}
@@ -546,6 +548,7 @@ export function VehicleForm({
           {N('purchase_price', t('vehicles.purchasePrice'), '0.01')}
           {N('cost_price', t('vehicles.costPrice'), '0.01')}
           {N('display_price', t('vehicles.displayPrice'), '0.01')}
+          {N('market_value', t('parcG8.ecoMarket'), '0.01')}
           {D('entry_date', t('vehicles.entryDate'))}
           {D('sold_date', t('vehicles.soldDate'))}
           <Field label={t('vehicles.daysInStock')}>

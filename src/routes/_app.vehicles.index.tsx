@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useSearchText } from '@/lib/use-list-search';
-import { Search, Loader2, Plus, Bike, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Search, Loader2, Plus, Bike, AlertTriangle, ClipboardList, ListChecks, Gift, FileImage } from 'lucide-react';
+import { OptionsCatalogDialog } from '@/modules/vehicles/options-catalog-dialog';
+import { BonusesPeriodDialog } from '@/modules/vehicles/fiche-g8-panels';
+import { PosterDialog } from '@/modules/vehicles/poster-dialog';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +41,8 @@ function VehiclesList() {
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
+  // Rattrapage G8 : catalogue d'options, liste des primes par periode, affichettes de plusieurs motos.
+  const [g8Dialog, setG8Dialog] = useState<'options' | 'bonuses' | 'poster' | null>(null);
   // Recherche, statut et « a completer » dans l'adresse (UX011) : Retour depuis une fiche moto
   // retrouve la meme liste.
   const [ls, setLs] = useListSearch(VEHICLES_LIST, VEHICLES_CHOICES);
@@ -80,6 +85,9 @@ function VehiclesList() {
             <Button variant="outline" onClick={() => navigate({ to: '/vehicles/register' })}>
               <ClipboardList /> {t('vehicleRegister.title')}
             </Button>
+            <Button variant="outline" onClick={() => setG8Dialog('options')}><ListChecks /> {t('parcG8.optionsTitle')}</Button>
+            <Button variant="outline" onClick={() => setG8Dialog('bonuses')}><Gift /> {t('parcG8.bonusList')}</Button>
+            <Button variant="outline" onClick={() => setG8Dialog('poster')}><FileImage /> {t('parcG8.posterVehicle')}</Button>
             {canWrite && (
               <Button onClick={() => navigate({ to: '/vehicles/new', search: { contact: undefined, declaration: undefined } })}>
                 <Plus /> {t('vehicles.new')}
@@ -88,6 +96,10 @@ function VehiclesList() {
           </div>
         }
       />
+
+      {g8Dialog === 'options' && activeCompanyId && <OptionsCatalogDialog companyId={activeCompanyId} onClose={() => setG8Dialog(null)} />}
+      {g8Dialog === 'bonuses' && activeCompanyId && <BonusesPeriodDialog companyId={activeCompanyId} onClose={() => setG8Dialog(null)} />}
+      {g8Dialog === 'poster' && activeCompanyId && <PosterDialog companyId={activeCompanyId} kind="vehicle" initialIds={[]} onClose={() => setG8Dialog(null)} />}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative max-w-md flex-1">
