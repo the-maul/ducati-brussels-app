@@ -110,6 +110,7 @@ describe('un seul composant VehiclePicker pour l OR, le RDV et les documents de 
   const files = [
     'src/modules/workshop/or-editor.tsx',
     'src/routes/_app.workshop.planning.tsx',
+    'src/modules/workshop/planning/appointment-dialog.tsx',
     'src/modules/sales/document-editor.tsx',
   ];
   for (const f of files) {

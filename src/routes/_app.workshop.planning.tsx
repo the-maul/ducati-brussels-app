@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, Search, FileText, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, FileText, Package } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
-import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
+import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import { type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
@@ -22,6 +21,9 @@ import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-pa
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
 import { parseMileage } from '@/modules/workshop/or-base/rules';
+import { planningSchemaReady } from '@/modules/workshop/planning/api';
+import { PlanningScreen, PLANNING_VIEWS, type PlanningView } from '@/modules/workshop/planning/planning-screen';
+import { ContactPicker, Field, Picked } from '@/modules/workshop/planning/ui-bits';
 
 /** Entretien choisi d'un RDV : colonne de la migration 20261103270000, sinon le motif. */
 const apptService = (a: Appointment): string | null => {
@@ -32,9 +34,40 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/planning')({
   head: () => ({ meta: [{ title: pageTitle('workshopPlanning') }] }),
-  validateSearch: (s: Record<string, unknown>) => ({ week: typeof s.week === 'string' ? s.week : undefined }),
+  validateSearch: (s: Record<string, unknown>): { week?: string; view?: PlanningView } => ({
+    week: typeof s.week === 'string' ? s.week : undefined,
+    view: typeof s.view === 'string' && (PLANNING_VIEWS as readonly string[]).includes(s.view) ? (s.view as PlanningView) : undefined,
+  }),
   component: PlanningPage,
 });
+
+/**
+ * Planning G8 (compagnons, capacite, liste d'attente, motos de pret) des que la migration
+ * 20261118120000 est en base ; avant, l'ancien planning (mecanicien en texte libre) reste en place.
+ */
+function PlanningPage() {
+  const { activeCompanyId } = useAuth();
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const ready = useQuery({ queryKey: ['planning-g8-schema'], queryFn: planningSchemaReady, staleTime: Infinity });
+  if (ready.isLoading || !activeCompanyId) return <div className="grid place-items-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!ready.data) return <LegacyPlanningPage />;
+  return (
+    <>
+      <PageHeader
+        title={t('workshop.planningTitle')}
+        description={t('workshop.planningSubtitle')}
+        actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>}
+      />
+      <PlanningScreen
+        companyId={activeCompanyId}
+        view={search.view ?? 'reception'}
+        onView={(v) => navigate({ to: '/workshop/planning', search: { view: v } })}
+        onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
+      />
+    </>
+  );
+}
 
 // « demande » = demande de rendez-vous envoyée par un client depuis son espace (/mon-espace),
 // à confirmer par l'atelier (passer à « prévu ») ou à annuler.
@@ -47,7 +80,7 @@ function mondayOf(d: Date) { const x = new Date(d); const day = (x.getDay() + 6)
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function ymd(d: Date) { return d.toISOString().slice(0, 10); }
 
-function PlanningPage() {
+function LegacyPlanningPage() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -215,35 +248,4 @@ function NewRdvDialog({ companyId, defaultDate, reservationsOn, onClose, onCreat
       </DialogContent>
     </Dialog>
   );
-}
-
-function Picked({ label, onClear }: { label: string; onClear: () => void }) {
-  return <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm"><span className="truncate">{label}</span><button type="button" onClick={onClear} className="ml-auto text-muted-foreground">×</button></div>;
-}
-function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
-  const [term, setTerm] = useState(''); const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['rdv-cpick', companyId, deb], queryFn: () => listContacts(companyId, deb), enabled: deb.length >= 2 });
-  // Fiches liees des resultats affiches, en un appel (retour du 05/10).
-  const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('workshop.clientPlaceholder')} className="h-9 pl-9" />
-      {data && data.length > 0 && deb.length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {data.slice(0, 8).map((c) => (
-            <div key={c.id} className="border-b border-border last:border-0">
-              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
-              {/* Fiche liee sous la ligne, en plus clair (retour du 05/10). */}
-              <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;
 }
