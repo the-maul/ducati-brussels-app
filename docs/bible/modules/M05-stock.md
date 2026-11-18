@@ -2,7 +2,7 @@
 chapitre: M05
 titre: Stock & inventaire
 etat: 🟦
-verifie_le: 2026-09-23
+verifie_le: 2026-11-18
 missions: []
 mots_cles: [stock, mouvement de stock, stock réel, stock réservé, stock disponible, triple stock, arrêté, copie datée, PAMP, valeur de stock, inventaire, comptage, réajustement, annule et remplace, cumul, casier, réintégration, remise à zéro, écarts, inventaire tournant, cession interne, dépréciation, stock dormant, étiquetage différé, réappro]
 ---
@@ -31,6 +31,25 @@ Menu latéral : **Stock & inventaire** (`/stock`).
 | Stock & inventaire → Dépréciations (`/stock/depreciation`) | Filtrer le stock (fournisseur, rayon, « seulement stock dormant »), appliquer un % de décote sur la valeur PAMP avec motif, aperçu, liste des dépréciations en cours et provision totale, annulation. |
 | Pièces → fiche article → onglet Stock (`/parts/$articleId`) | Triple stock de l'article, mouvements filtrables, **saisie d'un mouvement manuel** (entrée avec coût, sortie, correction…). Voir M02. |
 | Pièces → Étiquettes (`/parts/labels`) et impression en masse | Quantité par défaut = stock réel. Voir M02. |
+
+### Ajouté le 18/11 — rattrapage G8 (lot `lot-g8-stock`, migrations `20261118210000` / `211000` / `212000`, **non appliquées**)
+
+| Écran (menu → page) | Ce qu'on peut y faire |
+|---|---|
+| Stock & inventaire → Inventaire (`/stock/inventory`) | **Inventaire guidé** : choix d'une des **8 méthodes G8** (magasin ouvert / fermé × effacement des stocks × édition des écarts), aperçu des étapes, **procédure imprimable** (PDF via l'impression du navigateur), puis **check-list d'étapes datées** (date, heure, opérateur, résultat) avec **Valider** sur l'étape suivante et **Retour** sur la dernière validée. Étapes qui agissent en base : sauvegarde / copie (photo datée), génération de l'arrêté, remise à zéro du stock réel (compensable par Retour), effacement de l'arrêté, **réintégration unique** (définitive), fin. Grille de comptage sur l'arrêté (magasin ouvert) ou sur le réel (magasin fermé), feuilles « arrêté initial / final », écarts (quantité + valeur) imprimables. |
+| Stock & inventaire → Réajustement (`/stock/readjust`) | **Gestion du stock réel** et **Gestion d'arrêté** de G8 : grille en **3 modes** (annule et remplace · cumul multi-emplacements · par casier à la volée) sur le **stock réel** ou sur un **arrêté** (généré hors inventaire puis réintégré une fois) ; liste = **tous les articles stockés** (A/V/O/P/D), recherche douchette (référence, désignation, réf. fournisseur, code-barres), filtre casier, « pas encore comptés » ; option « mettre les étiquettes en attente » ; **remise à zéro** (positifs et négatifs / négatifs seuls, motos conservées au choix) avec **confirmation forte** (taper `REMISE A ZERO`) et copie du stock prise juste avant. |
+| Stock & inventaire → Édition du stock (`/stock/edition`) | Les **8 onglets G8** (stock réel · stock arrêté · copie de stock · stock non réajusté · écart de stock · stock à une date · dépréciation · invendus) + **articles en rupture** ; familles rayon › sous-rayon › catégorie, fournisseur, marque, casier, référence, types de gestion ; stocks nuls / négatifs / motos en démo / dépôts **inclus · exclus · uniquement** ; achats et ventes d'une période ; **classement 4 niveaux** avec sous-totaux ; valeur au PAMP ; **export Excel** ; impression ; **inventaire par rayon / fournisseur / casier / référence** (feuille avec colonne « Compté ») ; génération d'une **copie de stock à la demande**. |
+| Stock & inventaire → Étiquetage (`/stock/labels`) | **Reprise étiquetage** + **étiquetage par groupe** G8 : par référence, par groupe (familles / fournisseur), **à la réception** (quantité reçue ou nombre d'étiquettes de la ligne), par **date de modification de l'article** ou **du PV** (`price_changes`), par **casier** ; éco-participation, seulement en stock ; quantité par défaut **stock réel ou 1** ; avec / sans prix, avec / sans code-barres, **double étiquette au prix tarif** (PPC) ; **imprimer maintenant** (imprimante d'étiquettes du poste, Zebra ZPL, sinon navigateur) ou **mettre en attente** : panneau **« Étiquettes en attente » par poste**, cumulées par article, imprimées en une fois (heure + auteur notés) ou retirées. |
+
+Règles ajoutées (miroirs TypeScript testés : `src/modules/stock/inventory-rules.ts`, `labels-rules.ts`, `edition-rules.ts`, `tests/inventaire-guide.test.ts` ; essai à blanc `supabase/tests/m5_inventaire_guide.sql`) :
+- **Étapes par méthode** (`_inventory_method_steps`) — ouvert : début · sauvegarde · génération de l'arrêté · remise à zéro du réel · édition arrêté initial · [effacement de l'arrêté] · comptage · réajustement de l'arrêté · [édition des écarts] · édition arrêté final · sauvegarde finale · réintégration · copie · fin. Fermé : début · sauvegarde · génération de l'arrêté · édition arrêté initial · [remise à zéro du réel] · comptage · réajustement du réel · [édition des écarts] · sauvegarde finale · copie · fin. Journal **append-only** `inventory_step_log` (valide / retour).
+- **Arrêté immuable + réajustements ajoutés** : `stock_snapshot_lines` n'est plus modifiable par personne ; les comptages sur l'arrêté sont des lignes `stock_snapshot_adjustments` (mode, compté, casier, ancien, nouveau, delta, opérateur, heure). Arrêté réajusté = photo + somme des deltas (`_snapshot_effective`). Cumul = somme des comptages cumul (on part de 0) ; casier = somme du dernier comptage de chaque casier.
+- **Réintégration** (`_snapshot_reintegrate`, une seule fois) : réel cible = arrêté réajusté + mouvements faits depuis l'arrêté **hors** mouvements de l'inventaire ; juste avec ou sans remise à zéro, ventes pendant le comptage comprises.
+- **Réajustement du réel** (`stock_readjust`) : casier = annule et remplace pour un article à un seul emplacement, stock du casier (`bin_stock`) pour un article multi-emplacements.
+- **Copies** : `_stock_photo` / `_stock_levels` ne dépendent plus de l'utilisateur connecté → **les copies pg_cron du 15 et de fin de mois ne sont plus vides** (piège §7 corrigé), une seule copie automatique par jour, jour calculé à l'heure de Bruxelles. `stock_snapshots` gagne `status`, `origin` (manuel / auto / inventaire), `session_id`, `created_by`, `reintegrated_at`.
+- **Droits** : écritures via `can_write_table(company, 'inventory_sessions')` (page /stock) et `'label_queue'` (pages /parts et /stock).
+- **Étiquettes** : `label_queue` gagne `workstation_id` (poste ; lien posé si la migration postes `20261103250000` est passée), `source`, `source_ref`, `with_tarif`, `printed_at`, `printed_by` ; fonctions `enqueue_labels`, `label_queue_pending`, `label_queue_done`, `label_candidates`.
+- **Pas de promotions** : le DMS n'a pas de prix promo sur l'article ; l'étiquetage « articles en promotion » de G8 n'est pas repris (voir questions en attente).
 
 ## 3. Où trouver quoi
 
@@ -108,7 +127,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 
 ## 7. Limites connues, dettes, pièges
 - **`etat-projet.md` et `avancement.md` surestiment l'écran** : ils annoncent « 3 modes d'inventaire, tournant, étiquetage différé ». Les fonctions SQL existent (`record_inventory_count` mode `casier`, `cycle_count_candidates`, `enqueue_label`) et leurs appels sont écrits dans `inventory-api.ts` (`recordBinCount`, `getCycleCandidates`, `enqueueLabel`, `getLabelQueue`, `markLabelsPrinted`), mais **aucun écran ne les appelle**. L'inventaire n'offre que *annule et remplace* et *cumul*.
-- **Copies datées invisibles** : aucune lecture de `stock_snapshots` dans l'application hors génération d'arrêté ; B4 exige qu'elles soient « consultables a posteriori ».
+- ~~**Copies datées invisibles**~~ — **résolu le 18/11** (onglets Copie de stock / Stock arrêté / Stock à une date de `/stock/edition`), après application de `20261118211000`.
 - **Porte dérobée PAMP** : la RLS `stockmoves_insert` autorise tout membre à insérer **directement** dans `stock_moves` sans passer par `record_stock_move` ; une entrée ainsi créée ne recalcule pas le PAMP. Le code de l'application passe toujours par la fonction, mais la base ne l'impose pas.
 - **Appels anonymes** : `record_stock_move`, `record_inventory_count`, `enqueue_label`, `cycle_count_candidates`, `dormant_stock` sautent le contrôle d'appartenance quand `auth.uid()` est nul (prévu pour pg_cron). Si l'exécution reste ouverte au rôle `anon` (audit Supabase, `etat-projet.md` §5), un appel sans connexion peut écrire des mouvements ou lire le stock d'une société. **À vérifier en priorité** (requête §5).
 - **Mouvement manuel depuis la fiche article** : n'importe quel membre peut saisir une entrée valorisée, une sortie ou une correction ; aucune restriction par rôle (magasinier).
@@ -154,7 +173,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
   **sans aucun mouvement et sans mini** n'apparaît plus dans la liste d'inventaire ni dans l'impression
   d'étiquettes en masse (il reste accessible par sa fiche).
 - Calcul du stock à la volée (somme de tous les mouvements à chaque liste) : correct mais coûteux quand l'historique grossira. **Index ajouté le 23/09** : `idx_stockmoves_article_cover (article_id) include (is_reservation, qty_delta)` (lecture par index seul).
-- **Copies datées et cron** : `article_stock_list` exige `is_member(_company)`, donc `auth.uid()` non nul. Sous `pg_cron` (aucun utilisateur connecté) elle renvoie **zéro ligne** : les copies du 15 et de fin de mois générées par `_cron_stock_copies` sont probablement **vides**. Constat du 23/09, **antérieur** au lot (le contrôle existait déjà) — à vérifier et corriger.
+- ~~**Copies datées et cron**~~ (**corrigé le 18/11** par `20261118210000` : `_stock_photo` sans contrôle d'utilisateur) : `article_stock_list` exige `is_member(_company)`, donc `auth.uid()` non nul. Sous `pg_cron` (aucun utilisateur connecté) elle renvoie **zéro ligne** : les copies du 15 et de fin de mois générées par `_cron_stock_copies` sont probablement **vides**. Constat du 23/09, **antérieur** au lot (le contrôle existait déjà) — à vérifier et corriger.
 
 ## 8. Exigences du cahier couvertes
 
@@ -167,12 +186,12 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 | INV010 | Stock unifié magasin + e-shop | ✅ fait | même `stock_moves`, e-shop M11 (`avancement.md` E10) |
 | INV011 | Inventaire physique annuel | ✅ fait | `/stock/inventory`, fonctions de `20260610320000_m5_inventory.sql` |
 | INV015 | Listes de préparation | 🟦 partiel | **Deux origines depuis le 23/09** (mission 07 carte 2, M-42) : un document de vente **ou** un ordre de réparation (`picking_lists.repair_order_id`, `picking_open_for_repair_order`) — depuis un OR, la liste reprend le kit de l'échéance d'entretien et les pièces ajoutées par le technicien, et un bouton « Commander les pièces manquantes » y est posé. `/picking` + vue tablette `/preparation/$pickingId` (M6, `20260726120000_m6_picking_lists`, `20260919310000_m6_preparation_tablette`) : casiers, disponible / en commande, étapes commandé → préparé → monté ; préparation VN (moto + options) via le bouton « Préparer » d'un document ; gestion des listes (mission 02 carte 11, `20260919380000_m6_listes_preparation_gestion`) : filtres, tri, impression A4 avec casiers, régénération depuis le document, terminer, annuler / supprimer tracé, rouvrir — toujours sans mouvement de stock |
-| B4 | Triple stock + copies datées | 🟦 partiel | réel/réservé/disponible faits ; « en commande » absent ; copies non consultables ; cron à vérifier |
+| B4 | Triple stock + copies datées | 🟦 partiel | réel/réservé/disponible faits ; « en commande » absent de la liste ; **copies consultables, copies cron non vides, stock à une date (18/11, migrations non appliquées)** |
 | B5 | PAMP à chaque entrée | ✅ fait | `record_stock_move` (voir limites §7) |
-| B6 | 3 modes de réajustement | 🟦 partiel | 3 modes en SQL, 2 à l'écran |
+| B6 | 3 modes de réajustement | ✅ fait (18/11, non appliqué) | 3 modes à l'écran, sur le réel et sur l'arrêté (`/stock/readjust`, inventaire guidé) |
 | B7 | Traçabilité append-only | ✅ fait | `stock_moves` sans UPDATE/DELETE, origine + opérateur |
-| B12 | Étiquetage | 🟦 partiel | défaut = stock réel, avec/sans prix et code-barres ; édition différée sans écran |
-| Angles morts | Arrêté + 8 méthodes + réintégration | ✅ fait | 3 options × 2 modes à l'écran |
+| B12 | Étiquetage | ✅ fait (18/11, non appliqué) | défaut = stock réel ou 1, avec/sans prix et code-barres, double prix tarif, édition différée cumulée **par poste** (`/stock/labels`) |
+| Angles morts | Arrêté + 8 méthodes + réintégration | ✅ fait | 8 méthodes en check-list datée avec retour arrière (18/11) |
 | | Inventaire tournant avec taux d'écart | ⬜ manquant à l'écran | `cycle_count_candidates` seulement, pas de taux d'écart |
 | | Dépréciation par taux/période | 🟦 partiel | taux manuel ; pas de période d'entrée |
 | | Historique exhaustif des mouvements | ✅ fait | historique par article, origine + opérateur |
@@ -182,6 +201,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 
 | Date | Changement | Commit ou migration |
 |---|---|---|
+| 2026-11-18 | **Rattrapage G8 stock** : inventaire guidé (8 méthodes, check-list datée, retour arrière), arrêté réajustable en 3 modes (append-only), réintégration juste et unique, réajustement / remise à zéro du réel, copies consultables et copies cron corrigées, édition multi-critères (8 onglets + rupture, Excel, feuilles d'inventaire), étiquetage par source + file différée par poste | `20261118210000_m5_inventaire_guide`, `20261118211000_m5_editions_stock`, `20261118212000_m5_etiquetage` (non appliquées) |
 | 2026-11-03 | Minimax du panier de commande Ducati (mission 09, M04) : `stock_max` = quantité cible, remplissage quotidien `basket-minimax-daily` sur le stock réel, « en commande » déduit ; aucun mouvement de stock | `20261103100000_m4_paniers_de_commande` (non appliquée) |
 | 2026-09-23 | **Stock réel de G8 importé** (M-44 à M-48) : 4 249 lignes lues, 4 232 appliquées, 3 627 mouvements `inventaire` origine `import:g8-inventaire-20260923`, 560 articles créés, 4 106 PAMP posés, 4 067 prix d'achat tracés, 3 295 casiers, 20 motos rapprochées par VIN ; 17 motos écartées (249 875 €) | `20260923190000_m5_inventaire_import.sql` |
 | 2026-06-11 | Fondation : mouvements append-only, triple stock, PAMP + 5 tests, transfert au remplacement | `1f36698`, `20260610200000_m5_stock_moves` |
