@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing } from 'lucide-react';
 import { createRepairQuoteFromOr, duplicateRepairOrder } from '@/modules/workshop/or-copy';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -36,14 +36,16 @@ import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getDocumentFull, type DocumentFull } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { contactLocale } from '@/lib/i18n/client-locale';
+import { OrStatusBadge } from '@/modules/workshop/or-base/or-status-badge';
+import { OrPrintDialog } from '@/modules/workshop/or-base/print-dialog';
+import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
+import { canNotifyReady } from '@/modules/workshop/or-base/rules';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
   head: () => ({ meta: [{ title: pageTitle('workshopOr') }] }),
   component: OrView,
 });
-
-const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neutral' : s === 'pret' ? 'info' : 'warning');
 
 /** Mail de la proposition d'intervention, dans la langue du client, avec son lien de signature. */
 type ProposalMail = { full: DocumentFull; contact: Contact; preset: { subject: string; body: string } };
@@ -59,6 +61,9 @@ function OrView() {
   const [verbalOpen, setVerbalOpen] = useState(false);
   const [mail, setMail] = useState<ProposalMail | null>(null);
   const [deferredStep, setDeferredStep] = useState<DeferredIntervention[] | null>(null);
+  // Rattrapage G8 (18/11) : impression OR / fiche de travail, message « moto prete ».
+  const [printOpen, setPrintOpen] = useState(false);
+  const [readyOpen, setReadyOpen] = useState(false);
   // Popup « pieces d'entretien manquantes » (mission 09, carte 3) : une fois par ouverture d'ecran,
   // seulement pour un OR a motif entretien ; la memoire sur l'OR evite de redemander les memes pieces.
   const [partsPopupDone, setPartsPopupDone] = useState(false);
@@ -98,6 +103,8 @@ function OrView() {
     expertDate: p.expertDate === undefined ? undefined : (p.expertDate || null),
     warrantyCessionCode: p.warrantyCessionCode, warrantyNote: p.warrantyNote,
     reasonCode: p.reasonCode, lines: p.lines,
+    // Rattrapage G8 (18/11) : promis le, 30 points, notes internes, km inferieur confirme.
+    promisedAt: p.promisedAt, checkPoints: p.checkPoints, internalNotes: p.internalNotes, mileageAckPrevious: p.mileageAckPrevious,
   });
 
   // OR accident : a l'enregistrement, le dossier accident s'ouvre en brouillon s'il n'existe pas (ATE001b).
@@ -236,6 +243,10 @@ function OrView() {
         breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: `OR ${or.number ?? ''}` }]}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setPrintOpen(true)}><Printer /> {t('orBase.print')}</Button>
+            {canNotifyReady({ status: or.status, hasContact: !!or.contact_id }) && (
+              <Button variant="outline" onClick={() => setReadyOpen(true)}><BellRing /> {t('orBase.notifyReady')}</Button>
+            )}
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
             {!invoiced && <Button onClick={() => { setError(null); toInvoice.mutate(); }} disabled={toInvoice.isPending || invoiceNow.isPending || pending}>{toInvoice.isPending || invoiceNow.isPending ? <Loader2 className="animate-spin" /> : <FileText />} {t('workshop.toInvoice')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
@@ -266,7 +277,7 @@ function OrView() {
         }
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <StatusBadge tone={tone(or.status)} label={t(`workshop.status_${or.status}`)} />
+        <OrStatusBadge status={or.status} />
         {or.warranty_status !== 'aucune' && <WarrantyStatusBadge status={or.warranty_status} />}
         {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>
@@ -350,6 +361,14 @@ function OrView() {
         <DocumentMailDialog
           full={mail.full} contact={mail.contact} companyName={companyName} preset={mail.preset}
           onClose={() => setMail(null)} onSent={refresh}
+        />
+      )}
+      {printOpen && <OrPrintDialog orId={orId} orNumber={or.number} onClose={() => setPrintOpen(false)} />}
+      {readyOpen && (
+        <ReadyMailDialog
+          companyId={activeCompanyId!} companyName={companyName}
+          or={{ id: or.id, number: or.number, contact_id: or.contact_id, vehicle_id: or.vehicle_id, total_ttc: Number(or.total_ttc) }}
+          onClose={() => setReadyOpen(false)} onInformed={() => { setReadyOpen(false); refresh(); }}
         />
       )}
       {deferredStep && (

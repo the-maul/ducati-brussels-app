@@ -21,6 +21,7 @@ import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-parts-dialog';
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
+import { parseMileage } from '@/modules/workshop/or-base/rules';
 
 /** Entretien choisi d'un RDV : colonne de la migration 20261103270000, sinon le motif. */
 const apptService = (a: Appointment): string | null => {
@@ -149,6 +150,8 @@ function NewRdvDialog({ companyId, defaultDate, reservationsOn, onClose, onCreat
   const [vehicle, setVehicle] = useState<VehiclePickRow | null>(null);
   // Motif du RDV (mission 09, carte 3) : un motif entretien + une moto → controle des pieces du kit.
   const [reasonCode, setReasonCode] = useState('');
+  // Km releve a la prise du RDV (G8), repris sur l'OR cree depuis le RDV.
+  const [km, setKm] = useState('');
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
   const [created, setCreated] = useState<{ id: string; startsAt: string } | null>(null);
   const popupDone = useCallback(() => onCreated(), [onCreated]);
@@ -158,6 +161,7 @@ function NewRdvDialog({ companyId, defaultDate, reservationsOn, onClose, onCreat
       companyId, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mechanicName: mechanic,
       startsAt: new Date(`${date}T${time}`).toISOString(), plannedMinutes: Math.round(num(minutes)) || 60,
       workDescription: work, loanerVehicle: loaner, notifySms: notify, reasonCode: reasonCode || null,
+      mileage: parseMileage(km),
     }),
     onSuccess: (id) => {
       if (vehicle?.id && isMaintenanceReasonCode(reasonCode)) setCreated({ id, startsAt: new Date(`${date}T${time}`).toISOString() });
@@ -199,6 +203,7 @@ function NewRdvDialog({ companyId, defaultDate, reservationsOn, onClose, onCreat
               </SelectContent>
             </Select>
           </Field>
+          <Field label={t('orBase.rdvMileage')}><Input type="number" min={0} value={km} onChange={(e) => setKm(e.target.value)} className="text-right tabular-nums" /></Field>
           <Field label={t('workshop.rdvLoaner')}><Input value={loaner} onChange={(e) => setLoaner(e.target.value)} /></Field>
           <Field label={t('workshop.workDescription')}><Input value={work} onChange={(e) => setWork(e.target.value)} /></Field>
           <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('workshop.rdvNotify')}</label>

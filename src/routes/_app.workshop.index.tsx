@@ -1,55 +1,40 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch } from '@/lib/use-list-search';
-import { Loader2, Plus, Timer, CalendarDays, BookOpen, LifeBuoy, Wrench, ShieldCheck, Car, PackageCheck, BarChart3, type LucideIcon } from 'lucide-react';
+import { Plus, Timer, CalendarDays, BookOpen, LifeBuoy, Wrench, ShieldCheck, Car, PackageCheck, BarChart3, FileQuestion, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
-import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listRepairOrders } from '@/modules/workshop/api';
-import { WarrantyOrsTable, WarrantyReturnsPanel, WarrantyListsPanel, WarrantyStatusBadge } from '@/modules/workshop/warranty/warranty-views';
+import { WarrantyOrsTable, WarrantyReturnsPanel, WarrantyListsPanel } from '@/modules/workshop/warranty/warranty-views';
 import { AccidentOrsTable } from '@/modules/workshop/accident/accident-ors-table';
+import { OrListScreen, OR_LIST_DEFAULTS, OR_LIST_CHOICES, WORKSHOP_VIEWS, type WorkshopView } from '@/modules/workshop/or-base/or-list-screen';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/workshop/')({
   head: () => ({ meta: [{ title: pageTitle('workshop') }] }),
-  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, WORKSHOP_LIST, WORKSHOP_CHOICES),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, OR_LIST_DEFAULTS, OR_LIST_CHOICES),
   component: WorkshopList,
 });
 
-/** Etat de la liste garde dans l'adresse (UX011). */
-const WORKSHOP_LIST = { status: 'all', view: 'or' };
-
 /**
- * Vues de la liste (G8 : Rappel d'un O.R. › Ordres de reparation / O.R. garantie / O.R. accident),
- * plus le suivi des retours constructeur (G8 : Appros › Historique garantie) et les listes
- * « Garanties » / « Garanties / CA » (G8 : Liste des cessions) — rattrapage G8 du 18/11/2026.
+ * Vues de la liste (G8 : Rappel d'un O.R. › Ordres de reparation / Devis de reparation / O.R. garantie /
+ * O.R. accident), plus le suivi des retours constructeur (G8 : Appros › Historique garantie) et les
+ * listes « Garanties » / « Garanties / CA » (G8 : Liste des cessions) — rattrapage G8 du 18/11/2026.
+ * OR et devis de reparation : `or-base/or-list-screen.tsx` (recherche n° / immat / client / chassis,
+ * filtres, pagination, export Excel) ; garantie et accident : tables du lot garantie / accident.
  */
-const VIEWS = ['or', 'garantie', 'accident', 'retours', 'stats'] as const;
-const WORKSHOP_CHOICES = { view: VIEWS };
-const VIEW_ICON: Record<(typeof VIEWS)[number], LucideIcon> = { or: Wrench, garantie: ShieldCheck, accident: Car, retours: PackageCheck, stats: BarChart3 };
-
-const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
-const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neutral' : s === 'pret' ? 'info' : 'warning');
+const VIEW_ICON: Record<WorkshopView, LucideIcon> = { or: Wrench, devis: FileQuestion, garantie: ShieldCheck, accident: Car, retours: PackageCheck, stats: BarChart3 };
+const viewLabel = (v: WorkshopView) => (v === 'devis' ? t('orBase.views.devis') : t(`warranty.view_${v}`));
 
 function WorkshopList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
-  // Onglet de statut dans l'adresse (UX011) : Retour depuis un OR retrouve le meme filtre.
-  const [ls, setLs] = useListSearch(WORKSHOP_LIST);
-  const status = ls.status;
-  const setStatus = (v: string) => setLs({ status: v });
-  const view = (VIEWS as readonly string[]).includes(ls.view) ? (ls.view as (typeof VIEWS)[number]) : 'or';
-  const { data, isLoading } = useQuery({
-    queryKey: ['repair-orders', activeCompanyId, status],
-    queryFn: () => listRepairOrders(activeCompanyId!, status === 'all' ? undefined : status),
-    enabled: !!activeCompanyId && view === 'or',
-  });
+  // Vue et filtres dans l'adresse (UX011) : Retour depuis un OR retrouve la meme liste.
+  const [ls, setLs] = useListSearch(OR_LIST_DEFAULTS, OR_LIST_CHOICES);
+  const view = ((WORKSHOP_VIEWS as readonly string[]).includes(ls.view) ? ls.view : 'or') as WorkshopView;
 
   return (
     <>
@@ -72,14 +57,14 @@ function WorkshopList() {
         }
       />
       <div className="mb-3 flex flex-wrap gap-1 border-b border-border">
-        {VIEWS.map((v) => {
+        {WORKSHOP_VIEWS.map((v) => {
           const Icon = VIEW_ICON[v];
           return (
             <button
-              key={v} type="button" onClick={() => setLs({ view: v })}
+              key={v} type="button" onClick={() => setLs({ view: v, page: 1 })}
               className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-bold ${view === v ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
-              <Icon className="size-4" aria-hidden /> {t(`warranty.view_${v}`)}
+              <Icon className="size-4" aria-hidden /> {viewLabel(v)}
             </button>
           );
         })}
@@ -88,38 +73,7 @@ function WorkshopList() {
       {view === 'accident' && activeCompanyId && <AccidentOrsTable companyId={activeCompanyId} />}
       {view === 'retours' && activeCompanyId && <WarrantyReturnsPanel companyId={activeCompanyId} />}
       {view === 'stats' && activeCompanyId && <WarrantyListsPanel companyId={activeCompanyId} />}
-      {view === 'or' && <>
-      <div className="mb-3">
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('workshop.filterAll')}</SelectItem>
-            {['a_faire', 'en_cours', 'pret', 'facture'].map((s) => <SelectItem key={s} value={s}>{t(`workshop.status_${s}`)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="overflow-hidden rounded-md border border-border">
-        <table className="w-full border-collapse font-data text-[13px]">
-          <thead className="bg-muted"><tr><Th>{t('workshop.colNumber')}</Th><Th>{t('workshop.colStatus')}</Th><Th>{t('workshop.colWarranty')}</Th><Th className="text-right">{t('workshop.colTtc')}</Th></tr></thead>
-          <tbody>
-            {isLoading && <tr><td colSpan={4} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
-            {data && data.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">{t('workshop.empty')}</td></tr>}
-            {data?.map((o) => (
-              <tr key={o.id} onClick={() => navigate({ to: '/workshop/$orId', params: { orId: o.id } })} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
-                <td className="px-3 py-2 font-mono text-[12px]">{o.number ?? '—'}</td>
-                <td className="px-3 py-2"><StatusBadge tone={tone(o.status)} label={t(`workshop.status_${o.status}`)} /></td>
-                <td className="px-3 py-2">{o.warranty_status !== 'aucune' ? <WarrantyStatusBadge status={o.warranty_status} /> : '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{eur(Number(o.total_ttc))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </>}
+      {(view === 'or' || view === 'devis') && activeCompanyId && <OrListScreen companyId={activeCompanyId} view={view} />}
     </>
   );
-}
-
-function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
 }

@@ -39,6 +39,8 @@ export function AppointmentStatus({ status }: { status: string }) {
 
 const REPAIR_TONES: Record<string, StatusTone> = {
   a_faire: 'info', en_cours: 'info', pret: 'success', facture: 'success', annule: 'neutral',
+  // Statuts G8 du 18/11 (attente devis = accord du client attendu).
+  attente_devis: 'warning', attente_pieces: 'info', client_informe: 'success',
 };
 export function RepairStatus({ status }: { status: string }) {
   return <StatusBadge tone={REPAIR_TONES[status] ?? 'neutral'} label={t(`portal.repairStatus.${status}`)} />;

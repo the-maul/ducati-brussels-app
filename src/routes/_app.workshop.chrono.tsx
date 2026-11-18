@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
+// OR ouverts G8 (a faire, attente devis, pieces en commande, en cours) : on peut y pointer (18/11).
+import { OR_WORKABLE_STATUSES } from '@/modules/workshop/or-base/rules';
 import { getOpenEntry, listTodayEntries, togglePresence, startWork, stopWork } from '@/modules/workshop/chrono-api';
 import { canStartWork } from '@/modules/workshop/checkup/rules';
 import { t, pageTitle } from '@/lib/i18n';
@@ -28,7 +30,7 @@ function ChronoPage() {
   const presence = useQuery({ queryKey: ['chrono-presence', activeCompanyId], queryFn: () => getOpenEntry(activeCompanyId!, 'presence'), enabled: !!activeCompanyId });
   const work = useQuery({ queryKey: ['chrono-work', activeCompanyId], queryFn: () => getOpenEntry(activeCompanyId!, 'travail'), enabled: !!activeCompanyId });
   const today = useQuery({ queryKey: ['chrono-today', activeCompanyId], queryFn: () => listTodayEntries(activeCompanyId!), enabled: !!activeCompanyId });
-  const ors = useQuery({ queryKey: ['repair-orders-open', activeCompanyId], queryFn: async () => [...(await listRepairOrders(activeCompanyId!, 'a_faire')), ...(await listRepairOrders(activeCompanyId!, 'en_cours'))], enabled: !!activeCompanyId });
+  const ors = useQuery({ queryKey: ['repair-orders-open', activeCompanyId], queryFn: async () => (await Promise.all(OR_WORKABLE_STATUSES.map((s) => listRepairOrders(activeCompanyId!, s)))).flat(), enabled: !!activeCompanyId });
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['chrono-presence', activeCompanyId] }); qc.invalidateQueries({ queryKey: ['chrono-work', activeCompanyId] }); qc.invalidateQueries({ queryKey: ['chrono-today', activeCompanyId] }); };
   const pres = useMutation({ mutationFn: () => togglePresence(activeCompanyId!, name), onSuccess: refresh });
