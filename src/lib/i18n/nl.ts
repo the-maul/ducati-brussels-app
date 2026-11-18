@@ -8142,6 +8142,7 @@ export const nl: DictionaryShape = {
     simSource_client: "regel van de klant",
     simSource_list: "tarief",
     simSource_global: "algemene regel",
+  },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
     clear: "Wissen",
@@ -8381,6 +8382,7 @@ export const nl: DictionaryShape = {
       signBorrower: "Handtekening van de lener (gelezen en goedgekeurd)",
       signCompany: "Voor de concessie",
     },
+  },
   // Rattrapage G8, documents de vente (lot-g8-documents-vente, 18/11/2026)
   docList: {
     invoicesTitle: "Factuurlijst",

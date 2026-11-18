@@ -8161,6 +8161,7 @@ export const fr = {
     simSource_client: "règle du client",
     simSource_list: "tarif",
     simSource_global: "règle générale",
+  },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
     clear: "Effacer",
@@ -8400,6 +8401,7 @@ export const fr = {
       signBorrower: "Signature de l'emprunteur (lu et approuvé)",
       signCompany: "Pour la concession",
     },
+  },
   // Rattrapage G8, documents de vente (lot-g8-documents-vente, 18/11/2026)
   docList: {
     invoicesTitle: "Liste des factures",
