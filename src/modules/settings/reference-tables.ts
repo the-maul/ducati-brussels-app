@@ -111,7 +111,11 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { value: 'desmo', label: 'Desmo Service' },
     ] }] },
   { key: 'workshop_operation', label: 'Opérations atelier', group: 'atelier', extraColumns: [] },
-  { key: 'workshop_task', label: 'Tâches hors facturation', group: 'atelier', extraColumns: [] },
+  // Pointeuse (rattrapage G8 du 18/11/2026) : taches improductives pointables (code = tache ;
+  // nettoyage atelier, nettoyage motos, entree / sortie motos expo precharges par la migration
+  // 20261118110000) et codes mecano (code scanne ou tape a la pointeuse, libelle = nom du mecanicien).
+  { key: 'workshop_task', label: 'Tâches improductives (pointeuse)', group: 'atelier', extraColumns: [] },
+  { key: 'workshop_mechanic', label: 'Codes mécano (pointeuse)', group: 'atelier', extraColumns: [] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
   { key: 'workshop_quote_fee', label: 'Frais de devis atelier', group: 'atelier',
     extraColumns: [

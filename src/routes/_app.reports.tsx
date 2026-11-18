@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, RefreshCw } from 'lucide-react';
@@ -175,7 +175,11 @@ function ReportsPage() {
 
         {/* Productivité */}
         <section>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('reports.productivity')}</p>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('reports.productivity')}</p>
+            {/* Productivite complete G8 (B11, 18/11/2026) : Atelier → Pointeuse → onglet Productivite atelier. */}
+            <Link to="/workshop/chrono" className="text-[13px] text-info underline-offset-2 hover:underline">{t('labourTime.openDetailed')}</Link>
+          </div>
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
               <thead className="bg-muted"><tr><Th>{t('reports.mechanic')}</Th><Th className="text-right">{t('reports.presence')}</Th><Th className="text-right">{t('reports.work')}</Th><Th className="text-right">{t('reports.rate')}</Th></tr></thead>
