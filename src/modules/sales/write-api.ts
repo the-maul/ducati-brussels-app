@@ -1065,6 +1065,9 @@ export type NewPayment = {
   reversalOf?: string | null;    // contre-passation du règlement visé (PDV010 : jamais de suppression)
   transferredFrom?: string | null; // acompte reporté à la conversion (pas un nouvel encaissement)
   depositInvoiceId?: string | null; // acompte reporté déjà facturé (FAA) : déduit de la facture finale
+  chequeNumber?: string | null;  // G8 : n° de chèque (migration 20261118170000)
+  bankName?: string | null;      // G8 : établissement payeur (migration 20261118170000)
+  voucherId?: string | null;     // bon d'achat utilisé (mode BA, migration 20261118174000)
 };
 
 /** Modes de règlement paramétrés (reference_values), visibles en caisse en premier. */
@@ -1117,6 +1120,10 @@ export async function addPayments(documentId: string, lines: NewPayment[]): Prom
       ...(l.reversalOf ? { reversal_of: l.reversalOf } : {}),
       ...(l.transferredFrom ? { transferred_from: l.transferredFrom } : {}),
       ...(l.depositInvoiceId ? { deposit_invoice_id: l.depositInvoiceId } : {}),
+      // Colonnes du rattrapage G8 « Encaissements » (20261118170000 / 174000) : seulement si renseignées.
+      ...(l.chequeNumber?.trim() ? { cheque_number: l.chequeNumber.trim() } : {}),
+      ...(l.bankName?.trim() ? { bank_name: l.bankName.trim() } : {}),
+      ...(l.voucherId ? { voucher_id: l.voucherId } : {}),
     }));
   if (rows.length === 0) return;
   // `deposit_invoice_id` : colonne de la migration 20261103180000, hors types générés tant qu elle n est pas posée.

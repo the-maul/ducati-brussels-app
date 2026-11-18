@@ -298,3 +298,38 @@ imprimés, sans encaissement ni caisse ouverte exigée.
 
 **Pièges** : la détaxe ne s'applique qu'avec un client (jamais sur un ticket anonyme) ; l'écran client
 (tablette) affiche encore la TVA d'une vente détaxée (le document, lui, est juste).
+
+## Ajouté le 18/11 — rattrapage G8 (encaissements)
+
+Lot `lot-g8-encaissements` (inventaire `docs/g8-inventaire/06-ventes-caisse.md`, `01-clients.md` ;
+comparaison `comparaison-ventes-caisse-compta.md` §2, bloquants #11, #12, #18). Construit **par-dessus le
+bloc factures / règlements du 03/11** (150000 → 260000), qui doit être appliqué avant.
+
+| G8 | DMS |
+|---|---|
+| Grille d'encaissement : **n° de chèque**, **établissement payeur** | Pied de facture / panneau de règlement : champs n° de chèque et banque (mode « Chèque » `CHQ` ou règlement à échéance) ; affichés sur chaque règlement |
+| « **Calculer sur 12 échéances automatique** » | Bouton « Échéancier (N fois) » du panneau de règlement : N échéances mensuelles datées (12 par défaut, réglable), total ÷ N arrondi au cent inférieur, **reliquat sur la 1re**, n° de chèque incrémenté ; aperçu = ce que la base écrit (`schedule.ts` ↔ `payment_schedule_create`) |
+| Chèques à échéance : liste par client et période, « établie à la date du », Modifier cet encaissement, **Encaissement immédiat** | Ventes → Soldes à encaisser → **Encaissements** (`/sales/receivables`), onglet « Chèques et échéances » : filtres, badge échu / à venir, modifier (échéance, banque, n°), encaisser, PDF, Excel |
+| **Annuler échéances** | Sélection + motif obligatoire : statut `annule`, qui / quand / pourquoi, trace `events` ; rien n'est effacé |
+| Gestion des relances (modèles 01-04, niveau, agio %, minimum, frais, majoration, dernière relance, média, facture jointe, édition, mail) | Onglet « Relances » : factures échues (ou créditeurs), type à envoyer (automatique = niveau suivant), déjà traitées, minimum, frais fixes, majoration %, aperçu PDF, « Éditer relance(s) » (un PDF, noté « courrier »), « Envoyer par mail (test) » avec facture jointe en option ; modèles éditables (onglet « Modèles et réglages ») |
+| Liste des clients débiteurs / créditeurs | Onglet « Débiteurs / créditeurs » : échéances du … au …, **établie à la date du …** (reste dû recalculé à cette date), tri alphabétique / code / date / compte comptable, avec encaissements à échéance, dernière relance, compte comptable, total, PDF, Excel, **Régulariser** (un montant réparti sur les plus anciennes factures, ou compensation avoirs ↔ factures) ; brouillons exclus |
+| Fiche client, onglet Relances + bouton Échéances | Fiche client → onglet « Relances et échéances » : échéances (avec historique), relances envoyées (date, média, type, adresse), bons d'achat (+ nouveau bon) |
+| Gestion Bons d'achat | Onglet « Bons d'achat » : n° `BA-…` (séquence par société), client facultatif, montant, validité (défaut 365 j, réglable), minimum, origine, statut (actif / utilisé / expiré / annulé), impression **A4 ou ticket 80 mm** avec code-barres ; mode de règlement « Bon d'achat » (`BA`) au panneau de règlement, usage partiel, solde contrôlé par la base |
+
+**Relances = mode TEST uniquement** (journal du 03/11). `receivable_settings.dunning_mode` n'accepte que
+`arrete` ou `test` (contrainte en base) ; en test, chaque lettre part à l'adresse de test (réglage des
+encaissements, sinon celle des relances d'entretien), objet « [TEST relance pour <client>] », sans pied
+d'invitation, sans copie, sans trace dans l'historique d'échanges du client ; `graph-send-email`
+(`purpose: 'dunning'`) refait ce contrôle côté serveur. L'historique `dunning_letters` est append-only.
+
+Fichiers : `src/modules/receivables/*` (règles pures `schedule.ts`, `dunning.ts` testées dans
+`tests/encaissements-g8.test.ts`), `src/routes/_app.sales.receivables.tsx`, `payment-panel.tsx`.
+Migrations (non appliquées, dans l'ordre) : `20261118170000_m6_reglements_echeancier.sql`,
+`20261118171000_m6_relances_impayes.sql`, `20261118172000_m12_debiteurs_crediteurs.sql`,
+`20261118173000_m12_remises_sepa.sql`, `20261118174000_m6_bons_d_achat.sql` ; essai à blanc
+`supabase/tests/m6_encaissements_g8.sql` ; puis `functions deploy graph-send-email`.
+
+À trancher (Simon / Domenico) : une lettre par client et par modèle (G8 : grille par facture) ; reliquat
+de l'échéancier sur la 1re échéance ; bon d'achat vendu = traitement TVA / compta à définir (le DMS crée
+le bon, sans vente ni encaissement) ; mode `BA` distinct de `CHQC` (cartes cadeaux Shopify) ; droits de
+la page = ceux de « Soldes à encaisser ».

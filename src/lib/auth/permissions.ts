@@ -68,6 +68,9 @@ export const PAGE_RULES: PageRule[] = [
   // Comptabilité → clôture d'exercice et virements SEPA.
   { to: '/accounting-closure', write: ['comptable'], read: [] },
   { to: '/accounting-sepa', write: ['comptable'], read: [] },
+  // Soldes à encaisser → Encaissements (rattrapage G8 du 18/11/2026 : échéances, relances,
+  // débiteurs, bons d'achat) : mêmes droits que « Soldes à encaisser ».
+  { to: '/sales/receivables', write: ['vendeur', 'magasinier', 'mecanicien', 'chef_atelier', 'comptable'], read: [] },
   // Contacts → tarifs clients.
   { to: '/client-pricing', write: ['vendeur', 'chef_atelier', 'marketing'], read: ['magasinier', 'mecanicien', 'comptable'] },
   // Reprises motos clients → dépôt-vente.
@@ -84,6 +87,8 @@ export const PAGE_RULES: PageRule[] = [
 export const PAGE_ALIASES: Record<string, string> = {
   '/accounting-closure': '/accounting',
   '/accounting-sepa': '/accounting',
+  // Encaissements (rattrapage G8, 18/11/2026) : memes droits que les soldes a encaisser.
+  '/sales/receivables': '/sales/balances',
   '/client-pricing': '/clients',
   '/consignment': '/tradein',
   '/preparation': '/picking',

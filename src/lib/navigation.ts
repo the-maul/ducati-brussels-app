@@ -25,6 +25,7 @@ import {
   ShoppingCart,
   ShoppingBasket,
   Wallet,
+  HandCoins,
   BellRing,
   type LucideIcon,
   Globe,
@@ -61,6 +62,8 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.stock', to: '/stock', icon: Boxes },
   { labelKey: 'nav.sales', to: '/sales', icon: FileText },
   { labelKey: 'nav.balances', to: '/sales/balances', icon: Wallet },
+  // Encaissements (rattrapage G8, 18/11/2026) : sous les soldes, memes droits.
+  { labelKey: 'nav.receivables', to: '/sales/receivables', icon: HandCoins, child: true },
   { labelKey: 'nav.webOrders', to: '/sales/web-orders', icon: Globe },
   { labelKey: 'nav.picking', to: '/picking', icon: ClipboardCheck },
   { labelKey: 'nav.clients', to: '/clients', icon: Users },

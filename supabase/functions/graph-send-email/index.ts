@@ -168,13 +168,14 @@ const toText = (html: string) => html
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const payload = await req.json().catch(() => ({}));
-  const { companyId, contactId, to, subject, body, attachments, from, origin, trace } = payload ?? {};
+  // `let` : une relance d impaye (purpose dunning) voit son destinataire et son objet imposes plus bas.
+  let { companyId, contactId, to, subject, body, attachments, from, origin, trace } = payload ?? {};
   // Copie facultative (dossier accident, mission 09 carte 5) : tableau ou chaine « a, b » ; adresses valides seulement.
   const ccRaw = Array.isArray(payload?.cc) ? payload.cc : typeof payload?.cc === 'string' ? payload.cc.split(/[,;]/) : [];
-  const cc: string[] = [...new Set((ccRaw as unknown[]).map((a) => String(a ?? '').trim().toLowerCase()).filter((a) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(a)))];
+  let cc: string[] = [...new Set((ccRaw as unknown[]).map((a) => String(a ?? '').trim().toLowerCase()).filter((a) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(a)))];
   // Case « Inviter le client à rejoindre son espace » de la fenêtre d'envoi (Simon, 05/10) :
   // cochée par défaut ; décochée, le bloc d'invitation n'est pas ajouté.
-  const invite = payload?.invite !== false;
+  let invite = payload?.invite !== false;
   const dryRun = payload?.dryRun === true;
   if (!dryRun && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
 
@@ -185,6 +186,27 @@ Deno.serve(async (req) => {
 
   const member = await (await db(`user_roles?select=role&user_id=eq.${user.id}&company_id=eq.${companyId}&limit=1`)).json();
   if (!Array.isArray(member) || member.length === 0) return J({ error: 'not_a_member' }, 403);
+
+  // RELANCES D IMPAYES (rattrapage G8, 18/11/2026, migration 20261118171000) : MODE TEST UNIQUEMENT.
+  // Quel que soit le destinataire demande, le mail part a l adresse de test de la societe
+  // (receivable_settings.dunning_test_recipient, sinon followup_settings.test_recipient), objet
+  // prefixe, sans copie, sans pied d invitation, sans trace dans l historique du client. Mode
+  // « arrete » : rien ne part. L envoi reel aux clients n existe pas (contrainte en base).
+  if (payload?.purpose === 'dunning') {
+    const rs = await first<{ dunning_mode?: string; dunning_test_recipient?: string | null }>(`receivable_settings?select=dunning_mode,dunning_test_recipient&company_id=eq.${companyId}`);
+    if (rs?.dunning_mode === 'arrete') return J({ error: 'dunning_stopped' }, 409);
+    const fs = await first<{ test_recipient?: string | null }>(`followup_settings?select=test_recipient&company_id=eq.${companyId}`);
+    const rcpt = String(rs?.dunning_test_recipient || fs?.test_recipient || '').trim().toLowerCase();
+    if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(rcpt)) return J({ error: 'no_test_recipient' }, 409);
+    const who = String(payload?.clientLabel ?? '').trim() || 'client';
+    const subj = String(subject ?? '');
+    to = rcpt;
+    subject = subj.startsWith('[TEST relance pour ') ? subj : `[TEST relance pour ${who}] ${subj}`;
+    cc = [];
+    invite = false;
+    contactId = undefined;
+    trace = undefined;
+  }
 
   const boxes = await (await db(`company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true`)).json();
   const shared = new Set((Array.isArray(boxes) ? boxes : []).map((b: { address: string }) => b.address.toLowerCase()));

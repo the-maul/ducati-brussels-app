@@ -1,7 +1,13 @@
 /**
  * M12 — Domiciliation SEPA (pain.008.001.02) : génère le fichier de prélèvement
- * pour la banque à partir des factures encaissables (clients avec mandat), enregistre
- * l'encaissement, et gère les impayés (remise en dû). Sans dépendance externe.
+ * pour la banque à partir des factures encaissables (clients avec mandat), et gère les impayés
+ * (remise en dû). Sans dépendance externe.
+ *
+ * Rattrapage G8 « Encaissements » (18/11/2026, migration 20261118173000) : les REMISES (G8
+ * « Nouvelle remise / Remises en attente ou archivées ») remplacent l'ancien `generateSepaFile`,
+ * qui partait avec un ICS factice et notait l'encaissement dès la génération du fichier. Une remise
+ * est d'abord EN ATTENTE (fichier rangé sur la remise) ; l'encaissement est noté à l'ARCHIVAGE
+ * (la banque a prélevé). Voir `sepa-batches.ts`.
  */
 import { supabase } from '@/integrations/supabase/client';
 
@@ -65,42 +71,75 @@ export function buildPain008(p: {
 </Document>`;
 }
 
-function download(name: string, content: string, mime: string) {
+export function download(name: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-
-/**
- * Génère le fichier pain.008 pour la remise, le télécharge, et enregistre
- * l'encaissement (règlement 'DOM') sur chaque facture. Retourne le nb de lignes.
- */
-export async function generateSepaFile(companyId: string, dueTo: string, collectionDate: string): Promise<number> {
-  const rows = await getSepaCollectable(companyId, dueTo);
-  if (rows.length === 0) return 0;
-  const { data: company } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
-  const c = (company ?? {}) as Record<string, unknown>;
-  const stamp = collectionDate.replace(/-/g, '');
-  const xml = buildPain008({
-    msgId: `SDD-${stamp}-${companyId.slice(0, 6)}`,
-    creationDateTime: new Date().toISOString().slice(0, 19),
-    collectionDate,
-    creditorName: String(c.legal_name || c.name || 'Créancier'),
-    creditorIban: String(c.iban || ''),
-    creditorBic: (c.bic as string) || null,
-    creditorId: String(c.sepa_creditor_id || 'BE00ZZZ000000000000'),
-    rows,
-  });
-  download(`SEPA_PAIN008_${stamp}.xml`, xml, 'application/xml;charset=utf-8;');
-  // Enregistre l'encaissement par domiciliation sur chaque facture.
-  for (const r of rows) {
-    await supabase.rpc('record_sepa_collection', { _document: r.document_id, _amount: r.amount_due });
-  }
-  return rows.length;
 }
 
 /** Impayé (rejet bancaire) : remet la facture en dû (règlement négatif, B7). */
 export async function recordSepaUnpaid(documentId: string, amount: number): Promise<void> {
   const { error } = await supabase.rpc('record_sepa_unpaid', { _document: documentId, _amount: amount });
   if (error) throw error;
+}
+
+/** Une transaction d'une remise (échéance prélevée). */
+export type SepaTx = {
+  endToEndId: string; amount: number; mandateRef: string; signatureDate: string; iban: string; bic: string | null;
+  debtorName: string; remittance: string; seqType: string;
+};
+
+/**
+ * pain.008.001.02 d'une remise : un bloc PmtInf PAR TYPE DE SÉQUENCE (FRST, RCUR, OOFF, FNAL),
+ * exigence du schéma (le type de séquence est porté par le bloc, pas par la transaction).
+ */
+export function buildPain008Batch(p: {
+  msgId: string; creationDateTime: string; collectionDate: string;
+  creditorName: string; creditorIban: string; creditorBic: string | null; creditorId: string;
+  txs: SepaTx[];
+}): string {
+  if (!p.creditorId.trim()) throw new Error('missing_creditor_id');
+  if (!p.creditorIban.trim()) throw new Error('missing_creditor_iban');
+  const groups = new Map<string, SepaTx[]>();
+  for (const tx of p.txs) { const k = tx.seqType || 'RCUR'; groups.set(k, [...(groups.get(k) ?? []), tx]); }
+  const sum = (l: SepaTx[]) => r2(l.reduce((s, x) => s + x.amount, 0));
+  let i = 0;
+  const blocks = [...groups.entries()].map(([seq, list]) => {
+    i += 1;
+    const tx = list.map((r) => `
+      <DrctDbtTxInf>
+        <PmtId><EndToEndId>${esc(r.endToEndId.slice(0, 35))}</EndToEndId></PmtId>
+        <InstdAmt Ccy="EUR">${r2(r.amount)}</InstdAmt>
+        <DrctDbtTx><MndtRltdInf><MndtId>${esc(r.mandateRef)}</MndtId><DtOfSgntr>${esc(r.signatureDate)}</DtOfSgntr></MndtRltdInf></DrctDbtTx>
+        <DbtrAgt><FinInstnId>${r.bic ? `<BIC>${esc(r.bic)}</BIC>` : '<Othr><Id>NOTPROVIDED</Id></Othr>'}</FinInstnId></DbtrAgt>
+        <Dbtr><Nm>${esc(r.debtorName.slice(0, 70))}</Nm></Dbtr>
+        <DbtrAcct><Id><IBAN>${esc(r.iban.replace(/\s/g, ''))}</IBAN></Id></DbtrAcct>
+        <RmtInf><Ustrd>${esc(r.remittance.slice(0, 140))}</Ustrd></RmtInf>
+      </DrctDbtTxInf>`).join('');
+    return `
+    <PmtInf>
+      <PmtInfId>${esc(p.msgId)}-${i}</PmtInfId>
+      <PmtMtd>DD</PmtMtd>
+      <NbOfTxs>${list.length}</NbOfTxs>
+      <CtrlSum>${sum(list)}</CtrlSum>
+      <PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>${esc(seq)}</SeqTp></PmtTpInf>
+      <ReqdColltnDt>${esc(p.collectionDate)}</ReqdColltnDt>
+      <Cdtr><Nm>${esc(p.creditorName)}</Nm></Cdtr>
+      <CdtrAcct><Id><IBAN>${esc(p.creditorIban.replace(/\s/g, ''))}</IBAN></Id></CdtrAcct>
+      <CdtrAgt><FinInstnId>${p.creditorBic ? `<BIC>${esc(p.creditorBic)}</BIC>` : '<Othr><Id>NOTPROVIDED</Id></Othr>'}</FinInstnId></CdtrAgt>
+      <CdtrSchmeId><Id><PrvtId><Othr><Id>${esc(p.creditorId)}</Id><SchmeNm><Prtry>SEPA</Prtry></SchmeNm></Othr></PrvtId></Id></CdtrSchmeId>${tx}
+    </PmtInf>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.008.001.02">
+  <CstmrDrctDbtInitn>
+    <GrpHdr>
+      <MsgId>${esc(p.msgId)}</MsgId>
+      <CreDtTm>${esc(p.creationDateTime)}</CreDtTm>
+      <NbOfTxs>${p.txs.length}</NbOfTxs>
+      <CtrlSum>${sum(p.txs)}</CtrlSum>
+      <InitgPty><Nm>${esc(p.creditorName)}</Nm></InitgPty>
+    </GrpHdr>${blocks}
+  </CstmrDrctDbtInitn>
+</Document>`;
 }

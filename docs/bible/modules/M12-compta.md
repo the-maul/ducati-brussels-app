@@ -122,3 +122,19 @@ Invariants : **B2** partiel (registre VO fait, calcul à la vente et en écritur
 | 2026-11-03 | **Registre des véhicules à moteur** (art. 28) : export CSV / PDF, alerte de facture à inscrire (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-03 | **Registre de la marge par période** (B2, COM006, M-89) : base globale par période (ventes − achats + report), TVA due, registre par véhicule (avec avoirs), achats sous régime de la marge, vue `v_vo_margin_declaration`, export CSV et OD Winbooks, réglages « TVA marge (occasions) », registre TVA ordinaire sans les ventes marge, écritures au compte 700200 | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
 | 2026-11-03 | Journal des recettes = journaux Z figés de la caisse, export CSV jour / mois (PDV010, voir M06) | migration `20261103170000_m6_caisse_legale.sql` **non appliquée** |
+
+## Ajouté le 18/11 — rattrapage G8 (encaissements)
+
+- **Remises de prélèvements SEPA** (G8 « Gestion des L.C.R., traites et prélèvements ») sur
+  Comptabilité → Domiciliations SEPA : bloc **créancier** (ICS, IBAN, BIC de la société, éditables),
+  « **Nouvelle remise** » depuis les échéances `DOM` (échéancier) et les factures ouvertes de clients avec
+  mandat actif, fichier pain.008 avec **un bloc PmtInf par type de séquence** (FRST / RCUR), rangé sur la
+  remise et re-téléchargeable ; « **Remises en attente / archivées** » : archiver = la banque a prélevé
+  (encaissement noté à ce moment, mandat FRST → RCUR), annuler (motif), impayé par ligne
+  (contre-passation motivée). Corrige deux défauts : plus d'ICS factice `BE00ZZZ…` (refus sans ICS) et
+  plus d'encaissement noté dès la génération du fichier (`generateSepaFile` retiré).
+- **Clients débiteurs / créditeurs détaillés** (`debtors_detailed`) : par facture, brouillons exclus,
+  reste dû recalculé à la date choisie, crédits (avoirs, trop-perçus), dernière relance, compte comptable
+  (`contacts.accounting_account`). `debtors_list` (clôture d'exercice) reste inchangé.
+- LCR au format CFON : sans objet en Belgique, non fait. Migrations : `20261118172000`, `20261118173000`
+  (voir M06, section « Ajouté le 18/11 — rattrapage G8 (encaissements) », pour l'ordre complet).

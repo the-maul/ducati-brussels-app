@@ -75,6 +75,7 @@ import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchas
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
+import { Route as AppSalesReceivablesRouteImport } from './routes/_app.sales.receivables'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
@@ -458,6 +459,11 @@ const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
   path: '/balances',
   getParentRoute: () => AppSalesRoute,
 } as any)
+const AppSalesReceivablesRoute = AppSalesReceivablesRouteImport.update({
+  id: '/receivables',
+  path: '/receivables',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSalesNewRoute = AppSalesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -795,6 +801,7 @@ export interface FileRoutesByFullPath {
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
+  '/sales/receivables': typeof AppSalesReceivablesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
@@ -901,6 +908,7 @@ export interface FileRoutesByTo {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
+  '/sales/receivables': typeof AppSalesReceivablesRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
@@ -1022,6 +1030,7 @@ export interface FileRoutesById {
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
+  '/_app/sales/receivables': typeof AppSalesReceivablesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
@@ -1144,6 +1153,7 @@ export interface FileRouteTypes {
     | '/purchases/suppliers'
     | '/sales/$documentId'
     | '/sales/balances'
+    | '/sales/receivables'
     | '/sales/new'
     | '/sales/web-orders'
     | '/settings/app-client'
@@ -1250,6 +1260,7 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/sales/$documentId'
     | '/sales/balances'
+    | '/sales/receivables'
     | '/sales/new'
     | '/sales/web-orders'
     | '/settings/app-client'
@@ -1370,6 +1381,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
     | '/_app/sales/balances'
+    | '/_app/sales/receivables'
     | '/_app/sales/new'
     | '/_app/sales/web-orders'
     | '/_app/settings/app-client'
@@ -1909,6 +1921,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesBalancesRouteImport
       parentRoute: typeof AppSalesRoute
     }
+    '/_app/sales/receivables': {
+      id: '/_app/sales/receivables'
+      path: '/receivables'
+      fullPath: '/sales/receivables'
+      preLoaderRoute: typeof AppSalesReceivablesRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/sales/new': {
       id: '/_app/sales/new'
       path: '/new'
@@ -2419,6 +2438,7 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
+  AppSalesReceivablesRoute: typeof AppSalesReceivablesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
@@ -2428,6 +2448,7 @@ interface AppSalesRouteChildren {
 const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
+  AppSalesReceivablesRoute: AppSalesReceivablesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,

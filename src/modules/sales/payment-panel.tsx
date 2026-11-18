@@ -10,7 +10,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Check, Landmark, Undo2, Ban, ArrowLeftRight, Clock } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, Landmark, Undo2, Ban, ArrowLeftRight, Clock, CalendarClock, Pencil } from 'lucide-react';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
@@ -29,12 +29,20 @@ import { errorMessage } from '@/lib/mutation-feedback';
 import { CASH_METHOD, applyCashRounding, cashRounding, changeDue } from './cash-rounding';
 import { StripePayCard } from './stripe-pay-card';
 import { STRIPE_METHOD } from './stripe-pay-rules';
+import { ScheduleDialog } from '@/modules/receivables/schedule-dialog';
+import { DeferredEditDialog } from '@/modules/receivables/deferred-edit-dialog';
+import { listUsableVouchers } from '@/modules/receivables/api';
+
+/** Rattrapage G8 « Encaissements » (18/11/2026) : modes qui demandent un n° de chèque / un bon d'achat. */
+const CHEQUE_METHOD = 'CHQ';
+const VOUCHER_METHOD = 'BA';
+type PayExtra = { cheque_number?: string | null; bank_name?: string | null; installment_no?: number | null; voucher_id?: string | null };
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 const CASH = CASH_METHOD; // mode espèces → rendu de monnaie et arrondi légal à 5 cents
 
-type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string; fromFinancing: boolean };
+type Draft = { _key: string; method: string; amount: string; deferred: boolean; dueDate: string; given: string; fromFinancing: boolean; cheque: string; bank: string; voucherId: string };
 let dc = 0;
 
 /**
@@ -56,7 +64,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
   // Le moyen « Stripe » ne se saisit jamais à la main : il passe par le QR (PDV040).
   const manualMethods = (methods ?? []).filter((m) => m.code !== STRIPE_METHOD);
   const firstMethod = manualMethods[0]?.code ?? CASH;
-  const newDraft = (amount = ''): Draft => ({ _key: `d${dc++}`, method: firstMethod, amount, deferred: false, dueDate: '', given: '', fromFinancing: false });
+  const newDraft = (amount = ''): Draft => ({ _key: `d${dc++}`, method: firstMethod, amount, deferred: false, dueDate: '', given: '', fromFinancing: false, cheque: '', bank: '', voucherId: '' });
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editDeferred, setEditDeferred] = useState<PaymentRow | null>(null);
+  const hasVoucherMethod = manualMethods.some((m) => m.code === VOUCHER_METHOD);
+  const vouchersQ = useQuery({ queryKey: ['usable-vouchers', companyId], queryFn: () => listUsableVouchers(companyId), enabled: hasVoucherMethod, retry: false });
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +87,12 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
     qc.invalidateQueries({ queryKey: ['documents'] });
     qc.invalidateQueries({ queryKey: ['client-docs'] });
     qc.invalidateQueries({ queryKey: ['client-payments'] });
+    qc.invalidateQueries({ queryKey: ['deferred-payments'] });
+    qc.invalidateQueries({ queryKey: ['usable-vouchers', companyId] });
   };
+  // Reste à échelonner : reste à payer moins les échéances déjà prévues.
+  const pendingDeferred = (payments ?? []).filter((p) => p.status === 'attendu').reduce((s, p) => s + Number(p.amount), 0);
+  const openForSchedule = Math.max(0, Math.round((due - pendingDeferred) * 100) / 100);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -87,7 +104,11 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
           dueDate: d.deferred ? (d.dueDate || null) : null,
           givenAmount: d.method === CASH && num(d.given) > 0 ? num(d.given) : null,
           fromFinancing: financingAccepted && d.fromFinancing,
+          chequeNumber: d.cheque.trim() || null,
+          bankName: d.bank.trim() || null,
+          voucherId: d.method === VOUCHER_METHOD ? (d.voucherId || null) : null,
         }));
+      if (lines.some((l) => l.method === VOUCHER_METHOD && !l.voucherId)) throw new Error(t('receivables.voucherPick'));
       if (lines.length === 0) throw new Error(t('sales.payNeedAmount'));
       // Plafond légal des espèces (loi du 18/09/2017, art. 67) : 3 000 € par vente, déjà perçu compris.
       const existing = (payments ?? []).map((p) => ({ method: p.method, amount: Number(p.amount), status: p.status }));
@@ -149,9 +170,13 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
                   {rowReversalOf(p) && <span className="ml-1"><StatusBadge tone="info" icon={ArrowLeftRight} label={t('sales.reversalBadge')} /></span>}
                   {reversed.has(p.id) && <span className="ml-1"><StatusBadge tone="neutral" icon={Undo2} label={t('sales.reversedBadge')} /></span>}
                   {p.from_financing && <span className="ml-1"><StatusBadge tone="info" icon={Landmark} label={t('balance.orgBadge')} /></span>}
+                  {payExtraLabel(p) && <span className="ml-2 text-[11px] text-muted-foreground">{payExtraLabel(p)}</span>}
                 </td>
                 <td className="py-1.5 text-right tabular-nums">{eur(Number(p.amount))}</td>
                 <td className="w-20 py-1.5 text-right">
+                  {p.status === 'attendu' && p.method !== STRIPE_METHOD && (
+                    <Button size="sm" variant="ghost" title={t('receivables.editDeferred')} onClick={() => setEditDeferred(p)}><Pencil className="size-4" /></Button>
+                  )}
                   {p.status === 'attendu' && p.method !== STRIPE_METHOD && (
                     <Button size="sm" variant="ghost" title={t('sales.markReceived')} onClick={() => recv.mutate(p.id)} disabled={recv.isPending}><Check className="size-4 text-success" /></Button>
                   )}
@@ -203,6 +228,32 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
               <Input type="date" value={d.dueDate} onChange={(e) => setDraft(d._key, { dueDate: e.target.value })} className="w-40" />
             </div>
           )}
+          {(d.method === CHEQUE_METHOD || d.deferred) && (
+            <>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('receivables.colCheque')}</label>
+                <Input value={d.cheque} onChange={(e) => setDraft(d._key, { cheque: e.target.value })} className="w-32 font-mono" />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('receivables.colBank')}</label>
+                <Input value={d.bank} onChange={(e) => setDraft(d._key, { bank: e.target.value })} className="w-40" />
+              </div>
+            </>
+          )}
+          {d.method === VOUCHER_METHOD && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('receivables.voucher')}</label>
+              <Select value={d.voucherId} onValueChange={(v) => {
+                const vo = vouchersQ.data?.find((x) => x.id === v);
+                setDraft(d._key, { voucherId: v, deferred: false, amount: vo ? Math.min(vo.remaining, num(d.amount) || vo.remaining).toFixed(2) : d.amount });
+              }}>
+                <SelectTrigger className="w-64"><SelectValue placeholder={t('receivables.voucherPick')} /></SelectTrigger>
+                <SelectContent>
+                  {(vouchersQ.data ?? []).map((v) => <SelectItem key={v.id} value={v.id}>{v.number} · {v.contact_name ?? '—'} · {eur(v.remaining)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => removeLine(d._key)}><Trash2 className="size-4 text-danger" /></Button>
         </div>
       ))}
@@ -242,12 +293,18 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
 
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={addLine}><Plus /> {acompte ? t('sales.addDeposit') : t('sales.addPayment')}</Button>
+        {!acompte && openForSchedule > 0.005 && (
+          <Button variant="outline" size="sm" onClick={() => setScheduleOpen(true)} title={t('receivables.scheduleHelp')}><CalendarClock /> {t('receivables.scheduleButton')}</Button>
+        )}
         {drafts.length > 0 && (
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? <Loader2 className="animate-spin" /> : <Check />} {acompte ? t('sales.recordDeposits') : t('sales.recordPayments')}{draftTotal > 0 ? ` · ${eur(draftTotal)}` : ''}
           </Button>
         )}
       </div>
+
+      <ScheduleDialog open={scheduleOpen} onOpenChange={setScheduleOpen} documentId={documentId} companyId={companyId} openAmount={openForSchedule} onDone={refresh} />
+      <DeferredEditDialog payment={editDeferred} onOpenChange={(o) => { if (!o) setEditDeferred(null); }} onDone={refresh} />
 
       <StripePayCard
         documentId={documentId} companyId={companyId} due={due} totalTtc={stripe?.totalTtc}
@@ -256,6 +313,13 @@ export function PaymentPanel({ documentId, companyId, due, acompte = false, over
       />
     </div>
   );
+}
+
+/** N° de chèque, banque, échéance n (colonnes du rattrapage G8, absentes avant 20261118170000). */
+function payExtraLabel(p: PaymentRow): string {
+  const x = p as PaymentRow & PayExtra;
+  return [x.installment_no ? `#${x.installment_no}` : null, x.cheque_number ? `${t('receivables.chequeShort')} ${x.cheque_number}` : null, x.bank_name]
+    .filter(Boolean).join(' · ');
 }
 
 /** Contre-passation d'un autre règlement (colonne de la migration 20261103170000, absente avant). */
