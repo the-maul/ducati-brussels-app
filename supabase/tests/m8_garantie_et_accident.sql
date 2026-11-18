@@ -9,7 +9,7 @@
 -- Scenario, administrateur simule d'ITALBIKE STORE :
 --   OR garantie fournisseur (05) en refus partiel : 1 piece acceptee, 1 piece refusee, 1 h de MO ;
 --   lignes ecrites par repair_order_write_lines (decision gardee) ; passage « facture » ->
---   imputation (piece au PAMP, MO au taux garantie 46,94), ligne refusee non imputee, une ligne
+--   imputation (piece au PAMP, MO au taux garantie 83,00), ligne refusee non imputee, une ligne
 --   de suivi « attente remboursement » pour la piece acceptee seulement, vue Garanties et
 --   statistique Garanties / CA ; fiche cabinet + expert ; volet assureur du dossier accident
 --   (franchise en %, au-dela de 100 refusee) ; RLS (autre societe invisible).
@@ -38,9 +38,9 @@ update public.articles set pamp = 10, purchase_price = 12, main_supplier_id = (s
  where id in (select v::uuid from _ctx where k in ('p1', 'p2'));
 
 insert into _t(check_name, result)
-select 'parametres : taux MO garantie 46,94 et types 05 / 06 / 07 presents',
+select 'parametres : taux MO garantie 83,00 et types 05 / 06 / 07 presents',
        case when (select (extra->>'hourly_rate_ht')::numeric from public.reference_values
-                   where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'workshop_warranty' and code = 'mo') = 46.94
+                   where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'workshop_warranty' and code = 'mo') = 83.00
              and (select count(*) from public.reference_values
                    where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'cession_type' and code in ('05', '06', '07')) = 3
             then 'ok' else 'KO' end;
@@ -88,8 +88,8 @@ select 'imputation : piece acceptee au PAMP (2 x 10), PA (2 x 12), PV (2 x 30)',
             then 'ok' else 'KO' end;
 
 insert into _t(check_name, result)
-select 'imputation : MO au taux garantie (1 h x 46,94), ligne refusee et ligne hors garantie non imputees',
-       case when (select warranty_cost_ht from public.repair_order_lines where or_id = (select v::uuid from _ctx where k = 'or') and kind = 'mo') = 46.94
+select 'imputation : MO au taux garantie (1 h x 83,00), ligne refusee et ligne hors garantie non imputees',
+       case when (select warranty_cost_ht from public.repair_order_lines where or_id = (select v::uuid from _ctx where k = 'or') and kind = 'mo') = 83.00
              and (select count(*) from public.repair_order_lines where or_id = (select v::uuid from _ctx where k = 'or') and warranty_cost_ht is not null) = 2
              and (select warranty_imputed_at from public.repair_orders where id = (select v::uuid from _ctx where k = 'or')) is not null
             then 'ok' else 'KO' end;
@@ -111,9 +111,9 @@ update public.warranty_returns set status = 'rembourse', settled_at = current_da
  where repair_order_id = (select v::uuid from _ctx where k = 'or');
 
 insert into _t(check_name, result)
-select 'vue Garanties : 2 lignes, temps MO 1, achat pieces 20, cout MO 46,94',
+select 'vue Garanties : 2 lignes, temps MO 1, achat pieces 20, cout MO 83,00',
        case when (select row(count(*), sum(labour_hours), sum(parts_cost_ht), sum(labour_cost_ht))::text from public.warranty_lines_v
-                   where repair_order_id = (select v::uuid from _ctx where k = 'or')) = '(2,1.000,20.00,46.94)'
+                   where repair_order_id = (select v::uuid from _ctx where k = 'or')) = '(2,1.000,20.00,83.00)'
             then 'ok' else 'KO ' || (select row(count(*), sum(labour_hours), sum(parts_cost_ht), sum(labour_cost_ht))::text from public.warranty_lines_v
                    where repair_order_id = (select v::uuid from _ctx where k = 'or')) end;
 
