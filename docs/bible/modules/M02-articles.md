@@ -225,3 +225,48 @@ Ce qui marche : liste, recherche, fiche (hors années), onglets, familles, casca
 | 2026-09-22 | **Un seul catalogue, un seul stock** (M-25, missions 03 et 06) : création des articles manquants (4 009 pièces Ducati, 2 534 variantes du site), badges G8 / Shopify / Ducati, fiche article sur une page, alerte produit du site sans article, motos → véhicules, chargeur accessoires ; première version : : table `article_links`, rapprochement relançable (méthodes mesurées), écran Rapprochements (accepter / rejeter en masse), onglets Catalogue Ducati et Site Shopify de la fiche, filtre Liens, barre de vues, aperçu des articles manquants | branche `lot-rapprochement`, migration `20260921200000_m2_rapprochement_article_pivot.sql` (**à appliquer**, essayée en transaction annulée) |
 | 2026-09-23 | **Liste Pièces & Accessoires réparée** : filtre stock calculé en base, pagination par 200 et total exact (`article_list_page`) ; **vignettes** (Ducati > site > vue éclatée) en liste, sur la fiche et dans Rapprochements ; **logos Ducati / Shopify** et badge G8 dans « Référencé sur » ; prix « à compléter » | branche `lot-liste-articles`, `20260923170000_m2_liste_articles_stock_vignettes.sql` (appliquée le 23/09) |
 | 2026-09-21 | **Reprise du stock et des prix des articles reliés au site** (mission 03, W-10) : fonction `shopify_realign` (aperçu / application, réexécutable), bouton « Aligner le DMS sur le site (stock et prix) » sur Produits Shopify ; appliquée en production sur les 300 articles reliés (300 prix, 259 mouvements, 305 pièces) | `20260921140000_m2_shopify_reprise_stock_prix.sql` (appliquée le 21/09) |
+| 2026-11-18 | **Rattrapage G8 articles** : champs G8 de la fiche, onglets Mouvements / Documents / En cours fournisseur / Équivalences, librairie, outils de prix (arrondis par famille, PV selon PPC, recalcul par tranches), cascade refaite (filtres, 23 actions G8), gestion des remplacements, suivi des tarifs et formats perso, import microfiches, verrous désignation / PV à l'import, vente bloquée en caisse, hors remise pied de page | branche `lot-g8-articles`, migrations `20261118230000` à `20261118233000` (**à appliquer**), essai `supabase/tests/m2_g8_articles.sql` |
+
+## Ajouté le 18/11 — rattrapage G8
+
+Lot `lot-g8-articles` (brief `docs/g8-inventaire/brief-lots.md`, sources `02-articles.md`, `09-parametres.md`,
+`comparaison-clients-articles-stock-achats.md` §2). Migrations `20261118230000` à `20261118233000` **écrites, non
+appliquées** ; essai à blanc `supabase/tests/m2_g8_articles.sql`. Tant qu'elles ne sont pas appliquées, les écrans
+G8 affichent un bandeau « mise à jour de la base à appliquer » et la fiche s'enregistre sans les nouvelles cases
+(écriture résiliente, `OPTIONAL_NEW_COLS`).
+
+| Fonction G8 | Où dans le DMS |
+|---|---|
+| Fiche : URL fournisseur (« Associer une URL »), verrou de la **désignation**, **vente bloquée en caisse**, **hors remise pied de page**, unités du format contenant NC / Kg / L / M | `article-form.tsx` ; colonnes `supplier_url`, `designation_locked`, `sale_blocked_pos`, `no_footer_discount` |
+| Fiche : coefficients TTC / HT / PPC, PV / PPC (%), marge et **taux de marque** sur PA et PAMP | bloc « Coefficients et marges » (`g8/pricing-tools.ts` `priceIndicators`) |
+| Verrous désignation / PA / PV contre la mise à jour tarif | `import/rules.ts` `diffRow` (anomalies « … verrouillé(e) : conservé(e) ») ; le verrou PV n'était pas respecté par l'import avant ce lot |
+| Vente bloquée en caisse | `sales/pos-sale.tsx` (`add`) — refus avec message ; les autres documents de vente ne sont pas bloqués (G8 : « en caisse ») |
+| Hors remise pied de page | `sales/write-api.ts` `computeTotals` : la remise globale ne porte que sur les lignes remisables (drapeau relu sur l'article à la recherche et à la réouverture d'un brouillon, non stocké sur la ligne) |
+| Onglet **Mouvements** : ancien / nouveau stock réel et arrêté, période, « uniquement le fournisseur » | onglet Mouvements, fonction `article_moves_detail` |
+| **Documents de l'article** (facture, livraison, réservation, réparation, proforma, commande, réception, cession, commandes de pièces ; période ; Excel ; rappeler) | onglet Documents, `article_documents` |
+| **En cours fournisseur** | onglet En cours fournisseur, `article_supplier_open_orders` (CMD non soldées + commandes de pièces) |
+| **Équivalences** et équivalences d'équivalences | onglet Équivalences, table `article_equivalences` (une paire par ligne, lue dans les deux sens), `article_equivalence_set`, `article_equivalents` (profondeur ≤ 5) |
+| **Mise en librairie / librairie → article** | bouton de l'en-tête de fiche + actions de cascade, `article_set_library` (refusé si stock réel ≠ 0, trace `events`) |
+| **Paramétrage des arrondis** fournisseur × famille × tranche | `/parts/price-tools` onglet Arrondis, table `price_rounding_rules` ; la grille la plus précise remplace l'arrondi société dans la fiche ; « Appliquer arrondis en fiche article » avec aperçu |
+| **PV selon PPC** sur les articles existants | `/parts/price-tools` onglet PV selon PPC (règles `ppc_price_rules` de l'import) |
+| **Recalcul PA / PV** par 5 tranches (taux ou coefficient) avec aperçu | `/parts/price-tools` onglet Recalcul |
+| **Modification cascade** : filtres (dont « inutilisé depuis N mois », PV/PPC, mini/maxi, éco-participation, sélection par fichier), 23 actions G8 + recalculs, envoyer en librairie, librairie vers article, supprimer ensemble, case « Confirmer » | `/parts/cascade` refait ; `article_select_page` / `article_select_ids` (filtrage en base, plus de plafond 1 000), `article_cascade_apply`, `article_delete_batch` (admin) |
+| **Gestion des remplacements** : filtres source / cible, date, état Liaison / Redirection ; supprimer source / liaison ; fusionner (stock + PAMP) | `/parts/replacements`, `article_replacements_list`, `article_replacement_action` ; colonnes `superseded_at` (trigger) et `replacement_mode` |
+| **Mise à jour de tarifs** : fichier perso (mapping par fournisseur) et suivi (date, statut, installé le) | `/parts/import` : « Enregistrer / Reprendre le format », « Mettre en attente », carte « Suivi des tarifs » ; tables `supplier_tariff_formats`, `supplier_tariffs` |
+| **Import microfiches** (ligne ; référence ; quantité) | bouton dans les documents de vente, l'OR, les commandes / réceptions fournisseur et l'inventaire (`g8/microfiche-import.tsx`) ; aussi « Sélection par fichier » de la cascade |
+
+**Règles** : tout prix modifié en masse passe par un UPDATE de `articles` avec `app.price_change_origin`
+(`cascade`, `rounding`, `ppc_rule`, `recalc`) : le trigger écrit `price_changes` (le PPC y est désormais tracé
+aussi). Les verrous PA / PV sont respectés par la cascade, les outils de prix et l'import. Les autres changements de
+masse laissent une ligne `events` par article (`article_cascade`, ancien / nouveau). Un article qui a des
+mouvements n'est jamais supprimé (désactivé).
+
+**Code** : `src/modules/articles/g8/` (`api.ts`, `pricing-tools.ts`, `microfiche.ts`, `cascade-actions.ts`,
+`tariff-format.ts`, `article-g8-tabs.tsx`, `selection-filters.tsx`, `microfiche-import.tsx`, `tariffs-panel.tsx`,
+`ui.tsx`), routes `_app.parts.price-tools.tsx`, `_app.parts.replacements.tsx`, `_app.parts.cascade.tsx` ; libellés
+`src/lib/i18n/g8-articles.ts` (bloc `g8a`, FR / NL / EN / IT) ; tests `tests/g8-articles.test.ts`.
+
+**Différences avec G8 laissées en l'état (à trancher)** : code-barres interne `3000…` (DMS : la référence) ;
+« Année » unique (DMS : Du / Au) ; « % PV / PPC » (G8 : PV = PPC × % ; DMS : PV = PPC × (1 + %)) ; type N
+(nomenclature forfait / composant) ; suppression d'un article qui a un historique (G8 supprime, DMS désactive) ;
+format `.MAJ` d'Orisha non lu.
