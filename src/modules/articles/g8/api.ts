@@ -46,6 +46,8 @@ export const setEquivalence = (a: string, b: string, on: boolean) =>
   rpc<null>('article_equivalence_set', { _a: a, _b: b, _on: on });
 
 export type MoveDetailRow = {
+  /** 'move' = mouvement de stock ; 'arrete' = réajustement de l'arrêté d'inventaire. */
+  row_kind: 'move' | 'arrete';
   move_id: number; occurred_at: string; move_type: string; origin: string; ref: string | null; note: string | null;
   is_reservation: boolean; qty_delta: number; unit_cost: number | null;
   real_before: number; real_after: number; frozen_before: number; frozen_delta: number; frozen_after: number;

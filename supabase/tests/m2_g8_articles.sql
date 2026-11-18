@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Rattrapage G8 articles (18/11/2026) — essai a blanc des migrations 20261118230000 a 233000.
 -- A executer DANS UNE TRANSACTION ANNULEE, migrations comprises (rien ne reste en base) :
+-- (suppose appliquees les migrations precedentes du 18/11, dont 20261118210000 inventaire guide)
 --   (echo "begin;"; cat supabase/migrations/20261118230000_m2_g8_fiche_article.sql \
 --      supabase/migrations/20261118231000_m2_g8_outils_prix.sql \
 --      supabase/migrations/20261118232000_m2_g8_remplacements.sql \

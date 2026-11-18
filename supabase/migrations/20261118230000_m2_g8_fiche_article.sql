@@ -15,7 +15,8 @@
 --      documents de l'article, en cours fournisseur.
 --   5. Mise en librairie / librairie → article (avec trace events).
 --
--- Idempotente. NON APPLIQUÉE (Simon passe les migrations en bloc).
+-- Idempotente. NON APPLIQUÉE (Simon passe les migrations en bloc). Suppose 20261118210000
+-- (inventaire guidé : stock_snapshot_adjustments, reintegrated_at, status) appliquée avant.
 -- Essai à blanc : supabase/tests/m2_g8_articles.sql.
 -- =====================================================================
 
@@ -211,16 +212,19 @@ revoke all on function public.article_equivalents(uuid) from public, anon;
 grant execute on function public.article_equivalents(uuid) to authenticated, service_role;
 
 -- ------------------------------------------------ 4a. Mouvements : ancien / nouveau stock réel et arrêté
--- Stock réel : somme courante des mouvements (hors réservations) dans l'ordre chronologique.
--- Stock arrêté : quantité de l'article dans le dernier arrêté (stock_snapshots kind 'arrete')
--- pris avant le mouvement ; la réintégration de cet arrêté (origin 'inventory', ref = id de
--- l'arrêté) le solde (mouvement arrêté = − quantité, arrêté = 0 ensuite).
+-- Une ligne par mouvement de stock ET par réajustement de l'arrêté (G8 montre les deux dans
+-- l'onglet Mouvements). Stock réel : somme courante des mouvements (hors réservations).
+-- Stock arrêté : quantité de l'article dans le dernier arrêté actif (stock_snapshots kind
+-- 'arrete', modèle de 20261118210000 : lignes + stock_snapshot_adjustments) pris avant la ligne ;
+-- après la réintégration (reintegrated_at) l'arrêté est soldé (0) et le mouvement de
+-- réintégration porte le « mouvement arrêté ».
 -- _supplier_only : seulement les réceptions du fournisseur principal de l'article (G8).
+-- Suppose 20261118210000 (inventaire guidé) appliquée avant.
 create or replace function public.article_moves_detail(
   _article uuid, _from date default null, _to date default null, _supplier_only boolean default false
 )
 returns table (
-  move_id bigint, occurred_at timestamptz, move_type text, origin text, ref text, note text,
+  row_kind text, move_id bigint, occurred_at timestamptz, move_type text, origin text, ref text, note text,
   is_reservation boolean, qty_delta numeric, unit_cost numeric,
   real_before numeric, real_after numeric,
   frozen_before numeric, frozen_delta numeric, frozen_after numeric,
@@ -228,47 +232,64 @@ returns table (
 )
 language sql stable security definer set search_path = public, pg_temp as $$
   with art as (
-    select a.id, a.main_supplier_id from public.articles a
+    select a.id, a.company_id, a.main_supplier_id from public.articles a
      where a.id = _article and public.is_member(a.company_id)
   ),
-  m as (
-    select sm.*,
-           sum(case when sm.is_reservation then 0 else sm.qty_delta end)
-             over (order by sm.occurred_at, sm.id rows between unbounded preceding and current row) as real_after
+  ev as (
+    select 'move'::text as row_kind, sm.id as seq_id, sm.occurred_at, sm.move_type::text as move_type, sm.origin, sm.ref, sm.note,
+           sm.is_reservation, sm.qty_delta, sm.unit_cost, sm.operator_id,
+           case when sm.is_reservation then 0 else sm.qty_delta end as real_delta, null::uuid as adj_snapshot, 0::numeric as adj_delta
       from public.stock_moves sm join art on art.id = sm.article_id
+    union all
+    select 'arrete', ad.id, ad.occurred_at, 'arrete_' || ad.mode, ad.origin, ad.snapshot_id::text, ad.note,
+           false, 0::numeric, null::numeric, ad.operator_id, 0::numeric, ad.snapshot_id, ad.delta
+      from public.stock_snapshot_adjustments ad join art on art.id = ad.article_id
   ),
-  snap as (
-    select m.id as move_id,
-           (select s.id from public.stock_snapshots s
-             where s.company_id = m.company_id and s.kind = 'arrete' and s.created_at <= m.occurred_at
-             order by s.created_at desc limit 1) as snapshot_id
-      from m
+  r as (
+    select ev.*,
+           sum(ev.real_delta) over (order by ev.occurred_at, ev.row_kind desc, ev.seq_id rows between unbounded preceding and current row) as real_after
+      from ev
   ),
   f as (
-    select m.id as move_id, sn.snapshot_id,
-           coalesce((select l.qty from public.stock_snapshot_lines l
-                      where l.snapshot_id = sn.snapshot_id and l.article_id = m.article_id), 0) as snap_qty,
-           (select min(r.id) from public.stock_moves r
-             where r.article_id = m.article_id and r.origin = 'inventory'
-               and r.ref = sn.snapshot_id::text) as reint_move_id
-      from m join snap sn on sn.move_id = m.id
+    select r.*, sn.id as snap_id, sn.reintegrated_at,
+           -- quantité de l'arrêté (lignes + réajustements faits jusqu'à cette ligne comprise)
+           coalesce((select sum(l.qty) from public.stock_snapshot_lines l where l.snapshot_id = sn.id and l.article_id = _article), 0)
+           + coalesce((select sum(ad.delta) from public.stock_snapshot_adjustments ad
+                        where ad.snapshot_id = sn.id and ad.article_id = _article
+                          and (ad.occurred_at, ad.id) <= (r.occurred_at, case when r.row_kind = 'arrete' then r.seq_id else 9223372036854775807 end)), 0)
+             as snap_qty
+      from r
+      left join lateral (
+        select s.id, s.reintegrated_at from public.stock_snapshots s, art
+         where s.company_id = art.company_id and s.kind = 'arrete' and s.status = 'actif' and s.created_at <= r.occurred_at
+         order by s.created_at desc limit 1
+      ) sn on true
+  ),
+  g as (
+    select f.*,
+           case when f.snap_id is null then 0
+                when f.reintegrated_at is not null and f.reintegrated_at <= f.occurred_at then 0
+                else f.snap_qty end as frozen_after,
+           case when f.row_kind = 'arrete' and f.adj_snapshot = f.snap_id then f.adj_delta
+                when f.row_kind = 'move' and f.origin = 'inventory' and f.reintegrated_at is not null and f.reintegrated_at = f.occurred_at
+                  then -f.snap_qty
+                else 0 end as frozen_delta
+      from f
   )
-  select m.id, m.occurred_at, m.move_type::text, m.origin, m.ref, m.note, m.is_reservation,
-         m.qty_delta, m.unit_cost,
-         m.real_after - case when m.is_reservation then 0 else m.qty_delta end, m.real_after,
-         case when f.reint_move_id is not null and f.reint_move_id < m.id then 0 else f.snap_qty end,
-         case when f.reint_move_id = m.id then -f.snap_qty else 0 end,
-         case when f.reint_move_id is not null and f.reint_move_id <= m.id then 0 else f.snap_qty end,
-         (select p.full_name from public.profiles p where p.id = m.operator_id)
-    from m join f on f.move_id = m.id
-   where (_from is null or m.occurred_at >= _from::timestamptz)
-     and (_to is null or m.occurred_at < (_to + 1)::timestamptz)
+  select g.row_kind, g.seq_id, g.occurred_at, g.move_type, g.origin, g.ref, g.note, g.is_reservation,
+         g.qty_delta, g.unit_cost,
+         g.real_after - g.real_delta, g.real_after,
+         g.frozen_after - g.frozen_delta, g.frozen_delta, g.frozen_after,
+         (select p.full_name from public.profiles p where p.id = g.operator_id)
+    from g
+   where (_from is null or g.occurred_at >= _from::timestamptz)
+     and (_to is null or g.occurred_at < (_to + 1)::timestamptz)
      and (not coalesce(_supplier_only, false) or (
-           m.origin = 'reception' and exists (
+           g.row_kind = 'move' and g.origin = 'reception' and exists (
              select 1 from public.purchase_orders o, art
-              where o.number = m.ref and o.company_id = m.company_id
+              where o.number = g.ref and o.company_id = art.company_id
                 and o.supplier_id is not distinct from art.main_supplier_id)))
-   order by m.occurred_at desc, m.id desc
+   order by g.occurred_at desc, g.row_kind, g.seq_id desc
    limit 2000;
 $$;
 revoke all on function public.article_moves_detail(uuid, date, date, boolean) from public, anon;
