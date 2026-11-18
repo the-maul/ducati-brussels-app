@@ -72,7 +72,7 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A.
 | Code | Besoin | Statut | Preuve / manque |
 |---|---|---|---|
 | VEN012 | Tableau de bord des activités commerciales quotidiennes | partiel | `/dashboard` (CA jour / mois, factures) ; pas de vue par vendeur ni devis du jour |
-| ATE019 | Tableau de bord de productivité par mécanicien | partiel | `workshop_productivity` (présence / travail) ; pas de temps facturé |
+| ATE019 | Tableau de bord de productivité par mécanicien | fait (18/11, M8) | Productivité complète dans Atelier → Pointeuse → onglet Productivité atelier (`workshop_productivity_detail`, migration 20261118110000 à appliquer) ; ici, lien depuis le bloc Productivité ; `workshop_productivity` (présence / travail) inchangée |
 | COM004 | Tableaux de bord et rapports personnalisés | partiel | 6 rapports fixes, dimension choisie ; pas de rapport paramétrable ni d'export |
 
 Invariants : **B5** partiel (marge sur PAMP courant, pas sur PA) ; **B11** partiel.
