@@ -26,6 +26,10 @@
 --     admin, comptable, vendeur, magasinier, chef d'atelier, marketing ; le mecanicien n'y a pas acces).
 --     Le tableau de bord (`dashboard_kpis`) reste ouvert a tout membre (page ouverte a tous les roles).
 --
+-- Cessions internes : mouvements `cession` (ecran Stock, ORO) et, des que la migration du lot cessions
+-- (20261118240000, documents `internal_cessions`) est posee, type / libelle / cout du document de cession
+-- et sa main-d'oeuvre (`_stats_cession_facts`, PL/pgSQL : fonctionne avant comme apres cette migration).
+--
 -- Socle partage avec le module statistiques facon G8 (migration suivante 20261118181000) :
 --   type `stats_fact`, `_stats_facts(societe, source, du, au)` (sources : sales, purchases, cessions,
 --   moves), `_stats_keep` (filtres), `_stats_dim` (axes).
@@ -118,6 +122,146 @@ begin
     );
   end if;
 end $t$;
+
+-- Cessions internes (G8 « Cessions internes ») : sorties de stock en cession (ecran Stock -> Cessions,
+-- pieces d'ORO, documents de cession) + main-d'oeuvre et frais imputes au cout de revient (ORO, documents).
+-- Les documents de cession (`internal_cessions`, migration 20261118240000 du lot cessions) sont lus s'ils
+-- existent : type et libelle du document, cout de la ligne (PAMP ou dernier prix d'achat selon le document).
+-- PL/pgSQL : la branche qui lit ces tables n'est preparee que si elles existent (ordre d'application libre).
+create or replace function public._stats_cession_facts(_company uuid, _from date, _to date)
+returns setof public.stats_fact
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+begin
+  if to_regclass('public.internal_cession_lines') is null then
+    return query
+    select 'cessions'::text, null::uuid, 'CES'::text, (m.occurred_at at time zone 'Europe/Brussels')::date, null::uuid, null::text,
+           p.full_name::text,
+           m.article_id, a.reference::text, a.designation::text, a.brand::text, a.category_path::text,
+           a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
+           'article'::text,
+           (case when m.origin = 'oro' then 'ORO' else coalesce(nullif(m.ref, ''), '') end)::text,
+           (case when m.origin = 'oro' then 'ORO' else rv.label end)::text,
+           (-m.qty_delta)::numeric, 0::numeric, 0::numeric,
+           round(-m.qty_delta * coalesce(m.unit_cost, a.pamp, 0), 4)::numeric
+      from public.stock_moves m
+      join lateral (
+        select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
+               sp.id as supplier_id,
+               coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
+          from public.articles a
+          left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
+               (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
+         where a.id = m.article_id
+      ) a on true
+      left join public.profiles p on p.id = m.operator_id
+      left join public.reference_values rv
+        on rv.company_id = _company and rv.table_key = 'cession_type' and rv.code = m.ref and m.origin is distinct from 'oro'
+     where m.company_id = _company and m.move_type = 'cession' and not m.is_reservation
+       and m.occurred_at >= (_from::timestamp at time zone 'Europe/Brussels')
+       and m.occurred_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels')
+    union all
+    select 'cessions'::text, o.id, 'CES'::text, (ol.created_at at time zone 'Europe/Brussels')::date, null::uuid, null::text, null::text,
+           ol.article_id, a.reference::text, ol.designation::text, a.brand::text, a.category_path::text,
+           a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
+           (case when ol.kind = 'piece' then 'article' else 'labour' end)::text, 'ORO'::text, 'ORO'::text,
+           ol.quantity::numeric, 0::numeric, 0::numeric, ol.line_cost::numeric
+      from public.oro_lines ol
+      join public.oro o on o.id = ol.oro_id
+      left join lateral (
+        select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
+               sp.id as supplier_id,
+               coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
+          from public.articles a
+          left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
+               (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
+         where a.id = ol.article_id
+      ) a on true
+     where o.company_id = _company and ol.kind <> 'piece'
+       and ol.created_at >= (_from::timestamp at time zone 'Europe/Brussels')
+       and ol.created_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels');
+  else
+    return query
+    -- pieces sorties en cession ; celles d'un document de cession prennent son type et son cout
+    select 'cessions'::text, ic.id, 'CES'::text, (m.occurred_at at time zone 'Europe/Brussels')::date, ic.contact_id, null::text,
+           coalesce(nullif(ic.operator_name, ''), p.full_name)::text,
+           m.article_id, a.reference::text, a.designation::text, a.brand::text, a.category_path::text,
+           a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
+           'article'::text,
+           (case when ic.id is not null then ic.cession_type
+                 when m.origin = 'oro' then 'ORO' else coalesce(nullif(m.ref, ''), '') end)::text,
+           (case when ic.id is not null then coalesce(ic.type_label, rv.label)
+                 when m.origin = 'oro' then 'ORO' else rv.label end)::text,
+           (-m.qty_delta)::numeric, 0::numeric, 0::numeric,
+           (case when icl.id is not null then icl.line_cost
+                 else round(-m.qty_delta * coalesce(m.unit_cost, a.pamp, 0), 4) end)::numeric
+      from public.stock_moves m
+      join lateral (
+        select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
+               sp.id as supplier_id,
+               coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
+          from public.articles a
+          left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
+               (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
+         where a.id = m.article_id
+      ) a on true
+      left join public.internal_cession_lines icl on icl.stock_move_id = m.id
+      left join public.internal_cessions ic on ic.id = icl.cession_id
+      left join public.profiles p on p.id = m.operator_id
+      left join public.reference_values rv
+        on rv.company_id = _company and rv.table_key = 'cession_type'
+       and rv.code = coalesce(ic.cession_type, m.ref) and (ic.id is not null or m.origin is distinct from 'oro')
+     where m.company_id = _company and m.move_type = 'cession' and not m.is_reservation
+       and m.occurred_at >= (_from::timestamp at time zone 'Europe/Brussels')
+       and m.occurred_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels')
+    union all
+    -- main-d'oeuvre et frais d'un ancien ORO
+    select 'cessions'::text, o.id, 'CES'::text, (ol.created_at at time zone 'Europe/Brussels')::date, null::uuid, null::text, null::text,
+           ol.article_id, a.reference::text, ol.designation::text, a.brand::text, a.category_path::text,
+           a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
+           (case when ol.kind = 'piece' then 'article' else 'labour' end)::text, 'ORO'::text, 'ORO'::text,
+           ol.quantity::numeric, 0::numeric, 0::numeric, ol.line_cost::numeric
+      from public.oro_lines ol
+      join public.oro o on o.id = ol.oro_id
+      left join lateral (
+        select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
+               sp.id as supplier_id,
+               coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
+          from public.articles a
+          left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
+               (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
+         where a.id = ol.article_id
+      ) a on true
+     where o.company_id = _company and ol.kind <> 'piece'
+       and ol.created_at >= (_from::timestamp at time zone 'Europe/Brussels')
+       and ol.created_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels')
+    union all
+    -- main-d'oeuvre et frais d'un document de cession valide (date de validation)
+    select 'cessions'::text, ic.id, 'CES'::text, (ic.validated_at at time zone 'Europe/Brussels')::date, ic.contact_id, null::text,
+           ic.operator_name::text,
+           icl.article_id, coalesce(a.reference, icl.reference)::text, icl.designation::text, a.brand::text, a.category_path::text,
+           a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
+           (case when icl.kind = 'mo' then 'labour' else 'other' end)::text,
+           ic.cession_type::text, coalesce(ic.type_label, rv.label)::text,
+           icl.quantity::numeric, 0::numeric, 0::numeric, icl.line_cost::numeric
+      from public.internal_cession_lines icl
+      join public.internal_cessions ic on ic.id = icl.cession_id
+      left join lateral (
+        select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
+               sp.id as supplier_id,
+               coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
+          from public.articles a
+          left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
+               (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
+         where a.id = icl.article_id
+      ) a on true
+      left join public.reference_values rv
+        on rv.company_id = _company and rv.table_key = 'cession_type' and rv.code = ic.cession_type
+     where ic.company_id = _company and icl.kind in ('mo', 'frais') and ic.status in ('valide', 'archive')
+       and ic.validated_at >= (_from::timestamp at time zone 'Europe/Brussels')
+       and ic.validated_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels');
+  end if;
+end $$;
+revoke all on function public._stats_cession_facts(uuid, date, date) from public, anon, authenticated;
 
 create or replace function public._stats_facts(_company uuid, _source text, _from date, _to date)
 returns setof public.stats_fact
@@ -215,53 +359,8 @@ language sql stable security definer set search_path = public, pg_temp as $$
          'shipping', null, null, 0, po.shipping_ht::numeric, po.shipping_ht::numeric, po.shipping_ht::numeric
     from po where po.shipping_ht <> 0
   union all
-  -- CESSIONS INTERNES : sorties de stock typees (cadeau, demo, atelier, garantie) et pieces d ORO
-  select 'cessions', null::uuid, 'CES', (m.occurred_at at time zone 'Europe/Brussels')::date, null::uuid, null::text,
-         p.full_name::text,
-         m.article_id, a.reference::text, a.designation::text, a.brand::text, a.category_path::text,
-         a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
-         'article'::text,
-         (case when m.origin = 'oro' then 'ORO' else coalesce(nullif(m.ref, ''), '') end)::text,
-         (case when m.origin = 'oro' then 'ORO' else rv.label end)::text,
-         (-m.qty_delta)::numeric, 0::numeric, 0::numeric,
-         round(-m.qty_delta * coalesce(m.unit_cost, a.pamp, 0), 4)::numeric
-    from public.stock_moves m
-    join lateral (
-      select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
-             sp.id as supplier_id,
-             coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
-        from public.articles a
-        left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
-             (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
-       where a.id = m.article_id
-    ) a on true
-    left join public.profiles p on p.id = m.operator_id
-    left join public.reference_values rv
-      on rv.company_id = _company and rv.table_key = 'cession_type' and rv.code = m.ref and m.origin is distinct from 'oro'
-   where _source = 'cessions' and m.company_id = _company and m.move_type = 'cession' and not m.is_reservation
-     and m.occurred_at >= (_from::timestamp at time zone 'Europe/Brussels')
-     and m.occurred_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels')
-  union all
-  -- CESSIONS : main-d oeuvre et frais d un ORO (imputes au cout de revient du vehicule, B3)
-  select 'cessions', o.id, 'CES', (ol.created_at at time zone 'Europe/Brussels')::date, null, null, null,
-         ol.article_id, a.reference::text, ol.designation::text, a.brand::text, a.category_path::text,
-         a.supplier_id, a.supplier_label::text, a.mgmt_type::text, a.bin_location::text,
-         (case when ol.kind = 'piece' then 'article' else 'labour' end)::text, 'ORO', 'ORO',
-         ol.quantity::numeric, 0::numeric, 0::numeric, ol.line_cost::numeric
-    from public.oro_lines ol
-    join public.oro o on o.id = ol.oro_id
-    left join lateral (
-      select a.reference, a.designation, a.brand, a.category_path, a.mgmt_type::text as mgmt_type, a.bin_location, a.pamp,
-             sp.id as supplier_id,
-             coalesce(sp.company_name, nullif(trim(coalesce(sp.first_name, '') || ' ' || coalesce(sp.last_name, '')), '')) as supplier_label
-        from public.articles a
-        left join public.contacts sp on sp.id = coalesce(a.main_supplier_id,
-             (select s.supplier_id from public.article_suppliers s where s.article_id = a.id order by s.created_at limit 1))
-       where a.id = ol.article_id
-    ) a on true
-   where _source = 'cessions' and o.company_id = _company and ol.kind <> 'piece'
-     and ol.created_at >= (_from::timestamp at time zone 'Europe/Brussels')
-     and ol.created_at <  ((_to + 1)::timestamp at time zone 'Europe/Brussels')
+  -- CESSIONS INTERNES (cadeau, demo, atelier, garantie, ORO, documents de cession)
+  select * from public._stats_cession_facts(_company, _from, _to) where _source = 'cessions'
   union all
   -- MOUVEMENTS DE STOCK (entrees / sorties) : tableau de bord mois par mois, stock
   select 'moves', null::uuid, m.move_type::text, (m.occurred_at at time zone 'Europe/Brussels')::date, null::uuid, null::text,
