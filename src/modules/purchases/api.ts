@@ -72,11 +72,11 @@ export async function getReorderProposals(companyId: string): Promise<ReorderPro
 }
 
 /** Articles cherchables pour la saisie de réception (réf fournisseur, PAMP, casier). */
-export type PurchaseArticle = { id: string; reference: string; designation: string; supplier_ref: string | null; purchase_price: number; vat_rate: number; sale_price_ttc: number; bin_location: string | null };
+export type PurchaseArticle = { id: string; reference: string; designation: string; supplier_ref: string | null; purchase_price: number; vat_rate: number; sale_price_ttc: number; bin_location: string | null; mgmt_type: string | null; pack_qty: number | null };
 export async function searchPurchaseArticles(companyId: string, term: string): Promise<PurchaseArticle[]> {
   const s = term.replace(/[,()%*]/g, ' ').trim();
   let q = supabase.from('articles')
-    .select('id, reference, designation, supplier_ref, purchase_price, vat_rate, sale_price_ttc, bin_location')
+    .select('id, reference, designation, supplier_ref, purchase_price, vat_rate, sale_price_ttc, bin_location, mgmt_type, pack_qty')
     .eq('company_id', companyId).limit(8);
   if (s) q = q.or(`reference.ilike.%${s}%,designation.ilike.%${s}%,supplier_ref.ilike.%${s}%`);
   const { data, error } = await q;
@@ -85,5 +85,6 @@ export async function searchPurchaseArticles(companyId: string, term: string): P
     id: a.id, reference: a.reference, designation: a.designation, supplier_ref: a.supplier_ref,
     purchase_price: Number(a.purchase_price ?? 0), vat_rate: Number(a.vat_rate ?? 21),
     sale_price_ttc: Number(a.sale_price_ttc ?? 0), bin_location: a.bin_location,
+    mgmt_type: a.mgmt_type ?? null, pack_qty: a.pack_qty == null ? null : Number(a.pack_qty),
   }));
 }

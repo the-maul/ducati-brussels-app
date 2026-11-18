@@ -1,13 +1,12 @@
 /**
  * M4 — Écriture des documents d'achat : commande (CMD) / réception (REC).
  * La RÉCEPTION validée crée de vraies ENTRÉES de stock et recalcule le PAMP
- * (B5) via record_stock_move — jamais d'UPDATE direct du stock (B7).
+ * (B5) via record_stock_move — jamais d'UPDATE direct du stock (B7) — le tout
+ * côté serveur, en une transaction (purchase_doc_save, 18/11/2026).
  */
-import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseSchedule } from './api';
-import { normalizeVin } from '@/lib/vin';
-import { t, fillVars } from '@/lib/i18n';
-import { receptionChassisErrors } from '@/modules/vehicles/chassis-rules';
+// Import dynamique : garde computePurchaseTotals testable sans client Supabase (tests/purchases-totals.test.ts).
+import type { DocLinePayload } from './g8-api';
 
 /** Données châssis d'une ligne véhicule → crée une fiche véhicule (type V) à la réception (B9, G8 R4-R5). */
 export type ChassisInput = {
@@ -77,151 +76,46 @@ export function computePurchaseTotals(
   return { total_ht, total_vat, total_ttc: r2(total_ht + total_vat), lines_ht: r2(linesHt), global_discount: r2(discount) };
 }
 
-async function nextNumber(companyId: string, docType: string): Promise<string | null> {
-  const { data, error } = await supabase.rpc('next_document_number', { _company: companyId, _doc_type: docType });
-  if (error) throw error;
-  return (data as string) ?? null;
-}
-
+/**
+ * Crée (et valide) un document d'achat. Depuis le rattrapage G8 du 18/11/2026, TOUT passe par la fonction
+ * serveur purchase_doc_save (une seule transaction : numéro, lignes, échéances, totaux, entrées de stock,
+ * PAMP, prix d'achat, fiche moto, statut des commandes reçues). Plus aucune écriture ligne à ligne depuis
+ * le navigateur (une coupure laissait une réception à moitié en stock).
+ */
 export async function createPurchaseOrder(p: {
   companyId: string; docType: 'CMD' | 'REC'; supplierId?: string | null; status: 'brouillon' | 'validee';
   vatRegime?: VatRegime; supplierInvoiceNo?: string | null; supplierBlNo?: string | null; intranetNo?: string | null;
   invoiceDate?: string | null; blDate?: string | null; receiptDate?: string | null; orderDate?: string | null; expectedDate?: string | null;
   shippingHt?: number; shippingTaxed?: boolean; shippingVatRate?: number; globalDiscountPct?: number;
-  notes?: string | null; sourceOrderId?: string | null;
+  notes?: string | null;
   lines: PurchaseLineInput[]; schedules?: ScheduleInput[];
 }): Promise<string> {
-  const totals = computePurchaseTotals(p.lines, {
-    vatRegime: p.vatRegime, globalDiscountPct: p.globalDiscountPct,
-    shippingHt: p.shippingHt, shippingTaxed: p.shippingTaxed, shippingVatRate: p.shippingVatRate,
-  });
-  // Châssis contrôlés AVANT toute écriture (rattrapage G8 du 18/11) : un châssis = une moto (quantité 1),
-  // sur un article (le modèle), VIN non répété ni déjà présent dans le parc. Plus de réception à moitié faite.
-  if (p.status === 'validee' && p.docType === 'REC') await assertChassisReceivable(p.companyId, p.lines);
-  const number = p.status === 'validee' ? await nextNumber(p.companyId, p.docType) : null;
-
-  const { data: order, error } = await supabase.from('purchase_orders').insert({
-    company_id: p.companyId, doc_type: p.docType, number, supplier_id: p.supplierId ?? null,
-    status: p.status === 'validee' && p.docType === 'REC' ? 'recue' : p.status,
-    vat_regime: p.vatRegime ?? 'with_vat',
-    supplier_invoice_no: p.supplierInvoiceNo ?? null, supplier_bl_no: p.supplierBlNo ?? null, intranet_no: p.intranetNo ?? null,
-    invoice_date: p.invoiceDate ?? null, bl_date: p.blDate ?? null, receipt_date: p.receiptDate ?? null,
-    order_date: p.orderDate ?? null, expected_date: p.expectedDate ?? null,
-    shipping_ht: p.shippingHt ?? 0, shipping_taxed: p.shippingTaxed !== false, shipping_vat_rate: p.shippingVatRate ?? 21,
-    global_discount_pct: p.globalDiscountPct ?? 0, source_order_id: p.sourceOrderId ?? null, notes: p.notes ?? null,
-    // On n'ecrit QUE les trois totaux qui sont des colonnes. computePurchaseTotals
-    // renvoie aussi lines_ht et global_discount, utiles a l'affichage mais absents
-    // de la table : les spreader faisait rejeter TOUT l'insert par PostgREST (400),
-    // donc aucune commande ni reception n'etait creable.
-    total_ht: totals.total_ht, total_vat: totals.total_vat, total_ttc: totals.total_ttc,
-  }).select('id').single();
-  if (error) throw error;
-  const orderId = order.id as string;
-
-  if (p.lines.length) {
-    const rows = p.lines.map((l, i) => ({
-      order_id: orderId, article_id: l.article_id ?? null, designation: l.designation, supplier_ref: l.supplier_ref ?? null,
-      quantity: l.quantity, unit_price_ht: l.unit_price_ht, discount_pct: l.discount_pct || 0, vat_rate: l.vat_rate,
-      sale_price_ttc: l.sale_price_ttc ?? null, bin_location: l.bin_location ?? null, labels: l.labels ?? 0,
-      line_ht: lineNetHt(l), sort_order: i,
-    }));
-    const { error: le } = await supabase.from('purchase_lines').insert(rows);
-    if (le) throw le;
-  }
-
-  if (p.schedules?.length) {
-    const rows = p.schedules.filter((s) => s.amount > 0 || s.due_date).map((s) => ({
-      order_id: orderId, company_id: p.companyId, seq_no: s.seq_no, due_date: s.due_date, amount: s.amount, note: s.note ?? null,
-    }));
-    if (rows.length) { const { error: se } = await supabase.from('purchase_schedules').insert(rows); if (se) throw se; }
-  }
-
-  // Réception validée → ENTRÉES de stock + recalcul PAMP (B5/B7). Coût = PU net.
-  if (p.status === 'validee' && p.docType === 'REC') {
-    for (const l of p.lines) {
-      if (!l.article_id || l.quantity <= 0) continue;
-      const unitNet = r3(l.unit_price_ht * (1 - (l.discount_pct || 0) / 100));
-
-      // Réception châssis (rattrapage G8 du 18/11) : la fiche moto est rattachée au MODELE (article V)
-      // et l'entrée de stock de 1 est écrite DANS LA MEME transaction (`vehicle_chassis_receive`) :
-      // plusieurs châssis du même modèle, stock du modèle = nombre de châssis en stock.
-      if (l.chassis?.vin?.trim()) {
-        const done = await receiveChassis(l.article_id, l.chassis, l, unitNet, number);
-        if (done) continue;
-      }
-
-      const { error: me } = await supabase.rpc('record_stock_move', {
-        _article: l.article_id, _type: 'entree', _qty: Math.abs(l.quantity), _unit_cost: unitNet,
-        // undefined : _bin/_ref/_note sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
-      _is_reservation: false, _bin: l.bin_location ?? undefined, _origin: 'reception', _ref: number ?? undefined, _note: undefined,
-      });
-      if (me) throw me;
-
-      // Ancien chemin (migration 20261118140000 pas encore en base) : fiche véhicule liée à l'article (B9, G8 R5).
-      if (l.chassis?.vin?.trim()) {
-        const ch = l.chassis;
-        const { error: ve } = await supabase.from('vehicles').insert({
-          company_id: p.companyId, article_id: l.article_id, vin: ch.vin.trim(),
-          brand: ch.brand ?? null, model: ch.model ?? l.designation, engine_number: ch.engine_number ?? null,
-          power_cv: ch.power_cv ?? null, is_restricted: !!ch.is_restricted, energy: ch.energy ?? null,
-          antipollution: ch.antipollution ?? null, color: ch.color ?? null,
-          first_registration_date: ch.first_registration_date ?? null, mileage: ch.mileage ?? null,
-          model_year: ch.model_year ?? null, gps_tracker_id: ch.gps_tracker_id ?? null, pin_tracker: ch.pin_tracker ?? null,
-          tpms_av: ch.tpms_av ?? null, tpms_ar: ch.tpms_ar ?? null, warranty_end: ch.warranty_end ?? null,
-          purchase_price: unitNet, cost_price: unitNet, display_price: l.sale_price_ttc ?? null,
-          status: 'stock_vn',
-        });
-        if (ve) throw ve;
-      }
-    }
-  }
-  return orderId;
-}
-
-/** Refuse la réception avant toute écriture si un châssis est mal saisi ou déjà dans le parc. */
-async function assertChassisReceivable(companyId: string, lines: PurchaseLineInput[]): Promise<void> {
-  const errors = receptionChassisErrors(lines);
-  if (errors.length) {
-    const e = errors[0];
-    throw new Error(fillVars(t(`parcG8.${e.error}`), { line: String(e.index + 1), vin: e.vin ?? '' }));
-  }
-  const vins = lines.map((l) => normalizeVin(l.chassis?.vin)).filter(Boolean);
-  if (!vins.length) return;
-  const { data, error } = await supabase.from('vehicles').select('vin').eq('company_id', companyId).in('vin', vins);
-  if (error) throw error;
-  const known = ((data ?? []) as { vin: string | null }[]).map((v) => normalizeVin(v.vin)).find(Boolean);
-  if (known) throw new Error(fillVars(t('parcG8.chassisVinExists'), { vin: known }));
-}
-
-/**
- * Un châssis reçu : fiche moto + entrée de stock de 1 en une transaction (`vehicle_chassis_receive`).
- * Renvoie false si la fonction n'est pas encore en base (l'appelant garde l'ancien chemin).
- */
-async function receiveChassis(articleId: string, ch: ChassisInput, l: PurchaseLineInput, unitNet: number, ref: string | null): Promise<boolean> {
-  const loose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>;
-  const { error } = await loose('vehicle_chassis_receive', {
-    _article: articleId,
-    _chassis: {
-      vin: ch.vin.trim(), brand: ch.brand || null, model: ch.model || l.designation, engine_number: ch.engine_number || null,
-      power_cv: ch.power_cv ?? null, is_restricted: !!ch.is_restricted, energy: ch.energy || null,
-      antipollution: ch.antipollution || null, color: ch.color || null,
-      first_registration_date: ch.first_registration_date || null, mileage: ch.mileage ?? null,
-      model_year: ch.model_year ?? null, gps_tracker_id: ch.gps_tracker_id || null, pin_tracker: ch.pin_tracker || null,
-      tpms_av: ch.tpms_av || null, tpms_ar: ch.tpms_ar || null, warranty_end: ch.warranty_end || null,
-      display_price: l.sale_price_ttc ?? null,
+  const { savePurchaseDoc } = await import('./g8-api');
+  const res = await savePurchaseDoc({
+    companyId: p.companyId, validate: p.status === 'validee',
+    header: {
+      doc_type: p.docType, supplier_id: p.supplierId ?? null, vat_regime: p.vatRegime ?? 'with_vat',
+      supplier_invoice_no: p.supplierInvoiceNo ?? null, supplier_bl_no: p.supplierBlNo ?? null, intranet_no: p.intranetNo ?? null,
+      invoice_date: p.invoiceDate ?? null, bl_date: p.blDate ?? null, receipt_date: p.receiptDate ?? null,
+      order_date: p.orderDate ?? null, expected_date: p.expectedDate ?? null,
+      shipping_ht: p.shippingHt ?? 0, shipping_taxed: p.shippingTaxed !== false, shipping_vat_rate: p.shippingVatRate ?? 21,
+      global_discount_pct: p.globalDiscountPct ?? 0, notes: p.notes ?? null,
     },
-    _unit_cost: unitNet, _origin: 'reception', _ref: ref, _bin: l.bin_location ?? null,
+    lines: p.lines.map((l) => ({
+      article_id: l.article_id ?? null, designation: l.designation, supplier_ref: l.supplier_ref ?? null, quantity: l.quantity,
+      unit_price_ht: l.unit_price_ht, discount_pct: l.discount_pct || 0, vat_rate: l.vat_rate, sale_price_ttc: l.sale_price_ttc ?? null,
+      bin_location: l.bin_location ?? null, labels: l.labels ?? 0,
+      chassis: l.chassis?.vin?.trim() ? ({ ...l.chassis } as DocLinePayload['chassis']) : null,
+    })),
+    schedules: (p.schedules ?? []).map((s) => ({ seq_no: s.seq_no, due_date: s.due_date, amount: s.amount, note: s.note ?? null })),
   });
-  if (!error) return true;
-  const missing = error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(error.message);
-  if (missing) return false;
-  throw error;
+  return res.id;
 }
 
-/** Crée une commande fournisseur (CMD) par fournisseur à partir de lignes de réappro. */
+/** Crée une commande fournisseur (CMD) validée par fournisseur à partir de lignes de réappro (PA de la fiche). */
 export async function createOrdersFromProposals(
   companyId: string,
-  items: { article_id: string; supplier_id: string | null; designation: string; quantity: number }[],
+  items: { article_id: string; supplier_id: string | null; designation: string; quantity: number; unit_price_ht?: number }[],
 ): Promise<number> {
   const bySupplier = new Map<string, typeof items>();
   for (const it of items) {
@@ -232,10 +126,12 @@ export async function createOrdersFromProposals(
   }
   let created = 0;
   for (const [supplier, group] of bySupplier) {
+    // Sans fournisseur : la commande reste en brouillon (le serveur exige un fournisseur pour valider).
     await createPurchaseOrder({
-      companyId, docType: 'CMD', supplierId: supplier === '__none__' ? null : supplier, status: 'validee',
+      companyId, docType: 'CMD', supplierId: supplier === '__none__' ? null : supplier,
+      status: supplier === '__none__' ? 'brouillon' : 'validee',
       orderDate: new Date().toISOString().slice(0, 10),
-      lines: group.map((g) => ({ article_id: g.article_id, designation: g.designation, quantity: g.quantity, unit_price_ht: 0, discount_pct: 0, vat_rate: 21 })),
+      lines: group.map((g) => ({ article_id: g.article_id, designation: g.designation, quantity: g.quantity, unit_price_ht: g.unit_price_ht ?? 0, discount_pct: 0, vat_rate: 21 })),
     });
     created++;
   }
