@@ -49,6 +49,13 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   // `grid_base` (03), `grid_vat` (54), `winbooks_vat_code` (code TVA de l'OD, ex. MARGE),
   // `winbooks_journal` (OD). Grilles et code TVA à confirmer par le comptable.
   { key: 'vat_margin_settings', label: 'TVA marge (occasions) — réglages', group: 'vente', extraColumns: [] },
+  // Dépôt-vente (rattrapage G8 du 18/11/2026, VEN008) : code = réglage, libellé = valeur. Codes lus :
+  // commission_mode (ecart | pourcentage | forfait), commission_pct, commission_fixed, commission_vat_rate (21),
+  // deposit_fee, buyer_invoice (oui / non), buyer_vat_rate_particulier (0), buyer_vat_rate_professionnel (21),
+  // buyer_mention_particulier / _professionnel ({numero} = n° DEP), commission_invoice, commission_compensation,
+  // auto_credit_note (avoir au déposant, G8), distinguish_pro, conditions_particulier / _professionnel, legal_mention.
+  // Comptes : Comptabilité → correspondances, dimension « consignment » (+ règlement DEP).
+  { key: 'consignment_settings', label: 'Dépôt-vente — réglages', group: 'vente', extraColumns: [] },
   // Facture obligatoire au-delà de 125 € TTC (PDV010, AR n° 1 art. 1er § 2, 9°) : code = début de la
   // famille de l'article (R11, 03-05, « ACCESSOIRES ET EQUIPEMENTS/ACC AGV »…), le plus long l'emporte ;
   // coché = pièce / accessoire / prestation DU VÉHICULE (facture), décoché = équipement du pilote,

@@ -702,6 +702,8 @@ export const CREDIT_NOTE_SOURCE_TYPES = ['FAC', 'TIK', 'FAA'] as const;
 export const CREDITED_STATUS = 'avoir_emis';
 /** Mode de reglement technique « regle par avoir » (lettrage facture ↔ avoir, jamais de tresorerie). */
 export const CREDIT_SETTLEMENT_METHOD = 'AVO';
+/** Mode technique « Retenu sur dépôt-vente » : facture au déposant soldée par retenue (M7), jamais un choix de caisse. */
+export const CONSIGNMENT_SETTLEMENT_METHOD = 'DEP';
 /** Statuts d un document ferme (plus aucun encaissement ni conversion). */
 export const CLOSED_DOC_STATUSES = ['brouillon', 'annulee', 'converti', CREDITED_STATUS] as const;
 export const isClosedDocStatus = (status: string): boolean => (CLOSED_DOC_STATUSES as readonly string[]).includes(status);
@@ -1108,8 +1110,9 @@ export async function listPaymentMethods(companyId: string): Promise<PaymentMeth
     .eq('company_id', companyId).eq('table_key', 'payment_method').eq('is_active', true)
     .order('sort_order');
   if (error) throw error;
-  // « Regle par avoir » (AVO) est un lettrage pose par generateCreditNote, jamais un choix de caisse.
-  return (data ?? []).filter((r) => r.code !== CREDIT_SETTLEMENT_METHOD).map((r) => ({
+  // « Regle par avoir » (AVO) est un lettrage pose par generateCreditNote, jamais un choix de caisse ;
+  // « Retenu sur depot-vente » (DEP) est pose par la vente d un depot-vente (M7, 18/11/2026).
+  return (data ?? []).filter((r) => r.code !== CREDIT_SETTLEMENT_METHOD && r.code !== CONSIGNMENT_SETTLEMENT_METHOD).map((r) => ({
     code: r.code, label: r.label,
     visiblePos: (r.extra as { visible_pos?: boolean } | null)?.visible_pos !== false,
   }));

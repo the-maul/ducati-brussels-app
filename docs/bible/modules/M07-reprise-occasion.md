@@ -23,7 +23,7 @@ simple (commission et reversement). Le **registre TVA marge** est dans l'écran 
 
 ## 2. Ce qu'on a aujourd'hui
 
-Menu latéral : **Reprises motos clients** (`/tradein`). Le dépôt-vente (`/consignment`) **n'a pas d'entrée de menu**.
+Menu latéral : **Reprises motos clients** (`/tradein`) et, en dessous, **Dépôt-vente** (`/consignment`, depuis le 18/11/2026).
 
 | Écran (menu → page) | Ce qu'on peut y faire |
 |---|---|
@@ -31,7 +31,7 @@ Menu latéral : **Reprises motos clients** (`/tradein`). Le dépôt-vente (`/con
 | Reprises motos clients → Nouvelle reprise (`/tradein/new`) | **Assistant en étapes** : type (particulier / professionnel) → déjà client ? → retrouver ou créer la fiche → données de la moto (pré-remplissage depuis le parc, caractéristiques automatiques, usure détaillée, prix souhaité) → photos et documents → envoi. L'envoi crée la fiche véhicule en statut « Demande de reprise », le lien vendeur, le dossier REP-, téléverse les photos en GED, trace un échange sur la fiche client, crée une carte CRM (source « Reprise ») et ouvre la diffusion aux marchands (lien mail). |
 | Reprises motos clients → dossier (`/tradein/$oroId`) | **Fiche de reprise** : reprise, remise en état, **coût de revient**, **marge potentielle** ; lignes de remise en état (pièce en stock, main-d'œuvre, frais) avec ajout/suppression ; clôture de l'ORO ; offres des marchands (ajout, meilleure offre) ; diffusion et **relance** des marchands par mail ; **offre acceptée** ; **Valider la reprise** (3 étapes, attestation TVA marge PDF signée) ; modification à tout moment ; annulation (sortie de stock si déjà validée) ; photos (galerie, retouche, ordre) ; PDF fiche de reprise anonymisée ; facture d'achat pour une reprise professionnelle. |
 | Reprises motos clients → Marchands partenaires (`/tradein/partners`) | Fiches marchands (nom, société, mails et téléphones supplémentaires, marques suivies), actif/inactif, mode d'envoi `auto` / `semi_auto`. |
-| (URL directe) Dépôt-vente (`/consignment`) | Nouveau dépôt (déposant, n° saisi à la main, prix convenu TTC, commission %), liste, **Régler la vente** (commission + reversement calculés). |
+| Reprises → **Dépôt-vente** (`/consignment`, 18/11/2026) | Écran unique : liste **En cours / Vendus / Rendus / Tous** (recherche n°, référence, immatriculation, VIN, déposant) ; **nouvelle fiche** (déposant pro / particulier, moto du parc ou nouvelle avec VIN, prix demandé, prix de vente TTC, prix minimum de réserve, commission écart / % / forfait, frais de dépôt, n° livre de police, conditions, mention légale, documents remis) ; fiche du dépôt : **document de dépôt** imprimable à signer, modifier, **vendre** (acquéreur, décompte en direct, factures), **verser** le net au déposant, imprimer le **décompte**, **retour client**, **voir les réparations** (OR et cessions de la moto depuis l'entrée). |
 | Stock → Cessions internes (`/stock/cessions`) | Voir M05. |
 | Comptabilité → Registre TVA marge (`/accounting`, admin/comptable) | Registre VO chronologique des ventes d'articles O, résumé pour la déclaration, export CSV (M12). |
 
@@ -69,6 +69,35 @@ Menu latéral : **Reprises motos clients** (`/tradein`). Le dépôt-vente (`/con
 - **Multi-société + audit** : `company_id` + RLS `is_member` sur toutes les tables (lignes d'ORO via l'en-tête) ; triggers `audit_row` sur `oro`, `oro_lines`, `consignments`.
 
 - **Registre des véhicules à moteur (AR n° 1 art. 28, M-88, 03/11)** : la **validation** d'une reprise (la fiche passe `repris` → `stock_vo`) inscrit l'entrée de la moto (code 4, vendeur = premier propriétaire) ; l'annulation inscrit la sortie « moto rendue » ; la vente inscrit la sortie et la facture. Le **dépôt-vente** inscrit l'entrée à sa création (code 4), la sortie à la vente (facture) ou à la **restitution** (sans document). Voir [M03](M03-vehicules.md) §4.
+
+## Ajouté le 18/11 — rattrapage G8 (dépôt-vente complet)
+
+**Décision de Simon (18/11/2026) : parcours complet sur un seul écran « Dépôt-vente ».** Sources G8 :
+`docs/g8-inventaire/03-vehicules.md` (création / vente d'un dépôt, liste), `09-parametres.md` (Reprise /
+dépôt-vente), `06-ventes-caisse.md` (mouvements 02 / 03), `08-compta-stats.md` (comptes dépôts-vente),
+`parcours.md` 15 et 16 ; comparaison `comparaison-atelier-parc.md` §13 et bloquant #10.
+
+| G8 | DMS (18/11) | Où |
+|---|---|---|
+| Fiche dépôt vente (prix demandé, PV TTC, prix minimum, conditions, livre de police) | Fiche de dépôt : déposant **pro / particulier**, moto du parc ou nouvelle (VIN obligatoire), prix demandé, prix de vente TTC, **prix minimum de réserve**, commission (**écart** PV − prix demandé, **%** ou **forfait**), **frais de dépôt**, n° livre de police (vide = n° du registre des véhicules s'il est posé), conditions et **mention légale** (réglages par type de déposant), **documents remis** (même check-list que la reprise), observations | `consignment-entry-dialog.tsx`, `consignment_create` / `consignment_update` |
+| N° DEP auto (compteur « Dépôt vente ») | Séquence **`DEP`** par société, réglable dans Paramètres → Numérotation ; la fiche moto prend le n° DEP comme référence si elle n'en a pas | migration §0 |
+| Édition fiche de dépôt-vente | **Document de dépôt** imprimable (deux cadres de signature) | `consignment-print.ts` |
+| Liste des dépôts vente (n°, référence, immat. ; vues dépôt / retour) | Liste **En cours / Vendus / Rendus / Tous**, recherche n°, référence, immatriculation, VIN, déposant | `_app.consignment.tsx`, `filterConsignments` |
+| Voir réparations | OR de la moto depuis l'entrée en dépôt (+ cessions internes si le lot cessions est posé) ; les OR non facturés se reprennent en « réparations à déduire » | `listLinkedRepairs` |
+| Vendre (acquéreur, commission dont TVA, date de livraison) + « Règlement dépôt vente » (02) | **Une transaction SQL** (`consignment_sell`) : **facture à l'acheteur** (FAC, la moto D, TVA du réglage : particulier 0 %, professionnel 21 %, mention « vente pour compte » avec le n° DEP), **facture au déposant** (commission, frais, réparations, TVA 21 % comprise) **réglée par retenue** (mode `DEP`, pas de trésorerie), **avoir au nom du déposant** en option, **décompte** figé sur la fiche ; la moto passe en « Vendu », l'acheteur devient propriétaire (déclencheur existant), le registre est soldé. Sans facture acheteur (réglage `buyer_invoice = non`) : parcours G8, encaissement par mouvement 02 | `consignment-sale-dialog.tsx`, `consignment_sell` |
+| Avoir automatique au nom du déposant (paramètre) | Option (réglage `auto_credit_note`, **non** par défaut) : AVO au déposant du net ; le versement le rembourse | idem |
+| 03 Décaissement dépôt V | **Versement** au déposant (une seule fois) : mouvement de caisse **03** « sortie » (type du lot caisse s'il est posé) en espèces (caisse ouverte exigée) ou virement, avec référence ; ou remboursement de l'avoir | `consignment_pay_depositor` |
+| Retour client | Motif obligatoire, **frais de retour** facturés au déposant, sortie de stock (quantité seule, origine `depot_retour`), la moto redevient une moto de client (« Vendu » sans article, M-12), le déposant reste propriétaire, registre soldé | `consignment_return` |
+| Compta : compte entrée dépôt (classe 4), TVA commission, journal des commissions | Vue **`consignment_accounting_entries`** (écritures prévues, rien n'est exporté) ; comptes dans Comptabilité → correspondances, dimension `consignment` (`deposit` 489100, `commission` / `fees` / `return_fee` 700900, `repairs` 700000) + règlement `DEP` → 489100 ; **à confirmer par le comptable** | migration §1 et §9 |
+
+**Règles** :
+- **Invariant D** : la moto entre en stock (1, quantité seule) **sans coût** ; un déclencheur refuse désormais toute entrée valorisée d'un article D (`_stock_moves_consignment_unvalued`) ; `stock_value_owned` l'exclut déjà. Testé (`tests/depot-vente.test.ts`, essai à blanc).
+- **Décompte** (`consignment_amounts` = `computeSettlement`) : montants TTC, HT = TTC × 100 / (100 + taux) au cent, TVA = TTC − HT ; net = PV − (commission + frais + réparations) ; net négatif refusé ; vente sous le prix minimum refusée sans « accord du déposant » ; un second règlement est refusé (aussi dans l'ancien `settle_consignment`).
+- **Droits** : écritures par fonctions SQL seulement (rubrique Reprises : vendeur, administrateur ; `can_write_table`), tracées dans `events` (`consignment_create`, `_update`, `_sell`, `_payout`, `_return`) ; RLS : lecture membre, écriture `can_write_table`.
+- **Réglages** : Paramètres → Tables → « Dépôt-vente — réglages » (`consignment_settings`, code = réglage, libellé = valeur).
+- **Ne duplique pas** : mouvements de caisse typés (lot caisse, `20261118150000`) lus dynamiquement ; cession automatique (lot cessions) non recréée ici.
+
+**À trancher** (Simon / comptable) : régime TVA de la facture acheteur (vente « pour compte » à 0 % d'un particulier ou régime de la marge du commissionnaire), double imposition si la commission est facturée ET la marge taxée, avoir G8 coché vs facture de commission, mode `DEP` visible au Z comme mode d'encaissement.
 
 ## 5. État en production
 
@@ -123,7 +152,7 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 - **Le coût de revient reste modifiable à la main** sur la fiche véhicule (M03) et `acceptRepriseOffer` écrase `vehicles.purchase_price` avec le montant accepté sans recalculer `cost_price`.
 - **Registre TVA marge** : refait le 03/11/2026 (M-89, migration `20261103160000` **non appliquée**) : prix de reprise figé sur la facture, avoirs pris en compte, base globale par période avec report, tests `tests/tva-marge.test.ts`. Reste à faire valider par le comptable (grilles, code TVA Winbooks, stock initial). Les 53 factures G8 de motos O (2014 →) ne sont pas dans le registre de la marge : déjà déclarées dans G8.
 - **Fuite possible du registre** : `vo_margin_register` saute le contrôle de société quand l'appelant n'est pas connecté (`auth.uid() is null`). Si l'exécution est ouverte au rôle `anon` (audit Supabase, `etat-projet.md` §5), le registre VO d'une société (VIN, prix, marges) est lisible sans connexion. Idem `settle_consignment` en écriture. **À vérifier en priorité.** La migration `20261103160000` retire l'exécution à `anon` pour `vo_margin_register`, `vo_margin_purchases` et `vo_margin_periods` (pas encore pour `settle_consignment`).
-- **Dépôt-vente minimal** : aucun article D ni fiche véhicule créés, n° saisi à la main, pas de statut « restitué » dans l'écran, `settle_consignment` ne vérifie pas que le dépôt est encore `en_depot` (un second règlement écrase le premier), la commission n'est ni facturée ni ventilée en TVA. Écran sans entrée de menu.
+- ~~**Dépôt-vente minimal**~~ — **refait le 18/11/2026** (voir « Ajouté le 18/11 »). Les anciens dépôts « simples » (sans moto) restent lisibles mais ne se vendent plus : les reprendre par une nouvelle fiche avec la moto.
 - **ORO et reprise confondus** dans la table `oro` : il n'est pas possible d'ouvrir un ORO sur une occasion achetée hors reprise, ni plusieurs ORO pour une même moto depuis l'écran (le calcul SQL, lui, les additionne).
 - ~~La vente d'une occasion ne passe pas la moto en « vendu »~~ — **corrigé le 23/09** (M-37, déclencheur sur `stock_moves`, voir M03 §4).
 - Les tables récentes sont appelées par un client non typé (`supabase as any`) : les fautes de colonnes ne sont pas détectées à la compilation.
@@ -133,8 +162,8 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 | Code | Libellé court | État | Preuve |
 |---|---|---|---|
 | VEN006 / COM006 | TVA sur marge des VO | 🟦 fait, à valider | M-89 : vente sans TVA, registre par véhicule et par période (`20261103160000`, non appliquée), attestation PDF (`attestation-pdf.ts`), tests `tests/tva-marge.test.ts` ; validation comptable à faire |
-| VEN007 | Référencement auto occasions / dépôt-vente avec préfixe | 🟦 partiel | reprises en `REP-` (séquence) et article occasion à la même référence ; `OCC-`/`DEP-` non utilisés, dépôt-vente numéroté à la main |
-| VEN008 | Reprise + dépôt-vente avec suivi des commissions | 🟦 partiel | reprise complète dans le code mais suivi inopérant en production (§5) ; dépôt-vente minimal (§7) |
+| VEN007 | Référencement auto occasions / dépôt-vente avec préfixe | 🟦 partiel | reprises en `REP-` (séquence) et article occasion à la même référence ; dépôt-vente **`DEP` automatique** (séquence `DEP`, 18/11) ; `OCC-` non utilisé |
+| VEN008 | Reprise + dépôt-vente avec suivi des commissions | 🟦 partiel | reprise complète dans le code mais suivi inopérant en production (§5) ; **dépôt-vente complet** (18/11 : facture de commission TVA 21 %, décompte, versement, retour), migration `20261118270000` non appliquée |
 | VEN016 | Portail web de demande de reprise (phase 2) | ⬜ manquant | assistant interne uniquement |
 | VEH006 | Rentabilité par véhicule | 🟦 partiel | coût de revient + marge potentielle sur `/tradein/$oroId` ; pas de marge réalisée ni de vue par VIN |
 | DOC005 | Fiche de reprise digitale | ✅ fait | `reprise-pdf.ts`, `validation-pdf.ts`, assistant |
@@ -218,5 +247,6 @@ comptables des cessions (compte / journal saisis, aucun export).
 | 2026-09-14 | Constat : tout le chantier reprises est « complet dans le code et mort en production » | `docs/etat-projet.md` §2 |
 | 2026-09-23 | **Mission 03, « Motos à vendre »** (M-36) : article de type **D** créé pour les motos en dépôt-vente, vente → moto vendue + nouveau propriétaire + dépublication | branche `lot-motos`, migrations `20260923150000` + `20260923151000` (appliquées le 23/09) |
 | 2026-11-03 | **Registre des véhicules à moteur** : reprise validée et dépôt-vente inscrits à l'entrée, vente / restitution à la sortie (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
+| 2026-11-18 | **Dépôt-vente complet** (rattrapage G8, VEN007 / VEN008, bloquant #10) : écran unique au menu, n° DEP auto, document de dépôt, vente en une transaction (facture acheteur, facture au déposant, avoir option, décompte), versement tracé, retour client, garde-fou « D jamais valorisé », écritures prévues pour l'export ; 21 tests `tests/depot-vente.test.ts`, essai à blanc `supabase/tests/m7_depot_vente_complet.sql` | branche `lot-g8-depot-vente` ; `20261118270000_m7_depot_vente_complet.sql` **non appliquée** |
 | 2026-11-03 | **TVA sur la marge à la vente** (B2, M-89) : vente d'une O sans TVA, prix de reprise seul figé sur la facture, registre par véhicule (ventes et avoirs) et TVA due globale par période (M12) ; rentabilité B3 inchangée | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
 | 2026-11-18 | **Cessions internes / O.R.O en document** (rattrapage G8) : document multi-lignes sur une moto, pièces au PAMP (défaut) ou au dernier PA, MO en heures internes reliée à la pointeuse, fenêtre prix de revient, coût de revient append-only, cession VO ouverte à la reprise, archivage à la vente, listes par rayon / détaillées / archives, impression PAMP / PV / PA | branche `lot-g8-cessions`, `20261118240000_m7_cessions_internes.sql` **non appliquée** |

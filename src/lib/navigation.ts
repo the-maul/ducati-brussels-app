@@ -27,6 +27,7 @@ import {
   Wallet,
   HandCoins,
   BellRing,
+  HandCoins,
   type LucideIcon,
   Globe,
 } from 'lucide-react';
@@ -47,6 +48,8 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },
   { labelKey: 'nav.vehicles', to: '/vehicles', icon: Bike },
   { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
+  // Dépôt-vente (rattrapage G8 du 18/11/2026) : écran unique, sous Reprises, mêmes droits (alias /tradein).
+  { labelKey: 'nav.consignment', to: '/consignment', icon: HandCoins, child: true },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
   // Un seul catalogue (décision M-25) : les articles du DMS. Les vues éclatées Ducati s'ouvrent depuis la fiche
