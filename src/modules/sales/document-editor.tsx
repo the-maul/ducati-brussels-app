@@ -11,7 +11,11 @@ import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText, Bike } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, CheckCircle2, Wrench, Repeat, Clock, Type, Minus, MessageSquareText, Bike, Package, ListPlus } from 'lucide-react';
+import { KitInsertDialog } from '@/modules/workshop/kits/kit-insert-dialog';
+import { toSaleLine, type InsertLine } from '@/modules/workshop/kits/insert-rules';
+import { OptionsPickDialog } from '@/modules/vehicles/options-pick-dialog';
+import type { OptionLine } from '@/modules/vehicles/options-rules';
 import { Link } from '@tanstack/react-router';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -229,6 +233,19 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     return reuse ? [...ls.slice(0, -1), line] : [...ls, line];
   });
   const [recallOpen, setRecallOpen] = useState(false);
+  // Rattrapage G8 : kit / forfait insere en lignes ; options du modele (vente de moto neuve).
+  const [kitOpen, setKitOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const appendLines = (extra: LineInput[]) => {
+    setLines((ls) => {
+      const kept = ls.filter((l) => l.line_type === 'vide' || l.designation.trim() || l.article_id || l._fee);
+      return [...kept, ...extra.map((l) => ({ ...l, _key: `l${counter++}` }))];
+    });
+  };
+  const insertKit = (ins: InsertLine[]) => { appendLines(ins.map(toSaleLine)); setKitOpen(false); };
+  const insertOptions = (opts: OptionLine[]) => { appendLines(opts); setOptionsOpen(false); };
+  // Ligne de la moto (article V / O / P / D) : propose le modele d'options et donne le PV vehicule.
+  const motoLine = lines.find((l) => l._stock && ['V', 'O', 'P', 'D'].includes(l._stock.mgmt_type ?? ''));
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
 
   const pied: PiedInput = {
@@ -428,7 +445,21 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         <Button type="button" variant="outline" onClick={() => addLine('vide')}><Minus /> {t('sales.addBlank')}</Button>
         <Button type="button" variant="outline" onClick={() => setRecallOpen(true)}><MessageSquareText /> {t('sales.recallComment')}</Button>
         <EcatalogPasteButton companyId={companyId} priceMode={priceMode} onPick={addEcatalogLine} />
+        <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
+        <Button type="button" variant="outline" onClick={() => setOptionsOpen(true)}><ListPlus /> {t('parcG8.optionsButton')}</Button>
       </div>
+      {kitOpen && (
+        <KitInsertDialog companyId={companyId}
+          modelYearId={(vehicle as unknown as { ducati_model_year_id?: string | null } | null)?.ducati_model_year_id ?? null}
+          effectiveHt={(ht, v) => effectiveSaleHt(ht, v, roundUp)}
+          onInsert={insertKit} onClose={() => setKitOpen(false)} />
+      )}
+      {optionsOpen && (
+        <OptionsPickDialog companyId={companyId}
+          hint={{ articleId: motoLine?.article_id ?? null, text: motoLine?.designation ?? vehicle?.model ?? null }}
+          vehicleTtc={motoLine ? r2(motoLine.quantity * motoLine.unit_price_ht * (1 - (motoLine.discount_pct || 0) / 100) * (1 + (motoLine.vat_rate || 0) / 100)) : 0}
+          onInsert={insertOptions} onClose={() => setOptionsOpen(false)} />
+      )}
       {recallOpen && <RecallCommentDialog companyId={companyId} onClose={() => setRecallOpen(false)} onPick={(body) => { addLine('texte', body); setRecallOpen(false); }} />}
 
       {/* Devis atelier : frais de devis */}

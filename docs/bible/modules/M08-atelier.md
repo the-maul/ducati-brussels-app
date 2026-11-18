@@ -352,6 +352,27 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Atelier, 24 exigences
 
 Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** fait côté écran et base (18/11, migration `20261118130000` non appliquée : type de cession garantie, acceptation / refus total / refus partiel **avec re-routage des lignes vers le client**, imputation du coût à la facturation ; statut comptable de la cession 05 à trancher) ; **B11** partiel (présence et travail pointés ; depuis le 23/09 le **parcours d'entretien** compare temps passé, temps officiel Ducati et temps facturé sur un OR — mais ses chronos ne sont pas encore versés dans `workshop_time_entries`, la colonne `journey_operation` est prête et la migration non appliquée).
 
+## Ajouté le 18/11 — rattrapage G8 (lot parc, kits et OR)
+
+Source : `docs/g8-inventaire/02-articles.md` (Nomenclatures), `07-atelier.md`, `comparaison-atelier-parc.md` §6, §10 et bloquant #17.
+
+- **Insérer un kit / forfait comme lignes** de l'OR (bouton **Insérer un kit** sous les lignes) ou d'un document
+  de vente : kits d'entretien existants (`maintenance_kits`, ceux du modèle-année de la moto en tête) et forfaits
+  d'article existants (`article_kit_items`) — aucune nouvelle notion de kit. Mode **détail** (titre + une ligne
+  par pièce au prix de la pièce, MO en ligne main-d'œuvre, besoin sans article en texte) ou, pour un forfait qui
+  a un prix, mode **forfait** (une ligne au prix du forfait + contenu en texte). Le stock sort à la facture (B7).
+  `kits/insert-rules.ts`, `kits/insert-api.ts`, `kits/kit-insert-dialog.tsx`.
+- **Remplacer une référence dans tous les kits** (Atelier → Kits → **Remplacer une référence**) : aperçu puis
+  application dans tous les kits d'entretien actifs (nouvelle version + instantané) et tous les forfaits ; une
+  ligne portant déjà la nouvelle pièce est fusionnée. Migration `20261118143000_m8_kits_remplacer_reference.sql`
+  (`kits_replace_article`, admin / chef d'atelier / magasinier, trace `events`).
+- **Devis de réparation** (page OR) : crée un devis DEV brouillon qui **recopie les lignes de l'OR** (mêmes règles
+  que la facture : actions OK / reportées exclues, garantie à 0 €) et l'ouvre ; le « Devis de pièces » vide reste.
+- **Dupliquer l'OR** (page OR) : nouvel OR « à faire », même client, moto, travaux et lignes, sans check-up ni garantie.
+  `or-copy-rules.ts`, `or-copy.ts`. Tests `tests/kits-insertion.test.ts`.
+- **À trancher** : G8 insère une nomenclature au **prix forfait TTC** ; les kits d'entretien du DMS n'ont pas de prix
+  forfait (somme des pièces) ; export Excel de la liste des OR non fait (la liste des OR est le bloquant #4, autre lot).
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
@@ -381,3 +402,4 @@ Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** fait côté �
 | 2026-11-03 | **Dossiers accident** (mission 09 carte 5, ACH005, M-83) : fiche, devis lié (seuil 1 500 € HTVA, remise 15 %), photos avec photo du châssis, rapport d'expert, formulaire Excel « Aide Réparation Moto Accidentée » rempli dans le modèle Ducati, PDF de photos, mail Outlook à Ducati avec 4 pièces jointes (copie vide par défaut), checklist « complet ou rien », statuts ; l'ancienne fenêtre « Aide réparation Ducati » est retirée | branche `lot-dossier-accident`, `20261103110000_m8_dossiers_accident.sql` (**non appliquée**, essayée en transaction annulée), fonction `graph-send-email` **à redéployer** |
 | 2026-09-23 | **Manuels d'atelier Ducati** (mission 07 carte 3, ATE014) : 15 tables `wsm_*`, chargeur `tools/wsm-loader`, onglet « Manuels d'atelier », rattachement au catalogue (426 fermes / 9 à valider / 34 sans correspondance sur 469) | `20260923100000_m8_manuels_atelier.sql`, `20260923101000_m8_manuels_atelier_chargement.sql` (**non appliquées**) |
 | 2026-11-03 | **Registre des véhicules à moteur** : entrée à l'ouverture de l'OR, sortie à sa facture (déclencheur SQL, M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
+| 2026-11-18 | **Rattrapage G8, lot parc** : kit / forfait inséré en lignes (OR et vente), remplacer une référence dans tous les kits, devis de réparation recopiant l'OR, dupliquer un OR | branche `lot-g8-parc`, migration `20261118143000` (**non appliquée**) |

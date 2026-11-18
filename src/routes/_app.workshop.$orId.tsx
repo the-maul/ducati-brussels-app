@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus } from 'lucide-react';
+import { createRepairQuoteFromOr, duplicateRepairOrder } from '@/modules/workshop/or-copy';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -183,6 +184,17 @@ function OrView() {
     onSuccess: (pickingId) => navigate({ to: '/preparation/$pickingId', params: { pickingId } }),
     onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
   });
+  // Rattrapage G8 : devis de reparation qui recopie les lignes de l'OR, et duplication de l'OR.
+  const repairQuote = useMutation({
+    mutationFn: () => createRepairQuoteFromOr(orId, t('parcG8.repairQuoteNote')),
+    onSuccess: (documentId) => navigate({ to: '/sales/$documentId/edit', params: { documentId } }),
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
+  const duplicateOr = useMutation({
+    mutationFn: () => duplicateRepairOrder(orId),
+    onSuccess: (newId) => { toast.success(t('parcG8.orDuplicated')); navigate({ to: '/workshop/$orId', params: { orId: newId } }); },
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return (
@@ -227,6 +239,14 @@ function OrView() {
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
             {!invoiced && <Button onClick={() => { setError(null); toInvoice.mutate(); }} disabled={toInvoice.isPending || invoiceNow.isPending || pending}>{toInvoice.isPending || invoiceNow.isPending ? <Loader2 className="animate-spin" /> : <FileText />} {t('workshop.toInvoice')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
+            {!invoiced && (
+              <Button variant="outline" onClick={() => { setError(null); repairQuote.mutate(); }} disabled={repairQuote.isPending} title={t('parcG8.repairQuoteHint')}>
+                {repairQuote.isPending ? <Loader2 className="animate-spin" /> : <FilePen />} {t('parcG8.repairQuote')}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => { setError(null); duplicateOr.mutate(); }} disabled={duplicateOr.isPending}>
+              {duplicateOr.isPending ? <Loader2 className="animate-spin" /> : <CopyPlus />} {t('parcG8.duplicateOr')}
+            </Button>
             {!invoiced && (
               <Button variant="outline" onClick={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })} disabled={!workAllowed} title={!workAllowed ? t('checkup.workBlocked') : undefined}>
                 <ListChecks /> {t('workshop.startJourney')}

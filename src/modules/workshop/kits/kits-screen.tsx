@@ -16,7 +16,8 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search } from 'lucide-react';
+import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search, Replace } from 'lucide-react';
+import { ReplaceRefDialog } from './replace-ref-dialog';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,8 @@ export function KitsScreen({ companyId }: { companyId: string }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Rattrapage G8 : remplacer une reference dans tous les kits et forfaits.
+  const [replaceOpen, setReplaceOpen] = useState(false);
   const [progress, setProgress] = useState<{ offset: number; total: number; totals: GenerationTotals } | null>(null);
   const [onlyMulti, setOnlyMulti] = useState(false);
 
@@ -88,7 +91,9 @@ export function KitsScreen({ companyId }: { companyId: string }) {
         <Button variant={onlyMulti ? 'secondary' : 'ghost'} aria-pressed={onlyMulti} onClick={() => setOnlyMulti((v) => !v)}>
           <AlertTriangle /> {t('kits.filterMulti').replace('{n}', String(multiKits))}
         </Button>
+        <Button variant="outline" onClick={() => setReplaceOpen(true)}><Replace /> {t('parcG8.replaceButton')}</Button>
       </div>
+      {replaceOpen && <ReplaceRefDialog companyId={companyId} onClose={() => setReplaceOpen(false)} />}
 
       {progress && (
         <div className="space-y-1 rounded-md border border-border p-3" role="status" aria-live="polite">

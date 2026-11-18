@@ -16,7 +16,9 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package } from 'lucide-react';
+import { KitInsertDialog } from './kits/kit-insert-dialog';
+import { toRoLine, type InsertLine } from './kits/insert-rules';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
@@ -255,6 +257,17 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   };
 
   const setLine = (k: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === k ? { ...l, ...patch } : l)));
+  // Rattrapage G8 : un kit / forfait insere comme lignes de l'OR (les lignes vides sont remplacees).
+  const [kitOpen, setKitOpen] = useState(false);
+  const insertKitLines = (ins: InsertLine[]) => {
+    setLines((ls) => {
+      const kept = ls.filter((l) => l.designation.trim() || l.article_id);
+      return [...kept, ...ins.map((l) => ({ ...toRoLine(l), _key: `ro${counter++}` }))];
+    });
+    setKitOpen(false);
+  };
+  const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
+    ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
   const cardLines = cardsToLines(cards.filter((c) => c.label.trim() || c.parts.length), rate);
@@ -455,7 +468,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       )}
 
       <div className="flex items-center justify-between">
-        <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
+          <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
+        </div>
         <div className="flex gap-5 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
           <span>{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>
           <span className="text-muted-foreground">{t('workshop.totalVat')} {eur(totals.total_vat)}</span>
@@ -463,6 +479,11 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         </div>
       </div>
 
+      {kitOpen && (
+        <KitInsertDialog companyId={companyId} modelYearId={kitModelYear}
+          effectiveHt={(ht, v) => effectiveSaleHt(ht, v, roundUp)}
+          onInsert={insertKitLines} onClose={() => setKitOpen(false)} />
+      )}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
       <div className="flex justify-end"><Button onClick={() => onSubmit(payload(), 'save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
     </div>
