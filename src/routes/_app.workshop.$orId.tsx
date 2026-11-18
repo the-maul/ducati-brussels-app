@@ -35,6 +35,7 @@ import { DeferredDateDialog } from '@/modules/workshop/checkup/deferred';
 import { TimeControlDialog } from '@/modules/workshop/labour-time/time-control-dialog';
 import { labourTimeSchemaReady, saveTimeControl } from '@/modules/workshop/labour-time/api';
 import type { ControlLineSource, ControlRow } from '@/modules/workshop/labour-time/rules';
+import { lineCoveredByWarranty } from '@/modules/workshop/warranty/rules';
 import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getDocumentFull, type DocumentFull } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
@@ -395,7 +396,8 @@ function OrView() {
       {controlOpen && (
         <TimeControlDialog
           companyId={activeCompanyId!} orId={orId} orNumber={or.number}
-          lines={data.lines as unknown as ControlLineSource[]}
+          // Garantie (lot B10) : une ligne re-routee vers le client se controle comme une ligne facturee.
+          lines={(data.lines as unknown as (ControlLineSource & { warranty_decision?: string | null })[]).map((l) => ({ ...l, is_warranty: lineCoveredByWarranty({ is_warranty: !!l.is_warranty, warranty_decision: l.warranty_decision ?? null }, or.warranty_status) }))}
           busy={controlAndInvoice.isPending} error={controlAndInvoice.isPending ? null : error}
           onConfirm={(rows) => { setError(null); controlAndInvoice.mutate(rows); }}
           onCancel={() => setControlOpen(false)}

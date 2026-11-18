@@ -31,8 +31,9 @@
 -- « garantie fournisseur » (G8 : non comptabilisee ; DMS : comptabilisee). Cette migration ne
 -- touche PAS a la colonne `accounted` des types de cession et ne passe aucune ecriture comptable.
 --
--- Prerequis : 20261031110000 (check-up, fonction repair_order_write_lines) et 20261103110000
--- (dossiers accident) — anterieures, donc appliquees avant par `db push`.
+-- Prerequis : 20261031110000 (check-up, fonction repair_order_write_lines), 20261103110000
+-- (dossiers accident) et 20261118110000 (temps MO : colonnes reprises par repair_order_write_lines)
+-- — anterieures, donc appliquees avant par `db push`.
 -- STRICTEMENT ADDITIVE ET IDEMPOTENTE. NE PAS APPLIQUER depuis un agent : Simon l'applique en bloc.
 -- Essai a blanc : supabase/tests/m8_garantie_et_accident.sql (dans une transaction annulee).
 -- =====================================================================
@@ -76,6 +77,10 @@ comment on column public.repair_order_lines.warranty_sale_ht is
   'Valeur au prix de vente HT (ce que le client aurait paye), remise deduite.';
 
 -- Les lignes de l'OR sont reecrites en une transaction : la decision de ligne y entre.
+-- Fusion avec le lot « temps MO » (20261118110000, pose AVANT celle-ci) : la fonction garde aussi
+-- le temps de main-d'oeuvre (mecanicien, heures facturees / passees / internes / garanties, date)
+-- et reprend celui des cartes du check-up par `checkup_key` (sinon il serait perdu a chaque
+-- enregistrement).
 create or replace function public.repair_order_write_lines(_or uuid, _lines jsonb)
 returns integer
 language plpgsql
@@ -97,30 +102,58 @@ begin
     raise exception 'OR facture : les lignes ne se modifient plus.' using errcode = 'P0001';
   end if;
 
-  delete from public.repair_order_lines where or_id = _or;
-
+  with old as (
+    delete from public.repair_order_lines where or_id = _or
+    returning kind, checkup_key, sort_order, mechanic_code, mechanic_name, work_date,
+              billed_hours, worked_hours, internal_hours, warranty_hours
+  ), old_time as (
+    select distinct on (checkup_key) checkup_key, mechanic_code, mechanic_name, work_date,
+           billed_hours, worked_hours, internal_hours, warranty_hours
+      from old
+     where kind = 'mo' and checkup_key is not null
+     order by checkup_key, sort_order
+  )
   insert into public.repair_order_lines
     (or_id, kind, article_id, designation, quantity, unit_price_ht, vat_rate, discount_pct, is_warranty,
-     line_ht, line_ttc, sort_order, checkup_key, checkup_state, photo_path, proposal_line_id, warranty_decision)
+     line_ht, line_ttc, sort_order, checkup_key, checkup_state, photo_path, proposal_line_id, warranty_decision,
+     mechanic_code, mechanic_name, work_date, billed_hours, worked_hours, internal_hours, warranty_hours)
   select _or,
-         coalesce(l->>'kind', 'piece'),
-         nullif(l->>'article_id', '')::uuid,
-         coalesce(l->>'designation', ''),
-         coalesce((l->>'quantity')::numeric, 1),
-         coalesce((l->>'unit_price_ht')::numeric, 0),
-         coalesce((l->>'vat_rate')::numeric, 21),
-         coalesce((l->>'discount_pct')::numeric, 0),
-         coalesce((l->>'is_warranty')::boolean, false),
-         coalesce((l->>'line_ht')::numeric, 0),
-         coalesce((l->>'line_ttc')::numeric, 0),
-         (ord - 1)::int,
-         nullif(l->>'checkup_key', ''),
-         nullif(l->>'checkup_state', ''),
-         nullif(l->>'photo_path', ''),
-         nullif(l->>'proposal_line_id', '')::uuid,
-         case when coalesce((l->>'is_warranty')::boolean, false) and l->>'warranty_decision' in ('accepte', 'refuse')
-              then l->>'warranty_decision' end
-    from jsonb_array_elements(coalesce(_lines, '[]'::jsonb)) with ordinality as x(l, ord);
+         x.kind, x.article_id, x.designation, x.quantity, x.unit_price_ht, x.vat_rate, x.discount_pct, x.is_warranty,
+         x.line_ht, x.line_ttc, x.sort_order, x.checkup_key, x.checkup_state, x.photo_path, x.proposal_line_id,
+         case when x.is_warranty and x.l->>'warranty_decision' in ('accepte', 'refuse')
+              then x.l->>'warranty_decision' end,
+         case when x.kind = 'mo' then case when x.l ? 'mechanic_code' then nullif(x.l->>'mechanic_code', '') else o.mechanic_code end end,
+         case when x.kind = 'mo' then case when x.l ? 'mechanic_name' then nullif(x.l->>'mechanic_name', '') else o.mechanic_name end end,
+         case when x.kind = 'mo' then case when x.l ? 'work_date' then nullif(x.l->>'work_date', '')::date else o.work_date end end,
+         case when x.kind = 'mo'
+               and (case when x.l ? 'billed_hours' then nullif(x.l->>'billed_hours', '')::numeric else o.billed_hours end) is not null
+              then case when x.is_warranty
+                        then (case when x.l ? 'billed_hours' then nullif(x.l->>'billed_hours', '')::numeric else o.billed_hours end)
+                        else x.quantity end end,
+         case when x.kind = 'mo' then case when x.l ? 'worked_hours' then nullif(x.l->>'worked_hours', '')::numeric else o.worked_hours end end,
+         case when x.kind = 'mo' then case when x.l ? 'internal_hours' then nullif(x.l->>'internal_hours', '')::numeric else o.internal_hours end end,
+         case when x.kind = 'mo' then case when x.l ? 'warranty_hours' then nullif(x.l->>'warranty_hours', '')::numeric else o.warranty_hours end end
+    from (
+      select l,
+             coalesce(l->>'kind', 'piece') as kind,
+             nullif(l->>'article_id', '')::uuid as article_id,
+             coalesce(l->>'designation', '') as designation,
+             coalesce((l->>'quantity')::numeric, 1) as quantity,
+             coalesce((l->>'unit_price_ht')::numeric, 0) as unit_price_ht,
+             coalesce((l->>'vat_rate')::numeric, 21) as vat_rate,
+             coalesce((l->>'discount_pct')::numeric, 0) as discount_pct,
+             coalesce((l->>'is_warranty')::boolean, false) as is_warranty,
+             coalesce((l->>'line_ht')::numeric, 0) as line_ht,
+             coalesce((l->>'line_ttc')::numeric, 0) as line_ttc,
+             (ord - 1)::int as sort_order,
+             nullif(l->>'checkup_key', '') as checkup_key,
+             nullif(l->>'checkup_state', '') as checkup_state,
+             nullif(l->>'photo_path', '') as photo_path,
+             nullif(l->>'proposal_line_id', '')::uuid as proposal_line_id
+        from jsonb_array_elements(coalesce(_lines, '[]'::jsonb)) with ordinality as e(l, ord)
+    ) x
+    left join old_time o on o.checkup_key = x.checkup_key and x.kind = 'mo'
+   order by x.sort_order;
   get diagnostics n = row_count;
   return n;
 end $$;

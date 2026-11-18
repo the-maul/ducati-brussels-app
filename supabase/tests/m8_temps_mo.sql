@@ -17,7 +17,9 @@
 --   improductif) -> temps pointe de l'OR et productivite (a facturer puis facture) ;
 --   facture : une 2e facture du meme OR est refusee, la validation passe l'OR « facture »
 --   dans la meme transaction, OR facture fige.
--- Le meme scenario tourne en local sur PGlite (tables simplifiees) : 28 / 28 ok le 18/11/2026.
+-- Le meme scenario tourne en local sur PGlite (tables simplifiees, + garantie couverte / refus total et
+-- la fonction repair_order_write_lines du lot garantie 20261118130000) : 33 / 33 ok le 18/11/2026.
+-- Ordre d application : 20261118110000 puis 20261118130000 (qui reprend aussi le temps MO).
 -- Chaque ligne du resultat doit valoir « ok ».
 -- =====================================================================
 create temp table _t(n serial, check_name text, result text) on commit drop;

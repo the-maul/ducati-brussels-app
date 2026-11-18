@@ -63,11 +63,25 @@ type MoLike = {
   internal_hours?: number | string | null; warranty_hours?: number | string | null;
 };
 
-/** Quantite facturee d'une ligne : MO = heures facturees (la quantite les porte), autres = quantite. */
+/**
+ * Quantite facturee d'une ligne : MO = heures facturees (la quantite les porte), autres = quantite.
+ * `is_warranty` = ligne COUVERTE par la garantie (0 € pour le client) : sa quantite porte ses
+ * heures garanties, elle est reprise telle quelle.
+ */
 export function invoiceQuantity(l: MoLike): number {
-  if (l.kind !== 'mo') return h0(l.quantity);
+  if (l.kind !== 'mo' || l.is_warranty) return h0(l.quantity);
   const billed = hoursOrNull(l.billed_hours);
   return billed ?? h0(l.quantity);
+}
+
+/**
+ * Quantite d'une ligne MO apres saisie du temps : les heures facturees ; ligne couverte par la
+ * garantie : ses heures garanties (prix 0 pour le client, cout de garantie = heures x taux MO
+ * garantie). Meme regle que `repair_order_time_control` (migration 20261118110000).
+ */
+export function moQuantity(t: { billed: number | null | undefined; warranty: number | null | undefined }, covered: boolean): number {
+  const warranty = h0(t.warranty);
+  return covered && warranty > 0 ? warranty : h0(t.billed);
 }
 
 /**

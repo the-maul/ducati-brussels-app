@@ -6,7 +6,7 @@
  */
 import { test, expect, describe } from 'bun:test';
 import {
-  applyTimeWindow, invoiceQuantity, lineHours, controlRows, normalizeControlRow, controlLineHt, reconcile,
+  applyTimeWindow, invoiceQuantity, moQuantity, lineHours, controlRows, normalizeControlRow, controlLineHt, reconcile,
   summarizeProductivity, productivityTotal, productivitySheet, isoWeek, periodKey, mechanicBoard,
   findMechanicByCode, findOrByScan, hoursOrNull, PRODUCTIVITY_COLUMNS, type ProductivityRow,
 } from '../src/modules/workshop/labour-time/rules';
@@ -42,6 +42,15 @@ describe('Quantite facturee de la main-d\'oeuvre = heures facturees', () => {
   });
   test('piece : la quantite, jamais les heures', () => {
     expect(invoiceQuantity({ kind: 'piece', quantity: 3, billed_hours: 9 })).toBe(3);
+  });
+  test('ligne MO couverte par la garantie : sa quantite (heures garanties, prix 0)', () => {
+    expect(invoiceQuantity({ kind: 'mo', quantity: 2, is_warranty: true, billed_hours: 0 })).toBe(2);
+  });
+  test('quantite apres saisie : heures facturees ; couverte par la garantie : heures garanties', () => {
+    expect(moQuantity({ billed: 1.5, warranty: 0 }, false)).toBe(1.5);
+    expect(moQuantity({ billed: 0, warranty: 2 }, true)).toBe(2);
+    expect(moQuantity({ billed: 0, warranty: 2 }, false)).toBe(0); // garanties sur une ligne non couverte : suivies, pas facturees
+    expect(moQuantity({ billed: 1, warranty: 0 }, true)).toBe(1);
   });
 });
 

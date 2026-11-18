@@ -6,7 +6,9 @@
 --  1. « Gestion du temps atelier » par ligne de main-d'oeuvre (G8) : mecanicien (code + nom),
 --     heures facturees, heures passees, heures internes, heures garanties, date des travaux.
 --     Regle : sur une ligne MO, la quantite EST le nombre d'heures facturees ; `billed_hours` non
---     vide = temps saisi / controle (il suit la quantite).
+--     vide = temps saisi / controle (il suit la quantite). Ligne couverte par la garantie (prix 0
+--     pour le client, lot garantie 20261118130000) : sa quantite = ses heures garanties (le cout de
+--     garantie = heures x taux MO garantie).
 --  2. Lignes reecrites en une transaction (`repair_order_write_lines`) : les nouvelles colonnes
 --     sont reprises du message ; une ligne du check-up qui ne les envoie pas garde celles de
 --     l'ancienne ligne de meme `checkup_key`.
@@ -111,10 +113,13 @@ begin
          case when x.kind = 'mo' then case when x.l ? 'mechanic_code' then nullif(x.l->>'mechanic_code', '') else o.mechanic_code end end,
          case when x.kind = 'mo' then case when x.l ? 'mechanic_name' then nullif(x.l->>'mechanic_name', '') else o.mechanic_name end end,
          case when x.kind = 'mo' then case when x.l ? 'work_date' then nullif(x.l->>'work_date', '')::date else o.work_date end end,
-         -- Heures facturees = la quantite de la ligne MO, des que le temps a ete saisi.
+         -- Heures facturees = la quantite de la ligne MO, des que le temps a ete saisi (ligne en
+         -- garantie : sa quantite porte les heures garanties, les heures facturees restent telles quelles).
          case when x.kind = 'mo'
                and (case when x.l ? 'billed_hours' then nullif(x.l->>'billed_hours', '')::numeric else o.billed_hours end) is not null
-              then x.quantity end,
+              then case when x.is_warranty
+                        then (case when x.l ? 'billed_hours' then nullif(x.l->>'billed_hours', '')::numeric else o.billed_hours end)
+                        else x.quantity end end,
          case when x.kind = 'mo' then case when x.l ? 'worked_hours' then nullif(x.l->>'worked_hours', '')::numeric else o.worked_hours end end,
          case when x.kind = 'mo' then case when x.l ? 'internal_hours' then nullif(x.l->>'internal_hours', '')::numeric else o.internal_hours end end,
          case when x.kind = 'mo' then case when x.l ? 'warranty_hours' then nullif(x.l->>'warranty_hours', '')::numeric else o.warranty_hours end end
@@ -163,7 +168,8 @@ declare
   r public.repair_orders%rowtype;
   e jsonb;
   n integer := 0;
-  _billed numeric; _internal numeric; _warranty numeric; _worked numeric;
+  _billed numeric; _internal numeric; _warranty numeric; _worked numeric; _qty numeric;
+  _covered boolean;
   _ht numeric; _ttc numeric;
 begin
   select * into r from public.repair_orders where id = _or for update;
@@ -183,6 +189,13 @@ begin
     _internal := greatest(coalesce(nullif(e->>'internal_hours', '')::numeric, 0), 0);
     _warranty := greatest(coalesce(nullif(e->>'warranty_hours', '')::numeric, 0), 0);
     if _internal > 0 or _warranty > 0 then _billed := 0; end if;
+    -- Ligne couverte par la garantie (meme regle que src/modules/workshop/warranty/rules.ts) :
+    -- 0 pour le client, sa quantite = ses heures garanties.
+    select (l.is_warranty and coalesce(r.warranty_status, '') <> 'refus_total' and not (coalesce(r.warranty_status, '') = 'refus_partiel' and coalesce(to_jsonb(l)->>'warranty_decision', '') = 'refuse')) into _covered
+      from public.repair_order_lines l
+     where l.id = nullif(e->>'id', '')::uuid and l.or_id = _or and l.kind = 'mo';
+    if not found then continue; end if;
+    _qty := round(case when _covered and _warranty > 0 then _warranty else _billed end, 2);
     update public.repair_order_lines l
        set mechanic_code  = nullif(btrim(coalesce(e->>'mechanic_code', '')), ''),
            mechanic_name  = nullif(btrim(coalesce(e->>'mechanic_name', '')), ''),
@@ -191,9 +204,9 @@ begin
            worked_hours   = round(_worked, 2),
            internal_hours = round(_internal, 2),
            warranty_hours = round(_warranty, 2),
-           quantity       = round(_billed, 2),
-           line_ht        = round(round(_billed, 2) * (case when l.is_warranty then 0 else l.unit_price_ht end) * (1 - coalesce(l.discount_pct, 0) / 100), 2),
-           line_ttc       = round(round(round(_billed, 2) * (case when l.is_warranty then 0 else l.unit_price_ht end) * (1 - coalesce(l.discount_pct, 0) / 100), 2) * (1 + coalesce(l.vat_rate, 0) / 100), 2)
+           quantity       = _qty,
+           line_ht        = round(_qty * (case when _covered then 0 else l.unit_price_ht end) * (1 - coalesce(l.discount_pct, 0) / 100), 2),
+           line_ttc       = round(round(_qty * (case when _covered then 0 else l.unit_price_ht end) * (1 - coalesce(l.discount_pct, 0) / 100), 2) * (1 + coalesce(l.vat_rate, 0) / 100), 2)
      where l.id = nullif(e->>'id', '')::uuid and l.or_id = _or and l.kind = 'mo';
     if found then n := n + 1; end if;
   end loop;
@@ -363,13 +376,17 @@ as $$
            coalesce(nullif(btrim(l.mechanic_code), ''), nullif(btrim(l.mechanic_name), ''), '') as mkey,
            l.mechanic_name as mname,
            o.status = 'facture' as invoiced,
-           case when l.is_warranty then 0 else greatest(coalesce(l.quantity, 0), 0) end as billed,
+           -- Ligne couverte par la garantie (refus total / ligne refusee = facturee au client).
+           case when x_cov.covered then 0 else greatest(coalesce(l.quantity, 0), 0) end as billed,
            coalesce(l.internal_hours, 0) as internal,
-           coalesce(l.warranty_hours, case when l.is_warranty then greatest(coalesce(l.quantity, 0), 0) else 0 end) as warranty,
+           coalesce(l.warranty_hours, case when x_cov.covered then greatest(coalesce(l.quantity, 0), 0) else 0 end) as warranty,
            coalesce(l.worked_hours, 0) as worked
       from public.repair_order_lines l
       join public.repair_orders o on o.id = l.or_id
       left join public.documents d on d.id = o.invoice_document_id
+      cross join lateral (select (l.is_warranty and coalesce(o.warranty_status, '') <> 'refus_total'
+                                  and not (coalesce(o.warranty_status, '') = 'refus_partiel'
+                                           and coalesce(to_jsonb(l)->>'warranty_decision', '') = 'refuse')) as covered) x_cov
      where o.company_id = _company and public.is_member(_company)
        and o.status <> 'annule' and l.kind = 'mo'
        and coalesce(to_jsonb(l)->>'checkup_state', '') not in ('ok', 'reporte')

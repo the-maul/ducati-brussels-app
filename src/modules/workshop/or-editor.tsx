@@ -67,7 +67,7 @@ import { t, fillVars } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { LabourTimeDialog } from './labour-time/time-dialog';
 import { labourTimeSchemaReady, listMechanics } from './labour-time/api';
-import { EMPTY_LABOUR_TIME, type LabourTime } from './labour-time/rules';
+import { EMPTY_LABOUR_TIME, moQuantity, type LabourTime } from './labour-time/rules';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { orBaseSchemaReady, vehicleMileageReadings } from './or-base/api';
@@ -333,8 +333,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   };
   const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
     ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
-  // MO : la quantité est le nombre d'heures facturées (le temps saisi la suit).
-  const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null ? { quantity: q, billed_hours: q } : { quantity: q });
+  // MO : la quantité est le nombre d'heures facturées (le temps saisi la suit) ; ligne couverte par
+  // la garantie : sa quantité porte les heures garanties.
+  const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null && !lineCoveredByWarranty(l, warrantyStatus) ? { quantity: q, billed_hours: q } : { quantity: q });
   const timeLine = timeKey ? lines.find((l) => l._key === timeKey) ?? null : null;
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
@@ -591,7 +592,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           designation={timeLine.designation} quantity={timeLine.quantity} mechanics={mechanicsQ.data ?? []}
           initial={{ ...EMPTY_LABOUR_TIME, ...lineTimeOf(timeLine) }}
           onClose={() => setTimeKey(null)}
-          onSave={(time) => { setLine(timeLine._key, { ...time, quantity: time.billed_hours ?? timeLine.quantity }); setTimeKey(null); }}
+          onSave={(time) => {
+            const qty = moQuantity({ billed: time.billed_hours, warranty: time.warranty_hours }, lineCoveredByWarranty(timeLine, warrantyStatus));
+            setLine(timeLine._key, { ...time, quantity: qty }); setTimeKey(null);
+          }}
         />
       )}
 
