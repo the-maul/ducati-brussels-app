@@ -32,6 +32,9 @@ import { createProposalFromOr, getProposalSignToken, listDeferredToPlan, proposa
 import { approvalState, canStartWork } from '@/modules/workshop/checkup/rules';
 import { ApprovalPanel, VerbalApprovalDialog } from '@/modules/workshop/checkup/approval-panel';
 import { DeferredDateDialog } from '@/modules/workshop/checkup/deferred';
+import { TimeControlDialog } from '@/modules/workshop/labour-time/time-control-dialog';
+import { labourTimeSchemaReady, saveTimeControl } from '@/modules/workshop/labour-time/api';
+import type { ControlLineSource, ControlRow } from '@/modules/workshop/labour-time/rules';
 import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getDocumentFull, type DocumentFull } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
@@ -64,6 +67,9 @@ function OrView() {
   // Rattrapage G8 (18/11) : impression OR / fiche de travail, message « moto prete ».
   const [printOpen, setPrintOpen] = useState(false);
   const [readyOpen, setReadyOpen] = useState(false);
+  // « Contrôle du temps atelier » avant la facture (rattrapage G8, 18/11/2026).
+  const [controlOpen, setControlOpen] = useState(false);
+  const labourSchema = useQuery({ queryKey: ['labour-time-schema'], queryFn: labourTimeSchemaReady, staleTime: Infinity });
   // Popup « pieces d'entretien manquantes » (mission 09, carte 3) : une fois par ouverture d'ecran,
   // seulement pour un OR a motif entretien ; la memoire sur l'OR evite de redemander les memes pieces.
   const [partsPopupDone, setPartsPopupDone] = useState(false);
@@ -172,17 +178,25 @@ function OrView() {
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
 
-  // Facturation : d'abord la date des interventions reportées de la moto (s'il y en a), puis la facture.
+  // Facturation : d'abord la date des interventions reportées de la moto (s'il y en a), puis le
+  // contrôle du temps atelier (lignes MO), puis la facture.
   const invoiceNow = useMutation({
     mutationFn: () => transformToInvoice(orId),
     onSuccess: (docId) => navigate({ to: '/sales/$documentId', params: { documentId: docId } }),
     onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
   });
+  const hasMoLines = (data?.lines ?? []).some((l) => l.kind === 'mo');
+  const afterDeferred = () => { if (labourSchema.data === true && hasMoLines) setControlOpen(true); else invoiceNow.mutate(); };
+  const controlAndInvoice = useMutation({
+    mutationFn: async (rows: ControlRow[]) => { await saveTimeControl(orId, rows); return transformToInvoice(orId); },
+    onSuccess: (docId) => { setControlOpen(false); refresh(); navigate({ to: '/sales/$documentId', params: { documentId: docId } }); },
+    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
   const toInvoice = useMutation({
     mutationFn: async () => (data?.or.vehicle_id ? listDeferredToPlan(data.or.vehicle_id) : []),
     meta: { success: false, error: false },
-    onSuccess: (deferred) => { if (deferred.length) setDeferredStep(deferred); else invoiceNow.mutate(); },
-    onError: () => invoiceNow.mutate(),
+    onSuccess: (deferred) => { if (deferred.length) setDeferredStep(deferred); else afterDeferred(); },
+    onError: () => afterDeferred(),
   });
   // Mission 07 carte 2 : la liste de préparation reprend le kit d'entretien de l'échéance
   // en cours (parcours technicien) + les pièces ajoutées par le technicien sur l'OR.
@@ -248,7 +262,7 @@ function OrView() {
               <Button variant="outline" onClick={() => setReadyOpen(true)}><BellRing /> {t('orBase.notifyReady')}</Button>
             )}
             {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
-            {!invoiced && <Button onClick={() => { setError(null); toInvoice.mutate(); }} disabled={toInvoice.isPending || invoiceNow.isPending || pending}>{toInvoice.isPending || invoiceNow.isPending ? <Loader2 className="animate-spin" /> : <FileText />} {t('workshop.toInvoice')}</Button>}
+            {!invoiced && <Button onClick={() => { setError(null); toInvoice.mutate(); }} disabled={toInvoice.isPending || invoiceNow.isPending || controlAndInvoice.isPending || pending}>{toInvoice.isPending || invoiceNow.isPending || controlAndInvoice.isPending ? <Loader2 className="animate-spin" /> : <FileText />} {t('workshop.toInvoice')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
             {!invoiced && (
               <Button variant="outline" onClick={() => { setError(null); repairQuote.mutate(); }} disabled={repairQuote.isPending} title={t('parcG8.repairQuoteHint')}>
@@ -374,8 +388,17 @@ function OrView() {
       {deferredStep && (
         <DeferredDateDialog
           items={deferredStep}
-          onDone={() => { setDeferredStep(null); invoiceNow.mutate(); }}
+          onDone={() => { setDeferredStep(null); afterDeferred(); }}
           onCancel={() => setDeferredStep(null)}
+        />
+      )}
+      {controlOpen && (
+        <TimeControlDialog
+          companyId={activeCompanyId!} orId={orId} orNumber={or.number}
+          lines={data.lines as unknown as ControlLineSource[]}
+          busy={controlAndInvoice.isPending} error={controlAndInvoice.isPending ? null : error}
+          onConfirm={(rows) => { setError(null); controlAndInvoice.mutate(rows); }}
+          onCancel={() => setControlOpen(false)}
         />
       )}
     </>

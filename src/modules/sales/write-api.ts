@@ -331,6 +331,11 @@ export async function createDocument(p: {
   cashSessionId?: string | null;
   /** Type du document d'origine (avoir d'un ticket sans client). */
   sourceDocType?: string | null;
+  /**
+   * Facture d'un OR (M8, rattrapage G8 du 18/11/2026) : la facture porte l'OR. En base
+   * (migration 20261118110000), une seule facture par OR et l'OR passe « facturé » à la validation.
+   */
+  repairOrderId?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
 
@@ -364,10 +369,17 @@ export async function createDocument(p: {
     ...(p.cashSessionId ? { cash_session_id: p.cashSessionId } : {}),
     ...headerColumns({ ...p, pied, marginPurchasePrice: mpp }),
   };
-  let { data: doc, error } = await supabase.from('documents').insert(header).select('id').single();
+  // Facture d'un OR : colonne `repair_order_id` (hors types.ts), ajoutée hors typage.
+  const withRo = (h: typeof header): typeof header => (p.repairOrderId ? ({ ...h, repair_order_id: p.repairOrderId } as typeof header) : h);
+  let { data: doc, error } = await supabase.from('documents').insert(withRo(header)).select('id').single();
   // Migration 20261103160000 pas encore posée : en-tête sans les colonnes du régime (les lignes
   // partent quand même à 0 % et le PDF retrouve la marge par l'article O).
-  if (isMissingMargeColumn(error)) ({ data: doc, error } = await supabase.from('documents').insert(stripMargeColumns(header)).select('id').single());
+  if (isMissingMargeColumn(error)) ({ data: doc, error } = await supabase.from('documents').insert(withRo(stripMargeColumns(header))).select('id').single());
+  // Colonne `repair_order_id` absente (base sans la migration du check-up) : facture sans le lien.
+  if (p.repairOrderId && isMissingRepairOrderColumn(error)) {
+    ({ data: doc, error } = await supabase.from('documents').insert(header).select('id').single());
+    if (isMissingMargeColumn(error)) ({ data: doc, error } = await supabase.from('documents').insert(stripMargeColumns(header)).select('id').single());
+  }
   if (error || !doc) throw error;
   const docId = doc.id as string;
   // En-tête posé mais suite refusée : on retire le brouillon orphelin avant de remonter l'erreur.
@@ -401,6 +413,10 @@ export async function createDocument(p: {
   await recordSaleStockMoves(p.docType, p.lines, number);
   return docId;
 }
+
+/** Colonne `documents.repair_order_id` inconnue de la base (PGRST204 / 42703). */
+const isMissingRepairOrderColumn = (e: { code?: string; message?: string } | null | undefined): boolean =>
+  !!e && (e.code === 'PGRST204' || e.code === '42703') && /repair_order_id/.test(e.message ?? '');
 
 /**
  * Objet de base absent (colonne, fonction RPC) : migration pas encore appliquée. PGRST204 / 42703

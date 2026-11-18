@@ -9,6 +9,10 @@
  * prix de ligne tiré de l'article (HT déduit du TTC, TVA de l'article, remise client), main-d'oeuvre
  * au taux horaire de l'atelier. Règles pures : `or-page-rules.ts`, `sales/article-price.ts`.
  *
+ * Depuis le 18/11 (rattrapage G8, temps MO) : sur une ligne main-d'oeuvre, l'horloge ouvre la
+ * fenêtre « Gestion du temps atelier » (mécanicien, heures facturées = quantité, passées,
+ * internes, garanties, date des travaux), active quand la migration 20261118110000 est en base.
+ *
  * Depuis le 31/10 (ATE008 / ATE009) : onglet « Check-up » pensé tablette — une carte par action
  * (état, photo, temps, pièces, prix) — dont les cartes sont des lignes de l'OR réunies par
  * `checkup_key` (règles pures : `checkup/rules.ts`). Un seul état de lignes : les lignes
@@ -22,7 +26,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock } from 'lucide-react';
 import { KitInsertDialog } from './kits/kit-insert-dialog';
 import { toRoLine, type InsertLine } from './kits/insert-rules';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -61,6 +65,9 @@ import {
 } from './warranty/rules';
 import { t, fillVars } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
+import { LabourTimeDialog } from './labour-time/time-dialog';
+import { labourTimeSchemaReady, listMechanics } from './labour-time/api';
+import { EMPTY_LABOUR_TIME, type LabourTime } from './labour-time/rules';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { orBaseSchemaReady, vehicleMileageReadings } from './or-base/api';
@@ -173,13 +180,22 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   // OR garantie (rattrapage G8) : type de cession et commentaire de la demande (migration 20261118130000).
   const [cessionCode, setCessionCode] = useState<string>((ox?.warranty_cession_code as string | null) ?? '');
   const [warrantyNote, setWarrantyNote] = useState<string>((ox?.warranty_note as string | null) ?? '');
-  const initialLines = useMemo(() => (initial?.lines ?? []) as (RepairOrderFull['lines'][number] & { checkup_key?: string | null; checkup_state?: string | null; photo_path?: string | null; proposal_line_id?: string | null; warranty_decision?: string | null })[], [initial]);
+  const initialLines = useMemo(() => (initial?.lines ?? []) as (RepairOrderFull['lines'][number] & { checkup_key?: string | null; checkup_state?: string | null; photo_path?: string | null; proposal_line_id?: string | null; warranty_decision?: string | null } & Partial<LabourTime>)[], [initial]);
   const [lines, setLines] = useState<EditLine[]>(() => {
     const classic = nonCheckupLines(initialLines);
     return classic.length
-      ? classic.map((l) => ({ _key: `ro${counter++}`, kind: l.kind as RoLineInput['kind'], article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity), unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct), is_warranty: l.is_warranty, warranty_decision: isLineDecision(l.warranty_decision) ? l.warranty_decision : null }))
+      ? classic.map((l) => ({
+        _key: `ro${counter++}`, kind: l.kind as RoLineInput['kind'], article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity), unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct), is_warranty: l.is_warranty, warranty_decision: isLineDecision(l.warranty_decision) ? l.warranty_decision : null,
+        // Temps MO (migration 20261118110000) : repris tel quel, renvoyé à l'enregistrement.
+        ...(l.kind === 'mo' ? lineTimeOf(l) : {}),
+      }))
       : [blankLine()];
   });
+  // Fenêtre « Gestion du temps atelier » (ligne MO) et codes mécano (Paramètres → Tables).
+  const [timeKey, setTimeKey] = useState<string | null>(null);
+  const labourQ = useQuery({ queryKey: ['labour-time-schema'], queryFn: labourTimeSchemaReady, staleTime: Infinity });
+  const mechanicsQ = useQuery({ queryKey: ['workshop-mechanics', companyId], queryFn: () => listMechanics(companyId), staleTime: 300_000, enabled: labourQ.data === true });
+  const timeReady = labourQ.data === true;
   const [cards, setCards] = useState<CheckupCard[]>(() => linesToCards(initialLines));
   const [tab, setTab] = useState<'fiche' | 'checkup'>(() => (cards.length > 0 ? 'checkup' : 'fiche'));
 
@@ -317,6 +333,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   };
   const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
     ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
+  // MO : la quantité est le nombre d'heures facturées (le temps saisi la suit).
+  const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null ? { quantity: q, billed_hours: q } : { quantity: q });
+  const timeLine = timeKey ? lines.find((l) => l._key === timeKey) ?? null : null;
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
   const cardLines = cardsToLines(cards.filter((c) => c.label.trim() || c.parts.length), rate);
@@ -496,7 +515,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             <Th className="w-28">{t('workshop.colKind')}</Th><Th>{t('workshop.colDesignation')}</Th>
             <Th className="w-20 text-right">{t('workshop.colQty')}</Th><Th className="w-28 text-right">{t('workshop.colPuHt')}</Th>
             <Th className="w-20 text-right">{t('workshop.colVat')}</Th><Th className="w-20 text-right">{t('workshop.colDiscount')}</Th>
-            <Th className="w-24 text-right">{t('workshop.colLineHt')}</Th><Th className="w-20 text-center">{t('workshop.warrantyLine')}</Th><Th className="w-10" />
+            <Th className="w-24 text-right">{t('workshop.colLineHt')}</Th><Th className="w-20 text-center">{t('workshop.warrantyLine')}</Th><Th className="w-20" />
           </tr></thead>
           <tbody>
             {lines.map((l) => {
@@ -518,8 +537,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                     {l.article_id || l.kind !== 'piece'
                       ? <Input value={l.designation} onChange={(e) => setLine(l._key, { designation: e.target.value })} className="h-8" />
                       : <ArticlePicker companyId={companyId} value={l.designation} onText={(v) => setLine(l._key, { designation: v })} onPick={(a) => pickLineArticle(l._key, a)} />}
+                    {l.kind === 'mo' && timeSummary(l) && <p className="mt-0.5 font-data text-[12px] tabular-nums text-muted-foreground">{timeSummary(l)}</p>}
                   </td>
-                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setQuantity(l, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={covered} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
@@ -540,7 +560,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                       </Select>
                     )}
                   </td>
-                  <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
+                  <td className="px-2 py-1 text-center whitespace-nowrap">
+                    {l.kind === 'mo' && timeReady && (
+                      <Button size="sm" variant="ghost" onClick={() => setTimeKey(l._key)} title={t('labourTime.windowTitle')} aria-label={t('labourTime.windowTitle')}><Clock className="size-4" /></Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button>
+                  </td>
                 </tr>
               );
             })}
@@ -560,6 +585,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           {wSummary.rerouted > 0 && <span className="text-warning"> · {t('warranty.summaryRerouted').replace('{n}', String(wSummary.rerouted))}</span>}
           {warrantyStatus === 'refus_partiel' && <p className="mt-1 font-ui text-[12px] text-muted-foreground">{t('warranty.partialHint')}</p>}
         </div>
+      )}
+      {timeLine && (
+        <LabourTimeDialog
+          designation={timeLine.designation} quantity={timeLine.quantity} mechanics={mechanicsQ.data ?? []}
+          initial={{ ...EMPTY_LABOUR_TIME, ...lineTimeOf(timeLine) }}
+          onClose={() => setTimeKey(null)}
+          onSave={(time) => { setLine(timeLine._key, { ...time, quantity: time.billed_hours ?? timeLine.quantity }); setTimeKey(null); }}
+        />
       )}
 
       <div className="flex items-center justify-between">
@@ -641,6 +674,30 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       {overlays}
     </div>
   );
+}
+
+/** Temps MO d'une ligne (colonnes de la migration 20261118110000), sans les clés absentes. */
+function lineTimeOf(l: Partial<LabourTime>): Partial<LabourTime> {
+  const out: Record<string, unknown> = {};
+  const keys = ['mechanic_code', 'mechanic_name', 'work_date', 'billed_hours', 'worked_hours', 'internal_hours', 'warranty_hours'] as const;
+  for (const k of keys) {
+    const v = l[k];
+    if (v === undefined) continue;
+    out[k] = v !== null && k.endsWith('_hours') ? Number(v) : v;
+  }
+  return out as Partial<LabourTime>;
+}
+
+/** Résumé du temps saisi sous la désignation d'une ligne MO (« John · 1,5 h fact. · 2 h passées »). */
+function timeSummary(l: Partial<LabourTime>): string {
+  const h = (n: number | null | undefined) => String(Math.round(Number(n) * 100) / 100).replace('.', ',');
+  const parts: string[] = [];
+  if (l.mechanic_name || l.mechanic_code) parts.push(l.mechanic_name || l.mechanic_code || '');
+  if (l.billed_hours != null) parts.push(`${h(l.billed_hours)} h ${t('labourTime.shortBilled')}`);
+  if (l.worked_hours != null) parts.push(`${h(l.worked_hours)} h ${t('labourTime.shortWorked')}`);
+  if (l.internal_hours) parts.push(`${h(l.internal_hours)} h ${t('labourTime.shortInternal')}`);
+  if (l.warranty_hours) parts.push(`${h(l.warranty_hours)} h ${t('labourTime.shortWarranty')}`);
+  return parts.join(' · ');
 }
 
 function Picked({ label, onClear }: { label: string; onClear: () => void }) {

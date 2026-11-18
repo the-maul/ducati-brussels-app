@@ -16,6 +16,7 @@ import { invoiceableRoLines } from './checkup/rules';
 import { operatorIdSchemaReady } from './or-page-api';
 import { clientUnitPrice, lineCoveredByWarranty, lineDecisionToSave } from './warranty/rules';
 import { orBaseSchemaReady } from './or-base/api';
+import { invoiceQuantity } from './labour-time/rules';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -33,7 +34,28 @@ export type RoLineInput = {
   proposal_line_id?: string | null;
   /** Refus partiel (migration 20261118130000) : accepte / refuse (re-routee vers le client). */
   warranty_decision?: string | null;
+  /**
+   * « Gestion du temps atelier » d'une ligne MO (migration 20261118110000, rattrapage G8) :
+   * mécanicien, date des travaux, heures facturées (= la quantité), passées, internes, garanties.
+   * undefined = la ligne ne les porte pas (carte du check-up : la base garde les anciennes valeurs).
+   */
+  mechanic_code?: string | null;
+  mechanic_name?: string | null;
+  work_date?: string | null;
+  billed_hours?: number | null;
+  worked_hours?: number | null;
+  internal_hours?: number | null;
+  warranty_hours?: number | null;
 };
+
+/** Colonnes du temps MO, envoyées seulement quand la ligne les porte (clé présente). */
+const TIME_KEYS = ['mechanic_code', 'mechanic_name', 'work_date', 'billed_hours', 'worked_hours', 'internal_hours', 'warranty_hours'] as const;
+function timeColumns(l: RoLineInput): Record<string, unknown> {
+  if (l.kind !== 'mo') return {};
+  const out: Record<string, unknown> = {};
+  for (const k of TIME_KEYS) if (l[k] !== undefined) out[k] = l[k];
+  return out;
+}
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -157,6 +179,7 @@ async function writeLines(orId: string, lines: RoLineInput[], warrantyStatus?: s
       photo_path: l.photo_path ?? null, proposal_line_id: l.proposal_line_id ?? null,
       // Ignoree par la fonction tant que la migration 20261118130000 n'est pas posee.
       warranty_decision: lineDecisionToSave(l),
+      ...timeColumns(l),
     };
   });
   const { error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>)(
@@ -225,26 +248,54 @@ export async function setWarrantyStatus(orId: string, warranty_status: string): 
 }
 
 /**
+ * Facture d'OR déjà en base (lien `documents.repair_order_id`) : une facture validée bloque, un
+ * brouillon orphelin (navigateur fermé entre l'en-tête et la validation) est retiré.
+ * Renvoie l'id de la facture validée existante, sinon null. Sans la colonne : null (ancien chemin).
+ */
+async function existingOrInvoice(orId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('documents').select('id, status')
+    .eq('repair_order_id' as never, orId as never).eq('doc_type', 'FAC').neq('status', 'annulee');
+  if (error) return null;
+  const rows = (data ?? []) as { id: string; status: string }[];
+  const done = rows.find((d) => d.status !== 'brouillon');
+  if (done) return done.id;
+  for (const d of rows) await supabase.from('documents').delete().eq('id', d.id).eq('status', 'brouillon');
+  return null;
+}
+
+/**
  * Transforme un OR en facture (M6). Bloqué si la garantie est en attente de décision (B10).
  * Les pièces en garantie passent à prix 0 (cession garantie) ; la facture débite le stock réel.
  * Check-up : les actions « OK » et « reportées » (décochées par le client) ne sont jamais
  * facturées ; une carte sans main-d'oeuvre devient une ligne texte.
+ *
+ * Rattrapage G8 (18/11/2026) : la quantité facturée de la MO = les heures facturées du
+ * « Contrôle du temps atelier ». Facture UNIQUE : la facture porte `repair_order_id` ; en base
+ * (migration 20261118110000) un index unique + une garde avec verrou refusent une 2e facture, et
+ * la validation de la facture passe l'OR « facturé » dans la même transaction. La mise à jour
+ * finale de l'OR reste (idempotente) pour le fonctionnement avant la migration.
  */
 export async function transformToInvoice(orId: string): Promise<string> {
   const { data: or, error: oe } = await supabase.from('repair_orders').select('*').eq('id', orId).single();
   if (oe) throw oe;
   if (or.warranty_status === 'en_attente') throw new Error('Garantie en attente : décision requise avant facturation (B10)');
   if (or.status === 'facture') throw new Error('OR déjà facturé');
+  const already = await existingOrInvoice(orId);
+  if (already) {
+    await supabase.from('repair_orders').update({ status: 'facture', invoice_document_id: already }).eq('id', orId);
+    throw new Error('OR déjà facturé');
+  }
   const { data: lines, error: le } = await supabase.from('repair_order_lines').select('*').eq('or_id', orId).order('sort_order');
   if (le) throw le;
 
   // Garantie (B10) : ligne couverte a 0 ; refus total ou ligne refusee en refus partiel =
   // re-routee vers le client, facturee a son prix. L'imputation (couts figes, suivi des retours
   // fournisseur) se fait en base au passage « facture » (declencheur, migration 20261118130000).
-  type RoRow = NonNullable<typeof lines>[number] & { checkup_state?: string | null; warranty_decision?: string | null };
+  // Temps MO (18/11, rattrapage G8) : quantite facturee de la MO = heures facturees du controle.
+  type RoRow = NonNullable<typeof lines>[number] & { checkup_state?: string | null; warranty_decision?: string | null; billed_hours?: number | null };
   const lineInputs: LineInput[] = invoiceableRoLines((lines ?? []) as RoRow[]).map((l) => ({
     article_id: l.as_text ? null : l.article_id, designation: l.designation,
-    quantity: l.as_text ? 0 : Number(l.quantity),
+    quantity: l.as_text ? 0 : invoiceQuantity({ ...l, is_warranty: lineCoveredByWarranty(l, or.warranty_status) }),
     unit_price_ht: l.as_text ? 0 : clientUnitPrice({ ...l, unit_price_ht: Number(l.unit_price_ht) }, or.warranty_status), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
     line_type: l.as_text ? 'texte' : l.kind === 'mo' ? 'main_oeuvre' : 'article',
   }));
@@ -253,6 +304,7 @@ export async function transformToInvoice(orId: string): Promise<string> {
     companyId: or.company_id, docType: 'FAC', contactId: or.contact_id, vehicleId: or.vehicle_id,
     issueDate: new Date().toISOString().slice(0, 10), status: 'validee', notes: `OR ${or.number ?? ''}`.trim(),
     lines: lineInputs, pied: { priceMode: (or.price_mode as 'ht' | 'ttc') ?? 'ttc' },
+    repairOrderId: orId,
   });
 
   const { error: ue } = await supabase.from('repair_orders').update({ status: 'facture', invoice_document_id: docId }).eq('id', orId);
