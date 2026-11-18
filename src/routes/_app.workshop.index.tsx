@@ -64,6 +64,7 @@ function WorkshopList() {
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/maintenance-plans' })}><BookOpen /> {t('workshop.maintenancePlans')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/accidents' })}><LifeBuoy /> {t('accidentFile.title')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/cessions' })}><Wrench /> {t('cession.title')}</Button>
             {canWrite && (
               <Button onClick={() => navigate({ to: '/workshop/new', search: { contactId: undefined, vehicleId: undefined } })}><Plus /> {t('workshop.newOr')}</Button>
             )}

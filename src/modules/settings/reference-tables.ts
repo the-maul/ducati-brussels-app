@@ -75,8 +75,18 @@ export const REFERENCE_TABLES: RefTableDef[] = [
     ] },
   { key: 'color', label: 'Couleurs', group: 'article', extraColumns: [] },
   { key: 'size', label: 'Tailles', group: 'article', extraColumns: [] },
+  // G8 « Types de cessions » : comptabilisée (s'impute au coût de revient de la moto), compte, journal.
   { key: 'cession_type', label: 'Types de cession interne', group: 'vente',
-    extraColumns: [{ key: 'accounted', label: 'Comptabilisée', type: 'bool' }] },
+    extraColumns: [
+      { key: 'accounted', label: 'Comptabilisée', type: 'bool' },
+      { key: 'account', label: 'Compte de cession', type: 'text' },
+      { key: 'journal', label: 'Journal', type: 'text' },
+    ] },
+  // Cessions internes / O.R.O (rattrapage G8, 18/11/2026) : code = réglage, libellé = valeur. Codes lus :
+  // `cost_basis` (pamp | pa), `auto_archive_on_sale` (oui | non), `auto_open_on_reprise` (oui | non),
+  // `reprise_cession_type` (01), `internal_hourly_rate` (coût horaire interne). Aussi modifiables dans
+  // Stock → Cessions internes → Réglages.
+  { key: 'cession_settings', label: 'Cessions internes — réglages', group: 'atelier', extraColumns: [] },
   { key: 'product_category', label: 'Catégories produit fini', group: 'vehicule', extraColumns: [] },
   { key: 'country', label: 'Pays', group: 'autre',
     extraColumns: [{ key: 'default', label: 'Par défaut', type: 'bool' }] },

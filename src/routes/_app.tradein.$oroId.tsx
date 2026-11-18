@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Plus, Trash2, Lock, Printer, FileDown, Award, CheckCircle2, Check, Pencil, XCircle, FileUp, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getOroFull, repriseClientLabel } from '@/modules/tradein/api';
-import { addOroLine, deleteOroLine, closeOro, type OroLineInput } from '@/modules/tradein/write-api';
-import { searchPurchaseArticles, type PurchaseArticle } from '@/modules/purchases/api';
+import { deleteOroLine, closeOro } from '@/modules/tradein/write-api';
 import {
   listOffers, addOffer, deleteOffer, listPartners, partnersForBrand,
   needsFollowUp, buildDispatchMailto,
@@ -24,6 +23,7 @@ import { AcceptOfferDialog } from '@/modules/tradein/accept-offer-dialog';
 import { listAttachments, uploadAttachment, deleteAttachment, signedUrl, type Attachment } from '@/modules/documents/ged-api';
 import { RepriseEditDialog } from '@/modules/tradein/reprise-edit-dialog';
 import { ReprisePhotosPanel } from '@/modules/tradein/reprise-photos-panel';
+import { VehicleCessionsPanel } from '@/modules/tradein/cessions/vehicle-cessions-panel';
 import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 
@@ -46,23 +46,10 @@ function OroView() {
   const { data, isLoading } = useQuery({ queryKey: ['oro-full', oroId], queryFn: () => getOroFull(oroId) });
   const offersQ = useQuery({ queryKey: ['oro-offers', oroId], queryFn: () => listOffers(oroId) });
 
-  const [kind, setKind] = useState<'piece' | 'mo' | 'frais'>('piece');
-  const [designation, setDesignation] = useState('');
-  const [articleId, setArticleId] = useState<string | null>(null);
-  const [qty, setQty] = useState('1');
-  const [cost, setCost] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['oro-full', oroId] }); qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] }); };
 
-  const add = useMutation({
-    mutationFn: () => {
-      const l: OroLineInput = { kind, article_id: articleId, designation: designation || '—', quantity: num(qty), unit_cost: num(cost) };
-      return addOroLine(oroId, activeCompanyId!, l);
-    },
-    onSuccess: () => { setDesignation(''); setArticleId(null); setQty('1'); setCost(''); refresh(); },
-    onError: (e) => setError(e instanceof Error ? e.message : t('tradein.errSave')),
-  });
   const del = useMutation({ mutationFn: (id: string) => deleteOroLine(id, oroId), onSuccess: refresh });
   const close = useMutation({ mutationFn: () => closeOro(oroId), onSuccess: refresh });
 
@@ -86,8 +73,9 @@ function OroView() {
 
   const { oro, lines, vehicle, client } = data;
   const reprise = Number(vehicle?.purchase_price ?? 0);
-  const oroCost = Number(oro.total_cost);
-  const cost_revient = Number(vehicle?.cost_price ?? reprise + oroCost);
+  // Remise en etat = anciennes lignes d'ORO + cessions comptabilisees validees (cout de revient - reprise).
+  const cost_revient = Number(vehicle?.cost_price ?? reprise + Number(oro.total_cost));
+  const oroCost = vehicle?.cost_price != null ? Math.round((cost_revient - reprise) * 100) / 100 : Number(oro.total_cost);
   const resale = Number(vehicle?.display_price ?? 0);
   const margin = resale > 0 ? resale - cost_revient : 0;
   const open = oro.status === 'ouvert';
@@ -174,7 +162,15 @@ function OroView() {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border">
+      {/* Remise en etat : cessions internes / O.R.O en document (rattrapage G8, 18/11/2026). */}
+      {vehicle && (
+        <VehicleCessionsPanel companyId={activeCompanyId!} vehicleId={vehicle.id} vehicleLabel={[motoLabel, vehicle.vin].filter(Boolean).join(' · ')} canWrite={!readOnly} />
+      )}
+
+      {/* Anciennes lignes d'ORO (avant les cessions en document) : lecture, suppression tant que l'ORO est ouvert. */}
+      {lines.length > 0 && (
+      <div className="mt-4 overflow-hidden rounded-md border border-border">
+        <p className="bg-muted px-3 pt-2 text-[12px] text-muted-foreground">{t('cession.legacyLines')}</p>
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted"><tr><Th>{t('tradein.lineKind')}</Th><Th>{t('tradein.lineDesignation')}</Th><Th className="text-right">{t('tradein.lineQty')}</Th><Th className="text-right">{t('tradein.lineCost')}</Th><Th className="text-right">{t('tradein.lineTotal')}</Th><Th className="w-10" /></tr></thead>
           <tbody>
@@ -192,29 +188,11 @@ function OroView() {
           </tbody>
         </table>
       </div>
-
-      {open && (
-        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3">
-          <Field label={t('tradein.lineKind')}>
-            <Select value={kind} onValueChange={(v) => setKind(v as 'piece' | 'mo' | 'frais')}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="piece">{t('tradein.kind_piece')}</SelectItem><SelectItem value="mo">{t('tradein.kind_mo')}</SelectItem><SelectItem value="frais">{t('tradein.kind_frais')}</SelectItem></SelectContent>
-            </Select>
-          </Field>
-          <Field label={t('tradein.lineDesignation')}>
-            {kind === 'piece'
-              ? <ArticlePicker companyId={activeCompanyId!} value={designation} onText={(v) => { setDesignation(v); setArticleId(null); }} onPick={(a) => { setArticleId(a.id); setDesignation(`${a.reference} ${a.designation}`); setCost(String(a.purchase_price)); }} />
-              : <Input value={designation} onChange={(e) => setDesignation(e.target.value)} className="w-64" />}
-          </Field>
-          <Field label={t('tradein.lineQty')}><Input type="number" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} className="w-20 text-right tabular-nums" /></Field>
-          <Field label={t('tradein.lineCost')}><Input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} className="w-28 text-right tabular-nums" /></Field>
-          <Button onClick={() => add.mutate()} disabled={add.isPending}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('tradein.addLine')}</Button>
-        </div>
       )}
 
       {error && <p className="mt-2 rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
 
-      {open && (
+      {open && lines.length > 0 && (
         <div className="mt-4 flex justify-end">
           <Button variant="destructive" onClick={() => close.mutate()} disabled={close.isPending}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('tradein.closeOro')}</Button>
         </div>
@@ -428,26 +406,6 @@ function OffersPanel({ oroId, companyId, brand, motoTitle, followUp }: { oroId: 
           {add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('tradein.offerAdd')}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function ArticlePicker({ companyId, value, onText, onPick }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: PurchaseArticle) => void }) {
-  const [deb, setDeb] = useState('');
-  useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
-  const { data } = useQuery({ queryKey: ['oro-art', companyId, deb], queryFn: () => searchPurchaseArticles(companyId, deb), enabled: deb.length >= 2 });
-  return (
-    <div className="relative">
-      <Input value={value} onChange={(e) => onText(e.target.value)} placeholder={t('tradein.articlePlaceholder')} className="w-64" />
-      {data && data.length > 0 && deb.length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {data.map((a) => (
-            <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -143,6 +143,67 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 | Angle mort « ORO / imputation au coût de revient » | | ✅ fait | `addOroLine` + `recompute_oro_and_vehicle` |
 | Angle mort « cessions internes typées » | | ✅ fait | voir M05 |
 
+## Ajouté le 18/11 — rattrapage G8 : cessions internes / O.R.O en document
+
+> Lot `lot-g8-cessions`. Sources G8 : `docs/g8-inventaire/07-atelier.md` §10 et §15, `03-vehicules.md`
+> (reprise → cession automatique), `parcours.md` n° 10. Migration `20261118240000_m7_cessions_internes.sql`
+> (**non appliquée**), essai à blanc `supabase/tests/m7_cessions_internes.sql` (20 contrôles « ok »).
+
+**Décision de Simon (18/11/2026)** : le coût des pièces d'une remise en état / cession interne est
+**au PAMP par défaut** ; on peut choisir **le dernier prix d'achat** (réglage de la société et, sur chaque
+cession, la liste « Valorisation des pièces »). Dernier prix d'achat = coût unitaire de la dernière entrée
+valorisée du stock (réception), à défaut le PA de la fiche article. Repli : sans PAMP on prend le PA, et
+inversement.
+
+**Ce qui existe maintenant**
+
+| Écran | Ce qu'on y fait |
+|---|---|
+| Stock → Cessions internes (`/stock/cessions`, aussi bouton « Cessions internes / O.R.O » de l'Atelier) | Onglets **Documents** (en cours, validées, archivées, annulées ; recherche n° / client / châssis / plaque / référence ; type ; période), **Par rayon** (quantité, HT au PAMP, HT à la vente), **Détaillées** (référence, désignation, quantité, HT PAMP, HT vente, moto / client, châssis, type, n°), **Mouvements** (ancien journal des mouvements « cession »), **Réglages** ; export CSV ; **Nouvelle cession**. |
+| Document (`/stock/cessions?doc=<id>`) | Type de cession (comptabilisée ou non, compte, journal), opérateur (équipe), moto (n° de série, facultative), client = dernier propriétaire connu, valorisation PAMP / dernier PA, travaux, note interne ; lignes **pièce** (au PAMP ou PA, PV HT noté, TVA 0), **main-d'œuvre** (heures internes valorisées à l'article de MO ou au coût horaire interne, heures passées, mécanicien, bouton « Pointeuse »), **frais**, **texte** ; **pointer sur cette cession** (pointeuse) ; **Valider** → fenêtre **prix de revient** ; archiver / désarchiver ; annuler (ouverte seulement) ; **impression** cession + fiche de travail, en PAMP / prix de vente / prix d'achat, coordonnées de l'ancien propriétaire en option. |
+| Reprises → dossier (`/tradein/$oroId`) | Le formulaire de lignes d'ORO est remplacé par le panneau **Remise en état (cessions)** de la moto (liste, montant imputé, historique du coût de revient, nouvelle remise en état). Les anciennes lignes d'ORO restent affichées (et comptées) si elles existent. |
+| Paramètres → Tables | « Types de cession interne » : + **compte de cession** et **journal** ; nouvelle table « Cessions internes — réglages » (`cession_settings`). |
+
+**Règles**
+- **Coût de revient de la moto** = prix d'achat / reprise + anciennes lignes d'ORO + cessions **comptabilisées
+  validées** (total + options). Un seul calcul (`_vehicle_cost_recompute`), appelé à la validation d'une
+  cession, par `recompute_oro_and_vehicle`, et quand le prix d'achat change ou que la moto entre en stock
+  occasion. Chaque changement : une ligne **append-only** dans `vehicle_cost_changes` (ancien, delta, nouveau,
+  source) + un `events` « cout_de_revient ». Une cession **non comptabilisée** (ex. 03 besoin atelier) sort
+  le stock sans toucher au coût de revient.
+- **Fenêtre prix de revient** (miroir de G8) : prix brut (PV conseillé HT / TTC, prix d'achat, marge PA) ;
+  prix net = ancien prix de revient + cession actuelle + autres cessions + options = nouveau prix de revient ;
+  marge sur prix de revient (€ et % du PV HT) ; prix de vente client HT / TTC (simulé, il se modifie sur la
+  fiche moto). Règles pures : `src/modules/tradein/cessions/rules.ts` (`computeCostWindow`), tests
+  `tests/cessions-prix-de-revient.test.ts` (PAMP et PA, exemple G8 5 000 → 5 028,95).
+- **Validation** (`validate_internal_cession`) : revalorise les lignes d'article aux valeurs du jour, sort
+  du stock les pièces de type A (`record_stock_move`, type `cession`, origine `cession`, réf. = n°), fige
+  les totaux (coût, PAMP, PA, vente) et le document (plus aucune ligne ni changement de statut à la main).
+- **Automatismes** (réglages `cession_settings`) : à la validation d'une reprise (moto « Demande de
+  reprise » → stock occasion), une cession du type `reprise_cession_type` (01 Cession VO) s'ouvre d'office
+  (`auto_open_on_reprise`) ; à la vente de la moto (statut vendu / livré), ses cessions ouvertes et
+  validées passent en archives (`auto_archive_on_sale`), désarchivables. Un échec de l'ouverture
+  automatique ne bloque jamais la reprise (trace `events` « cession_auto_echec »).
+- **Numérotation** : séquence `ORO` (préfixe ORO-), commune à tous les types de cession (G8 : même
+  compteur que les OR).
+- **Pointeuse** : `workshop_time_entries.cession_id` ; « Pointer sur cette cession » clôt le pointage de
+  travail en cours (même règle que la pointeuse) ; `cession_worked_minutes` donne les heures passées.
+
+**Où** : `src/modules/tradein/cessions/` (`rules.ts`, `api.ts`, `print.ts`, `cessions-screen.tsx`,
+`cession-document.tsx`, `cession-cost-dialog.tsx`, `cession-new-dialog.tsx`, `vehicle-cessions-panel.tsx`) ;
+route `src/routes/_app.stock.cessions.tsx` ; tables `internal_cessions`, `internal_cession_lines`,
+`vehicle_cost_changes` ; RPC `open_internal_cession`, `add_internal_cession_line`,
+`set_internal_cession_cost_basis`, `validate_internal_cession`, `archive_internal_cession`,
+`unarchive_internal_cession`, `cancel_internal_cession`, `internal_cession_cost_context`,
+`internal_cession_report`, `cession_worked_minutes`, `article_last_purchase_price`.
+
+**Pas fait dans ce lot** : onglets « Garanties » et « Garanties / CA » de la liste G8 (lot OR garantie) ;
+cession automatique à la création d'un dépôt-vente (décisions en attente) ; annulation d'une cession
+**validée** (retour en stock + baisse du coût) ; productivité « temps cessions internes » (lot statistiques,
+qui peut lire `workshop_time_entries.cession_id` et `internal_cession_lines.hours_spent`) ; panneau des
+cessions sur la fiche moto (composant `VehicleCessionsPanel` prêt, à monter par le lot parc) ; écritures
+comptables des cessions (compte / journal saisis, aucun export).
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
@@ -158,3 +219,4 @@ select has_function_privilege('anon', 'public.vo_margin_register(uuid, date, dat
 | 2026-09-23 | **Mission 03, « Motos à vendre »** (M-36) : article de type **D** créé pour les motos en dépôt-vente, vente → moto vendue + nouveau propriétaire + dépublication | branche `lot-motos`, migrations `20260923150000` + `20260923151000` (appliquées le 23/09) |
 | 2026-11-03 | **Registre des véhicules à moteur** : reprise validée et dépôt-vente inscrits à l'entrée, vente / restitution à la sortie (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-03 | **TVA sur la marge à la vente** (B2, M-89) : vente d'une O sans TVA, prix de reprise seul figé sur la facture, registre par véhicule (ventes et avoirs) et TVA due globale par période (M12) ; rentabilité B3 inchangée | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
+| 2026-11-18 | **Cessions internes / O.R.O en document** (rattrapage G8) : document multi-lignes sur une moto, pièces au PAMP (défaut) ou au dernier PA, MO en heures internes reliée à la pointeuse, fenêtre prix de revient, coût de revient append-only, cession VO ouverte à la reprise, archivage à la vente, listes par rayon / détaillées / archives, impression PAMP / PV / PA | branche `lot-g8-cessions`, `20261118240000_m7_cessions_internes.sql` **non appliquée** |
