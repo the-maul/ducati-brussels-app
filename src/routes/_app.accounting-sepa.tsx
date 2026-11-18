@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/status-badge';
 import { useAuth } from '@/lib/auth/auth-context';
+import { AccountingGate } from '@/components/layout/accounting-gate';
 import { supabase } from '@/integrations/supabase/client';
 import {
   archiveSepaBatch, cancelSepaBatch, candidateKey, createSepaBatch, downloadSepaBatch, getSepaCreditor, listSepaBatchItems, listSepaBatches,
@@ -24,7 +25,7 @@ import { t, fillVars, pageTitle } from '@/lib/i18n';
  */
 export const Route = createFileRoute('/_app/accounting-sepa')({
   head: () => ({ meta: [{ title: pageTitle('accountingSepa') }] }),
-  component: SepaPage,
+  component: () => <AccountingGate><SepaPage /></AccountingGate>,
 });
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
