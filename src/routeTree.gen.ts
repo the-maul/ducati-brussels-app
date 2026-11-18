@@ -62,14 +62,14 @@ import { Route as AppOrdersNewRouteImport } from './routes/_app.orders.new'
 import { Route as AppPartsIndexRouteImport } from './routes/_app.parts.index'
 import { Route as AppPartsArticleIdRouteImport } from './routes/_app.parts.$articleId'
 import { Route as AppPartsCascadeRouteImport } from './routes/_app.parts.cascade'
-import { Route as AppPartsPriceToolsRouteImport } from './routes/_app.parts.price-tools'
-import { Route as AppPartsReplacementsRouteImport } from './routes/_app.parts.replacements'
 import { Route as AppPartsCatalogRouteImport } from './routes/_app.parts.catalog'
 import { Route as AppPartsFamiliesRouteImport } from './routes/_app.parts.families'
 import { Route as AppPartsImportRouteImport } from './routes/_app.parts.import'
 import { Route as AppPartsLabelsRouteImport } from './routes/_app.parts.labels'
 import { Route as AppPartsLinksRouteImport } from './routes/_app.parts.links'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
+import { Route as AppPartsPriceToolsRouteImport } from './routes/_app.parts.price-tools'
+import { Route as AppPartsReplacementsRouteImport } from './routes/_app.parts.replacements'
 import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
 import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
@@ -404,16 +404,6 @@ const AppPartsCascadeRoute = AppPartsCascadeRouteImport.update({
   path: '/cascade',
   getParentRoute: () => AppPartsRoute,
 } as any)
-const AppPartsPriceToolsRoute = AppPartsPriceToolsRouteImport.update({
-  id: '/price-tools',
-  path: '/price-tools',
-  getParentRoute: () => AppPartsRoute,
-} as any)
-const AppPartsReplacementsRoute = AppPartsReplacementsRouteImport.update({
-  id: '/replacements',
-  path: '/replacements',
-  getParentRoute: () => AppPartsRoute,
-} as any)
 const AppPartsCatalogRoute = AppPartsCatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
@@ -442,6 +432,16 @@ const AppPartsLinksRoute = AppPartsLinksRouteImport.update({
 const AppPartsNewRoute = AppPartsNewRouteImport.update({
   id: '/new',
   path: '/new',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsPriceToolsRoute = AppPartsPriceToolsRouteImport.update({
+  id: '/price-tools',
+  path: '/price-tools',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsReplacementsRoute = AppPartsReplacementsRouteImport.update({
+  id: '/replacements',
+  path: '/replacements',
   getParentRoute: () => AppPartsRoute,
 } as any)
 const AppPartsShopifyRoute = AppPartsShopifyRouteImport.update({
@@ -850,14 +850,14 @@ export interface FileRoutesByFullPath {
   '/orders/new': typeof AppOrdersNewRoute
   '/parts/$articleId': typeof AppPartsArticleIdRoute
   '/parts/cascade': typeof AppPartsCascadeRoute
-  '/parts/price-tools': typeof AppPartsPriceToolsRoute
-  '/parts/replacements': typeof AppPartsReplacementsRoute
   '/parts/catalog': typeof AppPartsCatalogRoute
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/links': typeof AppPartsLinksRoute
   '/parts/new': typeof AppPartsNewRoute
+  '/parts/price-tools': typeof AppPartsPriceToolsRoute
+  '/parts/replacements': typeof AppPartsReplacementsRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -969,14 +969,14 @@ export interface FileRoutesByTo {
   '/orders/new': typeof AppOrdersNewRoute
   '/parts/$articleId': typeof AppPartsArticleIdRoute
   '/parts/cascade': typeof AppPartsCascadeRoute
-  '/parts/price-tools': typeof AppPartsPriceToolsRoute
-  '/parts/replacements': typeof AppPartsReplacementsRoute
   '/parts/catalog': typeof AppPartsCatalogRoute
   '/parts/families': typeof AppPartsFamiliesRoute
   '/parts/import': typeof AppPartsImportRoute
   '/parts/labels': typeof AppPartsLabelsRoute
   '/parts/links': typeof AppPartsLinksRoute
   '/parts/new': typeof AppPartsNewRoute
+  '/parts/price-tools': typeof AppPartsPriceToolsRoute
+  '/parts/replacements': typeof AppPartsReplacementsRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -1099,14 +1099,14 @@ export interface FileRoutesById {
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/parts/$articleId': typeof AppPartsArticleIdRoute
   '/_app/parts/cascade': typeof AppPartsCascadeRoute
-  '/_app/parts/price-tools': typeof AppPartsPriceToolsRoute
-  '/_app/parts/replacements': typeof AppPartsReplacementsRoute
   '/_app/parts/catalog': typeof AppPartsCatalogRoute
   '/_app/parts/families': typeof AppPartsFamiliesRoute
   '/_app/parts/import': typeof AppPartsImportRoute
   '/_app/parts/labels': typeof AppPartsLabelsRoute
   '/_app/parts/links': typeof AppPartsLinksRoute
   '/_app/parts/new': typeof AppPartsNewRoute
+  '/_app/parts/price-tools': typeof AppPartsPriceToolsRoute
+  '/_app/parts/replacements': typeof AppPartsReplacementsRoute
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -1232,14 +1232,14 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/parts/$articleId'
     | '/parts/cascade'
-    | '/parts/price-tools'
-    | '/parts/replacements'
     | '/parts/catalog'
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
     | '/parts/links'
     | '/parts/new'
+    | '/parts/price-tools'
+    | '/parts/replacements'
     | '/parts/shopify'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
@@ -1351,14 +1351,14 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/parts/$articleId'
     | '/parts/cascade'
-    | '/parts/price-tools'
-    | '/parts/replacements'
     | '/parts/catalog'
     | '/parts/families'
     | '/parts/import'
     | '/parts/labels'
     | '/parts/links'
     | '/parts/new'
+    | '/parts/price-tools'
+    | '/parts/replacements'
     | '/parts/shopify'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
@@ -1480,14 +1480,14 @@ export interface FileRouteTypes {
     | '/_app/orders/new'
     | '/_app/parts/$articleId'
     | '/_app/parts/cascade'
-    | '/_app/parts/price-tools'
-    | '/_app/parts/replacements'
     | '/_app/parts/catalog'
     | '/_app/parts/families'
     | '/_app/parts/import'
     | '/_app/parts/labels'
     | '/_app/parts/links'
     | '/_app/parts/new'
+    | '/_app/parts/price-tools'
+    | '/_app/parts/replacements'
     | '/_app/parts/shopify'
     | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
@@ -1950,20 +1950,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPartsCascadeRouteImport
       parentRoute: typeof AppPartsRoute
     }
-    '/_app/parts/price-tools': {
-      id: '/_app/parts/price-tools'
-      path: '/price-tools'
-      fullPath: '/parts/price-tools'
-      preLoaderRoute: typeof AppPartsPriceToolsRouteImport
-      parentRoute: typeof AppPartsRoute
-    }
-    '/_app/parts/replacements': {
-      id: '/_app/parts/replacements'
-      path: '/replacements'
-      fullPath: '/parts/replacements'
-      preLoaderRoute: typeof AppPartsReplacementsRouteImport
-      parentRoute: typeof AppPartsRoute
-    }
     '/_app/parts/catalog': {
       id: '/_app/parts/catalog'
       path: '/catalog'
@@ -2004,6 +1990,20 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/parts/new'
       preLoaderRoute: typeof AppPartsNewRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/price-tools': {
+      id: '/_app/parts/price-tools'
+      path: '/price-tools'
+      fullPath: '/parts/price-tools'
+      preLoaderRoute: typeof AppPartsPriceToolsRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/replacements': {
+      id: '/_app/parts/replacements'
+      path: '/replacements'
+      fullPath: '/parts/replacements'
+      preLoaderRoute: typeof AppPartsReplacementsRouteImport
       parentRoute: typeof AppPartsRoute
     }
     '/_app/parts/shopify': {
@@ -2550,14 +2550,14 @@ const AppOrdersRouteWithChildren = AppOrdersRoute._addFileChildren(
 interface AppPartsRouteChildren {
   AppPartsArticleIdRoute: typeof AppPartsArticleIdRoute
   AppPartsCascadeRoute: typeof AppPartsCascadeRoute
-  AppPartsPriceToolsRoute: typeof AppPartsPriceToolsRoute
-  AppPartsReplacementsRoute: typeof AppPartsReplacementsRoute
   AppPartsCatalogRoute: typeof AppPartsCatalogRoute
   AppPartsFamiliesRoute: typeof AppPartsFamiliesRoute
   AppPartsImportRoute: typeof AppPartsImportRoute
   AppPartsLabelsRoute: typeof AppPartsLabelsRoute
   AppPartsLinksRoute: typeof AppPartsLinksRoute
   AppPartsNewRoute: typeof AppPartsNewRoute
+  AppPartsPriceToolsRoute: typeof AppPartsPriceToolsRoute
+  AppPartsReplacementsRoute: typeof AppPartsReplacementsRoute
   AppPartsShopifyRoute: typeof AppPartsShopifyRoute
   AppPartsIndexRoute: typeof AppPartsIndexRoute
 }
@@ -2565,14 +2565,14 @@ interface AppPartsRouteChildren {
 const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsArticleIdRoute: AppPartsArticleIdRoute,
   AppPartsCascadeRoute: AppPartsCascadeRoute,
-  AppPartsPriceToolsRoute: AppPartsPriceToolsRoute,
-  AppPartsReplacementsRoute: AppPartsReplacementsRoute,
   AppPartsCatalogRoute: AppPartsCatalogRoute,
   AppPartsFamiliesRoute: AppPartsFamiliesRoute,
   AppPartsImportRoute: AppPartsImportRoute,
   AppPartsLabelsRoute: AppPartsLabelsRoute,
   AppPartsLinksRoute: AppPartsLinksRoute,
   AppPartsNewRoute: AppPartsNewRoute,
+  AppPartsPriceToolsRoute: AppPartsPriceToolsRoute,
+  AppPartsReplacementsRoute: AppPartsReplacementsRoute,
   AppPartsShopifyRoute: AppPartsShopifyRoute,
   AppPartsIndexRoute: AppPartsIndexRoute,
 }

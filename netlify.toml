@@ -9,3 +9,7 @@
 [build]
   command = "bun run build"
   publish = "dist"
+
+# Le bundle SSR (Nitro) a depasse les 2 Go de memoire par defaut le 18/11/2026 (rattrapage G8).
+[build.environment]
+  NODE_OPTIONS = "--max-old-space-size=6144"
