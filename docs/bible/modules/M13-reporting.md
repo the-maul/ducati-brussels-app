@@ -60,11 +60,11 @@ Vérifié le 18/09/2026 (code + base).
 - Demandes du cahier non couvertes : tableau de bord commercial quotidien dédié aux vendeurs (VEN012), productivité par mécanicien en temps facturé (ATE019), rapports personnalisables (COM004).
 
 ## 7. Limites connues, dettes, pièges
-- **Marge au PAMP actuel** : la marge d'une vente passée est recalculée avec le PAMP **d'aujourd'hui**, pas celui du jour de la vente. Une entrée en stock à un autre prix modifie rétroactivement les marges affichées. B5 demande aussi la marge sur **PA**, non fournie.
+- **Marge au PAMP actuel** (corrigé le 18/11/2026 pour les ventes nouvelles : coût figé `document_lines.unit_cost` ; reste vrai pour les ventes antérieures) : la marge d'une vente passée est recalculée avec le PAMP **d'aujourd'hui**, pas celui du jour de la vente. Une entrée en stock à un autre prix modifie rétroactivement les marges affichées. B5 demande aussi la marge sur **PA**, non fournie.
 - **Productivité incomplète (B11)** : pas de rapprochement avec le temps facturé (lignes main-d'œuvre des OR).
 - **Performance** : la valeur du stock parcourt `article_stock_list` sur les 82 090 articles à chaque ouverture du tableau de bord ; les rapports scannent toutes les factures de la période. À surveiller si le tableau de bord devient lent.
 - **Bouton « Actualiser »** des rapports ne relance que le top articles et la productivité ; les autres blocs se recalculent au changement de dates.
-- **Pas d'export** (CSV / Excel) des rapports.
+- ~~Pas d'export~~ : export Excel du module statistiques depuis le 18/11/2026 (onglet Statistiques).
 
 ## 8. Exigences du cahier couvertes
 Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A.
@@ -77,6 +77,57 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A.
 
 Invariants : **B5** partiel (marge sur PAMP courant, pas sur PA) ; **B11** partiel.
 
+## Ajouté le 18/11 — rattrapage G8
+
+Source G8 : `docs/g8-inventaire` (relevé du 18/11/2026) `08-compta-stats.md` (Statistiques, Indicateurs),
+`06-ventes-caisse.md` (Stats quotidiennes), `02-articles.md` (Statistiques article) ; comparaison
+`comparaison-ventes-caisse-compta.md` §6 et bloquants n° 8 et 19. Branche `lot-g8-stats`.
+**Migrations non appliquées** : `20261118180000_m13_chiffres_justes.sql` puis `20261118181000_m13_statistiques_g8.sql`
+(après le bloc facture légale `20261103160000` / `20261103180000`) ; essai à blanc `supabase/tests/m13_statistiques_g8.sql`.
+
+**Chiffres justes (bloquant n° 8)** — une seule règle pour le tableau de bord, les rapports d'origine et le module G8
+(`_stats_is_sale`) : factures, **tickets** et **avoirs** validés comptent, l'avoir (négatif) est **déduit** ; **brouillons**,
+documents annulés et **factures d'acompte (FAA)** exclus (la facture finale porte la vente). Quantités **signées**
+(un retour n'augmente plus les ventes). CA d'une ligne = HT de la ligne ramené au HT du document (remise globale
+répartie), **port** sur une ligne à part : quel que soit l'axe, le total = total HT des documents. **Coût figé** :
+nouvelle colonne `document_lines.unit_cost` remplie à l'écriture de la ligne (PAMP du moment, B5) ; lignes
+antérieures = PAMP actuel ; factures G8 sans lignes = marge G8 d'en-tête. Tableau de bord : « Factures et tickets
+du mois », CA du jour / du mois en TTC avoirs déduits, nouveau compteur `credit_notes_month`. Accès : les fonctions de
+rapport ne laissent plus passer un appel sans connexion et suivent la grille signée (pas le mécanicien) ; le tableau
+de bord reste ouvert à tous les rôles.
+
+**Module statistiques façon G8** — Rapports → onglet **Statistiques** (l'ancien écran devient l'onglet **Synthèse**) :
+
+| Fonction G8 | Où dans le DMS |
+|---|---|
+| Axes fournisseur / marque / rayon (3 niveaux : rayon, sous-rayon, catégorie) / client / opérateur / cessions | Niveaux de classement (aussi mois, jour, année, type de document) ; familles = UID `RR-SS-CC` de `articles.category_path`, libellés de `product-families.ts` |
+| Sélection : familles, fournisseur, marque, référence, désignation, casier, client, opérateur, type de cession, période + périodes prédéfinies | Panneau de sélection ; 12 périodes prédéfinies (semaine du lundi) ; options « véhicules uniquement / sauf véhicules / exclure les reprises » (G8 Remises et surfacturations) |
+| Classement sur 4 niveaux + dernier niveau article | 4 listes + case « Dernier niveau : article » ; sous-totaux repliables |
+| Ventes : quantité, CA HT, % poids CA, marge HT, % marge, % poids marge, nombre de factures, stock, disponible | Onglet Ventes (stock réel, disponible, en commande si le dernier niveau est l'article) + histogramme du 1er niveau |
+| Exercices comparés, histogramme comparé | Case « Exercices comparés (N / N-1) » : quantité, CA, évolution, marge N-1 ; barres N / N-1 (une teinte par exercice, pas de camembert : charte §9) |
+| Meilleures ventes | Onglet Meilleures ventes : 100 premiers articles par CA ou par quantité |
+| Remises | Onglet Remises : brut HT, remise (ligne + globale), % remise, CA net |
+| Achats par fournisseur | Onglet Achats (réceptions validées, montant net de la remise globale, port) |
+| Tableau de bord mois par mois | Onglet Mois par mois : entrées / sorties de stock, sorties N-1, quantités vendues N / N-1, CA N / N-1, évolution, marge, achats N / N-1, total, stock actuel de la sélection + histogramme |
+| Cessions internes | Onglet Cessions internes : mouvements `cession` typés (Paramètres → Tables) + pièces et main-d'œuvre d'ORO, valeur au coût |
+| Documents en cours | Onglet Documents en cours : devis, BC, réservations, BL, OR, commandes fournisseur non transformés (nombre, quantité, CA HT, marge) |
+| Indicateurs (créés / en cours / transformés, panier moyen, articles par document) | Onglet Indicateurs : FAC, TIK, AVO, FAA, DEV, BC, RES, BL, OR, CMD, REC, CES ; « transformés en » par type cible |
+| Stats quotidiennes (avec cumul / détaillées) | Onglet Stats quotidiennes : article, fournisseur, quantité, montant HT, prix d'achat, marge, % marge, stock réel, disponible, en commande |
+| Visualiser · Imprimer · Export Excel | Boutons (sélection appliquée au clic, comme G8) ; export `.xlsx` (SheetJS) de l'onglet affiché, sous-totaux compris |
+| Statistiques article : cumulées, annuelles, N-1, N-2, par mois, « exclure cession » | Fiche article → onglet Statistiques (`article_stats`) ; ancien affichage tant que la migration n'est pas posée |
+
+Où : `src/modules/reports/stats-core.ts` (logique pure, testée), `stats-filters.ts`, `stats-api.ts`, `stats-export.ts`,
+`stats-screen.tsx`, `article-stats-panel.tsx` ; fonctions SQL `stats_query`, `stats_monthly`, `stats_indicators`,
+`stats_open_documents`, `article_stats` (réponses JSON : jamais tronquées à 1 000 lignes), socle `_stats_facts`
+(sources ventes, achats, cessions, mouvements), `_stats_keep` (filtres), `_stats_dim` (axes), type `stats_fact`.
+Libellés : blocs `stats` et `articleStats` (FR, NL, EN, IT). Tests : `tests/statistiques-g8.test.ts`.
+
+Pièges : le fournisseur d'un article = `articles.main_supplier_id`, sinon le premier `article_suppliers` ; or au
+18/11 aucun article n'est relié à un fournisseur en base (journal §5) : l'axe fournisseur des **ventes** reste
+« (non renseigné) » tant que ce lien n'est pas repris de G8 (l'onglet Achats, lui, lit le fournisseur de la réception).
+Le nombre de factures n'est exact qu'au niveau le plus fin (un document peut tomber dans plusieurs groupes) : vide sur
+les sous-totaux. Hors périmètre (à trancher) : commissions vendeurs, marge nette par véhicule.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
@@ -85,3 +136,4 @@ Invariants : **B5** partiel (marge sur PAMP courant, pas sur PA) ; **B11** parti
 | 2026-06-11 | Rapports : CA 12 mois, top articles, productivité atelier | `837b2f9`, `20260610410000_m13_reports.sql` |
 | 2026-06-12 | Statistiques avancées : classement, marge, N-1, transformation | `901e7dc`, `20260612210000_m13_advanced_stats.sql` |
 | 2026-06-12 | Rapports compatibles avec les factures G8 sans lignes | `5bb6280`, `20260612290000_m13_reports_header_aware.sql` |
+| 2026-11-18 | **Rattrapage G8** : chiffres justes (avoirs déduits, brouillons et FAA exclus, tickets comptés, coût figé), module statistiques façon G8 (9 onglets, 4 niveaux + article, N-1, export Excel, stats quotidiennes), statistiques de la fiche article | branche `lot-g8-stats` ; `20261118180000_m13_chiffres_justes.sql`, `20261118181000_m13_statistiques_g8.sql` **non appliquées** |

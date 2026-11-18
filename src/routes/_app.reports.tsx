@@ -6,7 +6,9 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth/auth-context';
+import { StatsModule } from '@/modules/reports/stats-screen';
 import { getMonthlyRevenue, getTopArticles, getWorkshopProductivity, getSalesBy, getPeriodCompare, getIndicators, getTransformation } from '@/modules/reports/api';
 import { t, pageTitle } from '@/lib/i18n';
 
@@ -21,6 +23,24 @@ const firstOfYear = () => `${new Date().getFullYear()}-01-01`;
 const today = () => new Date().toISOString().slice(0, 10);
 
 function ReportsPage() {
+  const { activeCompanyId } = useAuth();
+  return (
+    <>
+      <PageHeader title={t('reports.title')} description={t('reports.subtitle')} />
+      <Tabs defaultValue="stats">
+        <TabsList className="print:hidden">
+          <TabsTrigger value="stats">{t('stats.title')}</TabsTrigger>
+          <TabsTrigger value="summary">{t('stats.summary')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="stats" className="mt-4">{activeCompanyId && <StatsModule companyId={activeCompanyId} />}</TabsContent>
+        <TabsContent value="summary" className="mt-4"><SummaryView /></TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+/** Synthèse (rapports d'origine) : indicateurs, classement simple, N-1, transformation, CA 12 mois, top, productivité. */
+function SummaryView() {
   const { activeCompanyId } = useAuth();
   const [from, setFrom] = useState(firstOfYear());
   const [to, setTo] = useState(today());
@@ -39,7 +59,6 @@ function ReportsPage() {
 
   return (
     <>
-      <PageHeader title={t('reports.title')} description={t('reports.subtitle')} />
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="space-y-1"><Lbl>{t('reports.from')}</Lbl><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="space-y-1"><Lbl>{t('reports.to')}</Lbl><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
