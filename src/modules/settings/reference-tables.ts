@@ -100,6 +100,17 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { value: 'first_1000', label: '1er entretien 1 000 km' },
       { value: 'desmo', label: 'Desmo Service' },
     ] }] },
+  // Types de rendez-vous du planning (rattrapage G8 du 18/11/2026, migration 20261118120000) :
+  // couleur metier du bloc (tokens --job-*, charte §2.4) et temps prevu propose a la prise du RDV.
+  { key: 'workshop_appointment_type', label: 'Types de rendez-vous atelier', group: 'atelier',
+    extraColumns: [
+      { key: 'color', label: 'Couleur', type: 'select', options: [
+        { value: 'entretien', label: 'Entretien' }, { value: 'reparation', label: 'Réparation' },
+        { value: 'garantie', label: 'Garantie' }, { value: 'pneus', label: 'Pneus' },
+        { value: 'prepa', label: 'Préparation' }, { value: 'carrosserie', label: 'Carrosserie' },
+      ] },
+      { key: 'default_minutes', label: 'Temps prévu proposé (min)', type: 'number' },
+    ] },
   { key: 'workshop_operation', label: 'Opérations atelier', group: 'atelier', extraColumns: [] },
   { key: 'workshop_task', label: 'Tâches hors facturation', group: 'atelier', extraColumns: [] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
