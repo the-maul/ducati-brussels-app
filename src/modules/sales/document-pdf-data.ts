@@ -5,6 +5,7 @@
  * (Paramètres → Tables → « Validité des documents », `reference_values.sales_document_validity`).
  * Mêmes lectures que l'impression HTML (`print-document.ts`), qui reste inchangée.
  */
+import { normalizePrintOptions, titleKey, type PrintOptions } from './print-options';
 import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { fetchImageForPdf } from '@/lib/image-tools';
@@ -96,8 +97,11 @@ export async function loadLegalMentions(
   });
 }
 
-export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInput> {
+export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<PrintOptions> | null): Promise<SalesPdfInput> {
   const { doc, lines } = full;
+  // Options d'edition G8 (lot du 18/11/2026) : titre choisi, sans references, sans prix...
+  const po = normalizePrintOptions(doc.doc_type, options);
+  const chosenTitle = titleKey(po.title);
   const [{ data: company }, { data: contact }, { data: payments }, { data: vehicle }, rules] = await Promise.all([
     supabase.from('companies').select('*').eq('id', doc.company_id).maybeSingle(),
     doc.contact_id ? supabase.from('contacts').select('*').eq('id', doc.contact_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -208,7 +212,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
     validity: validityMention(doc.doc_type, doc.issue_date, rules, locale),
     notes: doc.notes,
     locale,
-    titleOverride: proposal ? t('checkup.pdfTitle') : null,
+    titleOverride: proposal ? t('checkup.pdfTitle') : chosenTitle ? t(chosenTitle) : null,
+    printOptions: po,
     signature,
     legalMentions,
   };
@@ -217,8 +222,8 @@ export async function loadSalesPdfInput(full: DocumentFull): Promise<SalesPdfInp
 export type SalesPdf = { bytes: Uint8Array; fileName: string };
 
 /** Génère le PDF d'un document de vente (données fraîches de la base). */
-export async function generateSalesPdf(full: DocumentFull): Promise<SalesPdf> {
-  const input = await loadSalesPdfInput(full);
+export async function generateSalesPdf(full: DocumentFull, options?: Partial<PrintOptions> | null): Promise<SalesPdf> {
+  const input = await loadSalesPdfInput(full, options);
   const bytes = await buildSalesDocumentPdf(input);
   // Nom du fichier joint au mail : lui aussi dans la langue du client (« Offerte-proforma_… »).
   return { bytes, fileName: salesPdfFileName(full.doc.doc_type, full.doc.number, input.locale, input.titleOverride) };
@@ -232,10 +237,10 @@ export function pdfBlob(bytes: Uint8Array): Blob {
  * Aperçu : ouvre le PDF dans un nouvel onglet (visionneuse PDF du navigateur : lire, imprimer,
  * télécharger). L'onglet est ouvert AVANT la génération pour ne pas être bloqué par le navigateur.
  */
-export async function openSalesPdfPreview(full: DocumentFull): Promise<void> {
+export async function openSalesPdfPreview(full: DocumentFull, options?: Partial<PrintOptions> | null): Promise<void> {
   const w = window.open('', '_blank');
   try {
-    const { bytes } = await generateSalesPdf(full);
+    const { bytes } = await generateSalesPdf(full, options);
     const url = URL.createObjectURL(pdfBlob(bytes));
     if (w) w.location.href = url; else window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart, Pencil, Trash2, LifeBuoy } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowRightLeft, Undo2, Printer, FileText, FileDown, Mail, MessageSquare, Link2, X, ShoppingCart, Pencil, Trash2, LifeBuoy, SlidersHorizontal, Redo2, GitMerge } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -10,8 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { getDocumentFull, convertDocument, generateCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, isMargeDocument, listPayments, creditableLinesOf, isClosedDocStatus, CREDITED_STATUS, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow, type CreditSelection } from '@/modules/sales/write-api';
+import { getDocumentFull, convertDocument, generateCreditNote, rebillFromCreditNote, deleteDocument, isDraftDocument, canGenerateCreditNote, isMargeDocument, listPayments, creditableLinesOf, isClosedDocStatus, CREDITED_STATUS, CONVERSIONS, DEPOSIT_DOC_TYPES, type DocumentRow, type CreditSelection } from '@/modules/sales/write-api';
 import { DepositInvoicePanel, showsDepositInvoices } from '@/modules/sales/deposit-invoice-panel';
+import { PrintOptionsDialog } from '@/modules/sales/print-options-dialog';
+import { ChooseDocumentDialog, DirectDepositsPanel } from '@/modules/sales/pending-documents-dialog';
+import { listDocumentSources, listDocumentTargets } from '@/modules/sales/document-links-api';
 import { requiresConfirmation } from '@/modules/sales/confirm';
 import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from '@/modules/sales/confirm-document-dialog';
 import { useConfirm } from '@/components/confirm-provider';
@@ -158,6 +161,20 @@ function DocumentView() {
     mutationFn: () => openSalesPdfPreview(data!),
     meta: { success: false },
   });
+  // Lot G8 du 18/11/2026 : options d'édition, « Choisissez votre document », refacturer un avoir,
+  // documents d'origine / produits (BL regroupés, acompte direct imputé, avoir refacturé).
+  const [printOptionsOpen, setPrintOptionsOpen] = useState(false);
+  const [chooseOpen, setChooseOpen] = useState(false);
+  const rebill = useMutation({
+    meta: { success: false, error: false },
+    mutationFn: () => rebillFromCreditNote(documentId),
+    onSuccess: (newId) => { toast.success(t('docList.rebilled')); navigate({ to: '/sales/$documentId/edit', params: { documentId: newId } }); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const linksQ = useQuery({
+    queryKey: ['doc-links', documentId],
+    queryFn: async () => ({ sources: await listDocumentSources(documentId), targets: await listDocumentTargets(documentId) }),
+  });
 
   if (isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!data) return (
@@ -193,6 +210,7 @@ function DocumentView() {
           <div className="flex items-center gap-2">
             <PrepareButton doc={doc} withLabel />
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '').catch((e) => toast.error(errorMessage(e)))}><Printer /> {t('sales.print')}</Button>
+            <Button variant="outline" onClick={() => setPrintOptionsOpen(true)} title={t('printOptions.dialogHint')}><SlidersHorizontal /> {t('printOptions.button')}</Button>
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>
             {(doc.doc_type === 'FAC' || doc.doc_type === 'AVO' || doc.doc_type === 'FAA') && doc.number && <Button variant="outline" onClick={() => exportInvoiceUbl(documentId).catch((e) => toast.error(errorMessage(e)))} title={t('accounting.ublHint')}><FileText /> {t('accounting.exportUbl')}</Button>}
             {/* Ticket sans client : envoi à une adresse saisie, non enregistrée (PDV010). */}
@@ -210,6 +228,11 @@ function DocumentView() {
         {docAvailability && <AvailabilityBadge status={docAvailability.status} pct={docAvailability.pct} />}
         {canConvert && (convertTargets.length > 0 || canGenerateCreditNote(doc)) && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {convertTargets.length > 0 && (
+              <Button size="sm" onClick={() => setChooseOpen(true)} disabled={readOnly || convert.isPending}>
+                <ArrowRightLeft /> {t('chooseDoc.button')}
+              </Button>
+            )}
             {convertTargets.length > 0 && <span className="text-[12px] text-muted-foreground">{t('sales.convertTo')}</span>}
             {convertTargets.map((tt) => (
               <Button key={tt} size="sm" variant="outline" onClick={() => { void askOrRun('convert', tt); }} disabled={readOnly || convert.isPending}>
@@ -260,6 +283,36 @@ function DocumentView() {
             {t('sales.openSource')}
           </button>
         </div>
+      )}
+
+      {doc.doc_type === 'AVO' && doc.number && (
+        <div className="mb-4">
+          <Button size="sm" variant="outline" onClick={() => rebill.mutate()} disabled={readOnly || rebill.isPending} title={t('docList.rebillHint')}>
+            {rebill.isPending ? <Loader2 className="animate-spin" /> : <Redo2 />} {t('docList.rebill')}
+          </Button>
+        </div>
+      )}
+
+      {linksQ.data && (linksQ.data.sources.length > 0 || linksQ.data.targets.length > 0) && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-[13px]">
+          <GitMerge className="size-4 text-muted-foreground" />
+          {linksQ.data.sources.length > 0 && <span className="text-muted-foreground">{t('docLinks.sources')} :</span>}
+          {linksQ.data.sources.map((s) => (
+            <button key={`s${s.id}`} className="font-medium text-info underline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: s.id } })}>
+              {t(`sales.type_${s.doc_type}`)} {s.number ?? ''}
+            </button>
+          ))}
+          {linksQ.data.targets.length > 0 && <span className="text-muted-foreground">{t('docLinks.targets')} :</span>}
+          {linksQ.data.targets.map((s) => (
+            <button key={`t${s.id}`} className="font-medium text-info underline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: s.id } })}>
+              {t(`sales.type_${s.doc_type}`)} {s.number ?? ''}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {contactId && !isClosedDocStatus(doc.status) && ['DEV', 'BC', 'RES', 'BL', 'FAC', 'TIK'].includes(doc.doc_type) && (
+        <DirectDepositsPanel doc={doc} readOnly={readOnly} />
       )}
 
       {vehicleId && (
@@ -451,6 +504,15 @@ function DocumentView() {
       {mailOpen && (contactQ.data || !contactId) && (
         <DocumentMailDialog full={data} contact={contactQ.data ?? null} companyName={companies.find((c) => c.id === doc.company_id)?.name ?? ''} initialTo={mailTo} onClose={() => { setMailOpen(false); setMailTo(null); }} />
       )}
+      {printOptionsOpen && (
+        <PrintOptionsDialog
+          docType={doc.doc_type}
+          onPrint={(o) => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '', o)}
+          onPdf={(o) => openSalesPdfPreview(data, o)}
+          onClose={() => setPrintOptionsOpen(false)}
+        />
+      )}
+      {chooseOpen && <ChooseDocumentDialog doc={doc} onChoose={(target) => { void askOrRun('convert', target); }} onClose={() => setChooseOpen(false)} />}
       {smsOpen && contactQ.data && (
         <SendSmsDialog companyId={doc.company_id} document={doc} contact={contactQ.data} onClose={() => setSmsOpen(false)} />
       )}

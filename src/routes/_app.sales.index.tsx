@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Search, SlidersHorizontal, X, Printer, Copy, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Search, SlidersHorizontal, X, Printer, Copy, Trash2, ListOrdered, Truck, FolderOpen, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -29,6 +29,7 @@ import { useCanWrite } from '@/lib/auth/use-access';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useSearchText } from '@/lib/use-list-search';
+import { DirectDepositDialog } from '@/modules/sales/direct-deposit-dialog';
 
 export const Route = createFileRoute('/_app/sales/')({
   head: () => ({ meta: [{ title: pageTitle('sales') }] }),
@@ -39,7 +40,7 @@ export const Route = createFileRoute('/_app/sales/')({
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const statusTone = (s: string) => (s === 'payee' ? 'success' : s === 'annulee' ? 'neutral' : s === 'brouillon' ? 'info' : 'warning');
 
-const DOC_TYPES = ['FAC', 'DEV', 'BC', 'TIK', 'BL', 'RES', 'AVO'] as const;
+const DOC_TYPES = ['FAC', 'DEV', 'BC', 'TIK', 'BL', 'RES', 'AVO', 'ACD'] as const;
 
 // Département E-shop vs magasin : la table `documents` n'a pas de colonne canal dédiée.
 // Heuristique best-effort sur `imported_from` (texte libre alimenté par les imports/le web).
@@ -115,6 +116,7 @@ function SalesList() {
   // Panneau des filtres ouvert d'office si un filtre est actif (retour sur la liste).
   const [filtersOpen, setFiltersOpen] = useState(() => countActive(f) > 0);
   const [purgeOpen, setPurgeOpen] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
   const set = <K extends keyof FiltersState>(k: K, v: FiltersState[K]) => setF((p) => ({ ...p, [k]: v }));
   const active = countActive(f);
 
@@ -249,7 +251,12 @@ function SalesList() {
         title={t('nav.sales')}
         description={t('sales.subtitle')}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Écrans G8 (lot du 18/11/2026) : liste complète des factures, facturation des BL, documents clients, acompte direct. */}
+            <Button variant="outline" onClick={() => navigate({ to: '/sales/invoices' })}><ListOrdered /> {t('docList.invoicesTitle')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/sales/bl-invoicing' })}><Truck /> {t('blInvoicing.title')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/sales/client-documents' })}><FolderOpen /> {t('clientDocs.title')}</Button>
+            {canWrite && <Button variant="outline" onClick={() => setDepositOpen(true)}><Wallet /> {t('directDeposit.new')}</Button>}
             <Button variant="outline" onClick={() => setPurgeOpen(true)}><Trash2 /> {t('sales.purgeQuotes')}</Button>
             {/* search explicite : la route declare un parametre facultatif, mais
                 TanStack exige quand meme l'objet. */}
@@ -385,6 +392,7 @@ function SalesList() {
         </table>
       </div>
 
+      {depositOpen && activeCompanyId && <DirectDepositDialog companyId={activeCompanyId} onClose={() => setDepositOpen(false)} />}
       {purgeOpen && (
         <PurgeQuotesDialog
           companyId={activeCompanyId!}
