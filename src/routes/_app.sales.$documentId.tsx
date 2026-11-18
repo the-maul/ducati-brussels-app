@@ -41,6 +41,7 @@ import { PrepareButton } from '@/modules/sales/prepare-button';
 import { DocumentOrdersPanel } from '@/modules/orders/document-orders-panel';
 import { OrderFromDocumentDialog } from '@/modules/orders/order-from-document-dialog';
 import { canOrderFromDocument } from '@/modules/orders/from-document';
+import { ProposalAddButton } from '@/modules/purchases/proposal-add-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { openAccidentFile } from '@/modules/workshop/accident/api';
 import { t, tIn, pageTitle } from '@/lib/i18n';
@@ -209,6 +210,8 @@ function DocumentView() {
         actions={
           <div className="flex items-center gap-2">
             <PrepareButton doc={doc} withLabel />
+            {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
+            {doc.number && <ProposalAddButton companyId={activeCompanyId} kind="document" sourceId={documentId} />}
             <Button variant="outline" onClick={() => printDocument(data, companies.find((c) => c.id === doc.company_id)?.name ?? '').catch((e) => toast.error(errorMessage(e)))}><Printer /> {t('sales.print')}</Button>
             <Button variant="outline" onClick={() => setPrintOptionsOpen(true)} title={t('printOptions.dialogHint')}><SlidersHorizontal /> {t('printOptions.button')}</Button>
             <Button variant="outline" onClick={() => pdfPreview.mutate()} disabled={pdfPreview.isPending}>{pdfPreview.isPending ? <Loader2 className="animate-spin" /> : <FileDown />} {t('salesMail.previewPdf')}</Button>

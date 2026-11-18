@@ -21,6 +21,7 @@ import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from 
 import { withTranslatedDesignation } from '@/modules/articles/translate/api';
 import { DesignationLanguages } from '@/modules/articles/translate/designation-languages';
 import { addToReorderProposal } from '@/modules/purchases/api';
+import { ProposalAddButton } from '@/modules/purchases/proposal-add-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleTtc, useRoundSalePrices } from '@/lib/pricing';
 import { t, pageTitle } from '@/lib/i18n';
@@ -154,6 +155,8 @@ function EditArticle() {
             >
               <ShoppingCart /> {t('articles.proposeOrder')}
             </Button>
+            {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
+            {!readOnly && <ProposalAddButton companyId={activeCompanyId} kind="article" sourceId={articleId} />}
           </>
         }
       />

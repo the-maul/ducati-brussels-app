@@ -25,6 +25,7 @@ import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-work
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { BasketFromWorkshopDialog } from '@/modules/purchases/basket-from-workshop-dialog';
+import { ProposalAddButton } from '@/modules/purchases/proposal-add-dialog';
 import { ReservedPartsBlock } from '@/modules/workshop/reservations/reserved-parts-block';
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
@@ -286,6 +287,8 @@ function OrView() {
             {/* Une seule facon de commander (carte 7, debut) : avec la reservation en base, le manque va au panier. */}
             {!invoiced && !reservationsOn && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
             {!invoiced && <Button variant="outline" onClick={() => setBasketOpen(true)}><ShoppingBasket /> {t('basket.addToStandard')}</Button>}
+            {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
+            {!invoiced && <ProposalAddButton companyId={activeCompanyId} kind="repair_order" sourceId={orId} />}
             <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('accidentFile.openExisting') : t('accidentFile.open')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
