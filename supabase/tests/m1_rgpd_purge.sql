@@ -77,11 +77,16 @@ select 'revocation : la declaration revoquee ne compte plus, la plus recente fai
                     and declared_at = current_date - 30) = 'd9409378-a554-4cb2-97d6-e0b84aba204e'
             then 'ok' else 'KO' end;
 
+-- Exports dans des instructions separees : la trace ecrite par l'export n'est visible qu'a
+-- l'instruction suivante (instantane de l'instruction SQL).
+insert into _ctx select 'export_p', public.contact_gdpr_export((select v::uuid from _ctx where k = 'client'), 'portabilite')::text;
+insert into _ctx select 'export_e', public.contact_gdpr_export((select v::uuid from _ctx where k = 'client'), 'edition')::text;
 insert into _t(check_name, result)
 select 'portabilite : fiche, documents et consentements exportes, export trace',
-       case when (public.contact_gdpr_export((select v::uuid from _ctx where k = 'client'), 'portabilite') -> 'contact' ->> 'last_name') = 'CLIENTRGPD'
-             and jsonb_array_length(public.contact_gdpr_export((select v::uuid from _ctx where k = 'client'), 'edition') -> 'documents') = 1
-             and exists (select 1 from public.events where action = 'gdpr_export' and entity_id = (select v from _ctx where k = 'client'))
+       case when ((select v::jsonb from _ctx where k = 'export_p') -> 'contact' ->> 'last_name') = 'CLIENTRGPD'
+             and jsonb_array_length((select v::jsonb from _ctx where k = 'export_e') -> 'documents') = 1
+             and jsonb_array_length((select v::jsonb from _ctx where k = 'export_p') -> 'consents') >= 1
+             and (select count(*) from public.events where action = 'gdpr_export' and entity_id = (select v from _ctx where k = 'client')) = 2
             then 'ok' else 'KO' end;
 
 -- Phase 1

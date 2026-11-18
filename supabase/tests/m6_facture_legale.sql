@@ -226,8 +226,10 @@ reset role;
 select public._sales_resolve_deposit_invoice_alerts();
 insert into _t(check_name, result) values
   ('cloche : rappel resolu une fois la FAA emise', case when (select resolved_at from public.team_notifications where kind = 'deposit_invoice_due' and dedupe_key = current_setting('test.p')) is not null then 'ok' else 'FAIL' end),
-  ('registre de la marge : vente compensee par un avoir conservee', case when (select prosrc from pg_proc where proname = 'vo_margin_register') ~ 'avoir_emis' then 'ok' else 'FAIL' end),
-  ('registre TVA : documents en marge toujours exclus (lot ef3f953)', case when (select prosrc from pg_proc where proname = 'vat_register') ~ 'vat_scheme <> ''marge''' then 'ok' else 'FAIL' end),
+  -- depuis 20261118182000 (compta reservee), vat_register / vo_margin_register sont des enveloppes
+  -- (controle du role) et le calcul vit dans _<nom>_acct : on lit le corps de l une ou de l autre.
+  ('registre de la marge : vente compensee par un avoir conservee', case when (select string_agg(prosrc, ' ') from pg_proc where proname in ('vo_margin_register', '_vo_margin_register_acct')) ~ 'avoir_emis' then 'ok' else 'FAIL' end),
+  ('registre TVA : documents en marge toujours exclus (lot ef3f953)', case when (select string_agg(prosrc, ' ') from pg_proc where proname in ('vat_register', '_vat_register_acct')) ~ 'vat_scheme <> ''marge''' then 'ok' else 'FAIL' end),
   ('anon n execute pas deposit_invoice_create', case when has_function_privilege('anon', 'public.deposit_invoice_create(uuid)', 'execute') then 'FAIL' else 'ok' end);
 
 select n, check_name, result from _t order by n;
