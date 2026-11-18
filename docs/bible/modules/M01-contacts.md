@@ -165,7 +165,7 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 
 ## 7. Limites connues, dettes, pièges
 
-- **Deux tables de tarifs client pour un même besoin.** L'onglet Tarifs de la fiche écrit dans `client_price_rules`, que **rien ne lit**. L'écran « Tarifs client » écrit dans `customer_price_rules`, lue par `resolve_customer_price`, mais **ni le POS ni l'éditeur de ventes n'appellent cette fonction** : les remises client ne s'appliquent jamais automatiquement à une vente (CRM009 non tenu).
+- **(Corrigé le 18/11 : les deux tables sont lues par le calcul unique, voir « Ajouté le 18/11 ».)** **Deux tables de tarifs client pour un même besoin.** L'onglet Tarifs de la fiche écrit dans `client_price_rules`, que **rien ne lit**. L'écran « Tarifs client » écrit dans `customer_price_rules`, lue par `resolve_customer_price`, mais **ni le POS ni l'éditeur de ventes n'appellent cette fonction** : les remises client ne s'appliquent jamais automatiquement à une vente (CRM009 non tenu).
 - **Fusion — corrigée le 19/09** (voir §4). Avant, la fusion se faisait dans le navigateur table par table (`MERGE_TABLES`) : elle oubliait les pièces jointes GED, les fiches liées, le compte client, les rapprochements, les cartes CRM en double, les commandes pièces, les fournisseurs d'articles, les dépôts-ventes, etc. ; elle n'était pas transactionnelle (fiche archivée même après un échec) et tout membre de la société pouvait fusionner. Les fusions faites avant le 19/09 ont pu laisser des éléments sur des fiches archivées.
 - **Nouvelle table qui pointe vers un contact** : l'ajouter à `contact_merge` (et à `contact_merge_refs` pour le récapitulatif), sinon toute fusion d'une fiche qui y a des lignes sera **refusée** par le filet de sécurité (voulu : mieux vaut un refus qu'une donnée orpheline).
 - **Fusion et limite de 2 fiches liées** : la fusion ne vérifie pas `LINK_LIMIT` ; la fiche gardée peut se retrouver avec 3 ou 4 liens si les deux fiches en avaient.
@@ -223,3 +223,47 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 | 2026-09-21 | **Retour client « Inscription en ligne »** : e-mail rangé dans le GSM corrigé (cause : inscription sans contrôle du téléphone + remplissage du navigateur) — champ E-mail distinct en lecture seule dans Mon profil, contrôle à l'écran, au serveur et en base, réparation des fiches existantes ; téléphones au format unique E.164 avec préfixe pays (inscription, Mon profil, fiche) ; permis recto + verso ; « 50 % complété » coloré et « Finaliser mon profil » | branche `lot-profil`, migration `20260921160000_m1_telephone_sans_email_permis_verso.sql` (**à appliquer**) |
 | 2026-10-05 | **Retour de Simon du 05/10 — fiche liée** : le prénom et le nom d'une fiche pro sont repris de sa fiche privée liée et deviennent non modifiables (déclencheurs en base, trace `events`) ; la recherche de contacts trouve une fiche par le nom de sa fiche liée ; la fiche liée s'affiche sous la ligne du contact dans la liste des clients et dans les sélecteurs de contact | branche `lot-fiche-liee`, migrations `20261005140000` + `20261005141000` (**à appliquer**) |
 | 2026-10-30 | **Langue du client** (I18N004, M-71) : champ « Langue » sur la fiche (`contacts.locale`, fr/nl/en/it, défaut fr), choix à l'inscription en ligne et à la borne, Mon profil de l'espace client écrit la fiche (`portal_set_locale`) ; le profil du compte lié suit par déclencheur. Documents et mails dans cette langue : voir [M09](M09-documents.md) | branche `lot-documents-langue-client`, migration `20261030160000_m1_langue_du_client.sql` (**à appliquer**) |
+
+## Ajouté le 18/11 — rattrapage G8 (lot règles client)
+
+> Sources : inventaire G8 `01-clients.md` (Conditions et tarifs, Tarif client, Infos compta), comparaison
+> clients §1 et bloquants critiques #4 et #5. Migrations `20261118190000` (structure) et
+> `20261118190100` (reprise des données G8) **non appliquées** ; essai à blanc `supabase/tests/m1_tarifs_clients.sql`.
+
+**Tarifs clients communs** (G8 « Ajout/Modif/Suppr Tarif client ») — Clients → Tarifs clients, onglet
+« Tarifs communs » (`src/modules/contacts/price-lists-screen.tsx`, route `/client-pricing`) :
+- un tarif = code + libellé (ex. `15 — REMISE 15 %`), **tarif de base** (ce qu'il ne précise pas est pris dans
+  sa base, en chaîne, boucle refusée en base), **promotion**, **afficher la remise**, actif ; Nouveau,
+  Dupliquer (avec ses lignes), Supprimer ; nombre de clients rattachés ;
+- lignes **par référence / famille (début du chemin de famille, ex. R12 ou 03-69) / fournisseur / marque /
+  tout le catalogue** ; **remise %**, **coefficient** (PV HT = PA × coef) ou **prix net HT** ; **4 paliers**
+  de quantité (qté mini) ; **dates de début / fin** ;
+- **Modifications globales** sur la sélection (dates, coefficient, remise) ; suppression de la sélection ;
+- **Import fichier** (Excel / CSV, en-tête : Référence, Remise %, Coefficient, Prix net HT, Qté mini, Date
+  début, Date fin ; plusieurs lignes d'une même référence = ses paliers) : références inconnues et lignes
+  refusées signalées (`src/modules/sales/price-list-import.ts`, testé).
+- Tables `price_lists`, `price_list_rules` (RLS société, trace `events`, contrôles en base : même société,
+  1 à 4 paliers, remise ≤ 100 %, portée cohérente). Fiche client : `contacts.price_list_id` (champ « Tarif »
+  de la section **Conditions et tarifs**) ; repli sur l'ancien texte `price_list` repris de G8 (même code ou
+  même libellé).
+
+**Reprise G8** (`20261118190100`, décision de Simon Q32) : tarif `15 — REMISE 15 %` = 15 % sur tout le
+catalogue (G8 : par fournisseurs, ligne « Tous »), remise affichée, rattaché aux clients G8 **254, 3241, 6101,
+6460** retrouvés par `legacy_code` (un introuvable est cité, sans échec). Cases « À surveiller » (9) /
+« Bloqué » (14) et catégories (GENERAL / INTERNET) : reposées **seulement si l'import du 22/06 ne les a pas
+écrites** (il les reprenait déjà, `import_g8.py`) ; l'essai à blanc donne les chiffres.
+
+**Section « Conditions et tarifs » de la fiche** : Tarif, Nombre d'exemplaires en caisse
+(`receipt_copies`), Afficher les remises en caisse (`show_discounts_pos`), encours autorisé (aussi pour un
+particulier) et **« Bloquer au-delà de l'encours autorisé »** (`contacts.credit_limit_blocking`).
+
+**Calcul du prix** (un seul pour la vente, la caisse, le devis et l'OR — `src/modules/sales/customer-pricing.ts`,
+testé dans `tests/tarifs-clients.test.ts`) : règles propres au client (les **deux** anciennes tables
+`customer_price_rules` et `client_price_rules` sont maintenant lues) > tarif commun du client > ses tarifs de
+base > règles générales > prix catalogue ; à niveau égal référence > famille > fournisseur > marque > tout ;
+règle valable dans ses dates et si un palier couvre la quantité. « Afficher la remise » (tarif) et « Afficher
+les remises en caisse » (client) : remise sur la ligne (PU catalogue + %) ; sinon prix net.
+
+**Pièges** : la fusion de deux **fournisseurs** cités dans une ligne de tarif est refusée par le filet de sécurité
+de `contact_merge` (table non ajoutée à la fusion) — supprimer ou recréer la ligne avant. Le simulateur de
+l'onglet « Règles par client » utilise le même calcul (plus `resolve_customer_price`, gardée en base).

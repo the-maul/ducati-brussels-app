@@ -257,3 +257,44 @@ Invariants : B4 fait (réservé / réel selon type), B7 partiel (mouvements de s
 | 2026-11-03 | **QR Stripe sans supplément** (PDV040, mission 12 carte P3, amende P-2) : « Payer par QR (Bancontact / carte) » au comptoir et sur le document, lien à distance 24 h (mail / SMS par la messagerie du vendeur), règlement attendu `STRIPE` confirmé par le webhook signé (idempotent), expiré → annulé, frais Stripe notés à part, réglage Paramètres → Paiement Stripe (test / réel), page publique `/paiement/merci`, QR publié sur l'écran client appairé | `20261103260000_m6_paiement_stripe.sql` (non appliquée), `stripe-checkout`, `stripe-webhook` |
 | 2026-10-31 | **Audit du parcours de vente** (mission 08, VEN001) : client repris depuis la fiche (lecture directe), validation refusée sans client (sauf ticket) / sans ligne / à 0 € avec message clair, en-tête en brouillon puis lignes puis numéro (plus de document validé vide), TVA et remise € des avoirs corrigées, vraies erreurs en toast (éditeur, règlements, impression, SMS, mail), « Aucun article trouvé » sous la recherche, `?docType=` sur Ventes → Nouveau, libellé « Nouveau document » de la fiche client traduit ; 15 tests | branche `lot-ventes-audit` ; migration `20261031130000_m6_ventes_corrections.sql` écrite, **non appliquée** |
 | 2026-11-03 | **Postes et périphériques, ticket 80 mm, tiroir** (PDV030, M-106, M-107) : aucun matériel imposé, un appareil par rôle et par poste (navigateur, Epson ePOS, Star WebPRNT, Web Serial, WebUSB, Zebra ZPL ; relais prévus), « Ce poste est : ... » local, ticket légal 80 / 58 mm à la place de l'A4 (duplicata), tiroir à l'encaissement en espèces et bouton tracé, étiquettes ZPL par le poste, Tester ; 40 tests ; essai à blanc 16 / 16 (`supabase/tests/m6_postes_peripheriques.sql`) | migration `20261103250000_m6_postes_peripheriques.sql` écrite, essayée à blanc, **non appliquée** |
+
+## Ajouté le 18/11 — rattrapage G8 (lot règles client)
+
+> Sources : inventaire G8 `06-ventes-caisse.md` (saisie d'un document, Express, mode HT/TTC, détaxé,
+> Tarifications) et `01-clients.md` ; comparaison ventes / caisse bloquants #13 et #14, comparaison clients
+> bloquants #4 et #5. Migration `20261118190000` **non appliquée** (le code marche avant : tarifs communs
+> ignorés, client bloqué refusé par l'écran seulement, encours par l'ancienne fonction).
+
+**Tarif client appliqué partout** : vente / devis / facture (`document-editor.tsx`), caisse (`pos-sale.tsx`),
+OR (`or-editor.tsx`) passent par `useCustomerPricer` (`customer-pricing-api.ts`). Le prix posé est
+« automatique » : recalculé quand le client change ou que la quantité franchit un palier ; dès que le vendeur
+touche au prix ou à la remise, il est gardé tel quel. Badge « Promotion » sur la ligne d'un tarif promo.
+**OR accident** : le tarif associé au cabinet d'assurance du dossier (`insurance_parties.price_list`, lot
+garantie / accident) remplace le tarif et les règles du client sur cet OR (G8) ; sans tarif reconnu, tarif du client.
+
+**« Tarifications »** (bouton étiquette sur une ligne article, client choisi) : fixe à la volée le prix HT / TTC
+de l'article dans le tarif commun du client (ligne par référence, prix net) ou, sans tarif commun, dans ses
+propres tarifs (onglet Tarifs) — `tariff-price-dialog.tsx`, `setArticlePriceForClient`.
+
+**Cases du client effectives** (`client-sale-banners.tsx`, règles pures dans `customer-pricing.ts`) :
+- **bloqué** : bandeau rouge, validation refusée pour FAC / TIK / RES / BL / BC (devis et avoir permis) ; la base
+  refuse aussi (`documents_blocked_client_guard`, hors imports et fonctions serveur) ;
+- **à surveiller** : bandeau avec le motif ;
+- **détaxé** : passage en HT + TVA 0 % export + mention légale à l'arrivée du client (éditeur et caisse) ;
+  **mode HT** : saisie et affichage HT ;
+- **encours autorisé** : reste dû réel (`contact_open_balance` : FAC / TIK / FAA validés, sans brouillons) +
+  ce document ; alerte au-delà ; si « bloquer » est coché : facture / BL à crédit refusés à l'éditeur, BL refusé
+  à la caisse, et à la caisse un ticket / une facture ne peut plus rester impayé (« Nouvelle vente » refusée) ;
+- **conditions de règlement** : reprises de la fiche sur le document (`documents.condition_reglement`,
+  modifiables, suivent les conversions), échéance calculée (« 30j », « 30 jours fin de mois », « comptant ») ;
+- **afficher les remises en caisse** décoché : la remise du tarif est fondue dans le prix ;
+- **nombre d'exemplaires en caisse** : le ticket sort N fois (1 + duplicatas), 5 au plus.
+
+**Vente détaillée sans quitter la caisse** (`pos-sale.tsx`, `pos-rules.ts`) : remise par ligne, remise globale
+% ou €, frais de port HT taxés ou non, **ligne de main-d'œuvre** (articles T, heures décimales), **client
+rapide** (nom obligatoire), **« Chgt document »** : Express (ticket, ou facture avec client) / Facture /
+Réservation / Livraison / Proforma ; réservation : acompte possible ; BL et proforma : créés puis ouverts ou
+imprimés, sans encaissement ni caisse ouverte exigée.
+
+**Pièges** : la détaxe ne s'applique qu'avec un client (jamais sur un ticket anonyme) ; l'écran client
+(tablette) affiche encore la TVA d'une vente détaxée (le document, lui, est juste).
