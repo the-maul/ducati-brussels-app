@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone, Link2 } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone, Link2, FileSpreadsheet, Filter, ListChecks, ShieldX, Bike } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useSearchText } from '@/lib/use-list-search';
+import { contactIdsByPlate, contactsByIdsChunked } from '@/modules/contacts/g8/api';
+import { downloadClientListXlsx } from '@/modules/contacts/g8/list-export';
 
 type ColKey = 'type' | 'city' | 'contact' | 'mobile' | 'email' | 'flags' | 'models' | 'created';
 const ALL_COLS: { key: ColKey; label: () => string }[] = [
@@ -35,7 +38,7 @@ const ALL_COLS: { key: ColKey; label: () => string }[] = [
 const PAGE_SIZES = [25, 50, 100, 200];
 
 /** Etat de la liste garde dans l'adresse (UX011). `page` : 0 = premiere page. */
-const CLIENTS_LIST = { q: '', type: 'all', archived: false, page: 0, size: 50, sort: 'name' };
+const CLIENTS_LIST = { q: '', plate: '', type: 'all', archived: false, page: 0, size: 50, sort: 'name' };
 const CLIENTS_CHOICES = { sort: ['name', 'recent'] } as const;
 
 export const Route = createFileRoute('/_app/clients/')({
@@ -50,7 +53,7 @@ export const Route = createFileRoute('/_app/clients/')({
 });
 
 function ClientsList() {
-  const { activeCompanyId } = useAuth();
+  const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
@@ -59,6 +62,10 @@ function ClientsList() {
   const [ls, setLs] = useListSearch(CLIENTS_LIST, CLIENTS_CHOICES);
   const debounced = ls.q;
   const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q, page: 0 }));
+  // G8 « Immat. » : recherche du client par la plaque de sa moto (rattrapage G8 du 18/11/2026).
+  const [plateText, setPlateText] = useSearchText(ls.plate, (plate) => setLs({ plate, page: 0 }));
+  const plate = ls.plate.trim();
+  const [exporting, setExporting] = useState(false);
   const typeFilter = ls.type;
   const setTypeFilter = (type: string) => setLs({ type, page: 0 });
   const showArchived = ls.archived;
@@ -95,13 +102,41 @@ function ClientsList() {
 
   // La sélection ne porte que sur les lignes visibles : dès que le jeu de lignes
   // change, on la vide plutôt que de garder des fiches devenues invisibles.
-  useEffect(() => { setSelectedIds(new Set()); }, [debounced, typeFilter, pageSize, page, showArchived]);
+  useEffect(() => { setSelectedIds(new Set()); }, [debounced, typeFilter, pageSize, page, showArchived, plate]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize, sort],
-    queryFn: () => listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize, sort }),
+    queryKey: ['contacts', activeCompanyId, debounced, typeFilter, page, pageSize, sort, plate],
+    queryFn: async () => {
+      if (plate.length >= 2) {
+        // Recherche par immatriculation : propriétaires (actuels d'abord) des motos dont la plaque correspond.
+        const ids = await contactIdsByPlate(activeCompanyId!, plate);
+        const found = await contactsByIdsChunked(ids);
+        const order = new Map(ids.map((id, i) => [id, i]));
+        const rows = found
+          .filter((c) => typeFilter === 'all' || c.type === typeFilter)
+          .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+        return { rows: rows.slice(page * pageSize, (page + 1) * pageSize), total: rows.length };
+      }
+      return listContactsPaged(activeCompanyId!, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page, pageSize, sort });
+    },
     enabled: !!activeCompanyId,
   });
+
+  const exportExcel = async () => {
+    if (!activeCompanyId) return;
+    setExporting(true);
+    try {
+      const n = await downloadClientListXlsx(
+        (p, size) => listContactsPaged(activeCompanyId, { search: debounced, type: typeFilter === 'all' ? undefined : typeFilter, page: p, pageSize: size, sort }),
+        showArchived,
+      );
+      toast.success(t('g8c.list.exported').replace('{n}', String(n)));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
   const rows = showArchived ? (data?.rows ?? []) : (data?.rows ?? []).filter((c) => c.is_active);
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -124,6 +159,17 @@ function ClientsList() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate({ to: '/client-pricing' })}>{t('pricing.title')}</Button>
+            {/* Rattrapage G8 (18/11/2026) : extraction / mailing, cascade, purge RGPD, export Excel. */}
+            <Button variant="outline" onClick={() => navigate({ to: '/clients/extraction' })}><Filter /> {t('g8c.extract.title')}</Button>
+            {activeCompanyId && isAdmin(activeCompanyId) && (
+              <>
+                <Button variant="outline" onClick={() => navigate({ to: '/clients/cascade' })}><ListChecks /> {t('g8c.cascade.title')}</Button>
+                <Button variant="outline" onClick={() => navigate({ to: '/clients/rgpd' })}><ShieldX /> {t('g8c.purge.title')}</Button>
+              </>
+            )}
+            <Button variant="outline" disabled={exporting} onClick={() => void exportExcel()}>
+              {exporting ? <Loader2 className="animate-spin" /> : <FileSpreadsheet />} {t('g8c.list.exportExcel')}
+            </Button>
             {/* Mission 04, carte 3 : GSM de la reprise G8 rangés dans « téléphone ». */}
             <Button variant="outline" onClick={() => navigate({ to: '/clients/mobiles' })}>
               <Smartphone /> {t('contacts.mobileFix.link')}
@@ -147,6 +193,16 @@ function ClientsList() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('contacts.search')}
             className="pl-9"
+          />
+        </div>
+        <div className="relative w-40">
+          <Bike className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={plateText}
+            onChange={(e) => setPlateText(e.target.value)}
+            placeholder={t('g8c.list.platePlaceholder')}
+            title={t('g8c.list.plateHint')}
+            className="pl-9 font-mono uppercase"
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>

@@ -61,6 +61,20 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { key: 'default', label: 'Par défaut', type: 'bool' },
     ] },
   { key: 'client_category', label: 'Catégories client', group: 'autre', extraColumns: [] },
+  // Rattrapage G8 (18/11/2026) : groupes de la fiche client (onglet Groupes, extraction, cascade).
+  { key: 'contact_group', label: 'Groupes de clients', group: 'autre',
+    extraColumns: [{ key: 'category', label: 'Rubrique', type: 'select', options: [
+      { value: 'interets', label: "Centres d'intérêt" }, { value: 'origine', label: 'Origine du contact' },
+      { value: 'situation', label: 'Situation familiale' }, { value: 'autre', label: 'Autre' },
+    ] }] },
+  // RGPD - Purge (G8) : une ligne code « default ». Années sans activité avant purge, et durée
+  // légale de conservation des factures (nom, adresse et TVA gardés en deçà).
+  { key: 'gdpr_purge', label: 'RGPD - Purge (durées)', group: 'autre',
+    extraColumns: [
+      { key: 'prospect_years', label: 'Prospects : années sans activité', type: 'number' },
+      { key: 'client_years', label: 'Clients : années sans facture', type: 'number' },
+      { key: 'legal_years', label: 'Conservation légale des factures (années)', type: 'number' },
+    ] },
   { key: 'brand', label: 'Marques', group: 'article',
     extraColumns: [{ key: 'kind', label: 'Type', type: 'select', options: [
       { value: 'produit_fini', label: 'Produit fini' }, { value: 'pneu', label: 'Pneumatique' }, { value: 'piece', label: 'Pièce' },

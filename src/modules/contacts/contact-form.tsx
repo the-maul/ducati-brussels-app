@@ -189,6 +189,10 @@ type FormState = {
   birth_date: string;
   /** Mission 04, carte 5 : lieu de naissance. */
   birth_place: string;
+  /** Rattrapage G8 (18/11/2026, migration 20261118221000) : nom et CP de naissance, « Délivré par ». */
+  birth_name: string;
+  birth_zip: string;
+  license_issued_by: string;
   national_id: string;
   national_register: string;
   license_number: string;
@@ -273,6 +277,9 @@ function fromContact(c: Contact | null): FormState {
     address_mismatch: c?.address_mismatch ?? false,
     birth_date: c?.birth_date ?? '',
     birth_place: c?.birth_place ?? '',
+    birth_name: ext?.birth_name ?? '',
+    birth_zip: ext?.birth_zip ?? '',
+    license_issued_by: ext?.license_issued_by ?? '',
     national_id: c?.national_id ?? '',
     national_register: c?.national_register ?? '',
     license_number: c?.license_number ?? '',
@@ -418,6 +425,10 @@ export function buildPayload(f: FormState, companyId: string): ContactInsert {
     // portent une valeur, pour que la fiche s'enregistre aussi avant l'application de la migration.
     ...(f.price_list_id || f.has_price_list_col ? { price_list_id: f.price_list_id || null } : {}),
     ...(f.credit_limit_blocking || f.has_price_list_col ? { credit_limit_blocking: f.credit_limit_blocking } : {}),
+    // Rattrapage G8 (migration 20261118221000) — retirées de l'écriture tant qu'elle n'est pas appliquée (api.ts).
+    birth_name: nn(f.birth_name),
+    birth_zip: nn(f.birth_zip),
+    license_issued_by: nn(f.license_issued_by),
   });
 }
 
@@ -862,6 +873,12 @@ export function ContactForm({
             <Field label={t('contacts.birthPlace')}>
               <Input value={f.birth_place} onChange={(e) => set('birth_place', e.target.value)} />
             </Field>
+            <Field label={t('g8c.form.birthZip')}>
+              <Input value={f.birth_zip} onChange={(e) => set('birth_zip', e.target.value)} className="font-mono" />
+            </Field>
+            <Field label={t('g8c.form.birthName')}>
+              <Input value={f.birth_name} onChange={(e) => set('birth_name', e.target.value)} />
+            </Field>
             <Field label={t('contacts.nationalId')}>
               <Input value={f.national_id} onChange={(e) => set('national_id', e.target.value)} />
             </Field>
@@ -876,6 +893,9 @@ export function ContactForm({
             </Field>
             <Field label={t('contacts.licensePlace')}>
               <Input value={f.license_place} onChange={(e) => set('license_place', e.target.value)} />
+            </Field>
+            <Field label={t('g8c.form.licenseIssuedBy')}>
+              <Input value={f.license_issued_by} onChange={(e) => set('license_issued_by', e.target.value)} />
             </Field>
             <Field label={t('contacts.licenseCategory')}>
               <Select value={f.license_category || undefined} onValueChange={(v) => set('license_category', v as LicenseCategory)}>

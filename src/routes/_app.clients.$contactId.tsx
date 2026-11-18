@@ -23,6 +23,10 @@ import {
   type ContactInsert, type Contact,
 } from '@/modules/contacts/api';
 import { MergeSummary, useMergePreviews } from '@/modules/contacts/merge-summary';
+import {
+  RgpdTab, GroupsTab, GroupSalesTab, DispoTab, AppointmentsTab, FollowupsTab, ImagesTab, ArchivesTab, CampaignHistoryTab,
+} from '@/modules/contacts/g8/client-g8-tabs';
+import { RgpdMenu, MessageTestMenu } from '@/modules/contacts/g8/fiche-actions';
 import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -225,6 +229,9 @@ function EditClient() {
             )}
             <Button variant="outline" onClick={() => setLabelOpen(true)}><Tags /> {t('contacts.labelBtn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId } })}><FileText /> {t('contacts.newDoc')}</Button>
+            {/* Rattrapage G8 (18/11/2026) : RGPD - Edition fiche / Portabilite, Mail / SMS en essai. */}
+            <RgpdMenu contactId={contactId} />
+            <MessageTestMenu contact={contact} companyId={activeCompanyId} />
             {/* Fusion reservee aux admins (decision F-9, controle aussi par contact_merge). */}
             {isAdmin(activeCompanyId) && (
               <Button variant="outline" onClick={() => setMergeOpen(true)}><Merge /> {t('contacts.merge')}</Button>
@@ -324,7 +331,7 @@ function EditClient() {
       )}
       <EncoursBar contactId={contactId} />
       <Tabs defaultValue="fiche">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="fiche">{t('clientTabs.tabFiche')}</TabsTrigger>
           <TabsTrigger value="parc">{t('clientTabs.tabParc')}</TabsTrigger>
           <TabsTrigger value="documents">{t('clientTabs.tabDocuments')}</TabsTrigger>
@@ -336,6 +343,16 @@ function EditClient() {
           <TabsTrigger value="tarifs">{t('clientTabs.tabPricing')}</TabsTrigger>
           <TabsTrigger value="documents-ged">{t('ged.title')}</TabsTrigger>
           <TabsTrigger value="comms">{t('crm.history')}</TabsTrigger>
+          {/* Onglets G8 ajoutés le 18/11/2026 (rattrapage G8). */}
+          <TabsTrigger value="g8-mail">{t('g8c.tabs.mailSms')}</TabsTrigger>
+          <TabsTrigger value="g8-rgpd">{t('g8c.tabs.rgpd')}</TabsTrigger>
+          <TabsTrigger value="g8-dispo">{t('g8c.tabs.dispo')}</TabsTrigger>
+          <TabsTrigger value="g8-archives">{t('g8c.tabs.archives')}</TabsTrigger>
+          <TabsTrigger value="g8-rdv">{t('g8c.tabs.appointments')}</TabsTrigger>
+          <TabsTrigger value="g8-relances">{t('g8c.tabs.followups')}</TabsTrigger>
+          <TabsTrigger value="g8-images">{t('g8c.tabs.images')}</TabsTrigger>
+          <TabsTrigger value="g8-groupes">{t('g8c.tabs.groups')}</TabsTrigger>
+          <TabsTrigger value="g8-groupement">{t('g8c.tabs.groupSales')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fiche" className="mt-4">
           <ContactForm
@@ -358,6 +375,15 @@ function EditClient() {
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="documents-ged" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} /></TabsContent>
         <TabsContent value="comms" className="mt-4"><CommunicationsPanel companyId={activeCompanyId} contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-mail" className="mt-4"><CampaignHistoryTab contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-rgpd" className="mt-4"><RgpdTab contact={contact} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="g8-dispo" className="mt-4"><DispoTab contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-archives" className="mt-4"><ArchivesTab contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-rdv" className="mt-4"><AppointmentsTab contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-relances" className="mt-4"><FollowupsTab contactId={contactId} /></TabsContent>
+        <TabsContent value="g8-images" className="mt-4"><ImagesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="g8-groupes" className="mt-4"><GroupsTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="g8-groupement" className="mt-4"><GroupSalesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
       </Tabs>
     </>
   );

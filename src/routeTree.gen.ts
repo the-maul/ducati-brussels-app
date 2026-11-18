@@ -47,6 +47,9 @@ import { Route as SignerTokenRouteImport } from './routes/signer.$token'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
 import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
+import { Route as AppClientsCascadeRouteImport } from './routes/_app.clients.cascade'
+import { Route as AppClientsExtractionRouteImport } from './routes/_app.clients.extraction'
+import { Route as AppClientsRgpdRouteImport } from './routes/_app.clients.rgpd'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppCrmIndexRouteImport } from './routes/_app.crm.index'
 import { Route as AppCrmRelancesRouteImport } from './routes/_app.crm.relances'
@@ -317,6 +320,21 @@ const AppClientsContactIdRoute = AppClientsContactIdRouteImport.update({
 const AppClientsMobilesRoute = AppClientsMobilesRouteImport.update({
   id: '/mobiles',
   path: '/mobiles',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsCascadeRoute = AppClientsCascadeRouteImport.update({
+  id: '/cascade',
+  path: '/cascade',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsExtractionRoute = AppClientsExtractionRouteImport.update({
+  id: '/extraction',
+  path: '/extraction',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsRgpdRoute = AppClientsRgpdRouteImport.update({
+  id: '/rgpd',
+  path: '/rgpd',
   getParentRoute: () => AppClientsRoute,
 } as any)
 const AppClientsNewRoute = AppClientsNewRouteImport.update({
@@ -778,6 +796,9 @@ export interface FileRoutesByFullPath {
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
+  '/clients/cascade': typeof AppClientsCascadeRoute
+  '/clients/extraction': typeof AppClientsExtractionRoute
+  '/clients/rgpd': typeof AppClientsRgpdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -887,6 +908,9 @@ export interface FileRoutesByTo {
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
   '/clients/mobiles': typeof AppClientsMobilesRoute
+  '/clients/cascade': typeof AppClientsCascadeRoute
+  '/clients/extraction': typeof AppClientsExtractionRoute
+  '/clients/rgpd': typeof AppClientsRgpdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -1007,6 +1031,9 @@ export interface FileRoutesById {
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
   '/_app/clients/mobiles': typeof AppClientsMobilesRoute
+  '/_app/clients/cascade': typeof AppClientsCascadeRoute
+  '/_app/clients/extraction': typeof AppClientsExtractionRoute
+  '/_app/clients/rgpd': typeof AppClientsRgpdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/crm/relances': typeof AppCrmRelancesRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
@@ -1130,6 +1157,9 @@ export interface FileRouteTypes {
     | '/mon-espace/'
     | '/clients/$contactId'
     | '/clients/mobiles'
+    | '/clients/cascade'
+    | '/clients/extraction'
+    | '/clients/rgpd'
     | '/clients/new'
     | '/crm/relances'
     | '/orders/$orderId'
@@ -1239,6 +1269,9 @@ export interface FileRouteTypes {
     | '/mon-espace'
     | '/clients/$contactId'
     | '/clients/mobiles'
+    | '/clients/cascade'
+    | '/clients/extraction'
+    | '/clients/rgpd'
     | '/clients/new'
     | '/crm/relances'
     | '/orders/$orderId'
@@ -1358,6 +1391,9 @@ export interface FileRouteTypes {
     | '/mon-espace/'
     | '/_app/clients/$contactId'
     | '/_app/clients/mobiles'
+    | '/_app/clients/cascade'
+    | '/_app/clients/extraction'
+    | '/_app/clients/rgpd'
     | '/_app/clients/new'
     | '/_app/crm/relances'
     | '/_app/orders/$orderId'
@@ -1723,6 +1759,27 @@ declare module '@tanstack/react-router' {
       path: '/mobiles'
       fullPath: '/clients/mobiles'
       preLoaderRoute: typeof AppClientsMobilesRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/cascade': {
+      id: '/_app/clients/cascade'
+      path: '/cascade'
+      fullPath: '/clients/cascade'
+      preLoaderRoute: typeof AppClientsCascadeRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/extraction': {
+      id: '/_app/clients/extraction'
+      path: '/extraction'
+      fullPath: '/clients/extraction'
+      preLoaderRoute: typeof AppClientsExtractionRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/rgpd': {
+      id: '/_app/clients/rgpd'
+      path: '/rgpd'
+      fullPath: '/clients/rgpd'
+      preLoaderRoute: typeof AppClientsRgpdRouteImport
       parentRoute: typeof AppClientsRoute
     }
     '/_app/clients/new': {
@@ -2305,6 +2362,9 @@ declare module '@tanstack/react-router' {
 interface AppClientsRouteChildren {
   AppClientsContactIdRoute: typeof AppClientsContactIdRoute
   AppClientsMobilesRoute: typeof AppClientsMobilesRoute
+  AppClientsCascadeRoute: typeof AppClientsCascadeRoute
+  AppClientsExtractionRoute: typeof AppClientsExtractionRoute
+  AppClientsRgpdRoute: typeof AppClientsRgpdRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
@@ -2312,6 +2372,9 @@ interface AppClientsRouteChildren {
 const AppClientsRouteChildren: AppClientsRouteChildren = {
   AppClientsContactIdRoute: AppClientsContactIdRoute,
   AppClientsMobilesRoute: AppClientsMobilesRoute,
+  AppClientsCascadeRoute: AppClientsCascadeRoute,
+  AppClientsExtractionRoute: AppClientsExtractionRoute,
+  AppClientsRgpdRoute: AppClientsRgpdRoute,
   AppClientsNewRoute: AppClientsNewRoute,
   AppClientsIndexRoute: AppClientsIndexRoute,
 }

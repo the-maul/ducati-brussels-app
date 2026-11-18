@@ -109,33 +109,41 @@ export async function getContactPortalVisit(contactId: string): Promise<ContactP
 }
 
 /**
- * I18N004 : la colonne `contacts.locale` arrive avec la migration 20261030160000. Tant
- * qu'elle n'est pas appliquée, une écriture qui la porte est refusée par PostgREST
- * (« Could not find the 'locale' column », code PGRST204 / 42703) : on réessaie alors
- * sans elle, pour ne jamais bloquer l'enregistrement d'une fiche.
+ * Colonnes arrivées par des migrations qui peuvent ne pas être encore appliquées :
+ *   - I18N004 : `locale` (migration 20261030160000) ;
+ *   - rattrapage G8 du 18/11/2026 : `birth_name`, `birth_zip`, `license_issued_by` (20261118221000).
+ * Tant qu'une colonne manque, PostgREST refuse l'écriture qui la porte (« Could not find the
+ * 'locale' column », code PGRST204 / 42703) : on réessaie sans elle, pour ne jamais bloquer
+ * l'enregistrement d'une fiche.
  */
-function isMissingLocaleColumn(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
+const LATE_COLUMNS = ['locale', 'birth_name', 'birth_zip', 'license_issued_by'] as const;
+
+/** Colonne tardive absente nommée dans l'erreur, ou null. */
+export function missingLateColumn(error: { code?: string; message?: string } | null, input: object): string | null {
+  if (!error) return null;
   const msg = String(error.message ?? '');
-  return /locale/i.test(msg) && (error.code === 'PGRST204' || error.code === '42703' || /column/i.test(msg));
+  if (!(error.code === 'PGRST204' || error.code === '42703' || /column/i.test(msg))) return null;
+  return LATE_COLUMNS.find((c) => c in input && new RegExp('\\b' + c + '\\b', 'i').test(msg)) ?? null;
+}
+
+function without<T extends object>(input: T, col: string): T {
+  const rest = { ...input } as Record<string, unknown>;
+  delete rest[col];
+  return rest as T;
 }
 
 export async function createContact(input: ContactInsert): Promise<Contact> {
   const { data, error } = await supabase.from('contacts').insert(input).select().single();
-  if (error && isMissingLocaleColumn(error) && 'locale' in input) {
-    const { locale: _locale, ...rest } = input;
-    return createContact(rest as ContactInsert);
-  }
+  const missing = missingLateColumn(error, input);
+  if (missing) return createContact(without(input, missing));
   if (error) throw error;
   return data;
 }
 
 export async function updateContact(id: string, input: ContactUpdate): Promise<Contact> {
   const { data, error } = await supabase.from('contacts').update(input).eq('id', id).select().single();
-  if (error && isMissingLocaleColumn(error) && 'locale' in input) {
-    const { locale: _locale, ...rest } = input;
-    return updateContact(id, rest as ContactUpdate);
-  }
+  const missing = missingLateColumn(error, input);
+  if (missing) return updateContact(id, without(input, missing));
   if (error) throw error;
   return data;
 }
