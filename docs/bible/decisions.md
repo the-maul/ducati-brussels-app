@@ -1331,3 +1331,16 @@ Détail : [`../process-commandes-pieces.md`](../process-commandes-pieces.md) §5
   (caisse, documents de vente) est **averti** quand il vend une pièce réservée pour un RDV (« réservée pour le RDV
   de X le … »), sans blocage. *Client · 03/11.* [mission 10](missions/mission-10-atelier-bout-en-bout.md),
   [M08](modules/M08-atelier.md), [M05](modules/M05-stock.md)
+
+## 2026-11-18 — Export comptable : la compta reste comme G8 tant que Falco n'est pas branché (lot-g8-export-compta)
+- **Simon, 18/11** : pas encore de Falco. Jusqu'à son branchement, le DMS fonctionne **exactement comme G8** côté
+  compta : l'**export EBP** (ECRITURES.TXT + COMPTES.TXT) est **la voie officielle** vers le comptable, actif par
+  défaut, mêmes options que G8 (période / n° de facture, facture par facture / semi-globale, ventes + règlements
+  cochés, achats / cessions / dépôts-vente optionnels, transfert automatique planifié + envoi par mail optionnels et
+  désactivés par défaut). **Peppol / Falco : rien n'est envoyé**, l'UBL reste un téléchargement, rien d'obligatoire.
+- **Simon, 18/11 (Q33)** : les pièces sous garantie restent sur la facture client à 0 €, **à condition que la compta
+  reste comme G8** : une ligne à 0 € n'écrit rien, une facture entièrement à 0 € n'écrit aucune pièce (aucun n°
+  consommé, document marqué transféré), le coût des garanties reste hors export ventes.
+- Plan de comptes : celui de G8 par défaut, **à trancher avec le comptable** (tout est réglable dans Comptabilité →
+  Paramétrage des comptes). [M12](modules/M12-compta.md) §7 bis
+

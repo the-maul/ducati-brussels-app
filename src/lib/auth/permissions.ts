@@ -68,6 +68,9 @@ export const PAGE_RULES: PageRule[] = [
   // Comptabilité → clôture d'exercice et virements SEPA.
   { to: '/accounting-closure', write: ['comptable'], read: [] },
   { to: '/accounting-sepa', write: ['comptable'], read: [] },
+  // Comptabilité → transfert comptable EBP et paramétrage des comptes (rattrapage G8, 18/11/2026).
+  { to: '/accounting-transfer', write: ['comptable'], read: [] },
+  { to: '/accounting-accounts', write: ['comptable'], read: [] },
   // Contacts → tarifs clients.
   { to: '/client-pricing', write: ['vendeur', 'chef_atelier', 'marketing'], read: ['magasinier', 'mecanicien', 'comptable'] },
   // Reprises motos clients → dépôt-vente.
@@ -84,6 +87,8 @@ export const PAGE_RULES: PageRule[] = [
 export const PAGE_ALIASES: Record<string, string> = {
   '/accounting-closure': '/accounting',
   '/accounting-sepa': '/accounting',
+  '/accounting-transfer': '/accounting',
+  '/accounting-accounts': '/accounting',
   '/client-pricing': '/clients',
   '/consignment': '/tradein',
   '/preparation': '/picking',

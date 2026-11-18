@@ -18,6 +18,9 @@ verify_jwt = false
 verify_jwt = false
 [functions.outlook-poll]
 verify_jwt = false
+# Transfert comptable EBP automatique (lot-g8-export-compta) : pg_cron, controle x-cron-secret dans la fonction.
+[functions.accounting-auto-transfer]
+verify_jwt = false
 
 # Contrôle d'accès dans le code (clé de service ou membre actif de la société).
 [functions.read-id-doc]

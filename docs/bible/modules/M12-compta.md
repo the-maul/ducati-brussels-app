@@ -52,7 +52,7 @@ Tout doit donc rester paramétrable (comptes, taux, journaux) et exportable.
 - **Écritures** : ventes = client TTC au débit / ventes HT par compte × taux / TVA collectée au crédit ; règlements = trésorerie / client. Append-only, idempotentes, équilibre contrôlé à l'affichage. Comptes résolus par `account_mappings` (paramétrables, pas figés en dur).
 - **Winbooks** : une ligne par ligne d'écriture, compte général PCMN réel + compte tiers réel, montant signé (débit +, crédit −). Colonnes à caler sur le fichier exemple du comptable (attendu).
 - **TVA sur marge (B2, COM006, art. 58 §4 CTVA, AR n° 53 art. 3 ; décision M-89 du 03/11/2026)** : la facture d'une moto O ne porte aucune TVA (M6). La TVA due se calcule **globalement par période de déclaration** (`vo_margin_periods(_company, _from, _to, _granularity)`, réglage `period` = mois ou trimestre) : `marge = ventes marge − achats marge + report entrant` ; marge ≤ 0 → ni base ni TVA, **report** sur la période suivante ; marge > 0 → `base = marge × 100 / (100 + taux)`, `TVA due = marge − base` (taux réglable, 21). **Ventes marge** = documents FAC / TIK / AVO en `vat_scheme = 'marge'` (avoir négatif, facture annulée par avoir : les deux restent). **Achats marge** = première entrée en stock d'une moto O avec prix de reprise (`vo_margin_purchases`) ; stock initial repris de G8 / Shopify (origine `import` / `moto_parc`) exclu. Le tout part de la **date de bascule**. Registre par véhicule (`vo_margin_register`, marge indicative) et vue `v_vo_margin_declaration`. Le **registre TVA ordinaire** (`vat_register`) exclut les ventes marge ; les écritures de vente marge vont au compte `700200` (mapping `sales_margin`) sans TVA, et `generate_margin_period_entries` passe l'OD de fin de période `700200` / `451090` (mapping `vat_margin`) = TVA due. **Réglages** : Paramètres → Tables → « TVA marge (occasions) — réglages » (`rate`, `period`, `grid_sales` 00, `grid_base` 03, `grid_vat` 54, `winbooks_vat_code` MARGE, `winbooks_journal` OD) : **à confirmer par le comptable**. Type P = TVA 21 % normale, hors registre.
-- **UBL** : Peppol BIS 3.0, avoir si `doc_type = 'AVO'`, détaxe prise en compte. Transmission via Falco prévue (décision client, `integrations-cles-api.md` §4).
+- **UBL** : Peppol BIS 3.0, avoir si `doc_type = 'AVO'`, détaxe prise en compte. Transmission via Falco prévue (décision client, `integrations-cles-api.md` §4). **Décision du 18/11/2026** : tant que Falco n'est pas branché, rien n'est envoyé sur Peppol ; l'UBL reste un téléchargement, la voie officielle vers le comptable est l'export EBP (§7 bis).
 - **SEPA** : la génération du pain.008 **enregistre immédiatement** l'encaissement (règlement `DOM`) sur chaque facture ; un rejet se traite par « Impayé » (règlement négatif, B7).
 - **Clôture** : `close_fiscal_year` fige la période (trigger `trg_documents_closed_period` refuse tout document daté dedans) et archive un arrêté de stock.
 - **Journal des recettes** (ventes sans facture, AR n° 1 art. 14 § 2 et 15 § 4 ; PDV010, 03/11/2026) : tenu par la caisse (M06) sous forme de **journaux Z numérotés et figés** (`cash_sessions.z_number` / `z_report`, un par clôture), avec totaux par taux, remises, remboursements, CA net TVAC, encaissements par mode et lignes distinctes des ventes > 500 € TTC. Caisse → Clôtures : consultation par mois ou par jour, PDF de chaque Z (GED de la session), **export CSV** du jour ou du mois pour le comptable (`journalCsv`). Rien n'est recalculé après la clôture. Migration `20261103170000_m6_caisse_legale.sql` **non appliquée**. Validation du comptable attendue (décision D2 de l'étude caisse) avant d'abandonner tout journal papier.
@@ -88,6 +88,70 @@ Vérifié le 18/09/2026 (code + base).
 - **Rôles** : le menu Comptabilité n'est affiché qu'aux rôles `admin` et `comptable`, mais les tables et fonctions ne contrôlent que l'**appartenance à la société** : tout membre (mécanicien, vendeur) peut appeler les fonctions comptables par l'API.
 - **UBL** (lot facture légale, M-102) : export **refusé** tant que la fiche société n'a pas son n° BCE et son identifiant `0208:` (aucune des deux sociétés ne les a au 03/11 : à saisir dans Paramètres → Sociétés) ; acheteur belge identifié par `0208` + n° BCE tiré de son n° de TVA, étranger par le schéma de TVA de son pays, particulier **sans** identifiant (la liste EAS n'admet plus l'e-mail `EM`, refusé par le validateur) : son UBL n'est pas envoyable sur Peppol (non obligatoire en B2C, il reçoit le PDF) ; client comptoir nommé « Client comptoir ». Validé le 03/11 sur 5 fichiers de test (facture simple, facture d'acompte, facture finale avec acompte, avoir, détaxe) avec le validateur public Peppol (phive, peppol.helger.com, règles OpenPeppol 2026.5 : XSD, CEN EN 16931, PEPPOL) : **5 / 5 sans erreur ni avertissement** (fichiers fictifs dans `tests/fixtures/ubl-peppol/`) ; premier essai de la détaxe refusé (`PEPPOL-EN16931-CL008`, schéma `EM` pour l'acheteur) puis corrigé. Détaxe = export hors UE (`G`) : une livraison intracommunautaire (`K`) n'est pas encore distinguée (étude §3 ligne 11).
 
+## 7 bis. Ajouté le 18/11 — rattrapage G8 (lot-g8-export-compta)
+
+**Décision de Simon (18/11/2026)** : pas encore de Falco. Jusqu'à son branchement, la compta fonctionne
+**exactement comme G8** : l'**export EBP** (ECRITURES.TXT + COMPTES.TXT) est **la voie officielle vers le
+comptable**, actif par défaut, avec les options de G8. **Peppol / Falco : rien n'est envoyé**, l'UBL reste un
+simple téléchargement, rien n'est rendu obligatoire. L'export Winbooks « Actage » provisoire reste en place
+(bouton inchangé sur `/accounting`).
+
+| Écran | Ce qu'on peut y faire |
+|---|---|
+| Comptabilité → **Transfert comptable (EBP)** (`/accounting-transfer`) | Sélection **période** ou **plage de numéros** ; cases **ventes / règlements** (cochées) et **achats / cessions / dépôts-vente** (décochées, comme G8) ; écriture **facture par facture** ou **semi-globale** ; **aperçu** des lignes (pièce, journal, compte, libellé, n° externe, débit, crédit) avec contrôles (pièce déséquilibrée = transfert bloqué ; ligne sans compte signalée ; documents antérieurs jamais transférés signalés) ; **lancer le transfert** = n° séquentiel par société, documents marqués, téléchargement des deux fichiers ; **historique** (n°, date, période, fichier, pièces, manuel / automatique, transféré / annulé) avec **retéléchargement** ; **annulation** (comptable / admin, motif obligatoire, tracée dans `events`) |
+| Comptabilité → **Paramétrage des comptes** (`/accounting-accounts`) | Les 7 onglets G8 des paramètres du transfert (Général, Ventes, Règlements, Achats, Cessions, Dépôts-vente, TVA occasion) et les 8 volets de « Gestion des comptes » : comptes **clients** (création automatique 200000 + code, mise à jour des intitulés, récupération depuis la fiche, ajout / modification / suppression), **fournisseurs** (40100000 + code), **ventes** (référence ou famille × TVA × détaxe × démo × catégorie client → compte, compte rétrocession, journal), **achats**, **cessions**, **TVA** (taux → compte, compte occasion, compte TVA achat, pays), **règlements**, **mouvements de fond de caisse** |
+
+**Format reproduit au caractère près** (fichier réel relevé dans G8, `docs/g8-inventaire/export-comptable-g8.md`) :
+pièce sur 5 chiffres séquentielle **par document**, date `JJMMAAAA`, journal sur 4, compte sur 12, champ vide,
+libellé complété à 35 (coupé à 40), n° externe, montant sur 10 (point décimal), `D` / `C`, échéance (`JJMMAAAA`
+ventes, `AAAAMMJJ` règlements), virgule finale, CR LF. Journal de ventes : montant **signé** (crédit négatif) ;
+trésorerie : montant positif. Facture : TTC client au débit, HT (« F…  NOM », deux espaces) et TVA au crédit ;
+avoir : « AVOIR n° », sens inversés. Règlements « ESP / CAR / VIR n°-NOM ». Mouvements de caisse : largeurs
+relevées (remise en banque 31, dépôt-vente 32 + n° sur 8, autres 32). COMPTES.TXT : une fiche par tiers et par
+pièce (comme G8 ; option « une fiche par compte »), majuscules sans accents, ville sans tirets.
+
+**Plan de comptes = celui de G8 par défaut, À TRANCHER AVEC LE COMPTABLE** (tout se règle à l'écran) : client de
+passage `411000000` « CLIENT DIVERS », client avec compte `2000xx / 201xxx`, client sans compte `411` + code sur 5
+(créé à la volée), vente `707000`, rétrocession `710000`, TVA `445000`, produit exceptionnel `718000`, espèces
+`530000` journal `CA`, carte `511300` / virement `511400` journal `RC`, règlement par défaut `511200`, mouvement
+de caisse `530000`, journaux `VE` / `RC` / `CA`. Comptes **vides là où G8 les a vides** (Visa, mouvements de fond
+de caisse, achats, cessions, dépôts-vente, TVA occasion) : la ligne part avec un compte vide comme dans G8 et
+l'aperçu le signale.
+
+**Règles** : seuls les documents **validés** FAC / TIK / AVO / FAA depuis la **date de bascule** partent ; un
+document ne part **qu'une fois** (index unique sur les éléments non annulés) ; un document repris de G8 déjà
+marqué « Compta » ne repart pas ; règlements et mouvements de caisse **non transférés jusqu'à la fin de la
+période** (G8 reprend ainsi les règlements anciens) ; lettrage par avoir (`AVO`) et acompte reporté exclus ;
+facture finale avec acompte facturé (FAA) : client net, débit du compte acompte et de sa TVA ; régime de la marge :
+TTC au compte marge occasion, sans TVA ; la pièce colle toujours aux totaux du document (remise globale, arrondis).
+**Garantie (décision Q33, 18/11)** : une ligne à 0 € n'écrit rien ; une facture entièrement à 0 € (OR 100 %
+garantie) n'écrit **aucune pièce** et ne consomme **aucun n°**, mais elle est marquée transférée ; le coût des
+garanties reste hors export ventes (cessions décochées par défaut). Colonnes « Compta » / « Date transfert » des
+factures (`documents.compta_transferred`, `date_transfert`) tenues par le transfert et son annulation (la liste
+des factures du lot documents de vente les affiche). **Transfert automatique** : réglage « off » par défaut ;
+tâche `accounting-auto-transfer` chaque soir (23:30) qui ne fait rien tant que la fréquence est « off » ; envoi
+des fichiers par e-mail (boîte Outlook de la société) seulement si coché **et** adresse saisie.
+
+**Accès** : pages et fonctions réservées au **comptable et à l'administrateur** (grille des droits, page
+Comptabilité ; en base `_accounting_can_transfer`, lecture comprise : les fichiers contiennent noms et adresses).
+
+| Quoi | Où |
+|---|---|
+| Écrans | `src/routes/_app.accounting-transfer.tsx`, `src/routes/_app.accounting-accounts.tsx` |
+| Branchement écran | `src/modules/accounting/ebp-api.ts` |
+| Format (pur, testé) | `supabase/functions/_shared/ebp-format.ts` |
+| Comptes, paramètres, lecture des documents | `supabase/functions/_shared/ebp-sources.ts` |
+| Transfert automatique | `supabase/functions/accounting-auto-transfer/index.ts` (pg_cron, `x-cron-secret`) |
+| Tables | `accounting_transfer_settings`, `accounting_account_rules`, `accounting_third_accounts`, `accounting_transfers`, `accounting_transfer_items` |
+| Fonctions SQL | `record_accounting_transfer`, `cancel_accounting_transfer`, `ebp_payments_to_transfer`, `accounting_create_third_accounts`, `_accounting_can_transfer` |
+| Migration | `supabase/migrations/20261118250000_m12_export_ebp_g8.sql` (**non appliquée**) ; essai à blanc `supabase/tests/m12_export_ebp_g8.sql` |
+| Tests | `tests/export-ebp-g8.test.ts` : les 22 lignes du fichier G8 reproduites caractère par caractère + comptes, options, garantie (35 cas) |
+
+**À confirmer sur un fichier réel complet** : le relevé est un extrait (pièces 00005 et 00008 absentes, lignes HT /
+TVA des pièces 00002 et 00003 et ligne caisse de la pièce 00009 non recopiées) ; le test le dit et vérifie ces
+lignes à part. Les n° externes G8 sont numériques (`2701456`) ; le DMS écrit son n° sans séparateurs
+(`FAC202600012`) et le libellé `FAC-2026-00012 NOM` : à valider par le comptable.
+
 ## 8. Exigences du cahier couvertes
 Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Comptabilité, 7 exigences).
 
@@ -122,3 +186,4 @@ Invariants : **B2** partiel (registre VO fait, calcul à la vente et en écritur
 | 2026-11-03 | **Registre des véhicules à moteur** (art. 28) : export CSV / PDF, alerte de facture à inscrire (M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-03 | **Registre de la marge par période** (B2, COM006, M-89) : base globale par période (ventes − achats + report), TVA due, registre par véhicule (avec avoirs), achats sous régime de la marge, vue `v_vo_margin_declaration`, export CSV et OD Winbooks, réglages « TVA marge (occasions) », registre TVA ordinaire sans les ventes marge, écritures au compte 700200 | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
 | 2026-11-03 | Journal des recettes = journaux Z figés de la caisse, export CSV jour / mois (PDV010, voir M06) | migration `20261103170000_m6_caisse_legale.sql` **non appliquée** |
+| 2026-11-18 | **Rattrapage G8 — export EBP identique à G8** (ECRITURES.TXT + COMPTES.TXT), paramétrage des comptes façon G8, historique / annulation des transferts, marquage Compta, transfert automatique (désactivé par défaut) ; EBP = voie officielle tant que Falco n'est pas branché ; garantie à 0 € sans écriture (Q33) | branche `lot-g8-export-compta`, `20261118250000_m12_export_ebp_g8.sql` **non appliquée** |
