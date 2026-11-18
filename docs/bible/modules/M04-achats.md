@@ -180,6 +180,48 @@ Règles posées :
   essai à blanc SQL (PAMP 12,4 avec port, partielle puis reçue, garde, atomicité sur VIN en double, brouillon,
   regroupement, proposition dépannage, rétrocession, lectures).
 
+## Ajouté le 18/11 — réassort minimax immédiat (décisions de Simon, lot `lot-minimax-immediat`)
+
+Migration `20261119130000_m4_minimax_immediat.sql` (**à appliquer**, essayée sur la base de production
+dans une transaction annulée : `supabase/tests/m4_minimax_immediat.sql`, 23/23) ; code
+`src/modules/purchases/minimax-immediate.ts` (règles, miroir testé `tests/minimax-immediat.test.ts`),
+`minimax-api.ts`, `minimax-mode-card.tsx` (Paramètres), `minimax-proposal-host.tsx` (fenêtre, montée dans
+`_app.tsx`) ; libellés bloc `minimax` (FR / NL / EN / IT).
+
+- **Réassort immédiat par défaut** : déclencheur `trg_stock_moves_zz_minimax` sur **toute** ligne de
+  `stock_moves` (vente, ticket, facture, BL / RES, cession interne, réajustement, rétrocession, fusion…).
+  Un mouvement qui **baisse** le stock du minimax (sortie du réel ou réservation) d'une pièce A active,
+  minimum > 0, ni rouge ni jaune, porte la ligne **minimax** du panier standard ouvert (créé si absent)
+  au besoin de `_basket_minimax_need` (même règle que la nuit et l'atelier : maximum − (réel − réservé −
+  manque des RDV) − déjà en commande / au panier) **si ce besoin est plus haut** (jamais baissée : une
+  quantité augmentée à la main est gardée). Un mouvement qui le **remonte** (entrée, libération) ramène
+  la ligne au besoin s'il est plus bas (retirée à 0) : la facture d'un BL (sortie puis libération, deux
+  requêtes) ne commande pas deux fois. Une ligne par article et par panier (pas de doublon), verrou du
+  panier avant le calcul. **Jamais d'échec de la vente** : toute erreur est attrapée et tracée
+  (`events` `minimax_immediate_error`). Traces `minimax_immediate_add` / `minimax_immediate_reduce`
+  (référence du document, origine du mouvement, stock du minimax). Société = celle de l'article.
+  Réservations de l'atelier (origine `atelier`) : toujours `_workshop_minimax_after`. Contournement pour
+  un traitement de masse : `set_config('app.minimax_immediate', 'off', true)`. La tâche de nuit
+  `basket-minimax-daily` reste en filet de sécurité, inchangée.
+- **Réglage par société** (Paramètres → tuile « Réassort minimax ») : `companies.minimax_mode` =
+  `auto` (défaut) ou `manuel`, changé par `minimax_mode_set` (administrateur, `events` `minimax_mode_set`).
+  En **manuel**, rien n'entre au panier tout seul (ni ventes ni atelier) ; à la validation d'une vente,
+  d'un ticket de caisse (`recordSaleStockMoves`) ou d'une liste de préparation (« Terminer »), la fenêtre
+  « Pièces passées sous leur minimum » (G8 : contrôle des minis/maxis en facturation = fenêtre de mise en
+  PRC) liste les pièces concernées (`minimax_proposal` : stock, mini, maxi, en commande, à commander) :
+  **Ajouter au panier** (`minimax_proposal_apply`, quantité modifiable, origine minimax) ou **Ignorer**
+  (`minimax_proposal_ignore`, tracé). La nuit tourne aussi en manuel (filet de sécurité, à trancher).
+- **Remplacement de référence** (écran, import ListPrice état E, gestion des remplacements, fusion) :
+  déclencheur `trg_articles_minimax_transfer` (AFTER, sur `superseded_by_id`) → `_article_minimax_transfer` :
+  minimum / maximum passent sur la **référence finale** de la chaîne (`article_final_replacement`) si elle
+  n'en a pas (sinon elle garde les siens), le conditionnement d'achat (`pack_qty` > 1) est recopié si
+  celui de la nouvelle est vide (≤ 1) ; l'ancienne passe à 0 / 0 (plus réassortie). Traces
+  `article_minimax_transfer` (ancienne, valeurs d'avant) et `article_minimax_received` (nouvelle).
+  **Rattrapage** idempotent dans la migration (`raise notice`) : mesuré le 18/11 en lecture sur la base,
+  **0** ancienne référence avec minimum / maximum, **185** nouvelles références qui reçoivent le
+  conditionnement de leur ancienne (228 anciennes références concernées, la plus récente l'emporte).
+- Fonction redéfinie : `_workshop_minimax_after` (même corps + réglage manuel).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé court | État | Preuve |
@@ -233,3 +275,4 @@ par le chemin déjà en place.
 | 2026-11-03 | **Mission 09 carte 6 — Commande démo / courtoisie / showroom** (ACH003, M-81) : le classeur ouvert devient le panier démo (accessoires uniquement, refus clair d'une pièce ou d'un vêtement, trigger `excel_order_lines_accessory_guard`), onglet choisi, blocs Moto 1 à 4 par onglet, minimum 2 000 € par onglet utilisé, classeur Ducati **vierge déposé en GED privée depuis Paramètres** (« Déposer le classeur Ducati de l'année », jamais dans le dépôt) et rempli avec SheetJS (D2, I3..O5, colonne L `Q COMMANDE`, formules et autres onglets conservés, pas de mise en forme), téléchargement, **envoi par mail à cas.dwe@ducati.com** (réglable, ligne `excel` des règles de commande) par `graph-send-email` avec simulation, statut « Commandée » (`excel_order_mark_ordered`, classeur et mail conservés, `events`), **n° DCS saisi à la main** dans l'historique (`excel_order_set_dcs_number`). Code `src/modules/orders/demo-*`, `_app.orders.excel.tsx` ; tests `tests/orders-demo.test.ts` | `20261103120000_m4_commande_demo.sql` (**non appliquée**, essayée en transaction annulée le 03/11) |
 | 2026-11-18 | **Rattrapage G8** : réception atomique avec rappel de commande et réception partielle, brouillon validable, infos commandes client, propositions Stock / Dépannage / Garantie, regroupement, rétrocession, fiche fournisseur (conditions, documents, CA, RFA), liste des documents fournisseurs | `20261118200000_m4_reception_g8`, `20261118201000_m4_fournisseurs_listes_g8` (**non appliquées**) |
 | 2026-11-03 | Mission 09 cartes 1, 2, 4 — Panier de commande Ducati (standard / urgente, plusieurs ouverts) : minimax automatique (bouton + pg_cron quotidien, `stock_max`), comptoir (« Commandes de pièces à passer » → panier), atelier (OR → panier standard), site (commande Shopify → panier), « Enlever ce qui est déjà en stock », minimum 250 € HTVA, urgente une par jour sans minimum à +12 % (défaut 10 → 12), fichier **`ExportDucati.xls`** exact téléchargé et conservé en GED, n° DCS saisi après coup, écran Achats → Commandes fournisseur ; `part_order_rules` insensible à la casse (aucune règle n'était lue en prod) ; aucun mouvement de stock | `20261103100000_m4_paniers_de_commande` (**non appliquée**, testée le 03/11 en transaction annulée) |
+| 2026-11-18 | **Réassort minimax immédiat** (décisions de Simon) : toute sortie de stock qui fait passer une pièce sous son minimum la met tout de suite au panier standard (pas de doublon, jamais d'échec de la vente, filtre rouge / jaune, multi-société) ; réglage par société automatique / proposition manuelle (fenêtre à la validation vente / caisse / picking, comme G8) ; minimax et conditionnement suivent la nouvelle référence au remplacement (rattrapage : 185 références) | `20261119130000_m4_minimax_immediat.sql` (à appliquer, essai à blanc 23/23) |

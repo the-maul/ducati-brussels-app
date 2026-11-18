@@ -29,6 +29,7 @@ import {
   regeneratePicking, reopenPicking, type PickingOverviewRow, type PickingCounts, type PickingListStatus,
 } from './picking-api';
 import { printPicking } from './print-picking';
+import { requestMinimaxCheck } from '@/modules/purchases/minimax-immediate';
 import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-workshop-dialog';
 
 /** Statut d'une liste : couleur + icône + libellé (charte). */
@@ -242,7 +243,16 @@ function FinishDialog({ row, onClose, onDone }: { row: PickingOverviewRow; onClo
   const run = useMutation({
     meta: { success: false, error: false },
     mutationFn: () => finishPicking(row.id),
-    onSuccess: () => { toast.success(t('picking.finished')); onClose(); onDone(); },
+    onSuccess: () => {
+      toast.success(t('picking.finished')); onClose(); onDone();
+      // Réassort minimax en proposition manuelle (18/11/2026) : fenêtre des pièces sous leur minimum.
+      void getPickingDetail(row.id)
+        .then((lines) => requestMinimaxCheck({
+          companyId: row.company_id, source: 'picking', reference: row.doc_number ?? null,
+          articleIds: lines.filter((l) => !l.removed).map((l) => l.article_id),
+        }))
+        .catch(() => undefined);
+    },
     onError: (e) => toast.error(errMsg(e, t('picking.errUpdate'))),
   });
   return (

@@ -3,6 +3,7 @@ import { Users, Hash, Table2, Database, Building2, Puzzle, TabletSmartphone, Sma
 import { PageHeader } from '@/components/layout/page-header';
 import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
 import { FollowupModeCard } from '@/modules/crm/followup-mode-banner';
+import { MinimaxModeCard } from '@/modules/purchases/minimax-mode-card';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/')({
@@ -133,6 +134,9 @@ function SettingsIndex() {
         {/* Mission 09 carte 6 : le classeur Ducati vierge (prix concession) est depose ici,
             une fois par an, dans la GED privee ; il n'est jamais dans le depot. */}
         <DemoTemplateCard />
+
+        {/* Reassort minimax (18/11/2026) : automatique (defaut) ou proposition manuelle, par societe. */}
+        <MinimaxModeCard />
 
         {/* PDV040 : QR de paiement Stripe (Bancontact / carte), sans supplement. */}
         <Link

@@ -270,3 +270,13 @@ mouvements n'est jamais supprimé (désactivé).
 « Année » unique (DMS : Du / Au) ; « % PV / PPC » (G8 : PV = PPC × % ; DMS : PV = PPC × (1 + %)) ; type N
 (nomenclature forfait / composant) ; suppression d'un article qui a un historique (G8 supprime, DMS désactive) ;
 format `.MAJ` d'Orisha non lu.
+
+## Ajouté le 18/11 — le minimax suit la nouvelle référence (décision de Simon)
+
+Quand une pièce est remplacée (`superseded_by_id` posé par la fiche, l'import ListPrice état E, la gestion
+des remplacements ou la fusion), son **minimum / maximum** passe sur la référence **finale** de la chaîne
+si celle-ci n'en a pas déjà, et son **conditionnement d'achat** est recopié si celui de la nouvelle est
+vide (≤ 1) ; l'ancienne passe à 0 / 0 et garde la trace dans `events` (`article_minimax_transfer`, la
+nouvelle : `article_minimax_received`). Déclencheur `trg_articles_minimax_transfer`, rattrapage des
+remplacements existants (185 références reçoivent un conditionnement, aucune n'avait de minimax à
+reporter). Migration `20261119130000_m4_minimax_immediat.sql` ; détail dans M04.

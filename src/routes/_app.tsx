@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { AccessGuard } from '@/components/layout/access-guard';
+import { MinimaxProposalHost } from '@/modules/purchases/minimax-proposal-host';
 import { useAuth } from '@/lib/auth/auth-context';
 import { isPortalClient } from '@/lib/auth/home-path';
 import { isClientHost, PORTAL_HOME } from '@/lib/portal-host';
@@ -54,6 +55,8 @@ function AppLayout() {
       <AccessGuard>
         <Outlet />
       </AccessGuard>
+      {/* Réassort minimax en proposition manuelle : fenêtre après une vente / caisse / picking. */}
+      <MinimaxProposalHost />
     </AppShell>
   );
 }

@@ -14,6 +14,7 @@ import { applyCashRounding, CASH_ROUNDING_METHOD } from './cash-rounding';
 import { reversalLine } from './cash-rules';
 import { INVOICE_FAMILY_TABLE_KEY, type InvoiceFamilyRule } from './pos-rules';
 import { articleBaseSaleHt, articleVatRate } from './article-price';
+import { requestMinimaxCheck } from '@/modules/purchases/minimax-immediate';
 
 export type DocumentRow = Database['public']['Tables']['documents']['Row'];
 export type DocumentLine = Database['public']['Tables']['document_lines']['Row'];
@@ -327,7 +328,7 @@ export async function resolveVatScheme(p: {
  * FAC / TIK débitent le réel, RES / BL réservent, les autres types ne touchent à rien.
  * Un échec ici laisse le document validé avec un stock partiel : connu, voir M06 §7.
  */
-async function recordSaleStockMoves(docType: string, lines: LineInput[], number: string | null): Promise<void> {
+async function recordSaleStockMoves(companyId: string, docType: string, lines: LineInput[], number: string | null): Promise<void> {
   const realOut = (REAL_OUT_DOC_TYPES as readonly string[]).includes(docType);
   const reserve = (RESERVE_DOC_TYPES as readonly string[]).includes(docType);
   if (!realOut && !reserve) return;
@@ -344,6 +345,12 @@ async function recordSaleStockMoves(docType: string, lines: LineInput[], number:
     });
     if (se) throw se;
   }
+  // Réassort minimax (18/11/2026) : en mode « proposition manuelle », la fenêtre des pièces passées
+  // sous leur minimum s'ouvre (MinimaxProposalHost) ; en mode automatique la base l'a déjà fait.
+  requestMinimaxCheck({
+    companyId, reference: number, source: docType === 'TIK' ? 'caisse' : 'vente',
+    articleIds: lines.filter((l) => lineMovesStock(l)).map((l) => l.article_id),
+  });
 }
 
 export async function createDocument(p: {
@@ -440,7 +447,7 @@ export async function createDocument(p: {
   let number: string | null = null;
   try { number = await validateWithNumber(p.companyId, docId, p.docType); } catch (e) { return discard(e); }
 
-  await recordSaleStockMoves(p.docType, p.lines, number);
+  await recordSaleStockMoves(p.companyId, p.docType, p.lines, number);
   return docId;
 }
 
@@ -503,7 +510,7 @@ export async function updateDraftDocument(p: {
   // Le numéro n'est pris qu'ici, une seule fois : un brouillon rouvert dix fois n'en consomme aucun.
   const number = await validateWithNumber(p.companyId, p.documentId, p.docType);
 
-  await recordSaleStockMoves(p.docType, p.lines, number);
+  await recordSaleStockMoves(p.companyId, p.docType, p.lines, number);
   return p.documentId;
 }
 
