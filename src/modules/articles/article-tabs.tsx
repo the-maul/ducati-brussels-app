@@ -20,6 +20,7 @@ import { listApplicabilitiesForArticle, listApplicabilitiesByReference, importAp
 import { getArticleStock, listMoves, recordMove, transferStockOnReplace, MOVE_TYPE_LABELS, type StockMoveType } from '@/modules/stock/api';
 import { ArticleReservationsPanel } from '@/modules/workshop/reservations/article-reservations-panel';
 import { listArticleSales, aggregateByMonth } from '@/modules/sales/api';
+import { ArticleStatsPanel } from '@/modules/reports/article-stats-panel';
 import { t } from '@/lib/i18n';
 
 type LiteArticle = { id: string; reference: string; designation: string };
@@ -522,8 +523,13 @@ function StockCard({ label, value, loading, muted, accent }: { label: string; va
   );
 }
 
-/* ---------------- Statistiques (ventes par mois) ---------------- */
+/* ---------------- Statistiques (G8 : cumulées, annuelles, N-1, N-2) ---------------- */
 export function StatsTab({ articleId }: { articleId: string }) {
+  return <ArticleStatsPanel articleId={articleId} fallback={<LegacyStatsTab articleId={articleId} />} />;
+}
+
+/** Ancien affichage (ventes par mois, factures seules), tant que la migration 20261118181000 n'est pas posée. */
+function LegacyStatsTab({ articleId }: { articleId: string }) {
   const { data, isLoading } = useQuery({ queryKey: ['art-sales', articleId], queryFn: () => listArticleSales(articleId) });
   if (isLoading) return <Spinner />;
   const rows = aggregateByMonth(data ?? []);
