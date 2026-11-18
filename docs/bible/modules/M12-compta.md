@@ -115,11 +115,12 @@ si elles passent après, rejouer ce fichier) ; essai à blanc `supabase/tests/m1
 - **Base** : les fonctions de clôture (`close_fiscal_year`, `pending_deposits`, `pending_effects`), d'écritures
   (`generate_accounting_entries`, `generate_sales_entries`, `generate_payment_entries`, `generate_margin_period_entries`,
   `generate_auxiliary_accounts`), de date de bascule (`set_accounting_cutover`), SEPA (`sepa_collectable`,
-  `record_sepa_collection`, `record_sepa_unpaid`) et les journaux (`sales_journal`, `vat_register`, `vo_margin_*`)
+  `record_sepa_collection`, `record_sepa_unpaid` et les remises du lot encaissements : `sepa_collectable_installments`,
+  `sepa_batch_create`, `sepa_batch_set_xml`, `sepa_batch_archive`, `sepa_batch_cancel`, `sepa_item_unpaid`) et les journaux (`sales_journal`, `vat_register`, `vo_margin_*`)
   sont **enveloppées** : l'original devient `_<nom>_acct` (clé de service seulement) et la fonction du même nom vérifie
   le rôle puis l'appelle (refus : erreur 42501 « accounting_forbidden »). Le corps d'origine n'est pas recopié : la
   protection marche quelle que soit la version appliquée en base. `debtors_list` reste ouverte (fiche client).
-- **Tables (RLS)** : écritures, lignes d'écriture, plan comptable, correspondances de comptes, mandats SEPA = admin /
+- **Tables (RLS)** : écritures, lignes d'écriture, plan comptable, correspondances de comptes, mandats et remises SEPA = admin /
   comptable ; journal des exports (transfert) = admin / comptable, sauf l'inscription d'un **export UBL** fait depuis
   une facture (tout membre) ; clôtures : lecture par tout membre (période close visible), écriture admin / comptable.
   Vue `v_vo_margin_declaration` limitée aux sociétés où l'on est admin / comptable.

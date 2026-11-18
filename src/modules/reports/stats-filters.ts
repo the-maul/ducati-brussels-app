@@ -6,6 +6,7 @@
 export type StatsFilters = {
   family?: string; supplier_id?: string; brand?: string; reference?: string; designation?: string; bin?: string;
   article_id?: string; contact_id?: string; operator?: string; cession_type?: string; doc_type?: string;
+  /** Nature de ligne, plusieurs séparées par des virgules : article, labour, other, shipping, header. */
   kind?: string; vehicles?: 'all' | 'only' | 'exclude'; exclude_reprises?: boolean;
 };
 

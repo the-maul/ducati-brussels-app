@@ -87,7 +87,8 @@ function filtersFor(tab: StatsTab, s: Selection): StatsFilters {
   if (source !== 'sales' && tab !== 'monthly') { delete f.contact_id; }
   if (source === 'purchases') delete f.operator;
   if (source !== 'cessions') delete f.cession_type;
-  if (tab === 'best' || tab === 'daily') f.kind = 'article';
+  // Meilleures ventes et stats quotidiennes : par référence (articles et main-d'oeuvre), sans port ni ligne libre.
+  if (tab === 'best' || tab === 'daily') f.kind = 'article,labour';
   return f;
 }
 

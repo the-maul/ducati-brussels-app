@@ -44,8 +44,7 @@ describe('qui fait de la comptabilité', () => {
   });
 
   test('les fonctions SEPA protégées existent bien dans les migrations (signatures exactes)', () => {
-    const all = readdirSync(MIG_DIR).filter((f) => f.endsWith('.sql') && f < GUARD_FILE).map((f) => readFileSync(join(MIG_DIR, f), 'utf8')).join('
-');
+    const all = readdirSync(MIG_DIR).filter((f) => f.endsWith('.sql') && f < GUARD_FILE).map((f) => readFileSync(join(MIG_DIR, f), 'utf8')).join(' ');
     for (const fn of ['sepa_batch_create', 'sepa_batch_set_xml', 'sepa_batch_archive', 'sepa_batch_cancel', 'sepa_item_unpaid', 'sepa_collectable_installments']) {
       expect(all).toContain(`function public.${fn}(`);
     }
