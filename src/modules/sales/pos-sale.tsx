@@ -21,23 +21,37 @@
  * réimpression = « DUPLICATA » ; sans poste réglé, impression A4 comme avant. Le tiroir s'ouvre
  * à l'encaissement en espèces si le poste le prévoit (réglage de la société), bouton « Ouvrir le
  * tiroir » tracé dans `events`. Impression automatique du ticket une fois réglé (réglage).
+ * Rattrapage G8 du 18/11/2026 (vente détaillée sans quitter la caisse) : remise ligne et globale,
+ * client rapide, ligne de main-d'oeuvre, frais de port taxés ou non, « Chgt document » (Express,
+ * Facture, Réservation, Livraison, Proforma) ; tarif du client appliqué ; cases de la fiche client
+ * (bloqué, à surveiller, détaxé, mode HT, remises affichées, exemplaires du ticket, encours).
  */
 import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-warning';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt, Inbox } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt, Inbox, Clock, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { createContact } from '@/modules/contacts/api';
+import { normalizeEmail, normalizeMobile } from '@/lib/contact-normalize';
+import { useCustomerPricer, contactOpenBalance, type PricingContact } from './customer-pricing-api';
+import { isBlockedSale, creditCheck, creditRefuses, dueDateFromTerms, receiptCopies, type SaleClientFlags } from './customer-pricing';
+import { ClientSaleBanners } from './client-sale-banners';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import {
-  createDocument, computeTotals, searchSaleArticles, getDocumentFull, listPayments, documentValidationMessage,
-  listInvoiceFamilyRules, invoiceRequiredMessage, type SaleArticle,
+  createDocument, computeTotals, searchSaleArticles, searchLabourArticles, getDocumentFull, listPayments, documentValidationMessage,
+  listInvoiceFamilyRules, invoiceRequiredMessage, type SaleArticle, type PiedInput,
 } from './write-api';
-import { posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDate, invoiceRequired, posSessionError } from './pos-rules';
+import {
+  posCartError, posTicketLines, scanAutoPick, ticketRemaining, localIsoDate, invoiceRequired, posSessionError,
+  POS_DOC_KINDS, posDocType, posCollectsNow, type PosDocKind,
+} from './pos-rules';
 import { getOpenSession, type CashSession } from './cash-api';
 import { PaymentPanel } from './payment-panel';
 import { printDocument } from './print-document';
@@ -67,6 +81,8 @@ type CartLine = {
   _key: string; article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number;
   /** Famille et type de gestion : règle de la facture obligatoire (PDV010). */
   category_path: string | null; mgmt_type: string | null;
+  /** Remise ligne (%), type de ligne ; `_auto` : prix du tarif (recalculé), `_base` : PV HT catalogue. */
+  discount_pct: number; line_type: 'article' | 'main_oeuvre'; _auto: boolean; _base: number;
 };
 let ck = 0;
 
@@ -78,7 +94,23 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   const roundUp = useRoundSalePrices(companyId);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
-  const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number; contact: Contact | null } | null>(null);
+  const [activeDoc, setActiveDoc] = useState<{ id: string; ttc: number; contact: Contact | null; docType: string; creditBlocking: boolean } | null>(null);
+  // Vente détaillée (rattrapage G8) : type de document, remise globale, port.
+  const [docKind, setDocKind] = useState<PosDocKind>('express');
+  const [discountPct, setDiscountPct] = useState('');
+  const [discountAmount, setDiscountAmount] = useState('');
+  const [shippingHt, setShippingHt] = useState('');
+  const [shippingTaxed, setShippingTaxed] = useState(true);
+  const [labourOpen, setLabourOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  // Tarif et cases du client.
+  const pricer = useCustomerPricer(companyId, contact as PricingContact | null);
+  const flags = contact as (Contact & SaleClientFlags) | null;
+  const { data: openBalance } = useQuery({
+    queryKey: ['contact-open-balance', contact?.id, null],
+    queryFn: () => contactOpenBalance(contact!.id, null),
+    enabled: !!contact && Number(contact.credit_limit ?? 0) > 0,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [askUnpaid, setAskUnpaid] = useState(false);
@@ -102,23 +134,55 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   const { data: session, isLoading: sessionLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
   const { data: rules } = useQuery({ queryKey: ['invoice-family-rules', companyId], queryFn: () => listInvoiceFamilyRules(companyId) });
 
-  const totals = computeTotals(posTicketLines(cart));
+  const docType = posDocType(docKind, !!contact);
+  // Détaxe (client étranger) : HT, TVA 0 % export + mention ; jamais sur un ticket anonyme.
+  const taxExempt = !!flags?.is_detaxe && !!contact;
+  const showHt = !!(flags?.mode_ht || flags?.is_detaxe);
+  const pied: PiedInput = {
+    priceMode: showHt ? 'ht' : 'ttc', taxExempt,
+    globalDiscountPct: num(discountPct), globalDiscountAmount: num(discountAmount),
+    shippingHt: num(shippingHt), shippingTaxed, shippingVatRate: 21,
+  };
+  const totals = computeTotals(posTicketLines(cart), pied);
+  const credit = creditCheck(flags, openBalance ?? 0, docType === 'DEV' ? 0 : totals.total_ttc);
   // Facture imposée par la loi : moto, ou > 125 € TTC avec une pièce / un accessoire du véhicule.
-  const mustInvoice = invoiceRequired(cart, rules ?? []);
+  const mustInvoice = docKind === 'express' ? invoiceRequired(cart, rules ?? []) : null;
   const noSession = !sessionLoading && posSessionError(session) === 'noSession';
 
   // Piece reservee pour un RDV atelier : avertissement clair (mission 10, carte 6), la vente reste possible.
   const add = (a: SaleArticle) => { void warnIfReservedForWorkshop(a, (cart.find((l) => l.article_id === a.id)?.quantity ?? 0) + 1); addToCart(a); };
-  const addToCart = (a: SaleArticle) => setCart((c) => {
-    const existing = c.find((l) => l.article_id === a.id);
-    if (existing) return c.map((l) => (l.article_id === a.id ? { ...l, quantity: l.quantity + 1 } : l));
-    return [...c, {
-      _key: `c${ck++}`, article_id: a.id, designation: a.designation, quantity: 1,
-      unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate,
+  const addToCart = (a: SaleArticle, labour = false) => {
+    const base = effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp);
+    const existing = !labour ? cart.find((l) => l.article_id === a.id && l.line_type === 'article') : undefined;
+    if (existing) { setQty(existing._key, existing.quantity + 1); return; }
+    const key = `c${ck++}`;
+    setCart((c) => [...c, {
+      _key: key, article_id: a.id, designation: a.designation, quantity: 1,
+      unit_price_ht: base, vat_rate: a.vat_rate, discount_pct: 0,
+      line_type: labour || a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _auto: true, _base: base,
       category_path: a.category_path ?? null, mgmt_type: a.mgmt_type ?? null,
-    }];
-  });
-  const setQty = (key: string, q: number) => setCart((c) => c.map((l) => (l._key === key ? { ...l, quantity: q } : l)));
+    }]);
+    priceLine(key, a.id, base, 1);
+  };
+  /** Tarif du client (tarif commun, règles du client, paliers) sur une ligne encore automatique. */
+  const priceLine = (key: string, articleId: string, base: number, qty: number, using = pricer) => {
+    if (!using.contact) return;
+    using.price(articleId, base, qty, localIsoDate())
+      .then((r) => setCart((c) => c.map((l) => (l._key === key && l._auto ? { ...l, unit_price_ht: r.unitPriceHt, discount_pct: r.discountPct } : l))))
+      .catch(() => { /* prix catalogue gardé */ });
+  };
+  // Client choisi / changé : les lignes automatiques reprennent son tarif (ou le catalogue).
+  useEffect(() => {
+    setCart((c) => c.map((l) => (l._auto ? { ...l, unit_price_ht: l._base, discount_pct: 0 } : l)));
+    for (const l of cart) if (l._auto && l.article_id) priceLine(l._key, l.article_id, l._base, Number(l.quantity) || 1, pricer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricer]);
+  const setQty = (key: string, q: number) => {
+    const line = cart.find((l) => l._key === key);
+    setCart((c) => c.map((l) => (l._key === key ? { ...l, quantity: q } : l)));
+    if (line?._auto && line.article_id) priceLine(key, line.article_id, line._base, q || 1);
+  };
+  const setDiscount = (key: string, d: number) => setCart((c) => c.map((l) => (l._key === key ? { ...l, discount_pct: d, _auto: false } : l)));
   const remove = (key: string) => setCart((c) => c.filter((l) => l._key !== key));
 
   const checkout = async () => {
@@ -127,20 +191,29 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
       // Même règle que l'écran de vente : au moins une ligne et un montant (plus de ticket à 0 €).
       const refused = posCartError(cart);
       if (refused) { setError(refused === 'needLine' ? t('pos.cartEmpty') : documentValidationMessage(refused)); setBusy(false); return; }
+      // Facture, réservation, livraison, proforma : un client est obligatoire.
+      if (docType !== 'TIK' && !contact) { setError(t('posDetail.needClient')); setBusy(false); return; }
+      // Cases de la fiche client : bloqué (vente refusée), encours bloquant (livraison à crédit refusée).
+      if (isBlockedSale(flags, docType)) { setError(t('clientRules.blockedRefused')); setBusy(false); return; }
+      if (docType === 'BL' && creditRefuses(credit, docType)) {
+        setError(fillVars(t('clientRules.creditRefused'), { total: eur(credit.total), limit: eur(credit.limit) })); setBusy(false); return;
+      }
       // Caisse fermée : rien ne s'encaisse (le ticket et les espèces se rattachent à la session).
-      const open = await getOpenSession(companyId);
-      if (!open) { setError(t('pos.noSessionBody')); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); setBusy(false); return; }
+      const open = posCollectsNow(docType) ? await getOpenSession(companyId) : null;
+      if (posCollectsNow(docType) && !open) { setError(t('pos.noSessionBody')); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); setBusy(false); return; }
       if (mustInvoice && !contact) { setError(invoiceRequiredMessage(mustInvoice)); setBusy(false); return; }
       const lines = posTicketLines(cart);
-      // Avec un client : facture (obligatoire au-delà du seuil, toujours possible) ; sans : ticket.
-      const docType = contact ? 'FAC' : 'TIK';
+      const issueDate = localIsoDate();
+      const terms = contact?.payment_terms?.trim() || null;
       const id = await createDocument({
-        companyId, docType, contactId: contact?.id ?? null, issueDate: localIsoDate(), status: 'validee', lines,
+        companyId, docType, contactId: contact?.id ?? null, issueDate, status: 'validee', lines, pied,
+        dueDate: docType === 'TIK' ? null : dueDateFromTerms(terms, issueDate),
+        ...(contact ? { paymentTerms: terms } : {}),
         // Le ticket est rattaché à la session par la base ; la facture du comptoir l'est ici.
-        cashSessionId: docType === 'FAC' && sessionLinkable(open) ? open.id : null,
+        cashSessionId: docType === 'FAC' && open && sessionLinkable(open) ? open.id : null,
       });
-      const tot = computeTotals(lines);
-      setActiveDoc({ id, ttc: tot.total_ttc, contact });
+      const tot = computeTotals(lines, pied);
+      setActiveDoc({ id, ttc: tot.total_ttc, contact, docType, creditBlocking: credit.blocking });
       dispatch({ type: 'checkout' });
     } catch (e) { setError(errorMessage(e) || t('pos.errSale')); }
     setBusy(false);
@@ -198,8 +271,15 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     />
   );
 
-  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setDeviceNote(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
-  const askNewSale = () => { if (remaining > 0.005) setAskUnpaid(true); else newSale(); };
+  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setDocKind('express'); setDiscountPct(''); setDiscountAmount(''); setShippingHt(''); setShippingTaxed(true); setDeviceNote(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  const askNewSale = () => {
+    const collects = !!activeDoc && posCollectsNow(activeDoc.docType);
+    if (collects && remaining > 0.005) {
+      // Encours bloquant dépassé : le document doit être réglé (pas de vente à crédit).
+      if (activeDoc?.creditBlocking) { setError(t('clientRules.creditPosUnpaid')); return; }
+      setAskUnpaid(true);
+    } else newSale();
+  };
   const deviceMessage = (r: DeviceResult) => (r.ok ? null : `${t(`devices.result.${r.code}`)}${r.detail ? ` (${r.detail})` : ''}`);
   // Ticket par le pilote du poste ; 2e impression du même document = duplicata.
   const print = async () => {
@@ -207,7 +287,10 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     setDeviceNote(null);
     try {
       const duplicate = printed.current.has(activeDoc.id);
-      const r = await printTicket(activeDoc.id, companyName, devices.ctx, duplicate);
+      // Nombre d'exemplaires de la fiche client (G8) au premier passage ; les suivants sont des duplicatas.
+      const copies = duplicate ? 1 : receiptCopies(activeDoc.contact as SaleClientFlags | null);
+      let r = await printTicket(activeDoc.id, companyName, devices.ctx, duplicate);
+      for (let i = 1; i < copies && r.ok; i++) r = await printTicket(activeDoc.id, companyName, devices.ctx, true);
       if (r.ok) { printed.current.add(activeDoc.id); setPrintedTick((n) => n + 1); }
       setDeviceNote(deviceMessage(r));
     } catch (e) { setError(errorMessage(e)); }
@@ -242,19 +325,23 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     return (
       <div className="space-y-4">
         <div className="rounded-md border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">{t('pos.toCollect')}{activeDoc.contact ? ` · ${t('pos.invoiceFor')} ${contactDisplayName(activeDoc.contact)}` : ''}</p>
+          <p className="text-sm text-muted-foreground">
+            {posCollectsNow(activeDoc.docType) ? t('pos.toCollect') : fillVars(t('posDetail.created'), { type: t(`sales.type_${activeDoc.docType}`), number: full?.doc.number ?? '' })}
+            {activeDoc.contact ? ` · ${contactDisplayName(activeDoc.contact)}` : ''}
+          </p>
           <p className="font-data text-2xl font-bold tabular-nums">{eur(activeDoc.ttc)}</p>
-          {payments && (remaining > 0.005
+          {activeDoc.docType === 'RES' && <p className="mt-1 text-[12px] text-muted-foreground">{t('posDetail.depositHint')}</p>}
+          {posCollectsNow(activeDoc.docType) && payments && (remaining > 0.005
             ? <p className="mt-1 font-data text-sm tabular-nums text-warning">{t('pos.remaining')} : <b>{eur(remaining)}</b></p>
             : <p className="mt-1 font-data text-sm text-success">{t('pos.paidOk')}</p>)}
         </div>
-        <PaymentPanel
+        {(posCollectsNow(activeDoc.docType) || activeDoc.docType === 'RES') && <PaymentPanel
           documentId={activeDoc.id} companyId={companyId} due={remaining} onSaved={onPaymentsSaved}
           stripe={{
             totalTtc: activeDoc.ttc, customerName: activeDoc.contact ? contactDisplayName(activeDoc.contact) : null,
             customerEmail: activeDoc.contact?.email ?? null, customerPhone: activeDoc.contact?.phone ?? null,
           }}
-        />
+        />}
         {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
         {deviceNote && <p className="flex gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" /> {deviceNote}</p>}
         <div className="flex flex-wrap justify-end gap-2">
@@ -302,22 +389,37 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="min-w-0 flex-1"><ScanBar companyId={companyId} onAdd={add} /></div>
+            <Button variant="outline" onClick={() => setLabourOpen(true)}><Clock /> {t('posDetail.addLabour')}</Button>
             {screenButton}
           </div>
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted"><tr><Th>{t('pos.article')}</Th><Th className="w-24 text-right">{t('pos.qty')}</Th><Th className="w-24 text-right">{t('pos.price')}</Th><Th className="w-24 text-right">{t('pos.total')}</Th><Th className="w-10" /></tr></thead>
+              <thead className="bg-muted"><tr><Th>{t('pos.article')}</Th><Th className="w-24 text-right">{t('pos.qty')}</Th><Th className="w-24 text-right">{showHt ? t('posDetail.priceHt') : t('pos.price')}</Th><Th className="w-20 text-right">{t('posDetail.discount')}</Th><Th className="w-24 text-right">{t('pos.total')}</Th><Th className="w-10" /></tr></thead>
               <tbody>
-                {cart.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">{t('pos.cartEmpty')}</td></tr>}
-                {cart.map((l) => (
-                  <tr key={l._key} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">{l.designation}</td>
-                    <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{eur(l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{eur(l.quantity * l.unit_price_ht * (1 + l.vat_rate / 100))}</td>
-                    <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => remove(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
-                  </tr>
-                ))}
+                {cart.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">{t('pos.cartEmpty')}</td></tr>}
+                {cart.map((l) => {
+                  const vf = taxExempt ? 1 : 1 + l.vat_rate / 100;
+                  const unit = showHt ? l.unit_price_ht : l.unit_price_ht * vf;
+                  const net = l.quantity * l.unit_price_ht * (1 - (l.discount_pct || 0) / 100) * (showHt ? 1 : vf);
+                  const labour = l.line_type === 'main_oeuvre';
+                  return (
+                    <tr key={l._key} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">
+                        <span className="flex items-center gap-2">{labour && <Clock className="size-3.5 shrink-0 text-muted-foreground" />}{l.designation}</span>
+                      </td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <Input type="number" step={labour ? '0.25' : '1'} min="0" value={String(l.quantity)} onChange={(e) => setQty(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" />
+                          {labour && <span className="text-[12px] text-muted-foreground">{t('posDetail.hours')}</span>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{eur(unit)}</td>
+                      <td className="px-2 py-1"><Input type="number" step="0.5" min="0" max="100" value={l.discount_pct ? String(l.discount_pct) : ''} placeholder="0" onChange={(e) => setDiscount(l._key, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
+                      <td className="px-3 py-2 text-right tabular-nums">{eur(net)}</td>
+                      <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => remove(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -326,15 +428,39 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
         {/* Client (facture) + total + encaisser */}
         <div className="space-y-3 rounded-md border border-border bg-card p-4">
           <div className="space-y-1">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('posDetail.docType')}</label>
+            <Select value={docKind} onValueChange={(v) => setDocKind(v as PosDocKind)}>
+              <SelectTrigger title={t('posDetail.changeHint')}><SelectValue /></SelectTrigger>
+              <SelectContent>{POS_DOC_KINDS.map((k) => <SelectItem key={k} value={k}>{t(`posDetail.type_${k}`)}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pos.clientForInvoice')}</label>
             {contact ? (
               <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
                 <span className="truncate">{contactDisplayName(contact)}</span>
                 <button type="button" title={t('pos.removeClient')} onClick={() => setContact(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
               </div>
-            ) : <ContactPicker companyId={companyId} onPick={setContact} />}
-            <p className="text-[12px] text-muted-foreground">{contact ? t('pos.willInvoice') : t('pos.clientHint')}</p>
+            ) : (
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1"><ContactPicker companyId={companyId} onPick={setContact} /></div>
+                <Button variant="outline" size="icon" title={t('posDetail.quickClient')} onClick={() => setQuickOpen(true)}><UserPlus className="size-4" /></Button>
+              </div>
+            )}
+            <p className="text-[12px] text-muted-foreground">{docKind !== 'express' ? t(`posDetail.type_${docKind}`) : contact ? t('pos.willInvoice') : t('pos.clientHint')}</p>
           </div>
+          {contact && <ClientSaleBanners contact={flags!} credit={credit} docType={docType} pricer={pricer} compact />}
+          <div className="grid grid-cols-2 gap-2">
+            <PosField label={t('posDetail.globalDiscountPct')}><Input type="number" step="0.5" min="0" value={discountPct} placeholder="0" onChange={(e) => { setDiscountPct(e.target.value); if (e.target.value.trim()) setDiscountAmount(''); }} className="h-8 text-right tabular-nums" /></PosField>
+            <PosField label={t('posDetail.globalDiscountAmount')}><Input type="number" step="0.01" min="0" value={discountAmount} placeholder="0,00" onChange={(e) => { setDiscountAmount(e.target.value); if (e.target.value.trim()) setDiscountPct(''); }} className="h-8 text-right tabular-nums" /></PosField>
+            <PosField label={t('posDetail.shipping')}><Input type="number" step="0.01" min="0" value={shippingHt} placeholder="0,00" onChange={(e) => setShippingHt(e.target.value)} className="h-8 text-right tabular-nums" /></PosField>
+            <label className="flex items-end gap-2 pb-1.5 text-[12px] text-muted-foreground">
+              <input type="checkbox" checked={shippingTaxed && !taxExempt} disabled={taxExempt} onChange={(e) => setShippingTaxed(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
+              {t('posDetail.shippingTaxed')}
+            </label>
+          </div>
+          {totals.global_discount > 0 && <div className="flex items-baseline justify-between text-muted-foreground"><span className="text-sm">{t('sales.totalDiscount')}</span><span className="font-data tabular-nums">− {eur(totals.global_discount)}</span></div>}
+          {taxExempt && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('sales.taxExemptMention')}</p>}
           {mustInvoice && !contact && (
             <p className="flex gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><Receipt className="mt-0.5 size-4 shrink-0" /> {invoiceRequiredMessage(mustInvoice)}</p>
           )}
@@ -342,12 +468,89 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
           <div className="flex items-baseline justify-between"><span className="text-sm text-muted-foreground">{t('pos.totalVat')}</span><span className="font-data tabular-nums">{eur(totals.total_vat)}</span></div>
           <div className="flex items-baseline justify-between border-t border-border pt-3"><span className="font-bold">{t('pos.totalTtc')}</span><span className="font-data text-2xl font-bold tabular-nums">{eur(totals.total_ttc)}</span></div>
           {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-          <Button className="w-full" size="lg" onClick={checkout} disabled={busy || cart.length === 0 || noSession || (!!mustInvoice && !contact)}>
-            {busy ? <Loader2 className="animate-spin" /> : <CreditCard />} {contact ? t('pos.checkoutInvoice') : t('pos.checkout')}
+          <Button className="w-full" size="lg" onClick={checkout}
+            disabled={busy || cart.length === 0 || (posCollectsNow(docType) && noSession) || (!!mustInvoice && !contact) || (docType !== 'TIK' && !contact) || isBlockedSale(flags, docType)}>
+            {busy ? <Loader2 className="animate-spin" /> : <CreditCard />} {!posCollectsNow(docType) ? t('posDetail.checkoutDoc') : contact ? t('pos.checkoutInvoice') : t('pos.checkout')}
           </Button>
         </div>
       </div>
+      {labourOpen && <LabourDialog companyId={companyId} onClose={() => setLabourOpen(false)} onPick={(a) => { addToCart(a, true); setLabourOpen(false); }} />}
+      {quickOpen && <QuickClientDialog companyId={companyId} onClose={() => setQuickOpen(false)} onCreated={(c) => { setContact(c); setQuickOpen(false); }} />}
     </div>
+  );
+}
+
+function PosField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="space-y-1"><label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;
+}
+
+/** Ligne de main-d'oeuvre au comptoir : articles de type T (taux horaire, heures décimales). */
+function LabourDialog({ companyId, onClose, onPick }: { companyId: string; onClose: () => void; onPick: (a: SaleArticle) => void }) {
+  const roundUp = useRoundSalePrices(companyId);
+  const [term, setTerm] = useState('');
+  const [deb, setDeb] = useState('');
+  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 200); return () => clearTimeout(id); }, [term]);
+  const { data, isFetched } = useQuery({ queryKey: ['pos-labour', companyId, deb], queryFn: () => searchLabourArticles(companyId, deb) });
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Clock className="size-5" /> {t('posDetail.addLabour')}</DialogTitle></DialogHeader>
+        <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('posDetail.labourSearch')} autoFocus />
+        <div className="max-h-72 overflow-auto rounded-md border border-border">
+          {isFetched && (data ?? []).length === 0 && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('posDetail.labourNone')}</p>}
+          {(data ?? []).map((a) => (
+            <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm last:border-0 hover:bg-accent">
+              <span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span>
+              <span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))} / {t('posDetail.hours')}</span>
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Client rapide (G8 : « Nouveau client » depuis la saisie) : nom obligatoire, la fiche se complète plus tard. */
+function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: string; onClose: () => void; onCreated: (c: Contact) => void }) {
+  const [f, setF] = useState({ last: '', first: '', mobile: '', email: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const create = async () => {
+    if (!f.last.trim()) return;
+    setBusy(true); setErr(null);
+    try {
+      const c = await createContact({
+        company_id: companyId, type: 'particulier', status: 'client',
+        last_name: f.last.trim().toUpperCase(), first_name: f.first.trim() ? f.first.trim().toUpperCase() : null,
+        mobile: f.mobile.trim() ? normalizeMobile(f.mobile) : null, email: f.email.trim() ? normalizeEmail(f.email) : null,
+      });
+      onCreated(c);
+    } catch (e) { setErr(errorMessage(e)); }
+    setBusy(false);
+  };
+  const field = (k: keyof typeof f, label: string, type = 'text') => (
+    <PosField label={label}><Input type={type} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></PosField>
+  );
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><UserPlus className="size-5" /> {t('posDetail.quickClientTitle')}</DialogTitle>
+          <DialogDescription>{t('posDetail.quickClientHint')}</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          {field('last', t('posDetail.lastName'))}
+          {field('first', t('posDetail.firstName'))}
+          {field('mobile', t('posDetail.mobile'), 'tel')}
+          {field('email', t('posDetail.email'), 'email')}
+        </div>
+        {err && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button onClick={create} disabled={busy || !f.last.trim()}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} {t('posDetail.create')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

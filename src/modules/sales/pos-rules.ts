@@ -8,15 +8,36 @@
  */
 import { documentValidationError, type DocumentValidationError, type LineInput } from './write-api';
 
-export type PosCartLine = { article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number };
+export type PosCartLine = {
+  article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number;
+  /** Vente detaillee au comptoir (rattrapage G8 du 18/11) : remise ligne et ligne de main-d'oeuvre. */
+  discount_pct?: number; line_type?: 'article' | 'main_oeuvre';
+};
 
-/** Lignes du panier qui partent sur le ticket (quantite strictement positive, remise ligne 0). */
+/** Lignes du panier qui partent sur le ticket (quantite strictement positive ; remise ligne bornee 0-100). */
 export function posTicketLines(cart: PosCartLine[]): LineInput[] {
-  return cart.filter((l) => Number(l.quantity) > 0).map((l) => ({
-    article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
-    unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: 0, line_type: 'article',
-  }));
+  return cart.filter((l) => Number(l.quantity) > 0).map((l) => {
+    const d = Number(l.discount_pct ?? 0);
+    return {
+      article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
+      unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate),
+      discount_pct: Number.isFinite(d) ? Math.min(Math.max(d, 0), 100) : 0, line_type: l.line_type ?? 'article',
+    };
+  });
 }
+
+/**
+ * « Chgt document » de G8 au comptoir : le meme panier part en Express (ticket, ou facture si un
+ * client est choisi), Facture, Reservation, Livraison (BL) ou Proforma (devis).
+ */
+export const POS_DOC_KINDS = ['express', 'FAC', 'RES', 'BL', 'DEV'] as const;
+export type PosDocKind = (typeof POS_DOC_KINDS)[number];
+export function posDocType(kind: PosDocKind, hasClient: boolean): string {
+  if (kind === 'express') return hasClient ? 'FAC' : 'TIK';
+  return kind;
+}
+/** Documents encaisses tout de suite a la caisse (les autres se reglent plus tard ou par acompte). */
+export const posCollectsNow = (docType: string): boolean => docType === 'TIK' || docType === 'FAC';
 
 /** Motif de refus d un encaissement (cle `sales.<motif>`), ou null si le ticket peut etre cree. */
 export function posCartError(cart: PosCartLine[]): DocumentValidationError | null {
@@ -80,7 +101,7 @@ export function familyRequiresInvoice(rules: InvoiceFamilyRule[], categoryPath: 
   return best ? best.requiresInvoice : false;
 }
 
-export type InvoiceRequiredLine = { category_path?: string | null; mgmt_type?: string | null; quantity: number; unit_price_ht: number; vat_rate: number };
+export type InvoiceRequiredLine = { category_path?: string | null; mgmt_type?: string | null; quantity: number; unit_price_ht: number; vat_rate: number; discount_pct?: number };
 export type InvoiceRequiredReason = 'vehicle' | 'threshold' | null;
 
 /**
@@ -90,7 +111,7 @@ export type InvoiceRequiredReason = 'vehicle' | 'threshold' | null;
 export function invoiceRequired(cart: InvoiceRequiredLine[], rules: InvoiceFamilyRule[]): InvoiceRequiredReason {
   const kept = cart.filter((l) => Number(l.quantity) > 0);
   if (kept.some((l) => (VEHICLE_MGMT_TYPES as readonly string[]).includes(l.mgmt_type ?? ''))) return 'vehicle';
-  const ttc = kept.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht) * (1 + Number(l.vat_rate) / 100), 0);
+  const ttc = kept.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht) * (1 - Number(l.discount_pct ?? 0) / 100) * (1 + Number(l.vat_rate) / 100), 0);
   if (Math.round(ttc * 100) / 100 <= INVOICE_THRESHOLD_TTC) return null;
   return kept.some((l) => familyRequiresInvoice(rules, l.category_path, l.mgmt_type)) ? 'threshold' : null;
 }
