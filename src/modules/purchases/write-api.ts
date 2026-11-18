@@ -5,6 +5,9 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseSchedule } from './api';
+import { normalizeVin } from '@/lib/vin';
+import { t, fillVars } from '@/lib/i18n';
+import { receptionChassisErrors } from '@/modules/vehicles/chassis-rules';
 
 /** Données châssis d'une ligne véhicule → crée une fiche véhicule (type V) à la réception (B9, G8 R4-R5). */
 export type ChassisInput = {
@@ -92,6 +95,9 @@ export async function createPurchaseOrder(p: {
     vatRegime: p.vatRegime, globalDiscountPct: p.globalDiscountPct,
     shippingHt: p.shippingHt, shippingTaxed: p.shippingTaxed, shippingVatRate: p.shippingVatRate,
   });
+  // Châssis contrôlés AVANT toute écriture (rattrapage G8 du 18/11) : un châssis = une moto (quantité 1),
+  // sur un article (le modèle), VIN non répété ni déjà présent dans le parc. Plus de réception à moitié faite.
+  if (p.status === 'validee' && p.docType === 'REC') await assertChassisReceivable(p.companyId, p.lines);
   const number = p.status === 'validee' ? await nextNumber(p.companyId, p.docType) : null;
 
   const { data: order, error } = await supabase.from('purchase_orders').insert({
@@ -135,6 +141,15 @@ export async function createPurchaseOrder(p: {
     for (const l of p.lines) {
       if (!l.article_id || l.quantity <= 0) continue;
       const unitNet = r3(l.unit_price_ht * (1 - (l.discount_pct || 0) / 100));
+
+      // Réception châssis (rattrapage G8 du 18/11) : la fiche moto est rattachée au MODELE (article V)
+      // et l'entrée de stock de 1 est écrite DANS LA MEME transaction (`vehicle_chassis_receive`) :
+      // plusieurs châssis du même modèle, stock du modèle = nombre de châssis en stock.
+      if (l.chassis?.vin?.trim()) {
+        const done = await receiveChassis(l.article_id, l.chassis, l, unitNet, number);
+        if (done) continue;
+      }
+
       const { error: me } = await supabase.rpc('record_stock_move', {
         _article: l.article_id, _type: 'entree', _qty: Math.abs(l.quantity), _unit_cost: unitNet,
         // undefined : _bin/_ref/_note sont DEFAULT NULL cote SQL, les omettre equivaut a NULL.
@@ -142,7 +157,7 @@ export async function createPurchaseOrder(p: {
       });
       if (me) throw me;
 
-      // Réception châssis → création de la fiche véhicule (type V) liée à l'article (B9, G8 R5).
+      // Ancien chemin (migration 20261118140000 pas encore en base) : fiche véhicule liée à l'article (B9, G8 R5).
       if (l.chassis?.vin?.trim()) {
         const ch = l.chassis;
         const { error: ve } = await supabase.from('vehicles').insert({
@@ -161,6 +176,46 @@ export async function createPurchaseOrder(p: {
     }
   }
   return orderId;
+}
+
+/** Refuse la réception avant toute écriture si un châssis est mal saisi ou déjà dans le parc. */
+async function assertChassisReceivable(companyId: string, lines: PurchaseLineInput[]): Promise<void> {
+  const errors = receptionChassisErrors(lines);
+  if (errors.length) {
+    const e = errors[0];
+    throw new Error(fillVars(t(`parcG8.${e.error}`), { line: String(e.index + 1), vin: e.vin ?? '' }));
+  }
+  const vins = lines.map((l) => normalizeVin(l.chassis?.vin)).filter(Boolean);
+  if (!vins.length) return;
+  const { data, error } = await supabase.from('vehicles').select('vin').eq('company_id', companyId).in('vin', vins);
+  if (error) throw error;
+  const known = ((data ?? []) as { vin: string | null }[]).map((v) => normalizeVin(v.vin)).find(Boolean);
+  if (known) throw new Error(fillVars(t('parcG8.chassisVinExists'), { vin: known }));
+}
+
+/**
+ * Un châssis reçu : fiche moto + entrée de stock de 1 en une transaction (`vehicle_chassis_receive`).
+ * Renvoie false si la fonction n'est pas encore en base (l'appelant garde l'ancien chemin).
+ */
+async function receiveChassis(articleId: string, ch: ChassisInput, l: PurchaseLineInput, unitNet: number, ref: string | null): Promise<boolean> {
+  const loose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>;
+  const { error } = await loose('vehicle_chassis_receive', {
+    _article: articleId,
+    _chassis: {
+      vin: ch.vin.trim(), brand: ch.brand || null, model: ch.model || l.designation, engine_number: ch.engine_number || null,
+      power_cv: ch.power_cv ?? null, is_restricted: !!ch.is_restricted, energy: ch.energy || null,
+      antipollution: ch.antipollution || null, color: ch.color || null,
+      first_registration_date: ch.first_registration_date || null, mileage: ch.mileage ?? null,
+      model_year: ch.model_year ?? null, gps_tracker_id: ch.gps_tracker_id || null, pin_tracker: ch.pin_tracker || null,
+      tpms_av: ch.tpms_av || null, tpms_ar: ch.tpms_ar || null, warranty_end: ch.warranty_end || null,
+      display_price: l.sale_price_ttc ?? null,
+    },
+    _unit_cost: unitNet, _origin: 'reception', _ref: ref, _bin: l.bin_location ?? null,
+  });
+  if (!error) return true;
+  const missing = error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(error.message);
+  if (missing) return false;
+  throw error;
 }
 
 /** Crée une commande fournisseur (CMD) par fournisseur à partir de lignes de réappro. */

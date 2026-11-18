@@ -14,6 +14,7 @@ import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { ArticleLinkBadges, ArticleSourcesSummary, CompatibilityPanel } from '@/modules/articles/article-links-panel';
 import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart } from 'lucide-react';
+import { ModelChassisPanel } from '@/modules/vehicles/model-chassis-panel';
 import { printLabels } from '@/modules/articles/label-print';
 import { getArticle, updateArticle, duplicateArticle, type ArticleInsert } from '@/modules/articles/api';
 import { withTranslatedDesignation } from '@/modules/articles/translate/api';
@@ -192,6 +193,8 @@ function EditArticle() {
           <TabsTrigger value="fiche">{t('articleTabs.tabFiche')}</TabsTrigger>
           <TabsTrigger value="stock">{t('articleTabs.tabStock')}</TabsTrigger>
           <TabsTrigger value="barcodes">{t('articleTabs.tabBarcodes')}</TabsTrigger>
+          {/* Rattrapage G8 : un modele de moto neuve (type V) liste ses chassis (stock = chassis en stock). */}
+          {article.mgmt_type === 'V' && <TabsTrigger value="chassis">{t('parcG8.chassisTab')}</TabsTrigger>}
           <TabsTrigger value="kit">{t('articleTabs.tabKit')}</TabsTrigger>
           <TabsTrigger value="replacement">{t('articleTabs.tabReplacement')}</TabsTrigger>
           <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
@@ -218,6 +221,12 @@ function EditArticle() {
         </TabsContent>
         <TabsContent value="stock" className="mt-4"><StockTab articleId={articleId} /></TabsContent>
         <TabsContent value="barcodes" className="mt-4"><BarcodesTab articleId={articleId} /></TabsContent>
+        {article.mgmt_type === 'V' && (
+          <TabsContent value="chassis" className="mt-4">
+            <ModelChassisPanel articleId={articleId} purchasePrice={article.purchase_price != null ? Number(article.purchase_price) : null}
+              salePriceTtc={article.sale_price_ttc != null ? Number(article.sale_price_ttc) : null} readOnly={readOnly} />
+          </TabsContent>
+        )}
         <TabsContent value="kit" className="mt-4"><KitTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="replacement" className="mt-4">
           <ReplacementTab articleId={articleId} companyId={activeCompanyId} supersededById={article.superseded_by_id} />
