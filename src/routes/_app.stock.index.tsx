@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown } from 'lucide-react';
+import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown, Scale, FileSpreadsheet, Tags } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,7 +93,10 @@ function StockList() {
         title={t('stock.title')}
         description={t('stock.subtitle')}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/edition' })}><FileSpreadsheet /> {t('stockG8.nav.edition')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/readjust' })}><Scale /> {t('stockG8.nav.readjust')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/labels' })}><Tags /> {t('stockG8.nav.labels')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/stock/cessions' })}><Gift /> {t('stock.cessions')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/stock/depreciation' })}><TrendingDown /> {t('stock.deprecBtn')}</Button>
             <Button onClick={() => navigate({ to: '/stock/inventory' })}><ClipboardList /> {t('stock.inventory')}</Button>

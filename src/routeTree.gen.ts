@@ -94,6 +94,9 @@ import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
 import { Route as AppStockCessionsRouteImport } from './routes/_app.stock.cessions'
 import { Route as AppStockDepreciationRouteImport } from './routes/_app.stock.depreciation'
 import { Route as AppStockInventoryRouteImport } from './routes/_app.stock.inventory'
+import { Route as AppStockEditionRouteImport } from './routes/_app.stock.edition'
+import { Route as AppStockLabelsRouteImport } from './routes/_app.stock.labels'
+import { Route as AppStockReadjustRouteImport } from './routes/_app.stock.readjust'
 import { Route as AppTradeinIndexRouteImport } from './routes/_app.tradein.index'
 import { Route as AppTradeinOroIdRouteImport } from './routes/_app.tradein.$oroId'
 import { Route as AppTradeinNewRouteImport } from './routes/_app.tradein.new'
@@ -551,6 +554,21 @@ const AppStockInventoryRoute = AppStockInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => AppStockRoute,
 } as any)
+const AppStockEditionRoute = AppStockEditionRouteImport.update({
+  id: '/edition',
+  path: '/edition',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockLabelsRoute = AppStockLabelsRouteImport.update({
+  id: '/labels',
+  path: '/labels',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockReadjustRoute = AppStockReadjustRouteImport.update({
+  id: '/readjust',
+  path: '/readjust',
+  getParentRoute: () => AppStockRoute,
+} as any)
 const AppTradeinIndexRoute = AppTradeinIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -794,6 +812,9 @@ export interface FileRoutesByFullPath {
   '/stock/cessions': typeof AppStockCessionsRoute
   '/stock/depreciation': typeof AppStockDepreciationRoute
   '/stock/inventory': typeof AppStockInventoryRoute
+  '/stock/edition': typeof AppStockEditionRoute
+  '/stock/labels': typeof AppStockLabelsRoute
+  '/stock/readjust': typeof AppStockReadjustRoute
   '/tradein/$oroId': typeof AppTradeinOroIdRoute
   '/tradein/new': typeof AppTradeinNewRoute
   '/tradein/partners': typeof AppTradeinPartnersRoute
@@ -896,6 +917,9 @@ export interface FileRoutesByTo {
   '/stock/cessions': typeof AppStockCessionsRoute
   '/stock/depreciation': typeof AppStockDepreciationRoute
   '/stock/inventory': typeof AppStockInventoryRoute
+  '/stock/edition': typeof AppStockEditionRoute
+  '/stock/labels': typeof AppStockLabelsRoute
+  '/stock/readjust': typeof AppStockReadjustRoute
   '/tradein/$oroId': typeof AppTradeinOroIdRoute
   '/tradein/new': typeof AppTradeinNewRoute
   '/tradein/partners': typeof AppTradeinPartnersRoute
@@ -1015,6 +1039,9 @@ export interface FileRoutesById {
   '/_app/stock/cessions': typeof AppStockCessionsRoute
   '/_app/stock/depreciation': typeof AppStockDepreciationRoute
   '/_app/stock/inventory': typeof AppStockInventoryRoute
+  '/_app/stock/edition': typeof AppStockEditionRoute
+  '/_app/stock/labels': typeof AppStockLabelsRoute
+  '/_app/stock/readjust': typeof AppStockReadjustRoute
   '/_app/tradein/$oroId': typeof AppTradeinOroIdRoute
   '/_app/tradein/new': typeof AppTradeinNewRoute
   '/_app/tradein/partners': typeof AppTradeinPartnersRoute
@@ -1134,6 +1161,9 @@ export interface FileRouteTypes {
     | '/stock/cessions'
     | '/stock/depreciation'
     | '/stock/inventory'
+    | '/stock/edition'
+    | '/stock/labels'
+    | '/stock/readjust'
     | '/tradein/$oroId'
     | '/tradein/new'
     | '/tradein/partners'
@@ -1236,6 +1266,9 @@ export interface FileRouteTypes {
     | '/stock/cessions'
     | '/stock/depreciation'
     | '/stock/inventory'
+    | '/stock/edition'
+    | '/stock/labels'
+    | '/stock/readjust'
     | '/tradein/$oroId'
     | '/tradein/new'
     | '/tradein/partners'
@@ -1354,6 +1387,9 @@ export interface FileRouteTypes {
     | '/_app/stock/cessions'
     | '/_app/stock/depreciation'
     | '/_app/stock/inventory'
+    | '/_app/stock/edition'
+    | '/_app/stock/labels'
+    | '/_app/stock/readjust'
     | '/_app/tradein/$oroId'
     | '/_app/tradein/new'
     | '/_app/tradein/partners'
@@ -2006,6 +2042,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStockInventoryRouteImport
       parentRoute: typeof AppStockRoute
     }
+    '/_app/stock/edition': {
+      id: '/_app/stock/edition'
+      path: '/edition'
+      fullPath: '/stock/edition'
+      preLoaderRoute: typeof AppStockEditionRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/labels': {
+      id: '/_app/stock/labels'
+      path: '/labels'
+      fullPath: '/stock/labels'
+      preLoaderRoute: typeof AppStockLabelsRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/readjust': {
+      id: '/_app/stock/readjust'
+      path: '/readjust'
+      fullPath: '/stock/readjust'
+      preLoaderRoute: typeof AppStockReadjustRouteImport
+      parentRoute: typeof AppStockRoute
+    }
     '/_app/tradein/': {
       id: '/_app/tradein/'
       path: '/'
@@ -2434,6 +2491,9 @@ interface AppStockRouteChildren {
   AppStockCessionsRoute: typeof AppStockCessionsRoute
   AppStockDepreciationRoute: typeof AppStockDepreciationRoute
   AppStockInventoryRoute: typeof AppStockInventoryRoute
+  AppStockEditionRoute: typeof AppStockEditionRoute
+  AppStockLabelsRoute: typeof AppStockLabelsRoute
+  AppStockReadjustRoute: typeof AppStockReadjustRoute
   AppStockIndexRoute: typeof AppStockIndexRoute
 }
 
@@ -2441,6 +2501,9 @@ const AppStockRouteChildren: AppStockRouteChildren = {
   AppStockCessionsRoute: AppStockCessionsRoute,
   AppStockDepreciationRoute: AppStockDepreciationRoute,
   AppStockInventoryRoute: AppStockInventoryRoute,
+  AppStockEditionRoute: AppStockEditionRoute,
+  AppStockLabelsRoute: AppStockLabelsRoute,
+  AppStockReadjustRoute: AppStockReadjustRoute,
   AppStockIndexRoute: AppStockIndexRoute,
 }
 
