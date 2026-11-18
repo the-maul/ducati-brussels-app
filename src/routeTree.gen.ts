@@ -19,10 +19,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MonEspaceRouteImport } from './routes/mon-espace'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
+import { Route as AppAccountingAccountsRouteImport } from './routes/_app.accounting-accounts'
 import { Route as AppAccountingClosureRouteImport } from './routes/_app.accounting-closure'
 import { Route as AppAccountingSepaRouteImport } from './routes/_app.accounting-sepa'
 import { Route as AppAccountingTransferRouteImport } from './routes/_app.accounting-transfer'
-import { Route as AppAccountingAccountsRouteImport } from './routes/_app.accounting-accounts'
 import { Route as AppClientPricingRouteImport } from './routes/_app.client-pricing'
 import { Route as AppClientsRouteImport } from './routes/_app.clients'
 import { Route as AppConsignmentRouteImport } from './routes/_app.consignment'
@@ -48,11 +48,11 @@ import { Route as PaiementMerciRouteImport } from './routes/paiement.merci'
 import { Route as SignerTokenRouteImport } from './routes/signer.$token'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsContactIdRouteImport } from './routes/_app.clients.$contactId'
-import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
 import { Route as AppClientsCascadeRouteImport } from './routes/_app.clients.cascade'
 import { Route as AppClientsExtractionRouteImport } from './routes/_app.clients.extraction'
-import { Route as AppClientsRgpdRouteImport } from './routes/_app.clients.rgpd'
+import { Route as AppClientsMobilesRouteImport } from './routes/_app.clients.mobiles'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
+import { Route as AppClientsRgpdRouteImport } from './routes/_app.clients.rgpd'
 import { Route as AppCrmIndexRouteImport } from './routes/_app.crm.index'
 import { Route as AppCrmRelancesRouteImport } from './routes/_app.crm.relances'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app.orders.index'
@@ -80,18 +80,18 @@ import { Route as AppPurchasesSuppliersRouteImport } from './routes/_app.purchas
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
-import { Route as AppSalesReceivablesRouteImport } from './routes/_app.sales.receivables'
-import { Route as AppSalesInvoicesRouteImport } from './routes/_app.sales.invoices'
 import { Route as AppSalesBlInvoicingRouteImport } from './routes/_app.sales.bl-invoicing'
 import { Route as AppSalesClientDocumentsRouteImport } from './routes/_app.sales.client-documents'
+import { Route as AppSalesInvoicesRouteImport } from './routes/_app.sales.invoices'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
+import { Route as AppSalesReceivablesRouteImport } from './routes/_app.sales.receivables'
 import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
 import { Route as AppSettingsAppClientRouteImport } from './routes/_app.settings.app-client'
 import { Route as AppSettingsCommentsRouteImport } from './routes/_app.settings.comments'
 import { Route as AppSettingsCompaniesRouteImport } from './routes/_app.settings.companies'
-import { Route as AppSettingsDevicesRouteImport } from './routes/_app.settings.devices'
 import { Route as AppSettingsCustomerDisplaysRouteImport } from './routes/_app.settings.customer-displays'
+import { Route as AppSettingsDevicesRouteImport } from './routes/_app.settings.devices'
 import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings.extension'
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
 import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
@@ -102,8 +102,8 @@ import { Route as AppSettingsUsersRouteImport } from './routes/_app.settings.use
 import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
 import { Route as AppStockCessionsRouteImport } from './routes/_app.stock.cessions'
 import { Route as AppStockDepreciationRouteImport } from './routes/_app.stock.depreciation'
-import { Route as AppStockInventoryRouteImport } from './routes/_app.stock.inventory'
 import { Route as AppStockEditionRouteImport } from './routes/_app.stock.edition'
+import { Route as AppStockInventoryRouteImport } from './routes/_app.stock.inventory'
 import { Route as AppStockLabelsRouteImport } from './routes/_app.stock.labels'
 import { Route as AppStockReadjustRouteImport } from './routes/_app.stock.readjust'
 import { Route as AppTradeinIndexRouteImport } from './routes/_app.tradein.index'
@@ -187,6 +187,11 @@ const AppAccountingRoute = AppAccountingRouteImport.update({
   path: '/accounting',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountingAccountsRoute = AppAccountingAccountsRouteImport.update({
+  id: '/accounting-accounts',
+  path: '/accounting-accounts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountingClosureRoute = AppAccountingClosureRouteImport.update({
   id: '/accounting-closure',
   path: '/accounting-closure',
@@ -200,11 +205,6 @@ const AppAccountingSepaRoute = AppAccountingSepaRouteImport.update({
 const AppAccountingTransferRoute = AppAccountingTransferRouteImport.update({
   id: '/accounting-transfer',
   path: '/accounting-transfer',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAccountingAccountsRoute = AppAccountingAccountsRouteImport.update({
-  id: '/accounting-accounts',
-  path: '/accounting-accounts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientPricingRoute = AppClientPricingRouteImport.update({
@@ -332,11 +332,6 @@ const AppClientsContactIdRoute = AppClientsContactIdRouteImport.update({
   path: '/$contactId',
   getParentRoute: () => AppClientsRoute,
 } as any)
-const AppClientsMobilesRoute = AppClientsMobilesRouteImport.update({
-  id: '/mobiles',
-  path: '/mobiles',
-  getParentRoute: () => AppClientsRoute,
-} as any)
 const AppClientsCascadeRoute = AppClientsCascadeRouteImport.update({
   id: '/cascade',
   path: '/cascade',
@@ -347,14 +342,19 @@ const AppClientsExtractionRoute = AppClientsExtractionRouteImport.update({
   path: '/extraction',
   getParentRoute: () => AppClientsRoute,
 } as any)
-const AppClientsRgpdRoute = AppClientsRgpdRouteImport.update({
-  id: '/rgpd',
-  path: '/rgpd',
+const AppClientsMobilesRoute = AppClientsMobilesRouteImport.update({
+  id: '/mobiles',
+  path: '/mobiles',
   getParentRoute: () => AppClientsRoute,
 } as any)
 const AppClientsNewRoute = AppClientsNewRouteImport.update({
   id: '/new',
   path: '/new',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppClientsRgpdRoute = AppClientsRgpdRouteImport.update({
+  id: '/rgpd',
+  path: '/rgpd',
   getParentRoute: () => AppClientsRoute,
 } as any)
 const AppCrmIndexRoute = AppCrmIndexRouteImport.update({
@@ -492,14 +492,6 @@ const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
   path: '/balances',
   getParentRoute: () => AppSalesRoute,
 } as any)
-const AppSalesReceivablesRoute = AppSalesReceivablesRouteImport.update({
-  id: '/receivables',
-  path: '/receivables',
-const AppSalesInvoicesRoute = AppSalesInvoicesRouteImport.update({
-  id: '/invoices',
-  path: '/invoices',
-  getParentRoute: () => AppSalesRoute,
-} as any)
 const AppSalesBlInvoicingRoute = AppSalesBlInvoicingRouteImport.update({
   id: '/bl-invoicing',
   path: '/bl-invoicing',
@@ -510,9 +502,19 @@ const AppSalesClientDocumentsRoute = AppSalesClientDocumentsRouteImport.update({
   path: '/client-documents',
   getParentRoute: () => AppSalesRoute,
 } as any)
+const AppSalesInvoicesRoute = AppSalesInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => AppSalesRoute,
+} as any)
 const AppSalesNewRoute = AppSalesNewRouteImport.update({
   id: '/new',
   path: '/new',
+  getParentRoute: () => AppSalesRoute,
+} as any)
+const AppSalesReceivablesRoute = AppSalesReceivablesRouteImport.update({
+  id: '/receivables',
+  path: '/receivables',
   getParentRoute: () => AppSalesRoute,
 } as any)
 const AppSalesWebOrdersRoute = AppSalesWebOrdersRouteImport.update({
@@ -540,17 +542,17 @@ const AppSettingsCompaniesRoute = AppSettingsCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsDevicesRoute = AppSettingsDevicesRouteImport.update({
-  id: '/devices',
-  path: '/devices',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
 const AppSettingsCustomerDisplaysRoute =
   AppSettingsCustomerDisplaysRouteImport.update({
     id: '/customer-displays',
     path: '/customer-displays',
     getParentRoute: () => AppSettingsRoute,
   } as any)
+const AppSettingsDevicesRoute = AppSettingsDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsExtensionRoute = AppSettingsExtensionRouteImport.update({
   id: '/extension',
   path: '/extension',
@@ -601,14 +603,14 @@ const AppStockDepreciationRoute = AppStockDepreciationRouteImport.update({
   path: '/depreciation',
   getParentRoute: () => AppStockRoute,
 } as any)
-const AppStockInventoryRoute = AppStockInventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => AppStockRoute,
-} as any)
 const AppStockEditionRoute = AppStockEditionRouteImport.update({
   id: '/edition',
   path: '/edition',
+  getParentRoute: () => AppStockRoute,
+} as any)
+const AppStockInventoryRoute = AppStockInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => AppStockRoute,
 } as any)
 const AppStockLabelsRoute = AppStockLabelsRouteImport.update({
@@ -797,10 +799,10 @@ export interface FileRoutesByFullPath {
   '/mon-espace': typeof MonEspaceRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
+  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
   '/accounting-transfer': typeof AppAccountingTransferRoute
-  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/client-pricing': typeof AppClientPricingRoute
   '/clients': typeof AppClientsRouteWithChildren
   '/consignment': typeof AppConsignmentRoute
@@ -825,11 +827,11 @@ export interface FileRoutesByFullPath {
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
-  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/cascade': typeof AppClientsCascadeRoute
   '/clients/extraction': typeof AppClientsExtractionRoute
-  '/clients/rgpd': typeof AppClientsRgpdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/clients/rgpd': typeof AppClientsRgpdRoute
   '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -852,17 +854,17 @@ export interface FileRoutesByFullPath {
   '/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
-  '/sales/receivables': typeof AppSalesReceivablesRoute
-  '/sales/invoices': typeof AppSalesInvoicesRoute
   '/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
   '/sales/client-documents': typeof AppSalesClientDocumentsRoute
+  '/sales/invoices': typeof AppSalesInvoicesRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/receivables': typeof AppSalesReceivablesRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
-  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
+  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
@@ -872,8 +874,8 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
   '/stock/depreciation': typeof AppStockDepreciationRoute
-  '/stock/inventory': typeof AppStockInventoryRoute
   '/stock/edition': typeof AppStockEditionRoute
+  '/stock/inventory': typeof AppStockInventoryRoute
   '/stock/labels': typeof AppStockLabelsRoute
   '/stock/readjust': typeof AppStockReadjustRoute
   '/tradein/$oroId': typeof AppTradeinOroIdRoute
@@ -925,10 +927,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/accounting': typeof AppAccountingRoute
+  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
   '/accounting-transfer': typeof AppAccountingTransferRoute
-  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/client-pricing': typeof AppClientPricingRoute
   '/consignment': typeof AppConsignmentRoute
   '/dashboard': typeof AppDashboardRoute
@@ -942,11 +944,11 @@ export interface FileRoutesByTo {
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace': typeof MonEspaceIndexRoute
   '/clients/$contactId': typeof AppClientsContactIdRoute
-  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/cascade': typeof AppClientsCascadeRoute
   '/clients/extraction': typeof AppClientsExtractionRoute
-  '/clients/rgpd': typeof AppClientsRgpdRoute
+  '/clients/mobiles': typeof AppClientsMobilesRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/clients/rgpd': typeof AppClientsRgpdRoute
   '/crm/relances': typeof AppCrmRelancesRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/excel': typeof AppOrdersExcelRoute
@@ -967,17 +969,17 @@ export interface FileRoutesByTo {
   '/purchases/reorder': typeof AppPurchasesReorderRoute
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
-  '/sales/receivables': typeof AppSalesReceivablesRoute
-  '/sales/invoices': typeof AppSalesInvoicesRoute
   '/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
   '/sales/client-documents': typeof AppSalesClientDocumentsRoute
+  '/sales/invoices': typeof AppSalesInvoicesRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/receivables': typeof AppSalesReceivablesRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
   '/settings/comments': typeof AppSettingsCommentsRoute
   '/settings/companies': typeof AppSettingsCompaniesRoute
-  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
+  '/settings/devices': typeof AppSettingsDevicesRoute
   '/settings/extension': typeof AppSettingsExtensionRoute
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
@@ -986,8 +988,8 @@ export interface FileRoutesByTo {
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
   '/stock/depreciation': typeof AppStockDepreciationRoute
-  '/stock/inventory': typeof AppStockInventoryRoute
   '/stock/edition': typeof AppStockEditionRoute
+  '/stock/inventory': typeof AppStockInventoryRoute
   '/stock/labels': typeof AppStockLabelsRoute
   '/stock/readjust': typeof AppStockReadjustRoute
   '/tradein/$oroId': typeof AppTradeinOroIdRoute
@@ -1042,10 +1044,10 @@ export interface FileRoutesById {
   '/mon-espace': typeof MonEspaceRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/_app/accounting': typeof AppAccountingRoute
+  '/_app/accounting-accounts': typeof AppAccountingAccountsRoute
   '/_app/accounting-closure': typeof AppAccountingClosureRoute
   '/_app/accounting-sepa': typeof AppAccountingSepaRoute
   '/_app/accounting-transfer': typeof AppAccountingTransferRoute
-  '/_app/accounting-accounts': typeof AppAccountingAccountsRoute
   '/_app/client-pricing': typeof AppClientPricingRoute
   '/_app/clients': typeof AppClientsRouteWithChildren
   '/_app/consignment': typeof AppConsignmentRoute
@@ -1070,11 +1072,11 @@ export interface FileRoutesById {
   '/signer/$token': typeof SignerTokenRoute
   '/mon-espace/': typeof MonEspaceIndexRoute
   '/_app/clients/$contactId': typeof AppClientsContactIdRoute
-  '/_app/clients/mobiles': typeof AppClientsMobilesRoute
   '/_app/clients/cascade': typeof AppClientsCascadeRoute
   '/_app/clients/extraction': typeof AppClientsExtractionRoute
-  '/_app/clients/rgpd': typeof AppClientsRgpdRoute
+  '/_app/clients/mobiles': typeof AppClientsMobilesRoute
   '/_app/clients/new': typeof AppClientsNewRoute
+  '/_app/clients/rgpd': typeof AppClientsRgpdRoute
   '/_app/crm/relances': typeof AppCrmRelancesRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/excel': typeof AppOrdersExcelRoute
@@ -1097,17 +1099,17 @@ export interface FileRoutesById {
   '/_app/purchases/suppliers': typeof AppPurchasesSuppliersRouteWithChildren
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
-  '/_app/sales/receivables': typeof AppSalesReceivablesRoute
-  '/_app/sales/invoices': typeof AppSalesInvoicesRoute
   '/_app/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
   '/_app/sales/client-documents': typeof AppSalesClientDocumentsRoute
+  '/_app/sales/invoices': typeof AppSalesInvoicesRoute
   '/_app/sales/new': typeof AppSalesNewRoute
+  '/_app/sales/receivables': typeof AppSalesReceivablesRoute
   '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
   '/_app/settings/comments': typeof AppSettingsCommentsRoute
   '/_app/settings/companies': typeof AppSettingsCompaniesRoute
-  '/_app/settings/devices': typeof AppSettingsDevicesRoute
   '/_app/settings/customer-displays': typeof AppSettingsCustomerDisplaysRoute
+  '/_app/settings/devices': typeof AppSettingsDevicesRoute
   '/_app/settings/extension': typeof AppSettingsExtensionRoute
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
   '/_app/settings/migration': typeof AppSettingsMigrationRoute
@@ -1117,8 +1119,8 @@ export interface FileRoutesById {
   '/_app/settings/users': typeof AppSettingsUsersRoute
   '/_app/stock/cessions': typeof AppStockCessionsRoute
   '/_app/stock/depreciation': typeof AppStockDepreciationRoute
-  '/_app/stock/inventory': typeof AppStockInventoryRoute
   '/_app/stock/edition': typeof AppStockEditionRoute
+  '/_app/stock/inventory': typeof AppStockInventoryRoute
   '/_app/stock/labels': typeof AppStockLabelsRoute
   '/_app/stock/readjust': typeof AppStockReadjustRoute
   '/_app/tradein/$oroId': typeof AppTradeinOroIdRoute
@@ -1173,10 +1175,10 @@ export interface FileRouteTypes {
     | '/mon-espace'
     | '/reset-password'
     | '/accounting'
+    | '/accounting-accounts'
     | '/accounting-closure'
     | '/accounting-sepa'
     | '/accounting-transfer'
-    | '/accounting-accounts'
     | '/client-pricing'
     | '/clients'
     | '/consignment'
@@ -1201,11 +1203,11 @@ export interface FileRouteTypes {
     | '/signer/$token'
     | '/mon-espace/'
     | '/clients/$contactId'
-    | '/clients/mobiles'
     | '/clients/cascade'
     | '/clients/extraction'
-    | '/clients/rgpd'
+    | '/clients/mobiles'
     | '/clients/new'
+    | '/clients/rgpd'
     | '/crm/relances'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -1228,17 +1230,17 @@ export interface FileRouteTypes {
     | '/purchases/suppliers'
     | '/sales/$documentId'
     | '/sales/balances'
-    | '/sales/receivables'
-    | '/sales/invoices'
     | '/sales/bl-invoicing'
     | '/sales/client-documents'
+    | '/sales/invoices'
     | '/sales/new'
+    | '/sales/receivables'
     | '/sales/web-orders'
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
-    | '/settings/devices'
     | '/settings/customer-displays'
+    | '/settings/devices'
     | '/settings/extension'
     | '/settings/kiosk'
     | '/settings/migration'
@@ -1248,8 +1250,8 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/stock/cessions'
     | '/stock/depreciation'
-    | '/stock/inventory'
     | '/stock/edition'
+    | '/stock/inventory'
     | '/stock/labels'
     | '/stock/readjust'
     | '/tradein/$oroId'
@@ -1301,10 +1303,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/accounting'
+    | '/accounting-accounts'
     | '/accounting-closure'
     | '/accounting-sepa'
     | '/accounting-transfer'
-    | '/accounting-accounts'
     | '/client-pricing'
     | '/consignment'
     | '/dashboard'
@@ -1318,11 +1320,11 @@ export interface FileRouteTypes {
     | '/signer/$token'
     | '/mon-espace'
     | '/clients/$contactId'
-    | '/clients/mobiles'
     | '/clients/cascade'
     | '/clients/extraction'
-    | '/clients/rgpd'
+    | '/clients/mobiles'
     | '/clients/new'
+    | '/clients/rgpd'
     | '/crm/relances'
     | '/orders/$orderId'
     | '/orders/excel'
@@ -1343,17 +1345,17 @@ export interface FileRouteTypes {
     | '/purchases/reorder'
     | '/sales/$documentId'
     | '/sales/balances'
-    | '/sales/receivables'
-    | '/sales/invoices'
     | '/sales/bl-invoicing'
     | '/sales/client-documents'
+    | '/sales/invoices'
     | '/sales/new'
+    | '/sales/receivables'
     | '/sales/web-orders'
     | '/settings/app-client'
     | '/settings/comments'
     | '/settings/companies'
-    | '/settings/devices'
     | '/settings/customer-displays'
+    | '/settings/devices'
     | '/settings/extension'
     | '/settings/kiosk'
     | '/settings/migration'
@@ -1362,8 +1364,8 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/stock/cessions'
     | '/stock/depreciation'
-    | '/stock/inventory'
     | '/stock/edition'
+    | '/stock/inventory'
     | '/stock/labels'
     | '/stock/readjust'
     | '/tradein/$oroId'
@@ -1417,10 +1419,10 @@ export interface FileRouteTypes {
     | '/mon-espace'
     | '/reset-password'
     | '/_app/accounting'
+    | '/_app/accounting-accounts'
     | '/_app/accounting-closure'
     | '/_app/accounting-sepa'
     | '/_app/accounting-transfer'
-    | '/_app/accounting-accounts'
     | '/_app/client-pricing'
     | '/_app/clients'
     | '/_app/consignment'
@@ -1445,11 +1447,11 @@ export interface FileRouteTypes {
     | '/signer/$token'
     | '/mon-espace/'
     | '/_app/clients/$contactId'
-    | '/_app/clients/mobiles'
     | '/_app/clients/cascade'
     | '/_app/clients/extraction'
-    | '/_app/clients/rgpd'
+    | '/_app/clients/mobiles'
     | '/_app/clients/new'
+    | '/_app/clients/rgpd'
     | '/_app/crm/relances'
     | '/_app/orders/$orderId'
     | '/_app/orders/excel'
@@ -1472,17 +1474,17 @@ export interface FileRouteTypes {
     | '/_app/purchases/suppliers'
     | '/_app/sales/$documentId'
     | '/_app/sales/balances'
-    | '/_app/sales/receivables'
-    | '/_app/sales/invoices'
     | '/_app/sales/bl-invoicing'
     | '/_app/sales/client-documents'
+    | '/_app/sales/invoices'
     | '/_app/sales/new'
+    | '/_app/sales/receivables'
     | '/_app/sales/web-orders'
     | '/_app/settings/app-client'
     | '/_app/settings/comments'
     | '/_app/settings/companies'
-    | '/_app/settings/devices'
     | '/_app/settings/customer-displays'
+    | '/_app/settings/devices'
     | '/_app/settings/extension'
     | '/_app/settings/kiosk'
     | '/_app/settings/migration'
@@ -1492,8 +1494,8 @@ export interface FileRouteTypes {
     | '/_app/settings/users'
     | '/_app/stock/cessions'
     | '/_app/stock/depreciation'
-    | '/_app/stock/inventory'
     | '/_app/stock/edition'
+    | '/_app/stock/inventory'
     | '/_app/stock/labels'
     | '/_app/stock/readjust'
     | '/_app/tradein/$oroId'
@@ -1623,6 +1625,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/accounting-accounts': {
+      id: '/_app/accounting-accounts'
+      path: '/accounting-accounts'
+      fullPath: '/accounting-accounts'
+      preLoaderRoute: typeof AppAccountingAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/accounting-closure': {
       id: '/_app/accounting-closure'
       path: '/accounting-closure'
@@ -1642,13 +1651,6 @@ declare module '@tanstack/react-router' {
       path: '/accounting-transfer'
       fullPath: '/accounting-transfer'
       preLoaderRoute: typeof AppAccountingTransferRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/accounting-accounts': {
-      id: '/_app/accounting-accounts'
-      path: '/accounting-accounts'
-      fullPath: '/accounting-accounts'
-      preLoaderRoute: typeof AppAccountingAccountsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/client-pricing': {
@@ -1826,13 +1828,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsContactIdRouteImport
       parentRoute: typeof AppClientsRoute
     }
-    '/_app/clients/mobiles': {
-      id: '/_app/clients/mobiles'
-      path: '/mobiles'
-      fullPath: '/clients/mobiles'
-      preLoaderRoute: typeof AppClientsMobilesRouteImport
-      parentRoute: typeof AppClientsRoute
-    }
     '/_app/clients/cascade': {
       id: '/_app/clients/cascade'
       path: '/cascade'
@@ -1847,11 +1842,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsExtractionRouteImport
       parentRoute: typeof AppClientsRoute
     }
-    '/_app/clients/rgpd': {
-      id: '/_app/clients/rgpd'
-      path: '/rgpd'
-      fullPath: '/clients/rgpd'
-      preLoaderRoute: typeof AppClientsRgpdRouteImport
+    '/_app/clients/mobiles': {
+      id: '/_app/clients/mobiles'
+      path: '/mobiles'
+      fullPath: '/clients/mobiles'
+      preLoaderRoute: typeof AppClientsMobilesRouteImport
       parentRoute: typeof AppClientsRoute
     }
     '/_app/clients/new': {
@@ -1859,6 +1854,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/clients/new'
       preLoaderRoute: typeof AppClientsNewRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/clients/rgpd': {
+      id: '/_app/clients/rgpd'
+      path: '/rgpd'
+      fullPath: '/clients/rgpd'
+      preLoaderRoute: typeof AppClientsRgpdRouteImport
       parentRoute: typeof AppClientsRoute
     }
     '/_app/crm/': {
@@ -2050,18 +2052,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesBalancesRouteImport
       parentRoute: typeof AppSalesRoute
     }
-    '/_app/sales/receivables': {
-      id: '/_app/sales/receivables'
-      path: '/receivables'
-      fullPath: '/sales/receivables'
-      preLoaderRoute: typeof AppSalesReceivablesRouteImport
-    '/_app/sales/invoices': {
-      id: '/_app/sales/invoices'
-      path: '/invoices'
-      fullPath: '/sales/invoices'
-      preLoaderRoute: typeof AppSalesInvoicesRouteImport
-      parentRoute: typeof AppSalesRoute
-    }
     '/_app/sales/bl-invoicing': {
       id: '/_app/sales/bl-invoicing'
       path: '/bl-invoicing'
@@ -2076,11 +2066,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesClientDocumentsRouteImport
       parentRoute: typeof AppSalesRoute
     }
+    '/_app/sales/invoices': {
+      id: '/_app/sales/invoices'
+      path: '/invoices'
+      fullPath: '/sales/invoices'
+      preLoaderRoute: typeof AppSalesInvoicesRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
     '/_app/sales/new': {
       id: '/_app/sales/new'
       path: '/new'
       fullPath: '/sales/new'
       preLoaderRoute: typeof AppSalesNewRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
+    '/_app/sales/receivables': {
+      id: '/_app/sales/receivables'
+      path: '/receivables'
+      fullPath: '/sales/receivables'
+      preLoaderRoute: typeof AppSalesReceivablesRouteImport
       parentRoute: typeof AppSalesRoute
     }
     '/_app/sales/web-orders': {
@@ -2118,18 +2122,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsCompaniesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/devices': {
-      id: '/_app/settings/devices'
-      path: '/devices'
-      fullPath: '/settings/devices'
-      preLoaderRoute: typeof AppSettingsDevicesRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/customer-displays': {
       id: '/_app/settings/customer-displays'
       path: '/customer-displays'
       fullPath: '/settings/customer-displays'
       preLoaderRoute: typeof AppSettingsCustomerDisplaysRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/devices': {
+      id: '/_app/settings/devices'
+      path: '/devices'
+      fullPath: '/settings/devices'
+      preLoaderRoute: typeof AppSettingsDevicesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/extension': {
@@ -2202,18 +2206,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStockDepreciationRouteImport
       parentRoute: typeof AppStockRoute
     }
-    '/_app/stock/inventory': {
-      id: '/_app/stock/inventory'
-      path: '/inventory'
-      fullPath: '/stock/inventory'
-      preLoaderRoute: typeof AppStockInventoryRouteImport
-      parentRoute: typeof AppStockRoute
-    }
     '/_app/stock/edition': {
       id: '/_app/stock/edition'
       path: '/edition'
       fullPath: '/stock/edition'
       preLoaderRoute: typeof AppStockEditionRouteImport
+      parentRoute: typeof AppStockRoute
+    }
+    '/_app/stock/inventory': {
+      id: '/_app/stock/inventory'
+      path: '/inventory'
+      fullPath: '/stock/inventory'
+      preLoaderRoute: typeof AppStockInventoryRouteImport
       parentRoute: typeof AppStockRoute
     }
     '/_app/stock/labels': {
@@ -2452,21 +2456,21 @@ declare module '@tanstack/react-router' {
 
 interface AppClientsRouteChildren {
   AppClientsContactIdRoute: typeof AppClientsContactIdRoute
-  AppClientsMobilesRoute: typeof AppClientsMobilesRoute
   AppClientsCascadeRoute: typeof AppClientsCascadeRoute
   AppClientsExtractionRoute: typeof AppClientsExtractionRoute
-  AppClientsRgpdRoute: typeof AppClientsRgpdRoute
+  AppClientsMobilesRoute: typeof AppClientsMobilesRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
+  AppClientsRgpdRoute: typeof AppClientsRgpdRoute
   AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
 
 const AppClientsRouteChildren: AppClientsRouteChildren = {
   AppClientsContactIdRoute: AppClientsContactIdRoute,
-  AppClientsMobilesRoute: AppClientsMobilesRoute,
   AppClientsCascadeRoute: AppClientsCascadeRoute,
   AppClientsExtractionRoute: AppClientsExtractionRoute,
-  AppClientsRgpdRoute: AppClientsRgpdRoute,
+  AppClientsMobilesRoute: AppClientsMobilesRoute,
   AppClientsNewRoute: AppClientsNewRoute,
+  AppClientsRgpdRoute: AppClientsRgpdRoute,
   AppClientsIndexRoute: AppClientsIndexRoute,
 }
 
@@ -2592,11 +2596,11 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
-  AppSalesReceivablesRoute: typeof AppSalesReceivablesRoute
-  AppSalesInvoicesRoute: typeof AppSalesInvoicesRoute
   AppSalesBlInvoicingRoute: typeof AppSalesBlInvoicingRoute
   AppSalesClientDocumentsRoute: typeof AppSalesClientDocumentsRoute
+  AppSalesInvoicesRoute: typeof AppSalesInvoicesRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
+  AppSalesReceivablesRoute: typeof AppSalesReceivablesRoute
   AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
   AppSalesDocumentIdEditRoute: typeof AppSalesDocumentIdEditRoute
@@ -2605,11 +2609,11 @@ interface AppSalesRouteChildren {
 const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
-  AppSalesReceivablesRoute: AppSalesReceivablesRoute,
-  AppSalesInvoicesRoute: AppSalesInvoicesRoute,
   AppSalesBlInvoicingRoute: AppSalesBlInvoicingRoute,
   AppSalesClientDocumentsRoute: AppSalesClientDocumentsRoute,
+  AppSalesInvoicesRoute: AppSalesInvoicesRoute,
   AppSalesNewRoute: AppSalesNewRoute,
+  AppSalesReceivablesRoute: AppSalesReceivablesRoute,
   AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
   AppSalesDocumentIdEditRoute: AppSalesDocumentIdEditRoute,
@@ -2636,8 +2640,8 @@ interface AppSettingsRouteChildren {
   AppSettingsAppClientRoute: typeof AppSettingsAppClientRoute
   AppSettingsCommentsRoute: typeof AppSettingsCommentsRoute
   AppSettingsCompaniesRoute: typeof AppSettingsCompaniesRoute
-  AppSettingsDevicesRoute: typeof AppSettingsDevicesRoute
   AppSettingsCustomerDisplaysRoute: typeof AppSettingsCustomerDisplaysRoute
+  AppSettingsDevicesRoute: typeof AppSettingsDevicesRoute
   AppSettingsExtensionRoute: typeof AppSettingsExtensionRoute
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
   AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
@@ -2652,8 +2656,8 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAppClientRoute: AppSettingsAppClientRoute,
   AppSettingsCommentsRoute: AppSettingsCommentsRoute,
   AppSettingsCompaniesRoute: AppSettingsCompaniesRoute,
-  AppSettingsDevicesRoute: AppSettingsDevicesRoute,
   AppSettingsCustomerDisplaysRoute: AppSettingsCustomerDisplaysRoute,
+  AppSettingsDevicesRoute: AppSettingsDevicesRoute,
   AppSettingsExtensionRoute: AppSettingsExtensionRoute,
   AppSettingsKioskRoute: AppSettingsKioskRoute,
   AppSettingsMigrationRoute: AppSettingsMigrationRoute,
@@ -2671,8 +2675,8 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppStockRouteChildren {
   AppStockCessionsRoute: typeof AppStockCessionsRoute
   AppStockDepreciationRoute: typeof AppStockDepreciationRoute
-  AppStockInventoryRoute: typeof AppStockInventoryRoute
   AppStockEditionRoute: typeof AppStockEditionRoute
+  AppStockInventoryRoute: typeof AppStockInventoryRoute
   AppStockLabelsRoute: typeof AppStockLabelsRoute
   AppStockReadjustRoute: typeof AppStockReadjustRoute
   AppStockIndexRoute: typeof AppStockIndexRoute
@@ -2681,8 +2685,8 @@ interface AppStockRouteChildren {
 const AppStockRouteChildren: AppStockRouteChildren = {
   AppStockCessionsRoute: AppStockCessionsRoute,
   AppStockDepreciationRoute: AppStockDepreciationRoute,
-  AppStockInventoryRoute: AppStockInventoryRoute,
   AppStockEditionRoute: AppStockEditionRoute,
+  AppStockInventoryRoute: AppStockInventoryRoute,
   AppStockLabelsRoute: AppStockLabelsRoute,
   AppStockReadjustRoute: AppStockReadjustRoute,
   AppStockIndexRoute: AppStockIndexRoute,
@@ -2762,10 +2766,10 @@ const AppWorkshopRouteWithChildren = AppWorkshopRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAccountingRoute: typeof AppAccountingRoute
+  AppAccountingAccountsRoute: typeof AppAccountingAccountsRoute
   AppAccountingClosureRoute: typeof AppAccountingClosureRoute
   AppAccountingSepaRoute: typeof AppAccountingSepaRoute
   AppAccountingTransferRoute: typeof AppAccountingTransferRoute
-  AppAccountingAccountsRoute: typeof AppAccountingAccountsRoute
   AppClientPricingRoute: typeof AppClientPricingRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConsignmentRoute: typeof AppConsignmentRoute
@@ -2789,10 +2793,10 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountingRoute: AppAccountingRoute,
+  AppAccountingAccountsRoute: AppAccountingAccountsRoute,
   AppAccountingClosureRoute: AppAccountingClosureRoute,
   AppAccountingSepaRoute: AppAccountingSepaRoute,
   AppAccountingTransferRoute: AppAccountingTransferRoute,
-  AppAccountingAccountsRoute: AppAccountingAccountsRoute,
   AppClientPricingRoute: AppClientPricingRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConsignmentRoute: AppConsignmentRoute,

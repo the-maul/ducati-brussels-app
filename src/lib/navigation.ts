@@ -27,7 +27,6 @@ import {
   Wallet,
   HandCoins,
   BellRing,
-  HandCoins,
   type LucideIcon,
   Globe,
 } from 'lucide-react';
