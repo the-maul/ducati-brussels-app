@@ -403,7 +403,7 @@ returns boolean language sql immutable set search_path = public, pg_temp as $$
    and (coalesce(_f->>'operator', '') = '' or f.operator_label = _f->>'operator')
    and (coalesce(_f->>'cession_type', '') = '' or f.cession_type = _f->>'cession_type')
    and (coalesce(_f->>'doc_type', '') = '' or f.doc_type = _f->>'doc_type')
-   and (coalesce(_f->>'kind', '') = '' or f.line_kind = _f->>'kind')
+   and (coalesce(_f->>'kind', '') = '' or f.line_kind = any(string_to_array(_f->>'kind', ',')))
    and (case coalesce(_f->>'vehicles', 'all')
           when 'only' then coalesce(f.mgmt_type, '') in ('V', 'O', 'P', 'D')
           when 'exclude' then coalesce(f.mgmt_type, '') not in ('V', 'O', 'P', 'D')
