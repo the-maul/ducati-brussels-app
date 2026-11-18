@@ -1,8 +1,10 @@
 -- =====================================================================
 -- Rattrapage G8 achats (18/11/2026) — essai a blanc des migrations
---   20261118200000_m4_reception_g8.sql et 20261118201000_m4_fournisseurs_listes_g8.sql.
+--   20261118200000_m4_reception_g8.sql et 20261118201000_m4_fournisseurs_listes_g8.sql
+--   (prerequis : 20261118140000_m3_chassis_multiples_par_modele.sql du lot parc, pour vehicle_chassis_receive).
 -- A executer DANS UNE TRANSACTION ANNULEE, migrations comprises (rien ne reste en base) :
---   (echo "begin;"; cat supabase/migrations/20261118200000_m4_reception_g8.sql \
+--   (echo "begin;"; cat supabase/migrations/20261118140000_m3_chassis_multiples_par_modele.sql \
+--      supabase/migrations/20261118200000_m4_reception_g8.sql \
 --      supabase/migrations/20261118201000_m4_fournisseurs_listes_g8.sql \
 --      supabase/tests/m4_achats_g8.sql; echo "rollback;") > t.sql
 --   npx supabase@2.117.0 db query --linked --project-ref <ref> -f t.sql
@@ -26,7 +28,7 @@ do $s$
 declare
   _co uuid := '3d9f0f13-a691-4d07-ad58-34590df86e33';
   _sup uuid; _a1 uuid; _a2 uuid; _cmd jsonb; _cmd_id uuid; _l1 uuid; _l2 uuid; _rec jsonb; _x jsonb; _n bigint; _ok boolean;
-  _draft jsonb; _c1 jsonb; _c2 jsonb; _pcf uuid; _cmd2 uuid; _pamp numeric;
+  _draft jsonb; _c1 jsonb; _c2 jsonb; _pcf uuid; _cmd2 uuid; _pamp numeric; _v uuid;
 begin
   insert into public.contacts (company_id, type, company_name, supplier_rush_discount_pct, supplier_vat_regime)
   values (_co, 'fournisseur', 'ESSAI G8 FOURNISSEUR', 10, 'with_vat') returning id into _sup;
@@ -108,19 +110,29 @@ begin
           and (select pamp from public.articles where id = _a1) = _pamp then 'ok'
          else 'KO ' || (select real_qty from public.article_stock(_a1)) end;
 
-  -- 6. Atomicite : chassis deja connu -> rien n'est ecrit
+  -- 6. Atomicite : chassis deja connu -> rien n'est ecrit (fiche moto par vehicle_chassis_receive, lot parc 20261118140000)
+  insert into public.articles (company_id, reference, designation, mgmt_type, purchase_price)
+  values (_co, 'ESSAI-G8-MOTO', 'Essai modele moto', 'V', 9000) returning id into _v;
   insert into public.vehicles (company_id, vin, status) values (_co, 'ZDMESSAIG8000001', 'stock_vn');
-  select count(*) into _n from public.stock_moves where article_id = _a2;
+  select count(*) into _n from public.stock_moves where article_id in (_a2, _v);
   begin
     perform public.purchase_doc_save(_co, null, jsonb_build_object('doc_type', 'REC', 'supplier_id', _sup),
-      jsonb_build_array(jsonb_build_object('article_id', _a2, 'designation', 'A2', 'quantity', 1, 'unit_price_ht', 20,
-                                           'chassis', jsonb_build_object('vin', 'zdmessaig8000001'))), '[]'::jsonb, true);
+      jsonb_build_array(
+        jsonb_build_object('article_id', _a2, 'designation', 'A2', 'quantity', 1, 'unit_price_ht', 20),
+        jsonb_build_object('article_id', _v, 'designation', 'Moto', 'quantity', 1, 'unit_price_ht', 9000,
+                           'chassis', jsonb_build_object('vin', 'zdmessaig8000001'))), '[]'::jsonb, true);
     _ok := false;
   exception when others then _ok := true; end;
-  insert into _t(check_name, result) select 'atomicite : VIN en double refuse, aucun mouvement ni document ecrit',
-    case when _ok and (select count(*) from public.stock_moves where article_id = _a2) = _n
+  insert into _t(check_name, result) select 'atomicite : VIN en double refuse, aucun mouvement (meme la ligne A2 avant) ni document ecrit',
+    case when _ok and (select count(*) from public.stock_moves where article_id in (_a2, _v)) = _n
           and not exists (select 1 from public.purchase_orders where company_id = _co and supplier_id = _sup and doc_type = 'REC'
                             and status = 'brouillon') then 'ok' else 'KO' end;
+  _x := public.purchase_doc_save(_co, null, jsonb_build_object('doc_type', 'REC', 'supplier_id', _sup, 'supplier_invoice_no', 'ESSAI-FA-MOTO'),
+    jsonb_build_array(jsonb_build_object('article_id', _v, 'designation', 'Moto', 'quantity', 1, 'unit_price_ht', 9000,
+                                         'chassis', jsonb_build_object('vin', 'ZDMESSAIG8000002'))), '[]'::jsonb, true);
+  insert into _t(check_name, result) select 'chassis neuf : fiche moto sur le modele, stock du modele = 1, n° facture d''achat',
+    case when (select count(*) from public.vehicles where vin = 'ZDMESSAIG8000002' and article_id = _v and purchase_invoice_number = 'ESSAI-FA-MOTO') = 1
+          and (select real_qty from public.article_stock(_v)) = 1 then 'ok' else 'KO' end;
 
   -- 7. Brouillon puis validation plus tard
   _draft := public.purchase_doc_save(_co, null, jsonb_build_object('doc_type', 'REC', 'supplier_id', _sup),
@@ -183,9 +195,9 @@ begin
           and (select count(*) from public.supplier_turnover(_sup)) = 3
           and (select purchases_ht from public.supplier_turnover(_sup) limit 1) > 0
           and (select count(*) from public.purchase_vat_by_supplier(_co, current_date - 1, current_date + 1, 'receipt') where supplier_id = _sup) >= 1
-          and (select count(*) from public.purchase_due_schedules(_co, null, null, _sup)) >= 3
+          and (select count(*) from public.purchase_due_schedules(_co, null, null, _sup)) >= 4
           and (select count(*) from public.purchase_order_history(_co, null, null, _sup)) = 1
-          and (select count(*) from public.purchase_documents(_co, 'REC', null, null, _sup, 50)) = 3
+          and (select count(*) from public.purchase_documents(_co, 'REC', null, null, _sup, 50)) = 4
           and jsonb_array_length(public.purchase_order_follow(_cmd_id)->'receipts') = 2 then 'ok' else 'KO' end;
 
   perform public.receipt_customer_informed((_rec->>'id')::uuid, _a1, 'document', gen_random_uuid(), null, 'telephone', 'essai');

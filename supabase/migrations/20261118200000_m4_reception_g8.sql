@@ -23,6 +23,7 @@
 --     entrées de stock (record_stock_move, PAMP), prix d'achat (record_price_change, origine
 --     reception), fiche moto (VIN unique), étiquettes en file (B12), statut des commandes rappelées
 --     (validee → partielle → recue) ; pour une rétrocession : sorties de stock « retour fournisseur ».
+--     Châssis : vehicle_chassis_receive (lot parc, 20261118140000, à appliquer AVANT celle-ci).
 --     Une erreur au milieu = rien n'est écrit (bloquant critique n° 1 de la comparaison).
 --  4. lectures : lignes de commande restant à recevoir (rappel), suivi d'une commande (reçu,
 --     reste, réceptions), « Infos commandes client » d'une réception ; écritures : client informé
@@ -300,6 +301,7 @@ declare
   landed   numeric;
   ch       jsonb;
   _vin     text;
+  vid      uuid;
   st_new   text;
   today    date := (now() at time zone 'Europe/Brussels')::date;
 begin
@@ -497,33 +499,26 @@ begin
          + case when basis > 0 then ship * (r.quantity * r.unit_price_ht * (1 - r.discount_pct / 100)) / basis else 0 end)
         / r.quantity, 3);
       update public.purchase_lines set landed_unit_cost = landed where id = r.id;
-      perform public.record_stock_move(r.article_id, 'entree', r.quantity, landed, false, r.bin_location, 'reception', num,
-                                       'Réception ' || num || coalesce(' — facture ' || o.supplier_invoice_no, ''));
+      ch := r.chassis;
+      _vin := upper(regexp_replace(coalesce(ch->>'vin', ''), '[^A-Za-z0-9]', '', 'g'));
+      if _vin <> '' then
+        -- Réception châssis → fiche moto rattachée au MODÈLE (article V) + entrée de stock de 1, par la fonction
+        -- du lot parc (vehicle_chassis_receive, 20261118140000) : VIN unique, type V exigé, une moto par ligne.
+        if r.quantity <> 1 then
+          raise exception 'Une ligne avec châssis = une moto (quantité 1) : %.', r.designation using errcode = '22023';
+        end if;
+        vid := public.vehicle_chassis_receive(r.article_id, ch || jsonb_build_object('display_price', r.sale_price_ttc),
+                                              landed, 'reception', num, r.bin_location);
+        if o.supplier_invoice_no is not null then
+          update public.vehicles set purchase_invoice_number = o.supplier_invoice_no where id = vid;
+        end if;
+      else
+        perform public.record_stock_move(r.article_id, 'entree', r.quantity, landed, false, r.bin_location, 'reception', num,
+                                         'Réception ' || num || coalesce(' — facture ' || o.supplier_invoice_no, ''));
+      end if;
       if coalesce(r.labels, 0) > 0 then
         insert into public.label_queue (company_id, article_id, qty, with_barcode, with_price, operator_id)
         values (_company, r.article_id, r.labels, true, true, auth.uid());
-      end if;
-      -- Réception châssis → fiche véhicule (B9), VIN unique dans la société
-      ch := r.chassis;
-      _vin := upper(btrim(coalesce(ch->>'vin', '')));
-      if _vin <> '' then
-        if exists (select 1 from public.vehicles v where v.company_id = _company and upper(btrim(v.vin)) = _vin) then
-          raise exception 'Le châssis % existe déjà dans le parc : réception annulée.', _vin using errcode = '23505';
-        end if;
-        if r.mt <> 'V' then
-          warnings := warnings || jsonb_build_object('kind', 'chassis_not_v', 'designation', r.designation);
-        end if;
-        insert into public.vehicles (company_id, article_id, vin, brand, model, engine_number, power_cv, is_restricted, energy,
-                                     antipollution, color, first_registration_date, mileage, model_year, gps_tracker_id,
-                                     pin_tracker, tpms_av, tpms_ar, warranty_end, purchase_price, cost_price, display_price,
-                                     purchase_invoice_number, status)
-        values (_company, r.article_id, _vin, nullif(ch->>'brand', ''), coalesce(nullif(ch->>'model', ''), r.designation),
-                nullif(ch->>'engine_number', ''), nullif(ch->>'power_cv', '')::numeric,
-                coalesce((ch->>'is_restricted')::boolean, false), nullif(ch->>'energy', ''), nullif(ch->>'antipollution', ''),
-                nullif(ch->>'color', ''), nullif(ch->>'first_registration_date', '')::date, nullif(ch->>'mileage', '')::numeric,
-                nullif(ch->>'model_year', '')::int, nullif(ch->>'gps_tracker_id', ''), nullif(ch->>'pin_tracker', ''),
-                nullif(ch->>'tpms_av', ''), nullif(ch->>'tpms_ar', ''), nullif(ch->>'warranty_end', '')::date,
-                landed, landed, r.sale_price_ttc, o.supplier_invoice_no, 'stock_vn');
       end if;
     end loop;
 

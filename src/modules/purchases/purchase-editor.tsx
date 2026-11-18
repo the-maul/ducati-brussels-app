@@ -28,6 +28,7 @@ import {
   type PurchaseDocType, type PurchaseOrderType, type VatRegimeCode,
 } from './g8-rules';
 import { RecallDialog } from './recall-dialog';
+import { receptionChassisErrors } from '@/modules/vehicles/chassis-rules';
 import { t, fillVars } from '@/lib/i18n';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -169,6 +170,11 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
       if (validate && docType === 'REC') payload = payload.filter((l) => !(l.source_line_id && l.quantity <= 0));
       if (payload.length === 0) { setError(t('purchases.needLine')); setBusy(false); return; }
       if (validate && !supplier) { setError(t('purchasesG8.needSupplier')); setBusy(false); return; }
+      if (validate && docType === 'REC') {
+        // Châssis (lot parc) : une moto par ligne, sur un article, VIN présent et non répété — avant tout appel.
+        const ce = receptionChassisErrors(payload);
+        if (ce.length) { setError(fillVars(t(`parcG8.${ce[0].error}`), { line: String(ce[0].index + 1), vin: ce[0].vin ?? '' })); setBusy(false); return; }
+      }
       const res = await savePurchaseDoc({
         companyId, id: draft?.id ?? null, validate,
         header: {
