@@ -132,6 +132,12 @@ exception when others then
   insert into _t(check_name, result) values ('B4 : la photo (arrete) n''est pas modifiable directement', 'ok');
 end $$;
 
+-- Tout le scenario tient dans UNE transaction : now() (heure de l'arrete ET des mouvements) y est
+-- fige, la vente ci-dessous aurait la meme heure que l'arrete et ne serait pas vue « apres » lui.
+-- En production chaque ecran est sa propre transaction ; on recule donc l'arrete d'une seconde.
+reset role;
+update public.stock_snapshots set created_at = created_at - interval '1 second' where id = (select v::uuid from _ctx where k = 'snap');
+set local role authenticated;
 -- Une vente pendant le comptage (magasin ouvert).
 select public.record_stock_move((select v::uuid from _ctx where k = 'art1'), 'sortie', -1, null, false, null, 'sale', 'ESSAI', 'vente pendant le comptage');
 
@@ -172,10 +178,14 @@ select 'fin : inventaire cloture, 13 etapes datees avec operateur',
             then 'ok' else 'KO' end;
 
 -- ------------------------------------------------------------ 3. stock reel hors inventaire
+-- Un appel par instruction : dans une meme instruction, l'ordre d'evaluation des conditions n'est pas
+-- garanti et la lecture du stock ne voit pas les mouvements ecrits par l'appel.
+insert into _ctx select 'readj1', public.stock_readjust((select v::uuid from _ctx where k = 'art1'), 10, 'annule_remplace')::text;
+insert into _ctx select 'readj2', public.stock_readjust((select v::uuid from _ctx where k = 'art1'), 2, 'cumul')::text;
 insert into _t(check_name, result)
 select 'B6 reel : annule et remplace 10 (ancien 8), puis cumul +2 = 12',
-       case when (public.stock_readjust((select v::uuid from _ctx where k = 'art1'), 10, 'annule_remplace') ->> 'old')::numeric = 8
-             and (public.stock_readjust((select v::uuid from _ctx where k = 'art1'), 2, 'cumul') ->> 'new')::numeric = 12
+       case when ((select v::jsonb from _ctx where k = 'readj1') ->> 'old')::numeric = 8
+             and ((select v::jsonb from _ctx where k = 'readj2') ->> 'new')::numeric = 12
              and (select real_qty from public.article_stock((select v::uuid from _ctx where k = 'art1'))) = 12
             then 'ok' else 'KO' end;
 do $$ begin
@@ -204,8 +214,11 @@ select 'edition stock reel : art1 a 12, valeur = 12 x PAMP, totaux de selection'
 insert into _t(check_name, result)
 select 'edition copie de stock : la sauvegarde de debut d''inventaire se relit',
        case when exists (select 1 from public.stock_edition('3d9f0f13-a691-4d07-ad58-34590df86e33', 'copie',
+                           -- (toutes les copies ont la meme heure dans la transaction d'essai : on vise la sauvegarde de debut par son libelle)
                            jsonb_build_object('snapshot_id', (select id from public.stock_snapshots where session_id = (select v::uuid from _ctx where k = 'session')
-                                                                and kind = 'copie' order by created_at limit 1)), 1000, 0) e
+                                                                and kind = 'copie' and label like 'Sauvegarde début%' order by created_at limit 1),
+                                              -- recherche sur la reference : la copie reelle compte des milliers de lignes (pages de 1000)
+                                              'search', (select reference from public.articles where id = (select v::uuid from _ctx where k = 'art1'))), 1000, 0) e
                           where e.article_id = (select v::uuid from _ctx where k = 'art1') and e.ref_qty = (select v::numeric from _ctx where k = 'real1'))
             then 'ok' else 'KO' end;
 insert into _t(check_name, result)
