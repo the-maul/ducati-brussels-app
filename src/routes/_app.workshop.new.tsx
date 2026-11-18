@@ -37,7 +37,8 @@ function NewOr() {
       const id = await createRepairOrder({
         companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage,
         operator: p.operator, operatorId: p.operatorId, repairType: p.repairType, workDescription: p.workDescription, receptionNotes: p.receptionNotes,
-        status: p.status, warrantyStatus: p.warrantyStatus, expertName: p.expertName, expertDate: p.expertDate || null,
+        status: p.status, warrantyStatus: p.warrantyStatus, expertName: p.expertName ?? null, expertDate: p.expertDate || null,
+        warrantyCessionCode: p.warrantyCessionCode, warrantyNote: p.warrantyNote,
         reasonCode: p.reasonCode, lines: p.lines,
       });
       // OR accident : le dossier accident s'ouvre en brouillon, lie a l'OR (ATE001b). Un echec ne

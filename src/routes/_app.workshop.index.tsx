@@ -2,24 +2,35 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch } from '@/lib/use-list-search';
-import { Loader2, Plus, Timer, CalendarDays, BookOpen, LifeBuoy } from 'lucide-react';
+import { Loader2, Plus, Timer, CalendarDays, BookOpen, LifeBuoy, Wrench, ShieldCheck, Car, PackageCheck, BarChart3, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listRepairOrders } from '@/modules/workshop/api';
+import { WarrantyOrsTable, WarrantyReturnsPanel, WarrantyListsPanel, WarrantyStatusBadge } from '@/modules/workshop/warranty/warranty-views';
+import { AccidentOrsTable } from '@/modules/workshop/accident/accident-ors-table';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 export const Route = createFileRoute('/_app/workshop/')({
   head: () => ({ meta: [{ title: pageTitle('workshop') }] }),
-  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, WORKSHOP_LIST),
+  validateSearch: (s: Record<string, unknown>) => listSearchFromRaw(s, WORKSHOP_LIST, WORKSHOP_CHOICES),
   component: WorkshopList,
 });
 
 /** Etat de la liste garde dans l'adresse (UX011). */
-const WORKSHOP_LIST = { status: 'all' };
+const WORKSHOP_LIST = { status: 'all', view: 'or' };
+
+/**
+ * Vues de la liste (G8 : Rappel d'un O.R. › Ordres de reparation / O.R. garantie / O.R. accident),
+ * plus le suivi des retours constructeur (G8 : Appros › Historique garantie) et les listes
+ * « Garanties » / « Garanties / CA » (G8 : Liste des cessions) — rattrapage G8 du 18/11/2026.
+ */
+const VIEWS = ['or', 'garantie', 'accident', 'retours', 'stats'] as const;
+const WORKSHOP_CHOICES = { view: VIEWS };
+const VIEW_ICON: Record<(typeof VIEWS)[number], LucideIcon> = { or: Wrench, garantie: ShieldCheck, accident: Car, retours: PackageCheck, stats: BarChart3 };
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const tone = (s: string) => (s === 'facture' ? 'success' : s === 'annule' ? 'neutral' : s === 'pret' ? 'info' : 'warning');
@@ -33,10 +44,11 @@ function WorkshopList() {
   const [ls, setLs] = useListSearch(WORKSHOP_LIST);
   const status = ls.status;
   const setStatus = (v: string) => setLs({ status: v });
+  const view = (VIEWS as readonly string[]).includes(ls.view) ? (ls.view as (typeof VIEWS)[number]) : 'or';
   const { data, isLoading } = useQuery({
     queryKey: ['repair-orders', activeCompanyId, status],
     queryFn: () => listRepairOrders(activeCompanyId!, status === 'all' ? undefined : status),
-    enabled: !!activeCompanyId,
+    enabled: !!activeCompanyId && view === 'or',
   });
 
   return (
@@ -58,6 +70,24 @@ function WorkshopList() {
           </div>
         }
       />
+      <div className="mb-3 flex flex-wrap gap-1 border-b border-border">
+        {VIEWS.map((v) => {
+          const Icon = VIEW_ICON[v];
+          return (
+            <button
+              key={v} type="button" onClick={() => setLs({ view: v })}
+              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-bold ${view === v ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            >
+              <Icon className="size-4" aria-hidden /> {t(`warranty.view_${v}`)}
+            </button>
+          );
+        })}
+      </div>
+      {view === 'garantie' && activeCompanyId && <WarrantyOrsTable companyId={activeCompanyId} />}
+      {view === 'accident' && activeCompanyId && <AccidentOrsTable companyId={activeCompanyId} />}
+      {view === 'retours' && activeCompanyId && <WarrantyReturnsPanel companyId={activeCompanyId} />}
+      {view === 'stats' && activeCompanyId && <WarrantyListsPanel companyId={activeCompanyId} />}
+      {view === 'or' && <>
       <div className="mb-3">
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
@@ -77,13 +107,14 @@ function WorkshopList() {
               <tr key={o.id} onClick={() => navigate({ to: '/workshop/$orId', params: { orId: o.id } })} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
                 <td className="px-3 py-2 font-mono text-[12px]">{o.number ?? '—'}</td>
                 <td className="px-3 py-2"><StatusBadge tone={tone(o.status)} label={t(`workshop.status_${o.status}`)} /></td>
-                <td className="px-3 py-2">{o.warranty_status !== 'aucune' ? <StatusBadge tone={o.warranty_status === 'en_attente' ? 'warning' : 'info'} label={t(`workshop.warranty_${o.warranty_status}`)} /> : '—'}</td>
+                <td className="px-3 py-2">{o.warranty_status !== 'aucune' ? <WarrantyStatusBadge status={o.warranty_status} /> : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(Number(o.total_ttc))}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      </>}
     </>
   );
 }

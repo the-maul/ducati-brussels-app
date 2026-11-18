@@ -13,6 +13,9 @@ import { updateRepairOrder, transformToInvoice, checkupSchemaReady, type RoInput
 import { OrEditor, type OrPayload, type OrEditorIntent } from '@/modules/workshop/or-editor';
 import { openAccidentFile, accidentSchemaReady, findAccidentFileFor, getAccidentFile } from '@/modules/workshop/accident/api';
 import { AccidentStatusBadge } from '@/modules/workshop/accident/accident-file-screen';
+import { AccidentInsurancePanel } from '@/modules/workshop/accident/insurance-panel';
+import { insuranceSchemaReady } from '@/modules/workshop/accident/insurance-api';
+import { WarrantyStatusBadge } from '@/modules/workshop/warranty/warranty-views';
 import { ensureAccidentFileForOr } from '@/modules/workshop/or-page-api';
 import { isAccidentOr } from '@/modules/workshop/or-page-rules';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
@@ -75,6 +78,8 @@ function OrView() {
       return id ? getAccidentFile(id) : null;
     },
   });
+  // Volet assureur du dossier accident (rattrapage G8 : cabinet, expert, franchise, demarrage accepte).
+  const insuranceSchema = useQuery({ queryKey: ['insurance-schema'], queryFn: insuranceSchemaReady, staleTime: Infinity });
   // Mission 09 carte 5 : le dossier accident (fiche, photos, devis, formulaire Ducati, mail) remplace l'ancienne fenetre d'aide.
   const accident = useMutation({
     mutationFn: () => openAccidentFile({ companyId: activeCompanyId!, vehicleId: data?.or.vehicle_id, contactId: data?.or.contact_id, repairOrderId: orId, expertName: data?.or.expert_name }),
@@ -87,7 +92,11 @@ function OrView() {
   const toInput = (p: OrPayload): RoInput => ({
     companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator, operatorId: p.operatorId,
     repairType: p.repairType, workDescription: p.workDescription, receptionNotes: p.receptionNotes, status: p.status,
-    warrantyStatus: p.warrantyStatus, expertName: p.expertName, expertDate: p.expertDate || null, reasonCode: p.reasonCode, lines: p.lines,
+    warrantyStatus: p.warrantyStatus, expertName: p.expertName,
+    // undefined : expert et passage geres par le volet assurance du dossier accident.
+    expertDate: p.expertDate === undefined ? undefined : (p.expertDate || null),
+    warrantyCessionCode: p.warrantyCessionCode, warrantyNote: p.warrantyNote,
+    reasonCode: p.reasonCode, lines: p.lines,
   });
 
   // OR accident : a l'enregistrement, le dossier accident s'ouvre en brouillon s'il n'existe pas (ATE001b).
@@ -238,7 +247,7 @@ function OrView() {
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge tone={tone(or.status)} label={t(`workshop.status_${or.status}`)} />
-        {or.warranty_status !== 'aucune' && <StatusBadge tone={pending ? 'warning' : 'info'} label={t(`workshop.warranty_${or.warranty_status}`)} />}
+        {or.warranty_status !== 'aucune' && <WarrantyStatusBadge status={or.warranty_status} />}
         {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>
       {/* OR accident : le dossier accident, bien visible (ATE001b). */}
@@ -255,6 +264,13 @@ function OrView() {
           </Button>
         </div>
       )}
+      {/* Onglet « Assurance » de G8 : sur le dossier accident de l'OR (une seule source). */}
+      {accidentFile && insuranceSchema.data === true && (
+        <div className="mb-4 rounded-md border border-border bg-card p-4">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('insurance.panelTitle')}</p>
+          <AccidentInsurancePanel companyId={activeCompanyId!} fileId={accidentFile.id} repairOrderId={orId} orTotalTtc={Number(or.total_ttc)} />
+        </div>
+      )}
       {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
       {!workAllowed && (
         <p className="mb-3 flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
@@ -267,6 +283,7 @@ function OrView() {
       <OrEditor
         companyId={activeCompanyId!} initial={data} busy={busy} error={error} onSubmit={onSubmit}
         checkupReady={checkupReady && !invoiced} approvalPending={approval === 'en_attente'}
+        expertInPanel={!!accidentFile && insuranceSchema.data === true}
         header={checkupReady ? (
           <ApprovalPanel
             or={orx}

@@ -18,3 +18,17 @@ test('ligne en garantie = 0 (B10)', () => {
   const r = computeRoTotals([line({ is_warranty: true }), line({ unit_price_ht: 80 })]);
   expect(r.total_ht).toBe(80); // la pièce garantie ne compte pas
 });
+
+// Rattrapage G8 (18/11/2026) : re-routage des lignes refusees vers le client (B10).
+test('refus total : la ligne demandee en garantie est facturee au client', () => {
+  const r = computeRoTotals([line({ is_warranty: true }), line({ unit_price_ht: 80 })], 'refus_total');
+  expect(r.total_ht).toBe(180);
+});
+
+test('refus partiel : seule la ligne refusee compte', () => {
+  const r = computeRoTotals([
+    line({ is_warranty: true, warranty_decision: 'refuse', unit_price_ht: 40 }),
+    line({ is_warranty: true, warranty_decision: 'accepte' }),
+  ], 'refus_partiel');
+  expect(r.total_ht).toBe(40);
+});

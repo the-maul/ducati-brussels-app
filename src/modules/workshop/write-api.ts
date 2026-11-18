@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { createDocument, type LineInput } from '@/modules/sales/write-api';
 import { invoiceableRoLines } from './checkup/rules';
 import { operatorIdSchemaReady } from './or-page-api';
+import { clientUnitPrice, lineCoveredByWarranty, lineDecisionToSave } from './warranty/rules';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -29,23 +30,30 @@ export type RoLineInput = {
   checkup_state?: string | null;
   photo_path?: string | null;
   proposal_line_id?: string | null;
+  /** Refus partiel (migration 20261118130000) : accepte / refuse (re-routee vers le client). */
+  warranty_decision?: string | null;
 };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-function lineTotals(l: RoLineInput) {
-  const price = l.is_warranty ? 0 : l.unit_price_ht;
+/**
+ * Totaux d'une ligne. Garantie (B10) : une ligne couverte vaut 0 pour le client ; en refus total,
+ * ou refusee ligne par ligne en refus partiel, elle est re-routee vers le client (son prix).
+ * Sans statut (ancien appel) : une ligne cochee garantie vaut 0, comme avant.
+ */
+function lineTotals(l: RoLineInput, warrantyStatus?: string | null) {
+  const price = lineCoveredByWarranty(l, warrantyStatus) ? 0 : l.unit_price_ht;
   const ht = l.quantity * price * (1 - (l.discount_pct || 0) / 100);
   const ttc = ht * (1 + (l.vat_rate || 0) / 100);
   return { ht: r2(ht), ttc: r2(ttc) };
 }
 
 /** Totaux de l'OR : les actions du check-up « OK » ou « reportées » ne comptent pas. */
-export function computeRoTotals(lines: RoLineInput[]) {
+export function computeRoTotals(lines: RoLineInput[], warrantyStatus?: string | null) {
   let ht = 0, ttc = 0;
   for (const l of lines) {
     if (l.checkup_state === 'ok' || l.checkup_state === 'reporte') continue;
-    const tot = lineTotals(l); ht += tot.ht; ttc += tot.ttc;
+    const tot = lineTotals(l, warrantyStatus); ht += tot.ht; ttc += tot.ttc;
   }
   ht = r2(ht); ttc = r2(ttc);
   return { total_ht: ht, total_vat: r2(ttc - ht), total_ttc: ttc };
@@ -62,7 +70,11 @@ export type RoInput = {
   operator?: string | null; repairType?: string | null; workDescription?: string | null; receptionNotes?: string | null;
   /** Membre de l'equipe (migration 20261103230000) ; undefined = ne pas toucher. `operator` garde son nom. */
   operatorId?: string | null;
-  status: string; warrantyStatus: string; expertName?: string | null; expertDate?: string | null;
+  status: string; warrantyStatus: string;
+  /** Expert / date de passage ; undefined = ne pas toucher (geres par le volet assurance du dossier accident). */
+  expertName?: string | null; expertDate?: string | null;
+  /** Type de cession garantie (05 / 06 / 07) et commentaire de la demande (migration 20261118130000) ; undefined = ne pas toucher. */
+  warrantyCessionCode?: string | null; warrantyNote?: string | null;
   /** Motif d'entrée (reference_values `workshop_reason`), undefined = ne pas toucher. */
   reasonCode?: string | null;
   lines: RoLineInput[];
@@ -93,11 +105,26 @@ const isMissingSchema = (e: unknown): boolean => {
   return code === 'PGRST202' || code === 'PGRST204' || code === '42883' || code === '42703' || /does not exist|Could not find/i.test(msg);
 };
 
-async function writeLinesLegacy(orId: string, lines: RoLineInput[]) {
+let warrantyProbe: Promise<boolean> | null = null;
+
+/** true quand la migration 20261118130000 est appliquee (colonne repair_orders.warranty_cession_code). */
+export function warrantySchemaReady(): Promise<boolean> {
+  warrantyProbe ??= (async () => {
+    try {
+      const { error } = await supabase.from('repair_orders').select('warranty_cession_code' as never).limit(1);
+      return !error;
+    } catch {
+      return false;
+    }
+  })();
+  return warrantyProbe;
+}
+
+async function writeLinesLegacy(orId: string, lines: RoLineInput[], warrantyStatus?: string | null) {
   await supabase.from('repair_order_lines').delete().eq('or_id', orId);
   if (lines.length) {
     const rows = lines.map((l, i) => {
-      const tot = lineTotals(l);
+      const tot = lineTotals(l, warrantyStatus);
       return {
         or_id: orId, kind: l.kind, article_id: l.article_id ?? null, designation: l.designation,
         quantity: l.quantity, unit_price_ht: l.unit_price_ht, vat_rate: l.vat_rate, discount_pct: l.discount_pct || 0,
@@ -113,14 +140,16 @@ async function writeLinesLegacy(orId: string, lines: RoLineInput[]) {
  * Réécrit les lignes de l'OR en une transaction (`repair_order_write_lines`). Si la fonction
  * n'est pas encore en base, ancien chemin (suppression puis insertion, sans les colonnes check-up).
  */
-async function writeLines(orId: string, lines: RoLineInput[]) {
+async function writeLines(orId: string, lines: RoLineInput[], warrantyStatus?: string | null) {
   const payload = lines.map((l) => {
-    const tot = lineTotals(l);
+    const tot = lineTotals(l, warrantyStatus);
     return {
       kind: l.kind, article_id: l.article_id ?? null, designation: l.designation, quantity: l.quantity,
       unit_price_ht: l.unit_price_ht, vat_rate: l.vat_rate, discount_pct: l.discount_pct || 0, is_warranty: l.is_warranty,
       line_ht: tot.ht, line_ttc: tot.ttc, checkup_key: l.checkup_key ?? null, checkup_state: l.checkup_state ?? null,
       photo_path: l.photo_path ?? null, proposal_line_id: l.proposal_line_id ?? null,
+      // Ignoree par la fonction tant que la migration 20261118130000 n'est pas posee.
+      warranty_decision: lineDecisionToSave(l),
     };
   });
   const { error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>)(
@@ -128,7 +157,7 @@ async function writeLines(orId: string, lines: RoLineInput[]) {
   );
   if (!error) return;
   if (!isMissingSchema(error)) throw error;
-  await writeLinesLegacy(orId, lines);
+  await writeLinesLegacy(orId, lines, warrantyStatus);
 }
 
 /** En-tête de l'OR : les colonnes du check-up ne sont écrites que si la base les connaît. */
@@ -137,8 +166,15 @@ async function headerPatch(p: RoInput): Promise<Record<string, unknown>> {
     contact_id: p.contactId ?? null, vehicle_id: p.vehicleId ?? null, mileage: p.mileage ?? null,
     operator: p.operator ?? null, repair_type: p.repairType ?? null, work_description: p.workDescription ?? null,
     reception_notes: p.receptionNotes ?? null, status: p.status, warranty_status: p.warrantyStatus,
-    expert_name: p.expertName ?? null, expert_date: p.expertDate ?? null, ...computeRoTotals(p.lines),
+    ...computeRoTotals(p.lines, p.warrantyStatus),
   };
+  if (p.expertName !== undefined) base.expert_name = p.expertName ?? null;
+  if (p.expertDate !== undefined) base.expert_date = p.expertDate ?? null;
+  // Type de cession garantie et commentaire : seulement si la migration 20261118130000 est en base.
+  if ((p.warrantyCessionCode !== undefined || p.warrantyNote !== undefined) && await warrantySchemaReady()) {
+    if (p.warrantyCessionCode !== undefined) base.warranty_cession_code = p.warrantyCessionCode || null;
+    if (p.warrantyNote !== undefined) base.warranty_note = p.warrantyNote?.trim() || null;
+  }
   if (p.reasonCode !== undefined && await checkupSchemaReady()) base.reason_code = p.reasonCode || null;
   // Operateur choisi dans l'equipe : l'id n'est ecrit que si la colonne existe (sinon le nom suffit).
   if (p.operatorId !== undefined && await operatorIdSchemaReady()) base.operator_id = p.operatorId || null;
@@ -152,7 +188,7 @@ export async function createRepairOrder(p: RoInput): Promise<string> {
     .insert({ company_id: p.companyId, number, ...patch } as never).select('id').single();
   if (error) throw error;
   const orId = (data as { id: string }).id;
-  await writeLines(orId, p.lines);
+  await writeLines(orId, p.lines, p.warrantyStatus);
   return orId;
 }
 
@@ -160,7 +196,7 @@ export async function updateRepairOrder(orId: string, p: RoInput): Promise<void>
   const patch = await headerPatch(p);
   const { error } = await supabase.from('repair_orders').update(patch as never).eq('id', orId);
   if (error) throw error;
-  await writeLines(orId, p.lines);
+  await writeLines(orId, p.lines, p.warrantyStatus);
 }
 
 export async function setRepairOrderStatus(orId: string, status: string): Promise<void> {
@@ -187,11 +223,14 @@ export async function transformToInvoice(orId: string): Promise<string> {
   const { data: lines, error: le } = await supabase.from('repair_order_lines').select('*').eq('or_id', orId).order('sort_order');
   if (le) throw le;
 
-  type RoRow = NonNullable<typeof lines>[number] & { checkup_state?: string | null };
+  // Garantie (B10) : ligne couverte a 0 ; refus total ou ligne refusee en refus partiel =
+  // re-routee vers le client, facturee a son prix. L'imputation (couts figes, suivi des retours
+  // fournisseur) se fait en base au passage « facture » (declencheur, migration 20261118130000).
+  type RoRow = NonNullable<typeof lines>[number] & { checkup_state?: string | null; warranty_decision?: string | null };
   const lineInputs: LineInput[] = invoiceableRoLines((lines ?? []) as RoRow[]).map((l) => ({
     article_id: l.as_text ? null : l.article_id, designation: l.designation,
     quantity: l.as_text ? 0 : Number(l.quantity),
-    unit_price_ht: l.as_text || l.is_warranty ? 0 : Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
+    unit_price_ht: l.as_text ? 0 : clientUnitPrice({ ...l, unit_price_ht: Number(l.unit_price_ht) }, or.warranty_status), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct),
     line_type: l.as_text ? 'texte' : l.kind === 'mo' ? 'main_oeuvre' : 'article',
   }));
 

@@ -35,6 +35,8 @@ import { accidentPhotosKey, AccidentPhotos } from './accident-photos';
 import { AccidentSendDialog } from './accident-send-dialog';
 import { downloadBytes, XLSX_MIME } from './form-xlsx';
 import { generateAccidentForm, loadQuoteParts, downloadStoredAccidentFile, accidentNames } from './send';
+import { AccidentInsurancePanel } from './insurance-panel';
+import { supabase } from '@/integrations/supabase/client';
 import {
   ACCIDENT_FILE_ENTITY, accidentAmounts, accidentChecklist, accidentNextStatuses, accidentStatusTone,
   accidentAttachmentNames, type AccidentFileStatus,
@@ -82,6 +84,16 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
   const saveForm = () => save.mutate({
     insurer: form.insurer.trim() || null, claim_number: form.claim_number.trim() || null, expert_name: form.expert_name.trim() || null,
     expert_email: form.expert_email.trim() || null, is_urgent: form.is_urgent, urgent_note: form.urgent_note.trim() || null,
+  });
+
+  // ── Volet assureur (rattrapage G8) : montant de l'OR pour une franchise en % ─
+  const orTotalQ = useQuery({
+    queryKey: ['accident-or-total', file?.repair_order_id],
+    enabled: !!file?.repair_order_id,
+    queryFn: async () => {
+      const { data } = await supabase.from('repair_orders').select('total_ttc').eq('id', file!.repair_order_id!).maybeSingle();
+      return Number(data?.total_ttc ?? 0);
+    },
   });
 
   // ── Devis lie ────────────────────────────────────────────────────────────
@@ -223,6 +235,11 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
             <div className="flex justify-end">
               <Button onClick={saveForm} disabled={save.isPending || closed}>{save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('accidentFile.save')}</Button>
             </div>
+          </Section>
+
+          {/* Assureur : cabinet, expert, passage, franchise, valeur venale, cote, demarrage accepte (G8 : onglet Assurance) */}
+          <Section title={t('insurance.panelTitle')}>
+            <AccidentInsurancePanel companyId={file.company_id} fileId={file.id} repairOrderId={file.repair_order_id} orTotalTtc={orTotalQ.data ?? 0} readOnly={closed} />
           </Section>
 
           {/* Devis lie */}

@@ -8,6 +8,7 @@ import { getContact, updateContact, contactDisplayName, type ContactInsert } fro
 import { useAuth } from '@/lib/auth/auth-context';
 import { t, pageTitle } from '@/lib/i18n';
 import { useSaveMutation } from '@/lib/use-save-mutation';
+import { WarrantyReturnsPanel } from '@/modules/workshop/warranty/warranty-views';
 
 export const Route = createFileRoute('/_app/purchases/suppliers/$supplierId')({
   head: () => ({ meta: [{ title: pageTitle('supplier') }] }),
@@ -50,6 +51,12 @@ function EditSupplier() {
         onSubmit={(p) => { setError(null); m.mutate(p); }}
         onCancel={() => navigate({ to: '/purchases/suppliers' })}
       />
+      {/* Fiche fournisseur › Garantie (G8) : retours / remboursements de ce fournisseur (rattrapage G8). */}
+      <section className="mt-8">
+        <h2 className="mb-1 font-ui text-[15px] font-bold">{t('warranty.supplierTitle')}</h2>
+        <p className="mb-3 text-[13px] text-muted-foreground">{t('warranty.supplierHint')}</p>
+        <WarrantyReturnsPanel companyId={activeCompanyId} supplierId={supplierId} />
+      </section>
     </>
   );
 }

@@ -40,12 +40,17 @@ import { getVehicle, vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import { pickContact, clearContact, pickVehicle, clearVehicle, type ClientVehicleSelection, type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
 import { type RepairOrderFull } from './api';
-import { computeRoTotals, type RoLineInput } from './write-api';
+import { computeRoTotals, warrantySchemaReady, type RoLineInput } from './write-api';
 import { loadHourlyRateHt } from './maintenance-api';
 import { listWorkshopReasons } from './checkup/api';
 import { cardsToLines, linesToCards, nonCheckupLines, PROPOSED_STATES, type CheckupCard } from './checkup/rules';
 import { CheckupTab } from './checkup/checkup-tab';
 import { serviceCodeForReason, serviceLabelKey, type ServiceCode } from './service-code';
+import { listWarrantyCessionTypes, loadWarrantyRate } from './warranty/api';
+import {
+  cessionFromRepairType, isLineDecision, lineCoveredByWarranty, lineReroutedToClient, statusAfterCessionChoice,
+  warrantyRequestNote, warrantySummary,
+} from './warranty/rules';
 import { t } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
@@ -67,13 +72,18 @@ export type OrPayload = {
   /** Membre de l'equipe choisi (null = personne / ancien texte seulement). */
   operatorId: string | null;
   repairType: string; workDescription: string; receptionNotes: string; status: string; warrantyStatus: string;
-  expertName: string; expertDate: string; reasonCode: string | null; lines: RoLineInput[];
+  /** undefined = gere par le volet assurance du dossier accident (ne pas ecraser). */
+  expertName?: string; expertDate?: string; reasonCode: string | null; lines: RoLineInput[];
+  /** Type de cession garantie (05 / 06 / 07, '' = aucun) et commentaire de la demande (rattrapage G8). */
+  warrantyCessionCode: string; warrantyNote: string;
 };
 
 export type OrEditorIntent = 'save' | 'proposal';
 
-export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions, draftKey = null, onDraftDiscard }: {
+export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions, draftKey = null, onDraftDiscard, expertInPanel = false }: {
   companyId: string; initial?: RepairOrderFull | null; busy: boolean; error?: string | null;
+  /** Dossier accident ouvert : expert et date de passage se saisissent dans son volet assurance. */
+  expertInPanel?: boolean;
   /** Nouvel OR : cle du brouillon de saisie (UX011, `useFormDraft`) ; null en edition. */
   draftKey?: string | null;
   /** « Recommencer a zero » : l'appelant remonte l'editeur vierge. */
@@ -118,11 +128,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [warrantyStatus, setWarranty] = useState(o?.warranty_status ?? 'aucune');
   const [expertName, setExpertName] = useState(o?.expert_name ?? '');
   const [expertDate, setExpertDate] = useState(o?.expert_date ?? '');
-  const initialLines = useMemo(() => (initial?.lines ?? []) as (RepairOrderFull['lines'][number] & { checkup_key?: string | null; checkup_state?: string | null; photo_path?: string | null; proposal_line_id?: string | null })[], [initial]);
+  // OR garantie (rattrapage G8) : type de cession et commentaire de la demande (migration 20261118130000).
+  const [cessionCode, setCessionCode] = useState<string>((ox?.warranty_cession_code as string | null) ?? '');
+  const [warrantyNote, setWarrantyNote] = useState<string>((ox?.warranty_note as string | null) ?? '');
+  const initialLines = useMemo(() => (initial?.lines ?? []) as (RepairOrderFull['lines'][number] & { checkup_key?: string | null; checkup_state?: string | null; photo_path?: string | null; proposal_line_id?: string | null; warranty_decision?: string | null })[], [initial]);
   const [lines, setLines] = useState<EditLine[]>(() => {
     const classic = nonCheckupLines(initialLines);
     return classic.length
-      ? classic.map((l) => ({ _key: `ro${counter++}`, kind: l.kind as RoLineInput['kind'], article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity), unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct), is_warranty: l.is_warranty }))
+      ? classic.map((l) => ({ _key: `ro${counter++}`, kind: l.kind as RoLineInput['kind'], article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity), unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate), discount_pct: Number(l.discount_pct), is_warranty: l.is_warranty, warranty_decision: isLineDecision(l.warranty_decision) ? l.warranty_decision : null }))
       : [blankLine()];
   });
   const [cards, setCards] = useState<CheckupCard[]>(() => linesToCards(initialLines));
@@ -133,7 +146,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const formDraft = useFormDraft({
     key: draftKey ?? null,
     // Operateur (membre choisi ou ancien texte) et type de reparation (code de la liste) inclus (ATE001b).
-    value: { sel, mileage, operatorChoice, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, lines },
+    value: { sel, mileage, operatorChoice, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, cessionCode, warrantyNote, lines },
     fingerprint: (v) => ({ ...v, sel: [v.sel.contact?.id ?? contactIdToLoad ?? null, v.sel.vehicle?.id ?? null], lines: v.lines.map(({ _key, ...l }) => l) }),
     accept: (d) => !defaultContactId || !d.sel.contact || d.sel.contact.id === defaultContactId,
     restore: (d) => {
@@ -149,6 +162,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       }
       setWork(d.workDescription); setNotes(d.receptionNotes); setStatus(d.status); setWarranty(d.warrantyStatus);
       setExpertName(d.expertName); setExpertDate(d.expertDate);
+      setCessionCode(d.cessionCode ?? ''); setWarrantyNote(d.warrantyNote ?? '');
       if (d.lines?.length) setLines(d.lines.map((l) => ({ ...l, _key: `ro${counter++}` })));
     },
   });
@@ -207,8 +221,27 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     setRepairType((cur) => nextRepairType({ current: cur, previousReason: reasonCode || null, nextReason: next || null }));
     setReasonCode(next);
   };
-  const expertVisible = showExpertFields({ reasonCode, repairType, expertName, expertDate });
-  const warrantyVisible = showWarrantyField({ reasonCode, repairType, warrantyStatus });
+  const expertVisible = !expertInPanel && showExpertFields({ reasonCode, repairType, expertName, expertDate });
+  const warrantyVisible = showWarrantyField({ reasonCode, repairType, warrantyStatus }) || !!cessionCode;
+  // Garantie (rattrapage G8) : types de cession 05 / 06 / 07, taux MO garantie, colonnes en base ?
+  const warrantySchemaQ = useQuery({ queryKey: ['warranty-schema'], queryFn: warrantySchemaReady, staleTime: Infinity });
+  const warrantyReady = warrantySchemaQ.data === true;
+  const cessionTypesQ = useQuery({ queryKey: ['warranty-cession-types', companyId], queryFn: () => listWarrantyCessionTypes(companyId), staleTime: 300_000, enabled: warrantyReady });
+  const warrantyRateQ = useQuery({ queryKey: ['warranty-rate', companyId], queryFn: () => loadWarrantyRate(companyId), staleTime: 300_000 });
+  const noteTemplate = t('warranty.requestNote');
+  const chooseCession = (code: string, withNote = true) => {
+    setCessionCode(code);
+    if (!code) return;
+    setWarranty((w) => statusAfterCessionChoice(w, code));
+    if (withNote) setWarrantyNote((n) => (n.trim() ? n : warrantyRequestNote(noteTemplate, { vin: vehicle?.vin, plate: vehicle?.plate })));
+  };
+  // Type de reparation « Garantie Ducati » / « Garantie magasin » : le type de cession suit (s'il est vide).
+  useEffect(() => {
+    if (!warrantyReady) return;
+    const proposed = cessionFromRepairType(repairType);
+    if (proposed && !cessionCode) chooseCession(proposed, !!vehicle?.vin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repairType, warrantyReady]);
   const pickLineArticle = (k: string, a: SaleArticle) => {
     const price = articleLinePrice(a, { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) });
     setLine(k, { article_id: a.id, designation: a.designation, ...price });
@@ -225,15 +258,18 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
   const cardLines = cardsToLines(cards.filter((c) => c.label.trim() || c.parts.length), rate);
-  const totals = computeRoTotals([...classicInputs, ...cardLines]);
+  const totals = computeRoTotals([...classicInputs, ...cardLines], warrantyStatus);
+  const wSummary = warrantySummary([...classicInputs, ...cardLines], warrantyStatus, warrantyRateQ.data ?? null);
+  const hasWarrantyLines = [...classicInputs, ...cardLines].some((l) => l.is_warranty);
   const proposedCount = cards.filter((c) => PROPOSED_STATES.includes(c.state) && c.label.trim()).length;
 
   const ownName = profile?.full_name?.trim() || profile?.email || '';
   const savedOperator = operatorToSave(operatorChoice, members, operatorChoice.operatorId === user?.id ? ownName : (o?.operator ?? ''));
   const payload = (): OrPayload => ({
     contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: mileage ? Math.round(num(mileage)) : null,
-    operator: savedOperator.operatorText, operatorId: savedOperator.operatorId, repairType, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate,
-    reasonCode: reasonCode || null,
+    operator: savedOperator.operatorText, operatorId: savedOperator.operatorId, repairType, workDescription, receptionNotes, status, warrantyStatus,
+    expertName: expertInPanel ? undefined : expertName, expertDate: expertInPanel ? undefined : expertDate,
+    reasonCode: reasonCode || null, warrantyCessionCode: cessionCode, warrantyNote,
     lines: [...classicInputs, ...cardLines],
   });
 
@@ -309,6 +345,17 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           </Select>
         </Field>
         {/* Garantie : seulement pour un OR garantie (ou une prise en charge deja engagee). */}
+        {warrantyVisible && warrantyReady && (
+          <Field label={t('warranty.cessionType')}>
+            <Select value={cessionCode || NO_VALUE} onValueChange={(v) => chooseCession(v === NO_VALUE ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder={t('warranty.cessionPlaceholder')} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_VALUE}>{t('orPage.none')}</SelectItem>
+                {(cessionTypesQ.data ?? []).map((c) => <SelectItem key={c.code} value={c.code}>{c.code} — {c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         {warrantyVisible && (
           <Field label={t('workshop.warranty')}>
             <Select value={warrantyStatus} onValueChange={setWarranty}>
@@ -316,6 +363,13 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
               <SelectContent>{WARRANTY.map((w) => <SelectItem key={w} value={w}>{t(`workshop.warranty_${w}`)}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
+        )}
+        {warrantyVisible && warrantyReady && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Field label={t('warranty.requestNoteLabel')}>
+              <Textarea value={warrantyNote} onChange={(e) => setWarrantyNote(e.target.value)} rows={2} />
+            </Field>
+          </div>
         )}
         {/* Expert : seulement pour un accident (ou deja renseigne). */}
         {expertVisible && <Field label={t('workshop.expertName')}><Input value={expertName} onChange={(e) => setExpertName(e.target.value)} /></Field>}
@@ -338,7 +392,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           </tr></thead>
           <tbody>
             {lines.map((l) => {
-              const ht = l.quantity * (l.is_warranty ? 0 : l.unit_price_ht) * (1 - (l.discount_pct || 0) / 100);
+              const covered = lineCoveredByWarranty(l, warrantyStatus);
+              const rerouted = lineReroutedToClient(l, warrantyStatus);
+              const ht = l.quantity * (covered ? 0 : l.unit_price_ht) * (1 - (l.discount_pct || 0) / 100);
               return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-2 py-1">
@@ -356,11 +412,26 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                       : <ArticlePicker companyId={companyId} value={l.designation} onText={(v) => setLine(l._key, { designation: v })} onPick={(a) => pickLineArticle(l._key, a)} />}
                   </td>
                   <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setLine(l._key, { quantity: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={l.is_warranty} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={covered} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
-                  <td className="px-2 py-1 text-center"><input type="checkbox" checked={l.is_warranty} onChange={(e) => setLine(l._key, { is_warranty: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" title={t('workshop.warrantyHint')} /></td>
+                  <td className="px-2 py-1 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <input type="checkbox" checked={l.is_warranty} onChange={(e) => setLine(l._key, { is_warranty: e.target.checked, warranty_decision: e.target.checked ? l.warranty_decision ?? null : null })} className="size-4 accent-[var(--ducati-red)]" title={t('workshop.warrantyHint')} />
+                      {covered && <span className="rounded-[var(--radius-badge)] bg-info-bg px-1 font-data text-[11px] font-bold text-info" title={t('warranty.lineCovered')}>G</span>}
+                      {rerouted && <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1 font-data text-[11px] font-bold text-warning" title={t('warranty.lineRerouted')}>{t('warranty.clientShort')}</span>}
+                    </div>
+                    {l.is_warranty && warrantyStatus === 'refus_partiel' && (
+                      <Select value={l.warranty_decision === 'refuse' ? 'refuse' : 'accepte'} onValueChange={(v) => setLine(l._key, { warranty_decision: v === 'refuse' ? 'refuse' : 'accepte' })}>
+                        <SelectTrigger className="mt-1 h-7 w-28 text-[12px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="accepte">{t('warranty.decision_accepte')}</SelectItem>
+                          <SelectItem value="refuse">{t('warranty.decision_refuse')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </td>
                   <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button></td>
                 </tr>
               );
@@ -372,6 +443,15 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <p className="text-[12px] text-muted-foreground">
           {t('checkup.linesFromCheckup').replace('{n}', String(cards.length))}
         </p>
+      )}
+      {hasWarrantyLines && (
+        <div className="rounded-md border border-border bg-card px-4 py-2 font-data text-[13px] tabular-nums">
+          <span className="font-bold">{t('warranty.summaryTitle')}</span>{' '}
+          {t('warranty.summaryLines').replace('{n}', String(wSummary.coveredLines)).replace('{amount}', eur(wSummary.coveredSaleHt))}
+          {wSummary.labourHours > 0 && <> · {t('warranty.summaryLabour').replace('{h}', String(wSummary.labourHours).replace('.', ',')).replace('{amount}', eur(wSummary.labourWarrantyHt))}</>}
+          {wSummary.rerouted > 0 && <span className="text-warning"> · {t('warranty.summaryRerouted').replace('{n}', String(wSummary.rerouted))}</span>}
+          {warrantyStatus === 'refus_partiel' && <p className="mt-1 font-ui text-[12px] text-muted-foreground">{t('warranty.partialHint')}</p>}
+        </div>
       )}
 
       <div className="flex items-center justify-between">
