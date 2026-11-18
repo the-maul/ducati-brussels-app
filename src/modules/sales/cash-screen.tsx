@@ -4,6 +4,9 @@
  * ventes > 500 EUR), clôture avec calcul monnaie, motif d'écart obligatoire et journal Z
  * numéroté, figé, archivé en PDF dans la GED (PDV010, 03/11/2026).
  * Réf. G8 Facturation p.128-131, p.164-179. Libellés via i18n.
+ * Rattrapage G8 (18/11/2026) : fond proposé à l'ouverture (report de la remise en banque), mouvements
+ * typés avec confirmation (Paramètres → Tables → Types de mouvement de caisse), grille de calcul monnaie
+ * partagée (`cash-count.tsx`), avertissement « caisse ouverte depuis la veille » (jamais bloquant).
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,10 +20,12 @@ import {
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import {
-  getOpenSession, listSessions, openSession, closeSession, addMovement, listSessionMovements, getSessionReport,
+  getOpenSession, listSessions, openSession, closeSession, listSessionMovements, getSessionReport,
   frozenZ, archiveZPdf, type CashSession,
 } from './cash-api';
 import { listPaymentMethods } from './write-api';
+import { getDrawerBalance, listMovementTypes, addTypedMovement } from './cash-deposit-api';
+import { CashCountGrid, countTotal } from './cash-count';
 import { expectedCash, cashVariance, varianceReasonMissing } from './cash-rules';
 import type { ZReport } from './z-report';
 import { buildZPdf, openPdfBytes } from './z-report-pdf';
@@ -31,7 +36,6 @@ import { ZReportView } from './z-report-view';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
-const DENOMS = [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
 
 export function CashScreen({ companyId }: { companyId: string }) {
   const { data: session, isLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
@@ -48,19 +52,34 @@ export function CashScreen({ companyId }: { companyId: string }) {
 }
 
 /* ---------------- Ouverture ---------------- */
+// Fond proposé = espèces du tiroir (report de la dernière remise en banque + espèces non remises, G8).
+// Un fond saisi différent reste possible (jamais bloquant) : l'écart devient une ligne de la remise suivante.
 function OpenForm({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
-  const [float, setFloat] = useState('');
+  const { data: proposed } = useQuery({ queryKey: ['cash-drawer-balance', companyId], queryFn: () => getDrawerBalance(companyId) });
+  const [float, setFloat] = useState<string | null>(null);
+  const value = float ?? (proposed != null ? String(proposed) : '');
   const [note, setNote] = useState('');
+  const gap = proposed != null && value.trim() !== '' ? Math.round((num(value) - proposed) * 100) / 100 : 0;
   const open = useMutation({
-    mutationFn: () => openSession(companyId, num(float), note || undefined),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); qc.invalidateQueries({ queryKey: ['cash-sessions', companyId] }); },
+    mutationFn: () => openSession(companyId, num(value), note || undefined),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); qc.invalidateQueries({ queryKey: ['cash-sessions', companyId] });
+      qc.invalidateQueries({ queryKey: ['cash-drawer-balance', companyId] });
+    },
   });
   return (
     <div className="max-w-md space-y-3 rounded-md border border-border bg-card p-4">
       <p className="flex items-center gap-2 text-sm font-bold"><Wallet className="size-4" /> {t('cash.noSession')}</p>
-      <div className="space-y-1"><Label>{t('cash.openingFloat')}</Label><Input type="number" step="0.01" value={float} onChange={(e) => setFloat(e.target.value)} className="text-right tabular-nums" placeholder="0,00" /></div>
-      <div className="space-y-1"><Label>{t('cash.note')}</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
+      <div className="space-y-1"><Label>{t('cash.openingFloat')}</Label><Input type="number" step="0.01" value={value} onChange={(e) => setFloat(e.target.value)} className="text-right tabular-nums" placeholder="0,00" /></div>
+      {proposed != null && <p className="font-data text-[12px] tabular-nums text-muted-foreground">{t('cash.proposedFloat')} : <b>{eur(proposed)}</b></p>}
+      {gap !== 0 && (
+        <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[12px] text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {fillVars(t('cash.floatGap'), { gap: `${gap > 0 ? '+' : '−'} ${eur(Math.abs(gap))}` })}
+        </p>
+      )}
+      <div className="space-y-1"><Label>{gap !== 0 ? t('cash.floatGapNote') : t('cash.note')}</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
+      {open.isError && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{errorMessage(open.error)}</p>}
       <Button onClick={() => open.mutate()} disabled={open.isPending}>{open.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cash.open')}</Button>
     </div>
   );
@@ -93,7 +112,14 @@ function OpenSession({ companyId, session }: { companyId: string; session: CashS
         <span className="font-data text-sm tabular-nums">{t('cash.openingFloat')} : <b>{eur(Number(session.opening_float))}</b></span>
       </div>
 
-      <MovementPanel companyId={companyId} sessionId={session.id} methods={methods ?? []} movements={movements ?? []} onChanged={refresh} />
+      {/* Caisse oubliée la veille (décision Q31) : jamais bloquant, on dit quoi faire. */}
+      {new Date(session.opened_at).toDateString() !== new Date().toDateString() && (
+        <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {fillVars(t('cash.staleSession'), { date: new Date(session.opened_at).toLocaleString('fr-BE') })}
+        </p>
+      )}
+
+      <MovementPanel companyId={companyId} sessionId={session.id} methods={methods ?? []} movements={(movements ?? []) as MovementRow[]} onChanged={refresh} />
 
       {z && <ZPanel z={z} />}
 
@@ -129,24 +155,47 @@ function ClosedDialog({ session, onDone }: { session: CashSession; onDone: () =>
 }
 
 /* ---------------- Mouvements de fond de caisse ---------------- */
+// G8 « Mouvement de caisse » : type (Paramètres → Tables → Types de mouvement de caisse), mode, commentaire,
+// montant, confirmation « Confirmez-vous une sortie d'argent en ESPÈCES de 10,00 € ? ». Le type fixe le sens,
+// la TVA comprise (achat de consommables 21 %) et le compte. Sans types (migration du 18/11 non posée) :
+// entrée / sortie avec motif libre, comme avant.
+type MovementRow = { id: string; kind: string; method: string; amount: number; reason: string | null; occurred_at: string; movement_no?: number | null; type_code?: string | null; vat_amount?: number | null; deposit_id?: string | null };
 function MovementPanel({ companyId, sessionId, methods, movements, onChanged }: {
   companyId: string; sessionId: string; methods: { code: string; label: string }[];
-  movements: { id: string; kind: string; method: string; amount: number; reason: string | null; occurred_at: string }[]; onChanged: () => void;
+  movements: MovementRow[]; onChanged: () => void;
 }) {
-  const [kind, setKind] = useState<'in' | 'out'>('out');
+  const { data: allTypes } = useQuery({ queryKey: ['cash-movement-types', companyId], queryFn: () => listMovementTypes(companyId) });
+  const types = (allTypes ?? []).filter((x) => !x.system);
+  const [typeCode, setTypeCode] = useState('');
+  const type = types.find((x) => x.code === typeCode) ?? null;
+  const [kindChoice, setKind] = useState<'in' | 'out'>('out');
+  const kind: 'in' | 'out' = type && type.direction !== 'both' ? type.direction : kindChoice;
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('ESP');
   const [reason, setReason] = useState('');
+  const [ask, setAsk] = useState(false);
+  const methodLabel = (code: string) => methods.find((m) => m.code === code)?.label ?? code;
+  const typeLabel = (code: string | null | undefined) => (code ? (allTypes ?? []).find((x) => x.code === code)?.label ?? code : '');
+  const vat = type?.vatRate ? Math.round(num(amount) * type.vatRate / (100 + type.vatRate) * 100) / 100 : 0;
+  const needType = types.length > 0 && !type;
   const add = useMutation({
-    mutationFn: () => addMovement(companyId, sessionId, kind, num(amount), method, reason),
-    onSuccess: () => { setAmount(''); setReason(''); onChanged(); },
+    mutationFn: () => addTypedMovement(companyId, sessionId, { kind, amount: num(amount), method, reason: reason.trim() || (type?.label ?? ''), typeCode: type?.code ?? null }),
+    onSuccess: () => { setAmount(''); setReason(''); setAsk(false); onChanged(); },
   });
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.movements')}</p>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1"><Label>{t('cash.method')}</Label>
-          <Select value={kind} onValueChange={(v) => setKind(v as 'in' | 'out')}>
+        {types.length > 0 && (
+          <div className="space-y-1"><Label>{t('cash.movementType')}</Label>
+            <Select value={typeCode} onValueChange={setTypeCode}>
+              <SelectTrigger className="w-64"><SelectValue placeholder={t('cash.movementTypePick')} /></SelectTrigger>
+              <SelectContent>{types.map((x) => <SelectItem key={x.code} value={x.code}>{x.code} - {x.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="space-y-1"><Label>{t('cash.direction')}</Label>
+          <Select value={kind} onValueChange={(v) => setKind(v as 'in' | 'out')} disabled={!!type && type.direction !== 'both'}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="in">{t('cash.in')}</SelectItem><SelectItem value="out">{t('cash.out')}</SelectItem></SelectContent>
           </Select>
@@ -158,24 +207,44 @@ function MovementPanel({ companyId, sessionId, methods, movements, onChanged }: 
             <SelectContent>{methods.map((m) => <SelectItem key={m.code} value={m.code}>{m.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex-1 space-y-1"><Label>{t('cash.reason')}</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} /></div>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || num(amount) <= 0}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cash.add')}</Button>
+        <div className="flex-1 space-y-1"><Label>{types.length > 0 ? t('cash.comment') : t('cash.reason')}</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+        <Button onClick={() => { add.reset(); setAsk(true); }} disabled={add.isPending || num(amount) <= 0 || needType}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cash.add')}</Button>
       </div>
+      {vat > 0 && <p className="font-data text-[12px] tabular-nums text-muted-foreground">{fillVars(t('cash.movementVat'), { rate: type?.vatRate ?? 0, vat: eur(vat) })}</p>}
       {movements.length > 0 && (
         <table className="w-full border-collapse font-data text-[13px]">
           <tbody>
             {movements.map((m) => (
               <tr key={m.id} className="border-b border-border last:border-0">
+                <td className="py-1.5 tabular-nums text-muted-foreground">{m.movement_no ?? ''}</td>
                 <td className="py-1.5">{new Date(m.occurred_at).toLocaleString('fr-BE')}</td>
                 <td className="py-1.5"><StatusBadge tone={m.kind === 'in' ? 'success' : 'warning'} label={m.kind === 'in' ? t('cash.in') : t('cash.out')} /></td>
-                <td className="py-1.5">{m.method}</td>
+                <td className="py-1.5">{typeLabel(m.type_code)}</td>
+                <td className="py-1.5">{methodLabel(m.method)}</td>
                 <td className="py-1.5">{m.reason}</td>
+                <td className="py-1.5 text-right tabular-nums text-muted-foreground">{m.vat_amount ? `${t('cash.vatShort')} ${eur(Number(m.vat_amount))}` : ''}</td>
                 <td className="py-1.5 text-right tabular-nums">{m.kind === 'in' ? '+' : '−'} {eur(Number(m.amount))}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+      <AlertDialog open={ask} onOpenChange={(o) => { if (!add.isPending) setAsk(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('cash.movementConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {fillVars(t(kind === 'in' ? 'cash.movementConfirmIn' : 'cash.movementConfirmOut'), { method: methodLabel(method), amount: eur(num(amount)) })}
+              {type ? ` (${type.code} - ${type.label})` : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {add.isError && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{errorMessage(add.error)}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={add.isPending}>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); add.mutate(); }} disabled={add.isPending}>{add.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('cash.movementConfirmDo')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -188,7 +257,7 @@ function ZPanel({ z }: { z: ZReport }) {
 /* ---------------- Clôture + calcul monnaie ---------------- */
 function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { companyId: string; sessionId: string; theoreticalCash: number; onClosed: (s: CashSession) => void }) {
   const [qtys, setQtys] = useState<Record<string, string>>({});
-  const counted = DENOMS.reduce((s, d) => s + d * num(qtys[String(d)] ?? ''), 0);
+  const { total: counted, denominations: denoms } = countTotal(qtys);
   const variance = cashVariance(counted, theoreticalCash);
   const [reason, setReason] = useState('');
   const [ask, setAsk] = useState(false);
@@ -197,8 +266,6 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
   const reasonMissing = varianceReasonMissing(variance, reason);
   const close = useMutation({
     mutationFn: async () => {
-      const denoms: Record<string, number> = {};
-      for (const d of DENOMS) { const q = num(qtys[String(d)] ?? ''); if (q > 0) denoms[String(d)] = q; }
       const closed = await closeSession(sessionId, Math.round(counted * 100) / 100, denoms, reason);
       // Journal Z figé → PDF rangé dans la GED de la session (l'échec de l'archive ne défait pas la clôture).
       const z = frozenZ(closed);
@@ -213,14 +280,7 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.counting')}</p>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {DENOMS.map((d) => (
-          <div key={d} className="flex items-center gap-2">
-            <span className="w-14 text-right font-data text-[13px] tabular-nums text-muted-foreground">{eur(d)}</span>
-            <Input type="number" min="0" step="1" value={qtys[String(d)] ?? ''} onChange={(e) => setQtys((q) => ({ ...q, [String(d)]: e.target.value }))} className="h-8 w-16 text-right tabular-nums" placeholder="0" />
-          </div>
-        ))}
-      </div>
+      <CashCountGrid qtys={qtys} onChange={setQtys} />
       <div className="flex flex-col items-end gap-1 font-data text-sm tabular-nums">
         <span>{t('cash.theoretical')} : {eur(theoreticalCash)}</span>
         <span>{t('cash.countedCash')} : <b>{eur(counted)}</b></span>

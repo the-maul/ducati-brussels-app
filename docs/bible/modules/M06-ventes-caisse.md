@@ -161,6 +161,50 @@ Vérifié le 18/09/2026 (code + base `ujmrosbgkvgvwfnuryna`).
 - Reste listé dans `docs/avancement.md` (E5) : duplicata, regroupement de BL, n° de série / REP au POS, relances et LCR.
 - `TODO(sales-filters)` dans `src/routes/_app.sales.index.tsx` (l. 162) : le filtre VN / VO / dépôt-vente devrait s'appuyer sur `mgmt_type`.
 
+## Ajouté le 18/11 — rattrapage G8 (caisse : remise en banque, mouvements typés, calcul monnaie, journaux)
+
+Lot `lot-g8-caisse`, sources G8 : `docs/g8-inventaire/06-ventes-caisse.md` (« Caisse en détail »), `08-compta-stats.md`
+(comptes mouvements fond de caisse), `parcours.md` (16, 22, 23, 24) ; comparaison §3 / §3.1, bloquants #6 et #7.
+**Décision de Simon (Q31, 18/11)** : on garde la **remise en banque façon G8 ET le Z numéroté figé** ; les deux
+coexistent sans se contredire et sans jamais bloquer le caissier.
+
+**Migrations (non appliquées, à poser APRÈS le bloc caisse du 03/11 `150000` → `170000` → `180000` → `220000`)** :
+`20261118150000_m6_remise_en_banque.sql` puis `20261118151000_m6_journaux_caisse.sql` ; essai à blanc
+`supabase/tests/m6_remise_en_banque.sql` (chaque ligne doit valoir « ok », transaction annulée).
+
+| Écran | Ce qu'on peut y faire |
+|---|---|
+| Caisse → **Remises en banque** (`/pos`, onglet) | **Nouvelle remise** : mode de règlement (espèces, carte, virement, Visa…), période « depuis le dernier report », lignes à cocher (**report précédent**, encaissements, **mouvements de caisse**, **règlements négatifs**, écart d'ouverture, écart de clôture du Z), cases « éléments déjà remis / inclure les mouvements / règlements négatifs / commentaire », **montant remis ↔ nouveau fond de caisse** (l'un calcule l'autre), comptage du tiroir intégré, banque (BIC / IBAN), date de remise, **Archiver sans remise**, **Générer la remise** (confirmation) → **bordereau PDF**. **Remises archivées** : consulter (lignes, commentaires), bordereau PDF, **ajouter un commentaire**, **modifier** (date, banque, montant — motif obligatoire), **annuler** (motif obligatoire) ; filtre par mode, « afficher les éléments archivés sans remise » |
+| Caisse → Caisse & clôture Z | **Fond proposé** à l'ouverture = espèces du tiroir (report + non remis) ; un fond différent reste possible (avertissement, l'écart devient une ligne « ouverture / correction du fond de caisse » de la remise suivante) ; **mouvements typés** (Paramètres → Tables → « Types de mouvement de caisse » : 00 correction / ouverture, 01 remise en banque (réservé), 02 / 03 dépôt-vente, 04 achat de consommables TVA 21 % comprise, 05 La Poste, 06 / 07 divers), sens imposé par le type, **confirmation** « Confirmez-vous une sortie d'argent en … de … ? », n° de mouvement, TVA, compte du type ; avertissement « caisse ouverte depuis la veille » |
+| Caisse → **Journaux** | Période, journaux à cocher, aperçu écran, **PDF de la sélection** (A4 paysage) et **Excel** (une feuille par journal) : liste des factures (simplifiée, règlements verticaux, horizontaux), état des encaissements de la journée (détaillé, simplifié, par mode), récapitulatif (+ horizontal), états du mois (+ simplifié), **journal de caisse par mode (report, solde)**, journal des ventes (panier moyen), ventilations journalières / mensuelles par opérateur, client, famille (niveau 1 à complet), taux de TVA (simple, détaillé, filtre par taux), mouvements de fonds, **historique des reports**, détail des ventes d'une référence, port par facture. **Brouillons et documents annulés exclus** |
+| Caisse → **Calcul monnaie** | Comptage pièces / billets 0,01 → 500 €, sous-totaux, total espèces comparé au théorique (caisse ouverte : théorique du Z ; fermée : espèces du tiroir), impression PDF |
+| Paramètres → Tables | « Types de mouvement de caisse » (sens, TVA comprise, compte comptable, réservé) ; « Banques de remise » (domiciliation, IBAN, BIC ; préchargée depuis la fiche société) |
+
+**Règles (modèle du tiroir, identique en SQL et dans `cash-deposit-rules.ts` → `DrawerBook`)** :
+- Espèces du tiroir = reports non repris + règlements ESP non remis + mouvements ESP non remis + écarts d'ouverture
+  (fond saisi − fond proposé) + écarts de clôture (compté − théorique du Z). Une ligne ne se remet qu'une fois
+  (index unique sur les lignes actives). Nouveau fond = sélection − remis ; carte / virement : toute la sélection est
+  remise, pas de fond ; « archiver sans remise » : rien n'est remis (espèces : tout passe en report).
+- **Z et remise ensemble** : remise d'espèces **caisse ouverte** → sortie de type 01 ajoutée à la session (le théorique
+  du Z reste juste) ; caisse fermée → rien n'est écrit dans le Z. Annulation : lignes de nouveau disponibles ; si la
+  caisse de la remise est encore ouverte, une entrée compense la sortie ; si son Z est fait, rien n'est réécrit (la
+  sortie rejoint le grand livre). Une remise dont le report est repris s'annule **après** la suivante (message).
+  Montant modifiable seulement tant que la caisse de la remise est ouverte et qu'aucune caisse n'a été ouverte depuis
+  (sinon : annuler puis refaire). Tout passe par `cash_deposit_create` / `_cancel` / `_amend` (security definer,
+  `can_write_table(…, 'cash_deposits')` = rôles qui écrivent sur `/pos`), tracé dans `events`.
+- Cas testés (décision Q31) : `tests/caisse-remise-banque.test.ts` (16) — journée type, remise avant le Z, caisse
+  oubliée la veille, plusieurs sessions entre deux remises, annulation après le Z, annulation caisse ouverte,
+  report repris, ligne remise deux fois, archive, correction du montant, remboursement sans report.
+  Journaux : `tests/caisse-journaux.test.ts` (26).
+- Code : `cash-deposit-rules.ts`, `cash-deposit-api.ts`, `cash-deposits-screen.tsx`, `cash-deposit-slip.ts`,
+  `cash-journals.ts`, `cash-journals-export.ts`, `cash-journals-screen.tsx`, `cash-count.tsx`, `cash-screen.tsx`.
+- Avant les migrations : onglets Remises / Journaux affichent « disponible après la mise à jour de la base » ;
+  mouvements et ouverture comme avant.
+
+**Pas fait** : journaux « par poste » (attendent la caisse par poste, K17) ; écritures comptables des mouvements et
+des remises (C5, export WinBooks à caler avec le comptable) ; lien automatique dépôt-vente → mouvement 02 / 03
+(voir le lot dépôt-vente) ; n° de chèque / établissement payeur sur les lignes (champs absents des règlements).
+
 ## 7. Limites connues, dettes, pièges
 - **Matériel (PDV030)** : rien n'a encore été essayé sur une vraie imprimante (pas de matériel à l'agence) ; le format Star WebPRNT (`<root>`, `<peripheral>`) suit le manuel Star et n'a pas été vu sur un mC-Print3. Un poste supprimé laisse son choix local orphelin : le navigateur repasse en A4. Le duplicata est compté par écran (une réimpression depuis un autre PC ne sait pas que l'original est sorti). Zebra en réseau : aucun retour d'erreur possible (CORS).
 - **Corrigé le 03/11 (PDV011, migration `20261103220000_m6_z_avoirs.sql` à poser après `20261103150000` → `20261103200000`)** : avec le lot facture légale, un ticket compensé par un avoir (`avoir_emis`) sortait du Z alors que l'avoir y restait (ticket 100 €, avoir total : CA net −100 au lieu de 0, TVA 21 % négative, 0 ticket) et le lettrage `AVO` s'affichait comme un mode d'encaissement (total nul) ; l'ancien Z horaire comptait aussi l'acompte reporté. Essai à blanc : `supabase/tests/m6_z_avoirs.sql` (24 contrôles ok ; sans la migration, 12 échouent, preuve du constat). Un Z figé entre la pose de `20261103180000` et celle-ci garde sa ligne « Réglé par avoir » (total 0) : jamais recalculé.
@@ -196,9 +240,9 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Ventes, Point de Vent
 | PDV020 | Écran client (tablette face au client) | fait (à valider), migration à appliquer | Tablette appairée, ticket en direct, paiement, terminal, signature, merci + e-mail (`customer-screen*.ts(x)`, `tests/ecran-client.test.ts`) |
 | PDV005 | Détaxe clients étrangers | fait | `computeTotals` (`taxExempt`), mention `sales.taxExemptMention` |
 | PDV006 | Remises ligne et pied | fait | `discount_pct`, `global_discount_pct/amount` |
-| PDV007 | Comptage du fond par coupure | fait | `cash-screen.tsx` (`DENOMS`), `cash_sessions.denominations` |
-| PDV008 | Clôture quotidienne + récap | fait | `cash_z_report`, `closeSession` |
-| PDV009 | Remises en banque, arrondis | partiel | Arrondi par net TTC forcé ; sorties de fond motivées ; pas de bordereau de remise en banque |
+| PDV007 | Comptage du fond par coupure | fait | `cash-count.tsx` (`DENOMS`, onglet Calcul monnaie), `cash_sessions.denominations` ; mouvements de fond typés (18/11, migration `20261118150000`) |
+| PDV008 | Clôture quotidienne + récap | fait | `cash_z_report`, `closeSession` ; journaux de caisse G8 (18/11, `cash-journals.ts`, migration `20261118151000`) |
+| PDV009 | Remises en banque, arrondis | fait (migration à appliquer) | Remise en banque façon G8 avec report du fond, bordereau PDF, archives (18/11, `cash-deposits-screen.tsx`, migration `20261118150000`) ; arrondi 5 cents |
 | PDV030 | Postes et périphériques, ticket 80 mm, tiroir (K12) | fait, à valider sur matériel | `src/lib/devices/`, `receipt-ticket.ts`, Paramètres → Postes et périphériques ; migration `20261103250000` non appliquée ; tests `tests/caisse-peripheriques.test.ts` (40) |
 | VEN000 | Paramétrage du module | partiel | Séquences (M0), modes de règlement |
 | VEN001 | Relance automatique des devis | manquant | Seules les factures échues sont relancées (`_cron_invoice_reminders`) |
@@ -333,3 +377,4 @@ Migrations (non appliquées, dans l'ordre) : `20261118170000_m6_reglements_echea
 de l'échéancier sur la 1re échéance ; bon d'achat vendu = traitement TVA / compta à définir (le DMS crée
 le bon, sans vente ni encaissement) ; mode `BA` distinct de `CHQC` (cartes cadeaux Shopify) ; droits de
 la page = ceux de « Soldes à encaisser ».
+| 2026-11-18 | **Rattrapage G8 caisse** (PDV007, PDV008, PDV009 ; décision Q31) : remise en banque par mode avec report du fond de caisse, bordereau, archives (commenter, modifier, annuler motivés), archiver sans remise ; fond proposé à l'ouverture ; mouvements de fond typés (TVA, compte) ; calcul monnaie ; 24 journaux de caisse G8 (écran, PDF, Excel) sans brouillon | `20261118150000_m6_remise_en_banque.sql`, `20261118151000_m6_journaux_caisse.sql` (à appliquer) |

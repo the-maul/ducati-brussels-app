@@ -6,6 +6,9 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { PosSale } from '@/modules/sales/pos-sale';
 import { CashScreen } from '@/modules/sales/cash-screen';
 import { ClosuresScreen } from '@/modules/sales/closures-screen';
+import { CashDepositsScreen } from '@/modules/sales/cash-deposits-screen';
+import { CashJournalsScreen } from '@/modules/sales/cash-journals-screen';
+import { CashCountScreen } from '@/modules/sales/cash-count';
 import { pairingCodeFromSearch } from '@/modules/sales/customer-screen';
 import { WorkstationPicker } from '@/modules/sales/workstation-picker';
 import { t, pageTitle } from '@/lib/i18n';
@@ -36,11 +39,18 @@ function PosPage() {
           <TabsTrigger value="sale">{t('pos.saleTab')}</TabsTrigger>
           <TabsTrigger value="session">{t('pos.sessionTab')}</TabsTrigger>
           <TabsTrigger value="closures">{t('pos.closuresTab')}</TabsTrigger>
+          {/* Rattrapage G8 (18/11/2026) : remise en banque, journaux de caisse, calcul monnaie. */}
+          <TabsTrigger value="deposits">{t('pos.depositsTab')}</TabsTrigger>
+          <TabsTrigger value="journals">{t('pos.journalsTab')}</TabsTrigger>
+          <TabsTrigger value="count">{t('pos.countTab')}</TabsTrigger>
         </TabsList>
         {/* Pas de vente caisse fermée (PDV010) : « Ouvrir la caisse » mène à l'onglet de la session. */}
         <TabsContent value="sale" className="mt-4"><PosSale companyId={activeCompanyId} companyName={companyName} onOpenCash={() => setTab('session')} screenCode={ecran ?? null} /></TabsContent>
         <TabsContent value="session" className="mt-4"><CashScreen companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="closures" className="mt-4"><ClosuresScreen companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="deposits" className="mt-4"><CashDepositsScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
+        <TabsContent value="journals" className="mt-4"><CashJournalsScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
+        <TabsContent value="count" className="mt-4"><CashCountScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
       </Tabs>
     </>
   );

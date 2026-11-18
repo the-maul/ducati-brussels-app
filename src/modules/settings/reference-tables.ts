@@ -30,6 +30,24 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   },
   { key: 'payment_method', label: 'Modes de règlement', group: 'vente',
     extraColumns: [{ key: 'visible_pos', label: 'Visible caisse', type: 'bool' }] },
+  // Mouvements de fond de caisse (rattrapage G8 du 18/11/2026, G8 Compta > Comptes mouvements fond de caisse) :
+  // sens imposé (entrée / sortie / les deux), TVA comprise dans le montant (achat de consommables 21 %),
+  // compte comptable. « Réservé » = posé par la remise en banque (01), masqué à la saisie.
+  { key: 'cash_movement_type', label: 'Types de mouvement de caisse', group: 'vente',
+    extraColumns: [
+      { key: 'direction', label: 'Sens', type: 'select', options: [
+        { value: 'in', label: 'Entrée' }, { value: 'out', label: 'Sortie' }, { value: 'both', label: 'Entrée ou sortie' },
+      ] },
+      { key: 'vat_rate', label: 'TVA comprise %', type: 'number' },
+      { key: 'account', label: 'Compte comptable', type: 'text' },
+      { key: 'system', label: 'Réservé (remise en banque)', type: 'bool' },
+    ] },
+  // Banques de remise en banque (G8 : code, domiciliation, BIC, IBAN) : libellé = domiciliation.
+  { key: 'bank_account', label: 'Banques de remise', group: 'vente',
+    extraColumns: [
+      { key: 'iban', label: 'IBAN', type: 'text' },
+      { key: 'bic', label: 'BIC', type: 'text' },
+    ] },
   { key: 'payment_term', label: 'Conditions de règlement', group: 'vente',
     extraColumns: [
       { key: 'days', label: 'Jours', type: 'number' },
