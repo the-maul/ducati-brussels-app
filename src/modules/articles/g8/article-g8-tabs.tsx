@@ -63,10 +63,10 @@ export function MovesDetailTab({ articleId }: { articleId: string }) {
             </thead>
             <tbody>
               {q.data!.map((m) => (
-                <tr key={m.move_id} className="border-b border-border last:border-0">
+                <tr key={`${m.row_kind}-${m.move_id}`} className={`border-b border-border last:border-0 ${m.row_kind === 'arrete' ? 'bg-muted/40' : ''}`}>
                   <Td className="whitespace-nowrap font-mono text-[12px]">{dateTimeFr(m.occurred_at)}</Td>
                   <Td>
-                    <span>{m.move_type}{m.is_reservation ? ` (${t('g8a.moves.reservation')})` : ''}</span>
+                    <span>{m.row_kind === 'arrete' ? t('g8a.moves.frozenAdjust') : m.move_type}{m.is_reservation ? ` (${t('g8a.moves.reservation')})` : ''}</span>
                     <span className="block text-[11px] text-muted-foreground">{[m.origin, m.ref, m.note].filter(Boolean).join(' · ')}</span>
                   </Td>
                   <Td className="text-right tabular-nums">{qty(m.real_before)}</Td>
