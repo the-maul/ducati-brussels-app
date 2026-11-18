@@ -35,16 +35,28 @@ declare
   _co uuid := '3d9f0f13-a691-4d07-ad58-34590df86e33';
   _b0 numeric; _s1 uuid; _s2 uuid; _tik uuid; _tik2 uuid; _draft uuid; _d1 uuid; _d2 uuid; _d3 uuid; _dc uuid;
   _items jsonb; _x jsonb; _m record; _dep record; _err text; _n int; _j jsonb;
+  _u interval;  -- 1/180e de la fenetre de l essai (1 minute quand la fenetre fait 3 heures)
 begin
   -- ------------------------------------------------ caisse reelle eventuelle cloturee (transaction annulee)
   update public.cash_sessions set counted_cash = coalesce(expected_cash, 0), variance_reason = 'ESSAI A BLANC (transaction annulee)',
-         status = 'closed', closed_at = now() - interval '4 hours'
+         status = 'closed', closed_at = greatest(opened_at, now() - interval '4 hours')
    where company_id = _co and status = 'open';
+  -- Fenetre de l essai : les 3 dernieres heures, mais jamais dans une caisse reelle deja cloturee
+  -- (le garde-fou refuse a raison un reglement date dans une journee fermee). Si la caisse du jour
+  -- vient d etre cloturee, la fenetre commence juste apres sa cloture et le scenario s y resserre
+  -- (memes etapes, dans le meme ordre).
+  _u := (now() - greatest(now() - interval '3 hours',
+                          coalesce((select max(closed_at) from public.cash_sessions
+                                     where company_id = _co and status = 'closed'), '-infinity')
+                          + interval '1 millisecond')) / 180;
+  if _u <= interval '0' then
+    raise exception 'ESSAI : une caisse reelle est cloturee a l instant meme, relancez l essai.';
+  end if;
   _b0 := public.cash_drawer_balance(_co);
 
   -- ------------------------------------------------ S1 : fond = fond propose
   insert into public.cash_sessions (company_id, opened_by, opening_float, status, opened_at)
-  values (_co, auth.uid(), _b0, 'open', now() - interval '3 hours') returning id into _s1;
+  values (_co, auth.uid(), _b0, 'open', now() - 180 * _u) returning id into _s1;
   insert into _t(check_name, result) values
     ('S1 : fond propose = especes du tiroir', case when (select proposed_float from public.cash_sessions where id = _s1) = _b0 then 'ok' else 'FAIL' end);
 
@@ -54,12 +66,12 @@ begin
   values (_tik, 'TEST remise en banque', 1, 82.64, 21, 82.64, 100, 0, 'article');
   update public.documents set status = 'validee', number = public.next_document_number(_co, 'TIK') where id = _tik;
   insert into public.document_payments (document_id, method, amount, status, note, paid_at)
-  values (_tik, 'ESP', 100, 'recu', 'TEST especes', now() - interval '170 minutes');
+  values (_tik, 'ESP', 100, 'recu', 'TEST especes', now() - 170 * _u);
   perform public.recompute_document_paid(_tik);
 
   -- Mouvement type 04 : sortie, TVA 21 % comprise, numero.
   insert into public.cash_movements (company_id, session_id, kind, method, amount, reason, type_code, occurred_at)
-  values (_co, _s1, 'out', 'ESP', 10, 'TEST consommable', '04', now() - interval '160 minutes');
+  values (_co, _s1, 'out', 'ESP', 10, 'TEST consommable', '04', now() - 160 * _u);
   select * into _m from public.cash_movements where session_id = _s1 and type_code = '04';
   insert into _t(check_name, result) values
     ('mouvement 04 : TVA 21 % comprise = 1,74', case when _m.vat_amount = 1.74 and _m.vat_rate = 21 then 'ok' else 'FAIL ' || coalesce(_m.vat_amount::text, 'null') end),
@@ -102,7 +114,7 @@ begin
   end;
 
   -- ------------------------------------------------ Z de S1 sans ecart, puis annulation de la remise APRES le Z
-  update public.cash_sessions set counted_cash = _b0 + 40, status = 'closed', closed_at = now() - interval '1 hour' where id = _s1;
+  update public.cash_sessions set counted_cash = _b0 + 40, status = 'closed', closed_at = now() - 60 * _u where id = _s1;
   insert into _t(check_name, result) values
     ('Z S1 : theorique fige = compte (aucun ecart)', case when (select expected_cash from public.cash_sessions where id = _s1) = _b0 + 40 then 'ok' else 'FAIL' end);
   perform public.cash_deposit_cancel(_d1, 'TEST annulation apres Z');
@@ -126,7 +138,7 @@ begin
 
   -- ------------------------------------------------ S2 : 5 de plus que le fond propose (ecart d ouverture)
   insert into public.cash_sessions (company_id, opened_by, opening_float, status, opened_at)
-  values (_co, auth.uid(), _b0 + 45, 'open', now() - interval '30 minutes') returning id into _s2;
+  values (_co, auth.uid(), _b0 + 45, 'open', now() - 30 * _u) returning id into _s2;
   insert into _t(check_name, result) values
     ('S2 : fond propose = report', case when (select proposed_float from public.cash_sessions where id = _s2) = _b0 + 40 then 'ok' else 'FAIL' end),
     ('S2 : ecart d ouverture +5 dans les lignes', case when exists (select 1 from public.cash_deposit_candidates(_co, 'ESP', null, now() + interval '1 day', false) c where c.source_type = 'opening_gap' and c.source_id = _s2 and c.amount = 5) then 'ok' else 'FAIL' end),
@@ -158,9 +170,9 @@ begin
   values (_tik2, 'TEST carte', 1, 24.79, 21, 24.79, 30, 0, 'article');
   update public.documents set status = 'validee', number = public.next_document_number(_co, 'TIK') where id = _tik2;
   insert into public.document_payments (document_id, method, amount, status, note, paid_at)
-  values (_tik2, 'MAE', 30, 'recu', 'TEST carte', now() - interval '20 minutes');
+  values (_tik2, 'MAE', 30, 'recu', 'TEST carte', now() - 20 * _u);
   select jsonb_agg(jsonb_build_object('type', c.source_type, 'id', c.source_id)) into _items
-    from public.cash_deposit_candidates(_co, 'MAE', now() - interval '1 hour', now() + interval '1 day', false) c;
+    from public.cash_deposit_candidates(_co, 'MAE', now() - 60 * _u, now() + interval '1 day', false) c;
   _dc := public.cash_deposit_create(_co, 'MAE', 'remise', null, now(), current_date, _items, 0, null, null);
   insert into _t(check_name, result) values
     ('remise carte : remis = selection, pas de fond, pas de mouvement', case when (select deposited_amount >= 30 and new_float is null from public.cash_deposits where id = _dc)

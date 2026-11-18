@@ -18,16 +18,27 @@ grant all on _t, _ctx to authenticated;
 grant usage on sequence _t_n_seq to authenticated;
 
 -- ------------------------------------------------------------ 0. preparation (proprietaire de la base)
--- Societe ITALBIKE, une moto du catalogue (Streetfighter V4, modele-annee 21110), un client,
--- le filtre a huile 44440312B (40 en stock) et une piece a 1 en stock (minimum 2, maximum 4).
+-- Societe ITALBIKE, un client, le filtre a huile 44440312B (40 en stock) et une piece a 1 en stock
+-- (minimum 2, maximum 4).
+-- Le modele-annee et la moto sont CREES par l'essai (copie de la Streetfighter V4, modele-annee 21110) :
+-- depuis la generation des kits du 18/11, les vrais modeles-annees ont leurs kits « annual » / « oil »
+-- (code exact, prioritaires par construction sur les kits de l'essai) ; un modele-annee propre a
+-- l'essai n'a que les kits de l'essai, quel que soit l'etat reel du catalogue de kits.
 insert into _ctx values
   ('company', '3d9f0f13-a691-4d07-ad58-34590df86e33'),
-  ('my', '21110');
-insert into _ctx select 'vehicle', v.id::text from public.vehicles v
- where v.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and v.ducati_model_year_id = '21110' limit 1;
+  ('my', 'essai-ate015-' || to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'));
+insert into public.ducati_catalog_model_years (id, model_id, code, year, name)
+select (select v from _ctx where k = 'my'), my.model_id, 'ES', my.year, 'ESSAI ATE015 (transaction annulee)'
+  from public.ducati_catalog_model_years my where my.id = '21110';
 insert into _ctx select 'contact', c.id::text from public.contacts c
  where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and c.type <> 'fournisseur' and c.is_active
  order by c.created_at limit 1;
+with v as (
+  insert into public.vehicles (company_id, brand, model, status, ducati_model_year_id, holder_contact_id, notes)
+  values ('3d9f0f13-a691-4d07-ad58-34590df86e33', 'DUCATI', 'ESSAI ATE015', 'vendu',
+          (select v from _ctx where k = 'my'), (select v::uuid from _ctx where k = 'contact'), 'ESSAI A BLANC (transaction annulee)')
+  returning id)
+insert into _ctx select 'vehicle', id::text from v;
 insert into _ctx select 'filter', a.id::text from public.articles a
  where a.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and a.reference = '44440312B' limit 1;
 insert into _ctx
@@ -58,7 +69,7 @@ with k as (
   returning id)
 insert into _ctx select 'kit_oil', id::text from k;
 insert into public.maintenance_kit_model_years (kit_id, model_year_id)
-select v::uuid, '21110' from _ctx where k in ('kit_annual', 'kit_oil');
+select v::uuid, (select v from _ctx where k = 'my') from _ctx where k in ('kit_annual', 'kit_oil');
 insert into public.maintenance_kit_items (company_id, kit_id, article_id, reference, designation, quantity, kind, confidence, sort_order)
 select '3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where k = 'kit_annual'), a.id, a.reference, a.designation,
        case when a.id = (select v::uuid from _ctx where k = 'low') then 2 else 1 end, 'piece', 'sur', 1

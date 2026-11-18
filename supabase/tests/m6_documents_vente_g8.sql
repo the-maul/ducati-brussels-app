@@ -28,6 +28,12 @@ declare
   _r jsonb; _tot jsonb; _n int;
 begin
   select id into _cl from public.contacts where company_id = _co limit 1;
+  -- Les especes passent par le tiroir : sans caisse reelle ouverte (cloturee le soir, pas encore
+  -- rouverte), l essai ouvre la sienne, maintenant (transaction annulee). Une caisse ouverte est reprise.
+  if not exists (select 1 from public.cash_sessions where company_id = _co and status = 'open') then
+    insert into public.cash_sessions (company_id, opened_by, opening_float, status, opened_at, note)
+    values (_co, auth.uid(), 0, 'open', now(), 'ESSAI A BLANC (transaction annulee)');
+  end if;
 
   -- ------------------------------------------------ documents d essai (notes = repere de recherche)
   insert into public.documents (company_id, doc_type, status, issue_date, total_ht, total_vat, total_ttc, price_mode, contact_id, notes, legacy_number)
