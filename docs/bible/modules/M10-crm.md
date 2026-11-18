@@ -134,6 +134,19 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 - `team_notifications.contact_id` n'a **volontairement pas** de clé étrangère (sinon `contact_merge` refuserait la fusion d'une fiche inscrite) : après une fusion, l'alerte mène à la fiche archivée.
 - Modèle Claude en dur : `claude-opus-5` dans `classify-prospect-email` et `summarize-exchange` (et `claude-opus-4-8` dans `read-id-doc`).
 
+## Ajouté le 18/11 — rattrapage G8
+
+- **Mailing e-mail / SMS (G8 « Extraction/Mailing client », barre du bas Mail / SMS) en mode essai
+  seulement** : Clients → Extraction / mailing → « Mailing e-mail (essai) » / « Mailing SMS (essai) »,
+  ou fiche → « Mail / SMS (essai) ». La campagne est **préparée** (destinataires, adresse, message
+  personnalisé, raisons d'exclusion) et gardée dans `marketing_campaigns` /
+  `marketing_campaign_recipients` ; la base n'accepte que `mode = 'test'` et **aucune fonction
+  d'envoi n'existe**. Chaque destinataire voit la campagne dans l'onglet E-mail / SMS de sa fiche.
+  Les opposés au marketing, les consentements refusés (déclarations RGPD), les fiches sans adresse ou
+  archivées sont écartés. Détail : [M01](M01-contacts.md), « Ajouté le 18/11 ».
+- Brancher un vrai envoi : décision client, fournisseur SMS, et une migration qui ouvre un autre mode
+  (avec l'interrupteur Arrêté / Test / Actif, comme les relances).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé | État | Preuve |
@@ -177,3 +190,4 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 | 2026-11-03 | **Interrupteur des relances : rien ne part chez les clients tant qu'il est sur Arrêté, mode Test vers une adresse** (CRM011, décision M-86) : table `followup_settings` (Arrêté par défaut), `followups.is_test` / `sent_to`, `followups-send` lit le mode avant tout envoi (Arrêté → journalise et sort ; Test → tout à l'adresse de test, objet préfixé ; Actif → réel), bandeau en tête de CRM → Relances et tuile Paramètres, « Envoyer maintenant » grisé en Arrêté, confirmation en Actif, badge « Test » ; rappels de RDV vérifiés sans envoi réel possible (pas de Resend / SMS). Constat : crons et fonction actifs en prod, clés Graph posées, l'import DCS aurait déclenché de vrais mails | branche `lot-relances-interrupteur`, migration `20261103140000_m10_relances_interrupteur.sql` (**non appliquée**, essai à blanc réussi le 03/11) ; fonction `followups-send` **à redéployer après la migration** ; test `tests/followups-interrupteur.test.ts` |
 | 2026-11-03 | **Seules les échéances fiables déclenchent une relance d'entretien, les estimations restent hors relance** (CRM012, décision M-87) : `followup_settings.sources` (défaut sans « plan »), `followups.source`, `followups_plan` filtre sur la source et annule `source_non_retenue` les relances écartées (colonne `excluded`), `followups_list` + `source`, cases « Sources prises en compte » dans le bandeau et badges dans la tuile Paramètres, badge de source par relance, motif d'annulation lisible. Essai à blanc en prod : défaut → 134 relances (extract DCS), 20 dues le jour même ; avec « plan » → +1 470 (437 dues) ; retour au défaut → 1 470 annulées, second passage sans effet | branche `fix-relances-sources`, migration `20261103210000_m10_relances_sources_fiables.sql` (**non appliquée**, essai à blanc réussi le 03/11) ; test `tests/followups-sources.test.ts` |
 | 2026-10-31 | **Relances d'entretien automatiques par mail, et rappel au commercial à J+5 sans réponse** (décision M-72, mission 07 cartes 6 et 7) : page CRM → Relances (onglets, compteurs, actions, modèles FR/NL/EN/IT), planification quotidienne (−15 j / date fixée), envoi par Outlook, J+5 → carte + tâche CRM au responsable par défaut, RDV pris → close, réponse par mail ou lien du mail → répondue ; `_app.crm.tsx` devient un gabarit (pipeline = `_app.crm.index.tsx`) ; test `tests/followups.test.ts` | branche `lot-relances`, migration `20261031120000_m10_relances.sql` (**non appliquée**, essai à blanc réussi le 31/10) ; fonction `followups-send` **à déployer** ; tâches pg_cron posées par la migration |
+| 2026-11-18 | **Mailing e-mail / SMS en mode essai** (G8, MKT001) : campagnes préparées depuis l'extraction ou la fiche, rien n'est envoyé (contrainte `mode = 'test'`) | branche `lot-g8-clients`, migration `20261118222000` (**à appliquer**) |

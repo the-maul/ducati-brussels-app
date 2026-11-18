@@ -182,6 +182,86 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 - **Téléphone invalide dans le formulaire du personnel** : `PhoneInput` affiche « Ce n'est pas un numéro de téléphone », mais l'enregistrement de la fiche n'est pas bloqué (la valeur est ignorée par `normalizeMobile`, la base refuse de toute façon un « @ »).
 - **Migration `20260921160000`** : redéfinit `portal_home` et `portal_prepare_upload` d'après `20260919120000`, `portal_profile` d'après `20260919265000`. Si la base a reçu une version plus récente hors dépôt, reporter la différence avant d'appliquer.
 
+## Ajouté le 18/11 — rattrapage G8
+
+Lot `lot-g8-clients` (inventaire G8 `docs/g8-inventaire/01-clients.md`, comparaison
+`comparaison-clients-articles-stock-achats.md` §1 et §6). **Quatre migrations à appliquer, dans
+l'ordre** : `20261118220000_m1_rgpd_consentements_portabilite_purge.sql`,
+`20261118221000_m1_fiche_client_groupes_vente_groupement.sql`,
+`20261118222000_m1_cascade_extraction_mailing_essai.sql`,
+`20261118229000_m1_fusion_toutes_references.sql`. Essais à blanc : `supabase/tests/m1_rgpd_purge.sql`,
+`m1_fiche_cascade_extraction.sql`, `m1_fusion_toutes_references.sql`. Avant les migrations, les
+nouveaux onglets et écrans affichent « en attente de la mise à jour de la base » et la fiche
+s'enregistre quand même (colonnes nouvelles retirées de l'écriture, `missingLateColumn` dans `api.ts`).
+
+| Fonction G8 | Dans le DMS | Où |
+|---|---|---|
+| Onglet RGPD : déclarations (date, statut, accepte / refuse, formulaire, expiration), Nouvelle déclaration · Révoquer · Supprimer | Onglet **RGPD** de la fiche : canaux e-mail / SMS / courrier / téléphone, formulaire (comptoir, inscription en ligne, borne, papier signé…), référence, expiration ; état de chaque canal en tête. Une déclaration ne se modifie jamais (déclencheur `_contact_consents_guard`) : on la révoque (motif, qui, quand) et on en fait une nouvelle. Supprimer : administrateur seulement, tracé. La dernière déclaration active qui cite un canal fait foi ; l'inscription en ligne (`marketing_consent_at`) vaut accord e-mail et SMS. | table `contact_consents`, fonctions `contact_consent_channel`, `contact_consent_state` ; `src/modules/contacts/g8/client-g8-tabs.tsx` (`RgpdTab`) |
+| RGPD - Édition fiche | Bouton **RGPD → Édition de la fiche RGPD (PDF)** : identité, coordonnées, consentements, motos, documents, autres données, rappel des droits. | `contact_gdpr_export(_contact, 'edition')`, `src/modules/contacts/g8/rgpd-export.ts` |
+| RGPD - Portabilité | Bouton **RGPD → Portabilité** : toutes les données du client en **JSON** (lisible par une machine) et en **Excel** (une feuille par rubrique). Chaque export est tracé (`events.action = 'gdpr_export'`, sans donnée personnelle). | idem, `exportToSheets` (`g8/rules.ts`) |
+| RGPD - Purge (prospects > 3 ans, clients sans facture > 5 ans, sauf document en cours ; deux phases) | Écran **Clients → RGPD - Purge** (`/clients/rgpd`, administrateurs). Phase 1 « Identifier » : liste, motif, dernière activité, dernière facture, fiches gardées et pourquoi (document en cours, OR ouvert, RDV à venir, commande, dépôt-vente, compte client, carte CRM, réservation atelier, dossier accident) ; **aucune fiche modifiée**. Phase 2 « Confirmer », le jour même : chaque fiche est revérifiée puis **anonymisée** ; on peut décocher des fiches. Historique des passages. Durées dans **Paramètres → Tables → RGPD - Purge** (3 / 5 / 10 ans). | tables `gdpr_purge_runs`, `gdpr_purge_items` ; `gdpr_purge_identify`, `gdpr_purge_confirm`, `gdpr_purge_abandon`, `_gdpr_anonymise_contact`, `_contact_open_business` ; `g8/rgpd-purge-screen.tsx` |
+| Fusionner (doublons) | Existait (fusion du 19/09). **Complétée** : toute clé étrangère vers un contact suit maintenant la fusion (onze tables ajoutées depuis le 19/09 la bloquaient : relances, commandes pour un client, commandes et réservations du site, reports d'intervention, paniers fournisseur, dossiers accident, réservations atelier, « pas de verso »…), groupes et vente groupement dédoublonnés, documents validés déplacés malgré leur gel (même personne). Le registre des véhicules à moteur garde le client inscrit. | `20261118229000`, `contact_merge`, `contact_merge_refs` |
+| Modification en cascade (filtres Type, Civilité, Catégorie, Tarif, Code, Ville, Solde ; actions de masse ; « Confirmer modification client ») | Écran **Clients → Modification en cascade** (`/clients/cascade`, administrateurs). Lister (jusqu'à 5 000 fiches, au-delà de la page affichée), cocher, une action, case « Confirmer modification client » puis confirmation. Actions : changer de code postal (et ville), changer de civilité ou de forme juridique, supprimer les civilités, changer de catégorie, supprimer les catégories, affecter à / retirer d'un groupe, cocher / décocher « à surveiller » et « opposé au marketing direct », changer de condition de règlement, ajouter un commentaire, archiver. Une transaction, une ligne `events` de synthèse (`contacts_cascade`, anciennes valeurs) + la trace de chaque fiche. Export Excel de la liste. | `contacts_cascade_list`, `contacts_cascade_apply` ; `g8/cascade-screen.tsx` |
+| Extraction / Mailing client (critères Client, Véhicule, Localisation, Ventes ; étiquettes, liste, export Excel, Mailing E-mail / SMS) | Écran **Clients → Extraction / mailing** (`/clients/extraction`). Critères : code, nom, type, statut, civilité, création, naissance, anniversaire (JJ/MM), catégorie, tarif, groupe, consentement RGPD, exclure avec e-mail / avec portable / **opposés au marketing (coché par défaut)** ; moto (actuelle ou historique, marque, modèle, **prochain contrôle technique**) ; ville ou CP, **province et région belges** (depuis le CP), pays, **exclure NPAI (coché par défaut)** ; ventes avec / sans facture ou passage atelier sur une période, par fournisseur, rayon, article, marque. Liste à cocher, **Export Excel**, **étiquettes A4 3 × 8**, liste imprimable, **Mailing e-mail / SMS en mode essai**. | `contacts_extract`, `be_province`, `be_region` ; `g8/extraction-screen.tsx`, `g8/list-export.ts` |
+| Mailing E-mail / SMS, barre du bas Mail / SMS | **Mode essai uniquement** : la campagne est préparée (destinataires, adresse, message personnalisé {civilite} {prenom} {nom} {societe} {code}, raisons d'exclusion : sans e-mail / sans mobile / opposé / consentement refusé / archivée) et gardée ; **rien n'est envoyé** (contrainte `mode = 'test'`, aucune fonction d'envoi). Depuis l'extraction ou la fiche (**Mail / SMS (essai)**). | tables `marketing_campaigns`, `marketing_campaign_recipients`, `marketing_campaign_prepare`, `marketing_campaign_cancel` ; `g8/campaign-dialog.tsx` |
+| Histo Email/SMS | Onglet **E-mail / SMS** de la fiche : campagnes préparées pour ce client (marquées « essai »). Les e-mails réellement envoyés restent dans l'onglet Historique (M10). | `CampaignHistoryTab` |
+| Civilités juridiques avec flag professionnel, NPAI, pièce d'identité, naissance, adresses de livraison multiples, contacts multiples avec fonction | Existaient (forme juridique depuis la table Civilités « Professionnel », case « N'habite pas à l'adresse indiquée », permis + carte d'identité, onglets Livraisons et Contacts). **Ajoutés** : nom de naissance, code postal de naissance, « Délivré par » de la pièce d'identité. | `contacts.birth_name`, `birth_zip`, `license_issued_by` ; `contact-form.tsx` |
+| Groupes (Centres d'intérêt, Origine du contact, Situation familiale) | Onglet **Groupes** : arbre à cocher par rubrique ; groupes paramétrables dans **Paramètres → Tables → Groupes de clients** (valeurs G8 posées pour chaque société). Utilisés par l'extraction et la cascade. Les intérêts Route / Sport / Off-road / Piste de la fiche restent à part. | `reference_values` (`contact_group`), table `contact_group_members` ; `GroupsTab` |
+| Vente groupement (client associé + taux de participation) | Onglet **Vente groupement** : clients associés et taux (total contrôlé à l'écran). Donnée de fiche seulement (voir À trancher). | table `contact_group_sales` ; `GroupSalesTab` |
+| Images | Onglet **Images** : galerie des images de la GED du client, ajout (dossier « Images »), suppression. | `ImagesTab` |
+| Dispo/Doc (pièces commandées / réservées pour le client) | Onglet **Dispo / Doc** : commandes de pièces du client, quantités du stock qui lui sont associées, pièces réservées pour ses RDV / OR, avec disponibilité. | `DispoTab` (`part_orders`, `part_order_allocations`, `stock_reservations`) |
+| Archive Documents | Onglet **Archives** : détail ligne par ligne des documents clos (payés, annulés, convertis, compensés), historique G8 compris, recherche. | `ArchivesTab` |
+| Rdv Atelier | Onglet **RDV atelier** : date, temps prévu, travaux, compagnon, moto, châssis, immatriculation, statut. | `AppointmentsTab` |
+| Relances | Onglet **Relances** : relances d'entretien et interventions reportées (M10) du client. | `FollowupsTab` |
+| Liste : filtre **Immat.**, **Export Excel**, **RGPD - Purge** | Liste Clients : champ **Immat.** (propriétaires actuels puis passés de la moto), **Export Excel** de toute la recherche (32 colonnes G8), boutons Extraction / mailing, Modification en cascade et RGPD - Purge (ces deux derniers : administrateurs). | `_app.clients.index.tsx`, `contactIdsByPlate`, `downloadClientListXlsx` |
+
+**Règles ajoutées**
+
+- **Purge = anonymisation, jamais suppression.** La fiche reste (code, archivée, « Données personnelles
+  purgées (RGPD) le … ») pour que factures, OR et journal restent cohérents. Si la dernière facture a
+  moins de `legal_years` ans (10), nom, adresse et n° TVA sont **gardés** (mentions de facture) et tout
+  le reste est effacé ; sinon tout est effacé. Sont aussi supprimés : échanges, adresses de livraison,
+  interlocuteurs, consentements, groupes, vente groupement, rapprochements, invitations ; adresses et
+  messages des campagnes vidés ; **les traces `events` de la fiche et de ces sous-objets perdent leurs
+  données personnelles** (`_gdpr_redact` ; action, auteur et date restent).
+- « Activité » d'une fiche (purge) = création, document, échange, OR, RDV : un client « sans facture
+  depuis 5 ans » qui a eu un échange ou un RDV récent n'est pas purgé.
+- Une fiche purgée n'est plus proposée par l'extraction ni par une nouvelle purge.
+- Toute nouvelle table qui pointe vers un contact suit **automatiquement** la fusion ; seul un conflit
+  d'unicité l'annule (`MERGE_UNIQUE_CONFLICT`, rien n'est modifié).
+  Conséquence : le piège « fusion de deux fournisseurs cités dans une ligne de tarif refusée »
+  (lot règles client, plus bas) est levé dès l'application de `20261118229000` (`price_list_rules.supplier_id`
+  suit la fusion), de même que les nouvelles références du 18/11 (détenteur / utilisateur de moto, garanties).
+
+**À trancher (le DMS diffère de G8)** — décisions attendues de Simon :
+
+1. Purge : G8 **supprime** la fiche ; le DMS **anonymise** (et garde nom / adresse / TVA tant que la
+   dernière facture a moins de 10 ans). Les fichiers de la GED (scans de permis, carte d'identité) ne
+   sont **pas** supprimés par la purge : à décider (suppression automatique ou à la main).
+2. Purge : les fiches reprises de G8 ont pour date de création le jour de l'import (juin–sept. 2026) ;
+   la date « Création » de G8 n'a pas été reprise : **aucun prospect G8 ne sera « vieux de 3 ans »
+   avant 2029** sauf reprise de cette date.
+3. Purge : les traces d'audit (`events`, append-only) de la fiche purgée sont expurgées de leurs
+   données personnelles — exception assumée à la règle append-only, au nom du droit à l'effacement.
+4. Cascade « Changer de commentaire » : G8 **remplace** le commentaire ; le DMS **ajoute** une ligne datée.
+5. Cascade « Supprimer client » : le DMS **archive** (suppression physique seulement fiche par fiche,
+   fiche vierge, administrateur).
+6. Cascade et purge réservées aux **administrateurs** (G8 : selon les droits d'accès, non relevés).
+7. Vente groupement : enregistrée sur la fiche, **sans effet sur la facturation** (G8 : « Pas de
+   groupement paramétré », usage inconnu).
+8. Fusion : un document **validé** du doublon passe sur la fiche gardée malgré le gel des documents
+   (même personne) ; son PDF reprendra le nom de la fiche gardée.
+9. Consentement : une déclaration qui refuse e-mail et SMS ne coche pas « Opposé au marketing
+   direct » (deux informations séparées, comme dans G8) ; le mailing écarte l'un et l'autre.
+10. Mailing : **essai seulement**. L'envoi réel demande une décision, un fournisseur SMS (aucun branché)
+    et une nouvelle migration (la base refuse tout mode autre que `test`).
+
+**Non fait (autre lot ou plus tard)** : tarifs clients et cases bloqué / détaxé / mode HT / en compte /
+afficher remises en caisse dans la cascade (lot « règles client » ; l'action `set_flag` les refuse) ;
+bons d'achat ; relances de **paiement** (G8 onglet Relances : n° facture, mode, type) ; critère
+« Marge / Montant » des ventes (grisé dans G8) ; « Département / Région » français (remplacés par
+province / région belges) ; filtres de l'onglet Documents (Factures, Factures dues, Livraisons…).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé | État | Preuve |
@@ -223,6 +303,7 @@ Tout est dans [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) :
 | 2026-09-21 | **Retour client « Inscription en ligne »** : e-mail rangé dans le GSM corrigé (cause : inscription sans contrôle du téléphone + remplissage du navigateur) — champ E-mail distinct en lecture seule dans Mon profil, contrôle à l'écran, au serveur et en base, réparation des fiches existantes ; téléphones au format unique E.164 avec préfixe pays (inscription, Mon profil, fiche) ; permis recto + verso ; « 50 % complété » coloré et « Finaliser mon profil » | branche `lot-profil`, migration `20260921160000_m1_telephone_sans_email_permis_verso.sql` (**à appliquer**) |
 | 2026-10-05 | **Retour de Simon du 05/10 — fiche liée** : le prénom et le nom d'une fiche pro sont repris de sa fiche privée liée et deviennent non modifiables (déclencheurs en base, trace `events`) ; la recherche de contacts trouve une fiche par le nom de sa fiche liée ; la fiche liée s'affiche sous la ligne du contact dans la liste des clients et dans les sélecteurs de contact | branche `lot-fiche-liee`, migrations `20261005140000` + `20261005141000` (**à appliquer**) |
 | 2026-10-30 | **Langue du client** (I18N004, M-71) : champ « Langue » sur la fiche (`contacts.locale`, fr/nl/en/it, défaut fr), choix à l'inscription en ligne et à la borne, Mon profil de l'espace client écrit la fiche (`portal_set_locale`) ; le profil du compte lié suit par déclencheur. Documents et mails dans cette langue : voir [M09](M09-documents.md) | branche `lot-documents-langue-client`, migration `20261030160000_m1_langue_du_client.sql` (**à appliquer**) |
+| 2026-11-18 | **Rattrapage G8 « clients »** : RGPD (déclarations, édition, portabilité, purge en deux phases), fusion complétée (toutes les références), modification en cascade, extraction / mailing (essai), onglets G8 de la fiche (RGPD, Groupes, Vente groupement, Dispo/Doc, Archives, RDV atelier, Relances, Images, E-mail/SMS), immatriculation et export Excel dans la liste — voir « Ajouté le 18/11 » | branche `lot-g8-clients`, migrations `20261118220000`, `221000`, `222000`, `229000` (**à appliquer**) |
 
 ## Ajouté le 18/11 — rattrapage G8 (lot règles client)
 
