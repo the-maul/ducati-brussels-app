@@ -72,6 +72,10 @@ export type ExistingArticle = {
   discount_group?: string | null;
   /** Verrou G8 sur le prix d'achat : un PA verrouille n'est jamais ecrase par un import. */
   price_purchase_locked?: boolean | null;
+  /** Verrou G8 sur le prix de vente (cadenas PV) : le PV n'est jamais ecrase par un import. */
+  price_sale_locked?: boolean | null;
+  /** Verrou G8 sur la designation (cadenas, migration 20261118230000) : jamais ecrasee par un import. */
+  designation_locked?: boolean | null;
   /**
    * Libelle d'origine fournisseur (I18N002) : `designation` etant la version FR,
    * c'est a l'original que le tarif se compare pour savoir si le libelle a change.
@@ -422,8 +426,11 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
     const incoming = row.designation.trim();
     const current = existing.designation_source ?? existing.designation;
     if (current !== incoming) {
-      changes.push({ field: 'designation', from: current, to: incoming });
-      patch.designation = incoming;
+      if (existing.designation_locked) anomalies.push('Désignation verrouillée : conservée.');
+      else {
+        changes.push({ field: 'designation', from: current, to: incoming });
+        patch.designation = incoming;
+      }
     }
   }
   // PA : reglage « accepter le prix d'achat », et verrou G8 (jamais ecrase).
@@ -469,8 +476,10 @@ export function diffRow(row: ImportRow, existing: ExistingArticle | null, opts: 
   if (row.year_from != null) accept('year_from', row.year_from, 'year_from');
   if (row.year_to != null) accept('year_to', row.year_to, 'year_to');
 
-  // PV selon le mode
-  if (proposedPv != null && s.sale_price_mode !== 'never') {
+  // PV selon le mode (verrou G8 du PV : jamais ecrase par un tarif)
+  if (proposedPv != null && s.sale_price_mode !== 'never' && existing.price_sale_locked) {
+    if (proposedPv !== existing.sale_price_ttc) anomalies.push('Prix de vente verrouillé : conservé.');
+  } else if (proposedPv != null && s.sale_price_mode !== 'never') {
     if (s.sale_price_mode === 'always') {
       if (proposedPv !== existing.sale_price_ttc) {
         changes.push({ field: 'sale_price_ttc', from: existing.sale_price_ttc, to: proposedPv });

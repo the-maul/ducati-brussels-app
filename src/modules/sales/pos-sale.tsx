@@ -150,7 +150,11 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   const noSession = !sessionLoading && posSessionError(session) === 'noSession';
 
   // Piece reservee pour un RDV atelier : avertissement clair (mission 10, carte 6), la vente reste possible.
-  const add = (a: SaleArticle) => { void warnIfReservedForWorkshop(a, (cart.find((l) => l.article_id === a.id)?.quantity ?? 0) + 1); addToCart(a); };
+  const add = (a: SaleArticle) => {
+    // G8 « Vente bloquée en caisse » (lot G8 du 18/11/2026) : l'article ne passe pas au comptoir.
+    if (a.sale_blocked_pos) { setError(fillVars(t('g8a.pos.blocked'), { ref: a.reference })); return; }
+    void warnIfReservedForWorkshop(a, (cart.find((l) => l.article_id === a.id)?.quantity ?? 0) + 1); addToCart(a);
+  };
   const addToCart = (a: SaleArticle, labour = false) => {
     const base = effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp);
     const existing = !labour ? cart.find((l) => l.article_id === a.id && l.line_type === 'article') : undefined;
@@ -161,6 +165,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
       unit_price_ht: base, vat_rate: a.vat_rate, discount_pct: 0,
       line_type: labour || a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _auto: true, _base: base,
       category_path: a.category_path ?? null, mgmt_type: a.mgmt_type ?? null,
+      no_footer_discount: !!a.no_footer_discount,
     }]);
     priceLine(key, a.id, base, 1);
   };

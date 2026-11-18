@@ -38,6 +38,8 @@ const OPTIONAL_NEW_COLS = [
   'bin_location2', 'year_from', 'year_to', 'discount_group',
   // Designations en quatre langues (migration 20261030140000, I18N002)
   'designation_source', 'designation_source_lang', 'designation_i18n', 'designation_translated_at',
+  // Rattrapage G8 de la fiche (migration 20261118230000)
+  'supplier_url', 'designation_locked', 'sale_blocked_pos', 'no_footer_discount',
 ] as const;
 
 export function isMissingSchema(e: unknown): boolean {
@@ -328,7 +330,9 @@ export async function listPredecessorArticles(articleId: string): Promise<Predec
 export type ArticleLite = Pick<Article,
   'id' | 'reference' | 'designation' | 'brand' | 'category_path' | 'supplier_ref' |
   'purchase_price' | 'sale_price_ttc' | 'coefficient' | 'superseded_by_id' | 'is_library' |
-  'ppc_ht' | 'ppc_ttc' | 'price_purchase_locked'> & {
+  'ppc_ht' | 'ppc_ttc' | 'price_purchase_locked' | 'price_sale_locked'> & {
+    /** Verrou G8 de la designation (migration 20261118230000) ; undefined tant que la colonne manque. */
+    designation_locked?: boolean | null;
     year_from?: number | null; year_to?: number | null;
     /** undefined tant que la colonne n'est pas en base (migration 20261030120000). */
     discount_group?: string | null;
@@ -336,9 +340,9 @@ export type ArticleLite = Pick<Article,
     designation_source?: string | null;
   };
 
-const LITE_COLS = 'id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc, price_purchase_locked';
+const LITE_COLS = 'id, reference, designation, brand, category_path, supplier_ref, purchase_price, sale_price_ttc, coefficient, superseded_by_id, is_library, ppc_ht, ppc_ttc, price_purchase_locked, price_sale_locked';
 /** Colonnes lues si elles existent ; retirees UNE A UNE quand la base ne les connait pas. */
-const LITE_OPTIONAL_COLS = ['year_from', 'year_to', 'discount_group', 'designation_source'];
+const LITE_OPTIONAL_COLS = ['year_from', 'year_to', 'discount_group', 'designation_source', 'designation_locked'];
 
 /**
  * Référentiel COMPLET (paginé par 1000) pour l'import de tarifs — listArticles

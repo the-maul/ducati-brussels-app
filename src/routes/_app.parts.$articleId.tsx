@@ -11,6 +11,10 @@ import { ArticlePhotoCard } from '@/modules/articles/article-photo';
 import { ArticleSourceImages } from '@/modules/articles/article-source-images';
 import { BarcodesTab, KitTab, ReplacementTab, StockTab, StatsTab, ApplicabilityTab } from '@/modules/articles/article-tabs';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import {
+  ArticleDocumentsTab, EquivalencesTab, LibraryBadge, LibraryButton, MovesDetailTab, SupplierOrdersTab,
+} from '@/modules/articles/g8/article-g8-tabs';
+import { getReplacementMode } from '@/modules/articles/g8/api';
 import { ArticleLinkBadges, ArticleSourcesSummary, CompatibilityPanel } from '@/modules/articles/article-links-panel';
 import { Button } from '@/components/ui/button';
 import { Tags, BookOpen, ArrowRight, Copy, ShoppingCart, FileImage } from 'lucide-react';
@@ -76,6 +80,9 @@ function EditArticle() {
     if (!article?.superseded_by_id || search.ancienne || !activeCompanyId) return;
     let actif = true;
     (async () => {
+      // G8 « état » du remplacement (lot G8 du 18/11/2026) : en « liaison », les deux fiches restent
+      // consultables — pas de renvoi automatique, le bandeau propose la nouvelle référence.
+      if ((await getReplacementMode(article.id)) === 'liaison') return;
       let cible = article.superseded_by_id!;
       try {
         const chaine = await getReplacementChain(activeCompanyId, article.id);
@@ -146,6 +153,7 @@ function EditArticle() {
             <Button variant="outline" onClick={() => printLabels([{ code: article.reference, designation: article.designation, price: effectiveSaleTtc(article.sale_price_ttc, roundUp), withPrice: true }], 1)}><Tags /> {t('articles.printLabel')}</Button>
             {/* Rattrapage G8 : affichette article (balises, 1 ou 2 par page, PDF). */}
             <Button variant="outline" onClick={() => setPosterOpen(true)}><FileImage /> {t('parcG8.poster')}</Button>
+            <LibraryButton articleId={articleId} isLibrary={!!article.is_library} />
             <Button variant="outline" disabled={readOnly || duplicate.isPending} onClick={() => duplicate.mutate()}>
               <Copy /> {t('articles.duplicate')}
             </Button>
@@ -193,17 +201,22 @@ function EditArticle() {
           )}
         </div>
       )}
+      {article.is_library && <div className="mb-3"><LibraryBadge isLibrary /></div>}
       {/* Article DMS = pivot (M-25) : relié au catalogue Ducati / au site Shopify */}
       <ArticleLinkBadges companyId={activeCompanyId} articleId={articleId} />
       <Tabs defaultValue="fiche">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="fiche">{t('articleTabs.tabFiche')}</TabsTrigger>
           <TabsTrigger value="stock">{t('articleTabs.tabStock')}</TabsTrigger>
+          <TabsTrigger value="moves">{t('g8a.tabs.moves')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('g8a.tabs.documents')}</TabsTrigger>
+          <TabsTrigger value="open-orders">{t('g8a.tabs.openOrders')}</TabsTrigger>
           <TabsTrigger value="barcodes">{t('articleTabs.tabBarcodes')}</TabsTrigger>
           {/* Rattrapage G8 : un modele de moto neuve (type V) liste ses chassis (stock = chassis en stock). */}
           {article.mgmt_type === 'V' && <TabsTrigger value="chassis">{t('parcG8.chassisTab')}</TabsTrigger>}
           <TabsTrigger value="kit">{t('articleTabs.tabKit')}</TabsTrigger>
           <TabsTrigger value="replacement">{t('articleTabs.tabReplacement')}</TabsTrigger>
+          <TabsTrigger value="equivalences">{t('g8a.tabs.equivalences')}</TabsTrigger>
           <TabsTrigger value="applicability">{t('applicability.tab')}</TabsTrigger>
           <TabsTrigger value="ducati-catalog">{t('links.compatTab')}</TabsTrigger>
           <TabsTrigger value="stats">{t('articleTabs.tabStats')}</TabsTrigger>
@@ -227,6 +240,10 @@ function EditArticle() {
           />
         </TabsContent>
         <TabsContent value="stock" className="mt-4"><StockTab articleId={articleId} /></TabsContent>
+        <TabsContent value="moves" className="mt-4"><MovesDetailTab articleId={articleId} /></TabsContent>
+        <TabsContent value="documents" className="mt-4"><ArticleDocumentsTab articleId={articleId} reference={article.reference} /></TabsContent>
+        <TabsContent value="open-orders" className="mt-4"><SupplierOrdersTab articleId={articleId} /></TabsContent>
+        <TabsContent value="equivalences" className="mt-4"><EquivalencesTab articleId={articleId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="barcodes" className="mt-4"><BarcodesTab articleId={articleId} /></TabsContent>
         {article.mgmt_type === 'V' && (
           <TabsContent value="chassis" className="mt-4">

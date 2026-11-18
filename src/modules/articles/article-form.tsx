@@ -26,6 +26,9 @@ import { listRef } from '@/modules/settings/reference-api';
 import { supabase } from '@/integrations/supabase/client';
 import { ArticleWebSection } from './article-web';
 import { useFormDraft } from '@/lib/use-form-draft';
+import { ExternalLink } from 'lucide-react';
+import { listFamilyRoundingSafe } from './g8/api';
+import { priceIndicators, resolveFamilyRounding } from './g8/pricing-tools';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 
 /** Règle d'arrondi (table d'arrondis G8, reference_values table_key='rounding'). */
@@ -90,7 +93,18 @@ type FormState = {
   to_complete: boolean;
   web_title: string;
   web_description: string;
+  // Rattrapage G8 (18/11/2026, migration 20261118230000) — hors types générés.
+  supplier_url: string;
+  designation_locked: boolean;
+  sale_blocked_pos: boolean;
+  no_footer_discount: boolean;
 };
+
+/** Colonnes G8 de la fiche absentes de `types.ts` (migration 20261118230000). */
+type G8Cols = { supplier_url?: string | null; designation_locked?: boolean; sale_blocked_pos?: boolean; no_footer_discount?: boolean };
+
+/** Unités du « format contenant » G8 (NC / Kg / L / M), en plus de la saisie libre. */
+const CONTAINER_UNITS = ['NC', 'Kg', 'L', 'M', 'cm', 'g', 'ml'];
 
 function fromArticle(a: Article | null): FormState {
   const s = (n: number | null | undefined) => (n != null ? String(n) : '');
@@ -139,6 +153,10 @@ function fromArticle(a: Article | null): FormState {
     to_complete: a?.to_complete ?? false,
     web_title: a?.web_title ?? '',
     web_description: a?.web_description ?? '',
+    supplier_url: (a as G8Cols | null)?.supplier_url ?? '',
+    designation_locked: (a as G8Cols | null)?.designation_locked ?? false,
+    sale_blocked_pos: (a as G8Cols | null)?.sale_blocked_pos ?? false,
+    no_footer_discount: (a as G8Cols | null)?.no_footer_discount ?? false,
   };
 }
 
@@ -207,6 +225,11 @@ export function buildPayload(f: FormState, companyId: string): ArticleInsert {
     bin_location2: nn(f.bin_location2),
     year_from: yearFrom,
     year_to: yearTo,
+    // Rattrapage G8 : retirées par l'écriture résiliente tant que la migration manque (api.ts).
+    supplier_url: nn(f.supplier_url),
+    designation_locked: f.designation_locked,
+    sale_blocked_pos: f.sale_blocked_pos,
+    no_footer_discount: f.no_footer_discount,
   });
 }
 
@@ -305,10 +328,25 @@ export function ArticleForm({
     queryFn: () => listRef(companyId, 'rounding'),
     enabled: !!companyId,
   });
-  const rounding: RoundingRule[] = (roundingRows ?? []).map((r) => {
+  const companyRounding: RoundingRule[] = (roundingRows ?? []).map((r) => {
     const e = (r.extra ?? {}) as Record<string, unknown>;
     return { sort_order: r.sort_order, up_to: Number(e.up_to) || 0, step: Number(e.step) || 0, mode: e.mode === 'nearest' ? 'nearest' : 'up' };
   });
+  // G8 « Paramétrage des arrondis » : la grille fournisseur × famille × tranche, quand elle couvre
+  // l'article, remplace la table d'arrondis de la société (lot G8 du 18/11/2026).
+  const { data: familyRules } = useQuery({
+    queryKey: ['g8-family-rounding', companyId],
+    queryFn: () => listFamilyRoundingSafe(companyId),
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const familyTranches = resolveFamilyRounding(familyRules ?? [], {
+    supplierId: initial?.main_supplier_id ?? null,
+    categoryPath: buildFamilyCode(f.rayon_code, f.sub_rayon_code, f.category_code) || null,
+  });
+  const rounding: RoundingRule[] = familyTranches.length
+    ? familyTranches.map((r, i) => ({ sort_order: i, up_to: r.up_to, step: r.step, mode: r.mode }))
+    : companyRounding;
   // Réglage société : arrondir les prix de vente à l'euro supérieur (plancher 2 €).
   const { data: roundCfg } = useQuery({
     queryKey: ['company-round-prices', companyId],
@@ -326,6 +364,12 @@ export function ArticleForm({
   const pa = toNum(f.purchase_price), pamp = toNum(f.pamp), pvht = toNum(f.sale_price_ht);
   const margePa = pa > 0 ? r2(((pvht - pa) / pa) * 100) : null;
   const margePamp = pamp > 0 ? r2(((pvht - pamp) / pamp) * 100) : null;
+  // Indicateurs G8 (coefficients TTC / HT / PPC, PV / PPC, taux de marque sur PA et PAMP).
+  const ind = priceIndicators({
+    pa, pamp, pvHt: pvht, pvTtc: toNum(f.sale_price_ttc),
+    ppcHt: f.ppc_ht ? toNum(f.ppc_ht) : null, ppcTtc: f.ppc_ttc ? toNum(f.ppc_ttc) : null,
+  });
+  const dec = (n: number | null, d = 3) => (n == null ? '—' : n.toLocaleString('fr-BE', { maximumFractionDigits: d }));
   const eur = (n: number) => `${r2(n).toFixed(2).replace('.', ',')} €`;
   const pct = (n: number) => `${String(n).replace('.', ',')} %`;
 
@@ -349,6 +393,7 @@ export function ArticleForm({
         </Field>
         <Field label={t('articles.designation')} wide>
           <Input value={f.designation} onChange={(e) => set('designation', e.target.value)} />
+          <Check label={t('g8a.form.designationLocked')} checked={f.designation_locked} onChange={(v) => set('designation_locked', v)} />
         </Field>
         <Field label={t('articles.brand')}>
           <Input list="partner-brands" value={f.brand} onChange={(e) => set('brand', e.target.value)} />
@@ -451,6 +496,15 @@ export function ArticleForm({
         <Field label={t('articles.supplierRef')}>
           <Input value={f.supplier_ref} onChange={(e) => set('supplier_ref', e.target.value)} className="font-mono" />
         </Field>
+        <Field label={t('g8a.form.supplierUrl')} wide>
+          <div className="flex gap-2">
+            <Input value={f.supplier_url} onChange={(e) => set('supplier_url', e.target.value)} type="url" placeholder="https://" />
+            <Button type="button" variant="outline" size="icon" disabled={!/^https?:\/\//i.test(f.supplier_url.trim())}
+              title={t('g8a.form.openUrl')} onClick={() => window.open(f.supplier_url.trim(), '_blank', 'noopener')}>
+              <ExternalLink />
+            </Button>
+          </div>
+        </Field>
         <Field label={t('articles.catalogUrl')} wide>
           <Input value={f.catalog_url} onChange={(e) => set('catalog_url', e.target.value)} type="url"
             placeholder="https://e-catalog.ducati.com/EPC/parts/…?lang=fr-FR" />
@@ -476,7 +530,8 @@ export function ArticleForm({
           <NumInput value={f.weight_volume_length} onChange={(v) => set('weight_volume_length', v)} step="0.001" />
         </Field>
         <Field label={t('articles.measureUnit')}>
-          <Input value={f.measure_unit} onChange={(e) => set('measure_unit', e.target.value)} placeholder="kg, L, cm…" />
+          <Input list="g8-container-units" value={f.measure_unit} onChange={(e) => set('measure_unit', e.target.value)} placeholder="NC, Kg, L, M…" />
+          <datalist id="g8-container-units">{CONTAINER_UNITS.map((u) => <option key={u} value={u} />)}</datalist>
         </Field>
       </Section>
 
@@ -507,6 +562,18 @@ export function ArticleForm({
             <span className="text-muted-foreground" title={t('articles.marginOnPamp')}>PAMP <b>{margePamp != null ? `${pct(margePamp)} · ${eur(pvht - pamp)}` : '—'}</b></span>
           </div>
         </Field>
+        <Field label={t('g8a.form.indicators')} wide>
+          <div className="grid min-h-9 grid-cols-2 gap-x-4 gap-y-1 text-[13px] tabular-nums sm:grid-cols-4">
+            <span title={t('g8a.form.coefTtcHint')}>{t('g8a.form.coefTtc')} <b>{dec(ind.coefTtc)}</b></span>
+            <span title={t('g8a.form.coefHtHint')}>{t('g8a.form.coefHt')} <b>{dec(ind.coefHt)}</b></span>
+            <span title={t('g8a.form.coefPpcHint')}>{t('g8a.form.coefPpc')} <b>{dec(ind.coefPpc)}</b></span>
+            <span title={t('g8a.form.pvPpcHint')}>{t('g8a.form.pvPpc')} <b className={ind.pvPpcPct != null && ind.pvPpcPct > 0 ? 'text-warning' : ''}>{ind.pvPpcPct == null ? '—' : pct(ind.pvPpcPct)}</b></span>
+            <span>{t('g8a.form.marginPa')} <b>{ind.marginPa == null ? '—' : eur(ind.marginPa)}</b></span>
+            <span>{t('g8a.form.markRatePa')} <b className={ind.markRatePa != null && ind.markRatePa < 0 ? 'text-danger' : ''}>{ind.markRatePa == null ? '—' : pct(ind.markRatePa)}</b></span>
+            <span className="text-muted-foreground">{t('g8a.form.marginPamp')} <b>{ind.marginPamp == null ? '—' : eur(ind.marginPamp)}</b></span>
+            <span className="text-muted-foreground">{t('g8a.form.markRatePamp')} <b>{ind.markRatePamp == null ? '—' : pct(ind.markRatePamp)}</b></span>
+          </div>
+        </Field>
         <Field label={t('articles.ppcHt')}>
           <NumInput value={f.ppc_ht} onChange={(v) => set('ppc_ht', v)} step="0.01" />
         </Field>
@@ -523,6 +590,8 @@ export function ArticleForm({
           <Check label={t('articles.deee')} checked={f.deee} onChange={(v) => set('deee', v)} />
           <Check label={t('articles.priceLockPurchase')} checked={f.price_purchase_locked} onChange={(v) => set('price_purchase_locked', v)} />
           <Check label={t('articles.priceLockSale')} checked={f.price_sale_locked} onChange={(v) => set('price_sale_locked', v)} />
+          <Check label={t('g8a.form.saleBlockedPos')} checked={f.sale_blocked_pos} onChange={(v) => set('sale_blocked_pos', v)} />
+          <Check label={t('g8a.form.noFooterDiscount')} checked={f.no_footer_discount} onChange={(v) => set('no_footer_discount', v)} />
         </div>
       </Section>
 

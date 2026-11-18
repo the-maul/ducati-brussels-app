@@ -12,6 +12,8 @@ export type PosCartLine = {
   article_id: string | null; designation: string; quantity: number; unit_price_ht: number; vat_rate: number;
   /** Vente detaillee au comptoir (rattrapage G8 du 18/11) : remise ligne et ligne de main-d'oeuvre. */
   discount_pct?: number; line_type?: 'article' | 'main_oeuvre';
+  /** G8 « Hors remise pied de page » (lot G8 articles du 18/11) : la remise globale ne s'applique pas. */
+  no_footer_discount?: boolean;
 };
 
 /** Lignes du panier qui partent sur le ticket (quantite strictement positive ; remise ligne bornee 0-100). */
@@ -22,6 +24,7 @@ export function posTicketLines(cart: PosCartLine[]): LineInput[] {
       article_id: l.article_id, designation: l.designation, quantity: Number(l.quantity),
       unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate),
       discount_pct: Number.isFinite(d) ? Math.min(Math.max(d, 0), 100) : 0, line_type: l.line_type ?? 'article',
+      ...(l.no_footer_discount ? { no_footer_discount: true } : {}),
     };
   });
 }
