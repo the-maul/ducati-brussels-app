@@ -30,9 +30,6 @@ import {
 import { RecallDialog } from './recall-dialog';
 import { receptionChassisErrors } from '@/modules/vehicles/chassis-rules';
 import { t, fillVars } from '@/lib/i18n';
-import { listSuppliers, supplierName, searchPurchaseArticles, type Supplier, type PurchaseArticle } from './api';
-import { createPurchaseOrder, computePurchaseTotals, type PurchaseLineInput, type VatRegime, type ChassisInput } from './write-api';
-import { t } from '@/lib/i18n';
 import { MicroficheImportButton, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -95,21 +92,6 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
   const { data: draftSupplier } = useQuery({
     queryKey: ['contact-supplier', draft?.supplier_id], enabled: !!draft?.supplier_id && !supplier,
     queryFn: async () => (await listSuppliers(companyId, '', 500)).find((s) => s.id === draft?.supplier_id) ?? null,
-  const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
-  const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : ls));
-  // G8 « Import microfiches » (lot G8 du 18/11/2026) : les références du fichier en lignes de commande.
-  const addMicroficheLines = (items: MicroficheItem[]) => setLines((ls) => {
-    const keep = ls.filter((l) => l.article_id || l.designation.trim());
-    const added: EditLine[] = items.map(({ article: a, quantity }) => ({
-      ...blankLine(), article_id: a.id, designation: a.designation, supplier_ref: a.supplier_ref ?? '', quantity,
-      unit_price_ht: Number(a.purchase_price ?? 0), vat_rate: Number(a.vat_rate ?? 21), sale_price_ttc: a.sale_price_ttc ?? null,
-      bin_location: a.bin_location ?? '',
-    }));
-    return [...keep, ...added];
-  });
-
-  const totals = computePurchaseTotals(lines.map(({ _key, ...l }) => l), {
-    vatRegime, globalDiscountPct: num(discountPct), shippingHt: num(shippingHt), shippingTaxed: true,
   });
   useEffect(() => { if (draftSupplier && !supplier) setSupplier(draftSupplier); }, [draftSupplier, supplier]);
 
@@ -148,6 +130,17 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
   const partialCount = lines.filter((l) => l.source_line_id && l.remaining != null && l.quantity < (l.remaining ?? 0)).length;
   const missingCount = lines.filter((l) => l.source_line_id && l.quantity === 0).length;
   const qtyTotal = lines.reduce((s, l) => s + (l.quantity || 0), 0);
+
+  // G8 « Import microfiches » (lot G8 du 18/11/2026) : les références du fichier en lignes de commande.
+  const addMicroficheLines = (items: MicroficheItem[]) => setLines((ls) => {
+    const keep = ls.filter((l) => l.article_id || l.designation.trim());
+    const added: EditLine[] = items.map(({ article: a, quantity }) => ({
+      ...blankLine(defaultLineDiscount(orderType || null, rushDiscount)), article_id: a.id, designation: a.designation,
+      supplier_ref: a.supplier_ref ?? '', quantity, unit_price_ht: Number(a.purchase_price ?? 0), vat_rate: Number(a.vat_rate ?? 21),
+      sale_price_ttc: a.sale_price_ttc ?? null, bin_location: a.bin_location ?? '',
+    }));
+    return [...keep, ...added];
+  });
 
   const applyRecall = (picked: OpenLine[]) => {
     const added: EditLine[] = picked.map((o) => ({
@@ -396,9 +389,8 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine(defaultLineDiscount(orderType || null, rushDiscount))])}><Plus /> {t('purchases.addLine')}</Button>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('purchases.addLine')}</Button>
+  <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine(defaultLineDiscount(orderType || null, rushDiscount))])}><Plus /> {t('purchases.addLine')}</Button>
           <MicroficheImportButton companyId={companyId} onImport={addMicroficheLines} />
         </div>
         <div className="flex flex-wrap items-end gap-3">
