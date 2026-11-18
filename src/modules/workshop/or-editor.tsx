@@ -13,6 +13,12 @@
  * (état, photo, temps, pièces, prix) — dont les cartes sont des lignes de l'OR réunies par
  * `checkup_key` (règles pures : `checkup/rules.ts`). Un seul état de lignes : les lignes
  * classiques ici, les cartes dans l'onglet ; à l'enregistrement, les deux sont réécrites ensemble.
+ *
+ * Depuis le 18/11 (rattrapage G8, `or-base/`) : statuts G8 (attente devis, pièces en commande,
+ * client informé), « Promis le », kilométrage obligatoire dès qu'une moto est choisie + dernier
+ * relevé affiché + avertissement bloquant à confirmer si le km est inférieur, les 30 points V / R,
+ * informations complémentaires non imprimées, modèles de commentaires (Mémoriser / Rappeler /
+ * Supprimer), popup « Commentaire client » au chargement du client.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -51,15 +57,35 @@ import {
   cessionFromRepairType, isLineDecision, lineCoveredByWarranty, lineReroutedToClient, statusAfterCessionChoice,
   warrantyRequestNote, warrantySummary,
 } from './warranty/rules';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { orBaseSchemaReady, vehicleMileageReadings } from './or-base/api';
+import { CheckPointsPanel } from './or-base/check-points-panel';
+import { CommentTemplatesMenu } from './or-base/comment-templates-menu';
+import { ClientCommentPopup } from './or-base/client-comment-popup';
+import { orStatusLabel } from './or-base/or-status-badge';
+import {
+  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, normalizeCheckPoints,
+  type CheckPoints, type MileageReading,
+} from './or-base/rules';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
-const STATUSES = ['a_faire', 'en_cours', 'pret'] as const;
+/** Statuts G8 du 18/11 (a faire, attente devis, pieces en commande, en cours, pret, client informe). */
+const STATUSES = OR_EDIT_STATUSES;
 const WARRANTY = ['aucune', 'en_attente', 'accepte', 'refus_total', 'refus_partiel'] as const;
 const NO_REASON = ' none';
+/** ISO -> valeur d'un champ `datetime-local` (heure locale du poste). */
+const isoToLocalInput = (iso: string | null | undefined) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const localInputToIso = (v: string) => { const d = new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toISOString() : null; };
 const NO_VALUE = ' none';
 const LEGACY = ' legacy';
 
@@ -76,6 +102,8 @@ export type OrPayload = {
   expertName?: string; expertDate?: string; reasonCode: string | null; lines: RoLineInput[];
   /** Type de cession garantie (05 / 06 / 07, '' = aucun) et commentaire de la demande (rattrapage G8). */
   warrantyCessionCode: string; warrantyNote: string;
+  /** Rattrapage G8 (18/11) : promis le (ISO), 30 points V / R, notes internes, dernier releve depasse confirme. */
+  promisedAt?: string | null; checkPoints?: CheckPoints; internalNotes?: string; mileageAckPrevious?: number | null;
 };
 
 export type OrEditorIntent = 'save' | 'proposal';
@@ -124,7 +152,13 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [reasonCode, setReasonCode] = useState<string>((ox?.reason_code as string | null) ?? '');
   const [workDescription, setWork] = useState(o?.work_description ?? '');
   const [receptionNotes, setNotes] = useState(o?.reception_notes ?? '');
-  const [status, setStatus] = useState(o?.status && o.status !== 'facture' && o.status !== 'annule' ? o.status : 'a_faire');
+  const [status, setStatus] = useState(editableStatus(o?.status));
+  // Rattrapage G8 (18/11) : promis le, 30 points, informations complementaires (non imprimees).
+  const [promisedAt, setPromisedAt] = useState(isoToLocalInput((ox?.promised_at as string | null | undefined) ?? null));
+  const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(ox?.check_points));
+  const [internalNotes, setInternalNotes] = useState(o?.notes ?? '');
+  const [mileageError, setMileageError] = useState<string | null>(null);
+  const [lowerAsk, setLowerAsk] = useState<{ km: number; last: MileageReading; intent: OrEditorIntent } | null>(null);
   const [warrantyStatus, setWarranty] = useState(o?.warranty_status ?? 'aucune');
   const [expertName, setExpertName] = useState(o?.expert_name ?? '');
   const [expertDate, setExpertDate] = useState(o?.expert_date ?? '');
@@ -146,7 +180,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const formDraft = useFormDraft({
     key: draftKey ?? null,
     // Operateur (membre choisi ou ancien texte) et type de reparation (code de la liste) inclus (ATE001b).
-    value: { sel, mileage, operatorChoice, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, cessionCode, warrantyNote, lines },
+    value: { sel, mileage, operatorChoice, repairType, reasonCode, workDescription, receptionNotes, status, warrantyStatus, expertName, expertDate, cessionCode, warrantyNote, lines, promisedAt, checkPoints, internalNotes },
     fingerprint: (v) => ({ ...v, sel: [v.sel.contact?.id ?? contactIdToLoad ?? null, v.sel.vehicle?.id ?? null], lines: v.lines.map(({ _key, ...l }) => l) }),
     accept: (d) => !defaultContactId || !d.sel.contact || d.sel.contact.id === defaultContactId,
     restore: (d) => {
@@ -163,6 +197,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       setWork(d.workDescription); setNotes(d.receptionNotes); setStatus(d.status); setWarranty(d.warrantyStatus);
       setExpertName(d.expertName); setExpertDate(d.expertDate);
       setCessionCode(d.cessionCode ?? ''); setWarrantyNote(d.warrantyNote ?? '');
+      // Brouillon d'avant le 18/11 : ces champs manquent, on garde les valeurs vierges.
+      if (typeof d.promisedAt === 'string') setPromisedAt(d.promisedAt);
+      if (d.checkPoints) setCheckPoints(normalizeCheckPoints(d.checkPoints));
+      if (typeof d.internalNotes === 'string') setInternalNotes(d.internalNotes);
       if (d.lines?.length) setLines(d.lines.map((l) => ({ ...l, _key: `ro${counter++}` })));
     },
   });
@@ -192,6 +230,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     : null;
   const rateQ = useQuery({ queryKey: ['maintenance', 'rate', companyId], queryFn: () => loadHourlyRateHt(companyId), staleTime: 300_000 });
   const rate = rateQ.data ?? null;
+  // Dernier releve de la moto (OR, fiche moto, dernier entretien, declaration) : controle du km G8.
+  const readingsQ = useQuery({ queryKey: ['vehicle-mileage', vehicle?.id], enabled: !!vehicle?.id, queryFn: () => vehicleMileageReadings(vehicle!.id), staleTime: 30_000 });
+  const last = vehicle?.id ? lastReading(readingsQ.data ?? [], o?.id ?? null, o?.created_at ?? null) : null;
+  const orBaseQ = useQuery({ queryKey: ['or-base-schema'], queryFn: orBaseSchemaReady, staleTime: Infinity });
   const teamQ = useQuery({ queryKey: ['company-team', companyId], queryFn: () => listCompanyTeam(companyId), staleTime: 300_000 });
   const typesQ = useQuery({ queryKey: ['workshop-repair-types', companyId], queryFn: () => listRepairTypes(companyId), staleTime: 300_000 });
   const members = useMemo(() => teamQ.data ?? [], [teamQ.data]);
@@ -265,12 +307,33 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
 
   const ownName = profile?.full_name?.trim() || profile?.email || '';
   const savedOperator = operatorToSave(operatorChoice, members, operatorChoice.operatorId === user?.id ? ownName : (o?.operator ?? ''));
-  const payload = (): OrPayload => ({
-    contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: mileage ? Math.round(num(mileage)) : null,
+  const payload = (km: number | null = mileage ? Math.round(num(mileage)) : null, ack: number | null = null): OrPayload => ({
+    contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: km,
+    promisedAt: localInputToIso(promisedAt), checkPoints, internalNotes,
+    // Km inferieur au dernier releve confirme par l'utilisateur : on garde le releve depasse.
+    mileageAckPrevious: ack,
     operator: savedOperator.operatorText, operatorId: savedOperator.operatorId, repairType, workDescription, receptionNotes, status, warrantyStatus,
     expertName: expertInPanel ? undefined : expertName, expertDate: expertInPanel ? undefined : expertDate,
     reasonCode: reasonCode || null, warrantyCessionCode: cessionCode, warrantyNote,
     lines: [...classicInputs, ...cardLines],
+  });
+
+  // Enregistrer : km obligatoire des qu'une moto est choisie ; km inferieur au dernier releve =
+  // avertissement bloquant a confirmer (G8). Le km deja enregistre sur cet OR ne redemande pas
+  // (et garde sa confirmation eventuelle).
+  const submit = (intent: OrEditorIntent, confirmed = false) => {
+    const unchanged = !!o && mileage.trim() !== '' && Math.round(num(mileage)) === o.mileage;
+    const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged });
+    if (r.kind === 'required') { setMileageError(t('orBase.mileageRequired')); return; }
+    if (r.kind === 'invalid') { setMileageError(t('orBase.mileageInvalid')); return; }
+    setMileageError(null);
+    if (r.kind === 'lower') { setLowerAsk({ km: r.km, last: r.last, intent }); return; }
+    const savedAck = (ox?.mileage_ack_previous as number | null | undefined) ?? null;
+    onSubmit(payload(r.km, confirmed ? mileageAck(r.km, last) : unchanged ? savedAck : null), intent);
+  };
+  const readingText = (r: MileageReading) => fillVars(t('orBase.lastReading'), {
+    km: r.km.toLocaleString('fr-BE'), date: formatOrDate(r.at ? r.at.slice(0, 10) : null) || '-',
+    ref: r.ref ? fillVars(t('orBase.lastReadingRef'), { ref: r.ref }) : '',
   });
 
   const fiche = (
@@ -288,7 +351,22 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
             : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
-        <Field label={t('workshop.mileage')}><Input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="text-right tabular-nums" /></Field>
+        <Field label={`${t('workshop.mileage')}${vehicle ? ' *' : ''}`}>
+          <Input
+            type="number" min={0} value={mileage} onChange={(e) => { setMileage(e.target.value); setMileageError(null); }}
+            className={`text-right tabular-nums ${mileageError ? 'border-danger' : ''}`} aria-invalid={!!mileageError}
+          />
+          {mileageError && <p className="text-[12px] text-danger">{mileageError}</p>}
+          {vehicle && !mileageError && (
+            <p className="text-[12px] text-muted-foreground">
+              {last ? `${readingText(last)} · ${fillVars(t('orBase.lastReadingSource'), { source: t(`orBase.readingSource.${last.source}`) })}` : readingsQ.isSuccess ? t('orBase.noReading') : ''}
+            </p>
+          )}
+        </Field>
+        <Field label={t('orBase.promisedAt')}>
+          <Input type="datetime-local" value={promisedAt} onChange={(e) => setPromisedAt(e.target.value)} className="tabular-nums" />
+          {o?.created_at && <p className="text-[12px] text-muted-foreground">{t('orBase.receivedAt')} : {formatOrDate(o.created_at)}</p>}
+        </Field>
         {checkupReady && (
           <Field label={t('checkup.reason')}>
             <Select value={reasonCode || NO_REASON} onValueChange={(v) => onReasonChange(v === NO_REASON ? '' : v)}>
@@ -341,7 +419,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <Field label={t('workshop.status')}>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{t(`workshop.status_${s}`)}</SelectItem>)}</SelectContent>
+            <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{orStatusLabel(s)}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
         {/* Garantie : seulement pour un OR garantie (ou une prise en charge deja engagee). */}
@@ -376,10 +454,20 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         {expertVisible && <Field label={t('workshop.expertDate')}><Input type="date" value={expertDate} onChange={(e) => setExpertDate(e.target.value)} /></Field>}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={t('workshop.workDescription')}><Textarea value={workDescription} onChange={(e) => setWork(e.target.value)} rows={3} /></Field>
-        <Field label={t('workshop.receptionNotes')}><Textarea value={receptionNotes} onChange={(e) => setNotes(e.target.value)} rows={3} /></Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label={t('workshop.workDescription')} action={<CommentTemplatesMenu companyId={companyId} text={workDescription} onText={setWork} />}>
+          <Textarea value={workDescription} onChange={(e) => setWork(e.target.value)} rows={3} />
+        </Field>
+        <Field label={t('workshop.receptionNotes')} action={<CommentTemplatesMenu companyId={companyId} text={receptionNotes} onText={setNotes} />}>
+          <Textarea value={receptionNotes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+        </Field>
+        {/* Informations complementaires G8 : jamais imprimees (repair_orders.notes). */}
+        <Field label={t('orBase.internalNotes')} action={<CommentTemplatesMenu companyId={companyId} text={internalNotes} onText={setInternalNotes} />}>
+          <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={3} title={t('orBase.internalNotesHint')} className="bg-muted/40" />
+        </Field>
       </div>
+      <CheckPointsPanel value={checkPoints} onChange={setCheckPoints} />
+      {orBaseQ.data === false && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('orBase.migrationMissing')}</p>}
 
       {/* Lignes */}
       <div className="overflow-x-auto rounded-md border border-border">
@@ -464,12 +552,39 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       </div>
 
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-      <div className="flex justify-end"><Button onClick={() => onSubmit(payload(), 'save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
+      <div className="flex justify-end"><Button onClick={() => submit('save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
     </div>
   );
 
+  // Popup « Commentaire client » (G8) et avertissement « km inferieur au dernier releve ».
+  const overlays = (
+    <>
+      <ClientCommentPopup contactId={contact?.id ?? null} />
+      <AlertDialog open={!!lowerAsk} onOpenChange={(v) => { if (!v) setLowerAsk(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('orBase.lowerTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {lowerAsk && fillVars(t('orBase.lowerBody'), {
+                km: lowerAsk.km.toLocaleString('fr-BE'), last: lowerAsk.last.km.toLocaleString('fr-BE'),
+                date: formatOrDate(lowerAsk.last.at ? lowerAsk.last.at.slice(0, 10) : null) || '-',
+                ref: lowerAsk.last.ref ? fillVars(t('orBase.lastReadingRef'), { ref: lowerAsk.last.ref }) : '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('orBase.lowerFix')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const a = lowerAsk; setLowerAsk(null); if (a) submit(a.intent, true); }}>
+              {lowerAsk ? fillVars(t('orBase.lowerConfirm'), { km: lowerAsk.km.toLocaleString('fr-BE') }) : ''}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+
   // Nouvel OR ou migration absente : pas d'onglet Check-up (il faut un OR enregistré pour les photos).
-  if (!checkupReady || !o) return <div className="space-y-4">{header}{fiche}</div>;
+  if (!checkupReady || !o) return <div className="space-y-4">{header}{fiche}{overlays}</div>;
 
   return (
     <div className="space-y-4">
@@ -489,12 +604,13 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             cards={cards} onChange={setCards} rate={rate} rateLoading={rateQ.isLoading}
             busy={busy} error={error} approvalPending={approvalPending}
             hasClient={!!contact}
-            onSave={() => onSubmit(payload(), 'save')}
-            onSendProposal={() => onSubmit(payload(), 'proposal')}
+            onSave={() => submit('save')}
+            onSendProposal={() => submit('proposal')}
             extraActions={proposalActions}
           />
         </TabsContent>
       </Tabs>
+      {overlays}
     </div>
   );
 }
@@ -533,8 +649,16 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
 export function ArticlePicker({ companyId, value, onText, onPick, className = 'h-8' }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: SaleArticle) => void; className?: string }) {
   return <ArticleLinePicker companyId={companyId} value={value} onText={onText} onPick={onPick} placeholder={t('workshop.articlePlaceholder')} className={className} />;
 }
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="space-y-1"><label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;
+function Field({ label, children, action }: { label: string; children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
 }
 function Th({ children, className = '' }: { children?: ReactNode; className?: string }) {
   return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;

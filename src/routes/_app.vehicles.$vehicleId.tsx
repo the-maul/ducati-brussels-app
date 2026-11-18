@@ -14,6 +14,7 @@ import { VehicleMaintenancePanel } from '@/modules/workshop/vehicle-maintenance-
 import { VehicleNextServicePanel } from '@/modules/workshop/vehicle-next-service-panel';
 import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { VehicleRegisterPanel } from '@/modules/vehicles/register-panel';
+import { VehicleWorkshopHistoryPanel } from '@/modules/workshop/or-base/vehicle-history-panel';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -144,6 +145,9 @@ function EditVehicle() {
           </div>
         </div>
       )}
+
+      {/* Historique atelier : OR, km, entretiens (rattrapage G8 du 18/11). */}
+      <VehicleWorkshopHistoryPanel vehicleId={vehicleId} />
 
       <VehicleForm
         key={vehicle.my_ducati_synced_at ?? vehicle.id}

@@ -49,6 +49,8 @@ export type NewAppointment = {
   receptionNotes?: string; loanerVehicle?: string; notifySms?: boolean;
   /** Motif du RDV (reference_values workshop_reason) ; un motif entretien declenche le controle des pieces du kit (mission 09, carte 3). */
   reasonCode?: string | null;
+  /** Km releve a la prise du RDV (migration 20261118100000), repris sur l'OR cree depuis le RDV (G8). */
+  mileage?: number | null;
 };
 export async function createAppointment(p: NewAppointment): Promise<string> {
   const base = {
@@ -60,14 +62,20 @@ export async function createAppointment(p: NewAppointment): Promise<string> {
   // `reason_code` vient de la migration 20261103120000 (non appliquee) : on ne l'envoie que s'il est
   // renseigne, et si la colonne manque encore en base, le RDV est quand meme cree sans motif.
   const withReason = p.reasonCode ? { ...base, reason_code: p.reasonCode } : base;
-  const first = await supabase.from('workshop_appointments').insert(withReason as typeof base).select('id').single();
-  if (!first.error) return first.data.id as string;
-  if (p.reasonCode && /reason_code/.test(first.error.message)) {
-    const { data, error } = await supabase.from('workshop_appointments').insert(base).select('id').single();
-    if (error) throw error;
-    return data.id as string;
+  // Km du RDV (migration du 18/11) : envoye seulement s'il est renseigne ; colonne absente = RDV cree sans km.
+  const withKm = p.mileage != null ? { ...withReason, mileage: p.mileage } : withReason;
+  // Colonne inconnue (migration pas encore posee) : on la retire et on reessaie, le RDV est cree quand meme.
+  let row: Record<string, unknown> = { ...withKm };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await supabase.from('workshop_appointments').insert(row as typeof base).select('id').single();
+    if (!res.error) return res.data.id as string;
+    const msg = res.error.message;
+    const missing = ['mileage', 'reason_code'].find((col) => col in row && msg.includes(col));
+    if (!missing) throw res.error;
+    row = { ...row };
+    delete row[missing];
   }
-  throw first.error;
+  throw new Error('workshop_appointments: insert failed');
 }
 
 export async function updateAppointmentStatus(id: string, status: string): Promise<void> {
@@ -80,8 +88,10 @@ export async function createOrFromAppointment(a: Appointment): Promise<string> {
   // Le motif du RDV (entretien annuel, vidange...) suit l'OR : c'est lui qui declenche le
   // pre-remplissage du check-up et le controle des pieces du kit (mission 10, couture RDV -> OR).
   const reasonCode = (a as Appointment & { reason_code?: string | null }).reason_code ?? null;
+  // Le km releve au RDV suit l'OR (G8, migration 20261118100000 ; null tant qu'elle n'est pas posee).
+  const mileage = (a as Appointment & { mileage?: number | null }).mileage ?? null;
   const orId = await createRepairOrder({
-    companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage: null,
+    companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage,
     operator: a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
     receptionNotes: a.reception_notes ?? null, status: 'en_cours', warrantyStatus: 'aucune',
     reasonCode: reasonCode ?? undefined, lines: [],

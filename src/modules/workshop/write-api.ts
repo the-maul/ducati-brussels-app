@@ -15,6 +15,7 @@ import { createDocument, type LineInput } from '@/modules/sales/write-api';
 import { invoiceableRoLines } from './checkup/rules';
 import { operatorIdSchemaReady } from './or-page-api';
 import { clientUnitPrice, lineCoveredByWarranty, lineDecisionToSave } from './warranty/rules';
+import { orBaseSchemaReady } from './or-base/api';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -78,6 +79,12 @@ export type RoInput = {
   /** Motif d'entrée (reference_values `workshop_reason`), undefined = ne pas toucher. */
   reasonCode?: string | null;
   lines: RoLineInput[];
+  /** Rattrapage G8 (18/11) : undefined = ne pas toucher. Notes internes = colonne `notes` (non imprimee). */
+  internalNotes?: string | null;
+  /** Migration 20261118100000 : ecrits seulement si la base les connait. */
+  promisedAt?: string | null;
+  checkPoints?: Partial<Record<string, string>>;
+  mileageAckPrevious?: number | null;
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -178,6 +185,14 @@ async function headerPatch(p: RoInput): Promise<Record<string, unknown>> {
   if (p.reasonCode !== undefined && await checkupSchemaReady()) base.reason_code = p.reasonCode || null;
   // Operateur choisi dans l'equipe : l'id n'est ecrit que si la colonne existe (sinon le nom suffit).
   if (p.operatorId !== undefined && await operatorIdSchemaReady()) base.operator_id = p.operatorId || null;
+  // Informations complementaires non imprimees (colonne d'origine `notes`).
+  if (p.internalNotes !== undefined) base.notes = (p.internalNotes ?? '').trim() || null;
+  // Promis le, 30 points V / R, km inferieur confirme : migration 20261118100000.
+  if ((p.promisedAt !== undefined || p.checkPoints !== undefined || p.mileageAckPrevious !== undefined) && await orBaseSchemaReady()) {
+    if (p.promisedAt !== undefined) base.promised_at = p.promisedAt || null;
+    if (p.checkPoints !== undefined) base.check_points = p.checkPoints;
+    if (p.mileageAckPrevious !== undefined) base.mileage_ack_previous = p.mileageAckPrevious;
+  }
   return base;
 }
 

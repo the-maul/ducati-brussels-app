@@ -40,6 +40,8 @@ function NewOr() {
         status: p.status, warrantyStatus: p.warrantyStatus, expertName: p.expertName ?? null, expertDate: p.expertDate || null,
         warrantyCessionCode: p.warrantyCessionCode, warrantyNote: p.warrantyNote,
         reasonCode: p.reasonCode, lines: p.lines,
+        // Rattrapage G8 (18/11) : promis le, 30 points, notes internes, km inferieur confirme.
+        promisedAt: p.promisedAt, checkPoints: p.checkPoints, internalNotes: p.internalNotes, mileageAckPrevious: p.mileageAckPrevious,
       });
       // OR accident : le dossier accident s'ouvre en brouillon, lie a l'OR (ATE001b). Un echec ne
       // perd pas l'OR : le bouton « Dossier accident » de la fiche reste la.
