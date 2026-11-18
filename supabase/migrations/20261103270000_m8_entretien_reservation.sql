@@ -372,7 +372,9 @@ returns numeric language plpgsql stable security definer set search_path = publi
 declare a public.articles%rowtype; proj numeric;
 begin
   select * into a from public.articles where id = _article and company_id = _company;
-  if not found or a.mgmt_type::text <> 'A' or not coalesce(a.is_active, true) or coalesce(a.stock_min, 0) <= 0 then
+  if not found or a.mgmt_type::text <> 'A' or not coalesce(a.is_active, true) or coalesce(a.stock_min, 0) <= 0
+     -- Filtre de 20261103280000 conserve : jamais de reassort d'une piece fin de serie / remplacee.
+     or coalesce(a.supplier_availability, '') in ('red', 'yellow') then
     return 0;
   end if;
   proj := public._minimax_stock(_article);
@@ -409,6 +411,7 @@ begin
     select a.id from public.articles a
      where a.company_id = b.company_id and a.mgmt_type = 'A' and coalesce(a.is_active, true)
        and coalesce(a.stock_min, 0) > 0
+       and coalesce(a.supplier_availability, '') not in ('red', 'yellow')
   loop
     need := public._basket_minimax_need(b.company_id, _basket, r.id);
     if need > 0 then
