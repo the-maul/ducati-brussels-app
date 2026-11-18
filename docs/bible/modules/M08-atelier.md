@@ -173,6 +173,72 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
   `part_orders.repair_order_id`, puis proposition fournisseur puis fichier DCS. Manquant = besoin −
   libre − en commande pour ce client − déjà en brouillon ; pièces seulement (types A et N).
 
+### Ajouté le 18/11 — rattrapage G8 : OR garantie (B10) et OR accident côté assureur
+
+Lot `lot-g8-garantie-accident`, sources `docs/g8-inventaire/07-atelier.md` §1, §11, §12, §15,
+`04-fournisseurs-achats.md` (Historique garantie), `02-articles.md` (fiche fournisseur › Garantie),
+parcours 18 et 19, comparaison §4 / §5, bloquants #8 et #13. Migration
+`20261118130000_m8_garantie_et_accident.sql` (**non appliquée**, essai à blanc
+`supabase/tests/m8_garantie_et_accident.sql`). Tant qu'elle manque, les écrans le disent et l'OR
+continue de s'enregistrer comme avant.
+
+- **Type de garantie (cession) sur l'OR** : 05 garantie fournisseur · 06 garantie magasin / atelier ·
+  07 geste commercial (`repair_orders.warranty_cession_code`, libellés de Paramètres → Tables →
+  Types de cession interne). Type de réparation « Garantie Ducati » → 05, « Garantie magasin » → 06
+  (proposé, s'il est vide). Choisir un type sur un OR sans prise en charge le passe « en attente »
+  (G8 : « Demande de prise en charge en attente ») et pré-remplit le **commentaire de la demande**
+  « Demande de garantie pour le châssis … immat. … » (`warranty_note`).
+- **Ligne « G »** : la case garantie d'une ligne la met à 0 € pour le client (lettre **G**).
+  **Refus total** → toutes les lignes demandées en garantie sont **re-routées vers le client**
+  (facturées à leur prix). **Refus partiel** → chaque ligne en garantie a « Acceptée / Refusée →
+  client » (`repair_order_lines.warranty_decision`) ; seule la ligne refusée est facturée. Avant le
+  18/11, une ligne cochée restait à 0 € même en refus total : corrigé. Règles pures
+  `src/modules/workshop/warranty/rules.ts` (`lineCoveredByWarranty`), utilisées par les totaux,
+  l'éditeur et la facture (`write-api.ts`).
+- **MO garantie au taux garantie** : Paramètres → Tables → **Garantie atelier** (`workshop_warranty`,
+  code `mo`, `hourly_rate_ht`, préchargé **46,94 € HT** = MO_ATELIER GARANTIE relevé dans G8, **à
+  confirmer**). Le prix client de la ligne MO reste le taux atelier (s'il est re-routé, le client paie
+  ce taux) ; le taux garantie sert à valoriser ce que la garantie prend en charge (encart « Garantie »
+  sous les lignes de l'OR).
+- **Imputation à la facturation** : au passage « facturé », un déclencheur
+  (`trg_ro_impute_warranty` → `repair_order_impute_warranty`) fige sur chaque ligne couverte son
+  **coût** (pièce : PAMP × qté ; MO : heures × taux garantie), son **PA** et sa **valeur au PV**
+  (`warranty_cost_ht`, `warranty_pa_ht`, `warranty_sale_ht`, `repair_orders.warranty_imputed_at`).
+  Le stock sort toujours par la facture client à 0 € (pas de mouvement en plus, B7).
+- **Retours / remboursements constructeur** (`warranty_returns`) : en garantie fournisseur (05),
+  une ligne par pièce couverte est créée à l'imputation, état **attente remboursement** (puis attente
+  échange, remboursé, échangé ; passer à remboursé / échangé date la « réception garantie »), avec
+  prise en charge, réception, facture d'achat, BL, PAUHT, n° ticket / OR, montant. Fournisseur = le
+  fournisseur principal de l'article. Écrans : Atelier → vue **Retours constructeur** (historique
+  global, filtres état / dates) et **fiche fournisseur** (section « Garantie »).
+- **Vues de la liste des OR** (Atelier) : Ordres de réparation · **O.R. garantie** (type, avancement,
+  châssis) · **O.R. accident** (cabinet, franchise, date OR, expert, passage, accepté, immat.,
+  châssis) · Retours constructeur · **Garanties et statistiques** (liste « Garanties » : temps MO,
+  achat pièces au PAMP, coût MO, coût MO + pièces — vue `warranty_lines_v` ; « Garanties / CA » par
+  client : CA HT des factures, garanties au PAMP / PA / PV, % garantie / CA — fonction
+  `warranty_stats_by_client`). Vue dans l'adresse (`/workshop?view=garantie|accident|retours|stats`).
+- **OR accident côté assureur** : fichier des **cabinets d'assurance et experts**
+  (`insurance_parties` : code, nom, adresse, téléphones, fax, e-mail, n° d'entreprise, TVA, contact,
+  commentaires, **compte comptable**, **tarif associé**) dans Atelier → Dossiers accident → onglet
+  « Cabinets et experts » (et « Nouveau » depuis l'OR). Le volet **Assurance** (cabinet, expert, date
+  de passage, **franchise en montant ou en % de l'OR**, **valeur vénale**, **cote**, **démarrage des
+  travaux accepté** avec qui / quand) vit sur le **dossier accident existant** de l'OR (colonnes
+  ajoutées à `accident_files`, pas de second dossier) : affiché sur la page de l'OR et sur la fiche
+  du dossier. Le nom du cabinet / de l'expert est recopié dans `accident_files.insurer` /
+  `expert_name` (mail et formulaire Ducati) et l'expert + la date de passage sur l'OR
+  (`expert_name`, `expert_date`) ; quand le dossier existe, ces deux champs ne se saisissent plus
+  dans l'en-tête de l'OR (une seule saisie). **Document accident** : PDF d'une page (OR, client,
+  moto, assureur, expert, passage, franchise, valeurs, accord, travaux, 3 cadres de signature),
+  téléchargé et rangé dans la GED du dossier (`accident/accident-sheet-pdf.ts`).
+- Code : `src/modules/workshop/warranty/` (`rules.ts`, `api.ts`, `warranty-views.tsx`),
+  `src/modules/workshop/accident/insurance-*.ts(x)`, `accident-ors-table.tsx`,
+  `accident-sheet-pdf.ts` ; libellés `warranty.*`, `insurance.*` (FR / NL / EN / IT) ; tests
+  `tests/workshop-warranty.test.ts`, `tests/workshop-accident-insurance.test.ts`,
+  `tests/workshop-totals.test.ts` (refus total / partiel).
+- **À trancher (non décidé ici)** : statut comptable de la cession 05 « garantie fournisseur »
+  (G8 : non comptabilisée ; DMS : comptabilisée) — la migration ne touche pas à la case
+  « Comptabilisée » et ne passe aucune écriture. Voir aussi le rapport du lot.
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
 - **Tous les objets utilisés par le code existent** : `repair_orders`, `repair_order_lines`, `workshop_time_entries`, `workshop_appointments` avec toutes les colonnes écrites (y compris `price_mode` lu à la facturation), fonctions `or_worked_minutes`, `next_document_number`. RLS active et triggers d'audit (`trg_ro_audit`, `trg_rolines_audit`, `trg_appt_audit`, `trg_wte_audit`) présents.
@@ -213,7 +279,7 @@ rattachées à une moto ; extract DCS du 29/10 : 228 lignes, 223 motos connues.
 - **Page OR (corrigé le 03/11/2026, ATE001b, retours client)** : (1) l'opérateur était un texte libre → liste de l'équipe (`company_members`), connecté par défaut, id dans `repair_orders.operator_id` (migration `20261103230000`, **non appliquée** : en attendant, le nom seul est enregistré dans `operator`, l'écran marche) ; (2) type de réparation libre → liste `workshop_repair_type` (l'ancienne clé `repair_type` des Paramètres n'avait jamais servi, renommée) ; (3) **propositions d'article cachées** : la liste était un bloc `absolute` dans le tableau `overflow-x-auto` des lignes, coupée par le conteneur, et la recherche renvoyait 8 articles triés par référence (pour « FREIN » : 1 413 articles, les 8 premiers « 0000… » obscurs) → `ArticleLinePicker` (Popover, portail) unique OR / check-up / ventes, fonction `article_line_search` (migration `20261103230000` ; repli `part_order_article_search` + en stock d'abord) ; (4) **PU HT à 0** : 81 089 articles sur 93 784 n'ont que leur PV TTC (`sale_price_ht` vide), la recherche renvoyait `coalesce(sale_price_ht, 0)` → HT = TTC / (1 + TVA) dans `searchSaleArticles` (corrige aussi les ventes, la caisse et le check-up) ; (5) motif « Accident » sans dossier : rien n'ouvrait le dossier à l'enregistrement, seul un bouton parmi neuf dans l'en-tête → dossier ouvert en brouillon à l'enregistrement + bandeau « Dossier accident » sur l'OR. Règles pures `or-page-rules.ts`, `sales/article-price.ts`, tests `tests/workshop-page-or.test.ts`.
 - **Réécriture des lignes à chaque enregistrement** : depuis le 31/10, `writeLines` appelle `repair_order_write_lines` (suppression + insertion **en une transaction**) ; l'audit enregistre toujours des suppressions / insertions à chaque sauvegarde (les identifiants de lignes changent : c'est `checkup_key` et `proposal_line_id`, recopiés, qui relient les cartes à la proposition). Tant que la migration 20261031110000 n'est pas appliquée, l'ancien chemin non atomique reste en service.
 - **Transformation en facture non atomique** : facture créée, puis OR passé `facture` dans un second appel ; en cas d'échec du second, l'OR reste facturable une deuxième fois.
-- **Garantie = prix 0, pas de cession** : les pièces en garantie sortent du stock via une facture client à 0 €, sans **cession interne de garantie** ni **facture interne à Ducati** (ATE020). Le coût de la garantie n'est donc suivi nulle part.
+- **Garantie = prix 0, pas de cession** : les pièces en garantie sortent du stock via une facture client à 0 €, sans **cession interne de garantie** ni **facture interne à Ducati** (ATE020). **Depuis le 18/11 (rattrapage G8)** : le coût est figé à la facturation sur les lignes couvertes (PAMP, PA, PV, MO au taux garantie), suivi dans les listes « Garanties » / « Garanties / CA » et, en garantie fournisseur, dans les retours constructeur — mais toujours **pas de facture interne à Ducati** ni d'écriture comptable (statut comptable de la cession 05 à trancher).
 - **Pas d'impression d'OR** : le libellé `workshop.print` existe mais aucun bouton ; la **proposition d'intervention** (PDF, signature) existe depuis le 31/10, pas la fiche de réception elle-même.
 - **Check-up (31/10)** : pré-remplissage depuis le kit seulement si `maintenance_kit_for_model_year` retrouve l'échéance par son code normalisé (les codes des posters et des manuels diffèrent : souvent seules les cartes d'opérations arrivent, sans pièces) ; les photos du check-up passent par la GED de l'OR (pas de limite de taille, comme le panneau GED du personnel) ; la fonction serveur `proposal-sign` doit être **déployée** et les secrets Graph posés pour que le PDF signé parte par mail (sinon la signature est enregistrée et l'écran le dit) ; `types.ts` non régénéré : `checkup/api.ts` appelle ses fonctions sans typage.
 - **Rappel RDV** : `_cron_appointment_reminders` ignore la case `notify_sms` ; il enfile e-mail **et** SMS pour tout RDV `prevu` du lendemain. À corriger avant de poser les clés d'envoi.
@@ -275,21 +341,22 @@ Référentiel : `docs/cahier-fonctionnel-v2.md`, annexe A (Atelier, 24 exigences
 | ATE013 | Kits / combos de pièces | partiel (03/11) | **Kits d'entretien par famille de moteur × échéance** (mission 07 carte 2, M-20/M-40/M-41) : proposition depuis les manuels + le catalogue (97,8 % des besoins fermes résolus), correction par l'atelier, versionnement, picking list depuis l'OR et commande des manquantes ; **03/11 (ATE013b, M-90 à M-92)** : génération pour tout le parc (manuel > plan > règle), « annuel » et « annuel + huile » pour chaque modèle-année, deux références gardées, provenance par ligne — migration à appliquer. Reste : le devis d'entretien chiffré (pièces + MO) et l'insertion d'un kit comme ligne de forfait sur un OR |
 | ATE014 | Nomenclatures d'entretien auto (modèle + km) | partiel (31/10) | Plans d'entretien par modèle / années / usage (mission 07 carte 1) **+ parcours technicien : entretien dû, opérations, procédures, couples, temps UT** (carte 8) ; **+ kits de pièces par famille de moteur et par entretien** (carte 2, 23/09) ; **+ prochain entretien de chaque moto avec sa source, extract DCS importable, déclaration du client** (cartes 4 et 5, 31/10, migration non appliquée) |
 | ATE015 | Pointage du temps par intervention | fait | `chrono-api.ts`, `/workshop/chrono` |
-| ATE016 | Suivi garantie Ducati / magasin | partiel | `warranty_status` + lignes garantie ; pas de distinction Ducati / magasin ni de dossier de garantie |
+| ATE016 | Suivi garantie Ducati / magasin | fait (18/11, migration non appliquée) | Type de cession 05 / 06 / 07 sur l'OR, avancement, refus partiel avec re-routage, vue O.R. garantie, retours constructeur (rattrapage G8) |
 | ATE017 | Recherche VIN avec tout l'historique | partiel | Recherche VIN globale (M0) et sur l'OR ; historique des OR absent de la fiche véhicule |
 | ATE018 | Notification de fin de travaux programmable | manquant | Pas de déclencheur au passage `pret` |
 | ATE019 | Tableau de bord productivité par mécanicien | partiel (M13) | Présence / travail ; le **récapitulatif du parcours** rapproche temps passé / temps Ducati (UT) / temps facturé sur un OR (23/09), pas encore agrégé par mécanicien |
-| ATE020 | Facturation interne garantie et productivité | manquant | Voir §7 |
+| ATE020 | Facturation interne garantie et productivité | partiel (18/11) | Coût de la garantie imputé à la facturation (PAMP / PA / PV, MO au taux garantie), listes Garanties et Garanties / CA ; pas de facture interne à Ducati (§7) |
 | ATE021 | Planification des essais démo | manquant | — |
 | ATE022 | Parc de motos prêtées et démo | partiel (M3) | Statuts véhicule `demo` / `courtoisie` |
 | ATE023 | Accès rapide aux accessoires en stock (upselling) | partiel | Recherche d'articles dans l'éditeur d'OR (`ArticleLinePicker` / `searchSaleArticles`, 03/11 : stock, casier et PV HT affichés, en stock d'abord) |
 
-Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** partiel (acceptation / refus total / refus partiel ligne par ligne, sans cession garantie) ; **B11** partiel (présence et travail pointés ; depuis le 23/09 le **parcours d'entretien** compare temps passé, temps officiel Ducati et temps facturé sur un OR — mais ses chronos ne sont pas encore versés dans `workshop_time_entries`, la colonne `journey_operation` est prête et la migration non appliquée).
+Invariants : **B8** fait (cycle complet, facture via M6) ; **B10** fait côté écran et base (18/11, migration `20261118130000` non appliquée : type de cession garantie, acceptation / refus total / refus partiel **avec re-routage des lignes vers le client**, imputation du coût à la facturation ; statut comptable de la cession 05 à trancher) ; **B11** partiel (présence et travail pointés ; depuis le 23/09 le **parcours d'entretien** compare temps passé, temps officiel Ducati et temps facturé sur un OR — mais ses chronos ne sont pas encore versés dans `workshop_time_entries`, la colonne `journey_operation` est prête et la migration non appliquée).
 
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
 |---|---|---|
+| 2026-11-18 | **Rattrapage G8 — OR garantie et OR accident** (B10, ATE016, ATE020, bloquants #8 et #13) : type de cession 05 / 06 / 07, commentaire de demande, refus total / partiel avec re-routage des lignes, MO au taux garantie, imputation du coût à la facturation, retours constructeur (global et par fournisseur), listes Garanties et Garanties / CA, vues O.R. garantie / O.R. accident ; fichier des cabinets et experts, volet assureur sur le dossier accident (franchise montant / %, valeur vénale, cote, démarrage accepté), document accident PDF | branche `lot-g8-garantie-accident`, `20261118130000_m8_garantie_et_accident.sql` (**non appliquée**) |
 | 2026-11-03 | **Page OR (ATE001b, retours client)** : opérateur choisi dans l'équipe (connecté par défaut, `operator_id`), type de réparation en liste réglable pré-remplie par le motif, garantie / expert affichés seulement quand ils servent, recherche d'article unique en surcouche (OR, check-up, ventes) mieux classée, PU HT déduit du TTC + TVA de l'article + remise client + MO au taux horaire, OR accident → dossier accident en brouillon et bandeau sur l'OR | branche `fix-page-or`, `20261103230000_m8_page_or.sql` (**non appliquée**, essayée en transaction annulée) |
 | 2026-11-03 | **Créer un OR montre bien les motos du client, le client ne s'efface plus** (bug client, ATE001) : sélecteur de moto partagé OR / RDV / documents de vente (`vehicles/vehicle-picker.tsx`), motos du client en tête puis recherche parc, client sans moto → « Ajouter une moto à ce client », client et moto de l'OR chargés par id (plus via la liste plafonnée à 500), bouton « Nouvel OR » sur la fiche moto, `/workshop/new?contactId=&vehicleId=` | branche `fix-or-motos-du-client` |
 | 2026-11-03 | **Mission 10 « Atelier de bout en bout »** : audit du parcours complet (9 étapes, 11 coutures, 19 cartes, voir [mission 10](../missions/mission-10-atelier-bout-en-bout.md)) ; constaté en base : migrations atelier du 23/09 au 03/11 **appliquées** (parcours, kits, picking depuis l'OR, check-up, prochain entretien, panier, popup), 0 kit, 0 parcours, 0 réservation ; corrigé : « Reporter sur l'OR » garde l'état du check-up, « Créer l'OR » depuis un RDV reprend le motif, bandeau « prochain entretien » du check-up sur la ligne courante | branche `mission-10-atelier` |

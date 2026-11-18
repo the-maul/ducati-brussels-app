@@ -132,7 +132,7 @@ l'éditeur SQL n'y figure pas. Seule la présence réelle des objets fait foi (`
 | B7 | Traçabilité totale des mouvements (append-only) | 🟦 |
 | B8 | Cycle OR (réception→facture, historique par véhicule) | ⬜ |
 | B9 | N° de série V/O/P, recherche croisée véhicule↔client↔docs | ⬜ |
-| B10 | Garantie : acceptation/refus total/partiel + re-routage | ⬜ |
+| B10 | Garantie : acceptation/refus total/partiel + re-routage | 🟦 fait le 18/11 (type de cession 05/06/07, re-routage des lignes refusées, imputation du coût, retours constructeur) — migration `20261118130000` à appliquer ; statut comptable de la cession 05 à trancher |
 | B11 | Productivité atelier : temps passé vs facturé | ⬜ |
 | B12 | Étiquetage (défaut stock réel, code-barres/prix, différé) | ⬜ |
 
