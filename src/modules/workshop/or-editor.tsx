@@ -34,6 +34,7 @@ import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
 import { articleLinePrice, labourUnitPrice } from '@/modules/sales/article-price';
 import { useCustomerPricer, insurerPriceListForOr, type PricingContact } from '@/modules/sales/customer-pricing-api';
+import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
 import {
   defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
@@ -337,6 +338,15 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   // la garantie : sa quantité porte les heures garanties.
   const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null && !lineCoveredByWarranty(l, warrantyStatus) ? { quantity: q, billed_hours: q } : { quantity: q });
   const timeLine = timeKey ? lines.find((l) => l._key === timeKey) ?? null : null;
+  // G8 « Import microfiches » (lot G8 du 18/11/2026) : les pièces de la vue éclatée en lignes d'OR.
+  const addMicroficheLines = (items: MicroficheItem[]) => setLines((ls) => {
+    const keep = ls.filter((l) => l.article_id || l.designation.trim());
+    const added: EditLine[] = items.map(({ article, quantity }) => ({
+      ...blankLine(), article_id: article.id, designation: article.designation, quantity,
+      ...articleLinePrice(microficheToSaleArticle(article), { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) }),
+    }));
+    return [...keep, ...added].length ? [...keep, ...added] : [blankLine()];
+  });
   const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
   const cardLines = cardsToLines(cards.filter((c) => c.label.trim() || c.parts.length), rate);
@@ -603,6 +613,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
           <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
+          <MicroficheImportButton companyId={companyId} onImport={addMicroficheLines} />
         </div>
         <div className="flex gap-5 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
           <span>{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>

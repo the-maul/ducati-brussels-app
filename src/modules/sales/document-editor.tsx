@@ -41,6 +41,8 @@ import { ConfirmDocumentDialog, type ConfirmDocumentRequest } from './confirm-do
 import { listCommentTemplates } from './comment-templates-api';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
+import { getArticleSaleFlags } from '@/modules/articles/g8/api';
+import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -250,7 +252,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     setLine(key, {
       article_id: a.id, designation: a.designation, reference: a.reference,
       unit_price_ht: base, discount_pct: 0, vat_rate: a.vat_rate, _stock: a,
-      line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null, _auto: true, _base: base, _promo: false,
+      line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _catalogUrl: null, _auto: true, _base: base, _promo: false, no_footer_discount: !!a.no_footer_discount,
     });
     applyPricing(key, a.id, base, qty);
   };
@@ -286,6 +288,32 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
       _auto: unitPriceHt == null, _base: unitPriceHt ?? effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp),
     };
     return reuse ? [...ls.slice(0, -1), line] : [...ls, line];
+  });
+  // G8 « Hors remise pied de page » : relu sur les articles d'un brouillon rouvert (non enregistré sur la ligne).
+  useEffect(() => {
+    if (!draft) return;
+    const ids = lines.map((l) => l.article_id).filter((x): x is string => !!x);
+    if (!ids.length) return;
+    let alive = true;
+    void getArticleSaleFlags(ids).then((flags) => {
+      if (!alive || !flags.size) return;
+      setLines((ls) => ls.map((l) => (l.article_id && flags.get(l.article_id)?.no_footer_discount ? { ...l, no_footer_discount: true } : l)));
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.doc.id]);
+  // G8 « Import microfiches » (lot G8 du 18/11/2026) : une ligne par référence trouvée, à la suite.
+  const addMicroficheLines = (items: MicroficheItem[]) => setLines((ls) => {
+    const keep = ls.filter((l) => l.article_id || l._fee || l.designation.trim() || l.line_type !== 'article');
+    const added: EditLine[] = items.map(({ article, quantity }) => {
+      const a = microficheToSaleArticle(article);
+      return {
+        ...blankLine(), article_id: a.id, designation: a.designation, reference: a.reference, quantity,
+        unit_price_ht: effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp), vat_rate: a.vat_rate, _stock: a,
+        line_type: a.mgmt_type === 'T' ? 'main_oeuvre' : 'article',
+      };
+    });
+    return [...keep, ...added];
   });
   const [recallOpen, setRecallOpen] = useState(false);
   // Rattrapage G8 : kit / forfait insere en lignes ; options du modele (vente de moto neuve).
@@ -527,6 +555,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         <EcatalogPasteButton companyId={companyId} priceMode={priceMode} onPick={addEcatalogLine} />
         <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
         <Button type="button" variant="outline" onClick={() => setOptionsOpen(true)}><ListPlus /> {t('parcG8.optionsButton')}</Button>
+        <MicroficheImportButton companyId={companyId} onImport={addMicroficheLines} />
       </div>
       {kitOpen && (
         <KitInsertDialog companyId={companyId}

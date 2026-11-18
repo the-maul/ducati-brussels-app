@@ -18,6 +18,7 @@ import { useDeviceSetup } from '@/lib/devices/use-devices';
 import { t, fillVars } from '@/lib/i18n';
 import { listCountRows, adjustSnapshot, readjustReal, enqueueLabels, type CountScope, type AdjustResult } from './g8-api';
 import type { ReadjustMode } from './inventory-rules';
+import { MicroficheImportButton, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 
 export type ReadjustTarget = { kind: 'reel'; ref?: string | null } | { kind: 'arrete'; snapshotId: string };
 
@@ -63,6 +64,20 @@ export function ReadjustGrid({ companyId, target, defaultMode = 'annule_remplace
   }, [search, rows]);
 
   const filled = Object.entries(inputs).filter(([, v]) => v.trim() !== '' && Number.isFinite(num(v)));
+  // G8 « Import microfiches » (lot G8 articles du 18/11/2026) : les quantités du fichier deviennent des
+  // saisies (cumulées avec une saisie déjà faite) ; un article hors de la page affichée est compté quand même.
+  const importMicrofiche = (items: MicroficheItem[]) => {
+    setInputs((p) => {
+      const n = { ...p };
+      for (const { article, quantity } of items) {
+        const prev = n[article.id]?.trim() && Number.isFinite(num(n[article.id])) ? num(n[article.id]) : 0;
+        n[article.id] = String(Math.round((prev + quantity) * 1000) / 1000);
+      }
+      return n;
+    });
+    const shown = new Set(rows.map((r) => r.article_id));
+    toast.success(fillVars(t('g8a.micro.inventoryDone'), { n: items.length, hidden: items.filter((x) => !shown.has(x.article.id)).length }));
+  };
 
   const apply = async () => {
     if (mode === 'casier' && !bin.trim()) { toast.error(t('stockG8.count.binRequired')); return; }
@@ -132,6 +147,7 @@ export function ReadjustGrid({ companyId, target, defaultMode = 'annule_remplace
             <Input value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
           </div>
           <Button type="submit" variant="outline"><ScanLine /></Button>
+          <MicroficheImportButton companyId={companyId} onImport={importMicrofiche} />
           {search && <Button type="button" variant="ghost" onClick={() => { setDraft(''); setSearch(''); }}><X /></Button>}
         </form>
       </div>

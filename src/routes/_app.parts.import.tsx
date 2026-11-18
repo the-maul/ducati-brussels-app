@@ -36,6 +36,7 @@ import { translateDesignations, designationFields } from '@/modules/articles/tra
 import { applyImport, type ApplyResult } from '@/modules/articles/import/apply';
 import { t, pageTitle } from '@/lib/i18n';
 import { useReadOnly } from '@/lib/auth/read-only-context';
+import { TariffFormatBar, TariffTrackingPanel, recordTariff } from '@/modules/articles/g8/tariffs-panel';
 
 export const Route = createFileRoute('/_app/parts/import')({
   head: () => ({ meta: [{ title: pageTitle('partsImport') }] }),
@@ -78,6 +79,8 @@ function toExisting(a: ArticleLite): ExistingArticle {
     // undefined (colonne pas encore en base) reste undefined : le diff ne propose alors rien.
     discount_group: a.discount_group,
     price_purchase_locked: a.price_purchase_locked ?? false,
+    price_sale_locked: a.price_sale_locked ?? false,
+    designation_locked: a.designation_locked ?? false,
     designation_source: a.designation_source,
   };
 }
@@ -109,6 +112,8 @@ function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Suivi des tarifs (rattrapage G8 du 18/11/2026) : date du tarif inscrite au registre.
+  const [tariffDate, setTariffDate] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Schéma de config présent en base ? (sinon repli local + bannière) ───────
@@ -301,6 +306,15 @@ function ImportPage() {
     try {
       const res = await applyImport(diff, activeCompanyId, (done, total) => setProgress({ done, total }), refIds);
       setResult(res);
+      // G8 « Mise à jour de tarifs » : le tarif installé entre au registre (date, fichier, lignes).
+      const tracked = await recordTariff(activeCompanyId, {
+        supplier_name: fileSupplier.trim() || t('g8a.tariffs.severalSuppliers'), file_name: fileName ?? null,
+        tariff_date: tariffDate || null, status: 'installe', installed_at: new Date().toISOString(),
+        rows_count: diff.length, created_count: res.created, updated_count: res.updated,
+        anomalies_count: summary?.anomalies ?? null,
+      }).catch(() => false);
+      if (!tracked) toast.warning(t('g8a.tariffs.notTracked'));
+      qc.invalidateQueries({ queryKey: ['g8-tariffs', activeCompanyId] });
       // Le référentiel a changé → rafraîchir la liste Pièces & Accessoires
       qc.invalidateQueries({ queryKey: ['articles'] });
       setStep('done');
@@ -363,6 +377,10 @@ function ImportPage() {
                 {supplierNames.map((n) => <option key={n} value={n} />)}
               </datalist>
               <p className="text-[11px] text-muted-foreground">{t('articles.fileSupplierHint')}</p>
+            </div>
+            <div className="mt-3 max-w-xs space-y-1">
+              <Label className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('g8a.tariffs.tariffDate')}</Label>
+              <Input type="date" value={tariffDate} onChange={(e) => setTariffDate(e.target.value)} />
             </div>
           </Card>
 
@@ -450,6 +468,13 @@ function ImportPage() {
                 ))}
               </div>
               <p className="mt-3 text-[12px] text-muted-foreground">{parsed.rows.length.toLocaleString('fr-BE')} ligne(s) détectée(s).</p>
+              {activeCompanyId && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="mb-2 text-[12px] text-muted-foreground">{t('g8a.tariffs.formatHint')}</p>
+                  <TariffFormatBar companyId={activeCompanyId} supplierName={fileSupplier} headers={parsed.headers} mapping={mapping}
+                    onApply={(m) => setMapping(m as ColumnMapping)} />
+                </div>
+              )}
             </Card>
           )}
 
@@ -463,10 +488,31 @@ function ImportPage() {
                   .replace('{total}', translateProgress.total.toLocaleString('fr-BE'))}
               </span>
             )}
+            <Button
+              variant="outline"
+              disabled={busy || readOnly || !activeCompanyId || (!fileName && parsed.rows.length === 0)}
+              onClick={async () => {
+                if (!activeCompanyId) return;
+                const ok = await recordTariff(activeCompanyId, {
+                  supplier_name: fileSupplier.trim() || t('g8a.tariffs.severalSuppliers'), file_name: fileName ?? null,
+                  tariff_date: tariffDate || null, status: 'en_attente', rows_count: parsed.rows.length,
+                }).catch(() => false);
+                if (ok) { toast.success(t('g8a.tariffs.queued')); qc.invalidateQueries({ queryKey: ['g8-tariffs', activeCompanyId] }); }
+                else toast.warning(t('g8a.tariffs.notTracked'));
+              }}
+            >
+              {t('g8a.tariffs.queue')}
+            </Button>
             <Button onClick={analyze} disabled={busy || parsed.rows.length === 0}>
               {busy ? <Loader2 className="animate-spin" /> : <Play />} {t('articles.importAnalyze')}
             </Button>
           </div>
+
+          {activeCompanyId && (
+            <Card title={t('g8a.tariffs.title')}>
+              <TariffTrackingPanel companyId={activeCompanyId} />
+            </Card>
+          )}
         </div>
       )}
 
