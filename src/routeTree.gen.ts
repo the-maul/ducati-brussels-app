@@ -21,6 +21,8 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAccountingRouteImport } from './routes/_app.accounting'
 import { Route as AppAccountingClosureRouteImport } from './routes/_app.accounting-closure'
 import { Route as AppAccountingSepaRouteImport } from './routes/_app.accounting-sepa'
+import { Route as AppAccountingTransferRouteImport } from './routes/_app.accounting-transfer'
+import { Route as AppAccountingAccountsRouteImport } from './routes/_app.accounting-accounts'
 import { Route as AppClientPricingRouteImport } from './routes/_app.client-pricing'
 import { Route as AppClientsRouteImport } from './routes/_app.clients'
 import { Route as AppConsignmentRouteImport } from './routes/_app.consignment'
@@ -190,6 +192,16 @@ const AppAccountingClosureRoute = AppAccountingClosureRouteImport.update({
 const AppAccountingSepaRoute = AppAccountingSepaRouteImport.update({
   id: '/accounting-sepa',
   path: '/accounting-sepa',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountingTransferRoute = AppAccountingTransferRouteImport.update({
+  id: '/accounting-transfer',
+  path: '/accounting-transfer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountingAccountsRoute = AppAccountingAccountsRouteImport.update({
+  id: '/accounting-accounts',
+  path: '/accounting-accounts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientPricingRoute = AppClientPricingRouteImport.update({
@@ -771,6 +783,8 @@ export interface FileRoutesByFullPath {
   '/accounting': typeof AppAccountingRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
+  '/accounting-transfer': typeof AppAccountingTransferRoute
+  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/client-pricing': typeof AppClientPricingRoute
   '/clients': typeof AppClientsRouteWithChildren
   '/consignment': typeof AppConsignmentRoute
@@ -894,6 +908,8 @@ export interface FileRoutesByTo {
   '/accounting': typeof AppAccountingRoute
   '/accounting-closure': typeof AppAccountingClosureRoute
   '/accounting-sepa': typeof AppAccountingSepaRoute
+  '/accounting-transfer': typeof AppAccountingTransferRoute
+  '/accounting-accounts': typeof AppAccountingAccountsRoute
   '/client-pricing': typeof AppClientPricingRoute
   '/consignment': typeof AppConsignmentRoute
   '/dashboard': typeof AppDashboardRoute
@@ -1006,6 +1022,8 @@ export interface FileRoutesById {
   '/_app/accounting': typeof AppAccountingRoute
   '/_app/accounting-closure': typeof AppAccountingClosureRoute
   '/_app/accounting-sepa': typeof AppAccountingSepaRoute
+  '/_app/accounting-transfer': typeof AppAccountingTransferRoute
+  '/_app/accounting-accounts': typeof AppAccountingAccountsRoute
   '/_app/client-pricing': typeof AppClientPricingRoute
   '/_app/clients': typeof AppClientsRouteWithChildren
   '/_app/consignment': typeof AppConsignmentRoute
@@ -1132,6 +1150,8 @@ export interface FileRouteTypes {
     | '/accounting'
     | '/accounting-closure'
     | '/accounting-sepa'
+    | '/accounting-transfer'
+    | '/accounting-accounts'
     | '/client-pricing'
     | '/clients'
     | '/consignment'
@@ -1255,6 +1275,8 @@ export interface FileRouteTypes {
     | '/accounting'
     | '/accounting-closure'
     | '/accounting-sepa'
+    | '/accounting-transfer'
+    | '/accounting-accounts'
     | '/client-pricing'
     | '/consignment'
     | '/dashboard'
@@ -1366,6 +1388,8 @@ export interface FileRouteTypes {
     | '/_app/accounting'
     | '/_app/accounting-closure'
     | '/_app/accounting-sepa'
+    | '/_app/accounting-transfer'
+    | '/_app/accounting-accounts'
     | '/_app/client-pricing'
     | '/_app/clients'
     | '/_app/consignment'
@@ -1577,6 +1601,20 @@ declare module '@tanstack/react-router' {
       path: '/accounting-sepa'
       fullPath: '/accounting-sepa'
       preLoaderRoute: typeof AppAccountingSepaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/accounting-transfer': {
+      id: '/_app/accounting-transfer'
+      path: '/accounting-transfer'
+      fullPath: '/accounting-transfer'
+      preLoaderRoute: typeof AppAccountingTransferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/accounting-accounts': {
+      id: '/_app/accounting-accounts'
+      path: '/accounting-accounts'
+      fullPath: '/accounting-accounts'
+      preLoaderRoute: typeof AppAccountingAccountsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/client-pricing': {
@@ -2667,6 +2705,8 @@ interface AppRouteChildren {
   AppAccountingRoute: typeof AppAccountingRoute
   AppAccountingClosureRoute: typeof AppAccountingClosureRoute
   AppAccountingSepaRoute: typeof AppAccountingSepaRoute
+  AppAccountingTransferRoute: typeof AppAccountingTransferRoute
+  AppAccountingAccountsRoute: typeof AppAccountingAccountsRoute
   AppClientPricingRoute: typeof AppClientPricingRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConsignmentRoute: typeof AppConsignmentRoute
@@ -2692,6 +2732,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountingRoute: AppAccountingRoute,
   AppAccountingClosureRoute: AppAccountingClosureRoute,
   AppAccountingSepaRoute: AppAccountingSepaRoute,
+  AppAccountingTransferRoute: AppAccountingTransferRoute,
+  AppAccountingAccountsRoute: AppAccountingAccountsRoute,
   AppClientPricingRoute: AppClientPricingRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConsignmentRoute: AppConsignmentRoute,

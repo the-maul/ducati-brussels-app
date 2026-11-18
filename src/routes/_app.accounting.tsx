@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, FileDown, RefreshCw } from 'lucide-react';
+import { Loader2, FileDown, RefreshCw, Send, Settings2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,9 @@ function AccountingPage() {
         title={t('accounting.title')}
         description={t('accounting.subtitle')}
         actions={<div className="flex gap-2">
+          {/* Transfert EBP identique à G8 : voie officielle vers le comptable tant que Falco n'est pas branché (18/11). */}
+          <Button variant="outline" onClick={() => navigate({ to: '/accounting-transfer' })}><Send className="size-4" /> {t('ebp.title')}</Button>
+          <Button variant="outline" onClick={() => navigate({ to: '/accounting-accounts' })}><Settings2 className="size-4" /> {t('ebp.openAccounts')}</Button>
           <Button variant="outline" onClick={() => navigate({ to: '/accounting-sepa' })}>{t('accounting.sepa')}</Button>
           <Button variant="outline" onClick={() => navigate({ to: '/accounting-closure' })}>{t('accounting.closure')}</Button>
           <Button variant="outline" onClick={() => gen.mutate()} disabled={gen.isPending || !journal.data?.length}>{gen.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw className="size-4" />} {t('accounting.generate')}</Button>
