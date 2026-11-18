@@ -17,13 +17,24 @@ import { loadLegalMentions } from './document-pdf-data';
 import { formatCompanyNumber } from './invoice-legal';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
+import { normalizePrintOptions, titleKey, printableLines, type PrintOptions } from './print-options';
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 const dmy = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('fr-BE') : '');
 
-export async function printDocument(full: DocumentFull, companyName: string): Promise<void> {
-  const { doc, lines } = full;
+/** Un document de vente imprimé : son corps HTML (sans <html>), sa langue et son titre. */
+type PrintSection = { body: string; locale: string; title: string };
+
+/**
+ * Corps imprimable d'un document, options d'édition G8 comprises (lot du 18/11/2026) : sans
+ * références, sans règlements, preuve d'achat sans prix, totaux uniquement, recto-verso, titre
+ * Proforma / Devis / Estimation ou Réservation / Commande.
+ */
+async function buildPrintSection(full: DocumentFull, companyName: string, options?: Partial<PrintOptions> | null): Promise<PrintSection> {
+  const { doc } = full;
+  const opts = normalizePrintOptions(doc.doc_type, options);
+  const lines = printableLines(full.lines, opts);
 
   // Données société, client, véhicule, règlements + détection occasion (TVA marge).
   const [{ data: company }, { data: contact }, { data: payments }, { data: vehicle }, { data: methods }] = await Promise.all([
@@ -43,8 +54,10 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   // mêmes libellés que le PDF (`salesPdf.*`), pas ceux de l'écran de l'utilisateur.
   const locale = contactLocale(c);
   const t = (key: string) => tIn(locale, key);
-  const typeLabel = t(`sales.type_${doc.doc_type}`);
+  const tk = titleKey(opts.title);
+  const typeLabel = tk ? t(tk) : t(`sales.type_${doc.doc_type}`);
   const title = `${typeLabel} ${doc.number ?? ''}`.trim();
+  const price = (s: string) => (opts.noPrices ? '' : s);
 
   // Vente en régime de la marge (M-89) : `documents.vat_scheme` ; repli sur la détection par
   // article O tant que la colonne n'existe pas (migration 20261103160000 non posée).
@@ -86,14 +99,14 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     const noVat = doc.tax_exempt || isMarge;   // marge : aucune TVA affichée, ni taux ni montant
     return `
     <tr>
-      <td>${esc(l.reference ?? '')}</td>
+      <td>${opts.noReferences ? '' : esc(l.reference ?? '')}</td>
       <td>${esc(designationOf(l))}</td>
       <td class="r">${qty}</td>
-      <td class="r">${eur(Number(l.unit_price_ht))}</td>
-      <td class="r">${eur(Number(l.unit_price_ht) * (1 + (noVat ? 0 : Number(l.vat_rate)) / 100))}</td>
-      <td class="r">${esc(Number(l.discount_pct || 0))}</td>
-      <td class="r">${eur(Number(l.line_ttc))}</td>
-      <td class="r">${isMarge ? '' : doc.tax_exempt ? '0' : esc(Number(l.vat_rate))}</td>
+      <td class="r">${price(eur(Number(l.unit_price_ht)))}</td>
+      <td class="r">${price(eur(Number(l.unit_price_ht) * (1 + (noVat ? 0 : Number(l.vat_rate)) / 100)))}</td>
+      <td class="r">${price(esc(Number(l.discount_pct || 0)))}</td>
+      <td class="r">${price(eur(Number(l.line_ttc)))}</td>
+      <td class="r">${opts.noPrices || isMarge ? '' : doc.tax_exempt ? '0' : esc(Number(l.vat_rate))}</td>
     </tr>`;
   }).join('');
 
@@ -113,9 +126,9 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
       ${[0, 1, 2].map((c) => `<div>${vehLines.slice(c * perCol, (c + 1) * perCol).map(esc).join('<br>')}</div>`).join('')}
     </div>` : '';
 
-  const brutTtc = lines.reduce((s, l) => s + Number(l.line_ttc), 0);
+  const brutTtc = full.lines.reduce((s, l) => s + Number(l.line_ttc), 0);
   const reste = Number(doc.total_ttc) - Number(doc.paid_amount);
-  const totalsBox = `
+  const totalsBox = opts.noPrices ? '' : `
     <table class="totals">
       <tr><td>${esc(t('salesPdf.grossTtc'))}</td><td class="r">${eur(brutTtc)}</td></tr>
       ${isMarge ? '' : `<tr><td>${esc(t('salesPdf.netHt'))}</td><td class="r">${eur(Number(doc.total_ht))}</td></tr>
@@ -126,12 +139,12 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
 
   const payRows = (payments ?? []).filter((p) => Number(p.amount) !== 0).map((p) => `
     <tr><td>${dmy(p.paid_at)}</td><td>${esc((p.note as string) && String(p.note).toLowerCase().includes('acompte') ? `${t('salesPdf.deposit')} ` : '')}${esc(methodLabel.get(p.method) ?? p.method)}</td><td class="r">${eur(Number(p.amount))}</td></tr>`).join('');
-  const payBlock = payRows ? `<table class="pays"><tbody>${payRows}</tbody></table>` : '';
+  const payBlock = payRows && !opts.noPayments && !opts.noPrices ? `<table class="pays"><tbody>${payRows}</tbody></table>` : '';
 
   // Ventilation de la TVA par taux (mention obligatoire du ticket et de la facture) : même calcul
   // que le PDF (`vatBreakdown`), lignes texte / vides ignorées, détaxe = 0 %.
-  const vatRows = isMarge ? [] : vatBreakdown(
-    lines.map((l) => ({ lineType: l.line_type, quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), discountPct: Number(l.discount_pct || 0), vatRate: Number(l.vat_rate) })),
+  const vatRows = isMarge || opts.noPrices ? [] : vatBreakdown(
+    full.lines.map((l) => ({ lineType: l.line_type, quantity: Number(l.quantity), unitPriceHt: Number(l.unit_price_ht), discountPct: Number(l.discount_pct || 0), vatRate: Number(l.vat_rate) })),
     {
       taxExempt: !!doc.tax_exempt, globalDiscountPct: Number(doc.global_discount_pct), globalDiscountAmount: Number(doc.global_discount_amount),
       shippingHt: Number(doc.shipping_ht), shippingTaxed: doc.shipping_taxed !== false, shippingVatRate: Number(doc.shipping_vat_rate),
@@ -151,12 +164,55 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
     + (legal ?? []).map((m) => `<p class="mention">${esc(m)}</p>`).join('');
   const footerText = co.invoice_footer ? `<p class="footer-note">${esc(co.invoice_footer)}</p>` : '';
   const cgvPage = co.cgv_text
-    ? `<div class="cgv"><h3>${esc(t('salesPdf.cgvTitle'))}</h3><div>${esc(co.cgv_text)}</div><p class="signature">${esc(t('salesPdf.cgvSignature'))}</p></div>`
+    ? `<div class="cgv${opts.duplex ? ' verso' : ''}"><h3>${esc(t('salesPdf.cgvTitle'))}</h3><div>${esc(co.cgv_text)}</div><p class="signature">${esc(t('salesPdf.cgvSignature'))}</p></div>`
     : '';
   const barcode = doc.number ? code128Svg(String(doc.number)) : '';
 
-  const html = `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>
+  const body = `
+  <div class="top">
+    <div class="co">
+      ${co.logo_url ? `<img src="${esc(co.logo_url)}" alt="${esc(companyName)}" style="max-height:96px;max-width:300px;display:block">` : `<div class="brand">${esc(companyName)}</div>`}
+      <div class="sub">${[esc(co.address), esc([co.zip, co.city].filter(Boolean).join(' ')),
+        co.phone ? esc(co.phone) : '', co.email ? esc(co.email) : '',
+        co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `${esc(t('salesPdf.vat'))} : ${esc(co.vat_number)}` : '',
+        co.company_number ? `${esc(t('salesPdf.companyNumber'))} : ${esc(formatCompanyNumber(String(co.company_number)))}${co.rpm ? ` · ${esc(co.rpm)}` : ''}` : '',
+        co.iban ? `IBAN : ${esc(co.iban)}` : ''].filter(Boolean).join('<br>')}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="cli">${clientBox || esc(t('sales.client'))}</div>
+      <div class="bc">${barcode}</div>
+    </div>
+  </div>
+
+  <div class="doctitle"><span class="type">${esc(typeLabel)}</span><span class="num">N° ${esc(doc.number ?? '')}</span></div>
+
+  <div class="band">
+    <div>${esc(typeLabel.toUpperCase())}<b>${esc(doc.number ?? '')}</b></div>
+    <div>${esc(t('salesPdf.date'))}<b>${dmy(doc.issue_date)}</b></div>
+    <div>${esc(t('salesPdf.time'))}<b>${esc(heure)}</b></div>
+    <div>${esc(t('salesPdf.clientNo'))}<b>${esc(numClient)}</b></div>
+    <div>${esc(t('salesPdf.condition'))}<b>${esc(condition)}</b></div>
+    <div>${esc(t('salesPdf.dueDate'))}<b>${esc(echeance)}</b></div>
+    <div>${esc(t('salesPdf.operator'))}<b>${esc(doc.operator ?? '')}</b></div>
+  </div>
+
+  ${opts.totalsOnly ? '' : `<table class="lines">
+    <thead><tr><th>${esc(t('salesPdf.colRef'))}</th><th>${esc(t('salesPdf.colDesignation'))}</th><th class="r">${esc(t('salesPdf.colQty'))}</th><th class="r">${esc(t('salesPdf.colPuHt'))}</th><th class="r">${esc(t('salesPdf.colPuTtc'))}</th><th class="r">${esc(t('salesPdf.colDiscount'))}</th><th class="r">${esc(t('salesPdf.colAmountTtc'))}</th><th class="r">${esc(t('salesPdf.colVat'))}</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`}
+  ${vehBlock}
+
+  <div class="bottom">
+    <div style="max-width:55%">${vatBlock}${payBlock}${margeMention}${footerText}</div>
+    ${totalsBox}
+  </div>
+  ${cgvPage}
+`;
+  return { body, locale, title };
+}
+
+/** Styles communs (une seule feuille pour un ou plusieurs documents). */
+const PRINT_STYLE = `<style>
   *{box-sizing:border-box}
   body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:14mm;font-size:12px;line-height:1.4}
   .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
@@ -193,55 +249,43 @@ export async function printDocument(full: DocumentFull, companyName: string): Pr
   .mention{margin-top:12px;font-size:10px;color:#444;font-style:italic}
   .footer-note{margin-top:8px;font-size:11px;color:#333}
   .cgv{page-break-before:always;font-size:10px;color:#333}
+  .cgv.verso{break-before:left;page-break-before:left}
+  section.doc.next{break-before:page;page-break-before:always}
+  section.doc.next.duplex{break-before:right;page-break-before:right}
   .cgv div{white-space:pre-wrap}
   .cgv .signature{margin-top:16px;font-weight:bold}
   @media print{body{margin:12mm}}
-</style></head>
-<body>
-  <div class="top">
-    <div class="co">
-      ${co.logo_url ? `<img src="${esc(co.logo_url)}" alt="${esc(companyName)}" style="max-height:96px;max-width:300px;display:block">` : `<div class="brand">${esc(companyName)}</div>`}
-      <div class="sub">${[esc(co.address), esc([co.zip, co.city].filter(Boolean).join(' ')),
-        co.phone ? esc(co.phone) : '', co.email ? esc(co.email) : '',
-        co.legal_name ? esc(co.legal_name) : '', co.vat_number ? `${esc(t('salesPdf.vat'))} : ${esc(co.vat_number)}` : '',
-        co.company_number ? `${esc(t('salesPdf.companyNumber'))} : ${esc(formatCompanyNumber(String(co.company_number)))}${co.rpm ? ` · ${esc(co.rpm)}` : ''}` : '',
-        co.iban ? `IBAN : ${esc(co.iban)}` : ''].filter(Boolean).join('<br>')}</div>
-    </div>
-    <div style="text-align:right">
-      <div class="cli">${clientBox || esc(t('sales.client'))}</div>
-      <div class="bc">${barcode}</div>
-    </div>
-  </div>
+</style>`;
 
-  <div class="doctitle"><span class="type">${esc(typeLabel)}</span><span class="num">N° ${esc(doc.number ?? '')}</span></div>
-
-  <div class="band">
-    <div>${esc(typeLabel.toUpperCase())}<b>${esc(doc.number ?? '')}</b></div>
-    <div>${esc(t('salesPdf.date'))}<b>${dmy(doc.issue_date)}</b></div>
-    <div>${esc(t('salesPdf.time'))}<b>${esc(heure)}</b></div>
-    <div>${esc(t('salesPdf.clientNo'))}<b>${esc(numClient)}</b></div>
-    <div>${esc(t('salesPdf.condition'))}<b>${esc(condition)}</b></div>
-    <div>${esc(t('salesPdf.dueDate'))}<b>${esc(echeance)}</b></div>
-    <div>${esc(t('salesPdf.operator'))}<b>${esc(doc.operator ?? '')}</b></div>
-  </div>
-
-  <table class="lines">
-    <thead><tr><th>${esc(t('salesPdf.colRef'))}</th><th>${esc(t('salesPdf.colDesignation'))}</th><th class="r">${esc(t('salesPdf.colQty'))}</th><th class="r">${esc(t('salesPdf.colPuHt'))}</th><th class="r">${esc(t('salesPdf.colPuTtc'))}</th><th class="r">${esc(t('salesPdf.colDiscount'))}</th><th class="r">${esc(t('salesPdf.colAmountTtc'))}</th><th class="r">${esc(t('salesPdf.colVat'))}</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  ${vehBlock}
-
-  <div class="bottom">
-    <div style="max-width:55%">${vatBlock}${payBlock}${margeMention}${footerText}</div>
-    ${totalsBox}
-  </div>
-  ${cgvPage}
+function openPrintWindow(sections: PrintSection[], duplex: boolean): void {
+  if (!sections.length) return;
+  // Plusieurs documents : chacun commence sur une nouvelle page (sur un recto en recto-verso).
+  const body = sections.map((s, i) => `<section class="doc${i > 0 ? ' next' : ''}${duplex ? ' duplex' : ''}">${s.body}</section>`).join('');
+  const title = sections.length === 1 ? sections[0].title : `${sections[0].title} …`;
+  const html = `<!doctype html><html lang="${sections[0].locale}"><head><meta charset="utf-8"><title>${esc(title)}</title>
+${PRINT_STYLE}</head>
+<body>${body}
   <script>window.onload=function(){window.print();};</script>
 </body></html>`;
-
   const w = window.open('', '_blank', 'width=900,height=1000');
   if (!w) return;
   w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+/** Imprime un document (options d'édition G8 facultatives). */
+export async function printDocument(full: DocumentFull, companyName: string, options?: Partial<PrintOptions> | null): Promise<void> {
+  const section = await buildPrintSection(full, companyName, options);
+  openPrintWindow([section], !!options?.duplex);
+}
+
+/**
+ * Imprime plusieurs documents en une seule fois (G8 « Imprimer plusieurs factures », « Imprimer par
+ * numéro / par date ») : un seul aperçu, un document par page (ou par recto en recto-verso).
+ */
+export async function printDocuments(fulls: DocumentFull[], companyName: string, options?: Partial<PrintOptions> | null): Promise<void> {
+  const sections: PrintSection[] = [];
+  for (const f of fulls) sections.push(await buildPrintSection(f, companyName, options));
+  openPrintWindow(sections, !!options?.duplex);
 }

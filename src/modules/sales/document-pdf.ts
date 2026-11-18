@@ -27,6 +27,7 @@ import { lineHasAmount, type LineType } from './write-api';
  */
 const trIn = (locale: Locale | undefined) => (key: string) => tIn(locale ?? DEFAULT_LOCALE, key);
 import { PDF_COLORS, PDF_FONT, PDF_PAGE, type Rgb } from './pdf-print-style';
+import { DEFAULT_PRINT_OPTIONS, blankPageBeforeCgv, type PrintOptions } from './print-options';
 
 // ---------------------------------------------------------------------------------------------
 // Données d'entrée
@@ -111,6 +112,8 @@ export type SalesPdfInput = {
    * AR 4, facture d'acompte, acomptes déduits, détaxe. Fournies, elles remplacent la mention détaxe seule.
    */
   legalMentions?: string[] | null;
+  /** Options d'édition G8 (sans références, sans règlements, sans prix, totaux seuls, recto-verso). */
+  printOptions?: Partial<PrintOptions> | null;
 };
 
 export type VatPied = {
@@ -307,6 +310,9 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const right = W - M;
   const tr = trIn(d.locale);
   const typeLabel = d.titleOverride || tr(`sales.type_${d.docType}`);
+  const po: PrintOptions = { ...DEFAULT_PRINT_OPTIONS, ...(d.printOptions ?? {}) };
+  const shownLines = po.totalsOnly ? [] : d.lines;
+  const shownPayments = po.noPayments || po.noPrices ? [] : d.payments;
   const color = (c: Rgb) => doc.setTextColor(c[0], c[1], c[2]);
   const draw = (c: Rgb) => doc.setDrawColor(c[0], c[1], c[2]);
   const fill = (c: Rgb) => doc.setFillColor(c[0], c[1], c[2]);
@@ -408,10 +414,10 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   };
   const newPage = () => { doc.addPage(); y = M; headerRow(); };
   const ensure = (h: number) => { if (y + h > bottomLimit) newPage(); };
-  headerRow();
+  if (shownLines.length) headerRow();
 
   let zebra = false;
-  for (const l of d.lines) {
+  for (const l of shownLines) {
     if (l.lineType === 'vide') { ensure(LH); y += LH; continue; }
     if (l.lineType === 'texte') {
       font(PDF_FONT.body, 'italic'); color(PDF_COLORS.ink);
@@ -424,7 +430,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     const declined = l.accepted === false;
     const designation = declined ? `${l.designation ?? ''} (${tr('checkup.pdfDeferred')})` : (l.designation ?? '');
     const desLines = doc.splitTextToSize(designation, COLS[1].w - 2) as string[];
-    const refLines = doc.splitTextToSize(l.reference ?? '', COLS[0].w - 2) as string[];
+    const refLines = doc.splitTextToSize(po.noReferences ? '' : l.reference ?? '', COLS[0].w - 2) as string[];
     // Vignette de la photo du check-up : sous la désignation, 22 mm de large au plus.
     const thumb = l.photo ? (() => { const k = Math.min(22 / l.photo.w, 16 / l.photo.h); return { w: l.photo.w * k, h: l.photo.h * k }; })() : null;
     const textH = Math.max(desLines.length, refLines.length, 1) * LH;
@@ -435,9 +441,11 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     // Régime de la marge (M-89) : aucune TVA affichée, ni taux ni montant (art. 58 §4 CTVA).
     const vat = d.taxExempt || d.isMarge ? 0 : Number(l.vatRate) || 0;
     const qty = num2(l.quantity) + (l.lineType === 'main_oeuvre' ? ` ${tr('sales.hoursUnit')}` : '');
+    // Preuve d'achat / BL non chiffré (G8) : quantités seules, aucune valeur.
+    const pv = (txt: string) => (po.noPrices ? '' : txt);
     const cells = [
-      refLines, desLines, [qty], [eurPdf(l.unitPriceHt)], [eurPdf(Number(l.unitPriceHt) * (1 + vat / 100))],
-      [String(Number(l.discountPct || 0)).replace('.', ',')], [eurPdf(declined ? 0 : l.lineTtc)], [d.isMarge ? '' : String(vat).replace('.', ',')],
+      refLines, desLines, [qty], [pv(eurPdf(l.unitPriceHt))], [pv(eurPdf(Number(l.unitPriceHt) * (1 + vat / 100)))],
+      [pv(String(Number(l.discountPct || 0)).replace('.', ','))], [pv(eurPdf(declined ? 0 : l.lineTtc))], [d.isMarge || po.noPrices ? '' : String(vat).replace('.', ',')],
     ];
     color(declined ? PDF_COLORS.muted : PDF_COLORS.ink);
     let x = M;
@@ -470,10 +478,10 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
 
   // ---- Bas de document : TVA + règlements (gauche), totaux (droite) --------------------------
   // Régime de la marge : pas de ventilation TVA, pas de ligne HT ni TVA (prix TTC = prix convenu).
-  const vatRows = d.isMarge ? [] : vatBreakdown(d.lines, { ...d.pied, taxExempt: d.taxExempt });
+  const vatRows = d.isMarge || po.noPrices ? [] : vatBreakdown(d.lines, { ...d.pied, taxExempt: d.taxExempt });
   const reste = r2(d.totals.ttc - d.totals.paid);
   const brutTtc = d.lines.reduce((s, l) => s + (lineHasAmount({ line_type: l.lineType as LineType }) ? Number(l.lineTtc) || 0 : 0), 0);
-  const totalRows: [string, string, boolean][] = [
+  const totalRows: [string, string, boolean][] = po.noPrices ? [] : [
     [tr('salesPdf.grossTtc'), eurPdf(brutTtc), false],
     ...(d.isMarge ? [] : [
       [tr('salesPdf.netHt'), eurPdf(d.totals.ht), false] as [string, string, boolean],
@@ -483,7 +491,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
     ...(d.totals.paid !== 0 ? [[tr('salesPdf.paid'), eurPdf(d.totals.paid), false] as [string, string, boolean]] : []),
     [tr('salesPdf.due'), eurPdf(reste), true],
   ];
-  const leftBlockH = 6 + (vatRows.length + 1) * 4 + (d.payments.length ? 6 + d.payments.length * 3.8 : 0);
+  const leftBlockH = 6 + (vatRows.length + 1) * 4 + (shownPayments.length ? 6 + shownPayments.length * 3.8 : 0);
   const totalsH = totalRows.length * 6 + 2;
   ensure(Math.max(leftBlockH, totalsH) + 6);
   y += 5;
@@ -491,7 +499,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
 
   // Détail TVA (jamais sur un document en régime de la marge : la mention légale le remplace)
   const tvX = M, tvW = 92;
-  if (!d.isMarge) {
+  if (!d.isMarge && !po.noPrices) {
     font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
     doc.text(tr('salesPdf.vatRate'), tvX + 1, y + 3);
     doc.text(tr('salesPdf.vatBase'), tvX + 55, y + 3, { align: 'right' });
@@ -509,13 +517,13 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   }
 
   // Règlements / acomptes
-  if (d.payments.length) {
+  if (shownPayments.length) {
     y += 2;
     font(PDF_FONT.tiny, 'bold'); color(PDF_COLORS.muted);
     doc.text(tr('salesPdf.payments'), tvX + 1, y + 3);
     y += 4.5;
     font(PDF_FONT.small); color(PDF_COLORS.ink);
-    for (const p of d.payments) {
+    for (const p of shownPayments) {
       doc.text(dmy(p.date), tvX + 1, y + 3);
       doc.text(`${p.label}${p.received ? '' : ` (${tr('salesPdf.expected')})`}`, tvX + 20, y + 3);
       doc.text(eurPdf(p.amount), tvX + tvW - 1, y + 3, { align: 'right' });
@@ -528,7 +536,7 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
   const tX = right - 72, tW = 72;
   let ty = blockTop;
   draw(PDF_COLORS.frame); doc.setLineWidth(0.3);
-  doc.roundedRect(tX, ty, tW, totalRows.length * 6, 1.5, 1.5);
+  if (totalRows.length) doc.roundedRect(tX, ty, tW, totalRows.length * 6, 1.5, 1.5);
   totalRows.forEach(([label, value, strong], i) => {
     if (strong) { fill(PDF_COLORS.zebra); doc.rect(tX + 0.3, ty + 0.3, tW - 0.6, 5.4, 'F'); }
     font(PDF_FONT.body, strong ? 'bold' : 'normal'); color(PDF_COLORS.ink);
@@ -595,6 +603,8 @@ function drawDocument(doc: Pdf, d: SalesPdfInput): void {
 
   // ---- CGV au verso ------------------------------------------------------------------------
   if (co.cgv) {
+    // Recto-verso : les CGV tombent au verso (page paire), quitte à laisser une page blanche.
+    if (blankPageBeforeCgv(doc.getNumberOfPages(), po.duplex)) doc.addPage();
     doc.addPage(); y = M;
     font(PDF_FONT.body + 1, 'bold'); color(PDF_COLORS.ink);
     doc.text(tr('salesPdf.cgvTitle'), M, y + 4); y += 8;

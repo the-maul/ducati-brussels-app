@@ -354,6 +354,8 @@ export async function createDocument(p: {
    * (migration 20261118110000), une seule facture par OR et l'OR passe « facturé » à la validation.
    */
   repairOrderId?: string | null;
+  /** Condition de règlement imprimée (facturation groupée des BL, G8 : appliquée à toutes les factures générées). */
+  paymentCondition?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
 
@@ -385,6 +387,7 @@ export async function createDocument(p: {
     // Colonne posée par la migration 20261103170000 : envoyée seulement quand elle sert (un ticket
     // est rattaché en base par le trigger), pour que la vente marche aussi avant la migration.
     ...(p.cashSessionId ? { cash_session_id: p.cashSessionId } : {}),
+    ...(p.paymentCondition ? { condition_reglement: p.paymentCondition } : {}),
     ...headerColumns({ ...p, pied, marginPurchasePrice: mpp }),
   };
   // Facture d'un OR : colonne `repair_order_id` (hors types.ts), ajoutée hors typage.
@@ -624,7 +627,7 @@ export const CONVERSIONS: Record<string, readonly string[]> = {
 };
 
 /** Reconstruit les paramètres de pied à partir d'une ligne `documents`. */
-function docRowToPied(d: DocumentRow): PiedInput {
+export function docRowToPied(d: DocumentRow): PiedInput {
   return {
     priceMode: (d.price_mode as 'ht' | 'ttc') ?? 'ttc', taxExempt: !!d.tax_exempt, vatScheme: docVatScheme(d),
     globalDiscountPct: Number(d.global_discount_pct), globalDiscountAmount: Number(d.global_discount_amount),
@@ -1031,6 +1034,28 @@ export async function duplicateDocument(id: string): Promise<string> {
     issueDate: today, dueDate: null, status: 'brouillon', notes: doc.notes,
     lines: lineInputs, pied: docRowToPied(doc),
   });
+}
+
+/**
+ * « Refacturer » depuis un avoir (G8 Consultation ventes : un avoir sélectionné propose
+ * Refacturer) : nouvelle facture en BROUILLON, lignes de l'avoir remises en positif, même client,
+ * même moto, même pied ; à relire puis valider (le numéro n'est pris qu'à la validation).
+ * Retourne l'id du brouillon. Lot G8 du 18/11/2026.
+ */
+export async function rebillFromCreditNote(creditNoteId: string): Promise<string> {
+  const { doc, lines } = await getDocumentFull(creditNoteId);
+  if (doc.doc_type !== 'AVO') throw new Error(t('docList.rebillNotCredit'));
+  const lineInputs: LineInput[] = lines.map((l) => {
+    const li = rowToLineInput(l);
+    return { ...li, quantity: lineHasAmount(li) ? Math.abs(li.quantity) : 0 };
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const id = await createDocument({
+    companyId: doc.company_id, docType: 'FAC', contactId: doc.contact_id, vehicleId: doc.vehicle_id,
+    issueDate: today, dueDate: null, status: 'brouillon', notes: doc.notes,
+    lines: lineInputs, pied: { ...docRowToPied(doc), forcedTtc: null }, sourceDocumentId: creditNoteId,
+  });
+  return id;
 }
 
 /**

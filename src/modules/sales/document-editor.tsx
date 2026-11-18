@@ -58,6 +58,7 @@ import { useCustomerPricer, contactOpenBalance, type PricingContact } from './cu
 import { isBlockedSale, clientPriceDefaults, creditCheck, creditRefuses, dueDateFromTerms, type SaleClientFlags } from './customer-pricing';
 import { ClientSaleBanners } from './client-sale-banners';
 import { TariffPriceDialog } from './tariff-price-dialog';
+import { PendingDocumentsDialog } from './pending-documents-dialog';
 
 const DOC_TYPES = EDITOR_DOC_TYPES;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -113,6 +114,8 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     if (companyDefaultType && !typeTouched.current) setDocTypeState(resolveInitialDocType({ companyDefault: companyDefaultType }));
   }, [companyDefaultType]);
   const [contact, setContact] = useState<Contact | null>(null);
+  // G8 « Documents en attente » : au choix du client d'un nouveau document (lot du 18/11/2026).
+  const [pendingFor, setPendingFor] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   // Tarifs clients (rattrapage G8 du 18/11) : tarif commun, regles du client, paliers, dates.
   const pricer = useCustomerPricer(companyId, contact as PricingContact | null);
@@ -383,6 +386,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
 
   return (
     <div className="space-y-4">
+      {pendingFor && <PendingDocumentsDialog contactId={pendingFor.id} contactName={contactDisplayName(pendingFor)} onClose={() => setPendingFor(null)} />}
       {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       {/* En-tête */}
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -398,7 +402,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
               <span className="truncate">{contactDisplayName(contact)}</span>
               <button type="button" onClick={() => setContact(null)} className="ml-auto text-muted-foreground hover:text-danger"><X className="size-4" /></button>
             </div>
-          ) : <ContactPicker companyId={companyId} onPick={setContact} />}
+          ) : <ContactPicker companyId={companyId} onPick={(c) => { setContact(c); if (!draft) setPendingFor(c); }} />}
         </Field>
         {/* Moto du document (mission 08, carte 2) : motos du client, sinon recherche dans le parc. */}
         <Field label={t('sales.vehicle')}>

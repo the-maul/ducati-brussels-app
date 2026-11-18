@@ -81,6 +81,9 @@ import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesDocumentIdRouteImport } from './routes/_app.sales.$documentId'
 import { Route as AppSalesBalancesRouteImport } from './routes/_app.sales.balances'
 import { Route as AppSalesReceivablesRouteImport } from './routes/_app.sales.receivables'
+import { Route as AppSalesInvoicesRouteImport } from './routes/_app.sales.invoices'
+import { Route as AppSalesBlInvoicingRouteImport } from './routes/_app.sales.bl-invoicing'
+import { Route as AppSalesClientDocumentsRouteImport } from './routes/_app.sales.client-documents'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesWebOrdersRouteImport } from './routes/_app.sales.web-orders'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
@@ -492,6 +495,19 @@ const AppSalesBalancesRoute = AppSalesBalancesRouteImport.update({
 const AppSalesReceivablesRoute = AppSalesReceivablesRouteImport.update({
   id: '/receivables',
   path: '/receivables',
+const AppSalesInvoicesRoute = AppSalesInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => AppSalesRoute,
+} as any)
+const AppSalesBlInvoicingRoute = AppSalesBlInvoicingRouteImport.update({
+  id: '/bl-invoicing',
+  path: '/bl-invoicing',
+  getParentRoute: () => AppSalesRoute,
+} as any)
+const AppSalesClientDocumentsRoute = AppSalesClientDocumentsRouteImport.update({
+  id: '/client-documents',
+  path: '/client-documents',
   getParentRoute: () => AppSalesRoute,
 } as any)
 const AppSalesNewRoute = AppSalesNewRouteImport.update({
@@ -837,6 +853,9 @@ export interface FileRoutesByFullPath {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/receivables': typeof AppSalesReceivablesRoute
+  '/sales/invoices': typeof AppSalesInvoicesRoute
+  '/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
+  '/sales/client-documents': typeof AppSalesClientDocumentsRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
@@ -949,6 +968,9 @@ export interface FileRoutesByTo {
   '/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/sales/balances': typeof AppSalesBalancesRoute
   '/sales/receivables': typeof AppSalesReceivablesRoute
+  '/sales/invoices': typeof AppSalesInvoicesRoute
+  '/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
+  '/sales/client-documents': typeof AppSalesClientDocumentsRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/settings/app-client': typeof AppSettingsAppClientRoute
@@ -1076,6 +1098,9 @@ export interface FileRoutesById {
   '/_app/sales/$documentId': typeof AppSalesDocumentIdRoute
   '/_app/sales/balances': typeof AppSalesBalancesRoute
   '/_app/sales/receivables': typeof AppSalesReceivablesRoute
+  '/_app/sales/invoices': typeof AppSalesInvoicesRoute
+  '/_app/sales/bl-invoicing': typeof AppSalesBlInvoicingRoute
+  '/_app/sales/client-documents': typeof AppSalesClientDocumentsRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/web-orders': typeof AppSalesWebOrdersRoute
   '/_app/settings/app-client': typeof AppSettingsAppClientRoute
@@ -1204,6 +1229,9 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/balances'
     | '/sales/receivables'
+    | '/sales/invoices'
+    | '/sales/bl-invoicing'
+    | '/sales/client-documents'
     | '/sales/new'
     | '/sales/web-orders'
     | '/settings/app-client'
@@ -1316,6 +1344,9 @@ export interface FileRouteTypes {
     | '/sales/$documentId'
     | '/sales/balances'
     | '/sales/receivables'
+    | '/sales/invoices'
+    | '/sales/bl-invoicing'
+    | '/sales/client-documents'
     | '/sales/new'
     | '/sales/web-orders'
     | '/settings/app-client'
@@ -1442,6 +1473,9 @@ export interface FileRouteTypes {
     | '/_app/sales/$documentId'
     | '/_app/sales/balances'
     | '/_app/sales/receivables'
+    | '/_app/sales/invoices'
+    | '/_app/sales/bl-invoicing'
+    | '/_app/sales/client-documents'
     | '/_app/sales/new'
     | '/_app/sales/web-orders'
     | '/_app/settings/app-client'
@@ -2021,6 +2055,25 @@ declare module '@tanstack/react-router' {
       path: '/receivables'
       fullPath: '/sales/receivables'
       preLoaderRoute: typeof AppSalesReceivablesRouteImport
+    '/_app/sales/invoices': {
+      id: '/_app/sales/invoices'
+      path: '/invoices'
+      fullPath: '/sales/invoices'
+      preLoaderRoute: typeof AppSalesInvoicesRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
+    '/_app/sales/bl-invoicing': {
+      id: '/_app/sales/bl-invoicing'
+      path: '/bl-invoicing'
+      fullPath: '/sales/bl-invoicing'
+      preLoaderRoute: typeof AppSalesBlInvoicingRouteImport
+      parentRoute: typeof AppSalesRoute
+    }
+    '/_app/sales/client-documents': {
+      id: '/_app/sales/client-documents'
+      path: '/client-documents'
+      fullPath: '/sales/client-documents'
+      preLoaderRoute: typeof AppSalesClientDocumentsRouteImport
       parentRoute: typeof AppSalesRoute
     }
     '/_app/sales/new': {
@@ -2540,6 +2593,9 @@ interface AppSalesRouteChildren {
   AppSalesDocumentIdRoute: typeof AppSalesDocumentIdRoute
   AppSalesBalancesRoute: typeof AppSalesBalancesRoute
   AppSalesReceivablesRoute: typeof AppSalesReceivablesRoute
+  AppSalesInvoicesRoute: typeof AppSalesInvoicesRoute
+  AppSalesBlInvoicingRoute: typeof AppSalesBlInvoicingRoute
+  AppSalesClientDocumentsRoute: typeof AppSalesClientDocumentsRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesWebOrdersRoute: typeof AppSalesWebOrdersRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
@@ -2550,6 +2606,9 @@ const AppSalesRouteChildren: AppSalesRouteChildren = {
   AppSalesDocumentIdRoute: AppSalesDocumentIdRoute,
   AppSalesBalancesRoute: AppSalesBalancesRoute,
   AppSalesReceivablesRoute: AppSalesReceivablesRoute,
+  AppSalesInvoicesRoute: AppSalesInvoicesRoute,
+  AppSalesBlInvoicingRoute: AppSalesBlInvoicingRoute,
+  AppSalesClientDocumentsRoute: AppSalesClientDocumentsRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesWebOrdersRoute: AppSalesWebOrdersRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
