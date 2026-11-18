@@ -16,7 +16,7 @@ import { test, expect, describe, mock } from 'bun:test';
 // ---------------------------------------------------------------------------------------------
 type Row = Record<string, unknown>;
 const db: Record<string, Row[]> = { documents: [], document_lines: [] };
-const calls = { nextNumber: 0, stockMoves: [] as Row[] };
+const calls = { nextNumber: 0, stockMoves: [] as Row[], assignMissing: false };
 let ids = 0;
 
 type Filter = { col: string; op: 'eq' | 'in'; val: unknown };
@@ -67,6 +67,15 @@ mock.module('@/integrations/supabase/client', () => ({
     from: (name: string) => builder(name),
     rpc: async (name: string, args: Row) => {
       if (name === 'next_document_number') return { data: `${args._doc_type}-2026-${String(++calls.nextNumber).padStart(5, '0')}`, error: null };
+      // Validation atomique (migration 20261118260000) : numero + statut ensemble ; absente = ancien chemin.
+      if (name === 'document_assign_number') {
+        if (calls.assignMissing) return { data: null, error: { code: 'PGRST202', message: 'function not found' } };
+        const d = (db.documents ?? []).find((r) => r.id === args._document) as Row;
+        if (d.number) return { data: d.number, error: null };
+        d.number = `${d.doc_type}-2026-${String(++calls.nextNumber).padStart(5, '0')}`;
+        d.status = 'validee';
+        return { data: d.number, error: null };
+      }
       if (name === 'record_stock_move') { calls.stockMoves.push(args); return { data: null, error: null }; }
       return { data: null, error: null };
     },
@@ -266,5 +275,32 @@ describe('cartes 4 et 6 — aucune facture ni avoir sans confirmation', () => {
     const { shown, hidden } = visibleConfirmLines(lines);
     expect(shown).toHaveLength(8);
     expect(hidden).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+describe('numerotation (18/11) — validation atomique, repli avant la migration 20261118260000', () => {
+  test('validation par document_assign_number : un seul numero, statut et numero ensemble', async () => {
+    calls.assignMissing = false;
+    const before = calls.nextNumber;
+    const id = await createDocument({
+      companyId: 'co', docType: 'DEV', contactId: 'client-1', issueDate: '2026-11-18', status: 'validee',
+      lines: [line('Huile moteur', 20, null)],
+    });
+    expect(doc(id).status).toBe('validee');
+    expect(doc(id).number).toBe(`DEV-2026-${String(before + 1).padStart(5, '0')}`);
+    expect(calls.nextNumber).toBe(before + 1);
+  });
+
+  test('fonction absente (migration pas posee) : ancien chemin, le document est quand meme numerote', async () => {
+    calls.assignMissing = true;
+    const before = calls.nextNumber;
+    const id = await createDocument({
+      companyId: 'co', docType: 'DEV', contactId: 'client-1', issueDate: '2026-11-18', status: 'validee',
+      lines: [line('Filtre a huile', 12, null)],
+    });
+    calls.assignMissing = false;
+    expect(doc(id).status).toBe('validee');
+    expect(doc(id).number).toBe(`DEV-2026-${String(before + 1).padStart(5, '0')}`);
   });
 });

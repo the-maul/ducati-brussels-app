@@ -136,7 +136,7 @@ de façon traçable. L'atelier (M8) passe par ce module pour transformer un OR e
 
 **Revu le 03/11/2026** (audit de la caisse, [`docs/etudes/2026-11-audit-caisse-dms.md`](../../etudes/2026-11-audit-caisse-dms.md)) :
 - **Caisse jamais utilisée** : 1 ticket (`TIK-2026-00001`, 11/06/2026, **0 EUR**, sans règlement, 1 sortie de stock), 1 session de caisse ouverte le 11/06/2026 (fond 250 EUR) **jamais clôturée**, 0 mouvement de fond de caisse, 0 journal Z, 2 règlements (démo de juin). 10 modes de règlement paramétrés.
-- **Trous de numérotation** : `FAC-2026-00002` à `-00004` (factures payées) supprimées en SQL le 12/06/2026 (acteur vide) ; séquence FAC à 5. À consigner pour le comptable.
+- **Trous de numérotation** : `FAC-2026-00002` à `-00004` (factures payées) supprimées en SQL le 12/06/2026 (acteur vide) ; séquence FAC à 5. À consigner pour le comptable. Procès-verbal à faire par le comptable : voir [M00, « Trou de numérotation »](M00-socle.md) (18/11).
 - Vérifié en base (transactions annulées, administrateur simulé) **avant correction** : un ticket validé se modifiait, repassait en brouillon et se supprimait ; un règlement perçu se modifiait et se supprimait ; une session clôturée se rouvrait ; deux sessions ouvertes possibles ; mouvement accepté sur une session clôturée ; ticket à 0 EUR sans règlement accepté ; `cash_z_report` **oubliait la TVA des ventes du jour** et comptait les brouillons ; audit des règlements sans société (10 événements). Tout est refusé après la migration `20261103150000_m6_caisse_audit.sql` (**écrite, testée en transaction annulée, non appliquée**).
 - Droits : tout rôle qui écrit sur `/pos` (vendeur, magasinier, mécanicien, chef d'atelier, comptable, admin) peut encaisser, annuler, clôturer.
 

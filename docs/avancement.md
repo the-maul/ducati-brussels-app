@@ -54,6 +54,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | — | `profiles` + création auto à l'inscription (`handle_new_user`) | ✅ |
 | B7 | Audit universel `events` (append-only, update/delete révoqués) | ✅ |
 | — | Séquences documentaires configurables + `next_document_number()` | ✅ |
+| — | Numérotation : deux modes par société (séries séparées FAC / TIK / AVO ou compteur unique façon G8), changement de mode en début d'exercice ou programmé, prochain numéro réglable vers le haut (admin / comptable, tracé), validation atomique (18/11, migration `20261118260000` à appliquer) | 🟦 écrit, à appliquer |
 | — | Types TS régénérés depuis le schéma live (`types.ts`) | ✅ |
 | — | Auth : login + session + guard + contexte société/rôles | ✅ (validé local) |
 | — | Bootstrap admin (simon@themaul.be → admin auto sur les 2 sociétés) | ✅ |

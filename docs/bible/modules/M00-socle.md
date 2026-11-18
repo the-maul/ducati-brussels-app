@@ -81,7 +81,7 @@ Il est utilisé par tout le monde ; les écrans d'administration sont réservés
 - **Compte client** (18/09) : aucun rôle, donc aucun accès aux données de la concession ; rattaché à sa fiche par `contact_accounts`. Le portail qui lui montrera ses propres données n'existe pas encore.
 - **Grille des droits par rôle (M0-RBAC003, document signé le 13/10, relu case par case contre le scan le 30/10)** : 19 pages × 6 rôles, trois niveaux (modifier / lecture seule / pas d'accès), codée en clair dans `src/lib/auth/permissions.ts` (`PAGE_RULES`) et recopiée indépendamment dans `tests/access-grid.test.ts` (un test par rôle : si l'une bouge sans l'autre, le test tombe). L'administrateur a tout en écriture. **Un opérateur peut cumuler plusieurs rôles** (note manuscrite du client) : le droit le plus large gagne. Une page absente de la grille (profil, recherche) reste ouverte ; une page de création (`/new`, `/import`, `/inventory`) exige le droit d'écrire. Les écrans dont l'adresse ne porte pas le préfixe de leur rubrique (`/accounting-closure`, `/accounting-sepa` → Comptabilité ; `/client-pricing` → Contacts ; `/consignment` → Reprises ; `/preparation/...` → Picking list) sont des **alias** (`PAGE_ALIASES`) avec exactement les droits de la rubrique. Toute nouvelle route de premier niveau doit avoir une ligne dans la grille, un test le vérifie.
 - **Audit (B7, règle 4)** : le déclencheur `audit_row` écrit dans `events` (qui, quoi, quand, ancien/nouveau). `events` n'accepte ni UPDATE ni DELETE (droits vérifiés). L'origine est toujours `screen`, y compris pour les écritures faites par la relève mail ou un import.
-- **Numérotation** : par société et par type, configurable par un non-technicien (exigence client, CLAUDE.md §4.3). Remise à zéro annuelle activée partout.
+- **Numérotation** : par société et par type, configurable par un non-technicien (exigence client, CLAUDE.md §4.3). Remise à zéro annuelle activée partout. Depuis le 18/11 : deux modes au choix pour facture / ticket / avoir (séries séparées ou compteur unique façon G8), voir « Ajouté le 18/11 » ci-dessous.
 - **Invitations** envoyées par Outlook, pas par Resend ni par Supabase (décision client D4 du 14/09). Le lien pointe vers `/reset-password` de l'application.
 - **Mot de passe oublié (19/09)** : même mécanique que l'invitation (Outlook, jeton à usage unique vers `/reset-password`), **jamais** `supabase.auth.resetPasswordForEmail` tant que l'URL du site de Supabase Auth pointe vers localhost. Ne jamais révéler si un compte existe (même réponse, envoi fait après la réponse). Rien n'est envoyé à un compte désactivé, banni ou sans société. `password_reset_requests` ne garde que des empreintes SHA-256 (ni e-mail ni IP en clair), purgées après 24 h ; table technique sans `company_id` (anti-abus global, comme l'authentification), fermée à anon et authenticated.
 - **Règles de mot de passe (U-4, 18/09)** : au moins 8 caractères, une majuscule, une minuscule, un chiffre, un caractère spécial (72 au plus). Une seule fonction, `isStrongPassword` (`src/lib/password-policy.ts`), à l'écran **et** côté serveur (inscription, création de compte). Pour `/reset-password`, le contrôle est à l'écran (la mise à jour passe directement par Supabase Auth) : pour le rendre infranchissable, régler aussi les exigences de mot de passe dans le tableau de bord Supabase (Authentication → Policies), réglage non fait.
@@ -103,6 +103,74 @@ Il est utilisé par tout le monde ; les écrans d'administration sont réservés
   - **Retour d'un écran de création (`?retour=`)** : « Ajouter une moto » du sélecteur de moto (OR, document de vente, RDV) passe l'adresse de l'écran (`retour`) ; la moto créée (ou rattachée), on y revient en `replace` avec `vehicleId=<la moto>` : le formulaire retrouve sa saisie **et** la nouvelle moto. `safeReturnPath` n'accepte qu'un chemin de l'application. Sur une page qui ne lit pas `vehicleId` (OR existant, planning), on revient à la page, sans présélection.
   - **Défilement** : `<main id="app-main" data-scroll-restoration-id="app-main">` + `scrollToTopSelectors: ['#app-main']` : une nouvelle page s'ouvre en haut, Retour retrouve la position.
   - **Boutons « Retour » propres à un écran** : `useGoBack()` (même décision que le bouton de l'ossature) ; les boutons libellés par une rubrique (« ← Atelier », « ← Paramètres ») restent des liens vers cette rubrique.
+
+### Ajouté le 18/11 — rattrapage G8 : numérotation des documents (deux modes)
+
+Sources : `docs/g8-inventaire/09-parametres.md` (« Gestion chronos »), `parcours.md` (« Numérotation G8 observée »),
+`comparaison-ventes-caisse-compta.md` §5 et bloquant n° 5. Branche `lot-g8-numerotation`,
+migration `20261118260000_m0_numerotation_deux_modes.sql` (**non appliquée**).
+
+- **Décision de Simon (18/11)** : les deux modes au choix, **par société**, dans Paramètres → Numérotation des documents.
+  - **Séries séparées** (comportement d'avant) : FAC / TIK / AVO, chacune avec préfixe, format, remise à zéro annuelle.
+  - **Compteur unique** façon G8 : facture, ticket et avoir prennent leur numéro sur **une seule série `VEN`**
+    (format par défaut : 8 chiffres, sans préfixe ni remise à zéro, ex. 22701456 → 22701457 → 22701458), au format
+    réglable comme les autres. Les autres types (FAA, DEV, RES, BC, BL, OR, ORO, CMD, REC, REP, OCC, DEP, Z…) gardent leur série.
+  - Réglage : table `numbering_settings` (une ligne par société : `sales_mode`, changement programmé `next_sales_mode` /
+    `next_sales_mode_year`), écrite **uniquement** par `set_sales_numbering_mode` (lecture membres, aucune écriture directe).
+- **Règles légales tenues en base** (AR n° 1 TVA art. 5) :
+  - **Continuité sans trou ni doublon** : numéro pris sous verrou de ligne ; `document_assign_number(document)` prend le
+    numéro **et** valide le brouillon dans la même transaction (si la validation est refusée — client, lignes, caisse —
+    aucun numéro n'est consommé). L'écran des ventes (`createDocument`, `updateDraftDocument`) l'utilise, avec repli sur
+    l'ancien chemin tant que la migration n'est pas posée.
+  - **Numéro à la validation**, jamais au brouillon (inchangé).
+  - **Changement de mode** immédiat **seulement** si aucune facture / ticket / avoir n'a reçu de numéro dans l'année civile
+    (société neuve ou début d'année ; `_sales_numbered_this_year` compte les documents numérotés et les séries entamées,
+    `document_sequences.last_issued_at`) ; sinon refus clair « Changement refusé… programmez le changement pour le
+    1er janvier » et le changement **se programme** au 1er janvier suivant (appliqué au premier numéro de l'année).
+    Événements `numbering_mode_change`, `numbering_mode_scheduled`, `numbering_mode_applied` dans `events`.
+  - **Prochain numéro réglable vers le haut seulement**, par un **administrateur ou le comptable**, motif obligatoire
+    (au moins 5 caractères) : `set_sequence_next_value`, événement `numbering_next_value_change` (ancien / nouveau, nombre
+    de numéros sautés, motif). L'écran annonce le trou créé. Usage : démarrer après les données de test, ou **reprendre le
+    compteur G8** (ex. VEN à 22701462).
+  - **Garde sur `document_sequences`** (`trg_document_sequences_guard`) : `next_value`, `current_year`, `last_issued_at`
+    ne se modifient plus par l'API (seulement par les fonctions de numérotation ; depuis la console SQL : permis mais
+    tracé `numbering_next_value_sql`) ; deux séries d'une société ne peuvent plus partager un préfixe ; tout changement
+    de format / libellé est tracé (`numbering_format_change`) ; une série ne se supprime plus par l'API.
+  - **Unicité du numéro par société** : index `documents_company_number_uq` posé par la migration **seulement s'il n'y a
+    pas déjà de doublon** en base (sinon un avis, rien n'est modifié).
+  - **Plus de troncature** : un compteur qui dépasse la longueur garde tous ses chiffres (`lpad` tronquait : 100000 en
+    5 positions donnait 10000, un doublon).
+  - **Année de numérotation = année civile à Bruxelles** (avant : UTC, bascule le 31/12 à 23 h).
+- **Écran** (`src/routes/_app.settings.numbering.tsx`, règles pures `src/modules/settings/numbering-rules.ts`) : bloc
+  « Factures, tickets et avoirs : un compteur ou trois ? » (mode en vigueur, programmation, « Appliquer maintenant »
+  grisé si des numéros existent dans l'année, « Programmer au 1er janvier »), séries groupées comme la Gestion chronos
+  de G8 (Ventes, Atelier, Achats, Occasions et reprises, Caisse, Autres) avec une **explication par série**, l'aperçu en
+  direct, le prochain numéro et le bouton « Régler » (admin / comptable), l'état Actif / En sommeil ; « Autres numéros » :
+  livre de police (registre des véhicules, `AAAA-0001`, non réglable). La fenêtre de confirmation d'une facture / d'un
+  avoir annonce le numéro du compteur unique quand ce mode est choisi.
+- **Compteurs G8 et DMS** : devis (DEV), réservation (RES), BL, OR, ORO, commande (CMD, CDP, CEX), réception (REC),
+  occasion (OCC), dépôt-vente (DEP), reprise (REP), livre de police (registre véhicules), journal Z apparaissent tous dans
+  l'écran. **Remise en banque** et **mouvement de fond de caisse** n'ont pas de numéro dans le DMS au 18/11 (fonctions
+  absentes, lot caisse) : une série ajoutée plus tard dans `document_sequences` apparaîtra d'elle-même (codes `RMB`, `REM`,
+  `MVC`, `MFC` déjà rangés sous « Caisse »).
+- **Essais à blanc** : `supabase/tests/m0_numerotation_deux_modes.sql` (transaction annulée : modes, refus en cours
+  d'exercice dont ITALBIKE STORE, programmation, réglage, garde, droits) et `supabase/tests/m0_numerotation_concurrence.sql`
+  (**base locale ou branche uniquement** : 8 sessions en parallèle par dblink, 240 numéros continus en compteur unique,
+  FAC / TIK / AVO continues en séries séparées). Tests unitaires : `tests/numerotation.test.ts`,
+  `tests/sales-brouillon-moto-confirmation.test.ts` (validation atomique et repli).
+
+#### Trou de numérotation FAC-2026-00002 à FAC-2026-00004 — procès-verbal à faire par le comptable
+
+- **Constat** (bible M06, base vérifiée) : les factures `FAC-2026-00002`, `FAC-2026-00003` et `FAC-2026-00004` d'ITALBIKE
+  STORE (factures de test, payées) ont été **supprimées en SQL le 12/06/2026** (acteur vide dans `events`) ; la série FAC
+  reprend à `FAC-2026-00005`. Une série de factures doit être continue : ce trou doit être **justifié**.
+- **À faire par le comptable** : un **procès-verbal** daté et signé indiquant les numéros manquants (00002 à 00004), la
+  date et la cause (données de test supprimées pendant la mise au point du logiciel, aucune opération réelle facturée),
+  à conserver avec le facturier de l'exercice 2026.
+- **Ce que le DMS ne fait pas** : aucun numéro n'est réutilisé ni réattribué, aucune donnée n'est purgée par ce lot.
+  Le démarrage en production (purge des données de test, remise des compteurs) reste une décision du comptable : le
+  réglage « vers le haut » permet de faire repartir une série au-delà des numéros de test, la purge elle-même n'est pas
+  faite par ce lot.
 
 ## 5. État en production
 
@@ -192,3 +260,4 @@ Vérifié le 18/09/2026 dans le code et dans la base (projet `ujmrosbgkvgvwfnury
 | 2026-11-03 | **Un bouton « Retour » en tête de toutes les pages** (UX010, demande client) : rendu par l'ossature, masqué sur les entrées du menu, historique du navigateur si la page précédente est dans l'application sinon page parente (table d'exceptions dans `back-navigation.ts`), confirmation si un formulaire est modifié et non enregistré (`useLeaveGuard`), 44 px au toucher, libellés dans les quatre langues | branche `lot-bouton-retour` |
 | 2026-11-03 | **Retour revient exactement à la page d'avant** (UX011, retour client « ne revient pas à la page d'avant avec la sélection ») : Retour saute le formulaire de création déjà utilisé et la même page (`history.go(-n)`), suivi des pages gardé dans l'onglet (survit au F5) ; recherche / filtres / onglet / page des listes Pièces, Clients, Ventes, Atelier, Véhicules, Commandes, CRM dans l'adresse ; brouillon d'onglet des formulaires Nouvel OR, nouveau document, nouveau client, nouvel article (`useFormDraft`, bandeau « Saisie en cours retrouvée ») ; « Ajouter une moto » revient au formulaire avec la moto créée (`?retour=`) ; défilement de la zone de travail restauré ; 2 libellés × 4 langues | branche `fix-bouton-retour-etat` ; aucune migration |
 | 2026-11-03 | **Postes et périphériques** (PDV030, M-106) : réglage transverse par poste et par rôle, poste du navigateur mémorisé localement, couche `src/lib/devices/` (caisse et étiquettes) | migration `20261103250000_m6_postes_peripheriques.sql` non appliquée |
+| 2026-11-18 | **Numérotation : deux modes au choix par société** (rattrapage G8, bloquant n° 5) : séries séparées FAC / TIK / AVO ou compteur unique façon G8 ; changement de mode seulement en début d'exercice ou programmé au 1er janvier ; prochain numéro réglable vers le haut par l'admin ou le comptable, motif tracé ; validation atomique (numéro + statut) ; garde sur les séries ; écran groupé avec explication par série ; trou FAC-2026-00002 à 00004 documenté (PV comptable) | branche `lot-g8-numerotation`, migration `20261118260000_m0_numerotation_deux_modes.sql` (**à appliquer**) |

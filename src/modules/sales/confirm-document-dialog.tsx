@@ -16,7 +16,7 @@ import {
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { listSequences } from '@/modules/settings/sequences-api';
+import { listSequences, getNumberingOverview, sequenceFor } from '@/modules/settings/sequences-api';
 import { t } from '@/lib/i18n';
 import {
   buildConfirmSummary, visibleConfirmLines, defaultCreditChoice, clampCreditQuantity, creditChoiceSummary,
@@ -36,6 +36,8 @@ export function ConfirmDocumentDialog({ companyId, request, pending, onConfirm, 
   onConfirm: (r: ConfirmDocumentRequest, selection?: CreditSelection[]) => void; onCancel: () => void;
 }) {
   const seqQ = useQuery({ queryKey: ['sequences', companyId], queryFn: () => listSequences(companyId), enabled: !!request });
+  // Mode « compteur unique » (facture, ticket et avoir sur un seul compteur) : l'aperçu lit ce compteur.
+  const modeQ = useQuery({ queryKey: ['numbering-overview', companyId], queryFn: () => getNumberingOverview(companyId), enabled: !!request });
   const isCredit = request?.action === 'creditNote';
   // Le choix des quantités repart de « tout » à chaque nouvelle demande (la fenêtre reste montée).
   const [chosen, setChosen] = useState<{ req: ConfirmDocumentRequest | null; choice: CreditChoice }>({ req: null, choice: new Map() });
@@ -43,7 +45,7 @@ export function ConfirmDocumentDialog({ companyId, request, pending, onConfirm, 
   const setChoice = (fn: (c: CreditChoice) => CreditChoice) => setChosen({ req: request, choice: fn(choice) });
   const creditSummary = useMemo(() => (request && isCredit ? creditChoiceSummary(request.lines, choice) : null), [request, isCredit, choice]);
   if (!request) return null;
-  const sequence = seqQ.data?.find((s) => s.doc_type === request.docType) ?? null;
+  const sequence = sequenceFor(seqQ.data, request.docType, modeQ.data?.sales_mode);
   const summary = buildConfirmSummary({
     ...request, sequence,
     totalTtc: creditSummary ? creditSummary.totalTtc : request.totalTtc,
