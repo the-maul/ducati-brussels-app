@@ -21,7 +21,8 @@
 --      d'exclusion) en MODE ESSAI UNIQUEMENT. La contrainte mode = 'test' interdit toute autre
 --      valeur et AUCUNE fonction d'envoi n'existe : rien ne part chez un client.
 --
--- STRICTEMENT ADDITIVE, idempotente. NE PAS APPLIQUER depuis un agent.
+-- STRICTEMENT ADDITIVE, idempotente. NE PAS APPLIQUER depuis un agent. A appliquer APRES
+-- 20261118190000_m1_tarifs_clients_partages.sql (filtre « Tarif » : tarif commun price_lists ou ancien code G8).
 -- Essai a blanc : supabase/tests/m1_fiche_cascade_extraction.sql.
 -- =====================================================================
 
@@ -107,7 +108,9 @@ begin
   return query
   select * from (
     select c.id, c.code, c.type::text, c.civility, c.legal_form, c.first_name, c.last_name, c.company_name,
-           c.zip, c.city, c.category, c.price_list, c.payment_terms,
+           c.zip, c.city, c.category,
+           coalesce((select pl.code from public.price_lists pl where pl.id = c.price_list_id), c.price_list),
+           c.payment_terms,
            c.is_blocked, c.is_detaxe, c.mode_ht, c.marketing_opt_out, c.is_account, c.is_watch,
            c.show_discounts_pos, c.is_active, public._contact_balance(c.id) as balance
       from public.contacts c
@@ -118,7 +121,11 @@ begin
             or (_civ = '__none__' and nullif(btrim(c.civility), '') is null and nullif(btrim(c.legal_form), '') is null)
             or c.civility = _civ or c.legal_form = _civ)
        and (_cat is null or (_cat = '__none__' and nullif(btrim(c.category), '') is null) or c.category = _cat)
-       and (_tar is null or (_tar = '__none__' and nullif(btrim(c.price_list), '') is null) or c.price_list = _tar)
+       -- Tarif : code du tarif commun (lot regles client, 20261118190000) ou ancien code texte repris de G8.
+       and (_tar is null
+            or (_tar = '__none__' and nullif(btrim(c.price_list), '') is null and c.price_list_id is null)
+            or c.price_list = _tar
+            or exists (select 1 from public.price_lists pl where pl.id = c.price_list_id and (pl.code = _tar or pl.label = _tar)))
        and (_code_from is null or (case when c.code ~ '^[0-9]+$' and _code_from ~ '^[0-9]+$'
                                         then c.code::bigint >= _code_from::bigint else c.code >= _code_from end))
        and (_code_to is null or (case when c.code ~ '^[0-9]+$' and _code_to ~ '^[0-9]+$'
@@ -284,7 +291,8 @@ begin
   select x.* from (
     select c.id, c.code, c.type::text, c.status::text, c.civility, c.legal_form, c.first_name, c.last_name,
            c.company_name, c.email, c.mobile, c.address, c.street_number, c.address_complement,
-           c.zip, c.city, c.country, c.birth_date, c.category, c.price_list, c.created_at,
+           c.zip, c.city, c.country, c.birth_date, c.category,
+           coalesce((select pl.code from public.price_lists pl where pl.id = c.price_list_id), c.price_list), c.created_at,
            c.marketing_opt_out, c.address_mismatch,
            public._consent_channel(c.id, 'email'), public._consent_channel(c.id, 'sms'),
            case when public._is_be(c.country) then public.be_province(c.zip) end,
@@ -303,7 +311,8 @@ begin
        and (_name is null or public.contact_norm_txt(concat_ws(' ', c.last_name, c.first_name, c.company_name)) like '%' || _name || '%')
        and (_civs is null or c.civility = any(_civs) or c.legal_form = any(_civs))
        and (_cats is null or c.category = any(_cats))
-       and (_tars is null or c.price_list = any(_tars))
+       and (_tars is null or c.price_list = any(_tars)
+            or exists (select 1 from public.price_lists pl where pl.id = c.price_list_id and (pl.code = any(_tars) or pl.label = any(_tars))))
        and (_created_from is null or c.created_at >= _created_from)
        and (_created_to is null or c.created_at < _created_to + 1)
        and (_birth_from is null or c.birth_date >= _birth_from)

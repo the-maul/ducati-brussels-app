@@ -20,7 +20,7 @@
 --     archivee, jamais supprimee, la reference reste donc valable ;
 --   * contact_merge_refs compte aussi ces tables (recapitulatif avant fusion).
 --
--- NE PAS APPLIQUER depuis un agent. A appliquer APRES 20261118220000, 221000 et 222000.
+-- NE PAS APPLIQUER depuis un agent. A appliquer APRES 20261118190000 (lot regles client), 20261118220000, 221000 et 222000.
 -- Essai a blanc : supabase/tests/m1_fusion_toutes_references.sql.
 -- =====================================================================
 

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Rattrapage G8 « clients » (18/11/2026) -- essai a blanc de 20261118221000_m1_fiche_client_groupes_vente_groupement.sql
--- et 20261118222000_m1_cascade_extraction_mailing_essai.sql (apres 20261118220000).
+-- et 20261118222000_m1_cascade_extraction_mailing_essai.sql (apres 20261118220000 et 20261118190000, lot regles client).
 -- A executer DANS UNE TRANSACTION ANNULEE, migrations comprises :
 --   (echo "begin;"; cat supabase/migrations/20261118220000_*.sql supabase/migrations/20261118221000_*.sql \
 --      supabase/migrations/20261118222000_*.sql supabase/tests/m1_fiche_cascade_extraction.sql; echo "rollback;") > t.sql
