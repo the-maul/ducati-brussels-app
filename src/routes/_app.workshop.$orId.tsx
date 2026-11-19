@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing, Play } from 'lucide-react';
 import { createRepairQuoteFromOr, duplicateRepairOrder } from '@/modules/workshop/or-copy';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
-import { updateRepairOrder, transformToInvoice, checkupSchemaReady, type RoInput } from '@/modules/workshop/write-api';
+import { updateRepairOrder, transformToInvoice, checkupSchemaReady, startRepairOrder, type RoInput } from '@/modules/workshop/write-api';
 import { OrEditor, type OrPayload, type OrEditorIntent } from '@/modules/workshop/or-editor';
 import { openAccidentFile, accidentSchemaReady, findAccidentFileFor, getAccidentFile } from '@/modules/workshop/accident/api';
 import { AccidentStatusBadge } from '@/modules/workshop/accident/accident-file-screen';
@@ -44,7 +44,7 @@ import { contactLocale } from '@/lib/i18n/client-locale';
 import { OrStatusBadge } from '@/modules/workshop/or-base/or-status-badge';
 import { OrPrintDialog } from '@/modules/workshop/or-base/print-dialog';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
-import { canNotifyReady } from '@/modules/workshop/or-base/rules';
+import { canNotifyReady, canStartOr } from '@/modules/workshop/or-base/rules';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -128,6 +128,13 @@ function OrView() {
     }
   };
 
+  // Decision Q43 (18/11) : « Demarrer » passe l'OR en cours (le premier pointage le fait aussi).
+  const start = useMutation({
+    mutationFn: () => startRepairOrder(orId),
+    meta: { success: false },
+    onSuccess: () => { toast.success(t('orBase.started')); refresh(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
   const save = useMutation({
     mutationFn: async (p: OrPayload) => { await updateRepairOrder(orId, toInput(p)); await ensureAccident(p); },
     onSuccess: refresh,
@@ -259,6 +266,11 @@ function OrView() {
         breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: `OR ${or.number ?? ''}` }]}
         actions={
           <div className="flex flex-wrap gap-2">
+            {canStartOr(or.status) && (
+              <Button variant="outline" onClick={() => start.mutate()} disabled={start.isPending || !workAllowed} title={workAllowed ? t('orBase.startHint') : t('checkup.workBlocked')}>
+                {start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('orBase.start')}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setPrintOpen(true)}><Printer /> {t('orBase.print')}</Button>
             {canNotifyReady({ status: or.status, hasContact: !!or.contact_id }) && (
               <Button variant="outline" onClick={() => setReadyOpen(true)}><BellRing /> {t('orBase.notifyReady')}</Button>

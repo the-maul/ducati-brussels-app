@@ -26,7 +26,7 @@ import {
 } from './api';
 import {
   APPOINTMENT_STATUSES, addDays, atMinutes, localYmd, plannedMinutesFrom, planningMechanics, startOfDay,
-  statusTone, timeToMinutes, weekDays, weekStartFor,
+  orIntakeNeeds, parseMileage, statusTone, timeToMinutes, weekDays, weekStartFor,
 } from './rules';
 import { dayContext, usePlanningBase, usePlanningPeriod, usePlanningRefresh } from './planning-data';
 import { AppointmentDialog, type AppointmentDefaults } from './appointment-dialog';
@@ -37,7 +37,9 @@ import { PlanningSettingsView } from './settings-view';
 import { StatusIcon } from './status-icon';
 import { LoansView } from '../loans/loans-view';
 import { loansSchemaReady } from '../loans/api';
-import { Field } from './ui-bits';
+import { Field, Picked, motoLabel } from './ui-bits';
+import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
+import { setAppointmentVehicleMileage } from './api';
 
 export const PLANNING_VIEWS = ['reception', 'activite', 'prets', 'reglages'] as const;
 export type PlanningView = (typeof PLANNING_VIEWS)[number];
@@ -59,6 +61,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
   const [dialog, setDialog] = useState<{ appt: PlanningAppointment | null; defaults?: AppointmentDefaults } | null>(null);
   const [searching, setSearching] = useState(false);
   const [askTime, setAskTime] = useState<PlanningAppointment | null>(null);
+  const [intake, setIntake] = useState<PlanningAppointment | null>(null);
   const [partsFor, setPartsFor] = useState<PlanningAppointment | null>(null);
   const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
   const loansReady = useQuery({ queryKey: ['loans-schema'], queryFn: loansSchemaReady, staleTime: Infinity });
@@ -83,14 +86,16 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
       toast.error(e instanceof Error ? e.message : t('feedback.error'));
     }
   };
-  const createOr = async (a: PlanningAppointment) => {
+  const createOr = async (a: PlanningAppointment, intakeDone = false) => {
     if (!a.planned_minutes || a.planned_minutes <= 0) { setAskTime(a); return; }
+    // Decision Q42 (18/11) : moto sans km, ou pas de moto → on les demande avant d'ouvrir l'OR.
+    if (!intakeDone && orIntakeNeeds(a) !== 'none') { setIntake(a); return; }
     try {
       const orId = await createOrFromPlanningAppointment(a, base.mechanics);
       refresh();
       onOpenOr(orId);
     } catch (e) {
-      toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message) : t('feedback.error'));
+      toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message === 'mileage_required' ? t('planningG8.errMileageOr') : e.message) : t('feedback.error'));
     }
   };
   const newAt = (day: Date, mechanicId?: string | null) => setDialog({
@@ -183,6 +188,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
           if (hit) setDialog({ appt: hit });
         }} />
       )}
+      {intake && <OrIntakeDialog companyId={companyId} appt={intake} onClose={() => setIntake(null)} onDone={(a) => { setIntake(null); void createOr(a, true); }} />}
       {askTime && <PlannedTimeDialog appt={askTime} onClose={() => setAskTime(null)} onDone={(a) => { setAskTime(null); void createOr(a); }} />}
       {partsFor && <ReservedPartsDialog appointmentId={partsFor.id} startsAt={partsFor.starts_at} serviceCode={apptService(partsFor)} onClose={() => setPartsFor(null)} />}
     </div>
@@ -221,6 +227,62 @@ function PlannedTimeDialog({ appt, onClose, onDone }: { appt: PlanningAppointmen
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
           <Button onClick={() => void save()} disabled={busy}>{t('planningG8.validateAndOr')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Decision Q42 (18/11, comme G8) : avant d'ouvrir l'OR depuis le RDV, la moto et son km. Moto connue
+ * sans km : km obligatoire. Pas de moto (moto a creer) : on propose de la choisir (km alors
+ * obligatoire) ou d'ouvrir l'OR sans moto (le km sera demande quand une moto y sera rattachee).
+ * Le RDV est mis a jour (audit trg_appt_audit) avant l'ouverture de l'OR.
+ */
+function OrIntakeDialog({ companyId, appt, onClose, onDone }: {
+  companyId: string; appt: PlanningAppointment; onClose: () => void; onDone: (a: PlanningAppointment) => void;
+}) {
+  const [vehicle, setVehicle] = useState<{ id: string; label: string } | null>(
+    appt.vehicle_id ? { id: appt.vehicle_id, label: motoLabel(appt.vehicles ?? null) || appt.vehicle_id.slice(0, 8) } : null,
+  );
+  const [km, setKm] = useState(appt.mileage != null ? String(appt.mileage) : '');
+  const [busy, setBusy] = useState(false);
+  const parsed = parseMileage(km);
+  const go = async (withVehicle: boolean) => {
+    if (withVehicle && (parsed === null || Number.isNaN(parsed))) { toast.error(t('planningG8.errMileageOr')); return; }
+    setBusy(true);
+    try {
+      if (withVehicle && vehicle) {
+        await setAppointmentVehicleMileage(appt.id, vehicle.id, parsed as number);
+        onDone({ ...appt, vehicle_id: vehicle.id, mileage: parsed as number });
+      } else {
+        onDone(appt);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('feedback.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-[480px]">
+        <DialogHeader><DialogTitle>{t('planningG8.intakeTitle')}</DialogTitle></DialogHeader>
+        <p className="text-[13px] text-muted-foreground">{appt.vehicle_id ? t('planningG8.intakeMileageHint') : t('planningG8.intakeVehicleHint')}</p>
+        <Field label={t('workshop.vehicle')}>
+          {vehicle
+            ? (appt.vehicle_id ? <p className="text-sm">{vehicle.label}</p> : <Picked label={vehicle.label} onClear={() => setVehicle(null)} />)
+            : <VehiclePicker companyId={companyId} contactId={appt.contact_id} onPick={(v) => setVehicle({ id: v.id, label: [[v.brand, v.model].filter(Boolean).join(' '), v.plate].filter(Boolean).join(' · ') || v.id.slice(0, 8) })} placeholder={t('workshop.vehiclePlaceholder')} />}
+        </Field>
+        {vehicle && (
+          <Field label={`${t('planningG8.mileage')} *`}>
+            <Input autoFocus value={km} onChange={(e) => setKm(e.target.value)} inputMode="numeric" className="w-40 text-right tabular-nums" />
+          </Field>
+        )}
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>{t('action.cancel')}</Button>
+          {!appt.vehicle_id && !vehicle && <Button variant="outline" onClick={() => void go(false)} disabled={busy}>{t('planningG8.intakeOpenWithoutVehicle')}</Button>}
+          {vehicle && <Button onClick={() => void go(true)} disabled={busy}>{t('planningG8.intakeOpen')}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

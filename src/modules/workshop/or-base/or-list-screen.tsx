@@ -9,7 +9,6 @@
  * Ce composant sert les vues « OR » et « Devis de reparation » de la page Atelier ; les vues
  * « O.R. garantie » et « O.R. accident » sont les tables du lot garantie / accident (memes donnees,
  * colonnes G8 propres : type de cession, cabinet, franchise...).
- * Acompte : pas de colonne, l'OR n'a pas d'acompte dans le DMS (voir bible M08, « a trancher »).
  */
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -30,8 +29,14 @@ import { OR_ALL_STATUSES, exportGrid, formatOrDate, pageCount, type OrListView }
 export const WORKSHOP_VIEWS = ['or', 'devis', 'garantie', 'accident', 'retours', 'stats'] as const;
 export type WorkshopView = (typeof WORKSHOP_VIEWS)[number];
 
-/** Etat de la liste garde dans l'adresse (UX011). `status` / `view` gardent les noms d'avant le 18/11. */
-export const OR_LIST_DEFAULTS = { status: 'all', view: 'or', q: '', from: '', to: '', op: '', type: '', page: 1 };
+/**
+ * Etat de la liste garde dans l'adresse (UX011). `status` / `view` gardent les noms d'avant le 18/11.
+ * Decision Q44 (18/11, comme G8 « l'OR facture disparait ») : la liste s'ouvre sur les OR OUVERTS
+ * (ni factures, ni annules) ; « Tous les statuts » reste au choix. Le choix vit dans l'adresse
+ * (Retour le retrouve) ; il n'existe pas de mecanisme de preference memorisee par poste.
+ */
+export const OR_LIST_DEFAULT_STATUS = 'open';
+export const OR_LIST_DEFAULTS = { status: OR_LIST_DEFAULT_STATUS, view: 'or', q: '', from: '', to: '', op: '', type: '', page: 1 };
 export const OR_LIST_CHOICES = { view: WORKSHOP_VIEWS, status: ['all', 'open', ...OR_ALL_STATUSES] } as const;
 
 const ALL = ' all';
@@ -81,7 +86,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
 
-  const filtered = !!(ls.q || ls.from || ls.to || ls.op || ls.type || ls.status !== 'all');
+  const filtered = !!(ls.q || ls.from || ls.to || ls.op || ls.type || ls.status !== OR_LIST_DEFAULT_STATUS);
   const cols = 10;
 
   return (
@@ -122,7 +127,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
           </SelectContent>
         </Select>
         {filtered && (
-          <Button variant="ghost" size="sm" onClick={() => { setText(''); setLs({ q: '', from: '', to: '', op: '', type: '', status: 'all', page: 1 }); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setText(''); setLs({ q: '', from: '', to: '', op: '', type: '', status: OR_LIST_DEFAULT_STATUS, page: 1 }); }}>
             <X /> {t('orBase.resetFilters')}
           </Button>
         )}

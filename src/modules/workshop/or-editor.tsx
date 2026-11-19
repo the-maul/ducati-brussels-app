@@ -77,7 +77,7 @@ import { CommentTemplatesMenu } from './or-base/comment-templates-menu';
 import { ClientCommentPopup } from './or-base/client-comment-popup';
 import { orStatusLabel } from './or-base/or-status-badge';
 import {
-  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, normalizeCheckPoints,
+  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, mileageRequired, normalizeCheckPoints,
   type CheckPoints, type MileageReading,
 } from './or-base/rules';
 
@@ -357,6 +357,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
 
   const ownName = profile?.full_name?.trim() || profile?.email || '';
   const savedOperator = operatorToSave(operatorChoice, members, operatorChoice.operatorId === user?.id ? ownName : (o?.operator ?? ''));
+  const kmRequired = mileageRequired({ isNew: !o, savedVehicleId: o?.vehicle_id ?? null, vehicleId: vehicle?.id ?? null });
   const payload = (km: number | null = mileage ? Math.round(num(mileage)) : null, ack: number | null = null): OrPayload => ({
     contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: km,
     promisedAt: localInputToIso(promisedAt), checkPoints, internalNotes,
@@ -368,12 +369,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     lines: [...classicInputs, ...cardLines],
   });
 
-  // Enregistrer : km obligatoire des qu'une moto est choisie ; km inferieur au dernier releve =
-  // avertissement bloquant a confirmer (G8). Le km deja enregistre sur cet OR ne redemande pas
-  // (et garde sa confirmation eventuelle).
+  // Enregistrer (decision Q42 du 18/11, comme G8) : km obligatoire a la creation de l'OR et quand
+  // une moto est rattachee ou changee ; ensuite il reste modifiable sans etre redemande. Km
+  // inferieur au dernier releve = avertissement bloquant a confirmer (G8). Le km deja enregistre
+  // sur cet OR ne redemande pas (et garde sa confirmation eventuelle).
   const submit = (intent: OrEditorIntent, confirmed = false) => {
     const unchanged = !!o && mileage.trim() !== '' && Math.round(num(mileage)) === o.mileage;
-    const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged });
+    const required = kmRequired;
+    const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged, required });
     if (r.kind === 'required') { setMileageError(t('orBase.mileageRequired')); return; }
     if (r.kind === 'invalid') { setMileageError(t('orBase.mileageInvalid')); return; }
     setMileageError(null);
@@ -401,7 +404,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
             : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
-        <Field label={`${t('workshop.mileage')}${vehicle ? ' *' : ''}`}>
+        <Field label={`${t('workshop.mileage')}${kmRequired ? ' *' : ''}`}>
           <Input
             type="number" min={0} value={mileage} onChange={(e) => { setMileage(e.target.value); setMileageError(null); }}
             className={`text-right tabular-nums ${mileageError ? 'border-danger' : ''}`} aria-invalid={!!mileageError}

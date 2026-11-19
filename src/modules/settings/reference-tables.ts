@@ -150,13 +150,16 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       { value: 'desmo', label: 'Desmo Service' },
     ] }] },
   // Types de rendez-vous du planning (rattrapage G8 du 18/11/2026, migration 20261118120000) :
-  // couleur metier du bloc (tokens --job-*, charte §2.4) et temps prevu propose a la prise du RDV.
+  // couleur du type et temps prevu propose a la prise du RDV. Decision Q47 (18/11, comme G8) : la
+  // couleur colore le FOND de la case du RDV au planning. Palette FERMEE de tokens --job-* (charte
+  // §2.4, lisible en clair et en sombre, rouge Ducati exclu) ; sans couleur = gris neutre.
   { key: 'workshop_appointment_type', label: 'Types de rendez-vous atelier', group: 'atelier',
     extraColumns: [
-      { key: 'color', label: 'Couleur', type: 'select', options: [
-        { value: 'entretien', label: 'Entretien' }, { value: 'reparation', label: 'Réparation' },
-        { value: 'garantie', label: 'Garantie' }, { value: 'pneus', label: 'Pneus' },
-        { value: 'prepa', label: 'Préparation' }, { value: 'carrosserie', label: 'Carrosserie' },
+      { key: 'color', label: 'Couleur de la case au planning', type: 'select', options: [
+        { value: 'entretien', label: 'Bleu acier (entretien)' }, { value: 'reparation', label: 'Brique (réparation)' },
+        { value: 'garantie', label: 'Violet (garantie)' }, { value: 'pneus', label: 'Vert (pneus)' },
+        { value: 'prepa', label: 'Ocre (préparation)' }, { value: 'carrosserie', label: 'Gris (carrosserie)' },
+        { value: 'neutre', label: 'Neutre (par défaut)' },
       ] },
       { key: 'default_minutes', label: 'Temps prévu proposé (min)', type: 'number' },
     ] },
