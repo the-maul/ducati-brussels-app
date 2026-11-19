@@ -312,6 +312,8 @@ passer de la recette à l'exploitation sans rien oublier, et revenir en arrière
 - **Nouveaux interrupteurs** (`automation_switches`, `automation_mode(_company, _key)`) : arrêtés par défaut, sauf
   ce qui tournait déjà volontairement en production le 19/11 (vérifié : relève Outlook toutes les 5 min, 9
   prospects « mail » en 30 jours, 9 résumés en 7 jours, pied d'invitation P-5 / P-6) → actifs par défaut.
+- **Lot ItalTest** : les trois nouvelles tables (`automation_settings`, `automation_switches`, `integration_status`)
+  sont ajoutées à la liste « non copiées » de la copie de société de test (`_tc_skip`, complétée par la migration).
 - **Piège** : `production_overview` / `production_apply` sont réservés aux administrateurs (`MEP_FORBIDDEN`).
   Les relances d'impayés ne passent en « actif » QUE par cette fenêtre : `receivable_settings_set` le refuse.
 

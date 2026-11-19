@@ -310,6 +310,13 @@ insert into public.notifications (company_id, channel, to_address, subject, body
 values ((select v::uuid from _ctx where k = 'company'), 'email', 'y@example.invalid', 'Relance', 'Corps', 'invoice_reminder', 'document', gen_random_uuid()::text);
 create temp table _c5 on commit drop as select * from public.mail_dispatch_claim(200);
 insert into _t(check_name, result)
-select 'societe de test : la file de mails ne part jamais (« skipped / test_company »), meme interrupteur actif',
-       case when exists (select 1 from public.notifications where to_address = 'y@example.invalid' and status = 'skipped' and error = 'test_company')
+select 'societe de test : la file de mails ne part jamais (« skipped », a l enfilage par ItalTest ou a la prise en charge), meme interrupteur actif',
+       case when exists (select 1 from public.notifications where to_address = 'y@example.invalid' and status = 'skipped'
+                          and (error = 'test_company' or error like 'societe_de_test%'))
              and not exists (select 1 from _c5) then 'ok' else 'KO' end;
+
+insert into _t(check_name, result)
+select 'lot ItalTest : les nouvelles tables sont classees « non copiees » dans l inventaire de la copie',
+       case when to_regprocedure('public._tc_skip()') is null
+              or (select count(*) from public._tc_skip() where tbl in ('automation_settings', 'automation_switches', 'integration_status')) = 3
+            then 'ok' else 'KO' end;

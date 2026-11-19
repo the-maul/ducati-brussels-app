@@ -713,3 +713,25 @@ comment on function public.production_overview(uuid) is
   'Mise en production (19/11/2026) : tout ce qui sort (connexions, automatismes, taches pg_cron), etat, ce qui manque. Administrateurs.';
 comment on function public.production_apply(uuid, text[], text) is
   'Mise en production : start (Actif) | test | pause (Arrete) d une selection, par les interrupteurs de chaque module. Tout ou rien, trace events production_switch.';
+
+-- ---------------------------------------------------------------------
+-- 9. Lot ItalTest (societe de test) : les trois nouvelles tables sont classees « non copiees »
+--    dans l'inventaire de la copie (_tc_skip), sinon elles ressortiraient « a classer ».
+--    Ajout en fin de liste, une seule fois ; rien si le lot ItalTest n'est pas pose.
+-- ---------------------------------------------------------------------
+do $mep$
+declare _d text;
+begin
+  if to_regprocedure('public._tc_skip()') is null then return; end if;
+  _d := pg_get_functiondef('public._tc_skip()'::regprocedure);
+  if position('''automation_switches''' in _d) > 0 then return; end if;
+  _d := regexp_replace(_d, '\)\s*\$function\$\s*$',
+    E'),\n    (''automation_settings'', ''Envoi des mails automatiques (boite reelle) : jamais copie, une societe de test n envoie rien''),'
+    || E'\n    (''automation_switches'', ''Interrupteurs des envois : jamais copies, une societe de test ne demarre jamais''),'
+    || E'\n    (''integration_status'', ''Technique : presence des secrets du serveur'')\n$function$\n');
+  if position('''automation_switches''' in _d) = 0 then
+    raise notice 'mise en production : _tc_skip non complete (forme inattendue)';
+    return;
+  end if;
+  execute _d;
+end $mep$;
