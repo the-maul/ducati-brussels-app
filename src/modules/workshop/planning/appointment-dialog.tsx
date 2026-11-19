@@ -158,7 +158,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
       if (!a && vehicle?.id && isMaintenanceReasonCode(reasonCode)) { setCreated({ id, startsAt: startsAt.toISOString() }); return; }
       onSaved();
     },
-    onError: (e) => toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message) : t('feedback.error')),
+    onError: (e) => toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message === 'mileage_required' ? t('planningG8.errMileageOr') : e.message) : t('feedback.error')),
   });
 
   const popupDone = useCallback(() => onSaved(), [onSaved]);

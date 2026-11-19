@@ -247,6 +247,20 @@ export async function setRepairOrderStatus(orId: string, status: string): Promis
   if (error) throw error;
 }
 
+/**
+ * « Demarrer » (decision Q43 du 18/11, comme G8) : l'OR passe « en cours » (le RDV suit), trace
+ * `events` repair_order_work_started. Le premier pointage d'un mecanicien fait la meme chose en
+ * base. Avant la migration 20261119190000 : simple changement de statut (audite par trg_ro_audit).
+ */
+export async function startRepairOrder(orId: string): Promise<void> {
+  const { error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>)(
+    'repair_order_start', { _or: orId },
+  );
+  if (!error) return;
+  if (!isMissingSchema(error)) throw error;
+  await setRepairOrderStatus(orId, 'en_cours');
+}
+
 export async function setWarrantyStatus(orId: string, warranty_status: string): Promise<void> {
   const { error } = await supabase.from('repair_orders').update({ warranty_status }).eq('id', orId);
   if (error) throw error;

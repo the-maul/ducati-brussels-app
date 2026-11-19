@@ -2929,6 +2929,10 @@ export const it: DictionaryShape = {
   // Atelier (M8)
   // Recupero G8 "ordine di riparazione di base" (18/11/2026): stati, elenco, km, stampa, 30 punti, storico
   orBase: {
+    start: "Avvia",
+    startHint: "Porta l'ordine « In corso » (anche la prima timbratura di un meccanico lo fa).",
+    started: "Ordine in corso: il lavoro è iniziato.",
+    mileageOnceHint: "Obbligatorio alla creazione dell'ordine e quando si collega una moto; poi modificabile senza essere richiesto di nuovo.",
     status: {
       a_faire: 'Da fare', attente_devis: 'In attesa di preventivo', attente_pieces: 'Ricambi ordinati', en_cours: 'In corso',
       pret: 'Pronta', client_informe: 'Cliente avvisato', facture: 'Fatturato', annule: 'Annullato',
@@ -8394,6 +8398,21 @@ export const it: DictionaryShape = {
   },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
+    statusShort_demande: "Richiesta",
+    statusShort_prevu: "Fissato",
+    statusShort_arrive: "Consegnata",
+    statusShort_en_cours: "In lavorazione",
+    statusShort_attente: "In attesa",
+    statusShort_termine: "Terminato",
+    statusShort_client_informe: "Informato",
+    statusShort_facture: "Fatturato",
+    statusShort_annule: "Annullato",
+    errMileageOr: "Chilometraggio obbligatorio: inserire i km della moto prima di aprire l'ordine di riparazione.",
+    intakeTitle: "Prima di aprire l'ordine di riparazione",
+    intakeVehicleHint: "Nessuna moto su questo appuntamento. Scegliere la moto del cliente (i km diventano obbligatori) oppure aprire l'ordine senza moto: i km saranno richiesti appena una moto sarà collegata.",
+    intakeMileageHint: "Inserire il chilometraggio della moto: è obbligatorio all'apertura dell'ordine (come G8).",
+    intakeOpen: "Aprire l'ordine",
+    intakeOpenWithoutVehicle: "Aprire senza moto",
     clear: "Cancella",
     view_reception: "Accettazione",
     view_activite: "Attività",
@@ -8524,8 +8543,8 @@ export const it: DictionaryShape = {
     typesLink: "Apri i tipi di appuntamento",
     status_demande: "Richiesta cliente",
     status_prevu: "Appuntamento fissato",
-    status_arrive: "Veicolo arrivato",
-    status_en_cours: "Lavori iniziati",
+    status_arrive: "Accettato · moto consegnata",
+    status_en_cours: "Lavori iniziati · in lavorazione",
     status_attente: "In attesa preventivo / ricambi",
     status_termine: "Lavori terminati",
     status_client_informe: "Cliente informato",

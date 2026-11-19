@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import {
-  DEFAULT_BLOCK_CLASS, JOB_BLOCK_CLASS, dayLoad, formatMinutes, localYmd, occupancyTone, receptionSort,
+  appointmentBlockClass, dayLoad, formatMinutes, localYmd, occupancyTone, receptionSort,
   statusTone, type AppointmentType, type DayContext,
 } from './rules';
 import type { PlanningAppointment } from './api';
@@ -17,9 +17,9 @@ import type { usePlanningBase } from './planning-data';
 import { contactLabel, fmtDate, fmtTime, motoLabel } from './ui-bits';
 import { StatusIcon } from './status-icon';
 
+/** Fond de la case = couleur du type de RDV (decision Q47), neutre sans couleur. */
 export function typeBlockClass(types: AppointmentType[], code: string | null) {
-  const c = types.find((x) => x.code === code)?.color ?? null;
-  return c ? JOB_BLOCK_CLASS[c] : DEFAULT_BLOCK_CLASS;
+  return appointmentBlockClass(types.find((x) => x.code === code)?.color ?? null);
 }
 
 export function ReceptionView({ base, ctx, days, appts, mechanicFilter, statusFilter, onOpen, onNew, onCreateOr, onViewOr, onParts, canParts }: {

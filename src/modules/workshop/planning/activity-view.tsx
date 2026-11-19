@@ -93,7 +93,6 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
   const block = (a: PlanningAppointment, mechanicId: string) => {
     const top = (minutesOfDay(new Date(a.starts_at)) - dayStart) * PX_PER_MIN;
     const h = Math.max(plannedOrSlot(a, s.slot_minutes) * PX_PER_MIN, 18);
-    const Icon = StatusIcon(a.status);
     return (
       <div key={`${mechanicId}-${a.id}`} draggable={!a.or_id} onDragStart={startDrag(a)} onDragEnd={() => setHover(null)} onDoubleClick={() => onOpen(a)}
         title={t('planningG8.dragHint')}
@@ -101,7 +100,8 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
         className={`absolute inset-x-1 z-10 cursor-grab overflow-hidden rounded-[var(--radius-badge)] border-l-[3px] px-1.5 py-0.5 font-data text-[12px] leading-tight active:cursor-grabbing active:opacity-50 ${typeBlockClass(base.types, a.appointment_type)}`}>
         <div className="flex items-start justify-between gap-1">
           <span className="font-bold tabular-nums">{fmtTime(a.starts_at)}{a.planned_minutes ? ` · ${formatMinutes(a.planned_minutes)}` : ''}</span>
-          <Icon className={`size-3.5 shrink-0 ${statusTone(a.status) === 'success' ? 'text-success' : statusTone(a.status) === 'warning' ? 'text-warning' : statusTone(a.status) === 'info' ? 'text-info' : 'text-neutral-tag'}`} aria-label={t(`planningG8.status_${a.status}`)} />
+          {/* Statut en petit badge sur la case (decision Q47) : couleur de statut + icone + libelle. */}
+          <StatusBadge tone={statusTone(a.status)} icon={StatusIcon(a.status)} label={t(`planningG8.statusShort_${a.status}`)} className="px-1 py-px text-[10px]" />
         </div>
         {a.contacts && <p className="truncate font-bold">{contactLabel(a.contacts)}</p>}
         {a.vehicles && <p className="truncate text-muted-foreground">{motoLabel(a.vehicles)}</p>}

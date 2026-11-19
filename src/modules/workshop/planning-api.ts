@@ -83,7 +83,7 @@ export async function updateAppointmentStatus(id: string, status: string): Promi
   if (error) throw error;
 }
 
-/** Crée un OR depuis un RDV (B8) et le rattache au RDV (statut → en_cours). */
+/** Crée un OR depuis un RDV (B8) et le rattache au RDV (OR « à faire », RDV « réceptionné », Q43). */
 export async function createOrFromAppointment(a: Appointment): Promise<string> {
   // Le motif du RDV (entretien annuel, vidange...) suit l'OR : c'est lui qui declenche le
   // pre-remplissage du check-up et le controle des pieces du kit (mission 10, couture RDV -> OR).
@@ -93,10 +93,11 @@ export async function createOrFromAppointment(a: Appointment): Promise<string> {
   const orId = await createRepairOrder({
     companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage,
     operator: a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
-    receptionNotes: a.reception_notes ?? null, status: 'en_cours', warrantyStatus: 'aucune',
+    // Decision Q43 (18/11, comme G8) : l'OR nait « a faire », le RDV passe « receptionne » (arrive).
+    receptionNotes: a.reception_notes ?? null, status: 'a_faire', warrantyStatus: 'aucune',
     reasonCode: reasonCode ?? undefined, lines: [],
   });
-  const { error } = await supabase.from('workshop_appointments').update({ or_id: orId, status: 'en_cours' }).eq('id', a.id);
+  const { error } = await supabase.from('workshop_appointments').update({ or_id: orId, status: 'arrive' }).eq('id', a.id);
   if (error) throw error;
   return orId;
 }

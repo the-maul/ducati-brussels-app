@@ -36,7 +36,9 @@ export async function duplicateRepairOrder(orId: string): Promise<string> {
   const { or, lines } = await loadOr(orId);
   const ox = or as unknown as Record<string, unknown>;
   return createRepairOrder({
-    companyId: or.company_id, contactId: or.contact_id, vehicleId: or.vehicle_id, mileage: null,
+    // Decision Q42 (18/11) : le km est obligatoire a la creation d'un OR avec moto ; la copie reprend
+    // le dernier km connu de l'OR copie (modifiable ensuite).
+    companyId: or.company_id, contactId: or.contact_id, vehicleId: or.vehicle_id, mileage: or.vehicle_id ? (or.mileage ?? null) : null,
     operator: or.operator, repairType: or.repair_type, workDescription: or.work_description, receptionNotes: or.reception_notes,
     status: 'a_faire', warrantyStatus: 'aucune', expertName: null, expertDate: null,
     reasonCode: (ox.reason_code as string | null | undefined) ?? undefined,

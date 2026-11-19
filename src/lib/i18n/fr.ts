@@ -2935,6 +2935,10 @@ export const fr = {
   // Atelier (M8)
   // Rattrapage G8 « OR de base » (18/11/2026) : statuts, liste, km, impression, 30 points, historique
   orBase: {
+    start: "Démarrer",
+    startHint: "Passe l'OR « En cours » (le premier pointage d'un mécanicien sur l'OR le fait aussi).",
+    started: "OR en cours : le travail a commencé.",
+    mileageOnceHint: "Obligatoire à la création de l'OR et quand une moto est rattachée ; ensuite modifiable sans être redemandé.",
     status: {
       a_faire: 'À faire', attente_devis: 'Attente devis', attente_pieces: 'Pièces en commande', en_cours: 'En cours',
       pret: 'Prêt', client_informe: 'Client informé', facture: 'Facturé', annule: 'Annulé',
@@ -8413,6 +8417,21 @@ export const fr = {
   },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
+    statusShort_demande: "Demande",
+    statusShort_prevu: "RDV fixé",
+    statusShort_arrive: "Déposée",
+    statusShort_en_cours: "En travail",
+    statusShort_attente: "Attente",
+    statusShort_termine: "Terminé",
+    statusShort_client_informe: "Informé",
+    statusShort_facture: "Facturé",
+    statusShort_annule: "Annulé",
+    errMileageOr: "Kilométrage obligatoire : saisissez le km de la moto avant d'ouvrir l'OR.",
+    intakeTitle: "Avant d'ouvrir l'OR",
+    intakeVehicleHint: "Aucune moto sur ce rendez-vous. Choisissez la moto du client (le km devient obligatoire), ou ouvrez l'OR sans moto : le km sera demandé dès qu'une moto y sera rattachée.",
+    intakeMileageHint: "Saisissez le kilométrage de la moto : il est obligatoire à l'ouverture de l'OR (comme G8).",
+    intakeOpen: "Ouvrir l'OR",
+    intakeOpenWithoutVehicle: "Ouvrir l'OR sans moto",
     clear: "Effacer",
     view_reception: "Réception",
     view_activite: "Activité",
@@ -8543,8 +8562,8 @@ export const fr = {
     typesLink: "Ouvrir les types de rendez-vous",
     status_demande: "Demande client",
     status_prevu: "Rendez-vous fixé",
-    status_arrive: "Véhicule arrivé",
-    status_en_cours: "Travaux commencés",
+    status_arrive: "Réceptionné · moto déposée",
+    status_en_cours: "Travaux commencés · en travail",
     status_attente: "Attente devis / pièces",
     status_termine: "Travaux terminés",
     status_client_informe: "Client informé",

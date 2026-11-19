@@ -2929,6 +2929,10 @@ export const en: DictionaryShape = {
   // Atelier (M8)
   // G8 catch-up "basic repair order" (18/11/2026): statuses, list, mileage, printing, 30 points, history
   orBase: {
+    start: "Start",
+    startHint: "Sets the repair order to « In progress » (a mechanic's first clock-in on it does too).",
+    started: "Repair order in progress: work has started.",
+    mileageOnceHint: "Required when the repair order is created and when a bike is attached; afterwards editable without being asked again.",
     status: {
       a_faire: 'To do', attente_devis: 'Awaiting quote', attente_pieces: 'Parts on order', en_cours: 'In progress',
       pret: 'Ready', client_informe: 'Customer informed', facture: 'Invoiced', annule: 'Cancelled',
@@ -8394,6 +8398,21 @@ export const en: DictionaryShape = {
   },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
+    statusShort_demande: "Request",
+    statusShort_prevu: "Booked",
+    statusShort_arrive: "Dropped off",
+    statusShort_en_cours: "In progress",
+    statusShort_attente: "Waiting",
+    statusShort_termine: "Done",
+    statusShort_client_informe: "Informed",
+    statusShort_facture: "Invoiced",
+    statusShort_annule: "Cancelled",
+    errMileageOr: "Mileage required: enter the bike's mileage before opening the repair order.",
+    intakeTitle: "Before opening the repair order",
+    intakeVehicleHint: "No bike on this appointment. Pick the customer's bike (mileage becomes required), or open the repair order without a bike: the mileage will be asked as soon as a bike is attached.",
+    intakeMileageHint: "Enter the bike's mileage: it is required when the repair order is opened (as in G8).",
+    intakeOpen: "Open the repair order",
+    intakeOpenWithoutVehicle: "Open without a bike",
     clear: "Clear",
     view_reception: "Reception",
     view_activite: "Activity",
@@ -8524,8 +8543,8 @@ export const en: DictionaryShape = {
     typesLink: "Open appointment types",
     status_demande: "Customer request",
     status_prevu: "Appointment set",
-    status_arrive: "Vehicle arrived",
-    status_en_cours: "Work started",
+    status_arrive: "Received · bike dropped off",
+    status_en_cours: "Work started · in progress",
     status_attente: "Waiting quote / parts",
     status_termine: "Work finished",
     status_client_informe: "Customer informed",

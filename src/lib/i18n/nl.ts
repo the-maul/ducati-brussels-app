@@ -2929,6 +2929,10 @@ export const nl: DictionaryShape = {
   // Atelier (M8)
   // G8-inhaalslag "basis werkorder" (18/11/2026): statussen, lijst, km, afdruk, 30 punten, historiek
   orBase: {
+    start: "Starten",
+    startHint: "Zet de werkorder op « Bezig » (de eerste prikking van een mecanicien doet dat ook).",
+    started: "Werkorder bezig: het werk is gestart.",
+    mileageOnceHint: "Verplicht bij het aanmaken van de werkorder en wanneer een moto gekoppeld wordt; daarna wijzigbaar zonder opnieuw gevraagd te worden.",
     status: {
       a_faire: 'Te doen', attente_devis: 'Wacht op offerte', attente_pieces: 'Onderdelen besteld', en_cours: 'Bezig',
       pret: 'Klaar', client_informe: 'Klant verwittigd', facture: 'Gefactureerd', annule: 'Geannuleerd',
@@ -8394,6 +8398,21 @@ export const nl: DictionaryShape = {
   },
   // M8 - Planning de charge G8 (18/11/2026) : compagnons, capacite, liste d'attente, calendrier
   planningG8: {
+    statusShort_demande: "Aanvraag",
+    statusShort_prevu: "Vastgelegd",
+    statusShort_arrive: "Binnen",
+    statusShort_en_cours: "In behandeling",
+    statusShort_attente: "Wacht",
+    statusShort_termine: "Klaar",
+    statusShort_client_informe: "Verwittigd",
+    statusShort_facture: "Gefactureerd",
+    statusShort_annule: "Geannuleerd",
+    errMileageOr: "Kilometerstand verplicht: vul de km van de moto in voor u de werkorder opent.",
+    intakeTitle: "Voor u de werkorder opent",
+    intakeVehicleHint: "Geen moto op deze afspraak. Kies de moto van de klant (de km wordt verplicht), of open de werkorder zonder moto: de km wordt gevraagd zodra er een moto aan gekoppeld wordt.",
+    intakeMileageHint: "Vul de kilometerstand van de moto in: verplicht bij het openen van de werkorder (zoals G8).",
+    intakeOpen: "Werkorder openen",
+    intakeOpenWithoutVehicle: "Werkorder openen zonder moto",
     clear: "Wissen",
     view_reception: "Receptie",
     view_activite: "Activiteit",
@@ -8524,8 +8543,8 @@ export const nl: DictionaryShape = {
     typesLink: "Afspraaktypes openen",
     status_demande: "Klantaanvraag",
     status_prevu: "Afspraak vastgelegd",
-    status_arrive: "Voertuig aangekomen",
-    status_en_cours: "Werken gestart",
+    status_arrive: "Ontvangen · moto binnen",
+    status_en_cours: "Werken gestart · in behandeling",
     status_attente: "Wacht op offerte / onderdelen",
     status_termine: "Werken klaar",
     status_client_informe: "Klant verwittigd",
