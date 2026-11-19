@@ -50,9 +50,9 @@ select set_config('request.jwt.claims', '{"sub":"d9409378-a554-4cb2-97d6-e0b84ab
 set local role authenticated;
 
 with o as (
-  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, status, warranty_status, warranty_cession_code, warranty_note, repair_type)
+  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, mileage, status, warranty_status, warranty_cession_code, warranty_note, repair_type)
   values ('3d9f0f13-a691-4d07-ad58-34590df86e33', 'OR-ESSAI-GAR',
-          (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'),
+          (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'), 15000,
           'en_cours', 'refus_partiel', '05', 'Demande de garantie pour le chassis essai', 'garantie_ducati')
   returning id)
 insert into _ctx select 'or', id::text from o;

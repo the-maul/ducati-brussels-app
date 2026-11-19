@@ -33,14 +33,22 @@ export function isOrStatus(s: unknown): s is OrStatus {
 
 /** Couleur du statut (toujours avec icone + libelle, charte §1). */
 export function orStatusTone(s: string): OrTone {
+  // Decision Q43 (18/11) : « en travail » (en cours, info) se distingue de « deposee / a faire »
+  // (neutre) ; termine (pret, client informe) = succes ; facture / annule = neutre (archive),
+  // comme les statuts du RDV au planning (planning/rules.ts).
   switch (s) {
-    case 'facture': return 'success';
-    case 'pret': case 'client_informe': return 'info';
-    case 'annule': return 'neutral';
+    case 'en_cours': return 'info';
+    case 'pret': case 'client_informe': return 'success';
+    case 'facture': case 'annule': return 'neutral';
     case 'attente_devis': case 'attente_pieces': return 'warning';
     default: return 'neutral';
   }
 }
+
+/** Statuts depuis lesquels l'OR peut « Demarrer » (passer en cours, decision Q43 du 18/11). */
+export const OR_STARTABLE_STATUSES = ['a_faire', 'attente_devis', 'attente_pieces'] as const;
+export const canStartOr = (s: string | null | undefined): boolean =>
+  !!s && (OR_STARTABLE_STATUSES as readonly string[]).includes(s);
 
 /** Statut a afficher dans le choix de l'ecran : un OR facture / annule garde « a faire » (comme avant). */
 export function editableStatus(s: string | null | undefined): string {
@@ -133,12 +141,23 @@ export type MileageCheck =
   | { kind: 'lower'; km: number; last: MileageReading };
 
 /**
- * Controle G8 a l'enregistrement de l'OR : km obligatoire des qu'une moto est choisie ; un km
- * inferieur au dernier releve bloque tant que l'utilisateur ne l'a pas confirme (`confirmed`).
+ * Decision Q42 (18/11, comme G8) : le km est obligatoire a la CREATION de l'OR et quand une moto est
+ * rattachee (ou changee) ; ensuite il reste modifiable mais n'est plus redemande a chaque
+ * modification. Meme regle en base (trg_repair_orders_mileage_required, 20261119190000).
  */
-export function checkMileage(p: { input: string; hasVehicle: boolean; last: MileageReading | null; confirmed?: boolean }): MileageCheck {
+export function mileageRequired(p: { isNew: boolean; savedVehicleId: string | null | undefined; vehicleId: string | null | undefined }): boolean {
+  if (!p.vehicleId) return false;
+  return p.isNew || (p.savedVehicleId ?? null) !== p.vehicleId;
+}
+
+/**
+ * Controle G8 a l'enregistrement de l'OR : km obligatoire quand `required` (sinon : des qu'une moto
+ * est choisie, ancien comportement) ; un km inferieur au dernier releve bloque tant que
+ * l'utilisateur ne l'a pas confirme (`confirmed`).
+ */
+export function checkMileage(p: { input: string; hasVehicle: boolean; last: MileageReading | null; confirmed?: boolean; required?: boolean }): MileageCheck {
   const raw = p.input.trim();
-  if (!raw) return p.hasVehicle ? { kind: 'required' } : { kind: 'ok', km: null };
+  if (!raw) return (p.required ?? p.hasVehicle) ? { kind: 'required' } : { kind: 'ok', km: null };
   const km = parseMileage(raw);
   if (km == null) return { kind: 'invalid' };
   if (p.hasVehicle && p.last && km < p.last.km && !p.confirmed) return { kind: 'lower', km, last: p.last };
@@ -244,14 +263,22 @@ const dmy = (iso: string | null | undefined): string => {
 export const formatOrDate = dmy;
 
 /** Grille de l'export Excel (en-tete + une ligne par OR), montants en nombres. */
-export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[]; status: (s: string) => string; warranty: (s: string) => string }): (string | number)[][] {
+/**
+ * Grille de l'export Excel. `deposit` (decision Q45 du 18/11) : acompte net de l'OR, en DERNIERE
+ * colonne (les colonnes d'avant gardent leur place) ; vide sans acompte.
+ */
+export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[]; status: (s: string) => string; warranty: (s: string) => string; deposit?: (id: string) => number | null }): (string | number)[][] {
   return [
     h.headers,
-    ...rows.map((r) => [
-      r.number ?? '', r.client, r.vehicleRef ?? '', r.vehicleModel ?? '', r.plate ?? '', r.vin ?? '',
-      dmy(r.created_at), dmy(r.promised_at), r.operator ?? '', r.mileage ?? '', Math.round(Number(r.total_ttc) * 100) / 100,
-      h.status(r.status), r.warranty_status && r.warranty_status !== 'aucune' ? h.warranty(r.warranty_status) : '',
-    ]),
+    ...rows.map((r) => {
+      const base: (string | number)[] = [
+        r.number ?? '', r.client, r.vehicleRef ?? '', r.vehicleModel ?? '', r.plate ?? '', r.vin ?? '',
+        dmy(r.created_at), dmy(r.promised_at), r.operator ?? '', r.mileage ?? '', Math.round(Number(r.total_ttc) * 100) / 100,
+        h.status(r.status), r.warranty_status && r.warranty_status !== 'aucune' ? h.warranty(r.warranty_status) : '',
+      ];
+      if (h.deposit) { const d = h.deposit(r.id); base.push(d != null && d !== 0 ? Math.round(d * 100) / 100 : ''); }
+      return base;
+    }),
   ];
 }
 
@@ -259,6 +286,9 @@ export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[
 // Impression de l'OR et de la fiche de travail
 // ---------------------------------------------------------------------------------------------
 
+/** Formats d'impression (decision Q46 du 18/11) : PDF A4 (defaut) ou ticket 80 mm. */
+export const OR_PRINT_FORMATS = ['a4', 'ticket'] as const;
+export type OrPrintFormat = (typeof OR_PRINT_FORMATS)[number];
 export const OR_PRINT_MODES = ['or', 'fiche', 'both'] as const;
 export type OrPrintMode = (typeof OR_PRINT_MODES)[number];
 export type OrPrintOptions = { mode: OrPrintMode; priced: boolean; hideClient: boolean };

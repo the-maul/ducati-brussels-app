@@ -13,8 +13,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { createRepairOrder } from '../write-api';
 import { operatorIdSchemaReady } from '../or-page-api';
+import { serviceKitOrLines } from '../kits/kit-from-appointment';
+import { isServiceCode, serviceCodeForReason } from '../service-code';
 import {
-  DEFAULT_APPOINTMENT_TYPES, isJobColor, canCreateOr,
+  DEFAULT_APPOINTMENT_TYPES, isJobColor, canCreateOr, orIntakeNeeds, OR_STATUS_FROM_APPOINTMENT, APPOINTMENT_STATUS_WITH_OR,
   type AppointmentType, type CalendarBlock, type MechanicHours, type PlanningMechanic,
 } from './rules';
 
@@ -232,6 +234,10 @@ export async function unassignAppointment(id: string): Promise<void> {
 export async function setPlannedMinutes(id: string, minutes: number): Promise<void> {
   unwrap(await loose.from('workshop_appointments').update({ planned_minutes: minutes }).eq('id', id));
 }
+/** Moto et km du RDV, demandes avant d'ouvrir l'OR (decision Q42 du 18/11). */
+export async function setAppointmentVehicleMileage(id: string, vehicleId: string, mileage: number): Promise<void> {
+  unwrap(await loose.from('workshop_appointments').update({ vehicle_id: vehicleId, mileage }).eq('id', id));
+}
 export async function setAppointmentStatus(id: string, status: string): Promise<void> {
   unwrap(await loose.from('workshop_appointments').update({ status }).eq('id', id));
 }
@@ -239,18 +245,26 @@ export async function setAppointmentStatus(id: string, status: string): Promise<
 /**
  * « Valider RDV et saisie OR » (G8) : temps prevu obligatoire, puis OR ouvert avec la moto, le km,
  * le client, les travaux, le motif et le compagnon (operateur = membre lie). Le RDV garde le lien.
+ * Decisions du 18/11 : km obligatoire des qu'une moto est connue (Q42, `mileage_required`) ; l'OR
+ * nait « a faire » et le RDV passe « receptionne » (Q43 ; la base aligne aussi le RDV sur l'OR).
  */
 export async function createOrFromPlanningAppointment(a: PlanningAppointment, mechanics: PlanningMechanic[]): Promise<string> {
   if (!canCreateOr(a)) throw new Error('planned_time_required');
+  if (orIntakeNeeds(a) === 'mileage') throw new Error('mileage_required');
   const m = a.mechanic_id ? mechanics.find((x) => x.id === a.mechanic_id) ?? null : null;
   const withOperatorId = m?.user_id && await operatorIdSchemaReady() ? { operatorId: m.user_id } : {};
+  // Decision Q49 (18/11) : RDV d'entretien → toutes les lignes du kit choisi arrivent sur l'OR.
+  const svc = isServiceCode(a.service_code) ? a.service_code : serviceCodeForReason(a.reason_code ?? null);
+  const kitLines = svc && a.vehicle_id
+    ? await serviceKitOrLines({ companyId: a.company_id, vehicleId: a.vehicle_id, serviceCode: svc, contactId: a.contact_id }).catch(() => [])
+    : [];
   const orId = await createRepairOrder({
     companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage: a.mileage ?? null,
     operator: m?.name ?? a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
-    receptionNotes: a.reception_notes ?? null, status: 'en_cours', warrantyStatus: 'aucune',
-    reasonCode: a.reason_code ?? undefined, lines: [], ...withOperatorId,
+    receptionNotes: a.reception_notes ?? null, status: OR_STATUS_FROM_APPOINTMENT, warrantyStatus: 'aucune',
+    reasonCode: a.reason_code ?? undefined, lines: kitLines, ...withOperatorId,
   });
-  unwrap(await loose.from('workshop_appointments').update({ or_id: orId, status: 'en_cours' }).eq('id', a.id));
+  unwrap(await loose.from('workshop_appointments').update({ or_id: orId, status: APPOINTMENT_STATUS_WITH_OR }).eq('id', a.id));
   return orId;
 }
 

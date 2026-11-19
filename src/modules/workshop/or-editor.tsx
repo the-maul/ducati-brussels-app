@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock, Tag, Undo2 } from 'lucide-react';
 import { KitInsertDialog } from './kits/kit-insert-dialog';
-import { toRoLine, type InsertLine } from './kits/insert-rules';
+import { kitDuplicateCount, toRoLine, type InsertLine } from './kits/insert-rules';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
@@ -79,7 +79,7 @@ import { CommentTemplatesMenu } from './or-base/comment-templates-menu';
 import { ClientCommentPopup } from './or-base/client-comment-popup';
 import { orStatusLabel } from './or-base/or-status-badge';
 import {
-  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, normalizeCheckPoints,
+  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, mileageRequired, normalizeCheckPoints,
   type CheckPoints, type MileageReading,
 } from './or-base/rules';
 
@@ -260,6 +260,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode))
     : null;
   const rateQ = useQuery({ queryKey: ['maintenance', 'rate', companyId], queryFn: () => loadHourlyRateHt(companyId), staleTime: 300_000 });
+  // Taux STANDARD de l'atelier (base de la MO, decision Q48 : 109,74 HT) ; le tarif du client (VIP :
+  // 90,00 HT) s'applique ensuite par le moteur unique des lignes d'OR (or-line-pricing.ts, priceOrLine).
   const rate = rateQ.data ?? null;
   // Dernier releve de la moto (OR, fiche moto, dernier entretien, declaration) : controle du km G8.
   const readingsQ = useQuery({ queryKey: ['vehicle-mileage', vehicle?.id], enabled: !!vehicle?.id, queryFn: () => vehicleMileageReadings(vehicle!.id), staleTime: 30_000 });
@@ -376,12 +378,26 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const setLine = (k: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === k ? { ...l, ...patch } : l)));
   // Rattrapage G8 : un kit / forfait insere comme lignes de l'OR (les lignes vides sont remplacees).
   const [kitOpen, setKitOpen] = useState(false);
-  const insertKitLines = (ins: InsertLine[]) => {
-    setLines((ls) => {
-      const kept = ls.filter((l) => l.designation.trim() || l.article_id);
-      return [...kept, ...ins.map((l) => ({ ...toRoLine(l), _key: `ro${counter++}` }))];
-    });
+  // Decision Q49 : kit deja sur l'OR (insere depuis le RDV, ou deux fois) → on previent, « ne pas reinserer » par defaut.
+  const [kitDup, setKitDup] = useState<{ lines: InsertLine[]; count: number } | null>(null);
+  const insertKitLines = (ins: InsertLine[], force = false) => {
+    const dup = kitDuplicateCount(lines, ins);
+    if (dup > 0 && !force) { setKitOpen(false); setKitDup({ lines: ins, count: dup }); return; }
+    setKitDup(null);
     setKitOpen(false);
+    // Decisions Q48 / Q49 : les lignes du kit passent par LA fonction de prix des lignes d'OR (tarif du
+    // client ou de l'assureur ; MO au taux du client, VIP compris) ; sans tarif, le prix du kit reste.
+    void (async () => {
+      let priced = ins.map(toRoLine);
+      try {
+        const bases = { articleBaseHt: await articleBasePrices(priced.map((l) => l.article_id ?? '').filter(Boolean), roundUp), labourRateHt: rate };
+        priced = (await repriceOrLines(priced, pricer, bases)).lines;
+      } catch { /* prix du kit */ }
+      setLines((ls) => {
+        const kept = ls.filter((l) => l.designation.trim() || l.article_id);
+        return [...kept, ...priced.map((l) => ({ ...l, _key: `ro${counter++}` }))];
+      });
+    })();
   };
   const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
     ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
@@ -408,6 +424,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
 
   const ownName = profile?.full_name?.trim() || profile?.email || '';
   const savedOperator = operatorToSave(operatorChoice, members, operatorChoice.operatorId === user?.id ? ownName : (o?.operator ?? ''));
+  const kmRequired = mileageRequired({ isNew: !o, savedVehicleId: o?.vehicle_id ?? null, vehicleId: vehicle?.id ?? null });
   const payload = (km: number | null = mileage ? Math.round(num(mileage)) : null, ack: number | null = null): OrPayload => ({
     contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, mileage: km,
     promisedAt: localInputToIso(promisedAt), checkPoints, internalNotes,
@@ -421,12 +438,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     insurerPriceListId: appliedInsurerList,
   });
 
-  // Enregistrer : km obligatoire des qu'une moto est choisie ; km inferieur au dernier releve =
-  // avertissement bloquant a confirmer (G8). Le km deja enregistre sur cet OR ne redemande pas
-  // (et garde sa confirmation eventuelle).
+  // Enregistrer (decision Q42 du 18/11, comme G8) : km obligatoire a la creation de l'OR et quand
+  // une moto est rattachee ou changee ; ensuite il reste modifiable sans etre redemande. Km
+  // inferieur au dernier releve = avertissement bloquant a confirmer (G8). Le km deja enregistre
+  // sur cet OR ne redemande pas (et garde sa confirmation eventuelle).
   const submit = (intent: OrEditorIntent, confirmed = false) => {
     const unchanged = !!o && mileage.trim() !== '' && Math.round(num(mileage)) === o.mileage;
-    const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged });
+    const required = kmRequired;
+    const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged, required });
     if (r.kind === 'required') { setMileageError(t('orBase.mileageRequired')); return; }
     if (r.kind === 'invalid') { setMileageError(t('orBase.mileageInvalid')); return; }
     setMileageError(null);
@@ -454,7 +473,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
             : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
-        <Field label={`${t('workshop.mileage')}${vehicle ? ' *' : ''}`}>
+        <Field label={`${t('workshop.mileage')}${kmRequired ? ' *' : ''}`}>
           <Input
             type="number" min={0} value={mileage} onChange={(e) => { setMileage(e.target.value); setMileageError(null); }}
             className={`text-right tabular-nums ${mileageError ? 'border-danger' : ''}`} aria-invalid={!!mileageError}
@@ -698,7 +717,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       {kitOpen && (
         <KitInsertDialog companyId={companyId} modelYearId={kitModelYear}
           effectiveHt={(ht, v) => effectiveSaleHt(ht, v, roundUp)}
-          onInsert={insertKitLines} onClose={() => setKitOpen(false)} />
+          onInsert={(ins) => insertKitLines(ins)} onClose={() => setKitOpen(false)} />
       )}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
       <div className="flex justify-end"><Button onClick={() => submit('save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
@@ -709,6 +728,18 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const overlays = (
     <>
       <ClientCommentPopup contactId={contact?.id ?? null} />
+      <AlertDialog open={!!kitDup} onOpenChange={(v) => { if (!v) setKitDup(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('orBase.kitAuto_dupTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{fillVars(t('orBase.kitAuto_dupText'), { n: kitDup?.count ?? 0 })}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel autoFocus>{t('orBase.kitAuto_dupSkip')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (kitDup) insertKitLines(kitDup.lines, true); }}>{t('orBase.kitAuto_dupInsert')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={!!lowerAsk} onOpenChange={(v) => { if (!v) setLowerAsk(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

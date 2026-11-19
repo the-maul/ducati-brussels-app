@@ -107,6 +107,19 @@ export function kitInsertLines(p: {
   return out;
 }
 
+/**
+ * Decision Q49 (18/11) : « Inserer un kit » sur un OR qui a deja ces articles (kit insere a la
+ * creation depuis le RDV, ou insere deux fois) : nombre de lignes du kit deja presentes sur l'OR
+ * (meme article, ligne non texte). > 0 = on previent et on propose de ne pas reinserer.
+ */
+export function kitDuplicateCount(
+  existing: ReadonlyArray<{ article_id?: string | null; kind?: string | null }>,
+  incoming: ReadonlyArray<InsertLine>,
+): number {
+  const have = new Set(existing.filter((l) => l.article_id && l.kind !== 'texte').map((l) => l.article_id as string));
+  return incoming.filter((l) => l.type !== 'texte' && l.article_id && have.has(l.article_id)).length;
+}
+
 /** Total HT des lignes inserees (aperçu dans la fenetre). */
 export function insertLinesTotalHt(lines: ReadonlyArray<InsertLine>): number {
   return Math.round(lines.reduce((s, l) => s + (l.type === 'texte' ? 0 : l.quantity * l.unit_price_ht), 0) * 100) / 100;

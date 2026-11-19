@@ -9,7 +9,6 @@
  * Ce composant sert les vues « OR » et « Devis de reparation » de la page Atelier ; les vues
  * « O.R. garantie » et « O.R. accident » sont les tables du lot garantie / accident (memes donnees,
  * colonnes G8 propres : type de cession, cabinet, franchise...).
- * Acompte : pas de colonne, l'OR n'a pas d'acompte dans le DMS (voir bible M08, « a trancher »).
  */
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -23,6 +22,7 @@ import { useListSearch, useSearchText } from '@/lib/use-list-search';
 import { t, fillVars } from '@/lib/i18n';
 import { listRepairTypes } from '../or-page-api';
 import { listOrOperators, listRepairOrdersForExport, listRepairOrdersPage, type OrListQuery } from './api';
+import { listOrDeposits } from './deposit-api';
 import { OrStatusBadge, orStatusLabel } from './or-status-badge';
 import { OR_ALL_STATUSES, exportGrid, formatOrDate, pageCount, type OrListView } from './rules';
 
@@ -30,8 +30,14 @@ import { OR_ALL_STATUSES, exportGrid, formatOrDate, pageCount, type OrListView }
 export const WORKSHOP_VIEWS = ['or', 'devis', 'garantie', 'accident', 'retours', 'stats'] as const;
 export type WorkshopView = (typeof WORKSHOP_VIEWS)[number];
 
-/** Etat de la liste garde dans l'adresse (UX011). `status` / `view` gardent les noms d'avant le 18/11. */
-export const OR_LIST_DEFAULTS = { status: 'all', view: 'or', q: '', from: '', to: '', op: '', type: '', page: 1 };
+/**
+ * Etat de la liste garde dans l'adresse (UX011). `status` / `view` gardent les noms d'avant le 18/11.
+ * Decision Q44 (18/11, comme G8 « l'OR facture disparait ») : la liste s'ouvre sur les OR OUVERTS
+ * (ni factures, ni annules) ; « Tous les statuts » reste au choix. Le choix vit dans l'adresse
+ * (Retour le retrouve) ; il n'existe pas de mecanisme de preference memorisee par poste.
+ */
+export const OR_LIST_DEFAULT_STATUS = 'open';
+export const OR_LIST_DEFAULTS = { status: OR_LIST_DEFAULT_STATUS, view: 'or', q: '', from: '', to: '', op: '', type: '', page: 1 };
 export const OR_LIST_CHOICES = { view: WORKSHOP_VIEWS, status: ['all', 'open', ...OR_ALL_STATUSES] } as const;
 
 const ALL = ' all';
@@ -55,20 +61,28 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
   const rows = listQ.data?.rows ?? [];
   const total = listQ.data?.total ?? 0;
   const pages = pageCount(total);
+  // Colonne « Acompte » (decision Q45 du 18/11, comme G8) : acompte net percu de chaque OR de la page.
+  const depositsQ = useQuery({
+    queryKey: ['repair-orders', 'deposits', rows.map((r) => r.id).join(',')],
+    queryFn: () => listOrDeposits(rows.map((r) => r.id)),
+    enabled: rows.length > 0, placeholderData: keepPreviousData,
+  });
   const typeLabel = (code: string | null) => (typesQ.data ?? []).find((x) => x.code === code)?.label ?? code ?? '';
 
   const exportX = useMutation({
     mutationFn: async () => {
       const all = await listRepairOrdersForExport(query);
+      const deposits = await listOrDeposits(all.map((r) => r.id));
       const XLSX = await import('xlsx');
       const grid = exportGrid(all, {
         headers: [
           t('orBase.colNumber'), t('orBase.colClient'), t('orBase.colReference'), t('orBase.colModel'), t('orBase.colPlate'), t('orBase.colVin'),
           t('orBase.colReceived'), t('orBase.colPromised'), t('orBase.colOperator'), t('orBase.colMileage'), t('orBase.colAmount'),
-          t('orBase.colStatus'), t('orBase.colWarranty'),
+          t('orBase.colStatus'), t('orBase.colWarranty'), t('orBase.colDeposit'),
         ],
         status: orStatusLabel,
         warranty: (w) => t(`workshop.warranty_${w}`),
+        deposit: (id) => deposits.get(id)?.amount ?? null,
       });
       const ws = XLSX.utils.aoa_to_sheet(grid);
       const wb = XLSX.utils.book_new();
@@ -81,8 +95,8 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
 
-  const filtered = !!(ls.q || ls.from || ls.to || ls.op || ls.type || ls.status !== 'all');
-  const cols = 10;
+  const filtered = !!(ls.q || ls.from || ls.to || ls.op || ls.type || ls.status !== OR_LIST_DEFAULT_STATUS);
+  const cols = 11;
 
   return (
     <div className="space-y-3">
@@ -122,7 +136,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
           </SelectContent>
         </Select>
         {filtered && (
-          <Button variant="ghost" size="sm" onClick={() => { setText(''); setLs({ q: '', from: '', to: '', op: '', type: '', status: 'all', page: 1 }); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setText(''); setLs({ q: '', from: '', to: '', op: '', type: '', status: OR_LIST_DEFAULT_STATUS, page: 1 }); }}>
             <X /> {t('orBase.resetFilters')}
           </Button>
         )}
@@ -141,6 +155,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
               <Th>{t('orBase.colNumber')}</Th><Th>{t('orBase.colClient')}</Th><Th>{t('orBase.colVehicle')}</Th>
               <Th>{t('orBase.colReceived')}</Th><Th>{t('orBase.colPromised')}</Th><Th>{t('orBase.colOperator')}</Th>
               <Th className="text-right">{t('orBase.colMileage')}</Th><Th className="text-right">{t('orBase.colAmount')}</Th>
+              <Th className="text-right">{t('orBase.colDeposit')}</Th>
               <Th>{t('orBase.colStatus')}</Th>
               <Th>{t('orBase.colWarranty')}</Th>
             </tr>
@@ -164,6 +179,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
                 <td className="px-3 py-2">{o.operator || '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{o.mileage != null ? o.mileage.toLocaleString('fr-BE') : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(o.total_ttc)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{(depositsQ.data?.get(o.id)?.amount ?? 0) !== 0 ? eur(depositsQ.data!.get(o.id)!.amount) : '—'}</td>
                 <td className="px-3 py-2"><OrStatusBadge status={o.status} /></td>
                 <td className="px-3 py-2">
                   {o.warranty_status !== 'aucune'

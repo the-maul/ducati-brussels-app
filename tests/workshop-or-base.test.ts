@@ -31,9 +31,9 @@ describe('statuts G8', () => {
   test('couleurs : attente = avertissement, pret / client informe = info, facture = succes', () => {
     expect(orStatusTone('attente_devis')).toBe('warning');
     expect(orStatusTone('attente_pieces')).toBe('warning');
-    expect(orStatusTone('pret')).toBe('info');
-    expect(orStatusTone('client_informe')).toBe('info');
-    expect(orStatusTone('facture')).toBe('success');
+    expect(orStatusTone('pret')).toBe('success');
+    expect(orStatusTone('client_informe')).toBe('success');
+    expect(orStatusTone('facture')).toBe('neutral');
     expect(orStatusTone('annule')).toBe('neutral');
   });
   test('la pointeuse accepte les OR en attente de devis / pieces, pas un OR pret ou facture', () => {

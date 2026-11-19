@@ -18,10 +18,37 @@ export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 export const SELECTABLE_STATUSES: AppointmentStatus[] = ['prevu', 'arrive', 'en_cours', 'attente', 'termine', 'client_informe', 'facture', 'annule'];
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+/**
+ * Decision Q43 (18/11) : le planning distingue « deposee » (receptionne, moto la, en attente d'un
+ * mecanicien : warning) et « en travail » (travaux commences : info) ; un RDV fixe a venir est
+ * neutre. Toujours couleur + icone + libelle (status-icon.ts, libelles planningG8.status_*).
+ */
 export const STATUS_TONE: Record<AppointmentStatus, StatusTone> = {
-  demande: 'warning', prevu: 'info', arrive: 'info', en_cours: 'info', attente: 'warning',
+  demande: 'warning', prevu: 'neutral', arrive: 'warning', en_cours: 'info', attente: 'warning',
   termine: 'success', client_informe: 'success', facture: 'neutral', annule: 'neutral',
 };
+
+/** Phase visible au planning (decision Q43) : moto deposee / en travail / autre. */
+export type WorkshopPhase = 'deposee' | 'en_travail' | null;
+export function appointmentPhase(status: string): WorkshopPhase {
+  if (status === 'arrive' || status === 'attente') return 'deposee';
+  if (status === 'en_cours') return 'en_travail';
+  return null;
+}
+
+/** Decision Q43 (18/11, comme G8) : l'OR cree depuis le RDV nait « a faire », le RDV passe « receptionne ». */
+export const OR_STATUS_FROM_APPOINTMENT = 'a_faire';
+export const APPOINTMENT_STATUS_WITH_OR: AppointmentStatus = 'arrive';
+
+/**
+ * Decision Q42 (18/11) : avant d'ouvrir l'OR depuis le RDV. Moto connue sans km → 'mileage' (le km
+ * est exige, au plus tard a la creation de l'OR) ; pas de moto (moto a creer) → 'vehicle' (on
+ * propose de la choisir, l'OR peut s'ouvrir sans) ; sinon 'none'.
+ */
+export function orIntakeNeeds(a: { vehicle_id: string | null; mileage: number | null | undefined }): 'none' | 'vehicle' | 'mileage' {
+  if (!a.vehicle_id) return 'vehicle';
+  return a.mileage == null ? 'mileage' : 'none';
+}
 export const statusTone = (s: string): StatusTone => STATUS_TONE[s as AppointmentStatus] ?? 'neutral';
 
 /** Un RDV compte dans la charge tant qu'il n'est ni annule ni une simple demande ni en attente. */
@@ -50,16 +77,25 @@ export const JOB_COLORS = ['entretien', 'reparation', 'garantie', 'pneus', 'prep
 export type JobColor = (typeof JOB_COLORS)[number];
 export const isJobColor = (v: unknown): v is JobColor => typeof v === 'string' && (JOB_COLORS as readonly string[]).includes(v);
 
-/** Classes Tailwind (tokens) d'un bloc de RDV : fond a 12 %, bordure gauche pleine couleur (charte §5.6). */
+/**
+ * Classes Tailwind (tokens) d'un bloc de RDV (decision Q47 du 18/11, comme les categories G8) : la
+ * couleur du TYPE de RDV colore le FOND de la case (teinte a 20 % du token, lisible en clair et en
+ * sombre : le texte reste la couleur de texte du theme) + bordure gauche pleine couleur (charte §5.6).
+ * Palette FERMEE de tokens `--job-*` (tokens.css), jamais de hex libre ; le rouge Ducati en est exclu
+ * (reserve a l'identite). Le statut reste un petit badge sur la case (couleur de statut + icone + libelle).
+ */
 export const JOB_BLOCK_CLASS: Record<JobColor, string> = {
-  entretien: 'border-l-job-entretien bg-job-entretien/10',
-  reparation: 'border-l-job-reparation bg-job-reparation/10',
-  garantie: 'border-l-job-garantie bg-job-garantie/10',
-  pneus: 'border-l-job-pneus bg-job-pneus/10',
-  prepa: 'border-l-job-prepa bg-job-prepa/10',
-  carrosserie: 'border-l-job-carrosserie bg-job-carrosserie/10',
+  entretien: 'border-l-job-entretien bg-job-entretien/20',
+  reparation: 'border-l-job-reparation bg-job-reparation/20',
+  garantie: 'border-l-job-garantie bg-job-garantie/20',
+  pneus: 'border-l-job-pneus bg-job-pneus/20',
+  prepa: 'border-l-job-prepa bg-job-prepa/20',
+  carrosserie: 'border-l-job-carrosserie bg-job-carrosserie/20',
 };
+/** Couleur par defaut (neutre) quand le type n'a pas de couleur ou n'est pas choisi. */
 export const DEFAULT_BLOCK_CLASS = 'border-l-neutral-tag bg-neutral-bg';
+/** Classe du bloc pour une couleur de type (valeur de Parametres → Tables) ; inconnue / vide = neutre. */
+export const appointmentBlockClass = (color: unknown): string => (isJobColor(color) ? JOB_BLOCK_CLASS[color] : DEFAULT_BLOCK_CLASS);
 
 export type AppointmentType = { code: string; label: string; color: JobColor | null; defaultMinutes: number | null };
 

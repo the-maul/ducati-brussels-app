@@ -98,8 +98,8 @@ select 'motifs : « Entretien annuel + huile » actif (Oil Service), 15 000 / 30
 
 -- RDV « Entretien annuel » dans 10 jours (le panier du manque est donc le standard).
 with a as (
-  insert into public.workshop_appointments (company_id, contact_id, vehicle_id, starts_at, planned_minutes, status, reason_code, source)
-  values ('3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'),
+  insert into public.workshop_appointments (company_id, contact_id, vehicle_id, mileage, starts_at, planned_minutes, status, reason_code, source)
+  values ('3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'), 15000,
           date_trunc('day', now()) + interval '10 days 9 hours', 90, 'prevu', 'entretien_annuel', 'dms')
   returning id, service_code)
 insert into _ctx select 'rdv1', id::text from a;
@@ -197,8 +197,8 @@ select 'RDV annule : reservations liberees, filtre reserve 0',
 
 -- RDV « Entretien annuel + huile » : Annual + Oil, filtre une seule fois.
 with a as (
-  insert into public.workshop_appointments (company_id, contact_id, vehicle_id, starts_at, planned_minutes, status, reason_code, source)
-  values ('3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'),
+  insert into public.workshop_appointments (company_id, contact_id, vehicle_id, mileage, starts_at, planned_minutes, status, reason_code, source)
+  values ('3d9f0f13-a691-4d07-ad58-34590df86e33', (select v::uuid from _ctx where k = 'contact'), (select v::uuid from _ctx where k = 'vehicle'), 15000,
           date_trunc('day', now()) + interval '2 days 9 hours', 90, 'prevu', 'entretien_annuel_huile', 'dms')
   returning id)
 insert into _ctx select 'rdv2', id::text from a;
@@ -218,9 +218,9 @@ select 'RDV dans 2 jours : le manque part au panier urgente',
 
 -- OR ouvert depuis le RDV : la reservation suit l'OR (aucun mouvement).
 with r as (
-  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, status, reason_code)
+  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, mileage, status, reason_code)
   values ('3d9f0f13-a691-4d07-ad58-34590df86e33', 'OR-ESSAI-ATE015', (select v::uuid from _ctx where k = 'contact'),
-          (select v::uuid from _ctx where k = 'vehicle'), 'en_cours', 'entretien_annuel_huile')
+          (select v::uuid from _ctx where k = 'vehicle'), 15000, 'en_cours', 'entretien_annuel_huile')
   returning id)
 insert into _ctx select 'or', id::text from r;
 insert into _t(check_name, result)
