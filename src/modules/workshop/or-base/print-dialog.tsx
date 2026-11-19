@@ -3,6 +3,9 @@
  * Type : OR uniquement / fiche de travail uniquement / OR + fiche ; options « edition chiffree »
  * et « OR sans le nom du client ». Le PDF est construit dans le navigateur (`or-pdf.ts`) a partir de
  * la version ENREGISTREE de l'OR, dans la langue de la fiche du client (papier remis au client).
+ * Decision Q46 (18/11) : en plus du PDF A4, un FORMAT TICKET 80 mm (or-ticket.ts) imprime par le
+ * pilote de l'imprimante ticket du poste, comme les tickets de caisse (src/lib/devices).
+ * Decision Q45 : l'acompte verse est imprime sur l'OR et sur le ticket.
  */
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -19,7 +22,14 @@ import { contactLocale } from '@/lib/i18n/client-locale';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getRepairOrderFull } from '../api';
 import { buildOrPdf, type OrPdfData, type OrPdfLabels } from './or-pdf';
-import { CHECK_POINTS, OR_PRINT_MODES, normalizeCheckPoints, printFileName, type OrPrintMode, type PrintLineIn } from './rules';
+import { buildOrTicket } from './or-ticket';
+import { listOrDeposits } from './deposit-api';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useDeviceSetup } from '@/lib/devices/use-devices';
+import { printReceipt, type ReceiptDoc } from '@/lib/devices';
+import { printHtmlInWindow } from '@/lib/devices/drivers';
+import { receiptHtml } from '@/lib/devices/receipt-html';
+import { CHECK_POINTS, OR_PRINT_FORMATS, OR_PRINT_MODES, normalizeCheckPoints, printFileName, type OrPrintFormat, type OrPrintMode, type PrintLineIn } from './rules';
 
 function labelsFor(locale: Locale): OrPdfLabels {
   const k = (key: string) => tIn(locale, `orBase.pdf.${key}`);
@@ -33,7 +43,7 @@ function labelsFor(locale: Locale): OrPdfLabels {
     colUnit: k('colUnit'), colTotal: k('colTotal'), warrantyMark: k('warrantyMark'), totalHt: k('totalHt'), totalVat: k('totalVat'),
     totalTtc: k('totalTtc'), depositTitle: k('depositTitle'), depositText: k('depositText'), signClient: k('signClient'),
     signReception: k('signReception'), date: k('date'), doneTitle: k('doneTitle'), mechanic: k('mechanic'), timeSpent: k('timeSpent'),
-    page: k('page'), none: k('none'), checkLabels,
+    page: k('page'), none: k('none'), advance: tIn(locale, 'orBase.pdfAdvance'), checkLabels,
   };
 }
 
@@ -50,6 +60,7 @@ async function loadPdfData(orId: string): Promise<{ data: OrPdfData; locale: Loc
   const co = (company ?? {}) as Record<string, unknown>;
   const c = (contact ?? null) as (Contact & Record<string, unknown>) | null;
   const v = (vehicle ?? null) as Record<string, unknown> | null;
+  const deposits = await listOrDeposits([orId]).catch(() => new Map<string, { amount: number }>());
   const data: OrPdfData = {
     company: {
       name: String(co.legal_name || co.name || ''),
@@ -74,14 +85,45 @@ async function loadPdfData(orId: string): Promise<{ data: OrPdfData; locale: Loc
       brandModel: [v.brand, v.model].filter(Boolean).join(' '),
       reference: (v.reference as string | null) ?? null, plate: (v.plate as string | null) ?? null, vin: (v.vin as string | null) ?? null,
     } : null,
+    deposit: deposits.get(orId)?.amount ?? null,
   };
   return { data, locale: contactLocale(c) };
 }
 
+/** Ticket 80 mm (decision Q46) depuis les memes donnees que le PDF, dans la langue du client. */
+function ticketFrom(data: OrPdfData, locale: Locale): ReceiptDoc {
+  return buildOrTicket({
+    company: { name: data.company.name, address: data.company.address || null, phone: data.company.phone, vat: data.company.vat },
+    or: {
+      number: data.or.number, receivedAt: data.or.created_at, promisedAt: data.or.promised_at, mileage: data.or.mileage,
+      workDescription: data.or.work_description,
+    },
+    client: data.client ? { name: data.client.name, phone: data.client.phone } : null,
+    vehicle: data.vehicle ? { model: data.vehicle.brandModel || data.vehicle.reference, plate: data.vehicle.plate, vin: data.vehicle.vin } : null,
+    deposit: data.deposit ?? null,
+  }, (key) => tIn(locale, `orBase.ticket_${key}`));
+}
+
 export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNumber: string | null; onClose: () => void }) {
+  const { activeCompanyId } = useAuth();
+  // Format (decision Q46 du 18/11) : PDF A4 (par defaut, comme avant) ou ticket 80 mm (imprimante de caisse du poste).
+  const [format, setFormat] = useState<OrPrintFormat>('a4');
+  const devices = useDeviceSetup(activeCompanyId);
   const [mode, setMode] = useState<OrPrintMode>('both');
   const [priced, setPriced] = useState(false);
   const [hideClient, setHideClient] = useState(false);
+
+  const ticket = useMutation({
+    mutationFn: async () => {
+      const { data, locale } = await loadPdfData(orId);
+      const doc = ticketFrom(data, locale);
+      // Aucun poste regle : le ticket 80 mm s'imprime par le navigateur (jamais l'A4).
+      const r = await printReceipt(devices.ctx, doc, { legacyA4: () => { printHtmlInWindow(receiptHtml(doc, 80)); } });
+      if (!r.ok) throw new Error(r.code);
+    },
+    meta: { success: false },
+    onError: (e) => toast.error(e instanceof Error ? `${t('orBase.printError')} (${e.message})` : t('orBase.printError')),
+  });
 
   const run = useMutation({
     mutationFn: async (target: 'open' | 'download') => {
@@ -111,6 +153,17 @@ export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNum
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
+            <Label>{t('orBase.printFormat')}</Label>
+            <RadioGroup value={format} onValueChange={(v) => setFormat(v as OrPrintFormat)}>
+              {OR_PRINT_FORMATS.map((f) => (
+                <label key={f} className="flex items-center gap-2 text-[14px]">
+                  <RadioGroupItem value={f} /> {t(`orBase.format_${f}`)}
+                </label>
+              ))}
+            </RadioGroup>
+          </div>
+          {format === 'a4' && <>
+          <div className="space-y-2">
             <Label>{t('orBase.printMode')}</Label>
             <RadioGroup value={mode} onValueChange={(v) => setMode(v as OrPrintMode)}>
               {OR_PRINT_MODES.map((m) => (
@@ -124,15 +177,24 @@ export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNum
             <label className="flex items-center gap-2 text-[14px]"><Checkbox checked={priced} onCheckedChange={(v) => setPriced(v === true)} /> {t('orBase.priced')}</label>
             <label className="flex items-center gap-2 text-[14px]"><Checkbox checked={hideClient} onCheckedChange={(v) => setHideClient(v === true)} /> {t('orBase.hideClient')}</label>
           </div>
+          </>}
+          {format === 'ticket' && <p className="text-[13px] text-muted-foreground">{t('orBase.ticketHint')}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} disabled={run.isPending}>{t('action.cancel')}</Button>
+          <Button variant="outline" onClick={onClose} disabled={run.isPending || ticket.isPending}>{t('action.cancel')}</Button>
+          {format === 'ticket' && (
+            <Button onClick={() => ticket.mutate()} disabled={ticket.isPending}>
+              {ticket.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('orBase.ticketPrint')}
+            </Button>
+          )}
+          {format === 'a4' && <>
           <Button variant="outline" onClick={() => run.mutate('download')} disabled={run.isPending}>
             {run.isPending && run.variables === 'download' ? <Loader2 className="animate-spin" /> : <Download />} {t('orBase.printDownload')}
           </Button>
           <Button onClick={() => run.mutate('open')} disabled={run.isPending}>
             {run.isPending && run.variables === 'open' ? <Loader2 className="animate-spin" /> : <ExternalLink />} {t('orBase.printOpen')}
           </Button>
+          </>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

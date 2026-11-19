@@ -263,14 +263,22 @@ const dmy = (iso: string | null | undefined): string => {
 export const formatOrDate = dmy;
 
 /** Grille de l'export Excel (en-tete + une ligne par OR), montants en nombres. */
-export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[]; status: (s: string) => string; warranty: (s: string) => string }): (string | number)[][] {
+/**
+ * Grille de l'export Excel. `deposit` (decision Q45 du 18/11) : acompte net de l'OR, en DERNIERE
+ * colonne (les colonnes d'avant gardent leur place) ; vide sans acompte.
+ */
+export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[]; status: (s: string) => string; warranty: (s: string) => string; deposit?: (id: string) => number | null }): (string | number)[][] {
   return [
     h.headers,
-    ...rows.map((r) => [
-      r.number ?? '', r.client, r.vehicleRef ?? '', r.vehicleModel ?? '', r.plate ?? '', r.vin ?? '',
-      dmy(r.created_at), dmy(r.promised_at), r.operator ?? '', r.mileage ?? '', Math.round(Number(r.total_ttc) * 100) / 100,
-      h.status(r.status), r.warranty_status && r.warranty_status !== 'aucune' ? h.warranty(r.warranty_status) : '',
-    ]),
+    ...rows.map((r) => {
+      const base: (string | number)[] = [
+        r.number ?? '', r.client, r.vehicleRef ?? '', r.vehicleModel ?? '', r.plate ?? '', r.vin ?? '',
+        dmy(r.created_at), dmy(r.promised_at), r.operator ?? '', r.mileage ?? '', Math.round(Number(r.total_ttc) * 100) / 100,
+        h.status(r.status), r.warranty_status && r.warranty_status !== 'aucune' ? h.warranty(r.warranty_status) : '',
+      ];
+      if (h.deposit) { const d = h.deposit(r.id); base.push(d != null && d !== 0 ? Math.round(d * 100) / 100 : ''); }
+      return base;
+    }),
   ];
 }
 
@@ -278,6 +286,9 @@ export function exportGrid(rows: ReadonlyArray<OrListRow>, h: { headers: string[
 // Impression de l'OR et de la fiche de travail
 // ---------------------------------------------------------------------------------------------
 
+/** Formats d'impression (decision Q46 du 18/11) : PDF A4 (defaut) ou ticket 80 mm. */
+export const OR_PRINT_FORMATS = ['a4', 'ticket'] as const;
+export type OrPrintFormat = (typeof OR_PRINT_FORMATS)[number];
 export const OR_PRINT_MODES = ['or', 'fiche', 'both'] as const;
 export type OrPrintMode = (typeof OR_PRINT_MODES)[number];
 export type OrPrintOptions = { mode: OrPrintMode; priced: boolean; hideClient: boolean };

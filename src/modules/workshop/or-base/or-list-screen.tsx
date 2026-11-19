@@ -22,6 +22,7 @@ import { useListSearch, useSearchText } from '@/lib/use-list-search';
 import { t, fillVars } from '@/lib/i18n';
 import { listRepairTypes } from '../or-page-api';
 import { listOrOperators, listRepairOrdersForExport, listRepairOrdersPage, type OrListQuery } from './api';
+import { listOrDeposits } from './deposit-api';
 import { OrStatusBadge, orStatusLabel } from './or-status-badge';
 import { OR_ALL_STATUSES, exportGrid, formatOrDate, pageCount, type OrListView } from './rules';
 
@@ -60,20 +61,28 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
   const rows = listQ.data?.rows ?? [];
   const total = listQ.data?.total ?? 0;
   const pages = pageCount(total);
+  // Colonne « Acompte » (decision Q45 du 18/11, comme G8) : acompte net percu de chaque OR de la page.
+  const depositsQ = useQuery({
+    queryKey: ['repair-orders', 'deposits', rows.map((r) => r.id).join(',')],
+    queryFn: () => listOrDeposits(rows.map((r) => r.id)),
+    enabled: rows.length > 0, placeholderData: keepPreviousData,
+  });
   const typeLabel = (code: string | null) => (typesQ.data ?? []).find((x) => x.code === code)?.label ?? code ?? '';
 
   const exportX = useMutation({
     mutationFn: async () => {
       const all = await listRepairOrdersForExport(query);
+      const deposits = await listOrDeposits(all.map((r) => r.id));
       const XLSX = await import('xlsx');
       const grid = exportGrid(all, {
         headers: [
           t('orBase.colNumber'), t('orBase.colClient'), t('orBase.colReference'), t('orBase.colModel'), t('orBase.colPlate'), t('orBase.colVin'),
           t('orBase.colReceived'), t('orBase.colPromised'), t('orBase.colOperator'), t('orBase.colMileage'), t('orBase.colAmount'),
-          t('orBase.colStatus'), t('orBase.colWarranty'),
+          t('orBase.colStatus'), t('orBase.colWarranty'), t('orBase.colDeposit'),
         ],
         status: orStatusLabel,
         warranty: (w) => t(`workshop.warranty_${w}`),
+        deposit: (id) => deposits.get(id)?.amount ?? null,
       });
       const ws = XLSX.utils.aoa_to_sheet(grid);
       const wb = XLSX.utils.book_new();
@@ -87,7 +96,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
   });
 
   const filtered = !!(ls.q || ls.from || ls.to || ls.op || ls.type || ls.status !== OR_LIST_DEFAULT_STATUS);
-  const cols = 10;
+  const cols = 11;
 
   return (
     <div className="space-y-3">
@@ -146,6 +155,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
               <Th>{t('orBase.colNumber')}</Th><Th>{t('orBase.colClient')}</Th><Th>{t('orBase.colVehicle')}</Th>
               <Th>{t('orBase.colReceived')}</Th><Th>{t('orBase.colPromised')}</Th><Th>{t('orBase.colOperator')}</Th>
               <Th className="text-right">{t('orBase.colMileage')}</Th><Th className="text-right">{t('orBase.colAmount')}</Th>
+              <Th className="text-right">{t('orBase.colDeposit')}</Th>
               <Th>{t('orBase.colStatus')}</Th>
               <Th>{t('orBase.colWarranty')}</Th>
             </tr>
@@ -169,6 +179,7 @@ export function OrListScreen({ companyId, view }: { companyId: string; view: Ext
                 <td className="px-3 py-2">{o.operator || '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{o.mileage != null ? o.mileage.toLocaleString('fr-BE') : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(o.total_ttc)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{(depositsQ.data?.get(o.id)?.amount ?? 0) !== 0 ? eur(depositsQ.data!.get(o.id)!.amount) : '—'}</td>
                 <td className="px-3 py-2"><OrStatusBadge status={o.status} /></td>
                 <td className="px-3 py-2">
                   {o.warranty_status !== 'aucune'
