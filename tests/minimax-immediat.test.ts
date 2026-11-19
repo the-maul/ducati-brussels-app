@@ -10,7 +10,7 @@
  */
 import { test, expect, describe } from 'bun:test';
 import {
-  defaultChoices, ignoredArticleIds, mapProposalRow, minimaxImmediateQty, minimaxTransfer, movementLowersMinimax,
+  defaultChoices, ignoredArticleIds, mapProposalRow, nightAutoOpenKey, shouldAutoOpenNightList, minimaxImmediateQty, minimaxTransfer, movementLowersMinimax,
   parseMinimaxMode, parseQty, proposalLinesToApply, uniqueArticleIds, type MinimaxProposalRow,
 } from '../src/modules/purchases/minimax-immediate';
 import { minimaxQty } from '../src/modules/purchases/basket';
@@ -116,5 +116,20 @@ describe('réglage et fenêtre de proposition (mode manuel)', () => {
     c.a = { selected: true, qty: '0' };
     expect(proposalLinesToApply(rows, c)).toEqual([]);
     expect(parseQty('abc')).toBe(0);
+  });
+});
+
+describe('liste de la nuit en proposition manuelle (Q52, 19/11)', () => {
+  test('ouverture automatique : mode manuel, au moins une pièce, une fois par jour', () => {
+    expect(shouldAutoOpenNightList({ mode: 'manuel', count: 3, alreadyOpenedToday: false })).toBe(true);
+    expect(shouldAutoOpenNightList({ mode: 'manuel', count: 3, alreadyOpenedToday: true })).toBe(false);
+    expect(shouldAutoOpenNightList({ mode: 'manuel', count: 0, alreadyOpenedToday: false })).toBe(false);
+    expect(shouldAutoOpenNightList({ mode: 'auto', count: 3, alreadyOpenedToday: false })).toBe(false);
+  });
+  test('clé du jour par société (le lendemain, la liste se rouvre)', () => {
+    const k1 = nightAutoOpenKey('co', new Date(2026, 10, 19, 8, 0));
+    expect(k1).toBe('minimax-night-opened:co:2026-11-19');
+    expect(nightAutoOpenKey('co', new Date(2026, 10, 20, 8, 0))).not.toBe(k1);
+    expect(nightAutoOpenKey('autre', new Date(2026, 10, 19, 8, 0))).not.toBe(k1);
   });
 });

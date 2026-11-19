@@ -210,7 +210,7 @@ dans une transaction annulée : `supabase/tests/m4_minimax_immediat.sql`, 23/23)
   « Pièces passées sous leur minimum » (G8 : contrôle des minis/maxis en facturation = fenêtre de mise en
   PRC) liste les pièces concernées (`minimax_proposal` : stock, mini, maxi, en commande, à commander) :
   **Ajouter au panier** (`minimax_proposal_apply`, quantité modifiable, origine minimax) ou **Ignorer**
-  (`minimax_proposal_ignore`, tracé). La nuit tourne aussi en manuel (filet de sécurité, à trancher).
+  (`minimax_proposal_ignore`, tracé). ~~La nuit tourne aussi en manuel (filet de sécurité, à trancher).~~ Tranché le 19/11 (Q52) : voir ci-dessous.
 - **Remplacement de référence** (écran, import ListPrice état E, gestion des remplacements, fusion) :
   déclencheur `trg_articles_minimax_transfer` (AFTER, sur `superseded_by_id`) → `_article_minimax_transfer` :
   minimum / maximum passent sur la **référence finale** de la chaîne (`article_final_replacement`) si elle
@@ -221,6 +221,23 @@ dans une transaction annulée : `supabase/tests/m4_minimax_immediat.sql`, 23/23)
   **0** ancienne référence avec minimum / maximum, **185** nouvelles références qui reçoivent le
   conditionnement de leur ancienne (228 anciennes références concernées, la plus récente l'emporte).
 - Fonction redéfinie : `_workshop_minimax_after` (même corps + réglage manuel).
+
+### Ajouté le 19/11 — la nuit en proposition manuelle (décision client Q52, lot `lot-minimax-nuit-manuel`)
+
+Migration `20261119210000_m4_minimax_nuit_manuel.sql` (**à appliquer**, essai à blanc
+`supabase/tests/m4_minimax_nuit_manuel.sql` 11/11). Comme G8 : en mode « proposition manuelle », la tâche
+de nuit `basket-minimax-daily` (`_cron_basket_minimax` redéfinie) **ne met plus rien au panier** ; elle
+prépare la liste des pièces sous leur minimum (`_minimax_prepare_night_list`, même calcul
+`_basket_minimax_need` moins la ligne minimax déjà au panier) dans la table `minimax_night_list`
+(`proposee` / `ignoree`, RLS lecture membres, écrite par les fonctions seulement, synthèse tracée
+`events` `minimax_night_list`). Le lendemain, à l'ouverture d'un écran des **achats ou des paniers**
+(mise en page `_app.purchases.tsx`, bandeau `minimax-night-notice.tsx`), la fenêtre « Pièces passées sous
+leur minimum » s'ouvre d'elle-même une fois par jour et par poste, et le bandeau « N pièce(s)… — Voir la
+liste » la rouvre (`minimax_night_list_count`, `minimax_night_list_rows` : liste recalculée à l'ouverture,
+les pièces dont le besoin a disparu en sortent). **Ajouter** (`minimax_proposal_apply`) : au panier, sort
+de la liste. **Ignorer** (`minimax_proposal_ignore`) : notée avec le dernier mouvement de stock de la
+pièce (`last_move_id`) ; elle n'est plus reproposée tant que son stock ne bouge pas. Mode automatique :
+rien ne change (corps de production). Pas de cloche : le bandeau tient lieu de rappel.
 
 ## 8. Exigences du cahier couvertes
 
@@ -276,3 +293,4 @@ par le chemin déjà en place.
 | 2026-11-18 | **Rattrapage G8** : réception atomique avec rappel de commande et réception partielle, brouillon validable, infos commandes client, propositions Stock / Dépannage / Garantie, regroupement, rétrocession, fiche fournisseur (conditions, documents, CA, RFA), liste des documents fournisseurs | `20261118200000_m4_reception_g8`, `20261118201000_m4_fournisseurs_listes_g8` (**non appliquées**) |
 | 2026-11-03 | Mission 09 cartes 1, 2, 4 — Panier de commande Ducati (standard / urgente, plusieurs ouverts) : minimax automatique (bouton + pg_cron quotidien, `stock_max`), comptoir (« Commandes de pièces à passer » → panier), atelier (OR → panier standard), site (commande Shopify → panier), « Enlever ce qui est déjà en stock », minimum 250 € HTVA, urgente une par jour sans minimum à +12 % (défaut 10 → 12), fichier **`ExportDucati.xls`** exact téléchargé et conservé en GED, n° DCS saisi après coup, écran Achats → Commandes fournisseur ; `part_order_rules` insensible à la casse (aucune règle n'était lue en prod) ; aucun mouvement de stock | `20261103100000_m4_paniers_de_commande` (**non appliquée**, testée le 03/11 en transaction annulée) |
 | 2026-11-18 | **Réassort minimax immédiat** (décisions de Simon) : toute sortie de stock qui fait passer une pièce sous son minimum la met tout de suite au panier standard (pas de doublon, jamais d'échec de la vente, filtre rouge / jaune, multi-société) ; réglage par société automatique / proposition manuelle (fenêtre à la validation vente / caisse / picking, comme G8) ; minimax et conditionnement suivent la nouvelle référence au remplacement (rattrapage : 185 références) | `20261119130000_m4_minimax_immediat.sql` (à appliquer, essai à blanc 23/23) |
+| 2026-11-19 | Q52 — nuit en proposition manuelle : la tâche de nuit ne remplit plus le panier, elle prépare la liste des pièces sous leur minimum, retrouvée le lendemain dans les achats (Ajouter / Ignorer ; ignorée = pas reproposée tant que le stock ne bouge pas) ; automatique inchangé | `20261119210000_m4_minimax_nuit_manuel.sql` (à appliquer, essai à blanc 11/11) |

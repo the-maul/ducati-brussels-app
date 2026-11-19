@@ -16,9 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { t, fillVars } from '@/lib/i18n';
-import { applyMinimaxProposal, getMinimaxMode, getMinimaxProposal, ignoreMinimaxProposal } from './minimax-api';
+import { applyMinimaxProposal, getMinimaxMode, getMinimaxNightRows, getMinimaxProposal, ignoreMinimaxProposal, minimaxNightKey } from './minimax-api';
 import {
-  MINIMAX_CHECK_EVENT, defaultChoices, ignoredArticleIds, proposalLinesToApply,
+  MINIMAX_CHECK_EVENT, MINIMAX_NIGHT_EVENT, defaultChoices, ignoredArticleIds, proposalLinesToApply,
   type MinimaxCheckRequest, type MinimaxProposalRow, type ProposalChoice,
 } from './minimax-immediate';
 import { fmtQty } from './basket-ui';
@@ -43,8 +43,27 @@ export function MinimaxProposalHost() {
         }
       })();
     };
+    // Liste préparée par la tâche de nuit (mode manuel, Q52) : demandée par l'écran des achats / paniers.
+    const onNight = (ev: Event) => {
+      const companyId = (ev as CustomEvent<{ companyId: string }>).detail?.companyId;
+      if (!companyId) return;
+      void (async () => {
+        try {
+          const rows = await getMinimaxNightRows(companyId);
+          if (rows.length === 0) return;
+          const req: MinimaxCheckRequest = { companyId, articleIds: rows.map((r) => r.articleId), reference: null, source: 'nuit' };
+          setQueue((q) => (q.some((p) => p.req.source === 'nuit' && p.req.companyId === companyId) ? q : [...q, { req, rows }]));
+        } catch {
+          /* fonction absente (migration non posée) ou réseau : rien à proposer */
+        }
+      })();
+    };
     window.addEventListener(MINIMAX_CHECK_EVENT, onCheck);
-    return () => window.removeEventListener(MINIMAX_CHECK_EVENT, onCheck);
+    window.addEventListener(MINIMAX_NIGHT_EVENT, onNight);
+    return () => {
+      window.removeEventListener(MINIMAX_CHECK_EVENT, onCheck);
+      window.removeEventListener(MINIMAX_NIGHT_EVENT, onNight);
+    };
   }, []);
 
   const current = queue[0];
@@ -73,6 +92,7 @@ function MinimaxProposalDialog({ pending, onClose }: { pending: Pending; onClose
     onSuccess: () => {
       toast.success(fillVars(t('minimax.added'), { n: lines.length }));
       qc.invalidateQueries({ queryKey: ['supplier-baskets', req.companyId] });
+      qc.invalidateQueries({ queryKey: minimaxNightKey(req.companyId) });
       onClose();
     },
     onError: (e) => setError(e instanceof Error && e.message ? e.message : t('minimax.error')),
@@ -81,7 +101,7 @@ function MinimaxProposalDialog({ pending, onClose }: { pending: Pending; onClose
   const ignore = useMutation({
     meta: { success: false, error: false },
     mutationFn: () => ignoreMinimaxProposal(req.companyId, rows.map((r) => r.articleId), ref),
-    onSettled: () => { toast(t('minimax.ignored')); onClose(); },
+    onSettled: () => { toast(t('minimax.ignored')); qc.invalidateQueries({ queryKey: minimaxNightKey(req.companyId) }); onClose(); },
   });
 
   const busy = add.isPending || ignore.isPending;
@@ -91,7 +111,9 @@ function MinimaxProposalDialog({ pending, onClose }: { pending: Pending; onClose
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><AlertTriangle className="size-5 text-warning" /> {t('minimax.dialogTitle')}</DialogTitle>
           <DialogDescription>
-            {fillVars(t('minimax.dialogDesc'), { ref: ref ?? t('minimax.noRef'), source: t(`minimax.source_${req.source}`) })}
+            {req.source === 'nuit'
+              ? t('minimax.dialogDescNight')
+              : fillVars(t('minimax.dialogDesc'), { ref: ref ?? t('minimax.noRef'), source: t(`minimax.source_${req.source}`) })}
           </DialogDescription>
         </DialogHeader>
         <div className="overflow-x-auto rounded-md border border-border">

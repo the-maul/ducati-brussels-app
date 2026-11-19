@@ -45,3 +45,18 @@ export async function applyMinimaxProposal(companyId: string, lines: { article_i
 export async function ignoreMinimaxProposal(companyId: string, articleIds: string[], ref: string | null): Promise<void> {
   await rpc<null>('minimax_proposal_ignore', { _company: companyId, _articles: articleIds, _ref: ref });
 }
+
+export const minimaxNightKey = (companyId: string | null | undefined) => ['minimax-night', companyId] as const;
+
+/** Nombre de pièces de la liste de la nuit encore à décider (mode manuel, migration 20261119210000). */
+export async function getMinimaxNightCount(companyId: string): Promise<number> {
+  const { data, error } = await sb.rpc('minimax_night_list_count', { _company: companyId });
+  if (error) return 0;
+  return Number(data ?? 0) || 0;
+}
+
+/** La liste de la nuit, recalculée à l'ouverture (mêmes colonnes que la fenêtre après une vente). */
+export async function getMinimaxNightRows(companyId: string): Promise<MinimaxProposalRow[]> {
+  const rows = await rpc<Record<string, unknown>[]>('minimax_night_list_rows', { _company: companyId });
+  return (rows ?? []).map(mapProposalRow);
+}

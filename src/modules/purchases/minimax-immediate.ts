@@ -57,7 +57,7 @@ export function minimaxTransfer(source: MinimaxCarrier, target: MinimaxCarrier):
 
 // ------------------------------------------------------------------ fenêtre de proposition (mode manuel)
 
-export type MinimaxCheckSource = 'vente' | 'caisse' | 'picking';
+export type MinimaxCheckSource = 'vente' | 'caisse' | 'picking' | 'nuit';
 export type MinimaxCheckRequest = {
   companyId: string; articleIds: string[]; reference: string | null; source: MinimaxCheckSource;
 };
@@ -78,6 +78,29 @@ export function requestMinimaxCheck(req: Omit<MinimaxCheckRequest, 'articleIds'>
   const articleIds = uniqueArticleIds(req.articleIds);
   if (articleIds.length === 0) return;
   window.dispatchEvent(new CustomEvent<MinimaxCheckRequest>(MINIMAX_CHECK_EVENT, { detail: { ...req, articleIds } }));
+}
+
+/**
+ * Mode « proposition manuelle » (décision Q52, 19/11/2026) : la tâche de nuit ne remplit plus le panier,
+ * elle prépare la liste des pièces sous leur minimum. L'écran des achats / paniers demande à l'hôte de
+ * l'ouvrir (MINIMAX_NIGHT_EVENT) ; une seule ouverture automatique par jour et par société.
+ */
+export const MINIMAX_NIGHT_EVENT = 'dms:minimax-night';
+
+export function requestMinimaxNightList(companyId: string): void {
+  if (typeof window === 'undefined' || !companyId) return;
+  window.dispatchEvent(new CustomEvent<{ companyId: string }>(MINIMAX_NIGHT_EVENT, { detail: { companyId } }));
+}
+
+/** Clé de l'ouverture automatique du jour (heure locale du poste). */
+export function nightAutoOpenKey(companyId: string, now: Date = new Date()): string {
+  const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return `minimax-night-opened:${companyId}:${d}`;
+}
+
+/** La liste de la nuit s'ouvre-t-elle d'elle-même ? Mode manuel, au moins une pièce, pas encore ouverte aujourd'hui. */
+export function shouldAutoOpenNightList(p: { mode: MinimaxMode; count: number; alreadyOpenedToday: boolean }): boolean {
+  return p.mode === 'manuel' && p.count > 0 && !p.alreadyOpenedToday;
 }
 
 export type MinimaxProposalRow = {
