@@ -40,7 +40,8 @@ const pos = (v: unknown): number | null => {
  */
 export function resolveQuoteFeeParams(rows: RefLike[], moArticlePriceHt?: number | null): QuoteFeeParams {
   const extra = (code: string): Record<string, unknown> => {
-    const r = rows.find((x) => x.code === code && x.is_active !== false);
+    // Code sans tenir compte de la casse : la ligne de la base est « DIAGNOSTIC » (correction Q48, 18/11).
+    const r = rows.find((x) => String(x.code ?? '').trim().toLowerCase() === code && x.is_active !== false);
     return r && r.extra && typeof r.extra === 'object' ? (r.extra as Record<string, unknown>) : {};
   };
   const acc = extra('accident');

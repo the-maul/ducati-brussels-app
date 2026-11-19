@@ -2928,6 +2928,11 @@ export const nl: DictionaryShape = {
   // Atelier (M8)
   // G8-inhaalslag "basis werkorder" (18/11/2026): statussen, lijst, km, afdruk, 30 punten, historiek
   orBase: {
+    kitAuto_fromAppointment: "vanuit de afspraak",
+    kitAuto_dupTitle: "Deze kit staat al op de werkorder",
+    kitAuto_dupText: "{n} regel(s) van deze kit staan al op de werkorder (bv. ingevoegd bij het aanmaken vanuit de afspraak). Opnieuw invoegen zou ze verdubbelen.",
+    kitAuto_dupSkip: "Niet opnieuw invoegen",
+    kitAuto_dupInsert: "Toch invoegen",
     colDeposit: "Voorschot",
     pdfAdvance: "Betaald voorschot",
     printFormat: "Formaat",

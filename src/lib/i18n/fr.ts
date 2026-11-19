@@ -2934,6 +2934,11 @@ export const fr = {
   // Atelier (M8)
   // Rattrapage G8 « OR de base » (18/11/2026) : statuts, liste, km, impression, 30 points, historique
   orBase: {
+    kitAuto_fromAppointment: "depuis le RDV",
+    kitAuto_dupTitle: "Ce kit est déjà sur l'OR",
+    kitAuto_dupText: "{n} ligne(s) de ce kit sont déjà sur l'OR (par exemple insérées à la création depuis le rendez-vous). Les réinsérer les doublerait.",
+    kitAuto_dupSkip: "Ne pas réinsérer",
+    kitAuto_dupInsert: "Insérer quand même",
     colDeposit: "Acompte",
     pdfAdvance: "Acompte versé",
     printFormat: "Format",

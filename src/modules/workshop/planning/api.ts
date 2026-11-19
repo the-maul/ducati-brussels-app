@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { createRepairOrder } from '../write-api';
 import { operatorIdSchemaReady } from '../or-page-api';
+import { serviceKitOrLines } from '../kits/kit-from-appointment';
+import { isServiceCode, serviceCodeForReason } from '../service-code';
 import {
   DEFAULT_APPOINTMENT_TYPES, isJobColor, canCreateOr, orIntakeNeeds, OR_STATUS_FROM_APPOINTMENT, APPOINTMENT_STATUS_WITH_OR,
   type AppointmentType, type CalendarBlock, type MechanicHours, type PlanningMechanic,
@@ -251,11 +253,16 @@ export async function createOrFromPlanningAppointment(a: PlanningAppointment, me
   if (orIntakeNeeds(a) === 'mileage') throw new Error('mileage_required');
   const m = a.mechanic_id ? mechanics.find((x) => x.id === a.mechanic_id) ?? null : null;
   const withOperatorId = m?.user_id && await operatorIdSchemaReady() ? { operatorId: m.user_id } : {};
+  // Decision Q49 (18/11) : RDV d'entretien → toutes les lignes du kit choisi arrivent sur l'OR.
+  const svc = isServiceCode(a.service_code) ? a.service_code : serviceCodeForReason(a.reason_code ?? null);
+  const kitLines = svc && a.vehicle_id
+    ? await serviceKitOrLines({ companyId: a.company_id, vehicleId: a.vehicle_id, serviceCode: svc, contactId: a.contact_id }).catch(() => [])
+    : [];
   const orId = await createRepairOrder({
     companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage: a.mileage ?? null,
     operator: m?.name ?? a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
     receptionNotes: a.reception_notes ?? null, status: OR_STATUS_FROM_APPOINTMENT, warrantyStatus: 'aucune',
-    reasonCode: a.reason_code ?? undefined, lines: [], ...withOperatorId,
+    reasonCode: a.reason_code ?? undefined, lines: kitLines, ...withOperatorId,
   });
   unwrap(await loose.from('workshop_appointments').update({ or_id: orId, status: APPOINTMENT_STATUS_WITH_OR }).eq('id', a.id));
   return orId;

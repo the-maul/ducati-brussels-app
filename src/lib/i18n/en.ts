@@ -2928,6 +2928,11 @@ export const en: DictionaryShape = {
   // Atelier (M8)
   // G8 catch-up "basic repair order" (18/11/2026): statuses, list, mileage, printing, 30 points, history
   orBase: {
+    kitAuto_fromAppointment: "from the appointment",
+    kitAuto_dupTitle: "This kit is already on the repair order",
+    kitAuto_dupText: "{n} line(s) of this kit are already on the repair order (e.g. inserted when it was created from the appointment). Inserting them again would duplicate them.",
+    kitAuto_dupSkip: "Don't insert again",
+    kitAuto_dupInsert: "Insert anyway",
     colDeposit: "Deposit",
     pdfAdvance: "Deposit paid",
     printFormat: "Format",
