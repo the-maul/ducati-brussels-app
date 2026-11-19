@@ -6,6 +6,7 @@
  *   - Parametres : plage horaire, 1er jour, nombre de jours, granularite, feries belges, taux
  *     d'occupation, blocage des RDV simultanes, conditions generales du contrat de pret ;
  *   - Pieces des RDV (lot B, 19/11) : moment de la picking list, heure de la veille, seuil urgente ;
+ *   - Photos de reception (lot C, 19/11) : la serie guidee de la reception ;
  *   - Calendrier : feries ajoutes, fermetures, absences, pauses (retires de la capacite) ;
  *   - Types de RDV : Parametres → Tables (couleur metier et temps prevu propose).
  */
@@ -32,6 +33,7 @@ import { belgianHolidays, formatMinutes, weeklyMinutes, type MechanicHours } fro
 import type { usePlanningBase } from './planning-data';
 import { Field, fmtDateTime } from './ui-bits';
 import { PartsFlowSettingsSection } from '../reservations/parts-settings-section';
+import { ReceptionSettingsSection } from '../reception/reception-settings-section';
 
 const NONE = '__none__';
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -56,6 +58,7 @@ export function PlanningSettingsView({ companyId, base, onChanged }: { companyId
       <MechanicsSection companyId={companyId} base={base} onChanged={onChanged} />
       <SettingsSection settings={base.settings} onChanged={onChanged} />
       <PartsFlowSettingsSection companyId={companyId} />
+      <ReceptionSettingsSection companyId={companyId} />
       <CalendarSection companyId={companyId} base={base} onChanged={onChanged} />
       <Section title={t('planningG8.typesTitle')}>
         <p className="text-sm text-muted-foreground">{t('planningG8.typesHint')}</p>

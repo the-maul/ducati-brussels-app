@@ -17,6 +17,7 @@ import { VehicleRegisterPanel } from '@/modules/vehicles/register-panel';
 import { VehiclePartiesPanel, VehicleEconomicsPanel, VehicleBonusesPanel } from '@/modules/vehicles/fiche-g8-panels';
 import { PosterDialog } from '@/modules/vehicles/poster-dialog';
 import { VehicleWorkshopHistoryPanel } from '@/modules/workshop/or-base/vehicle-history-panel';
+import { VehicleReceptionPhotos } from '@/modules/workshop/reception/vehicle-reception-photos';
 import { findInterestedContacts, notifyInterestedContact, type InterestedContact, type NotifyChannel } from '@/modules/crm/matching-api';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { ducatiVinHistoryUrl } from '@/lib/ducati';
@@ -159,6 +160,8 @@ function EditVehicle() {
 
       {/* Historique atelier : OR, km, entretiens (rattrapage G8 du 18/11). */}
       <VehicleWorkshopHistoryPanel vehicleId={vehicleId} />
+      {/* Lot C (19/11) : photos de reception de ses OR (historique de la moto, B8). */}
+      <VehicleReceptionPhotos vehicleId={vehicleId} />
 
       <VehicleForm
         key={vehicle.my_ducati_synced_at ?? vehicle.id}

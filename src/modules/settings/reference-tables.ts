@@ -178,6 +178,11 @@ export const REFERENCE_TABLES: RefTableDef[] = [
         { value: 'attente_pieces', label: 'Pièces en commande' }, { value: 'attente_devis', label: 'Attente devis / accord client' },
       ] },
     ] },
+  // Parcours mecanicien, lot D (19/11/2026, migration 20261119271000) : motifs d'une operation du
+  // plan d'entretien marquee « non faite » (code = motif). « Reporter » = cree une intervention
+  // reportee sur la moto (relance, date demandee a la facturation), comme une action refusee au check-up.
+  { key: 'workshop_op_not_done_reason', label: "Motifs d'opération non faite (atelier)", group: 'atelier',
+    extraColumns: [{ key: 'defer', label: 'Créer une intervention reportée', type: 'bool' }] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
   { key: 'workshop_quote_fee', label: 'Frais de devis atelier', group: 'atelier',
     extraColumns: [

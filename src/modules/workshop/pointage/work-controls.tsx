@@ -190,7 +190,7 @@ export function PauseDialog({ open, reasons, orStatus, busy, onCancel, onConfirm
 }
 
 /** Bloc d'etat + gros boutons Demarrer / Pause / Reprendre / Terminer (fiche OR). */
-export function OrWorkControls({ orId, companyId, orStatus, workAllowed, onChanged, fallback, extra }: {
+export function OrWorkControls({ orId, companyId, orStatus, workAllowed, onChanged, fallback, extra, gateStart }: {
   orId: string;
   companyId: string | null;
   orStatus: string | null | undefined;
@@ -200,6 +200,11 @@ export function OrWorkControls({ orId, companyId, orStatus, workAllowed, onChang
   fallback?: ReactNode;
   /** Boutons de plus a droite (ex. « Reprendre le parcours »). */
   extra?: ReactNode;
+  /**
+   * Lot C (19/11) : avant le premier « Demarrer », la fiche OR propose la serie de photos de
+   * reception ; `go` lance le pointage (apres « Terminer » ou « Plus tard »). Jamais bloquant.
+   */
+  gateStart?: (go: () => void) => void;
 }) {
   const pt = usePointage({ orId, companyId, onChanged });
   if (pt.schemaKnown && !pt.ready) return <>{fallback ?? null}</>;
@@ -220,7 +225,7 @@ export function OrWorkControls({ orId, companyId, orStatus, workAllowed, onChang
       </div>
       <div className="flex flex-wrap gap-2">
         {a.start && (
-          <Button className="h-12 min-w-[132px] text-[15px]" disabled={pt.busy} onClick={() => pt.start.mutate(null)}>
+          <Button className="h-12 min-w-[132px] text-[15px]" disabled={pt.busy} onClick={() => (gateStart ? gateStart(() => pt.start.mutate(null)) : pt.start.mutate(null))}>
             {pt.start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('pointage.start')}
           </Button>
         )}

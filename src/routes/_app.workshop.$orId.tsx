@@ -50,6 +50,9 @@ import { ReadySmsLine } from '@/modules/crm/sms-queue';
 import { OrWorkControls } from '@/modules/workshop/pointage/work-controls';
 import { pointageSchemaReady } from '@/modules/workshop/pointage/api';
 import { loadJourney } from '@/modules/workshop/journey/store';
+import { ReceptionPanel, ReceptionSheet, useReception } from '@/modules/workshop/reception/reception-sheet';
+import { shouldPromptReception } from '@/modules/workshop/reception/rules';
+import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -88,6 +91,9 @@ function OrView() {
   const pointageOn = pointageSchema.data === true;
   // Parcours deja commence : le bouton devient « Reprendre le parcours » (etape, cases cochees).
   const savedJourney = useQuery({ queryKey: ['journey-saved', orId], queryFn: () => loadJourney(orId) });
+  // Lot C parcours mecanicien (19/11) : serie de photos de reception (fiche OR, et avant « Demarrer »).
+  const reception = useReception(orId, activeCompanyId);
+  const [receptionOpen, setReceptionOpen] = useState<{ startMode: boolean; go?: () => void } | null>(null);
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   // Reservation des pieces au RDV (mission 10, carte 6) : en base, elle remplace le popup et la commande de pieces.
   const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
@@ -326,7 +332,18 @@ function OrView() {
       </div>
       {/* Lot A (19/11) : etat du travail + Demarrer / Pause / Reprendre / Terminer (pointeuse unique). */}
       {pointageOn && !invoiced && or.status !== 'annule' && (
-        <OrWorkControls orId={orId} companyId={activeCompanyId} orStatus={or.status} workAllowed={workAllowed} onChanged={refresh} />
+        <OrWorkControls
+          orId={orId} companyId={activeCompanyId} orStatus={or.status} workAllowed={workAllowed} onChanged={refresh}
+          gateStart={reception.loaded && shouldPromptReception(reception.status, or.status) ? (go) => setReceptionOpen({ startMode: true, go }) : undefined}
+        />
+      )}
+      {/* Lot C (19/11) : photos et commentaires de reception, dans la GED de l'OR. */}
+      {activeCompanyId && (
+        <ReceptionPanel orId={orId} orStatus={or.status} companyId={activeCompanyId} onOpen={() => setReceptionOpen({ startMode: false })} />
+      )}
+      {/* Lot D (19/11) : operations du plan d'entretien de la moto, cochees et tracees, « Terminer » → Pret. */}
+      {activeCompanyId && (
+        <PlanOpsPanel orId={orId} companyId={activeCompanyId} orStatus={or.status} autoInit={!!serviceCode} onChanged={refresh} />
       )}
       {/* OR accident : le dossier accident, bien visible (ATE001b). */}
       {(accidentOr || accidentFile) && accidentSchema.data === true && (
@@ -415,6 +432,13 @@ function OrView() {
         />
       )}
       {printOpen && <OrPrintDialog orId={orId} orNumber={or.number} onClose={() => setPrintOpen(false)} />}
+      {receptionOpen && activeCompanyId && (
+        <ReceptionSheet
+          open orId={orId} orNumber={or.number} companyId={activeCompanyId} startMode={receptionOpen.startMode}
+          onClose={() => setReceptionOpen(null)}
+          onDone={() => { const go = receptionOpen.go; setReceptionOpen(null); go?.(); }}
+        />
+      )}
       {readyOpen && (
         <ReadyMailDialog
           companyId={activeCompanyId!} companyName={companyName}

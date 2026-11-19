@@ -10,13 +10,21 @@
  * le temps compte = le pointage reel (pause, arret automatique en fin de journee).
  * L'avancement est enregistré à chaque geste et la reprise se fait là où le technicien s'est arrêté.
  * **Rien n'est facturé automatiquement** : le récapitulatif propose des lignes, l'OR reste maître.
+ *
+ * Lot D du parcours mecanicien (19/11/2026) : le parcours est RELIE A L'OR. Quand l'OR a sa liste
+ * d'operations du plan d'entretien (`repair_order_plan_operations`, migration 20261119271000), le
+ * parcours affiche CETTE liste (manuel d'atelier ou plan Ducati, plus besoin de choisir
+ * l'entretien) : cocher est enregistre en base (qui, quand, pointage en cours), « non faite » avec
+ * motif, et « Terminer » arrete le pointage et passe l'OR « Pret » apres confirmation. Sans manuel
+ * pour ce modele, l'operation garde sa case et l'ecran dit « mode operatoire non disponible ».
+ * Sans la migration : comportement d'avant (liste du manuel, avancement dans le navigateur).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ChevronRight, ClipboardCheck, FileText,
-  Loader2, NotebookPen, Package, Pause, Play, RotateCcw, ShoppingCart, Timer,
+  AlertTriangle, ArrowLeft, Ban, Camera, Check, CheckCircle2, ChevronRight, ClipboardCheck, FileText,
+  Info, Loader2, NotebookPen, Package, Pause, Play, RotateCcw, ShoppingCart, Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -42,6 +50,8 @@ import { canStartWork } from '../checkup/rules';
 import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, OperationProgress, Procedure } from './types';
 import { t } from '@/lib/i18n';
 import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
+import { FinishDialog, NotDoneDialog, usePlanOps } from '../plan-ops/plan-ops-panel';
+import { reasonText, type PlanOp, type PlanOpSlotInfo } from '../plan-ops/rules';
 
 /** Demarre une fois l'entretien de l'OR, puis laisse l'ecran des operations prendre la main. */
 function AutoStart({ onStart }: { onStart: () => void }) {
@@ -59,7 +69,16 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 type View = 'choose' | 'ops' | 'procedure' | 'summary';
 
-export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; companyId: string; onBackToOr: () => void }) {
+export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, operationExtra }: {
+  orId: string; companyId: string; onBackToOr: () => void;
+  /** Lot D : operation a ouvrir directement (lien « Mode operatoire » de la fiche OR). */
+  initialOp?: string | null;
+  /**
+   * Lot D : emplacement par operation pour un autre lot (ex. lot E « Voir sur la vue eclatee »),
+   * dans la liste des operations du parcours (avec ou sans la liste de l'OR en base).
+   */
+  operationExtra?: (op: PlanOpSlotInfo) => ReactNode;
+}) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -99,16 +118,58 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
   const pt = usePointage({ orId, companyId });
   const pointage = pt.ready;
 
+  // Lot D : la liste des operations de l'OR (en base), si la migration est la.
+  const po = usePlanOps({ orId, companyId, orStatus: ctx.data?.ro.or.status, autoInit: true });
+  const dbOps = po.ops;
+  const dbMode = po.ready && dbOps.length > 0;
+  const dbByKey = useMemo(() => new Map(dbOps.map((o) => [o.op_key, o])), [dbOps]);
+  const [notDoneOp, setNotDoneOp] = useState<PlanOp | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const openedInitial = useRef(false);
+
+  // Lot D : l'etat du parcours suit la liste de l'OR (cases en base) ; les etapes cochees, notes et
+  // constats restent ceux du parcours enregistre.
+  useEffect(() => {
+    if (!dbMode || !saved.isSuccess) return;
+    setState((cur) => {
+      const base = cur ?? saved.data ?? null;
+      return {
+        version: 1, orId,
+        modelYearId: base?.modelYearId ?? ctx.data?.vehicle?.modelYearId ?? '',
+        serviceLabel: dbOps[0].service_label ?? base?.serviceLabel ?? '',
+        startedAt: base?.startedAt ?? new Date().toISOString(),
+        finishedAt: base?.finishedAt ?? null,
+        reportedToOr: base?.reportedToOr ?? false,
+        findings: base?.findings ?? [],
+        operations: dbOps.map((o) => {
+          const prev = base?.operations.find((x) => x.id === o.op_key);
+          return { id: o.op_key, label: o.label, parcoursId: o.procedure_id, done: o.status === 'fait', steps: prev?.steps ?? {}, note: prev?.note ?? '', chrono: [] };
+        }),
+      };
+    });
+    setView((v) => (v === 'choose' ? 'ops' : v));
+  }, [dbMode, dbOps, saved.isSuccess, saved.data, orId, ctx.data?.vehicle?.modelYearId]);
+
   // Reprise : l'avancement enregistré prime sur un nouveau départ. Avec la pointeuse, un ancien
   // chrono du parcours resté ouvert est arrêté à l'ouverture : il ne compte plus.
   useEffect(() => {
+    if (!ctx.isSuccess || !po.settled || dbMode) return;
     if (saved.data && !state) {
       const legacyRunning = pointage && runningOperationId(saved.data.operations);
       setState(legacyRunning ? { ...saved.data, operations: stopChrono(saved.data.operations) } : saved.data);
       setView('ops');
     }
     else if (saved.isSuccess && !saved.data && !state) setView('choose');
-  }, [saved.data, saved.isSuccess, state, pointage]);
+  }, [saved.data, saved.isSuccess, state, pointage, ctx.isSuccess, po.settled, dbMode]);
+
+  // Lot D : lien « Mode operatoire » de la fiche OR → l'operation s'ouvre directement.
+  useEffect(() => {
+    if (openedInitial.current || !initialOp || !state) return;
+    const op = state.operations.find((o) => o.id === initialOp);
+    if (!op) return;
+    openedInitial.current = true;
+    if (op.parcoursId) { setOpenOpId(op.id); setLinkedId(null); setView('procedure'); }
+  }, [initialOp, state]);
 
   // Opération en cours : mon pointage ouvert sur cet OR (pointeuse), sinon l'ancien chrono local.
   const running = pointage
@@ -169,7 +230,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
   }, [companyId, orId, qc]);
 
   // --- chargement ----------------------------------------------------------
-  if (ctx.isLoading || source.isLoading || saved.isLoading) {
+  if (ctx.isLoading || source.isLoading || saved.isLoading || !po.settled || (dbMode && !state)) {
     return <div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div>;
   }
 
@@ -181,12 +242,13 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     <div className="mb-4 space-y-2">
       {isDemo && <p className="flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info"><AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />{t('journey.demoBanner')}</p>}
       {isLocal && <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />{t('journey.localBanner')}</p>}
+      {dbMode && <p className="flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info"><Info className="mt-0.5 size-4 shrink-0" aria-hidden />{t('planOps.journeyBanner')}</p>}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
     </div>
   );
 
   // --- pas de moto / pas de modèle-année / pas de programme -----------------
-  if (!modelYearId || (program.isSuccess && !program.data)) {
+  if (!dbMode && (!modelYearId || (program.isSuccess && !program.data))) {
     const message = !vehicle ? t('journey.noVehicle')
       : !vehicle.modelYearId && !demoBikeId ? t('journey.noCatalog')
       : fill(t('journey.noProgram'), { id: String(modelYearId ?? '—') });
@@ -214,23 +276,24 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     );
   }
 
-  if (program.isLoading || !program.data) {
+  if (!dbMode && (program.isLoading || !program.data)) {
     return <div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /><span className="sr-only">{t('journey.loading')}</span></div>;
   }
 
-  const prog = program.data;
+  const prog = program.data ?? null;
   const ro = ctx.data!.ro;
-  const serviceDef = state ? prog.services.find((s) => s.service === state.serviceLabel) ?? null : null;
-  const official = state ? officialMinutes(prog.temps, state.serviceLabel, serviceDef?.km ?? null) : null;
+  const serviceDef = state && prog ? prog.services.find((s) => s.service === state.serviceLabel) ?? null : null;
+  const official = state && prog ? officialMinutes(prog.temps, state.serviceLabel, serviceDef?.km ?? null) : null;
   const billed = billedMinutes(ro.lines.map((l) => ({ kind: l.kind, quantity: l.quantity })));
   const progress = state ? journeyProgress(state.operations, stepCounts) : null;
   const spent = pointage ? Math.floor(pt.total) : state ? spentMinutes(state.operations) : 0;
   const workAllowed = canStartWork(ro.or as { customer_approval?: string | null });
 
-  const bikeLabel = `${prog.modele} ${prog.annee}`;
+  const bikeLabel = prog ? `${prog.modele} ${prog.annee}` : [vehicle?.brand, vehicle?.model].filter(Boolean).join(' ');
 
   // --- choix de l'entretien ------------------------------------------------
   const startService = (label: string) => {
+    if (!prog) return;
     const now = new Date().toISOString();
     persist({
       version: 1, orId, modelYearId: prog.modelYearId, serviceLabel: label,
@@ -240,7 +303,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     setView('ops');
   };
 
-  if (view === 'choose' || !state) {
+  if ((view === 'choose' || !state) && prog) {
     const due = dueServices(
       prog,
       { km: ro.or.mileage ?? vehicle?.mileage ?? null, date: today() },
@@ -300,23 +363,69 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     );
   }
 
+  if (!state) {
+    return <div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div>;
+  }
+
   // --- procédure pas à pas -------------------------------------------------
   const openOp = state.operations.find((o) => o.id === openOpId) ?? null;
   const openProc = linkedId ? linked.data ?? null : openOp?.parcoursId ? procedures.data?.[openOp.parcoursId] ?? null : null;
 
-  const toggleStep = (n: number) => patch((s) => ({
-    ...s,
-    operations: s.operations.map((o) => {
-      if (o.id !== openOpId) return o;
-      const steps = { ...o.steps };
-      if (steps[String(n)]) delete steps[String(n)]; else steps[String(n)] = new Date().toISOString();
-      return { ...o, steps };
-    }),
-  }));
+  const toggleStep = (n: number) => {
+    patch((s) => ({
+      ...s,
+      operations: s.operations.map((o) => {
+        if (o.id !== openOpId) return o;
+        const steps = { ...o.steps };
+        if (steps[String(n)]) delete steps[String(n)]; else steps[String(n)] = new Date().toISOString();
+        return { ...o, steps };
+      }),
+    }));
+    // Lot D : la derniere etape cochee coche l'operation de l'OR (tracee en base).
+    const cur = state.operations.find((o) => o.id === openOpId);
+    const d = openOpId ? dbByKey.get(openOpId) : undefined;
+    if (dbMode && cur && d && d.status === 'a_faire' && !cur.steps[String(n)]) {
+      const total = cur.parcoursId ? stepCounts[cur.parcoursId] ?? 0 : 0;
+      if (total > 0 && Object.keys(cur.steps).length + 1 >= total) po.set.mutate({ op: d, status: 'fait' });
+    }
+  };
 
-  const toggleOperation = (id: string) => patch((s) => ({
-    ...s, operations: s.operations.map((o) => (o.id === id ? { ...o, done: !o.done } : o)),
-  }));
+  // Lot D : la case de l'operation est celle de l'OR (en base, tracee) ; une « non faite » se
+  // remet « a faire » par son bouton.
+  const toggleOperation = (id: string) => {
+    const d = dbByKey.get(id);
+    if (dbMode && d) {
+      if (d.status === 'non_fait' || po.set.isPending || !po.editable) return;
+      po.set.mutate({ op: d, status: d.status === 'fait' ? 'a_faire' : 'fait' });
+      return;
+    }
+    patch((s) => ({ ...s, operations: s.operations.map((o) => (o.id === id ? { ...o, done: !o.done } : o)) }));
+  };
+  const planDialogs = dbMode ? (
+    <>
+      <NotDoneDialog
+        op={notDoneOp} reasons={po.reasons} busy={po.set.isPending}
+        onCancel={() => setNotDoneOp(null)}
+        onConfirm={(v) => { if (notDoneOp) po.set.mutate({ op: notDoneOp, status: 'non_fait', reason: v.reason, note: v.note }, { onSuccess: () => setNotDoneOp(null) }); }}
+      />
+      <FinishDialog
+        open={finishOpen} done={po.progress.done} notDone={po.progress.notDone} busy={po.finish.isPending}
+        onCancel={() => setFinishOpen(false)}
+        onConfirm={() => po.finish.mutate(undefined, {
+          onSuccess: () => {
+            setFinishOpen(false);
+            patch((st) => ({ ...st, finishedAt: st.finishedAt ?? new Date().toISOString() }));
+            qc.invalidateQueries({ queryKey: ['journey-ctx', orId] });
+          },
+        })}
+      />
+    </>
+  ) : null;
+  const finishButton = dbMode && po.canFinish ? (
+    <Button className="h-12 text-[15px]" disabled={po.finish.isPending} onClick={() => setFinishOpen(true)}>
+      {po.finish.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('planOps.finish')}
+    </Button>
+  ) : null;
 
   // Lot A : Play sur une operation = pointage sur cette operation (le travail en cours sur une autre
   // operation du meme OR s'arrete tout seul ; un autre OR demande confirmation). Sur l'operation en
@@ -370,6 +479,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
           onAdd={addFinding} onClose={() => setFinding(null)}
         />
         {pauseDialog}
+        {planDialogs}
       </>
     );
   }
@@ -485,7 +595,9 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
             <ShoppingCart /> {t('workshop.orderMissing')}
           </Button>
           <Button variant="outline" className="h-13 min-h-[52px] text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
+          {finishButton}
         </div>
+        {planDialogs}
         {orderOpen && (
           <OrderFromWorkshopDialog
             orId={orId} companyId={companyId} label={`OR ${ro.or.number ?? ''}`.trim()}
@@ -514,7 +626,8 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-12 text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
-          <Button className="h-12 text-[15px]" onClick={() => setView('summary')}><ClipboardCheck /> {t('journey.finish')}</Button>
+          <Button className="h-12 text-[15px]" variant={finishButton ? 'outline' : 'default'} onClick={() => setView('summary')}><ClipboardCheck /> {t('journey.finish')}</Button>
+          {finishButton}
         </div>
       </div>
       <Progress value={progress?.percent ?? 0} className="mb-4 h-2.5" />
@@ -526,20 +639,23 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
       <ul className="space-y-2">
         {state.operations.map((op, i) => {
           const n = op.parcoursId ? stepCounts[op.parcoursId] ?? 0 : 0;
-          const done = isOperationDone(op, n);
+          const dbOp = dbMode ? dbByKey.get(op.id) : undefined;
+          const done = dbOp ? dbOp.status === 'fait' : isOperationDone(op, n);
+          const notDone = dbOp?.status === 'non_fait';
           const isRunning = running === op.id;
           const isResume = resume?.operationId === op.id;
           const mins = opMinutes(op) + tick * 0;
           return (
-            <li key={op.id} className={`rounded-md border bg-card ${done ? 'border-success/40' : isResume ? 'border-ducati-red/50' : 'border-border'}`}>
+            <li key={op.id} className={`rounded-md border bg-card ${done ? 'border-success/40' : notDone ? 'border-warning/40' : isResume ? 'border-ducati-red/50' : 'border-border'}`}>
               <div className="flex items-stretch gap-2 p-2 sm:p-3">
                 <button
                   type="button"
                   onClick={() => toggleOperation(op.id)}
                   aria-label={t('journey.markDone')}
-                  className={`grid size-12 shrink-0 place-items-center self-start rounded-md border font-data text-[15px] font-bold tabular-nums ${done ? 'border-success bg-success text-gray-0' : 'border-border bg-accent'}`}
+                  aria-pressed={done}
+                  className={`grid size-12 shrink-0 place-items-center self-start rounded-md border font-data text-[15px] font-bold tabular-nums ${done ? 'border-success bg-success text-gray-0' : notDone ? 'border-warning bg-warning-bg text-warning' : 'border-border bg-accent'}`}
                 >
-                  {done ? <Check className="size-6" aria-hidden /> : i + 1}
+                  {done ? <Check className="size-6" aria-hidden /> : notDone ? <Ban className="size-6" aria-hidden /> : i + 1}
                 </button>
 
                 <button
@@ -552,13 +668,29 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
                   <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
                     {op.parcoursId
                       ? <span className="inline-flex items-center gap-1"><ChevronRight className="size-3.5" aria-hidden />{n ? fill(t('journey.steps'), { n }) : t('journey.openProcedure')}</span>
-                      : <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{t('journey.noProcedure')}</span>}
+                      : <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</span>}
+                    {notDone && dbOp && <StatusBadge tone="warning" icon={Ban} label={`${t('planOps.journeyNotDone')} : ${reasonText(dbOp.not_done_reason, po.reasons, t)}`} />}
+                    {dbOp && dbOp.status === 'fait' && dbOp.done_by_name && <span>{dbOp.done_by_name}</span>}
                     {n > 0 && <span className="tabular-nums">{fill(t('journey.stepsProgress'), { done: Math.min(n, Object.keys(op.steps).length), total: n })}</span>}
                     {mins > 0 && <span className="inline-flex items-center gap-1 tabular-nums"><Timer className="size-3.5" aria-hidden />{fmtMinutes(mins)}</span>}
                     {isResume && <StatusBadge tone="info" label={t('journey.resumeHere')} />}
                   </p>
                 </button>
 
+                {operationExtra?.({
+                  orId, opKey: op.id, label: op.label, procedureId: op.parcoursId,
+                  familyCodes: dbOp?.family_codes ?? [], lines: dbOp ? po.byOp.get(dbOp.id) ?? [] : [],
+                })}
+                {dbOp && po.editable && dbOp.status === 'a_faire' && (
+                  <Button variant="outline" className="h-12 shrink-0 self-start px-3 text-[14px]" onClick={() => setNotDoneOp(dbOp)} aria-label={t('planOps.notDone')}>
+                    <Ban /> <span className="hidden sm:inline">{t('planOps.notDone')}</span>
+                  </Button>
+                )}
+                {dbOp && po.editable && dbOp.status === 'non_fait' && (
+                  <Button variant="outline" className="h-12 shrink-0 self-start px-3 text-[14px]" disabled={po.set.isPending} onClick={() => po.set.mutate({ op: dbOp, status: 'a_faire' })} aria-label={t('planOps.reset')}>
+                    <RotateCcw /> <span className="hidden sm:inline">{t('planOps.reset')}</span>
+                  </Button>
+                )}
                 <Button
                   variant={isRunning ? 'default' : 'outline'}
                   className="h-12 w-12 shrink-0 self-start p-0"
@@ -608,6 +740,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
       </div>
 
       {pauseDialog}
+      {planDialogs}
       <FigureZoom figure={figure?.f ?? null} alt={figure?.alt ?? ''} onClose={() => setFigure(null)} />
       <FindingDialog
         kind={finding?.kind ?? null}

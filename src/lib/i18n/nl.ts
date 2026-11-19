@@ -7,6 +7,7 @@ import type { DictionaryShape } from './fr';
 
 import { g8aNl } from './g8-articles';
 import { smsNl } from './sms';
+import { receptionNl, planOpsNl } from './parcours-cd';
 import { productionNl } from './production';
 
 export const nl: DictionaryShape = {
@@ -9390,6 +9391,9 @@ export const nl: DictionaryShape = {
     basket_urgente: "dringend",
     basket_standard: "standaard",
   },
+  // Parcours mecanicien, lots C et D (19/11/2026) : photos de reception, reparation guidee.
+  reception: receptionNl,
+  planOps: planOpsNl,
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,

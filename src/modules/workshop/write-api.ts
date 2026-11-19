@@ -18,6 +18,7 @@ import { clientUnitPrice, lineCoveredByWarranty, lineDecisionToSave } from './wa
 import { orBaseSchemaReady } from './or-base/api';
 import { invoiceQuantity } from './labour-time/rules';
 import { insurerPricingSchemaReady } from './or-line-pricing-api';
+import { notDoneTextForInvoice } from './plan-ops/api';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -319,9 +320,12 @@ export async function transformToInvoice(orId: string): Promise<string> {
     line_type: l.as_text ? 'texte' : l.kind === 'mo' ? 'main_oeuvre' : 'article',
   }));
 
+  // Lot D (19/11) : les operations du plan marquees « non faite » (motif) sont reprises dans les
+  // notes de la facture (imprimees), comme mention.
+  const notDone = await notDoneTextForInvoice(orId).catch(() => null);
   const docId = await createDocument({
     companyId: or.company_id, docType: 'FAC', contactId: or.contact_id, vehicleId: or.vehicle_id,
-    issueDate: new Date().toISOString().slice(0, 10), status: 'validee', notes: `OR ${or.number ?? ''}`.trim(),
+    issueDate: new Date().toISOString().slice(0, 10), status: 'validee', notes: [`OR ${or.number ?? ''}`.trim(), notDone].filter(Boolean).join('\n'),
     lines: lineInputs, pied: { priceMode: (or.price_mode as 'ht' | 'ttc') ?? 'ttc' },
     repairOrderId: orId,
   });

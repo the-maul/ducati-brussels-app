@@ -176,6 +176,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [workDescription, setWork] = useState(o?.work_description ?? '');
   const [receptionNotes, setNotes] = useState(o?.reception_notes ?? '');
   const [status, setStatus] = useState(editableStatus(o?.status));
+  // Statut change hors de l'editeur (Demarrer / Pause du lot A, « Terminer » du lot D) : le champ
+  // suit la base, sinon un enregistrement de l'editeur remettrait l'ancien statut.
+  const savedStatus = o?.status;
+  useEffect(() => { if (savedStatus) setStatus(editableStatus(savedStatus)); }, [savedStatus]);
   // Rattrapage G8 (18/11) : promis le, 30 points, informations complementaires (non imprimees).
   const [promisedAt, setPromisedAt] = useState(isoToLocalInput((ox?.promised_at as string | null | undefined) ?? null));
   const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(ox?.check_points));

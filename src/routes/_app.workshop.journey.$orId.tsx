@@ -11,11 +11,14 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/journey/$orId')({
   head: () => ({ meta: [{ title: pageTitle('workshopJourney') }] }),
+  // Lot D (19/11) : `?op=op3` ouvre directement le mode operatoire de l'operation (fiche OR).
+  validateSearch: (s: Record<string, unknown>): { op?: string } => (typeof s.op === 'string' && s.op ? { op: s.op } : {}),
   component: JourneyRoute,
 });
 
 function JourneyRoute() {
   const { orId } = Route.useParams();
+  const { op } = Route.useSearch();
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
 
@@ -30,6 +33,7 @@ function JourneyRoute() {
         <JourneyScreen
           orId={orId}
           companyId={activeCompanyId}
+          initialOp={op ?? null}
           onBackToOr={() => navigate({ to: '/workshop/$orId', params: { orId } })}
         />
       )}

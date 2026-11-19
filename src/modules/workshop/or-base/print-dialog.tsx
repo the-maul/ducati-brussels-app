@@ -21,7 +21,7 @@ import { t, tIn, type Locale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getRepairOrderFull } from '../api';
-import { buildOrPdf, type OrPdfData, type OrPdfLabels } from './or-pdf';
+import { buildOrPdf, type OrPdfData, type OrPdfLabels, type OrPdfPhoto } from './or-pdf';
 import { buildOrTicket } from './or-ticket';
 import { listOrDeposits } from './deposit-api';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -29,6 +29,11 @@ import { useDeviceSetup } from '@/lib/devices/use-devices';
 import { printReceipt, type ReceiptDoc } from '@/lib/devices';
 import { printHtmlInWindow } from '@/lib/devices/drivers';
 import { receiptHtml } from '@/lib/devices/receipt-html';
+import { fetchImageForPdf, pdfSizingFor } from '@/lib/image-tools';
+import { getReception, getReceptionSlots, receptionPhotoUrl, receptionSchemaReady } from '../reception/api';
+import { arrangePhotos, slotLabel } from '../reception/rules';
+import { listNotDoneReasons, listPlanOps, planOpsSchemaReady } from '../plan-ops/api';
+import { DEFAULT_NOT_DONE_REASONS, reasonText } from '../plan-ops/rules';
 import { CHECK_POINTS, OR_PRINT_FORMATS, OR_PRINT_MODES, normalizeCheckPoints, printFileName, type OrPrintFormat, type OrPrintMode, type PrintLineIn } from './rules';
 
 function labelsFor(locale: Locale): OrPdfLabels {
@@ -44,7 +49,53 @@ function labelsFor(locale: Locale): OrPdfLabels {
     totalTtc: k('totalTtc'), depositTitle: k('depositTitle'), depositText: k('depositText'), signClient: k('signClient'),
     signReception: k('signReception'), date: k('date'), doneTitle: k('doneTitle'), mechanic: k('mechanic'), timeSpent: k('timeSpent'),
     page: k('page'), none: k('none'), advance: tIn(locale, 'orBase.pdfAdvance'), checkLabels,
+    condition: tIn(locale, 'reception.pdfConditionTitle'), photosTitle: tIn(locale, 'reception.pdfPhotosTitle'),
+    missingPhotos: tIn(locale, 'reception.pdfMissing').replace(/\s*:?\s*\{list\}\s*$/, ''),
+    opsTitle: tIn(locale, 'planOps.pdfTitle'), notDoneTitle: tIn(locale, 'planOps.pdfNotDoneTitle'),
+    opDone: tIn(locale, 'planOps.pdfDone'), opNotDone: tIn(locale, 'planOps.pdfNotDone'), opTodo: tIn(locale, 'planOps.pdfTodo'),
   };
+}
+
+/**
+ * Lots C et D du parcours mecanicien (19/11) : reception (commentaire, manquantes, photos si
+ * `withPhotos`) et operations du plan de l'OR, dans la langue du document. Sans les migrations : rien.
+ */
+async function loadWorkshopExtras(orId: string, companyId: string, locale: Locale, withPhotos: boolean): Promise<Pick<OrPdfData, 'reception' | 'operations'>> {
+  const tr = (key: string) => tIn(locale, key);
+  const out: Pick<OrPdfData, 'reception' | 'operations'> = { reception: null, operations: null };
+  if (await receptionSchemaReady().catch(() => false)) {
+    const [state, slots] = await Promise.all([getReception(orId), getReceptionSlots(companyId)]);
+    const a = arrangePhotos(slots, state.photos);
+    const ordered = [...a.bySlot.flatMap((x) => (x.photo ? [{ p: x.photo, label: slotLabel(x.slot, tr) }] : [])),
+      ...a.others.map((p) => ({ p, label: p.slot_code })),
+      ...a.damages.map((p, i) => ({ p, label: `${tr('reception.damage')} ${i + 1}` }))];
+    const sizing = pdfSizingFor(ordered.length);
+    const photos: OrPdfPhoto[] = [];
+    if (withPhotos) {
+      for (const o of ordered) {
+        const url = await receptionPhotoUrl(o.p.storage_path);
+        const img = url ? await fetchImageForPdf(url, sizing) : null;
+        if (img) photos.push({ label: o.label, comment: o.p.comment, dataUrl: img.dataUrl, w: img.w, h: img.h });
+      }
+    }
+    const missing = state.reception || state.photos.length
+      ? slots.filter((s) => s.required && !state.photos.some((p) => p.slot_code === s.code)).map((s) => slotLabel(s, tr))
+      : [];
+    if (state.reception?.general_comment || photos.length || missing.length) {
+      out.reception = { comment: state.reception?.general_comment ?? null, missing, photos };
+    }
+  }
+  if (await planOpsSchemaReady().catch(() => false)) {
+    const [ops, reasons] = await Promise.all([listPlanOps(orId), listNotDoneReasons(companyId).catch(() => [])]);
+    const rs = reasons.length ? reasons : DEFAULT_NOT_DONE_REASONS;
+    if (ops.length) {
+      out.operations = ops.map((o) => ({
+        label: o.label, status: o.status,
+        detail: o.status === 'non_fait' ? [reasonText(o.not_done_reason, rs, tr), o.not_done_note].filter(Boolean).join(' : ') : null,
+      }));
+    }
+  }
+  return out;
 }
 
 const joinAddr = (...parts: unknown[]) => parts.map((p) => String(p ?? '').trim()).filter(Boolean).join(', ');
@@ -112,6 +163,8 @@ export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNum
   const [mode, setMode] = useState<OrPrintMode>('both');
   const [priced, setPriced] = useState(false);
   const [hideClient, setHideClient] = useState(false);
+  // Lot C (19/11) : photos de reception en annexe de l'OR (coche par defaut).
+  const [withPhotos, setWithPhotos] = useState(true);
 
   const ticket = useMutation({
     mutationFn: async () => {
@@ -128,7 +181,8 @@ export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNum
   const run = useMutation({
     mutationFn: async (target: 'open' | 'download') => {
       const { data, locale } = await loadPdfData(orId);
-      const blob = await buildOrPdf(data, { mode, priced, hideClient }, labelsFor(locale));
+      const extras = activeCompanyId ? await loadWorkshopExtras(orId, activeCompanyId, locale, withPhotos).catch(() => ({})) : {};
+      const blob = await buildOrPdf({ ...data, ...extras }, { mode, priced, hideClient }, labelsFor(locale));
       const url = URL.createObjectURL(blob);
       if (target === 'open') {
         window.open(url, '_blank', 'noopener');
@@ -176,6 +230,7 @@ export function OrPrintDialog({ orId, orNumber, onClose }: { orId: string; orNum
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-[14px]"><Checkbox checked={priced} onCheckedChange={(v) => setPriced(v === true)} /> {t('orBase.priced')}</label>
             <label className="flex items-center gap-2 text-[14px]"><Checkbox checked={hideClient} onCheckedChange={(v) => setHideClient(v === true)} /> {t('orBase.hideClient')}</label>
+            <label className="flex items-center gap-2 text-[14px]"><Checkbox checked={withPhotos} onCheckedChange={(v) => setWithPhotos(v === true)} /> {t('reception.printPhotos')}</label>
           </div>
           </>}
           {format === 'ticket' && <p className="text-[13px] text-muted-foreground">{t('orBase.ticketHint')}</p>}

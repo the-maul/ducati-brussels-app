@@ -10,6 +10,9 @@
  *   (cases V / R pre-cochees), les lignes, et la place pour les travaux effectues, le mecanicien,
  *   le temps passe.
  * Les « informations complementaires » (repair_orders.notes) ne sont JAMAIS imprimees.
+ * Parcours mecanicien (19/11/2026) : lot C, etat de la moto a la reception + photos de reception en
+ * ANNEXE (option) ; lot D, operations du plan d'entretien (fiche : liste cochee ; OR : operations non
+ * realisees avec leur motif).
  * Document imprime : couleurs et polices de `sales/pdf-print-style` (charte §7), jamais de token CSS.
  */
 import { patchPdfText } from '@/modules/documents/pdf-text';
@@ -27,7 +30,15 @@ export type OrPdfLabels = {
   /** Acompte verse (decision Q45 du 18/11) : imprime sur l'OR, chiffre ou non. */
   advance: string;
   checkLabels: Record<string, string>;
+  /** Lots C et D du parcours mecanicien (19/11) : reception et operations du plan. */
+  condition?: string; photosTitle?: string; missingPhotos?: string;
+  opsTitle?: string; notDoneTitle?: string; opDone?: string; opNotDone?: string; opTodo?: string;
 };
+
+/** Photo de reception prete pour le PDF (JPEG allege). */
+export type OrPdfPhoto = { label: string; comment: string | null; dataUrl: string; w: number; h: number };
+/** Operation du plan d'entretien imprimee (fiche de travail). */
+export type OrPdfOperation = { label: string; status: 'a_faire' | 'fait' | 'non_fait'; detail: string | null };
 
 export type OrPdfData = {
   company: { name: string; address: string; vat: string | null; phone: string | null };
@@ -41,6 +52,10 @@ export type OrPdfData = {
   vehicle: { brandModel: string; reference: string | null; plate: string | null; vin: string | null } | null;
   /** Acompte net percu sur l'OR (decision Q45 du 18/11) ; 0 / null = pas de ligne. */
   deposit?: number | null;
+  /** Lot C : commentaire general, obligatoires manquantes (libelles), photos (annexe si option). */
+  reception?: { comment: string | null; missing: string[]; photos: OrPdfPhoto[] } | null;
+  /** Lot D : operations du plan d'entretien de l'OR. */
+  operations?: OrPdfOperation[] | null;
 };
 
 const money = (n: number | null) => (n == null ? '' : `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} EUR`);
@@ -53,6 +68,7 @@ type Doc = {
   rect: (x: number, y: number, w: number, h: number, style?: string) => unknown; line: (a: number, b: number, c: number, d: number) => unknown;
   splitTextToSize: (s: string, w: number) => string[]; addPage: () => unknown; getNumberOfPages: () => number; setPage: (n: number) => unknown;
   output: (t: 'arraybuffer') => ArrayBuffer;
+  addImage: (data: string, format: string, x: number, y: number, w: number, h: number) => unknown;
 };
 
 export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdfLabels): Promise<Blob> {
@@ -285,13 +301,82 @@ export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdf
     y += h + 3;
   };
 
+  const rec = data.reception ?? null;
+  const ops = data.operations ?? [];
+  const missingText = rec?.missing.length && L.missingPhotos ? `${L.missingPhotos} : ${rec.missing.join(', ')}` : null;
+  const conditionBlock = () => block(L.condition ?? L.reception, [rec?.comment ?? '', missingText ?? ''].filter(Boolean).join('\n'));
+  /** OR (client) : les operations du plan non realisees, avec leur motif. */
+  const notDoneBlock = () => {
+    const list = ops.filter((o) => o.status === 'non_fait');
+    if (!list.length) return;
+    block(L.notDoneTitle ?? '', list.map((o) => `- ${o.label}${o.detail ? ` (${o.detail})` : ''}`).join('\n'));
+  };
+  /** Fiche de travail : la liste des operations du plan, case faite / non faite / a faire. */
+  const opsList = () => {
+    if (!ops.length) return;
+    ensure(8 + LH * 2);
+    font(PDF_FONT.small, true); ink(PDF_COLORS.muted);
+    doc.text((L.opsTitle ?? '').toUpperCase(), M, y + 3);
+    y += 6;
+    doc.setDrawColor(PDF_COLORS.rule[0], PDF_COLORS.rule[1], PDF_COLORS.rule[2]);
+    doc.setLineWidth(0.2);
+    for (const o of ops) {
+      font(PDF_FONT.small);
+      const mark = o.status === 'fait' ? (L.opDone ?? 'OK') : o.status === 'non_fait' ? (L.opNotDone ?? '-') : (L.opTodo ?? '');
+      const text = `${o.label}${o.status === 'non_fait' && o.detail ? ` (${o.detail})` : ''}`;
+      const wrapped = doc.splitTextToSize(text, W - 2 * M - 34);
+      ensure(wrapped.length * 3.6 + 1.5);
+      doc.rect(M, y, 3.6, 3.6);
+      if (o.status !== 'a_faire') {
+        doc.setFillColor(PDF_COLORS.frame[0], PDF_COLORS.frame[1], PDF_COLORS.frame[2]);
+        doc.rect(M + 0.8, y + 0.8, 2, 2, 'F');
+      }
+      ink(PDF_COLORS.ink);
+      doc.text(wrapped, M + 6, y + 3);
+      ink(PDF_COLORS.muted);
+      doc.text(mark, W - M, y + 3, { align: 'right' });
+      y += wrapped.length * 3.6 + 1.5;
+    }
+    y += 2;
+  };
+  /** Annexe : photos de reception, deux par ligne, avec case et commentaire. */
+  const photosAnnex = () => {
+    const photos = rec?.photos ?? [];
+    if (!photos.length) return;
+    doc.addPage(); y = M;
+    header(L.photosTitle ?? L.orTitle);
+    const colW = (W - 2 * M - 6) / 2;
+    const maxH = 72;
+    let col = 0;
+    let rowH = 0;
+    for (const p of photos) {
+      const ratio = p.w > 0 ? p.h / p.w : 0.75;
+      const h = Math.min(maxH, colW * ratio);
+      const w = h / ratio;
+      font(PDF_FONT.small);
+      const caption = doc.splitTextToSize(`${p.label}${p.comment ? ` : ${p.comment}` : ''}`, colW);
+      const cellH = h + 2 + caption.length * 3.4 + 4;
+      if (col === 0) ensure(cellH);
+      const x = M + col * (colW + 6);
+      try { doc.addImage(p.dataUrl, 'JPEG', x, y, w, h); } catch { /* image illisible : la legende reste */ }
+      ink(PDF_COLORS.ink);
+      doc.text(caption, x, y + h + 4);
+      rowH = Math.max(rowH, cellH);
+      col += 1;
+      if (col === 2) { col = 0; y += rowH; rowH = 0; }
+    }
+    if (col) y += rowH;
+  };
+
   if (parts.or) {
     newSection();
     header(L.orTitle);
     parties();
     block(L.work, data.or.work_description);
     block(L.reception, data.or.reception_notes);
+    conditionBlock();
     checkedPoints();
+    notDoneBlock();
     linesTable(opts.priced);
     advance();
     deposit();
@@ -302,10 +387,13 @@ export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdf
     parties();
     block(L.work, data.or.work_description);
     block(L.reception, data.or.reception_notes);
+    conditionBlock();
     checkGrid();
+    opsList();
     linesTable(opts.priced);
     doneBox();
   }
+  photosAnnex();
 
   // Pied : numero de page.
   const n = doc.getNumberOfPages();

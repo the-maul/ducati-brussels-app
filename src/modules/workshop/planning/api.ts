@@ -98,7 +98,8 @@ export async function getPlanningSettings(companyId: string): Promise<PlanningSe
 export async function savePlanningSettings(s: PlanningSettings): Promise<void> {
   // Lot B (20261119250000) : la picking list des RDV a ses reglages et sa fonction
   // (workshop_parts_settings_set, tracee) ; ce formulaire ne les reecrit pas avec une valeur lue avant.
-  const { picking_auto_mode: _mode, picking_eve_hour: _hour, ...row } = s as PlanningSettings & { picking_auto_mode?: unknown; picking_eve_hour?: unknown };
+  // Lot C (20261119270000) : la serie de photos de reception a sa fonction (workshop_reception_settings_set).
+  const { picking_auto_mode: _mode, picking_eve_hour: _hour, reception_photo_slots: _slots, ...row } = s as PlanningSettings & { picking_auto_mode?: unknown; picking_eve_hour?: unknown; reception_photo_slots?: unknown };
   unwrap(await loose.from('workshop_planning_settings').upsert({ ...row }, { onConflict: 'company_id' }));
 }
 

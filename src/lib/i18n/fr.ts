@@ -7,6 +7,7 @@
  */
 import { g8aFr } from './g8-articles';
 import { smsFr } from './sms';
+import { receptionFr, planOpsFr } from './parcours-cd';
 import { productionFr } from './production';
 
 export const fr = {
@@ -9409,6 +9410,9 @@ export const fr = {
     basket_urgente: "urgente",
     basket_standard: "standard",
   },
+  // Parcours mecanicien, lots C et D (19/11/2026) : photos de reception, reparation guidee.
+  reception: receptionFr,
+  planOps: planOpsFr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,
