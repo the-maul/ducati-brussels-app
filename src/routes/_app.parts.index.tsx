@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, FilePenLine, GitMerge, Store, ChevronLeft, ChevronRight, Calculator, Replace } from 'lucide-react';
+import { Search, Loader2, Plus, Upload, FolderTree, Wand2, Tags, ArrowRight, SlidersHorizontal, X, Copy, ShoppingCart, FilePenLine, GitMerge, Store, ChevronLeft, ChevronRight, Calculator, Replace, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -199,6 +199,9 @@ function ArticlesList() {
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/parts/price-tools' })}>
               <Calculator /> {t('g8a.tools.button')}
+            </Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/parts/upcoming' })}>
+              <CalendarClock /> {t('upcomingParts.button')}
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: '/parts/replacements' })}>
               <Replace /> {t('g8a.repl.button')}

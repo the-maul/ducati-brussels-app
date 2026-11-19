@@ -175,6 +175,11 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 - Calcul du stock à la volée (somme de tous les mouvements à chaque liste) : correct mais coûteux quand l'historique grossira. **Index ajouté le 23/09** : `idx_stockmoves_article_cover (article_id) include (is_reservation, qty_delta)` (lecture par index seul).
 - ~~**Copies datées et cron**~~ (**corrigé le 18/11** par `20261118210000` : `_stock_photo` sans contrôle d'utilisateur) : `article_stock_list` exige `is_member(_company)`, donc `auth.uid()` non nul. Sous `pg_cron` (aucun utilisateur connecté) elle renvoie **zéro ligne** : les copies du 15 et de fin de mois générées par `_cron_stock_copies` sont probablement **vides**. Constat du 23/09, **antérieur** au lot (le contrôle existait déjà) — à vérifier et corriger.
 
+## Ajouté le 19/11 — écran « Pièces des RDV à venir » (lot B du parcours mécanicien, INV006, ATE015)
+`/parts/upcoming` (boutons « Pièces des RDV » de Pièces & Accessoires et de l'Atelier), fonction `workshop_upcoming_parts(_company, _from, _to)` (62 jours au plus). Par jour, par RDV d'entretien (heure, client, moto, entretien, mécanicien, n° d'OR, picking list), chaque pièce du kit avec son état (couleur + icône + libellé) : **Réservée en stock** · **Au panier** (urgente / standard, libellé du panier) · **Commandée** (n° de commande DCS s'il est saisi) · **Manquante** (fin de série, remplacée par X, panier annulé, stock libre à réserver) · **Hors stock** (article non stocké ou absent du kit).
+- Actions : **Réserver** (`workshop_reservations_sync`, existant) · **Commander en urgente** / **Passer en urgente** (`workshop_reservation_order_urgent` : les lignes du panier standard ouvert passent au panier urgente, puis le manque qui n'est commandé nulle part part en urgente ; un panier déjà commandé ne bouge pas ; une pièce fin de série / remplacée est refusée avec la raison) · **Préparer maintenant** (`picking_open_for_appointment`) / ouvrir la picking list.
+- Tout est tracé dans `events` (`workshop_reservation_urgent`, `picking_open_for_appointment`, `workshop_parts_settings`). Aucun mouvement de stock hors réservation (B4, B7).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé court | État | Preuve |
@@ -200,6 +205,7 @@ select has_function_privilege('anon', 'public.record_stock_move(uuid, public.sto
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
+| 2026-11-19 | Écran « Pièces des RDV à venir » (`/parts/upcoming`) : état de chaque pièce des RDV d'entretien, réserver / commander en urgente / préparer (lot B parcours mécanicien) | branche `lot-parcours-b`, `20261119250000` (non appliquée) |
 |---|---|---|
 | 2026-11-18 | **Rattrapage G8 stock** : inventaire guidé (8 méthodes, check-list datée, retour arrière), arrêté réajustable en 3 modes (append-only), réintégration juste et unique, réajustement / remise à zéro du réel, copies consultables et copies cron corrigées, édition multi-critères (8 onglets + rupture, Excel, feuilles d'inventaire), étiquetage par source + file différée par poste | `20261118210000_m5_inventaire_guide`, `20261118211000_m5_editions_stock`, `20261118212000_m5_etiquetage` (non appliquées) |
 | 2026-11-03 | Minimax du panier de commande Ducati (mission 09, M04) : `stock_max` = quantité cible, remplissage quotidien `basket-minimax-daily` sur le stock réel, « en commande » déduit ; aucun mouvement de stock | `20261103100000_m4_paniers_de_commande` (non appliquée) |

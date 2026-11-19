@@ -549,6 +549,17 @@ tests `tests/workshop-pointage.test.ts`.
   vient d'un code mécano). Les tâches improductives et les cessions pointent encore par l'ancien chemin (fermeture
   côté navigateur) : elles respectent la règle « un seul actif » mais leur fin n'a pas de `stop_kind`.
 
+### Ajouté le 19/11 — lot B du parcours mécanicien : les pièces sans clic (ATE015, ATE013, INV006)
+Demande du client : « rdv planifié, création d'une picking list, proposition de réservation et/ou commandes des pièces pour le client (dans le stock ou ça passe en commande urgente) ». Branche `lot-parcours-b`, migration **`20261119250000_m8_pieces_sans_clic.sql` (non appliquée)**, essai à blanc `supabase/tests/m8_pieces_sans_clic.sql` (27 contrôles verts), règles pures `src/modules/workshop/reservations/parts-flow.ts`, tests `tests/atelier-pieces-sans-clic.test.ts`.
+- **Picking list automatique de chaque RDV d'entretien.** Réglage atelier (Planning → Réglages → « Pièces des RDV ») : **la veille du RDV** (défaut, tâche `workshop-picking-eve` toutes les heures à :05, à partir de 16 h, heure réglable ; RDV du jour en rattrapage) · **à la réception de la moto** (quand l'OR naît du RDV) · **à la main**. En mode veille, l'OR né du RDV crée aussi la liste si elle n'existe pas encore.
+- **Un seul mécanisme** : `_picking_open_core` est l'ancien corps de `picking_open_for_repair_order` (même signature, mêmes messages ; parcours technicien et bouton de l'OR inchangés). `picking_lists.appointment_id` : la liste du RDV **suit l'OR** quand il naît (même liste, `repair_order_id` posé), complétée des pièces ajoutées sur l'OR, jamais dupliquée. Elle reprend aussi les pièces réservées du RDV. **Aucun mouvement de stock** : pas de double réservation (B7).
+- **RDV annulé** : sa liste (pas livrée, pas reprise par un OR) passe « annulée » (`picking_cancel` dans `events`).
+- **RDV avancé sous le seuil** : les lignes encore au panier standard ouvert passent seules au panier urgente (`_workshop_reservations_recheck_kind`).
+- **Pièce fin de série / remplacée** : `_workshop_reservations_sync` (redéfinie, même signature) ne l'envoie plus au panier. Avant, le garde-fou du panier (`20261103280000`) faisait échouer l'enregistrement du RDV entier. Elle reste « manquante » sur l'écran du magasin, avec la raison et la nouvelle référence.
+- **Réception d'une commande** : rien à coder, `_trg_stock_entry_reservations` (20261103270000) re-réserve à chaque entrée en stock pour le RDV / l'OR à qui il manque la pièce, **le plus proche d'abord** ; vérifié par l'essai à blanc.
+- **Erreur de préparation** : jamais bloquante pour le RDV ou l'OR (`_picking_open_auto`, trace `picking_auto_failed`).
+- **Piège** : le déclencheur s'appelle `trg_appointments_spare_parts` pour passer **après** `trg_appointments_reservations` (ordre alphabétique). Ne pas le renommer.
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
 - **Tous les objets utilisés par le code existent** : `repair_orders`, `repair_order_lines`, `workshop_time_entries`, `workshop_appointments` avec toutes les colonnes écrites (y compris `price_mode` lu à la facturation), fonctions `or_worked_minutes`, `next_document_number`. RLS active et triggers d'audit (`trg_ro_audit`, `trg_rolines_audit`, `trg_appt_audit`, `trg_wte_audit`) présents.
@@ -740,6 +751,7 @@ Source : `docs/g8-inventaire/nomenclatures-g8.md` (37 nomenclatures, prix de la 
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |
+| 2026-11-19 | **Lot B parcours mécanicien, pièces sans clic** (ATE015, ATE013, INV006) : picking list automatique de chaque RDV d'entretien (veille à 16 h / réception / manuel), reprise par l'OR sans doublon, écran magasin « Pièces des RDV à venir », commander en urgente / passer en urgente, RDV avancé → urgente, pièce fin de série / remplacée qui ne bloque plus le RDV | branche `lot-parcours-b`, `20261119250000_m8_pieces_sans_clic.sql` (non appliquée ; essai à blanc 27 / 27) |
 |---|---|---|
 | 2026-11-19 | **SMS par Brevo** (T14 / T15, ATE018, ATE006) : SMS automatique de fin de travaux, rappels de RDV selon la case, SMS programmés + annulation, Paramètres → SMS (état, modèles, SMS de test), interrupteur Arrêté / Test / Actif, société de test bloquée | branche `lot-sms-brevo`, `20261119170000_m8_sms_brevo.sql` (**non appliquée**), fonctions `dispatch-notifications` + `sms-brevo` |
 | 2026-11-18 | **Rattrapage G8, temps de main-d'œuvre** (B11, ATE015 / ATE019) : « Gestion du temps atelier » par ligne MO, « Contrôle du temps atelier » avant facture (quantité MO = heures facturées), **facture d'OR unique et atomique**, pointeuse à code mécano + scan d'OR + tâches improductives, productivité atelier complète avec export Excel | branche `lot-g8-temps-mo`, `20261118110000_m8_temps_main_oeuvre.sql` (**non appliquée** ; essai à blanc `supabase/tests/m8_temps_mo.sql`, rejoué sur PGlite 33 / 33) ; la réécriture des lignes du lot garantie (`20261118130000`, posée après) a été fusionnée pour garder le temps MO |
