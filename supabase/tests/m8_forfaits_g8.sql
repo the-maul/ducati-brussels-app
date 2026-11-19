@@ -122,12 +122,12 @@ select 'kit 1000 SS : huile = MOTO 4XT x 3,10, « quantite reprise du forfait G8
             then 'ok' else 'KO' end;
 
 insert into _t(check_name, result)
-select 'kit 1000 SS : filtre introuvable -> 44440035A du forfait G8 ; fourche 521 cc -> 2 flacons, 521 cc garde en provenance',
+select 'kit 1000 SS : filtre introuvable -> 44440035A du forfait G8 ; fourche 521 cc -> 1 flacon de 1 l (Q50), 521 cc garde en provenance',
        case when (select a.reference from public.maintenance_kit_items i join public.articles a on a.id = i.article_id
                    where i.kit_id = (select v::uuid from _ctx where k = 'kit_a') and i.family_code = 'filtre_huile') = '44440035A'
              and (select i.quantity || ':' || i.unit || ':' || (i.provenance -> 'liquide' ->> 'quantite_source')
                     from public.maintenance_kit_items i
-                   where i.kit_id = (select v::uuid from _ctx where k = 'kit_a') and i.family_code = 'huile_fourche') = '2.000:flacon:521.000'
+                   where i.kit_id = (select v::uuid from _ctx where k = 'kit_a') and i.family_code = 'huile_fourche') = '1.000:flacon:521.000'
             then 'ok' else 'KO' end;
 
 insert into _t(check_name, result)
