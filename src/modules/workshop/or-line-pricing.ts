@@ -12,8 +12,10 @@
  *   l'article MO_ATELIER de G8 (regles « tout le catalogue », ou par reference MO_ATELIER).
  * - Texte, piece libre sans article : prix saisi, jamais touche.
  *
- * Coordination : le taux horaire atelier (standard / VIP via tarif client, lot decisions-atelier)
- * doit passer par `priceOrLine` (branche « mo ») pour rester coherent avec le tarif assureur.
+ * Taux horaire atelier (decision Q48 du 18/11, lot decisions-atelier) : standard 109,74 HT = la base
+ * de la MO (Parametres -> Tables -> Frais de devis atelier) ; VIP 90,00 HT = tarif client « VIP » dont
+ * la ligne vise l'article MO de la societe, applique par `priceLabour` ; une MO de forfait (article MO
+ * sans prix) se tarife pareil (`pricedAsLabour`).
  */
 import type { ResolvedSalePrice } from '@/modules/sales/customer-pricing';
 
@@ -41,17 +43,29 @@ const pos = (n: unknown): number => { const x = Number(n); return Number.isFinit
 export const isPriceableLine = (l: PriceableLine): boolean =>
   l.kind !== 'texte' && (!!l.article_id || l.kind === 'mo');
 
-/** Prix d'une ligne d'OR pour une base HT donnee ; null = ligne non tarifee (texte, piece libre, base nulle). */
-export async function priceOrLine(pricer: OrLinePricer, line: PriceableLine, baseHt: number): Promise<OrLinePrice | null> {
+/**
+ * Prix d'une ligne d'OR pour une base HT donnee ; null = ligne non tarifee (texte, piece libre, base nulle).
+ * `asLabour` : la ligne est de la main-d'oeuvre AU TAUX DE L'ATELIER (MO sans article, ou article MO de
+ * type T sans prix propre, ex. la MO d'un forfait) : elle se tarife comme la MO (`priceLabour`, tarif
+ * client « VIP » compris — decision Q48 du 18/11, lot decisions-atelier). Par defaut : sans article.
+ */
+export async function priceOrLine(pricer: OrLinePricer, line: PriceableLine, baseHt: number, asLabour = !line.article_id): Promise<OrLinePrice | null> {
   if (!isPriceableLine(line) || !(pos(baseHt) > 0)) return null;
   const qty = pos(line.quantity) || 1;
-  const r = line.article_id ? await pricer.price(line.article_id, baseHt, qty) : await pricer.priceLabour(baseHt, qty);
+  const r = line.article_id && !(asLabour && line.kind === 'mo') ? await pricer.price(line.article_id, baseHt, qty) : await pricer.priceLabour(baseHt, qty);
   return { unit_price_ht: r.unitPriceHt, discount_pct: r.discountPct, ruled: !!r.rule, listCode: r.listCode };
 }
 
-/** Base de la ligne : catalogue de l'article ; MO sans article : taux atelier (sinon le prix saisi). */
-export function lineBaseHt(line: PriceableLine, bases: { articleBaseHt: ReadonlyMap<string, number>; labourRateHt: number | null | undefined }): number {
-  if (line.article_id) return pos(bases.articleBaseHt.get(line.article_id));
+type Bases = { articleBaseHt: ReadonlyMap<string, number>; labourRateHt: number | null | undefined };
+
+/** MO au taux de l'atelier : sans article, ou article (type T) sans prix catalogue propre (decision Q48). */
+export function pricedAsLabour(line: PriceableLine, bases: Bases): boolean {
+  return line.kind === 'mo' && (!line.article_id || !(pos(bases.articleBaseHt.get(line.article_id)) > 0));
+}
+
+/** Base de la ligne : catalogue de l'article ; MO au taux atelier : taux de l'atelier (sinon le prix saisi). */
+export function lineBaseHt(line: PriceableLine, bases: Bases): number {
+  if (line.article_id && !pricedAsLabour(line, bases)) return pos(bases.articleBaseHt.get(line.article_id));
   if (line.kind === 'mo') return pos(bases.labourRateHt) || pos(line.unit_price_ht);
   return 0;
 }
@@ -66,7 +80,7 @@ export async function repriceOrLines<L extends PriceableLine>(
 ): Promise<{ lines: L[]; changed: number }> {
   let changed = 0;
   const out = await Promise.all(lines.map(async (l) => {
-    const p = await priceOrLine(pricer, l, lineBaseHt(l, bases));
+    const p = await priceOrLine(pricer, l, lineBaseHt(l, bases), pricedAsLabour(l, bases));
     if (!p) return l;
     if (Math.abs(p.unit_price_ht - l.unit_price_ht) < 0.005 && Math.abs(p.discount_pct - (l.discount_pct || 0)) < 0.005) return l;
     changed += 1;

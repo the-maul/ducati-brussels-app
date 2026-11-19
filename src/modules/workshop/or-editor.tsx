@@ -24,7 +24,7 @@
  * informations complémentaires non imprimées, modèles de commentaires (Mémoriser / Rappeler /
  * Supprimer), popup « Commentaire client » au chargement du client.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock, Tag, Undo2 } from 'lucide-react';
 import { KitInsertDialog } from './kits/kit-insert-dialog';
@@ -57,7 +57,6 @@ import { pickContact, clearContact, pickVehicle, clearVehicle, type ClientVehicl
 import { type RepairOrderFull } from './api';
 import { computeRoTotals, warrantySchemaReady, type RoLineInput } from './write-api';
 import { loadHourlyRateHt } from './maintenance-api';
-import { useClientLabourRate } from './labour-rate';
 import { listWorkshopReasons } from './checkup/api';
 import { cardsToLines, linesToCards, nonCheckupLines, PROPOSED_STATES, type CheckupCard } from './checkup/rules';
 import { CheckupTab } from './checkup/checkup-tab';
@@ -261,21 +260,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode))
     : null;
   const rateQ = useQuery({ queryKey: ['maintenance', 'rate', companyId], queryFn: () => loadHourlyRateHt(companyId), staleTime: 300_000 });
-  // Decision Q48 (18/11) : taux du client (tarif « VIP » = MO 90,00 HT) par le moteur de tarifs, sinon standard.
-  const standardRate = rateQ.data ?? null;
-  const rateKey = contact ? `${contact.id}|${(contact as PricingContact).price_list_id ?? ''}|${(contact as PricingContact).price_list ?? ''}` : null;
-  const rate = useClientLabourRate(companyId, pricer, standardRate, rateKey);
-  // Le client (ou son tarif) CHANGE a l'ecran : les lignes MO encore a l'ancien taux prennent le
-  // nouveau ; un prix saisi a la main n'est jamais touche, ni un OR rouvert avec son client d'origine.
-  const prevRate = useRef<number | null>(rate);
-  const openedKey = useRef(rateKey);
-  useEffect(() => {
-    const before = prevRate.current;
-    prevRate.current = rate;
-    if (before == null || rate == null || before === rate || rateKey === openedKey.current) return;
-    setLines((ls) => ls.map((l) => (l.kind === 'mo' && !l.is_warranty && Number(l.unit_price_ht) === before ? { ...l, unit_price_ht: rate } : l)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seul le changement de taux declenche le recalcul
-  }, [rate]);
+  // Taux STANDARD de l'atelier (base de la MO, decision Q48 : 109,74 HT) ; le tarif du client (VIP :
+  // 90,00 HT) s'applique ensuite par le moteur unique des lignes d'OR (or-line-pricing.ts, priceOrLine).
+  const rate = rateQ.data ?? null;
   // Dernier releve de la moto (OR, fiche moto, dernier entretien, declaration) : controle du km G8.
   const readingsQ = useQuery({ queryKey: ['vehicle-mileage', vehicle?.id], enabled: !!vehicle?.id, queryFn: () => vehicleMileageReadings(vehicle!.id), staleTime: 30_000 });
   const last = vehicle?.id ? lastReading(readingsQ.data ?? [], o?.id ?? null, o?.created_at ?? null) : null;
@@ -397,11 +384,20 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     const dup = kitDuplicateCount(lines, ins);
     if (dup > 0 && !force) { setKitOpen(false); setKitDup({ lines: ins, count: dup }); return; }
     setKitDup(null);
-    setLines((ls) => {
-      const kept = ls.filter((l) => l.designation.trim() || l.article_id);
-      return [...kept, ...ins.map((l) => ({ ...toRoLine(l), _key: `ro${counter++}` }))];
-    });
     setKitOpen(false);
+    // Decisions Q48 / Q49 : les lignes du kit passent par LA fonction de prix des lignes d'OR (tarif du
+    // client ou de l'assureur ; MO au taux du client, VIP compris) ; sans tarif, le prix du kit reste.
+    void (async () => {
+      let priced = ins.map(toRoLine);
+      try {
+        const bases = { articleBaseHt: await articleBasePrices(priced.map((l) => l.article_id ?? '').filter(Boolean), roundUp), labourRateHt: rate };
+        priced = (await repriceOrLines(priced, pricer, bases)).lines;
+      } catch { /* prix du kit */ }
+      setLines((ls) => {
+        const kept = ls.filter((l) => l.designation.trim() || l.article_id);
+        return [...kept, ...priced.map((l) => ({ ...l, _key: `ro${counter++}` }))];
+      });
+    })();
   };
   const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
     ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
@@ -719,7 +715,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       </div>
 
       {kitOpen && (
-        <KitInsertDialog companyId={companyId} modelYearId={kitModelYear} labourRateHt={rate}
+        <KitInsertDialog companyId={companyId} modelYearId={kitModelYear}
           effectiveHt={(ht, v) => effectiveSaleHt(ht, v, roundUp)}
           onInsert={(ins) => insertKitLines(ins)} onClose={() => setKitOpen(false)} />
       )}

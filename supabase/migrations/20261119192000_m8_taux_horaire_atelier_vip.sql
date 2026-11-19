@@ -16,9 +16,11 @@
 --      taux x heures plafonnees, ce n'est pas un forfait fixe) : son `amount_ht` affiche est aligne.
 --      Trace : audit_row de reference_values + events `workshop_hourly_rate_g8`.
 --   3. Taux VIP = le MOTEUR DE TARIFS EXISTANT (tarifs communs, lot regles client) : un tarif client
---      « VIP » dont l'unique ligne fixe le prix NET de l'article MO a 90,00 HT. Un client a qui l'on
---      donne ce tarif (fiche client -> Tarif) paie la MO 90,00 HT sur ses OR (lignes MO saisies,
---      forfaits et kits inseres, check-up). Aucun second mecanisme de tarifs.
+--      « VIP » dont l'unique ligne fixe le prix NET de l'article de main-d'oeuvre (MO_ATELIER, sinon MO)
+--      a 90,00 HT. Un client a qui l'on donne ce tarif (fiche client -> Tarif) paie la MO 90,00 HT sur
+--      ses OR : la fonction unique de prix des lignes d'OR (or-line-pricing.ts, priceOrLine →
+--      CustomerPricer.priceLabour) l'applique aux lignes MO saisies et aux MO des kits / forfaits.
+--      Aucun second mecanisme de tarifs.
 -- Additive, rejouable (aucune ligne doublee). Essai a blanc : supabase/tests/m8_taux_et_kit_rdv.sql.
 -- =====================================================================
 
@@ -71,8 +73,10 @@ do $$
 declare c record; _list uuid;
 begin
   for c in
-    select a.company_id, (array_agg(a.id order by a.created_at))[1] as mo_id
-      from public.articles a where a.reference = 'MO' and a.mgmt_type = 'T' group by a.company_id
+    -- Article de main-d'oeuvre de la societe : MO_ATELIER s'il existe, sinon MO (type T) — le meme
+    -- que lit CustomerPricer.priceLabour pour la MO sans article.
+    select a.company_id, (array_agg(a.id order by (a.reference = 'MO_ATELIER') desc, a.created_at))[1] as mo_id
+      from public.articles a where a.reference in ('MO_ATELIER', 'MO') and a.mgmt_type = 'T' group by a.company_id
   loop
     select id into _list from public.price_lists where company_id = c.company_id and lower(btrim(code)) = 'vip';
     if _list is null then

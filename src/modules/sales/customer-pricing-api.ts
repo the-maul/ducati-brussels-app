@@ -273,10 +273,27 @@ export class CustomerPricer {
    * tarif (portee « tout le catalogue », ou reference MO_ATELIER comme l'article MO de G8).
    */
   async priceLabour(baseHt: number, qty = 1, date = todayIso()): Promise<ResolvedSalePrice> {
-    const article = { id: '', reference: LABOUR_PRICING_REFERENCE };
-    if (!this.active) return resolveSalePrice({ article, baseHt, qty, date, rules: [] });
-    const { rules } = await this.loadBase();
-    return resolveSalePrice({ article, baseHt, qty, date, rules, showDiscounts: this.contact?.show_discounts_pos !== false });
+    if (!this.active) return resolveSalePrice({ article: { id: '', reference: LABOUR_PRICING_REFERENCE }, baseHt, qty, date, rules: [] });
+    // Decision Q48 (18/11) : une ligne d'un tarif commun qui vise l'article de main-d'oeuvre de la
+    // societe (reference MO_ATELIER, sinon MO, type T ; ex. tarif « VIP » = MO nette 90,00 HT)
+    // s'applique aussi a la MO sans article. Meme calcul, memes regles : rien d'autre ne change.
+    const labourId = await this.loadLabourArticle();
+    const [{ rules }, ref] = await Promise.all([this.loadBase(), labourId ? this.loadArticle(labourId) : Promise.resolve(null)]);
+    const article = { id: labourId ?? '', reference: LABOUR_PRICING_REFERENCE };
+    return resolveSalePrice({ article, baseHt, qty, date, rules: [...rules, ...(ref?.rules ?? [])], showDiscounts: this.contact?.show_discounts_pos !== false });
+  }
+
+  private labourArticle: Promise<string | null> | null = null;
+  /** Article de main-d'oeuvre de la societe (type T) : MO_ATELIER, sinon MO ; null s'il n'existe pas. */
+  private loadLabourArticle(): Promise<string | null> {
+    this.labourArticle ??= (async () => {
+      const { data, error } = await supabase.from('articles').select('id, reference')
+        .eq('company_id', this.companyId).eq('mgmt_type', 'T').in('reference', [LABOUR_PRICING_REFERENCE, 'MO']).limit(5);
+      if (error) return null;
+      const rows = (data ?? []) as { id: string; reference: string }[];
+      return (rows.find((r) => r.reference === LABOUR_PRICING_REFERENCE) ?? rows.find((r) => r.reference === 'MO'))?.id ?? null;
+    })();
+    return this.labourArticle;
   }
 
   /** Oublie ce qui est en memoire (apres « Tarifications »). */

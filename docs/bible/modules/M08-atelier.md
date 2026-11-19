@@ -462,14 +462,16 @@ Migrations **non appliquées** : `20261119190000_m8_km_et_statuts_or_g8.sql`, `2
 - **Q48 — taux horaire** : source unique inchangée (Frais de devis atelier, ligne DIAGNOSTIC, `hourly_rate_ht`) ;
   **bug corrigé** : le code saisi « DIAGNOSTIC » (majuscules) n'était jamais lu (lecture `diagnostic`) → le taux valait 0.
   Taux standard **109,74 HT** ; forfait DIAGNOSTIC = taux × heures (pas un forfait fixe), `amount_ht` aligné.
-  **VIP 90,00 HT** = tarif client « VIP » du **moteur de tarifs existant** (ligne « prix net » sur l'article MO) :
-  donner ce tarif au client sur sa fiche. `labour-rate.ts` (`clientLabourRate`, `useClientLabourRate`) : seul un tarif qui
-  vise l'article MO change le taux. Appliqué aux lignes MO de l'OR, aux kits / forfaits insérés et au check-up ; quand le
-  client change à l'écran, les lignes MO encore à l'ancien taux suivent (un prix saisi à la main n'est pas touché).
+  **VIP 90,00 HT** = tarif client « VIP » du **moteur de tarifs existant** (ligne « prix net » sur l'article de
+  main-d'oeuvre MO_ATELIER, sinon MO) : donner ce tarif au client sur sa fiche. **Un seul calcul** : la fonction de prix
+  des lignes d'OR du lot accident-expert (`or-line-pricing.ts`, `priceOrLine` / `repriceOrLines`) ; `CustomerPricer.priceLabour`
+  lit aussi les lignes de tarif qui visent l'article MO, et une MO de forfait (article MO sans prix, `pricedAsLabour`) se
+  tarife comme la MO sans article. Les kits / forfaits insérés passent par `repriceOrLines`. Effet de bord assumé du moteur :
+  une remise « tout le catalogue » (REMISE 15 %) s'applique aussi à la MO (choix du lot accident-expert, à trancher).
 - **Q49 — kit du RDV d'entretien sur l'OR** : « Valider RDV et saisie OR » d'un RDV d'entretien pose **toutes** les lignes
   du kit choisi (pièces, liquides, DDS, contrôles, petites fournitures, CONTRI, MO au taux du client) : lecture
   `workshop_service_kit_lines` (mêmes kits et même fusion annuel + huile que la réservation, lignes de service
-  comprises), insertion par `kitInsertLines` (`kits/kit-from-appointment.ts`). **Aucune nouvelle réservation** : celle du
+  comprises), insertion par `kitInsertLines` puis prix par `repriceOrLines` (`kits/kit-from-appointment.ts`). **Aucune nouvelle réservation** : celle du
   RDV suit l'OR et la facture la consomme (B7, somme des mouvements = 0). « Insérer un kit » reste disponible ; s'il
   ajouterait des articles déjà présents, l'écran prévient et propose « Ne pas réinsérer » (`kitDuplicateCount`).
 

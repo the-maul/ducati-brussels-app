@@ -18,11 +18,9 @@ import { loadHourlyRateHt } from '../maintenance-api';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 
-export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert, onClose, labourRateHt }: {
+export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert, onClose }: {
   companyId: string; modelYearId?: string | null; effectiveHt?: (ht: number, vat: number) => number;
   onInsert: (lines: InsertLine[]) => void; onClose: () => void;
-  /** Taux horaire du client (decision Q48 : VIP 90,00 HT) ; absent = taux standard de l'atelier. */
-  labourRateHt?: number | null;
 }) {
   const [term, setTerm] = useState('');
   const [deb, setDeb] = useState('');
@@ -32,12 +30,11 @@ export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert,
   const [times, setTimes] = useState('1');
 
   // Taux horaire de l'atelier : la MO d'un forfait sans prix propre le prend (decision Q40, 18/11).
-  const rateQ = useQuery({ queryKey: ['workshop-hourly-rate', companyId], queryFn: () => loadHourlyRateHt(companyId), enabled: labourRateHt === undefined });
-  const labourRate = labourRateHt !== undefined ? labourRateHt : (rateQ.data ?? null);
+  const rateQ = useQuery({ queryKey: ['workshop-hourly-rate', companyId], queryFn: () => loadHourlyRateHt(companyId) });
   const list = useQuery({ queryKey: ['kit-choices', companyId, deb, modelYearId], queryFn: () => listKitChoices(companyId, deb, modelYearId) });
   const preview = useQuery({
-    queryKey: ['kit-preview', choice?.source, choice?.id, mode, times, labourRate],
-    enabled: !!choice && (labourRateHt !== undefined || !rateQ.isLoading),
+    queryKey: ['kit-preview', choice?.source, choice?.id, mode, times, rateQ.data],
+    enabled: !!choice && !rateQ.isLoading,
     queryFn: async () => {
       const comps = await kitComponents(choice!);
       const prices = await pricedArticles([...comps.map((c) => c.articleId ?? ''), choice!.source === 'forfait' ? choice!.id : '']);
@@ -45,7 +42,7 @@ export function KitInsertDialog({ companyId, modelYearId, effectiveHt, onInsert,
         title: `${t('parcG8.kitLineTitle')} ${choice!.label}`, components: comps, articles: prices, effectiveHt,
         times: Number(times.replace(',', '.')) || 1, mode: choice!.source === 'forfait' ? mode : 'detail',
         forfait: choice!.source === 'forfait' ? prices.get(choice!.id) ?? null : null,
-        labourRateHt: labourRate,
+        labourRateHt: rateQ.data ?? null,
       });
     },
   });
