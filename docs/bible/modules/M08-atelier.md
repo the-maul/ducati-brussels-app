@@ -2,7 +2,7 @@
 chapitre: M8
 titre: Atelier & SAV
 etat: 🟦
-verifie_le: 2026-11-18
+verifie_le: 2026-11-19
 missions: [07]
 mots_cles: [check-up, proposition d'intervention, accord client, signature, accord verbal, interventions reportées, motif d'entrée, OR, ordre de réparation, atelier, garantie, refus partiel, planning, rendez-vous, RDV, chronos, pointeuse, présence, temps passé, mécanicien, code mécano, tâche improductive, gestion du temps atelier, contrôle du temps atelier, heures facturées, heures internes, heures garanties, productivité, rendement, facture unique, véhicule de prêt, moto accidentée, aide réparation Ducati, expert, kit, forfait d'entretien, famille de moteur, picking list, liste de préparation, commander les pièces, prochain entretien, échéance, extract DCS, relances d'entretien]
 mots_cles: [compagnon, liste d'attente, RDV en attente, capacité, taux d'occupation, jours fériés, absences, moto de prêt, contrat de prêt, check-up, proposition d'intervention, accord client, signature, accord verbal, interventions reportées, motif d'entrée, OR, ordre de réparation, atelier, garantie, refus partiel, planning, rendez-vous, RDV, chronos, pointeuse, présence, temps passé, mécanicien, véhicule de prêt, moto accidentée, aide réparation Ducati, expert, kit, forfait d'entretien, famille de moteur, picking list, liste de préparation, commander les pièces, prochain entretien, échéance, extract DCS, relances d'entretien]
@@ -82,7 +82,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 - **Frais de devis atelier** (mission 02, process-commandes-pieces §1.4, décision M-5) : quand un devis de pièces vient de l'atelier, on ajoute les frais du devis — **accident = 125 € HTVA fixe** ; **diagnostic = tarif horaire de l'atelier × heures, 4 h maximum, sans nouveau devis** (heures modifiables vers le bas seulement). Paramètres par société : Paramètres → Tables → **Frais de devis atelier** (`reference_values`, `table_key = 'workshop_quote_fee'`, codes `accident` : `amount_ht`, `vat_rate` ; `diagnostic` : `hourly_rate_ht`, `max_hours`, `vat_rate`). Aucun tarif horaire n'existait : `hourly_rate_ht = 0` reprend le prix de vente de l'article `MO` (type T), lui-même à 0 en production le 19/09 → **tarif horaire à saisir**. La ligne est une ligne dédiée sans article (pas de mouvement de stock à la facturation).
 - **Plans d'entretien** (mission 07, décision M-16) : **échéance au premier atteint** (km ou mois) ; **le document le plus récent fait foi** (la valeur à utiliser est `en_vigueur`, les anciennes restent `historique` avec « remplacé par ») ; plans **route / piste amateur / racing** choisis par l'usage de la moto (route par défaut) ; **prix main-d'œuvre = heures × taux horaire HT**, le taux étant le **même réglage** que le diagnostic des frais de devis (Paramètres → Tables → Frais de devis atelier → `hourly_rate_ht`, repli article `MO`) ; prix vide tant que le taux est à 0. Aucun prix, aucune pièce ni quantité dans les documents Ducati (viendront du catalogue, carte 07-2). Rattachement au catalogue **prudent** : nom exact + millésime dans la plage + un seul plan du même usage = lié d'office ; sinon « à valider ».
 - **Prochain entretien de chaque moto** (mission 07 cartes 4 et 5, décisions **M-73** et **M-74**, 31/10) : une ligne courante par moto dans `vehicle_maintenance_due`, avec sa **source**. Ordre de confiance : OR facturé du DMS → facture G8 relue → déclaration du client → extract DCS → plan seul (date de départ) ; entre les quatre premières, **le dernier entretien le plus récent gagne**. Prochain = dernier + **12 mois** ; premier entretien = début de garantie + **6 mois** ou **1 000 km** ; km d'échéance seulement si le plan de la moto donne l'intervalle de la vidange ; **au premier atteint** (M-16). Un OR qui passe « facturé », une moto modifiée (km, dernier entretien, garantie, mise en circulation, rattachement au catalogue) ou un extract DCS importé relancent le calcul (déclencheurs). Source « plan » = estimation à 180 jours près, à filtrer dans les relances — **fait le 03/11 (M-87, CRM012)** : `followup_settings.sources` exclut « plan » par défaut, voir [M10](M10-crm.md).
-- **OR créé depuis un RDV** : l'OR hérite du client, du véhicule, du mécanicien, des travaux et des observations ; le RDV passe `en_cours` et garde le lien `or_id`.
+- **OR créé depuis un RDV** : l'OR hérite du client, du véhicule, du km, du mécanicien, des travaux et des observations ; **depuis le 18/11 (Q43)** l'OR naît « à faire » et le RDV passe « réceptionné » (avant : « en cours » des deux côtés) ; le RDV garde le lien `or_id`. RDV d'entretien : les lignes du kit arrivent sur l'OR (Q49).
 - **Registre des véhicules à moteur (AR n° 1 art. 28, M-88, 03/11)** : l'**ouverture d'un OR** avec une moto inscrit son entrée au registre (code 1, ou 2 si garantie acceptée ; moto choisie plus tard = inscrite à ce moment) ; la **facturation de l'OR** inscrit la sortie et la référence de la facture. Aucun code dans `or-editor.tsx` : tout passe par le déclencheur `trg_vehicle_register_repair_orders`. Un OR sur une moto du stock déjà inscrite (PDI) ne double pas l'entrée. Voir [M03](M03-vehicules.md) §4.
 
 ### Ajouté le 18/11 — rattrapage G8 : temps de main-d'œuvre, contrôle avant facture, facture unique, productivité
@@ -417,11 +417,67 @@ en transaction annulée). Tant qu'elle manque, l'ancien chemin reste actif (copi
   `lot-decisions-atelier`) doit passer par `priceOrLine` (branche MO) ; une règle client « par
   référence MO_ATELIER, prix net 90 » donne déjà 90 € sur une ligne MO sans article.
 
+### Ajouté le 18/11 — décisions du client sur les écarts G8 (lot « décisions atelier », Q42 à Q49)
+Source : `docs/g8-inventaire/a-trancher.md` (Q42 à Q49, tranchées le 18/11). Branche `lot-decisions-atelier`.
+Migrations **non appliquées** : `20261119190000_m8_km_et_statuts_or_g8.sql`, `20261119191000_m8_acompte_or.sql`,
+`20261119192000_m8_taux_horaire_atelier_vip.sql`, `20261119193000_m8_kit_rdv_vers_or.sql` ; essais à blanc
+`supabase/tests/m8_km_et_statuts_or_g8.sql`, `m8_acompte_or.sql`, `m8_taux_et_kit_rdv.sql` ; tests
+`tests/workshop-decisions-atelier.test.ts`, `workshop-or-ticket.test.ts`, `workshop-taux-kit-rdv.test.ts`.
+- **Q42 — km obligatoire comme G8** : exigé à la **création de l'OR** et **quand une moto est rattachée ou changée** ;
+  ensuite modifiable sans être redemandé (fini le contrôle à chaque modification). Règle pure `mileageRequired`
+  (`or-base/rules.ts`) + garde en base `trg_repair_orders_mileage_required`. RDV : exigé dès qu'une moto est choisie
+  (`trg_appointments_mileage_required`) ; un RDV sans moto (moto à créer) et une demande de l'espace client restent
+  possibles. « Valider RDV et saisie OR » sur un RDV sans moto ou sans km ouvre **« Avant d'ouvrir l'OR »** (choisir la
+  moto + km, ou ouvrir l'OR sans moto : le km sera demandé au rattachement). La copie d'un OR reprend son km.
+  Les fonctions serveur / imports (`auth.uid()` vide) ne sont pas contrôlés. Le km alimente l'historique comme avant.
+- **Q43 — statuts comme G8** : l'OR créé depuis le RDV naît **« à faire »**, le RDV passe **« réceptionné »** (`arrive`,
+  libellé « Réceptionné · moto déposée ») — la base aligne le RDV sur l'OR à la pose de `or_id`
+  (`trg_appointments_status_from_or`). L'OR passe **« en cours »** au **premier pointage de travail** sur l'OR
+  (`trg_wte_start_or`, OR « à faire » seulement) ou par **« Démarrer »** sur la fiche OR (`repair_order_start`, refusé si
+  l'accord client est en attente) ; le RDV suit (déclencheur existant). Trace `events` `repair_order_work_started`
+  (origine `chrono` ou `screen`). Planning : **déposée** = orange + icône parking, **en travail** = bleu + clé ;
+  RDV fixé = neutre. OR : en cours = bleu, prêt / client informé = vert, facturé / annulé = neutre.
+- **Q44 — liste des OR** : ouverture sur **« Ouverts »** (ni facturés, ni annulés) ; « Tous les statuts » au choix, gardé
+  dans l'adresse (pas de mécanisme de préférence par poste dans le DMS).
+- **Q45 — acompte sur l'OR** : **même mécanisme que l'acompte de vente**, pas de second système. L'acompte est un
+  règlement `document_payments` porté par un **bon de commande (BC) rattaché à l'OR** (`documents.repair_order_id`, un
+  seul non annulé par OR, numéroté du n° de l'OR, une ligne texte « Acompte sur l'ordre de réparation … »), créé à la
+  première saisie (`repair_order_deposit_document`). Panneau « Acompte » de la fiche OR = `PaymentPanel` +
+  `DepositInvoicePanel` des ventes : caisse ouverte, espèces, plafond, contre-passation, **FAA automatique** (moto sur
+  l'OR) ou sur demande, rappel cloche « à facturer avant le 15 ». À la **validation de la facture de l'OR**, la base
+  reporte les acomptes sur la facture (`trg_documents_repair_order_deposit` : `transferred_from`, **date de
+  l'encaissement** — la caisse close est respectée, cf. `20261119150000` —, `deposit_invoice_id` → la FAA est déduite au
+  journal / registre TVA / écritures) et passe le BC « converti ». Non reportés (trace `events`) : un règlement
+  contre-passé, un bon d'achat (BA), et tout si le client de la facture diffère de celui de l'acompte.
+  Colonne **« Acompte »** dans la liste et l'export (`repair_order_deposits`), ligne **« Acompte versé »** sur le PDF et
+  le ticket.
+- **Q46 — impression** : PDF A4 inchangé (langue du client, par défaut) + **format ticket 80 mm** (`or-base/or-ticket.ts`,
+  imprimé par `printReceipt` du poste comme les tickets de caisse ; sans poste réglé : ticket 80 mm par le navigateur) :
+  concession, n° OR + code-barres, reçu le, client, téléphone, moto (modèle, immat, VIN abrégé « ...8 derniers »), km,
+  travaux demandés, promis le, acompte.
+- **Q47 — couleurs du planning comme G8 et DMS** : la couleur du **type de RDV** (Paramètres → Tables → Types de
+  rendez-vous atelier, colonne « Couleur de la case au planning ») colore le **fond** de la case (teinte 20 % du token,
+  bordure gauche pleine) ; palette **fermée** de tokens `--job-*` (pas de hex libre, rouge Ducati exclu), **neutre par
+  défaut** ; le statut reste un petit badge couleur + icône + libellé (vue Activité comprise).
+- **Q48 — taux horaire** : source unique inchangée (Frais de devis atelier, ligne DIAGNOSTIC, `hourly_rate_ht`) ;
+  **bug corrigé** : le code saisi « DIAGNOSTIC » (majuscules) n'était jamais lu (lecture `diagnostic`) → le taux valait 0.
+  Taux standard **109,74 HT** ; forfait DIAGNOSTIC = taux × heures (pas un forfait fixe), `amount_ht` aligné.
+  **VIP 90,00 HT** = tarif client « VIP » du **moteur de tarifs existant** (ligne « prix net » sur l'article MO) :
+  donner ce tarif au client sur sa fiche. `labour-rate.ts` (`clientLabourRate`, `useClientLabourRate`) : seul un tarif qui
+  vise l'article MO change le taux. Appliqué aux lignes MO de l'OR, aux kits / forfaits insérés et au check-up ; quand le
+  client change à l'écran, les lignes MO encore à l'ancien taux suivent (un prix saisi à la main n'est pas touché).
+- **Q49 — kit du RDV d'entretien sur l'OR** : « Valider RDV et saisie OR » d'un RDV d'entretien pose **toutes** les lignes
+  du kit choisi (pièces, liquides, DDS, contrôles, petites fournitures, CONTRI, MO au taux du client) : lecture
+  `workshop_service_kit_lines` (mêmes kits et même fusion annuel + huile que la réservation, lignes de service
+  comprises), insertion par `kitInsertLines` (`kits/kit-from-appointment.ts`). **Aucune nouvelle réservation** : celle du
+  RDV suit l'OR et la facture la consomme (B7, somme des mouvements = 0). « Insérer un kit » reste disponible ; s'il
+  ajouterait des articles déjà présents, l'écran prévient et propose « Ne pas réinsérer » (`kitDuplicateCount`).
+
 ### Ajouté le 18/11 — rattrapage G8 (lot « OR de base »)
 Source : relevé G8 du 18/11 (`docs/g8-inventaire/07-atelier.md`, `parcours.md`, comparaison atelier §1, §3, §6, bloquants #2, #4, #6, #11, #12). Code : `src/modules/workshop/or-base/` (règles pures `rules.ts`, testées `tests/workshop-or-base.test.ts`). Migration **`20261118100000_m8_or_base_g8.sql` (non appliquée)**, essai à blanc `supabase/tests/m8_or_base_g8.sql`. Tant qu'elle n'est pas posée, l'OR s'enregistre comme avant (promis le, 30 points et km confirmé ne sont pas gardés, bandeau d'information sur l'OR ; le km du RDV n'est pas gardé).
 - **Impression OR / fiche de travail** (bouton « Imprimer » de la fiche OR, `print-dialog.tsx`, `or-pdf.ts`, jsPDF) : OR seul / fiche de travail seule / OR + fiche ; **édition chiffrée** (PU et total TTC, totaux) ou non ; **OR sans le nom du client** ; en-tête société, n°, reçu le, promis le, opérateur, moto (modèle, référence, immat, châssis, **km**), travaux demandés, observations à la réception, points V / R, lignes (garantie marquée G, actions du check-up OK / reportées exclues), cadre **« Dépôt du véhicule »** avec signature client / réceptionnaire. La fiche de travail porte la grille complète des 30 points (cases V / R pré-cochées) et la place « travaux effectués / mécanicien / temps passé ». PDF dans la **langue du client**, depuis la version **enregistrée** de l'OR. Les informations complémentaires ne sont jamais imprimées.
 - **Liste des OR** (`/workshop`, `or-list-screen.tsx`) : vues **OR · Devis de réparation** (attente devis ou proposition en attente d'accord) **· OR garantie** (prise en charge engagée ou type garantie) **· OR accident** (motif / type accident ou expert, colonnes expert et passage) ; recherche **n° d'OR, immat, client, châssis** ; filtres statut (dont « Ouverts »), période de réception, opérateur, type de réparation ; colonnes client, moto (modèle, référence, immat, châssis), reçu le, promis le, opérateur, km, montant TTC, statut ; **50 par page avec le total** (fini le plafond des 100 derniers) ; **Export Excel** du filtre courant (10 000 OR au plus) ; état dans l'adresse (UX011).
-- **Kilométrage obligatoire** dès qu'une moto est choisie (nouvel OR et modification) ; sous le champ, **dernier relevé** connu (le plus grand km parmi les OR non annulés, le km de la fiche moto, le dernier entretien, le km déclaré par le client ; l'OR en cours exclu) ; km **inférieur** → fenêtre bloquante « Confirmer X km / Corriger » ; la confirmation est gardée dans `repair_orders.mileage_ack_previous` (relevé dépassé), audit `events` par `audit_row`. **Km du RDV** : champ « Kilométrage » au planning (`workshop_appointments.mileage`), repris sur l'OR créé depuis le RDV.
+- **Kilométrage obligatoire** dès qu'une moto est choisie (nouvel OR et modification — **remplacé le 18/11 par Q42** : création de l'OR et rattachement d'une moto seulement) ; sous le champ, **dernier relevé** connu (le plus grand km parmi les OR non annulés, le km de la fiche moto, le dernier entretien, le km déclaré par le client ; l'OR en cours exclu) ; km **inférieur** → fenêtre bloquante « Confirmer X km / Corriger » ; la confirmation est gardée dans `repair_orders.mileage_ack_previous` (relevé dépassé), audit `events` par `audit_row`. **Km du RDV** : champ « Kilométrage » au planning (`workshop_appointments.mileage`), repris sur l'OR créé depuis le RDV.
 - **Statuts G8** : à faire, **attente devis**, **pièces en commande** (`attente_pieces`), en cours, prêt, **client informé** (+ facturé, annulé posés par le DMS). Pas de contrainte en base (texte libre, les fonctions SQL ne testent que `facture` / `annule`) ; la pointeuse accepte les OR à faire / attente devis / pièces en commande / en cours ; l'espace client affiche les nouveaux statuts.
 - **« Prévenir le client (moto prête) »** sur un OR « prêt » avec client (`ready-mail-dialog.tsx`) : mail préparé dans la langue du client (objet, corps, montant), boîte Outlook au choix, **« Vérifier sans envoyer » seulement** ; l'envoi réel est derrière `READY_MAIL_LIVE` (false). « Marquer client informé » passe l'OR au statut G8. Pas de trace `events` du mail (`graph-send-email` ne trace que `documents` et `accident_files`).
 - **Rappel SMS de RDV** : `_cron_appointment_reminders` n'enfile plus le SMS que si `notify_sms` est coché (bug : tous les clients avec un portable l'auraient reçu). Le mail de rappel est inchangé. Aucun fournisseur SMS n'est posé.
