@@ -25,6 +25,7 @@
 // Aucune écriture vers Shopify. Aucun mail envoyé.
 // deno-lint-ignore-file
 import { identify, activeCompaniesOf, isUuid } from '../_shared/acces.ts';
+import { isTestCompany, testCompanyIds, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 import {
   ORDER_FIELDS, importDecision, mapOrderToSale, mapRefundToCredit, normalizeGraphqlOrder, refundsToApply,
   verifyShopifyHmac, customerFromOrder, zeroAmountRefunds, type InvoiceLine, type LinkedArticle, type ShopOrder,
@@ -286,12 +287,15 @@ Deno.serve(async (req) => {
   try {
     if (caller.kind !== 'user' && !body?.action) {
       const out = [];
-      for (const s of await enabledSettings()) out.push(await catchUp(s, started));
+      // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : jamais d import des commandes de la boutique reelle.
+      const tests = await testCompanyIds();
+      for (const s of await enabledSettings()) if (!tests.has(s.company_id)) out.push(await catchUp(s, started));
       return J({ ok: true, companies: out });
     }
 
     const companyId = body?.company_id;
     if (!isUuid(companyId)) return J({ error: 'company_id_required' }, 400);
+    if (await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
     const isAdmin = caller.kind !== 'user' || await hasRole(caller.id, companyId, ['admin']);
     const isSeller = isAdmin || (caller.kind === 'user' && await hasRole(caller.id, companyId, ['vendeur']));
     const s = (await rows<Settings>(`shopify_order_settings?select=company_id,import_enabled,enabled_at,last_catchup_at&company_id=eq.${companyId}&limit=1`).catch(() => [] as Settings[]))[0]

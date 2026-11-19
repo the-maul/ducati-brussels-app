@@ -21,6 +21,7 @@
 // deno-lint-ignore-file
 import { buildGraphMessage, toGraphAttachments, attachmentsSummary } from '../_shared/mail-message.ts';
 import { mailTexts, asMailLocale, DEFAULT_MAIL_LOCALE, fillMail, type MailLocale } from '../_shared/mail-i18n.ts';
+import { isTestCompany } from '../_shared/test-company.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -218,7 +219,8 @@ Deno.serve(async (req) => {
     let mailed = false;
     const to = String(p.contact?.email ?? '').trim().toLowerCase();
     const single = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to);
-    const tk = single ? await token() : null;
+    // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : le PDF signe est archive, mais aucun mail ne part.
+    const tk = single && !(await isTestCompany(companyId)) ? await token() : null;
     if (tk) {
       try {
         let mailbox = String(p.company?.inbound_mailbox ?? '').toLowerCase();

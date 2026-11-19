@@ -18,6 +18,7 @@
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identify } from '../_shared/acces.ts';
+import { testCompanyIds } from '../_shared/test-company.ts';
 import { buildEbpTransfer } from '../_shared/ebp-format.ts';
 import { autoTransferDue, loadEbpRules, loadEbpSettings, loadEbpSources, type EbpDbClient } from '../_shared/ebp-sources.ts';
 
@@ -68,7 +69,11 @@ Deno.serve(async (req) => {
   const report: Record<string, unknown>[] = [];
 
   const { data: companies } = await client.from('companies').select('id, name, accounting_start_date').eq('is_active', true);
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucun transfert automatique ni envoi au comptable.
+  let tests: Set<string>;
+  try { tests = await testCompanyIds(); } catch { return json({ error: 'test_company_check_failed' }, 503); }
   for (const co of companies ?? []) {
+    if (tests.has(co.id)) { report.push({ company: co.name, skipped: 'test_company' }); continue; }
     try {
       const settings = await loadEbpSettings(db, co.id);
       if (!settings.enabled || settings.auto.frequency === 'off') continue;

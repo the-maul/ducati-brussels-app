@@ -25,6 +25,7 @@
 //   simulate: true → lit Shopify, renvoie la mutation (ou le plan) qui SERAIT envoyée, n'écrit RIEN (même en mode arrêtée).
 // deno-lint-ignore-file
 import { identify, activeCompaniesOf, isUuid } from '../_shared/acces.ts';
+import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 import {
   LOCATIONS_QUERY, PRODUCT_SET_MUTATION, SKU_LOOKUP_QUERY, pickLocation, skuSearch, normalizeMode, canPublish,
   shopifyTtc, availableQty, isStockManaged, publishTitle, photosToPush, buildProductSetInput, buildStatusMutation,
@@ -398,6 +399,8 @@ Deno.serve(async (req) => {
   const action = body?.action;
   const simulate = body?.simulate === true;
   if (!isUuid(companyId) || !isUuid(articleId)) return J({ error: 'company_and_article_required' }, 400);
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : la boutique Shopify reelle n est jamais touchee.
+  if (await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
   if (!['publish', 'unpublish', 'update', 'switch'].includes(action)) return J({ error: 'unknown_action' }, 400);
   if (caller.kind === 'cron' && !simulate) return J({ error: 'forbidden' }, 403);   // la tâche planifiée ne publie jamais
   if (caller.kind === 'user' && !(await isAdminOf(caller.id, companyId))) return J({ error: 'forbidden' }, 403);

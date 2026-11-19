@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList, Receipt } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, FlaskConical, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList, Receipt } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -585,7 +585,9 @@ function CompanySwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-accent">
-        <Building2 className="size-4 shrink-0 text-muted-foreground" />
+        {activeCompany?.is_test
+          ? <FlaskConical className="size-4 shrink-0 text-warning" aria-label={t('testCompany.bannerTitle')} />
+          : <Building2 className="size-4 shrink-0 text-muted-foreground" />}
         <span className="hidden max-w-40 truncate sm:inline">{activeCompany?.name ?? '—'}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
@@ -594,8 +596,9 @@ function CompanySwitcher() {
         <DropdownMenuSeparator />
         {companies.map((c) => (
           <DropdownMenuItem key={c.id} onSelect={() => setActiveCompany(c.id)}>
-            <Building2 className="size-4" />
+            {c.is_test ? <FlaskConical className="size-4 text-warning" /> : <Building2 className="size-4" />}
             {c.name}
+            {c.is_test && <span className="ml-auto text-[11px] font-bold uppercase text-warning">{t('company.testBadge')}</span>}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

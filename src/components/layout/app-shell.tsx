@@ -8,6 +8,7 @@ import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { PageBack } from './page-back';
+import { TestCompanyBanner } from './test-company-banner';
 import { MyDucatiListener } from '@/components/myducati-listener';
 import { CatalogImportListener } from '@/components/catalog-import-listener';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -50,6 +51,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={onMenu} />
+        {/* Société de test (lot ItalTest) : bandeau d'avertissement permanent. */}
+        <TestCompanyBanner />
         {/* pb-20 : laisse la place à la barre basse sur smartphone */}
         {/* id + data-scroll-restoration-id : le routeur garde la position de defilement de cette
             zone par page et la restaure au Retour (UX011) ; une nouvelle page repart en haut. */}

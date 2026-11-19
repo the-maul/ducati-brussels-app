@@ -56,6 +56,7 @@ import {
   type SignatureCompany,
 } from '../_shared/mail-message.ts';
 import { asMailLocale, DEFAULT_MAIL_LOCALE, type MailLocale } from '../_shared/mail-i18n.ts';
+import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -186,6 +187,8 @@ Deno.serve(async (req) => {
 
   const member = await (await db(`user_roles?select=role&user_id=eq.${user.id}&company_id=eq.${companyId}&limit=1`)).json();
   if (!Array.isArray(member) || member.length === 0) return J({ error: 'not_a_member' }, 403);
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucun mail ne part (la verification sans envoi reste possible).
+  if (!dryRun && await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
 
   // RELANCES D IMPAYES (rattrapage G8, 18/11/2026, migration 20261118171000) : MODE TEST UNIQUEMENT.
   // Quel que soit le destinataire demande, le mail part a l adresse de test de la societe

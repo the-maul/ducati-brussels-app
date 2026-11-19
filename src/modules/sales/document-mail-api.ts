@@ -137,6 +137,6 @@ export async function sendDocumentMail(p: SendDocumentMailInput): Promise<SendDo
 
 /** Libellé d'erreur lisible pour un code renvoyé par `graph-send-email`. */
 export function mailErrorLabel(code: string): string {
-  const known = ['graph_not_configured', 'not_signed_in', 'not_a_member', 'unknown_mailbox', 'no_mailbox', 'send_failed', 'graph_auth_failed', 'unknown_document', 'missing_params'];
+  const known = ['graph_not_configured', 'not_signed_in', 'not_a_member', 'unknown_mailbox', 'no_mailbox', 'send_failed', 'graph_auth_failed', 'unknown_document', 'missing_params', 'test_company'];
   return known.includes(code) ? t(`salesMail.err_${code}`) : `${t('salesMail.errGeneric')} (${code})`;
 }

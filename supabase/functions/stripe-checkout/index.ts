@@ -16,6 +16,7 @@
 // Aucun mail envoye ici : le lien « a distance » est rendu a l ecran, le vendeur l envoie lui-meme.
 // deno-lint-ignore-file
 import { identify, isActiveMember, isUuid } from '../_shared/acces.ts';
+import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 import {
   buildCheckoutSessionParams, expiresAtFor, returnUrls, safeOrigin, stripeKeyMode, cleanMethods,
   type StripeChannel,
@@ -92,6 +93,8 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const companyId = body?.company_id;
   if (!isUuid(companyId) || !(await isActiveMember(caller.id, companyId))) return J({ error: 'forbidden' }, 403);
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucun lien ni QR de paiement reel.
+  if (await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
 
   try {
     const s = await settingsOf(companyId);

@@ -40,6 +40,7 @@ import { identify, isActiveMember, isUuid } from '../_shared/acces.ts';
 import { buildGraphMessage, signatureFor, signatureHtml, MAIL_STYLE, type SignatureCompany } from '../_shared/mail-message.ts';
 import { mailTexts } from '../_shared/mail-i18n.ts';
 import { normalizeFollowupMode, resolveDelivery, type FollowupMode } from '../_shared/followups-mode.ts';
+import { testCompanyIds } from '../_shared/test-company.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -100,6 +101,11 @@ async function loadSettings(companyIds: string[]): Promise<Map<string, Settings>
   } catch (e) {
     console.error('followups-send: reglage illisible, tout est considere arrete', e);
   }
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : toujours « arrete », quel que soit le reglage. Controle
+  // impossible (base injoignable) : tout est arrete (ferme par defaut).
+  let tests: Set<string> | null = null;
+  try { tests = await testCompanyIds(); } catch { tests = null; }
+  for (const id of companyIds) if (!tests || tests.has(id)) out.set(id, { mode: 'arrete', testRecipient: null });
   return out;
 }
 

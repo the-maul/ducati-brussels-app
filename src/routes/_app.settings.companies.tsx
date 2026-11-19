@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanies, updateCompany, createCompany, LEGAL_COMPANY_FIELDS, normalizeCompanyNumber, suggestedPeppolId, type Company, type CompanyPatch } from '@/modules/settings/companies-api';
 import { MailSignatureSettings } from '@/modules/settings/mail-signature-settings';
+import { TestCompanyPanel } from '@/modules/settings/test-company-panel';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/companies')({
@@ -39,6 +40,8 @@ function CompaniesPage() {
           </div>
         }
       />
+      {/* Société de test ItalTest (lot ItalTest, COM005) : créer / rafraîchir depuis la vraie société. */}
+      <TestCompanyPanel />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         <div className="space-y-1">
           {data?.map((c) => (

@@ -14,6 +14,7 @@
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 import { identify, isActiveMember, isUuid } from '../_shared/acces.ts';
 import { BREVO_BASE, DEFAULT_SENDER, isValidSender, resolveSender, sendBrevoSms, smsCredits } from '../_shared/brevo-sms.ts';
+import { isTestCompany } from '../_shared/test-company.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -81,6 +82,8 @@ Deno.serve(async (req: Request) => {
   }
 
   if (body.action === 'test') {
+    // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucun SMS, meme de test (la base refuse aussi).
+    if (await isTestCompany(companyId)) return J({ ok: false, error: 'SMS_TEST_COMPANY' }, 400);
     const prep = await rpcAsUser<Array<{ id: number; to_address: string; body: string; sender: string | null }>>(
       auth, 'sms_test_prepare', { _company: companyId, _to: String(body.to ?? ''), _body: String(body.body ?? '') });
     if (!prep.ok) return J({ ok: false, error: prep.error }, 400);

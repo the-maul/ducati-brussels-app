@@ -23,6 +23,7 @@
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 import { activeCompaniesOf, identify } from '../_shared/acces.ts';
+import { testCompanyIds } from '../_shared/test-company.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -127,8 +128,11 @@ Deno.serve(async (req: Request) => {
   try {
   // Toutes les boîtes actives, toutes sociétés confondues.
   const mbRes = await db('company_mailboxes?select=id,company_id,address,inbound_last_check,sent_last_check&is_active=eq.true');
-  const mailboxes = await mbRes.json();
-  if (!Array.isArray(mailboxes)) return new Response(JSON.stringify({ error: 'mailboxes_query', detail: mailboxes }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  const mailboxesAll = await mbRes.json();
+  if (!Array.isArray(mailboxesAll)) return new Response(JSON.stringify({ error: 'mailboxes_query', detail: mailboxesAll }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucune boite relevee pour elle (la base refuse deja ses boites).
+  const tests = await testCompanyIds();
+  const mailboxes = (mailboxesAll as Array<Record<string, string>>).filter((m) => !tests.has(m.company_id));
 
   // Nos propres adresses : un mail que l'on s'envoie entre boîtes n'est pas un prospect.
   const ownAddresses = new Set((mailboxes as Array<Record<string, string>>).map((m) => (m.address || '').toLowerCase()));

@@ -19,6 +19,7 @@
 // Appelable par la clé de service, pg_cron (x-cron-secret) ou un administrateur actif de la société.
 // deno-lint-ignore-file
 import { identify, activeCompaniesOf, isUuid } from '../_shared/acces.ts';
+import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 import { planContentImport, imageFileName, type ShopifyImage } from '../_shared/shopify-content.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
@@ -166,6 +167,8 @@ Deno.serve(async (req) => {
   const companyId = body?.company_id;
   if (!isUuid(companyId)) return J({ error: 'company_id_required' }, 400);
   if (caller.kind === 'user' && !(await isAdminOf(caller.id, companyId))) return J({ error: 'forbidden' }, 403);
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : la boutique Shopify reelle n est jamais touchee.
+  if (await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
   const actor = caller.kind === 'user' ? caller.id : null;
   const productId: string | null = typeof body?.product_id === 'string' && body.product_id.startsWith('gid://shopify/Product/')
     ? body.product_id : null;

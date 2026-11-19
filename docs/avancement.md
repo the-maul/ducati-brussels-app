@@ -58,6 +58,7 @@ Statuts : ⬜ à faire · 🟦 en cours · ✅ fait · 🧪 recetté (validé cl
 | Réf | Élément | Statut |
 |---|---|---|
 | COM005 | Multi-société (`companies` ITALBIKE+NL INVEST, `company_id`) | ✅ |
+| COM005 | **Société de test « ItalTest »** (19/11, lot ItalTest) : copie du référentiel d'ITALBIKE STORE (articles, clients neutralisés, motos, stock d'ouverture, tarifs, paramètres, kits), aucun envoi sortant (base + fonctions Edge), bandeau « Société de test », rafraîchissement admin avec garde-fou — migration `20261119160000` écrite, essais à blanc OK, **non appliquée** | 🟦 |
 | — | Rôles (enum app_role) + RLS + helpers `has_role/is_member/is_admin` | ✅ |
 | — | `profiles` + création auto à l'inscription (`handle_new_user`) | ✅ |
 | B7 | Audit universel `events` (append-only, update/delete révoqués) | ✅ |

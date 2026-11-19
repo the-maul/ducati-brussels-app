@@ -172,6 +172,63 @@ migration `20261118260000_m0_numerotation_deux_modes.sql` (**non appliquée**).
   réglage « vers le haut » permet de faire repartir une série au-delà des numéros de test, la purge elle-même n'est pas
   faite par ce lot.
 
+### Ajouté le 19/11 — société de test « ItalTest » (COM005)
+
+Demande du client : « créer une société de test, ItalTest, qui reproduit tout ce qu'il y a déjà sur ITALBIKE STORE,
+pour faire des tests avec de vraies données », puis rejouer les 27 parcours G8 sans toucher à la vraie société.
+Branche `lot-italtest`, migration `20261119160000_m0_societe_de_test_italtest.sql` (**non appliquée**).
+
+- **Marquage** : table `test_companies` (une ligne par société de test : source, état de la copie, étape, compteurs).
+  Écrite uniquement par les fonctions de copie ; **immuable** (ni retrait, ni changement de source), refusée sur une
+  société qui contient déjà des données (ITALBIKE STORE ne peut pas être marquée « test »). Déclencheur `ENABLE ALWAYS`.
+  `is_test_company(société)` la lit (utilisée aussi par le lot SMS Brevo).
+- **Copie** (`admin_clone_company_for_test(source, 'ItalTest')`) : crée ou retrouve la société, donne **admin** aux
+  administrateurs de la source (aucun compte créé), puis copie le référentiel avec de **nouveaux identifiants** et des
+  liens recâblés (table `test_company_id_map`, ancien id → nouvel id) : paramètres (`reference_values`, numérotations
+  remises à 1 avec le préfixe `TEST` devant celui de la source, ex. `TESTFAC`), comptes, tarifs et règles
+  client, articles / catégories / fournisseurs / codes-barres / liens catalogue (sans les liens Shopify), contacts,
+  motos et propriétaires, échéances d'entretien, kits et versions (articles cités dans le JSON recâblés), profils moteur
+  et lignes par défaut des forfaits, réglages SMS, et le **stock en un mouvement d'ouverture par article**
+  (`stock_moves`, origine `ouverture_societe_test`, append-only B7, aucun champ stock touché). Aucun historique : ni
+  factures, tickets, OR, règlements, caisses (la société démarre **caisse fermée**), exports compta, events, GED,
+  boutique Shopify, Stripe, boîtes Outlook, comptes de l'espace client, mandats SEPA.
+  La justification table par table : `select * from admin_test_company_inventory()` (copiée / non copiée / à classer :
+  une table nouvelle non classée est **purgée** dans la société de test mais jamais copiée, et l'essai le signale).
+- **Coordonnées neutralisées** : e-mails → `test+<nouvel id>@invalid.local`, téléphones → `+00` + 9 chiffres
+  (non attribuables), données MyDucati et scans de pièces d'identité vidés, tous les contacts en opposition marketing.
+  Interlocuteurs, marchands de reprise, assureurs : idem. Le reste (adresses, TVA, IBAN...) est copié tel quel.
+- **Aucun envoi sortant** (contrôlé en base ET dans chaque fonction Edge, `_shared/test-company.ts`, fermé par défaut) :
+  file `notifications` → « skipped » ; relances d'entretien, relances d'impayés, SMS → mode « arrêté » forcé ;
+  synchronisation et import Shopify coupés ; transfert comptable automatique « off » ; Stripe et boîtes Outlook refusés.
+  Fonctions Edge gardées : graph-send-email (409 `test_company`, la vérification sans envoi reste possible),
+  followups-send, dispatch-notifications (mails et SMS), sms-brevo, accounting-auto-transfer, proposal-sign (PDF archivé,
+  pas de mail), send-account-invitation (l'avis « mot de passe modifié » passe par une vraie société de la personne),
+  shopify-push / -publish / -sync-products / -import-content / -orders, stripe-checkout, outlook-poll.
+  Les tâches pg_cron passent toutes par ces fonctions ou par la file `notifications` : rien ne part.
+  Peppol : pas d'envoi automatique dans le DMS (UBL téléchargé seulement).
+- **Rafraîchir** (Paramètres → Sociétés, bloc « Société de test », administrateurs) : confirmation, puis suppression de
+  tout ce qui a été saisi dans ItalTest et recopie. Garde-fous : `_tc_run` refuse toute société absente de
+  `test_companies` ; avant la purge, contrôle des **liens croisés** (une donnée d'une autre société qui pointerait vers
+  ItalTest bloque tout, rien n'est supprimé). Les droits (`user_roles`) d'ItalTest sont conservés.
+- **Machine à étapes** (contrôle → purge → société → identifiants → copie → stock → fin), en mode `replica` (déclencheurs
+  métier coupés pendant la copie de la seule société de test ; les garde-fous ENABLE ALWAYS restent actifs), relançable
+  après une interruption. L'écran l'appelle par tranches de 4 s (limite de 8 s des requêtes de l'application) :
+  `admin_test_company_start` puis `admin_test_company_step(id, 4000)` en boucle ; l'API SQL par
+  `admin_clone_company_for_test` (budget 85 s : la passerelle de l'API coupe la réponse vers 100 s).
+- **Mesures (19/11, base de production, transaction annulée)** : première copie complète en **un appel de ~40 à 50 s**
+  (93 839 articles, 152 461 liens catalogue, 8 182 contacts, 3 364 motos, 4 657 mouvements d'ouverture, 1 103 kits) ;
+  appels de l'écran **≤ 4,4 s**, lot le plus long ~2,7 s (liens catalogue, lecture disque).
+- **Bandeau** « Société de test » (couleur d'avertissement, icône fiole, FR/NL/EN/IT) en haut de toutes les pages ;
+  fiole et mention « Test » dans le sélecteur de société.
+- **Essais à blanc** : `supabase/tests/m0_societe_de_test_italtest.sql` (copie complète, recâblage, aucun envoi, refus,
+  stock = source sur 300 articles + totaux, ITALBIKE inchangée — 43 contrôles), `m0_societe_de_test_rafraichir.sql`
+  (source réduite : activité de test purgée, lien croisé refusé, rafraîchissement depuis l'écran — 11 contrôles),
+  `m0_societe_de_test_etapes_8s.sql` (durée des appels de l'écran sur les vraies données).
+- **Pièges** : un essai à blanc de plus de ~100 s est coupé par la passerelle mais **continue en base** jusqu'à son
+  annulation, en gardant ses verrous (les déclencheurs posés par la migration verrouillent `notifications` et les
+  réglages d'envoi pendant l'essai) : garder chaque essai sous 90 s. Les fichiers déposés en GED depuis ItalTest restent
+  dans le stockage après un rafraîchissement (les lignes `attachments` sont purgées, pas les fichiers).
+
 ## 5. État en production
 
 Vérifié le 18/09/2026 dans le code et dans la base (projet `ujmrosbgkvgvwfnuryna`).

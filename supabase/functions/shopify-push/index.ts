@@ -18,6 +18,7 @@
 //   les mutations qui SERAIENT envoyées, n'écrit RIEN (ni sur Shopify, ni dans la file), quel que soit le mode.
 // deno-lint-ignore-file
 import { identify, activeCompaniesOf, isUuid } from '../_shared/acces.ts';
+import { testCompanyIds, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 import {
   LOCATIONS_QUERY, VARIANT_STATE_QUERY, pickLocation, parseVariantStates, planPush, chunk,
   buildPriceMutation, buildInventoryMutation, buildActivateMutation, type PushTarget, type PlannedResult,
@@ -125,6 +126,11 @@ Deno.serve(async (req) => {
     if (simulate) return J({ error: 'company_id_required' }, 400);
     companies = await rpc<string[]>('_shopify_push_companies', {});
   }
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : jamais d envoi vers la boutique Shopify reelle.
+  let tests: Set<string>;
+  try { tests = await testCompanyIds(); } catch { return J({ error: 'test_company_check_failed' }, 503); }
+  if (caller.kind === 'user' && companies.some((c) => tests.has(c))) return J({ error: TEST_COMPANY_ERROR }, 409);
+  companies = companies.filter((c) => !tests.has(c));
   const articleIds: string[] = Array.isArray(body?.article_ids) ? body.article_ids.filter(isUuid).slice(0, BATCH) : [];
   if (simulate && articleIds.length === 0) return J({ error: 'article_ids_required' }, 400);
   if (!companies.length) return J({ ok: true, companies: 0, message: 'rien à envoyer (synchronisation arrêtée ou file vide)' });

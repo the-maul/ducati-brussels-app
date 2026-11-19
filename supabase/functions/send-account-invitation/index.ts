@@ -50,6 +50,7 @@
 // (profiles.locale, compte de l'équipe), sinon FR. Textes : _shared/mail-i18n.ts.
 // deno-lint-ignore-file
 import { fillMail, mailDateTime, mailTexts, pickMailLocale, type MailLocale } from '../_shared/mail-i18n.ts';
+import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -288,6 +289,20 @@ Deno.serve(async (req) => {
     } else if (!selfSignup) {
       return J({ error: 'bad_purpose' }, 400);
     }
+  }
+
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucune invitation ni aucun mail de compte. Pour l avis
+  // « mot de passe modifie » (mail de securite a la personne elle-meme), on passe par une vraie
+  // societe de la personne s il y en a une.
+  if (await isTestCompany(companyId)) {
+    if (kind !== 'password_changed' || !userId) return J({ error: TEST_COMPANY_ERROR }, 409);
+    const all = await db(`user_roles?select=company_id&user_id=eq.${userId}`).then((r) => r.json()).catch(() => []);
+    let real: string | null = null;
+    for (const x of (Array.isArray(all) ? all : []) as { company_id: string }[]) {
+      if (!(await isTestCompany(x.company_id))) { real = x.company_id; break; }
+    }
+    if (!real) return J({ error: TEST_COMPANY_ERROR }, 409);
+    companyId = real;
   }
 
   // 2. La personne visée doit appartenir à cette société (équipe ou client).

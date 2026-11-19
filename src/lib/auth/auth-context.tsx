@@ -8,6 +8,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_LOCALE, isLocale, setLocale, type Locale } from '@/lib/i18n';
+import { testCompanyIds } from '@/modules/settings/test-company-api';
 
 export type AppRole =
   | 'admin' | 'vendeur' | 'magasinier' | 'mecanicien'
@@ -17,6 +18,8 @@ export interface Company {
   id: string;
   code: string;
   name: string;
+  /** Société de TEST (lot ItalTest, migration 20261119160000) : copie, aucun envoi sortant. */
+  is_test?: boolean;
 }
 export interface RoleAssignment {
   company_id: string;
@@ -62,12 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   const loadProfileData = useCallback(async (userId: string) => {
-    const [profRes, roleRes, compRes] = await Promise.all([
+    const [profRes, roleRes, compRes, testIds] = await Promise.all([
       // `*` plutôt qu'une liste : la colonne `locale` (migration 20261030150000) peut
       // manquer en base tant qu'elle n'est pas appliquée ; on retombe alors sur FR.
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('user_roles').select('company_id, role'),
       supabase.from('companies').select('id, code, name').order('name'),
+      // Sociétés de test (bandeau, sélecteur) : vide si la migration n'est pas posée.
+      testCompanyIds(),
     ]);
     const raw = profRes.data as (Partial<Profile> & { id: string }) | null;
     const prof: Profile | null = raw
@@ -79,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           locale: isLocale(raw.locale) ? raw.locale : DEFAULT_LOCALE,
         }
       : null;
-    const comps = (compRes.data ?? []) as Company[];
+    const comps = ((compRes.data ?? []) as Company[]).map((c) => ({ ...c, is_test: testIds.includes(c.id) }));
     setProfile(prof);
     // Langue de l'utilisateur : lue du profil, FR par défaut (décision client du 30/10/2026).
     setLocale(prof?.locale ?? DEFAULT_LOCALE);

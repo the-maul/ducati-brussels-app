@@ -18,6 +18,7 @@
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 import { identify } from '../_shared/acces.ts';
 import { resolveSender, sendBrevoSms } from '../_shared/brevo-sms.ts';
+import { testCompanyIds } from '../_shared/test-company.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -49,7 +50,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<{ o
 
 type Claimed = { id: number; company_id: string; send_to: string; body: string; sender: string | null; is_test: boolean; template: string | null };
 
-async function dispatchSms(): Promise<{ sms_sent: number; sms_skipped: number; sms_failed: number; sms_error?: string }> {
+async function dispatchSms(tests: Set<string>): Promise<{ sms_sent: number; sms_skipped: number; sms_failed: number; sms_error?: string }> {
   let sent = 0, skipped = 0, failed = 0;
   let batch: Claimed[] = [];
   try {
@@ -59,6 +60,12 @@ async function dispatchSms(): Promise<{ sms_sent: number; sms_skipped: number; s
     return { sms_sent: 0, sms_skipped: 0, sms_failed: 0, sms_error: String((e as Error).message).slice(0, 200) };
   }
   for (const n of batch) {
+    // SOCIETE DE TEST (lot ItalTest) : filet de securite, la base ne devrait jamais en remettre une.
+    if (tests.has(String(n.company_id ?? ''))) {
+      skipped++;
+      await rpc('sms_dispatch_result', { _id: n.id, _status: 'skipped', _error: 'test_company', _provider_id: null }).catch(() => undefined);
+      continue;
+    }
     const r = await sendBrevoSms({
       apiKey: BREVO_KEY, sender: resolveSender(n.sender, BREVO_SENDER), to: n.send_to, content: n.body,
       tag: n.template || 'dms', fetchImpl: fetch as never,
@@ -83,8 +90,19 @@ Deno.serve(async (req: Request) => {
   const res = await db(`notifications?status=eq.pending&channel=neq.sms&scheduled_at=lte.${encodeURIComponent(now)}&order=scheduled_at&limit=50`, { method: 'GET' });
   const pending = await res.json();
   let sent = 0, skipped = 0, failed = 0;
+  // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : ses notifications ne partent jamais (la base les enregistre deja
+  // « skipped » ; filet de securite ici). Controle impossible : rien ne part ce passage-ci.
+  let tests: Set<string>;
+  try { tests = await testCompanyIds(); } catch {
+    return new Response(JSON.stringify({ error: 'test_company_check_failed' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+  }
 
   for (const n of pending as Array<Record<string, unknown>>) {
+    if (tests.has(String(n.company_id ?? ''))) {
+      skipped++;
+      await db(`notifications?id=eq.${n.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'skipped', error: 'test_company' }) });
+      continue;
+    }
     const r = await sendEmail(String(n.to_address), String(n.subject ?? ''), String(n.body ?? ''));
     const status = r.ok ? 'sent' : (r.error === 'skipped' ? 'skipped' : 'failed');
     if (status === 'sent') sent++; else if (status === 'skipped') skipped++; else failed++;
@@ -93,6 +111,6 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ status, error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null }),
     });
   }
-  const sms = await dispatchSms();
+  const sms = await dispatchSms(tests);
   return new Response(JSON.stringify({ processed: (pending as unknown[]).length, sent, skipped, failed, ...sms }), { headers: { 'Content-Type': 'application/json' } });
 });
