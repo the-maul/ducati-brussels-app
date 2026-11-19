@@ -19,9 +19,12 @@ import { useCanWrite } from '@/lib/auth/use-access';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { t } from '@/lib/i18n';
 import {
-  createInsuranceParty, insuranceSchemaReady, listInsuranceParties, updateInsuranceParty,
+  createInsuranceParty, insuranceSchemaReady, insurerTariffSchemaReady, listInsuranceParties, updateInsuranceParty,
   type InsuranceParty, type InsurancePartyInput,
 } from './insurance-api';
+import { listPriceLists } from '@/modules/sales/customer-pricing-api';
+
+const NO_LIST = ' none';
 import { INSURANCE_PARTY_KINDS, validateInsuranceParty, type InsurancePartyKind } from './insurance-rules';
 
 export const insurancePartiesKey = (companyId: string) => ['insurance-parties', companyId];
@@ -97,6 +100,10 @@ export function InsurancePartyDialog({ companyId, party, defaultKind = 'cabinet'
   const qc = useQueryClient();
   const [f, setF] = useState<InsurancePartyInput>(() => (party ? { ...EMPTY, ...stripMeta(party) } : { ...EMPTY, kind: defaultKind }));
   const [errors, setErrors] = useState<string[]>([]);
+  // T4 : le tarif du cabinet se choisit parmi les tarifs communs (meme moteur que les tarifs clients).
+  const tariffSchema = useQuery({ queryKey: ['insurer-tariff-schema'], queryFn: insurerTariffSchemaReady, staleTime: Infinity });
+  const listsQ = useQuery({ queryKey: ['price-lists', companyId], queryFn: () => listPriceLists(companyId), enabled: tariffSchema.data === true, staleTime: 60_000 });
+  const lists = tariffSchema.data === true ? listsQ.data ?? null : null;
   const save = useMutation({
     mutationFn: async () => {
       const errs = validateInsuranceParty(f);
@@ -139,7 +146,30 @@ export function InsurancePartyDialog({ companyId, party, defaultKind = 'cabinet'
           <F label={t('insurance.companyNumber')}><Input {...txt('company_number')} className="h-9 font-data" /></F>
           <F label={t('insurance.vatNumber')}><Input {...txt('vat_number')} className="h-9 font-data uppercase" /></F>
           <F label={t('insurance.accountingAccount')}><Input {...txt('accounting_account')} className="h-9 font-data" /></F>
-          <F label={t('insurance.priceList')}><Input {...txt('price_list')} className="h-9" placeholder={t('insurance.priceListHint')} /></F>
+          {f.kind === 'cabinet' && (
+            <F label={t('insurance.priceList')}>
+              {lists ? (
+                <Select
+                  value={f.price_list_id ?? NO_LIST}
+                  onValueChange={(v) => {
+                    const l = lists.find((x) => x.id === v);
+                    setF({ ...f, price_list_id: l ? l.id : null, price_list: l ? l.code : '' });
+                  }}
+                >
+                  <SelectTrigger className="h-9"><SelectValue placeholder={t('insurance.priceListHint')} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_LIST}>{t('insurance.priceListNone')}</SelectItem>
+                    {lists.filter((l) => l.is_active !== false || l.id === f.price_list_id).map((l) => (
+                      <SelectItem key={l.id} value={l.id}>{l.code}{l.label ? ` — ${l.label}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input {...txt('price_list')} className="h-9" placeholder={t('insurance.priceListHint')} />
+              )}
+              <p className="text-[12px] text-muted-foreground">{t('insurance.priceListAuto')}</p>
+            </F>
+          )}
           <div className="sm:col-span-2"><F label={t('insurance.comments')}><Textarea rows={2} {...txt('comments')} /></F></div>
           <div className="flex items-center gap-3">
             <Switch id="insurance-active" checked={f.is_active} onCheckedChange={(v) => setF({ ...f, is_active: v })} />

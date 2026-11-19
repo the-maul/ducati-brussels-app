@@ -17,6 +17,7 @@ import { operatorIdSchemaReady } from './or-page-api';
 import { clientUnitPrice, lineCoveredByWarranty, lineDecisionToSave } from './warranty/rules';
 import { orBaseSchemaReady } from './or-base/api';
 import { invoiceQuantity } from './labour-time/rules';
+import { insurerPricingSchemaReady } from './or-line-pricing-api';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -107,6 +108,8 @@ export type RoInput = {
   promisedAt?: string | null;
   checkPoints?: Partial<Record<string, string>>;
   mileageAckPrevious?: number | null;
+  /** T4 (migration 20261119200000) : tarif assureur applique aux lignes (null = tarif du client) ; undefined = ne pas toucher. */
+  insurerPriceListId?: string | null;
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -216,6 +219,8 @@ async function headerPatch(p: RoInput): Promise<Record<string, unknown>> {
     if (p.checkPoints !== undefined) base.check_points = p.checkPoints;
     if (p.mileageAckPrevious !== undefined) base.mileage_ack_previous = p.mileageAckPrevious;
   }
+  // Tarif assureur avec lequel les lignes ont ete calculees (T4) : seulement si la colonne existe.
+  if (p.insurerPriceListId !== undefined && await insurerPricingSchemaReady()) base.insurer_price_list_id = p.insurerPriceListId || null;
   return base;
 }
 

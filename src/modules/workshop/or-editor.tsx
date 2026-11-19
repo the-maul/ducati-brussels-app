@@ -26,14 +26,16 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock, Tag, Undo2 } from 'lucide-react';
 import { KitInsertDialog } from './kits/kit-insert-dialog';
 import { toRoLine, type InsertLine } from './kits/insert-rules';
 import { useAuth } from '@/lib/auth/auth-context';
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { ArticleLinePicker } from '@/modules/sales/article-line-picker';
 import { articleLinePrice, labourUnitPrice } from '@/modules/sales/article-price';
-import { useCustomerPricer, insurerPriceListForOr, type PricingContact } from '@/modules/sales/customer-pricing-api';
+import { useCustomerPricer, orInsurerTariff, type PricingContact } from '@/modules/sales/customer-pricing-api';
+import { insurerRepriceNeeded, priceOrLine, repriceOrLines } from './or-line-pricing';
+import { articleBasePrices } from './or-line-pricing-api';
 import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
 import {
@@ -114,6 +116,8 @@ export type OrPayload = {
   warrantyCessionCode: string; warrantyNote: string;
   /** Rattrapage G8 (18/11) : promis le (ISO), 30 points V / R, notes internes, dernier releve depasse confirme. */
   promisedAt?: string | null; checkPoints?: CheckPoints; internalNotes?: string; mileageAckPrevious?: number | null;
+  /** T4 : tarif assureur applique aux lignes (null = tarif du client ; undefined = ne pas toucher). */
+  insurerPriceListId?: string | null;
 };
 
 export type OrEditorIntent = 'save' | 'proposal';
@@ -149,12 +153,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     vehicle: vehicleIdToLoad ? { id: vehicleIdToLoad, vin: null, plate: null, brand: null, model: null } : null,
   });
   const contact = sel.contact;
-  // OR accident : le tarif associe au cabinet d'assurance passe avant celui du client (G8).
-  const { data: insurerList } = useQuery({
-    queryKey: ['or-insurer-price-list', initial?.or?.id ?? null], queryFn: () => insurerPriceListForOr(initial!.or.id),
+  // OR accident : le tarif associe au cabinet d'assurance passe avant celui du client (G8, T4).
+  const insurerQ = useQuery({
+    queryKey: ['or-insurer-price-list', initial?.or?.id ?? null], queryFn: () => orInsurerTariff(initial!.or.id),
     enabled: !!initial?.or?.id, staleTime: 60_000,
   });
-  const pricer = useCustomerPricer(companyId, contact as PricingContact | null, insurerList ?? null);
+  const insurerTariff = insurerQ.data ?? null;
+  const insurerList = insurerTariff ? (insurerTariff.listId ?? insurerTariff.code) : null;
+  const pricer = useCustomerPricer(companyId, contact as PricingContact | null, insurerList);
   const vehicle = sel.vehicle;
   const [mileage, setMileage] = useState(o?.mileage != null ? String(o.mileage) : '');
   // Operateur = un membre de l'equipe, l'utilisateur connecte par defaut (ATE001b) ; ancien texte garde.
@@ -314,12 +320,57 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     setLine(k, { article_id: a.id, designation: a.designation, ...price });
     // Tarif du client (meme calcul que la vente et la caisse : tarif commun, regles du client,
     // paliers, dates ; rattrapage G8 du 18/11) pose ensuite, sans bloquer la saisie.
+    // OR accident : tarif du cabinet d'assurance a la place (meme fonction de prix des lignes d'OR).
     if (contact || insurerList) {
-      const qty = Number(lines.find((l) => l._key === k)?.quantity ?? 1) || 1;
-      pricer.price(a.id, price.unit_price_ht, qty)
-        .then((r) => { if (r.rule) setLines((ls) => ls.map((l) => (l._key === k && l.article_id === a.id ? { ...l, unit_price_ht: r.unitPriceHt, discount_pct: r.discountPct } : l))); })
+      const cur = lines.find((l) => l._key === k);
+      priceOrLine(pricer, { kind: cur?.kind ?? 'piece', article_id: a.id, quantity: Number(cur?.quantity ?? 1) || 1, unit_price_ht: price.unit_price_ht, discount_pct: 0 }, price.unit_price_ht)
+        .then((r) => { if (r?.ruled) setLines((ls) => ls.map((l) => (l._key === k && l.article_id === a.id ? { ...l, unit_price_ht: r.unit_price_ht, discount_pct: r.discount_pct } : l))); })
         .catch(() => { /* sans tarif client : prix de base */ });
     }
+  };
+  // Ligne passee en main-d'oeuvre : taux de l'atelier, puis tarif du client / de l'assureur.
+  const switchToLabour = (k: string) => {
+    const cur = lines.find((l) => l._key === k);
+    const base = labourUnitPrice(cur?.unit_price_ht ?? 0, rate);
+    setLine(k, { kind: 'mo', unit_price_ht: base });
+    if ((contact || insurerList) && cur && !cur.article_id && base > 0) {
+      priceOrLine(pricer, { kind: 'mo', article_id: null, quantity: Number(cur.quantity) || 1, unit_price_ht: base, discount_pct: 0 }, base)
+        .then((r) => { if (r?.ruled) setLines((ls) => ls.map((l) => (l._key === k && l.kind === 'mo' && !l.article_id ? { ...l, unit_price_ht: r.unit_price_ht, discount_pct: r.discount_pct } : l))); })
+        .catch(() => { /* prix de base */ });
+    }
+  };
+
+  // T4 : le tarif de l'assureur s'applique AUTOMATIQUEMENT aux lignes de l'OR accident. Quand le
+  // tarif effectif (cabinet choisi, change ou retire) n'est pas celui avec lequel les lignes ont
+  // ete calculees (`insurer_price_list_id`), toutes les lignes sont re-tarifees ; annulable.
+  const [appliedInsurerList, setAppliedInsurerList] = useState<string | null | undefined>(
+    () => (ox && 'insurer_price_list_id' in ox ? ((ox.insurer_price_list_id as string | null) ?? null) : undefined),
+  );
+  const [repriced, setRepriced] = useState<{ previous: EditLine[]; changed: number; code: string | null; insurer: string | null } | null>(null);
+  useEffect(() => {
+    if (!insurerQ.isSuccess || rateQ.isLoading) return;
+    const effective = insurerTariff ? insurerTariff.listId : null;
+    if (!insurerRepriceNeeded({ applied: appliedInsurerList, effective, invoiced: o?.status === 'facture' })) return;
+    // Retour au tarif du client : attendre la fiche du client.
+    if (!effective && contactIdToLoad && !contact) return;
+    let cancelled = false;
+    const snapshot = lines;
+    (async () => {
+      const bases = { articleBaseHt: await articleBasePrices(snapshot.map((l) => l.article_id ?? '').filter(Boolean), roundUp), labourRateHt: rate };
+      const r = await repriceOrLines(snapshot, pricer, bases);
+      if (cancelled) return;
+      setAppliedInsurerList(effective);
+      setLines(r.lines);
+      if (r.changed > 0) setRepriced({ previous: snapshot, changed: r.changed, code: insurerTariff?.code ?? null, insurer: insurerTariff?.insurerName ?? null });
+    })().catch(() => { /* re-tarifage impossible : les lignes restent telles quelles */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insurerQ.isSuccess, insurerTariff?.listId, appliedInsurerList, pricer, contact?.id, rate, rateQ.isLoading, roundUp]);
+  // Annuler : les lignes d'avant ; le tarif reste « applique » (pas de nouveau re-tarifage).
+  const undoReprice = () => {
+    if (!repriced) return;
+    setLines(repriced.previous);
+    setRepriced(null);
   };
 
   const setLine = (k: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === k ? { ...l, ...patch } : l)));
@@ -366,6 +417,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     expertName: expertInPanel ? undefined : expertName, expertDate: expertInPanel ? undefined : expertDate,
     reasonCode: reasonCode || null, warrantyCessionCode: cessionCode, warrantyNote,
     lines: [...classicInputs, ...cardLines],
+    // T4 : tarif assureur avec lequel les lignes sont calculees (undefined = colonne absente).
+    insurerPriceListId: appliedInsurerList,
   });
 
   // Enregistrer : km obligatoire des qu'une moto est choisie ; km inferieur au dernier releve =
@@ -519,6 +572,26 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       <CheckPointsPanel value={checkPoints} onChange={setCheckPoints} />
       {orBaseQ.data === false && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('orBase.migrationMissing')}</p>}
 
+      {/* T4 : tarif de l'assureur (OR accident) */}
+      {insurerTariff && (
+        <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
+          <Tag className="size-3.5" aria-hidden /> {t('insurance.orTariff')} : <b className="text-foreground">{insurerTariff.code}</b>
+          {insurerTariff.label ? ` — ${insurerTariff.label}` : ''}{insurerTariff.insurerName ? ` (${insurerTariff.insurerName})` : ''}
+        </p>
+      )}
+      {repriced && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info" role="status">
+          <Tag className="size-4 shrink-0" aria-hidden />
+          <span className="flex-1">
+            {repriced.code
+              ? fillVars(t('insurance.repricedInsurer'), { n: String(repriced.changed), code: repriced.code, insurer: repriced.insurer ?? '' })
+              : fillVars(t('insurance.repricedClient'), { n: String(repriced.changed) })}
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={undoReprice}><Undo2 /> {t('insurance.repricedUndo')}</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setRepriced(null)} aria-label={t('insurance.repricedClose')}><X /></Button>
+        </div>
+      )}
+
       {/* Lignes */}
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
@@ -536,10 +609,10 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
               return (
                 <tr key={l._key} className="border-b border-border last:border-0">
                   <td className="px-2 py-1">
-                    <Select value={l.kind} onValueChange={(v) => setLine(l._key, v === 'mo'
-                      // Main-d'oeuvre sans prix : taux horaire de l'atelier (Frais de devis atelier).
-                      ? { kind: 'mo', unit_price_ht: labourUnitPrice(l.unit_price_ht, rate) }
-                      : { kind: v as RoLineInput['kind'] })}>
+                    <Select value={l.kind} onValueChange={(v) => (v === 'mo'
+                      // Main-d'oeuvre sans prix : taux horaire de l'atelier (Frais de devis atelier), tarif applique.
+                      ? switchToLabour(l._key)
+                      : setLine(l._key, { kind: v as RoLineInput['kind'] }))}>
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="piece">{t('workshop.kind_piece')}</SelectItem><SelectItem value="mo">{t('workshop.kind_mo')}</SelectItem><SelectItem value="texte">{t('workshop.kind_texte')}</SelectItem></SelectContent>
                     </Select>

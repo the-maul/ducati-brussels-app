@@ -365,6 +365,58 @@ continue de s'enregistrer comme avant.
   (G8 : non comptabilisée ; DMS : comptabilisée) — la migration ne touche pas à la case
   « Comptabilisée » et ne passe aucune écriture. Voir aussi le rapport du lot.
 
+### Ajouté le 19/11 — OR accident : expert des deux côtés (Q51) et tarif de l'assureur appliqué (T4)
+
+Lot `lot-accident-expert` (ATE016 / ATE020), décisions `docs/g8-inventaire/a-trancher.md` **Q51**
+(client, 19/11), **T4**, **T5**. Migration `20261119200000_m8_accident_expert_et_tarif_assureur.sql`
+(**non appliquée**, essai à blanc `supabase/tests/m8_accident_expert_tarif_assureur.sql`, 17/17 ok
+en transaction annulée). Tant qu'elle manque, l'ancien chemin reste actif (copie faite par l'écran).
+
+- **Expert et date de passage : une seule source, le dossier accident** (`accident_files.expert_id`,
+  `expert_name`, `expert_visit_date`). Les colonnes de l'OR (`repair_orders.expert_name`,
+  `expert_date`) sont un **miroir tenu par la base dans les deux sens** :
+  - saisie depuis l'OR (volet Assurance de la page OR) ou depuis le dossier (fiche du dossier) :
+    fonction `accident_file_set_expert(_file, _expert_id, _visit_date, _origin)` — l'expert se
+    choisit dans la **table des experts** (Atelier → Dossiers accident → Cabinets et experts ;
+    « Nouveau » le crée à la volée), le nom et l'e-mail de la fiche sont recopiés sur le dossier ;
+  - écritures directes (anciens écrans, imports) : modifier l'OR met le dossier à jour (expert
+    retrouvé par son nom dans la table, sinon gardé en texte) — déclencheur `trg_ro_expert_to_file` ;
+    modifier le dossier met l'OR à jour — `trg_accident_files_expert_after` ; un dossier ouvert pour
+    un OR qui a déjà un expert / une date les reprend — `trg_accident_files_expert_before` ;
+  - **trace** : `events.action = 'accident_expert_change'`, `entity_type = 'accident_files'`,
+    `old_data` / `new_data` (expert, nom, date, OR), `origin` = **« OR »** ou **« dossier »** (en plus
+    de l'audit ligne à ligne) ;
+  - contrôles : l'expert est une fiche « expert » de la même société, le cabinet une fiche « cabinet »
+    de la même société ; non-membre refusé.
+  - La fiche du dossier n'a plus de champ texte « Expert » quand le volet Assurance est là (affiché en
+    lecture, « choisi dans le volet Assurance ») : plus de double saisie.
+- **Tarif de l'assureur (T4)** : la fiche cabinet choisit un **tarif commun** (`insurance_parties.
+  price_list_id`, liste des tarifs de Clients → Tarifs, même moteur que « REMISE 15 % ») ; l'ancien
+  texte est rattaché au tarif de même code / libellé (déclencheur, reprise des fiches existantes).
+  `repair_order_price_list(_or)` dit quel tarif vaut pour un OR : **le cabinet du dossier accident
+  l'emporte sur le client** (T4b, à confirmer), sinon le tarif du client.
+  - Le calcul reste **le moteur unique** `src/modules/sales/customer-pricing.ts` (pas de second
+    moteur) ; la fonction de prix des lignes d'OR est `src/modules/workshop/or-line-pricing.ts`
+    (`priceOrLine`, `repriceOrLines`) : pièce / MO avec article = prix catalogue + tarif ; **MO sans
+    article** = taux horaire atelier + tarif (règles « tout le catalogue » ou par référence
+    `MO_ATELIER`, comme l'article MO de G8 : `CustomerPricer.priceLabour`) ; texte et pièce libre
+    jamais touchés.
+  - **Automatique** : à la saisie d'une ligne (article ou passage en MO) et quand le cabinet est
+    choisi / changé / retiré, l'éditeur re-tarife toutes les lignes pièces / MO (bandeau « Tarif de
+    l'assureur … appliqué à N ligne(s) », bouton **Annuler**). `repair_orders.insurer_price_list_id`
+    retient le tarif assureur avec lequel les lignes ont été calculées : le re-tarifage ne se refait
+    que s'il change ; jamais sur un OR facturé. Le tarif s'affiche au-dessus des lignes de l'OR.
+  - Non touché : les lignes des **cartes du check-up** (OR d'entretien, pas d'assurance) ; les prix
+    modifiés à la main sont recalculés depuis le catalogue (T4c, à confirmer).
+- Code : `or-line-pricing.ts` / `or-line-pricing-api.ts`, `accident/insurance-api.ts`
+  (`setAccidentExpert`, `insurerTariffSchemaReady`), `insurance-panel.tsx` (prop `origin`),
+  `insurance-parties.tsx` (choix du tarif), `accident-file-screen.tsx`, `or-editor.tsx`,
+  `sales/customer-pricing-api.ts` (`orInsurerTariff`, `priceLabour`) ; libellés `insurance.*`
+  (FR / NL / EN / IT) ; tests `tests/or-tarif-assureur.test.ts`.
+- **Coordination** : le taux horaire atelier (standard 109,74 HT, VIP 90 par tarif client, lot
+  `lot-decisions-atelier`) doit passer par `priceOrLine` (branche MO) ; une règle client « par
+  référence MO_ATELIER, prix net 90 » donne déjà 90 € sur une ligne MO sans article.
+
 ### Ajouté le 18/11 — rattrapage G8 (lot « OR de base »)
 Source : relevé G8 du 18/11 (`docs/g8-inventaire/07-atelier.md`, `parcours.md`, comparaison atelier §1, §3, §6, bloquants #2, #4, #6, #11, #12). Code : `src/modules/workshop/or-base/` (règles pures `rules.ts`, testées `tests/workshop-or-base.test.ts`). Migration **`20261118100000_m8_or_base_g8.sql` (non appliquée)**, essai à blanc `supabase/tests/m8_or_base_g8.sql`. Tant qu'elle n'est pas posée, l'OR s'enregistre comme avant (promis le, 30 points et km confirmé ne sont pas gardés, bandeau d'information sur l'OR ; le km du RDV n'est pas gardé).
 - **Impression OR / fiche de travail** (bouton « Imprimer » de la fiche OR, `print-dialog.tsx`, `or-pdf.ts`, jsPDF) : OR seul / fiche de travail seule / OR + fiche ; **édition chiffrée** (PU et total TTC, totaux) ou non ; **OR sans le nom du client** ; en-tête société, n°, reçu le, promis le, opérateur, moto (modèle, référence, immat, châssis, **km**), travaux demandés, observations à la réception, points V / R, lignes (garantie marquée G, actions du check-up OK / reportées exclues), cadre **« Dépôt du véhicule »** avec signature client / réceptionnaire. La fiche de travail porte la grille complète des 30 points (cases V / R pré-cochées) et la place « travaux effectués / mécanicien / temps passé ». PDF dans la **langue du client**, depuis la version **enregistrée** de l'OR. Les informations complémentaires ne sont jamais imprimées.

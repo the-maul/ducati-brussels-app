@@ -35,6 +35,8 @@ export type InsuranceParty = {
   phone: string | null; phone2: string | null; fax: string | null; email: string | null;
   company_number: string | null; vat_number: string | null; contact_name: string | null; comments: string | null;
   accounting_account: string | null; price_list: string | null; is_active: boolean;
+  /** T4 : tarif commun du cabinet (migration 20261119200000) ; absent avant elle. */
+  price_list_id?: string | null;
   created_at: string; updated_at: string;
 };
 export type InsurancePartyInput = Omit<InsuranceParty, 'id' | 'company_id' | 'created_at' | 'updated_at'>;
@@ -49,6 +51,16 @@ export function insuranceSchemaReady(): Promise<boolean> {
     throw new Error(r.error.message);
   })().catch(() => false);
   return probe;
+}
+
+let tariffProbe: Promise<boolean> | null = null;
+/** true quand la migration 20261119200000 est appliquee (colonne insurance_parties.price_list_id). */
+export function insurerTariffSchemaReady(): Promise<boolean> {
+  tariffProbe ??= (async () => {
+    const r = await loose.from('insurance_parties').select('price_list_id').limit(1);
+    return !r.error;
+  })().catch(() => false);
+  return tariffProbe;
 }
 
 export async function listInsuranceParties(companyId: string, kind?: InsurancePartyKind): Promise<InsuranceParty[]> {
@@ -92,15 +104,48 @@ export async function getAccidentInsurance(fileId: string): Promise<AccidentInsu
   return rows[0] ?? null;
 }
 
+type RpcResult = { error: { code?: string; message: string } | null };
+const rpcLoose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<RpcResult>;
+
+/** Origine d'une saisie de l'expert (trace events, Q51). */
+export type ExpertOrigin = 'OR' | 'dossier';
+
 /**
- * Enregistre le volet assureur. Le nom du cabinet et de l'expert est recopie dans les champs texte
- * du dossier (`insurer`, `expert_name` : repris dans le mail et le formulaire Ducati) et, si le
- * dossier vient d'un OR, l'expert et la date de passage sur l'OR (`expert_name`, `expert_date`).
+ * Q51 (decision client du 19/11) : expert (table des experts, null = aucun) et date de passage,
+ * saisis depuis l'OR ou depuis le dossier. Une seule source, le dossier accident ; la base met
+ * l'OR a jour et trace le changement (ancien / nouveau, origine). false = migration
+ * 20261119200000 absente (l'appelant prend l'ancien chemin).
+ */
+export async function setAccidentExpert(p: { fileId: string; expertId: string | null; visitDate: string | null; origin: ExpertOrigin }): Promise<boolean> {
+  const r = await rpcLoose('accident_file_set_expert', { _file: p.fileId, _expert_id: p.expertId, _visit_date: p.visitDate || null, _origin: p.origin });
+  if (!r.error) return true;
+  if (missing(r.error) || r.error.code === 'PGRST202' || r.error.code === '42883') return false;
+  throw new Error(r.error.message);
+}
+
+/**
+ * Enregistre le volet assureur. Le nom du cabinet est recopie dans le champ texte du dossier
+ * (`insurer` : repris dans le mail et le formulaire Ducati). Expert et date de passage (envoyes
+ * ensemble) passent par `setAccidentExpert` : la base recopie le nom et l'e-mail de l'expert sur
+ * le dossier et tient l'OR a jour. Sans la migration 20261119200000 : ancien chemin (copie a la main).
  */
 export async function saveAccidentInsurance(p: {
   fileId: string; repairOrderId: string | null; patch: Partial<AccidentInsurance>;
   insurerName?: string | null; expertName?: string | null; expertEmail?: string | null;
+  /** Ecran d'ou vient la saisie (Q51) : OR ou dossier. */
+  origin?: ExpertOrigin;
 }): Promise<void> {
+  const touchesExpert = 'expert_id' in p.patch || 'expert_visit_date' in p.patch;
+  if (touchesExpert) {
+    const { expert_id: _e, expert_visit_date: _d, ...rest } = p.patch;
+    const restPatch: Record<string, unknown> = { ...rest };
+    if (p.insurerName !== undefined) restPatch.insurer = p.insurerName;
+    if (Object.keys(restPatch).length) unwrap(await loose.from('accident_files').update(restPatch).eq('id', p.fileId));
+    const done = await setAccidentExpert({
+      fileId: p.fileId, expertId: p.patch.expert_id ?? null, visitDate: p.patch.expert_visit_date ?? null, origin: p.origin ?? 'dossier',
+    });
+    if (done) return;
+  }
   const filePatch: Record<string, unknown> = { ...p.patch };
   if (p.insurerName !== undefined) filePatch.insurer = p.insurerName;
   if (p.expertName !== undefined) filePatch.expert_name = p.expertName;

@@ -3533,6 +3533,14 @@ export const fr = {
     colVisit: 'Passage',
     colAccepted: 'Accepté',
     emptyOrs: 'Aucun OR accident en cours.',
+    orTariff: 'Tarif de l\'assureur appliqué',
+    repricedInsurer: 'Tarif de l\'assureur {code} {insurer} appliqué à {n} ligne(s) de l\'OR. Enregistrez l\'OR pour le garder.',
+    repricedClient: 'L\'assureur n\'a plus de tarif : {n} ligne(s) reprennent le tarif du client. Enregistrez l\'OR pour le garder.',
+    repricedUndo: 'Annuler',
+    repricedClose: 'Fermer',
+    expertInPanel: 'Choisi dans le volet Assurance ci-dessous (table des experts), modifiable aussi depuis l\'OR.',
+    priceListNone: 'Aucun tarif',
+    priceListAuto: 'Appliqué automatiquement aux lignes des OR accident de ce cabinet, à la place du tarif du client.',
   },
 
   // Reprises / Occasion / ORO (M7)

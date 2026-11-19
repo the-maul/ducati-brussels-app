@@ -53,8 +53,10 @@ const toForm = (a: AccidentInsurance | null): Form => ({
   work_start_accepted: !!a?.work_start_accepted,
 });
 
-export function AccidentInsurancePanel({ companyId, fileId, repairOrderId, orTotalTtc, readOnly = false }: {
+export function AccidentInsurancePanel({ companyId, fileId, repairOrderId, orTotalTtc, readOnly = false, origin = 'dossier' }: {
   companyId: string; fileId: string; repairOrderId: string | null; orTotalTtc: number; readOnly?: boolean;
+  /** Ecran qui affiche le volet (Q51 : l'expert se saisit des deux cotes, la trace garde l'origine). */
+  origin?: 'OR' | 'dossier';
 }) {
   const qc = useQueryClient();
   const { user, companies } = useAuth();
@@ -79,7 +81,11 @@ export function AccidentInsurancePanel({ companyId, fileId, repairOrderId, orTot
     qc.invalidateQueries({ queryKey: accidentInsuranceKey(fileId) });
     qc.invalidateQueries({ queryKey: ['accident-file', fileId] });
     qc.invalidateQueries({ queryKey: ['accident-ors'] });
-    if (repairOrderId) qc.invalidateQueries({ queryKey: ['ro-full', repairOrderId] });
+    if (repairOrderId) {
+      qc.invalidateQueries({ queryKey: ['ro-full', repairOrderId] });
+      // T4 : le tarif du cabinet s'applique aux lignes de l'OR (re-tarifage dans l'editeur).
+      qc.invalidateQueries({ queryKey: ['or-insurer-price-list', repairOrderId] });
+    }
   };
 
   const save = useMutation({
@@ -94,7 +100,7 @@ export function AccidentInsurancePanel({ companyId, fileId, repairOrderId, orTot
         ...(changedAccept ? workStartPatch(accepted, user?.id ?? null, new Date().toISOString()) : {}),
       };
       await saveAccidentInsurance({
-        fileId, repairOrderId, patch,
+        fileId, repairOrderId, patch, origin,
         insurerName: insurer ? insurer.name : (saved?.insurer_id ? null : undefined),
         expertName: expert ? expert.name : (saved?.expert_id ? null : undefined),
         expertEmail: expert?.email ?? null,
@@ -175,7 +181,12 @@ export function AccidentInsurancePanel({ companyId, fileId, repairOrderId, orTot
             </p>
           )}
         </F>
-        <F label={t('insurance.expert')}>{partySelect('expert', form.expert_id, experts, (id) => setForm({ ...form, expert_id: id }))}</F>
+        <F label={t('insurance.expert')}>
+          {partySelect('expert', form.expert_id, experts, (id) => setForm({ ...form, expert_id: id }))}
+          {expert && (expert.phone || expert.email) && (
+            <p className="text-[12px] text-muted-foreground">{[expert.phone, expert.email].filter(Boolean).join(' · ')}</p>
+          )}
+        </F>
         <F label={t('insurance.visitDate')}><Input type="date" value={form.expert_visit_date} onChange={(e) => setForm({ ...form, expert_visit_date: e.target.value })} disabled={readOnly} className="h-9" /></F>
         <F label={t('insurance.deductible')}>
           <div className="flex gap-2">

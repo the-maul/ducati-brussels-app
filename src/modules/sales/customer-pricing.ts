@@ -22,6 +22,12 @@
  */
 
 export type PriceKind = 'discount' | 'coefficient' | 'net';
+
+/**
+ * Reference G8 de l'article main-d'oeuvre (rayon 05 / sous-rayon 01) : une ligne MO sans article
+ * (OR) se tarife comme cet article (regles « tout le catalogue » ou par reference MO_ATELIER).
+ */
+export const LABOUR_PRICING_REFERENCE = 'MO_ATELIER';
 export type PriceScope = 'reference' | 'category' | 'family' | 'supplier' | 'brand' | 'all';
 export type PriceTier = { min_qty: number; value: number };
 

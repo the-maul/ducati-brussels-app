@@ -3518,6 +3518,14 @@ export const en: DictionaryShape = {
     colVisit: 'Visit',
     colAccepted: 'Approved',
     emptyOrs: 'No open accident RO.',
+    orTariff: 'Insurer price list applied',
+    repricedInsurer: 'Insurer price list {code} {insurer} applied to {n} line(s) of the repair order. Save the repair order to keep it.',
+    repricedClient: 'The insurer no longer has a price list: {n} line(s) are back on the customer price list. Save the repair order to keep it.',
+    repricedUndo: 'Undo',
+    repricedClose: 'Close',
+    expertInPanel: 'Chosen in the Insurance panel below (list of experts), also editable from the repair order.',
+    priceListNone: 'No price list',
+    priceListAuto: "Applied automatically to the lines of this insurer's accident repair orders, instead of the customer price list.",
   },
 
   // Reprises / Occasion / ORO (M7)

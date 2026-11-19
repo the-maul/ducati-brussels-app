@@ -36,6 +36,7 @@ import { AccidentSendDialog } from './accident-send-dialog';
 import { downloadBytes, XLSX_MIME } from './form-xlsx';
 import { generateAccidentForm, loadQuoteParts, downloadStoredAccidentFile, accidentNames } from './send';
 import { AccidentInsurancePanel } from './insurance-panel';
+import { insuranceSchemaReady } from './insurance-api';
 import { supabase } from '@/integrations/supabase/client';
 import {
   ACCIDENT_FILE_ENTITY, accidentAmounts, accidentChecklist, accidentNextStatuses, accidentStatusTone,
@@ -81,8 +82,12 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
     onSuccess: () => { refresh(); toast.success(t('accidentFile.saved')); },
     onError: (e) => toast.error(errorMessage(e)),
   });
+  // Q51 : avec le volet assureur, l'expert vient de la table des experts (pas de texte libre ici).
+  const insuranceSchemaQ = useQuery({ queryKey: ['insurance-schema'], queryFn: insuranceSchemaReady, staleTime: Infinity });
+  const insuranceReady = insuranceSchemaQ.data === true;
   const saveForm = () => save.mutate({
-    insurer: form.insurer.trim() || null, claim_number: form.claim_number.trim() || null, expert_name: form.expert_name.trim() || null,
+    insurer: form.insurer.trim() || null, claim_number: form.claim_number.trim() || null,
+    ...(insuranceReady ? {} : { expert_name: form.expert_name.trim() || null }),
     expert_email: form.expert_email.trim() || null, is_urgent: form.is_urgent, urgent_note: form.urgent_note.trim() || null,
   });
 
@@ -218,7 +223,12 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
               <Field label={t('accidentFile.client')}><Input value={file.contact ? contactDisplayName(file.contact) : '—'} readOnly /></Field>
               <Field label={t('accidentFile.insurer')}><Input value={form.insurer} onChange={(e) => setForm({ ...form, insurer: e.target.value })} disabled={closed} /></Field>
               <Field label={t('accidentFile.claimNumber')}><Input value={form.claim_number} onChange={(e) => setForm({ ...form, claim_number: e.target.value })} disabled={closed} className="font-data" /></Field>
-              <Field label={t('accidentFile.expertName')}><Input value={form.expert_name} onChange={(e) => setForm({ ...form, expert_name: e.target.value })} disabled={closed} /></Field>
+              <Field label={t('accidentFile.expertName')}>
+                {/* Q51 : expert choisi dans le volet Assurance (table des experts), une seule source. */}
+                {insuranceReady
+                  ? <><Input value={file.expert_name ?? ''} readOnly className="bg-muted/40" /><p className="text-[12px] text-muted-foreground">{t('insurance.expertInPanel')}</p></>
+                  : <Input value={form.expert_name} onChange={(e) => setForm({ ...form, expert_name: e.target.value })} disabled={closed} />}
+              </Field>
               <Field label={t('accidentFile.expertEmail')}><Input type="email" value={form.expert_email} onChange={(e) => setForm({ ...form, expert_email: e.target.value })} disabled={closed} /></Field>
               <div className="flex items-center gap-3 pt-6">
                 <Switch id="accident-urgent" checked={form.is_urgent} onCheckedChange={(v) => setForm({ ...form, is_urgent: v })} disabled={closed} />
@@ -239,7 +249,7 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
 
           {/* Assureur : cabinet, expert, passage, franchise, valeur venale, cote, demarrage accepte (G8 : onglet Assurance) */}
           <Section title={t('insurance.panelTitle')}>
-            <AccidentInsurancePanel companyId={file.company_id} fileId={file.id} repairOrderId={file.repair_order_id} orTotalTtc={orTotalQ.data ?? 0} readOnly={closed} />
+            <AccidentInsurancePanel companyId={file.company_id} fileId={file.id} repairOrderId={file.repair_order_id} orTotalTtc={orTotalQ.data ?? 0} readOnly={closed} origin="dossier" />
           </Section>
 
           {/* Devis lie */}

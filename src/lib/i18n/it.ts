@@ -3518,6 +3518,14 @@ export const it: DictionaryShape = {
     colVisit: 'Sopralluogo',
     colAccepted: 'Accettato',
     emptyOrs: 'Nessun OdR incidente in corso.',
+    orTariff: "Listino dell'assicuratore applicato",
+    repricedInsurer: "Listino dell'assicuratore {code} {insurer} applicato a {n} riga/righe dell'ordine di riparazione. Salva l'ordine per mantenerlo.",
+    repricedClient: "L'assicuratore non ha piu un listino: {n} riga/righe tornano al listino del cliente. Salva l'ordine per mantenerlo.",
+    repricedUndo: 'Annulla',
+    repricedClose: 'Chiudi',
+    expertInPanel: "Scelto nel riquadro Assicurazione qui sotto (elenco dei periti), modificabile anche dall'ordine di riparazione.",
+    priceListNone: 'Nessun listino',
+    priceListAuto: 'Applicato automaticamente alle righe degli ordini incidente di questa compagnia, al posto del listino del cliente.',
   },
 
   // Reprises / Occasion / ORO (M7)

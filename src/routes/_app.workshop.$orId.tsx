@@ -114,6 +114,8 @@ function OrView() {
     reasonCode: p.reasonCode, lines: p.lines,
     // Rattrapage G8 (18/11) : promis le, 30 points, notes internes, km inferieur confirme.
     promisedAt: p.promisedAt, checkPoints: p.checkPoints, internalNotes: p.internalNotes, mileageAckPrevious: p.mileageAckPrevious,
+    // T4 : tarif assureur applique aux lignes (retenu sur l OR pour le re-tarifage automatique).
+    insurerPriceListId: p.insurerPriceListId,
   });
 
   // OR accident : a l'enregistrement, le dossier accident s'ouvre en brouillon s'il n'existe pas (ATE001b).
@@ -319,7 +321,7 @@ function OrView() {
       {accidentFile && insuranceSchema.data === true && (
         <div className="mb-4 rounded-md border border-border bg-card p-4">
           <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('insurance.panelTitle')}</p>
-          <AccidentInsurancePanel companyId={activeCompanyId!} fileId={accidentFile.id} repairOrderId={orId} orTotalTtc={Number(or.total_ttc)} />
+          <AccidentInsurancePanel companyId={activeCompanyId!} fileId={accidentFile.id} repairOrderId={orId} orTotalTtc={Number(or.total_ttc)} origin="OR" />
         </div>
       )}
       {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}

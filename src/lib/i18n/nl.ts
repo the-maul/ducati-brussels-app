@@ -3518,6 +3518,14 @@ export const nl: DictionaryShape = {
     colVisit: 'Bezoek',
     colAccepted: 'Aanvaard',
     emptyOrs: 'Geen lopende ongevallen-orders.',
+    orTariff: 'Tarief van de verzekeraar toegepast',
+    repricedInsurer: 'Tarief van de verzekeraar {code} {insurer} toegepast op {n} regel(s) van de herstelorder. Sla de herstelorder op om het te behouden.',
+    repricedClient: 'De verzekeraar heeft geen tarief meer: {n} regel(s) krijgen opnieuw het tarief van de klant. Sla de herstelorder op om het te behouden.',
+    repricedUndo: 'Ongedaan maken',
+    repricedClose: 'Sluiten',
+    expertInPanel: 'Gekozen in het luik Verzekering hieronder (lijst van experts), ook wijzigbaar vanuit de herstelorder.',
+    priceListNone: 'Geen tarief',
+    priceListAuto: 'Automatisch toegepast op de regels van de schadeorders van dit kantoor, in plaats van het tarief van de klant.',
   },
 
   // Reprises / Occasion / ORO (M7)

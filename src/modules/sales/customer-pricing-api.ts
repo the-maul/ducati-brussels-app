@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   resolveSalePrice, priceListChain, clientPriceListId, fromPriceListRule, fromCustomerPriceRule, fromClientPriceRule,
   type PricingRule, type PricingArticle, type ResolvedSalePrice, type PriceListRow, type PriceListRuleRow,
-  type CustomerPriceRuleRow, type ClientPriceRuleRow, type PriceKind, type PriceTier,
+  type CustomerPriceRuleRow, type ClientPriceRuleRow, type PriceKind, type PriceTier, LABOUR_PRICING_REFERENCE,
 } from './customer-pricing';
 
 // Tables hors types.ts tant que la migration n'est pas posee (types.ts n'est pas regenere a la main).
@@ -166,9 +166,10 @@ export class CustomerPricer {
 
   /**
    * `insurerPriceList` : tarif associe au cabinet d'assurance d'un OR accident (G8 : la fiche
-   * assurance porte un tarif applique automatiquement aux OR assurance). S'il designe un tarif
-   * commun connu (code ou libelle), il REMPLACE le tarif et les regles du client sur cet OR ;
-   * sinon le tarif du client s'applique comme d'habitude.
+   * assurance porte un tarif applique automatiquement aux OR assurance) : id du tarif commun
+   * (`insurance_parties.price_list_id`, migration 20261119200000) ou, a defaut, son code / libelle.
+   * S'il designe un tarif connu, il REMPLACE le tarif et les regles du client sur cet OR (T4,
+   * « A trancher ») ; sinon le tarif du client s'applique comme d'habitude.
    */
   constructor(readonly companyId: string, readonly contact: PricingContact | null, readonly insurerPriceList: string | null = null) {}
 
@@ -193,7 +194,8 @@ export class CustomerPricer {
     if (!this.active) return { rules, chain, needsSupplier: false };
     const lists = await listPriceLists(this.companyId);
     // OR accident : tarif du cabinet d'assurance, s'il designe un tarif connu.
-    const insurerListId = lists && this.insurerPriceList ? clientPriceListId({ price_list: this.insurerPriceList }, lists) : null;
+    const insurerListId = lists && this.insurerPriceList
+      ? clientPriceListId({ price_list_id: this.insurerPriceList, price_list: this.insurerPriceList }, lists) : null;
     const clientId = c?.id ?? '00000000-0000-0000-0000-000000000000';
     // 1. Regles propres au client (sauf OR accident au tarif du cabinet) et regles generales.
     const { data: cpr, error: e1 } = await supabase.from('customer_price_rules').select('*')
@@ -266,6 +268,17 @@ export class CustomerPricer {
     });
   }
 
+  /**
+   * Main-d'oeuvre sans article (ligne MO de l'OR) : meme calcul, sur les regles du client / du
+   * tarif (portee « tout le catalogue », ou reference MO_ATELIER comme l'article MO de G8).
+   */
+  async priceLabour(baseHt: number, qty = 1, date = todayIso()): Promise<ResolvedSalePrice> {
+    const article = { id: '', reference: LABOUR_PRICING_REFERENCE };
+    if (!this.active) return resolveSalePrice({ article, baseHt, qty, date, rules: [] });
+    const { rules } = await this.loadBase();
+    return resolveSalePrice({ article, baseHt, qty, date, rules, showDiscounts: this.contact?.show_discounts_pos !== false });
+  }
+
   /** Oublie ce qui est en memoire (apres « Tarifications »). */
   reset(articleId?: string) {
     if (articleId) this.perArticle.delete(articleId); else this.perArticle.clear();
@@ -285,11 +298,34 @@ export function useCustomerPricer(companyId: string, contact: PricingContact | n
   return useMemo(() => new CustomerPricer(companyId, contact, insurerPriceList), [companyId, key]);
 }
 
+/** Tarif de l'assureur d'un OR accident (T4) : tarif commun et cabinet. */
+export type InsurerTariff = { listId: string | null; code: string; label: string | null; insurerId: string | null; insurerName: string | null };
+
 /**
- * Tarif associe au cabinet d'assurance du dossier accident d'un OR (migration 20261118130000 du lot
- * garantie / accident) ; null sans dossier, sans cabinet, sans tarif ou sans la migration.
+ * Tarif du cabinet d'assurance du dossier accident d'un OR (T4) : fonction en base
+ * `repair_order_price_list` (migration 20261119200000 : l'assureur l'emporte sur le client) ;
+ * avant elle, ancien texte de la fiche cabinet. null sans dossier, sans cabinet ou sans tarif.
  */
+export async function orInsurerTariff(orId: string): Promise<InsurerTariff | null> {
+  const { data, error } = await rpcLoose('repair_order_price_list', { _or: orId });
+  if (!error) {
+    const row = ((Array.isArray(data) ? data : data ? [data] : []) as { source: string; price_list_id: string; code: string; label: string | null; insurer_id: string | null; insurer_name: string | null }[])[0];
+    return row && row.source === 'assureur'
+      ? { listId: row.price_list_id, code: row.code, label: row.label ?? null, insurerId: row.insurer_id ?? null, insurerName: row.insurer_name ?? null }
+      : null;
+  }
+  if (!isMissingObject(error)) throw error;
+  const txt = await legacyInsurerPriceList(orId);
+  return txt ? { listId: null, code: txt, label: null, insurerId: null, insurerName: null } : null;
+}
+
+/** Tarif de l'assureur a donner au pricer : id du tarif commun, sinon son code (ancien texte). */
 export async function insurerPriceListForOr(orId: string): Promise<string | null> {
+  const tariff = await orInsurerTariff(orId);
+  return tariff ? (tariff.listId ?? tariff.code) : null;
+}
+
+async function legacyInsurerPriceList(orId: string): Promise<string | null> {
   const { data, error } = await loose('accident_files').select('insurer_id').eq('repair_order_id', orId).not('insurer_id', 'is', null).limit(1);
   if (error) { if (isMissingObject(error) || error.code === 'PGRST200') return null; throw error; }
   const insurerId = ((data ?? []) as { insurer_id: string | null }[])[0]?.insurer_id;
