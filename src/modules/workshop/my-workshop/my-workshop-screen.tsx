@@ -16,14 +16,23 @@
  * Charte : tokens uniquement, statut = couleur + icone + libelle, le rouge Ducati (bouton
  * principal) reserve au geste de la moto et a « Reprendre ».
  * Rafraichissement : relecture toutes les 45 s (et au retour sur l'onglet), sans recharger la page.
+ *
+ * Choix de l'atelier (retour client du 19/11) : un administrateur ou un chef d'atelier choisit
+ * « Atelier de : moi / un compagnon du planning / Tous » (memorise dans l'adresse, `?mechanic=`).
+ * Les gestes restent ceux du compte connecte : sur la moto d'un autre, Demarrer / Reprendre /
+ * Ouvrir l'OR demandent une confirmation qui dit que le pointage sera au nom du compte connecte
+ * (pas en lecture seule : le chef d'atelier reprend ou aide sur une moto, sur une tablette
+ * partagee, sans se deconnecter ; le temps passe reste celui de la personne qui travaille, B11).
+ * Un mecanicien simple ne voit pas le selecteur.
+ * Compte relie a aucun compagnon et sans moto : un message utile au lieu d'une liste vide.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Bike, Camera, ClipboardList, FileText, Inbox, ListChecks, Loader2, Package, PackageCheck, PackageX, Pause, Play,
-  RefreshCw, RotateCcw, Square, Timer, User, Wrench,
+  Eye, Link2, RefreshCw, RotateCcw, Square, Timer, User, UserX, Users, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,8 +56,9 @@ import { statusTone } from '../planning/rules';
 import { contactLabel, motoLabel } from '../planning/ui-bits';
 import { getHomePref, loadMyDay, saveHomePref, type MyDay } from './api';
 import {
-  HOME_PREFS, MY_WORKSHOP_REFRESH_MS, afterStartTarget, cardGesture, myCurrentWork, needsReceptionFirst, partsTone,
-  photosState, photosTone, type DayCard, type Gesture, type HomePref, type MyNow, type PartsState,
+  HOME_PREFS, MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, canChooseWorkshop, cardGesture, cardOwner, chooserMechanics,
+  myCurrentWork, needsReceptionFirst, notLinkedHint, partsTone, photosState, photosTone, workshopViewParam,
+  type DayCard, type Gesture, type HomePref, type MyNow, type PartsState, type WorkshopView,
 } from './rules';
 
 const ORIGIN = 'tablet';
@@ -58,9 +68,17 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(`${getLocale()}-B
 const todayBrussels = () => brusselsParts(new Date()).date;
 
 const PARTS_ICON: Record<PartsState, typeof Package> = { none: Package, missing: PackageX, reserved: Package, prepared: PackageCheck };
+const ME_VALUE = '__me__';
 
-export function MyWorkshopScreen({ companyId }: { companyId: string }) {
-  const { user, profile } = useAuth();
+export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
+  companyId: string;
+  /** Atelier demande par l'adresse (`?mechanic=`) ; ignore pour un mecanicien simple. */
+  view?: WorkshopView;
+  onView?: (v: WorkshopView) => void;
+}) {
+  const { user, profile, rolesForActiveCompany } = useAuth();
+  const canChoose = canChooseWorkshop(rolesForActiveCompany) && !!onView;
+  const viewKey = canChoose ? workshopViewParam(view) ?? 'me' : 'me';
   const canWrite = useCanWrite();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -75,8 +93,8 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
   }, []);
 
   const day = useQuery({
-    queryKey: ['my-workshop', companyId, userId, today],
-    queryFn: () => loadMyDay({ companyId, userId: userId!, profileName: profile?.full_name ?? null, today }),
+    queryKey: ['my-workshop', companyId, userId, today, viewKey],
+    queryFn: () => loadMyDay({ companyId, userId: userId!, profileName: profile?.full_name ?? null, today, view, canChoose }),
     enabled: !!userId,
     refetchInterval: MY_WORKSHOP_REFRESH_MS,
     refetchOnWindowFocus: true,
@@ -91,6 +109,7 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
   const [reception, setReception] = useState<{ orId: string; orNumber: string | null; go: () => void } | null>(null);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
 
   const refresh = () => {
     for (const k of [['my-workshop'], ['or-work-status'], ['plan-progress'], ['repair-orders'], ['chrono-work'], ['chrono-today']]) {
@@ -151,6 +170,24 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
     onError: onErr,
   });
 
+  /** Moto d'un autre mecanicien : le pointage sera au nom du compte connecte, on le dit avant. */
+  const onCardGesture = async (card: DayCard, g: Gesture) => {
+    if (!d) return;
+    const owner = cardOwner(card, d.me, d.mechanics);
+    if (owner.foreign && g !== 'continue') {
+      const name = owner.name || t('myWorkshop.someone');
+      const meName = d.me.displayName || t('myWorkshop.meUnknown');
+      const ok = await confirm({
+        title: fill(t('myWorkshop.foreignTitle'), { name }),
+        message: fill(t('myWorkshop.foreignConfirm'), { me: meName, name })
+          + (d.me.mechanicIds.length ? '' : ` ${fill(t('myWorkshop.foreignNotLinked'), { name })}`),
+        confirmLabel: t('myWorkshop.foreignOk'),
+      });
+      if (!ok) return;
+    }
+    gesture.mutate({ card, g });
+  };
+
   // ------------------------------------------------------------------ bandeau du haut
   const now: MyNow = useMemo(() => (d ? myCurrentWork(d.myEntries, userId, d.closedOrs) : { kind: 'idle' }), [d, userId]);
   const nowCard = now.kind !== 'idle' && now.entry.or_id ? d?.cards.find((c) => c.or?.id === now.entry.or_id) ?? null : null;
@@ -198,6 +235,13 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
   if (!d) return null;
 
   const mine = d.cards.filter((c) => c.section === 'mine');
+  const others = d.view.kind !== 'me';
+  const choices = chooserMechanics(d.mechanics, d.me);
+  const mineTitle = d.view.kind === 'all' ? t('myWorkshop.viewAllTitle')
+    : d.view.kind === 'mechanic' ? fill(t('myWorkshop.viewMechanicTitle'), { name: d.viewLabel }) : t('myWorkshop.mineTitle');
+  const showNotLinked = notLinkedHint(d.view, d.me, mine.length);
+  const chooseValue = d.view.kind === 'all' ? VIEW_ALL : d.view.kind === 'mechanic' ? d.view.mechanicId : ME_VALUE;
+  const pickView = (v: string) => onView?.(v === VIEW_ALL ? { kind: 'all' } : v === ME_VALUE ? { kind: 'me' } : { kind: 'mechanic', mechanicId: v });
   const free = d.cards.filter((c) => c.section === 'unassigned');
   const nowReasons = reasons.data ?? [];
   const nowOrNumber = now.kind !== 'idle' && now.entry.or_id ? d.orNumbers.get(now.entry.or_id) ?? null : null;
@@ -219,6 +263,26 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
             {day.isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />} <span className="hidden sm:inline">{t('myWorkshop.reload')}</span>
           </Button>
         </div>
+
+        {canChoose && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label htmlFor="mw-view" className="flex items-center gap-2 text-[16px] font-bold"><Users className="size-5" aria-hidden /> {t('myWorkshop.viewLabel')}</label>
+            <Select value={chooseValue} onValueChange={pickView} open={chooserOpen} onOpenChange={setChooserOpen}>
+              <SelectTrigger id="mw-view" className="h-12 w-full text-[16px] sm:w-[320px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ME_VALUE} className="h-12 text-[16px]">{fill(t('myWorkshop.viewMe'), { name: d.me.displayName || t('myWorkshop.meUnknown') })}</SelectItem>
+                {choices.map((m) => <SelectItem key={m.id} value={m.id} className="h-12 text-[16px]">{m.name}</SelectItem>)}
+                <SelectItem value={VIEW_ALL} className="h-12 text-[16px]">{t('myWorkshop.viewAll')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {others && (
+          <p className="mt-3 flex items-start gap-2 rounded-md border border-info bg-info-bg p-3 text-[16px]" role="status">
+            <Eye className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
+            {d.view.kind === 'all' ? t('myWorkshop.viewAllNotice') : fill(t('myWorkshop.viewOtherNotice'), { name: d.viewLabel })}
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-border bg-background p-3">
           <div className="min-w-0 flex-1">
@@ -279,16 +343,32 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
       {/* ------------------------------------------------------------ mes motos du jour */}
       <section aria-labelledby="mw-mine">
         <h2 id="mw-mine" className="mb-3 flex items-center gap-2 font-display text-[20px] font-bold">
-          <Bike className="size-6" aria-hidden /> {t('myWorkshop.mineTitle')} <span className="font-data tabular-nums text-muted-foreground">({mine.length})</span>
+          <Bike className="size-6" aria-hidden /> {mineTitle} <span className="font-data tabular-nums text-muted-foreground">({mine.length})</span>
         </h2>
         {mine.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {mine.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key}
-                onGesture={(g) => gesture.mutate({ card: c, g })}
+              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
+                onGesture={(g) => { void onCardGesture(c, g); }}
                 onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
               />
             ))}
+          </div>
+        ) : showNotLinked ? (
+          <div className="flex flex-wrap items-start gap-4 rounded-md border border-warning bg-card p-5" role="status">
+            <UserX className="size-8 shrink-0 text-warning" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-[18px] font-bold">{t('myWorkshop.notLinkedTitle')}</p>
+              <p className="mt-1 text-[16px] text-muted-foreground">{canChoose ? t('myWorkshop.notLinkedAdmin') : t('myWorkshop.notLinkedMechanic')}</p>
+              {canChoose && (
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button className="h-12 text-[16px]" onClick={() => setChooserOpen(true)}><Users className="size-5" /> {t('myWorkshop.chooseWorkshop')}</Button>
+                  <Button asChild variant="outline" className="h-12 text-[16px]">
+                    <Link to="/workshop/planning" search={{ view: 'reglages' }}><Link2 className="size-5" /> {t('myWorkshop.linkAccount')}</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-card p-6 text-[17px] text-muted-foreground">
@@ -305,8 +385,8 @@ export function MyWorkshopScreen({ companyId }: { companyId: string }) {
         {free.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {free.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key}
-                onGesture={(g) => gesture.mutate({ card: c, g })}
+              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key} showOwner={false}
+                onGesture={(g) => { void onCardGesture(c, g); }}
                 onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
               />
             ))}
@@ -339,10 +419,13 @@ const GESTURE_LABEL: Record<Exclude<Gesture, 'none' | 'blocked'>, string> = {
 };
 const GESTURE_ICON = { start: Play, resume: RotateCcw, continue: ListChecks, create_or: FileText } as const;
 
-function BikeCard({ card, day, canWrite, busy, onGesture, onOpenOr }: {
+function BikeCard({ card, day, canWrite, busy, showOwner, onGesture, onOpenOr }: {
   card: DayCard; day: MyDay; canWrite: boolean; busy: boolean;
+  /** Atelier d'un autre ou de tous : a qui est la moto. */
+  showOwner: boolean;
   onGesture: (g: Gesture) => void; onOpenOr: (orId: string) => void;
 }) {
+  const owner = cardOwner(card, day.me, day.mechanics);
   const or = card.or;
   const a = card.appointment;
   const vehicle = or?.vehicles ?? a?.vehicles ?? null;
@@ -376,6 +459,9 @@ function BikeCard({ card, day, canWrite, busy, onGesture, onOpenOr }: {
       {work && <p className="mt-2 line-clamp-2 text-[16px] leading-snug">{work}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        {showOwner && owner.name && (
+          <StatusBadge tone="neutral" icon={User} className={BIG} label={fill(t('myWorkshop.ownerBadge'), { name: owner.name })} />
+        )}
         {or ? <OrStatusBadge status={or.status} className={BIG} /> : a && (
           <StatusBadge tone={statusTone(a.status)} icon={StatusIcon(a.status)} label={t(`planningG8.status_${a.status}`)} className={BIG} />
         )}

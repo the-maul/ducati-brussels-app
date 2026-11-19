@@ -54,8 +54,14 @@ export function normName(s: string | null | undefined): string {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-export type MechanicLite = { id: string; name: string; user_id: string | null; is_active?: boolean | null };
+export type MechanicLite = { id: string; name: string; user_id: string | null; is_active?: boolean | null; visible_in_planning?: boolean | null };
 export type MeIdentity = { userId: string | null; displayName: string; names: string[]; mechanicIds: string[] };
+
+/**
+ * A qui appartiennent les motos montrees : moi (identite du compte), un compagnon du planning, ou
+ * tout l'atelier (`all`). `userIds` = comptes relies (OR a leur nom par `operator_id`, pointages).
+ */
+export type WorkScope = { all?: boolean; userId?: string | null; userIds?: readonly string[]; names: readonly string[]; mechanicIds: readonly string[] };
 
 /**
  * Le mecanicien connecte : les compagnons du planning lies a son compte (`user_id`) ; a defaut,
@@ -114,15 +120,19 @@ const HIDDEN_APPOINTMENT = new Set(['annule', 'demande', 'facture']);
 const HIDDEN_OR = new Set(['facture', 'annule']);
 const isWorkable = (s: string | null | undefined) => !!s && (OR_WORKABLE_STATUSES as readonly string[]).includes(s);
 
-export function isMyAppointment(a: Pick<DayAppointment, 'mechanic_id' | 'mechanic_name' | 'unassigned'>, me: MeIdentity): boolean {
+export function isMyAppointment(a: Pick<DayAppointment, 'mechanic_id' | 'mechanic_name' | 'unassigned'>, me: WorkScope): boolean {
   if (a.unassigned) return false;
+  if (me.all) return !!a.mechanic_id || !!String(a.mechanic_name ?? '').trim();
   if (a.mechanic_id && me.mechanicIds.includes(a.mechanic_id)) return true;
   // RDV ancien ou saisi sans compagnon : le nom (repli du lot A).
   return !a.mechanic_id && !!a.mechanic_name && me.names.includes(normName(a.mechanic_name));
 }
 
-export function isMyOr(o: Pick<DayOr, 'operator' | 'operator_id'>, me: MeIdentity): boolean {
-  if (me.userId && o.operator_id === me.userId) return true;
+const scopeUserIds = (w: WorkScope): string[] => [...(w.userIds ?? []), ...(w.userId ? [w.userId] : [])];
+
+export function isMyOr(o: Pick<DayOr, 'operator' | 'operator_id'>, me: WorkScope): boolean {
+  if (me.all) return !!o.operator_id || !!String(o.operator ?? '').trim();
+  if (o.operator_id && scopeUserIds(me).includes(o.operator_id)) return true;
   return !o.operator_id && !!o.operator && me.names.includes(normName(o.operator));
 }
 
@@ -140,15 +150,28 @@ export function isUnassignedOr(o: Pick<DayOr, 'status' | 'operator' | 'operator_
  */
 export function buildDayCards(p: {
   me: MeIdentity; today: string; appointments: readonly DayAppointment[]; ors: readonly DayOr[]; myEntries: readonly WorkEntry[];
+  /** Atelier regarde (selecteur « Atelier de »), absent = le mien. */
+  scope?: WorkScope | null;
+  /** Pointages des comptes de l'atelier regarde (OR en cours / en pause chez eux). */
+  scopeEntries?: readonly WorkEntry[];
 }): DayCard[] {
   const meRef: Me = { userId: p.me.userId, code: null };
+  const scope: WorkScope = p.scope ?? p.me;
+  const scopeEntries = (p.scope ? p.scopeEntries ?? [] : p.myEntries) as WorkEntry[];
+  /** Un compte de l'atelier regarde a-t-il un pointage ouvert ou en pause sur cet OR ? */
+  const pointedInScope = (orId: string) => {
+    const users = scope.all
+      ? [...new Set(scopeEntries.filter((e) => e.or_id === orId && !e.mechanic_code && e.mechanic_id).map((e) => e.mechanic_id as string))]
+      : scopeUserIds(scope);
+    return users.some((u) => { const w = orWorkState(scopeEntries, orId, { userId: u, code: null }); return !!w.mineOpen || !!w.mineLastPaused; });
+  };
   const orById = new Map(p.ors.map((o) => [o.id, o]));
   const seen = new Set<string>();
   const cards: DayCard[] = [];
   const workOf = (orId: string) => orWorkState(p.myEntries as WorkEntry[], orId, meRef);
 
   for (const a of p.appointments) {
-    if (HIDDEN_APPOINTMENT.has(a.status) || !isTodayBrussels(a.starts_at, p.today) || !isMyAppointment(a, p.me)) continue;
+    if (HIDDEN_APPOINTMENT.has(a.status) || !isTodayBrussels(a.starts_at, p.today) || !isMyAppointment(a, scope)) continue;
     const or = a.or_id ? orById.get(a.or_id) ?? null : null;
     if (a.or_id && !or) continue; // OR facture / annule (non relu) ou d'une autre societe
     if (or && HIDDEN_OR.has(or.status)) continue;
@@ -160,8 +183,8 @@ export function buildDayCards(p: {
   for (const o of p.ors) {
     if (seen.has(o.id) || HIDDEN_OR.has(o.status)) continue;
     const work = workOf(o.id);
-    const pointed = !!work.mineOpen || !!work.mineLastPaused;
-    if (!(pointed || (isWorkable(o.status) && isMyOr(o, p.me)))) continue;
+    const pointed = p.scope ? pointedInScope(o.id) : !!work.mineOpen || !!work.mineLastPaused;
+    if (!(pointed || (isWorkable(o.status) && isMyOr(o, scope)))) continue;
     seen.add(o.id);
     cards.push({ key: `or:${o.id}`, section: 'mine', or: o, appointment: apptByOr.get(o.id) ?? null, work });
   }
@@ -174,6 +197,80 @@ export function buildDayCards(p: {
     cards.push({ key: `or:${o.id}`, section: 'unassigned', or: o, appointment: a, work: workOf(o.id) });
   }
   return sortCards(cards);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Choix de l'atelier regarde (retour client du 19/11 : « j'ai un RDV aujourd'hui, je ne le vois pas »)
+// ---------------------------------------------------------------------------------------------
+/** Roles qui choisissent l'atelier regarde (les memes que les reglages du planning). */
+export const WORKSHOP_CHOOSER_ROLES = ['admin', 'chef_atelier'] as const;
+export const canChooseWorkshop = (roles: readonly string[]) =>
+  roles.some((r) => (WORKSHOP_CHOOSER_ROLES as readonly string[]).includes(r));
+
+export type WorkshopView = { kind: 'me' } | { kind: 'mechanic'; mechanicId: string } | { kind: 'all' };
+export const VIEW_ALL = 'all' as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Valeur de l'adresse (`?mechanic=`) : `all`, l'id d'une fiche compagnon, sinon moi. */
+export function parseWorkshopView(raw: unknown): WorkshopView {
+  if (raw === VIEW_ALL) return { kind: 'all' };
+  if (typeof raw === 'string' && UUID_RE.test(raw)) return { kind: 'mechanic', mechanicId: raw.toLowerCase() };
+  return { kind: 'me' };
+}
+export const workshopViewParam = (v: WorkshopView): string | undefined =>
+  v.kind === 'all' ? VIEW_ALL : v.kind === 'mechanic' ? v.mechanicId : undefined;
+
+/**
+ * L'atelier effectivement montre : un mecanicien simple voit toujours le sien ; un compagnon
+ * inconnu (autre societe, fiche disparue) ou qui est l'une de mes fiches revient a « moi ».
+ */
+export function effectiveView(v: WorkshopView, canChoose: boolean, me: MeIdentity, mechanics: readonly MechanicLite[]): WorkshopView {
+  if (!canChoose || v.kind === 'me') return { kind: 'me' };
+  if (v.kind === 'all') return v;
+  if (me.mechanicIds.includes(v.mechanicId) || !mechanics.some((m) => m.id === v.mechanicId)) return { kind: 'me' };
+  return v;
+}
+
+/** Perimetre lu pour l'atelier montre (`null` = le mien, comportement du lot F). */
+export function viewScope(v: WorkshopView, mechanics: readonly MechanicLite[]): (WorkScope & { label: string }) | null {
+  if (v.kind === 'me') return null;
+  if (v.kind === 'all') {
+    return { all: true, label: '', names: [], mechanicIds: [], userIds: [...new Set(mechanics.map((m) => m.user_id).filter((x): x is string => !!x))] };
+  }
+  const m = mechanics.find((x) => x.id === v.mechanicId);
+  if (!m) return null;
+  return { label: m.name, names: [normName(m.name)].filter(Boolean), mechanicIds: [m.id], userIds: m.user_id ? [m.user_id] : [] };
+}
+
+/** Compagnons proposes dans le selecteur : actifs, visibles au planning, hors mes fiches, par nom. */
+export function chooserMechanics(mechanics: readonly MechanicLite[], me: MeIdentity): MechanicLite[] {
+  return mechanics.filter((m) => m.is_active !== false && m.visible_in_planning !== false && !me.mechanicIds.includes(m.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+}
+
+/**
+ * A qui est la moto, et est-ce la mienne ? « foreign » = moto de l'atelier regarde qui n'est ni
+ * a mon nom ni pointee par moi : les gestes restent permis mais demandent confirmation, car le
+ * pointage est toujours au nom du compte connecte, jamais a celui du mecanicien attribue.
+ */
+export function cardOwner(card: Pick<DayCard, 'section' | 'or' | 'appointment' | 'work'>, me: MeIdentity, mechanics: readonly MechanicLite[]): { name: string | null; foreign: boolean } {
+  const a = card.appointment;
+  const o = card.or;
+  let name: string | null = null;
+  if (a && !a.unassigned && (a.mechanic_id || a.mechanic_name)) {
+    name = mechanics.find((m) => m.id === a.mechanic_id)?.name ?? a.mechanic_name ?? null;
+  }
+  if (!name && o) {
+    name = (o.operator_id ? mechanics.find((m) => m.user_id === o.operator_id)?.name : null) ?? (String(o.operator ?? '').trim() || null);
+  }
+  if (card.section !== 'mine') return { name, foreign: false };
+  const mineByMe = (!!a && isMyAppointment(a, me)) || (!!o && isMyOr(o, me)) || !!card.work?.mineOpen || !!card.work?.mineLastPaused;
+  return { name, foreign: !mineByMe };
+}
+
+/** Un message a la place de la liste vide : compte relie a aucun compagnon et aucune moto. */
+export function notLinkedHint(view: WorkshopView, me: MeIdentity, mineCount: number): boolean {
+  return view.kind === 'me' && me.mechanicIds.length === 0 && mineCount === 0;
 }
 
 /** Rang d'une carte : en cours, en pause, a faire / a l'heure du RDV, puis terminees (pret). */

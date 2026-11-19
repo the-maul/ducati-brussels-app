@@ -7,6 +7,8 @@
  *     pointages des 14 derniers jours ;
  *  2. pour les OR retenus : etat de travail (vue du lot A), avancement (vue du lot D), photos de
  *     reception (lot C), reservations et picking list (lot B).
+ * Atelier regarde (selecteur « Atelier de », administrateur et chef d'atelier) : `view` ; pour un
+ * autre compagnon ou tout l'atelier, une requete de plus relit les pointages de leurs comptes.
  * Ecritures : aucune ici. Les gestes passent par les fonctions existantes (pointage du lot A,
  * ouverture de l'OR depuis le RDV du planning, serie de photos du lot C).
  * Page d'accueil : colonne `profiles.home_page` (migration 20261119290000, non appliquee) ;
@@ -21,9 +23,9 @@ import type { ReceptionStatus } from '../reception/rules';
 import type { PlanningAppointment } from '../planning/api';
 import { OR_WORKABLE_STATUSES } from '../or-base/rules';
 import {
-  MY_ENTRIES_DAYS, buildDayCards, isHomePref, myIdentity, partsSummary,
+  MY_ENTRIES_DAYS, buildDayCards, effectiveView, isHomePref, myIdentity, partsSummary, viewScope,
   type DayAppointment, type DayCard, type DayOr, type HomePref, type MechanicLite, type MeIdentity, type MyEntry,
-  type PartsSummary, type ReservationLite,
+  type PartsSummary, type ReservationLite, type WorkshopView,
 } from './rules';
 
 type LooseResult = { data: unknown; error: { message: string; code?: string } | null };
@@ -65,6 +67,10 @@ export type MyDayAppointment = DayAppointment & PlanningAppointment;
 
 export type MyDay = {
   me: MeIdentity;
+  /** Atelier effectivement montre (moi si le compte ne peut pas choisir ou si le choix est inconnu). */
+  view: WorkshopView;
+  /** Nom du compagnon regarde (vide pour moi et pour tout l'atelier). */
+  viewLabel: string;
   mechanics: MechanicLite[];
   cards: DayCard[];
   myEntries: MyEntry[];
@@ -91,13 +97,16 @@ async function listOrs(companyId: string, extraIds: string[]): Promise<DayOr[]> 
 }
 
 /** Tout ce que l'ecran affiche, pour le mecanicien connecte et le jour `today` (AAAA-MM-JJ, Bruxelles). */
-export async function loadMyDay(p: { companyId: string; userId: string; profileName: string | null; today: string; now?: Date }): Promise<MyDay> {
+export async function loadMyDay(p: {
+  companyId: string; userId: string; profileName: string | null; today: string; now?: Date;
+  view?: WorkshopView; canChoose?: boolean;
+}): Promise<MyDay> {
   const now = p.now ?? new Date();
   const from = new Date(now.getTime() - 36 * 3_600_000).toISOString();
   const to = new Date(now.getTime() + 36 * 3_600_000).toISOString();
   const since = new Date(now.getTime() - MY_ENTRIES_DAYS * 86_400_000).toISOString();
   const [mechR, apptR, entryR, openR, pointageReady, receptionReady, reservationReady] = await Promise.all([
-    loose.from('workshop_mechanics').select('id, name, user_id, is_active').eq('company_id', p.companyId).limit(200),
+    loose.from('workshop_mechanics').select('id, name, user_id, is_active, visible_in_planning').eq('company_id', p.companyId).limit(200),
     loose.from('workshop_appointments').select(APPT_COLS).eq('company_id', p.companyId)
       .gte('starts_at', from).lt('starts_at', to).neq('status', 'annule').order('starts_at').limit(300),
     loose.from('workshop_time_entries').select(ENTRY_COLS).eq('company_id', p.companyId).eq('mechanic_id', p.userId)
@@ -113,12 +122,23 @@ export async function loadMyDay(p: { companyId: string; userId: string; profileN
   const appointments = rows<MyDayAppointment>(apptR);
   const entries = [...rows<MyEntry>(entryR), ...rows<MyEntry>(openR)];
   const me = myIdentity(p.userId, p.profileName, mechanics);
+  const view = effectiveView(p.view ?? { kind: 'me' }, !!p.canChoose, me, mechanics);
+  const scope = viewScope(view, mechanics);
+  // Atelier d'un autre : les pointages de ses comptes (OR en cours / en pause chez lui).
+  const otherUsers = (scope?.userIds ?? []).filter((u) => u !== p.userId);
+  const scopeEntries: MyEntry[] = scope ? [...entries] : [];
+  if (scope && otherUsers.length) {
+    const r = await loose.from('workshop_time_entries').select(ENTRY_COLS).eq('company_id', p.companyId).in('mechanic_id', otherUsers)
+      .or(`started_at.gte.${since},ended_at.is.null`).order('started_at', { ascending: false }).limit(600);
+    scopeEntries.push(...rows<MyEntry>(r));
+  }
   const linkedOrIds = [...new Set([
     ...appointments.map((a) => a.or_id),
     ...entries.map((e) => e.or_id),
+    ...scopeEntries.map((e) => e.or_id),
   ].filter((x): x is string => !!x))].slice(0, 150);
   const ors = await listOrs(p.companyId, linkedOrIds);
-  const cards = buildDayCards({ me, today: p.today, appointments, ors, myEntries: entries });
+  const cards = buildDayCards({ me, today: p.today, appointments, ors, myEntries: entries, scope, scopeEntries });
 
   const orIds = cards.map((c) => c.or?.id).filter((x): x is string => !!x);
   const apptIds = cards.filter((c) => !c.or && c.appointment).map((c) => c.appointment!.id);
@@ -167,7 +187,7 @@ export async function loadMyDay(p: { companyId: string; userId: string; profileN
   // Un pointage sur un OR non relu (facture, annule) ne se reprend pas non plus.
   for (const e of entries) if (e.or_id && !ors.some((o) => o.id === e.or_id)) closedOrs.add(e.or_id);
   return {
-    me, mechanics, cards, myEntries: entries, closedOrs,
+    me, view, viewLabel: scope?.label ?? '', mechanics, cards, myEntries: entries, closedOrs,
     orNumbers: new Map(ors.map((o) => [o.id, o.number])),
     workStatus, progress, reception, parts, pointageReady, receptionReady,
   };
