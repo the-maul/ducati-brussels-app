@@ -24,6 +24,8 @@ export type OrPdfLabels = {
   totalHt: string; totalVat: string; totalTtc: string;
   depositTitle: string; depositText: string; signClient: string; signReception: string; date: string;
   doneTitle: string; mechanic: string; timeSpent: string; page: string; none: string;
+  /** Acompte verse (decision Q45 du 18/11) : imprime sur l'OR, chiffre ou non. */
+  advance: string;
   checkLabels: Record<string, string>;
 };
 
@@ -37,6 +39,8 @@ export type OrPdfData = {
   lines: PrintLineIn[];
   client: { name: string; address: string; phone: string | null; email: string | null } | null;
   vehicle: { brandModel: string; reference: string | null; plate: string | null; vin: string | null } | null;
+  /** Acompte net percu sur l'OR (decision Q45 du 18/11) ; 0 / null = pas de ligne. */
+  deposit?: number | null;
 };
 
 const money = (n: number | null) => (n == null ? '' : `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} EUR`);
@@ -230,6 +234,18 @@ export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdf
     }
   };
 
+  /** Acompte verse (decision Q45) : sur l'OR remis au client, meme non chiffre. */
+  const advance = () => {
+    const a = Number(data.deposit ?? 0);
+    if (!(Math.abs(a) >= 0.005)) return;
+    ensure(LH + 3);
+    font(PDF_FONT.body, true); ink(PDF_COLORS.ink);
+    doc.text(L.advance, W - M - 60, y + 3);
+    doc.text(money(a), W - M - 2, y + 3, { align: 'right' });
+    font(PDF_FONT.body);
+    y += LH + 3;
+  };
+
   const deposit = () => {
     font(PDF_FONT.small);
     const text = doc.splitTextToSize(L.depositText, W - 2 * M - 4);
@@ -277,6 +293,7 @@ export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdf
     block(L.reception, data.or.reception_notes);
     checkedPoints();
     linesTable(opts.priced);
+    advance();
     deposit();
   }
   if (parts.fiche) {

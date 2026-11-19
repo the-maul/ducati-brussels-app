@@ -43,6 +43,7 @@ import { getContact, contactDisplayName, type Contact } from '@/modules/contacts
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { OrStatusBadge } from '@/modules/workshop/or-base/or-status-badge';
 import { OrPrintDialog } from '@/modules/workshop/or-base/print-dialog';
+import { OrDepositPanel } from '@/modules/workshop/or-base/deposit-panel';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
 import { canNotifyReady, canStartOr } from '@/modules/workshop/or-base/rules';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
@@ -355,6 +356,10 @@ function OrView() {
           />
         ) : null}
       />
+      {/* Acompte sur l'OR (decision Q45 du 18/11, comme G8) : le mecanisme de l'acompte de vente. */}
+      <div className="mt-6">
+        <OrDepositPanel companyId={activeCompanyId!} or={{ id: or.id, status: or.status, contact_id: or.contact_id, vehicle_id: or.vehicle_id, total_ttc: Number(or.total_ttc) }} />
+      </div>
       {(serviceCode || isMaintenanceReasonCode(reasonCode)) && or.status !== 'annule' && (
         <div className="mt-6">
           <ReservedPartsBlock orId={orId} serviceCode={serviceCode} readOnly={invoiced} />
