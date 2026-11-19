@@ -18,6 +18,7 @@
 -- CE QUE FAIT CETTE MIGRATION
 --   1. vehicles_maintenance_upcoming : un appel interne (pg_cron, cle de service : pas d'utilisateur)
 --      est accepte ; un utilisateur doit toujours etre membre. -> la planification des relances marche.
+--      followups_daily ignore les societes de test (ItalTest) : aucune relance n'y est jamais planifiee.
 --   2. _cron_appointment_reminders : date et heure de BRUXELLES (avant : UTC, 1 h ou 2 h de decalage
 --      dans le texte du mail, et « demain » calcule en UTC).
 --   3. automation_settings (une ligne par societe) : boite partagee d'envoi des mails automatiques
@@ -48,6 +49,11 @@
 -- d'impayes), 20261118250000 (transfert comptable). Societe de test : lot ItalTest
 -- (public.is_test_company) lu s'il existe, via _sms_is_test_company.
 -- =====================================================================
+
+-- Index sur notifications, contrainte sur receivable_settings : verrous de table. Si une autre
+-- transaction longue (essai a blanc concurrent, copie ItalTest) les tient, on echoue au bout de 45 s
+-- avec un message clair (lock timeout) au lieu d'attendre jusqu'a la coupure de la passerelle (524).
+set local lock_timeout = '45s';
 
 -- ---------------------------------------------------------------------
 -- 1. Planification des relances d'entretien : la tache pg_cron n'a pas d'utilisateur
@@ -100,6 +106,26 @@ begin
 end $fn$;
 revoke all on function public.vehicles_maintenance_upcoming(uuid, integer) from public, anon;
 grant execute on function public.vehicles_maintenance_upcoming(uuid, integer) to authenticated, service_role;
+
+-- Tache quotidienne (pg_cron `followups-plan`) : JAMAIS de relance planifiee pour une societe de
+-- test (lot ItalTest : copie des motos et des echeances d'ITALBIKE). Avant : toutes les societes.
+create or replace function public.followups_daily()
+returns table(company_id uuid, planned integer, updated integer, cancelled integer, to_call integer)
+language plpgsql security definer set search_path = public, pg_temp as $fn$
+declare c record; p record; _j int;
+begin
+  if auth.uid() is not null then
+    raise exception 'followups_daily: reservee a la tache planifiee' using errcode = '42501';
+  end if;
+  for c in select x.id from public.companies x where not public._sms_is_test_company(x.id) order by x.created_at loop
+    select * into p from public.followups_plan(c.id);
+    _j := public.followups_j5(c.id);
+    company_id := c.id; planned := p.planned; updated := p.updated; cancelled := p.cancelled; to_call := _j;
+    return next;
+  end loop;
+end $fn$;
+revoke all on function public.followups_daily() from public, anon, authenticated;
+grant execute on function public.followups_daily() to service_role;
 
 -- ---------------------------------------------------------------------
 -- 2. Rappel de RDV par mail : heure de Bruxelles (bug signale par le lot SMS)
@@ -472,7 +498,8 @@ returns jsonb language sql immutable set search_path = public, pg_temp as $$
 $$;
 
 -- Tout ce qui sort, dans l'ordre d'affichage. Reserve aux administrateurs.
-create or replace function public.production_overview(_company uuid)
+-- _with_crons = false : sans les taches pg_cron (production_apply relit les etats plusieurs fois).
+create or replace function public.production_overview(_company uuid, _with_crons boolean default true)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
   _items jsonb := '[]'::jsonb;
@@ -578,13 +605,18 @@ begin
   _items := _items || public._mep_item('stripe', 'payment', case when _flag then 'actif' else 'non_utilise' end,
     array['not_used'], false);
 
-  -- Taches pg_cron (lecture) : etat et derniere execution.
+  -- Taches pg_cron (lecture) : etat et derniere execution. cron.job_run_details n'a pas d'index par
+  -- tache (100 000 lignes en prod le 19/11) : UN seul passage (derniere execution = plus grand runid,
+  -- cle primaire), puis jointure par cle primaire. Avant : un tri complet par tache, ~0,5 s par appel.
   begin
     for _r in
+      with last as (select x.jobid, max(x.runid) as runid from cron.job_run_details x
+                     where _with_crons group by x.jobid)
       select j.jobname, j.schedule, j.active, d.status, d.start_time, left(d.return_message, 300) as message
         from cron.job j
-        left join lateral (select x.status, x.start_time, x.return_message from cron.job_run_details x
-                            where x.jobid = j.jobid order by x.start_time desc limit 1) d on true
+        left join last l on l.jobid = j.jobid
+        left join cron.job_run_details d on d.runid = l.runid
+       where _with_crons
        order by j.jobname
     loop
       _crons := _crons || jsonb_build_object('jobname', _r.jobname, 'schedule', _r.schedule, 'active', _r.active,
@@ -605,8 +637,8 @@ begin
                                from public.integration_status s where s.company_id = _company), '{}'::jsonb),
     'items', _items, 'crons', _crons);
 end $$;
-revoke all on function public.production_overview(uuid) from public, anon;
-grant execute on function public.production_overview(uuid) to authenticated;
+revoke all on function public.production_overview(uuid, boolean) from public, anon;
+grant execute on function public.production_overview(uuid, boolean) to authenticated;
 
 -- Demarrer (start -> Actif), passer en test, ou mettre en pause (pause -> Arrete) une selection.
 -- Tout ou rien : un element refuse annule l'appel entier (rien n'est change). Une ligne `events`
@@ -631,7 +663,7 @@ begin
     raise exception 'MEP_TEST_COMPANY' using errcode = '22023';
   end if;
 
-  _ov := public.production_overview(_company);
+  _ov := public.production_overview(_company, false);
   _target := case _action when 'start' then 'actif' when 'test' then 'test' else 'arrete' end;
 
   -- 1. Controle de TOUTE la selection avant de changer quoi que ce soit.
@@ -658,7 +690,7 @@ begin
   -- 2. Application, par l'interrupteur existant de chaque module.
   foreach _k in array _order loop
     continue when not (_k = any(_keys));
-    select x.v ->> 'mode' into _old from jsonb_array_elements(public.production_overview(_company) -> 'items') as x(v) where x.v ->> 'key' = _k;
+    select x.v ->> 'mode' into _old from jsonb_array_elements(public.production_overview(_company, false) -> 'items') as x(v) where x.v ->> 'key' = _k;
     _new := _target;
     if _k = 'shopify_stock' then
       perform public.shopify_sync_set_mode(_company, case _target when 'actif' then 'tous' else 'arrete' end);
@@ -694,7 +726,7 @@ begin
     elsif _k = 'stripe' then
       update public.stripe_settings set enabled = false, updated_at = now(), updated_by = auth.uid() where company_id = _company;
     end if;
-    select x.v ->> 'mode' into _new from jsonb_array_elements(public.production_overview(_company) -> 'items') as x(v) where x.v ->> 'key' = _k;
+    select x.v ->> 'mode' into _new from jsonb_array_elements(public.production_overview(_company, false) -> 'items') as x(v) where x.v ->> 'key' = _k;
     insert into public.events (company_id, actor_id, action, entity_type, entity_id, origin, old_data, new_data)
     values (_company, auth.uid(), 'production_switch', 'production', _k, 'screen',
             jsonb_build_object('mode', _old), jsonb_build_object('mode', _new, 'action', _action));
@@ -709,7 +741,7 @@ revoke all on function public._mep_item(text, text, text, text[], boolean, jsonb
 revoke all on function public._mail_switch_key(text) from public, anon, authenticated;
 grant execute on function public.automation_default_mode(text) to authenticated, service_role;
 
-comment on function public.production_overview(uuid) is
+comment on function public.production_overview(uuid, boolean) is
   'Mise en production (19/11/2026) : tout ce qui sort (connexions, automatismes, taches pg_cron), etat, ce qui manque. Administrateurs.';
 comment on function public.production_apply(uuid, text[], text) is
   'Mise en production : start (Actif) | test | pause (Arrete) d une selection, par les interrupteurs de chaque module. Tout ou rien, trace events production_switch.';

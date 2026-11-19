@@ -158,6 +158,8 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
   échoue CHAQUE JOUR depuis le 31/10 (20/20) : `vehicles_maintenance_upcoming` refusait l'appel sans jeton
   (« Accès refusé à la société ») ; table `followups` vide, donc `followups-send` n'avait jamais rien à envoyer à
   l'adresse de test. Corrigé (migration 20261119220000 : appel interne accepté, utilisateur toujours contrôlé).
+  `followups_daily` ignore désormais les sociétés de test (ItalTest copie les 2 867 échéances d'ITALBIKE) :
+  aucune relance n'y est jamais planifiée par la tâche de 6 h.
   À la première planification : environ 129 relances (source `dcs_extract`, « plan » toujours exclu), dont ~28
   dues tout de suite → ~28 mails de TEST à l'adresse de test le premier matin.
 - **File `notifications`, mails** : `dispatch-notifications` envoie désormais par **Microsoft Graph** (Resend

@@ -31,7 +31,7 @@ select 'droits : claim / result / presence des secrets non executables par un ut
              and not has_function_privilege('authenticated', 'public.integration_status_record(uuid, jsonb)', 'EXECUTE')
              and not has_function_privilege('authenticated', 'public.automation_companies_off(text)', 'EXECUTE')
              and not has_function_privilege('anon', 'public.vehicles_maintenance_upcoming(uuid, integer)', 'EXECUTE')
-             and not has_function_privilege('anon', 'public.production_overview(uuid)', 'EXECUTE')
+             and not has_function_privilege('anon', 'public.production_overview(uuid, boolean)', 'EXECUTE')
             then 'ok' else 'KO' end;
 
 -- ------------------------------------------------------------ 2. cause du « jamais rien recu »
@@ -52,6 +52,12 @@ select 'relances d''entretien : des relances sont planifiees (sources fiables se
              and not exists (select 1 from public.followups where company_id = (select v::uuid from _ctx where k = 'company')
                               and status = 'planifiee' and source = 'plan')
             then 'ok' else 'KO ' || (select count(*)::text from public.followups) end;
+
+insert into _t(check_name, result)
+select 'relances d''entretien : aucune relance planifiee pour une societe de test (ItalTest)',
+       case when not exists (select 1 from public.followups f where public._sms_is_test_company(f.company_id)
+                              and f.created_at > now() - interval '10 minutes')
+            then 'ok' else 'KO ' || (select count(*)::text from public.followups f where public._sms_is_test_company(f.company_id)) end;
 
 do $$
 begin
