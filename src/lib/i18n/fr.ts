@@ -9,6 +9,7 @@ import { g8aFr } from './g8-articles';
 import { smsFr } from './sms';
 import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
+import { orLisibleFr } from './or-lisible';
 import { productionFr } from './production';
 
 export const fr = {
@@ -9418,6 +9419,8 @@ export const fr = {
   planOps: planOpsFr,
   // Parcours mecanicien, lot F (19/11/2026) : ecran tablette « Mon atelier ».
   myWorkshop: myWorkshopFr,
+  // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
+  orLisible: orLisibleFr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

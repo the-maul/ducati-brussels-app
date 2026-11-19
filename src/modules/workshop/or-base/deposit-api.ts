@@ -12,11 +12,16 @@
 import { supabase } from '@/integrations/supabase/client';
 
 type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
-const rpc = supabase.rpc as unknown as Rpc;
+// `.bind` obligatoire : `supabase.rpc` detache de son client leve « Cannot read properties of undefined
+// (reading 'rest') » a chaque appel (bug trouve le 19/11 : le panneau concluait « migration absente »).
+const rpc = supabase.rpc.bind(supabase) as unknown as Rpc;
 
 /** Fonction / colonne inconnue de la base (migration pas encore posee). */
+// Lot « OR lisible » (19/11) : seuls les codes « fonction / colonne inconnue » disent que la migration
+// manque. Avant, tout message citant repair_order_deposit (droit refuse, etc.) etait pris pour une
+// migration absente.
 export const isMissingDepositSchema = (e: { code?: string; message?: string } | null | undefined): boolean =>
-  !!e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42703' || /repair_order_deposit/.test(e.message ?? ''));
+  !!e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42703');
 
 export type OrDeposit = { documentId: string; number: string | null; status: string; amount: number };
 

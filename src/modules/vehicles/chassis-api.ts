@@ -33,7 +33,7 @@ export type NewChassisInput = {
 
 /** « Nouv. chassis » de G8 : fiche moto + entree de stock de 1 sur le modele, en une transaction. */
 export async function addModelChassis(articleId: string, c: NewChassisInput): Promise<string> {
-  const loose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
+  const loose = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
   const { data, error } = await loose('vehicle_chassis_receive', {
     _article: articleId,
     _chassis: {

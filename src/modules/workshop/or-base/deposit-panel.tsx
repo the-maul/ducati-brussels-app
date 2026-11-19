@@ -45,8 +45,19 @@ export function OrDepositPanel({ companyId, or, readOnly = false }: {
   });
 
   if (depQ.isLoading) return null;
-  // Migration 20261119191000 absente : on le dit, sans bloquer l'OR.
-  if (depQ.data === undefined) return <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('orBase.deposit_migrationMissing')}</p>;
+  // Lot « OR lisible » (19/11) : une erreur de lecture n'est PAS une migration absente (avant, toute
+  // erreur affichait « migration 20261119191000 à appliquer », alors qu'elle l'etait : l'appel
+  // `supabase.rpc` detache de son client levait une TypeError, voir deposit-api.ts). Erreur : message
+  // metier + Reessayer ; migration vraiment absente : rien (pas de message technique au client).
+  if (depQ.isError) {
+    return (
+      <p className="flex flex-wrap items-center gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+        <Wallet className="size-4" aria-hidden /> {t('orLisible.depositUnavailable')}
+        <Button size="sm" variant="ghost" className="h-7" onClick={() => void depQ.refetch()}>{t('orLisible.retry')}</Button>
+      </p>
+    );
+  }
+  if (depQ.data === undefined) return null;
 
   const closed = or.status === 'facture' || or.status === 'annule' || dep?.status === 'converti';
   const doc = docQ.data?.doc ?? null;

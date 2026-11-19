@@ -201,7 +201,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         // Temps MO (migration 20261118110000) : repris tel quel, renvoyé à l'enregistrement.
         ...(l.kind === 'mo' ? lineTimeOf(l) : {}),
       }))
-      : [blankLine()];
+      // Lot OR lisible (19/11) : OR existant sans ligne = tableau vide (plus de ligne fantome
+      // « Piece 0,00 € ») ; un nouvel OR garde une ligne prete a saisir.
+      : initial ? [] : [blankLine()];
   });
   // Fenêtre « Gestion du temps atelier » (ligne MO) et codes mécano (Paramètres → Tables).
   const [timeKey, setTimeKey] = useState<string | null>(null);
@@ -423,9 +425,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       ...blankLine(), article_id: article.id, designation: article.designation, quantity,
       ...articleLinePrice(microficheToSaleArticle(article), { effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp) }),
     }));
-    return [...keep, ...added].length ? [...keep, ...added] : [blankLine()];
+    return [...keep, ...added];
   });
-  const removeLine = (k: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== k) : ls));
+  const removeLine = (k: string) => setLines((ls) => ls.filter((l) => l._key !== k));
   const classicInputs = lines.filter((l) => l.designation.trim() || l.article_id).map(({ _key, ...l }) => l);
   const cardLines = cardsToLines(cards.filter((c) => c.label.trim() || c.parts.length), rate);
   const totals = computeRoTotals([...classicInputs, ...cardLines], warrantyStatus);
@@ -632,6 +634,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             <Th className="w-24 text-right">{t('workshop.colLineHt')}</Th><Th className="w-20 text-center">{t('workshop.warrantyLine')}</Th><Th className="w-20" />
           </tr></thead>
           <tbody>
+            {lines.length === 0 && (
+              <tr><td colSpan={9} className="px-3 py-3 font-ui text-[13px] text-muted-foreground">{t('orLisible.linesEmpty')}</td></tr>
+            )}
             {lines.map((l) => {
               const covered = lineCoveredByWarranty(l, warrantyStatus);
               const rerouted = lineReroutedToClient(l, warrantyStatus);

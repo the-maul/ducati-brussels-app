@@ -39,8 +39,10 @@ export function serviceLabel(code: string | null | undefined): string | null {
   return isServiceCode(code) ? t(serviceLabelKey(code)) : null;
 }
 
-export function ReservedPartsBlock({ appointmentId = null, orId = null, serviceCode = null, readOnly = false }: {
+export function ReservedPartsBlock({ appointmentId = null, orId = null, serviceCode = null, readOnly = false, compactWhenEmpty = false }: {
   appointmentId?: string | null; orId?: string | null;
+  /** Lot « OR lisible » (19/11) : rien a montrer → une ligne d'aide (fiche OR). */
+  compactWhenEmpty?: boolean;
   /** Entretien choisi connu de l'appelant (affiche en tete). */
   serviceCode?: string | null;
   /** OR facture / annule : pas de bouton. */
@@ -64,6 +66,21 @@ export function ReservedPartsBlock({ appointmentId = null, orId = null, serviceC
   const label = serviceLabel(serviceCode);
   const rows = list.data ?? [];
 
+  if (compactWhenEmpty && (schema.data === false || (schema.data === true && list.isSuccess && rows.length === 0))) {
+    if (schema.data === false) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground">
+        <Wrench className="size-4 shrink-0" aria-hidden />
+        <span className="font-bold text-foreground">{t('orLisible.reservedNone')}</span>
+        <span className="min-w-0 flex-1">{label ? `${label} · ` : ''}{t('orLisible.reservedNoneHint')}</span>
+        {!readOnly && (
+          <Button size="sm" variant="ghost" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            {sync.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('reservation.sync')}
+          </Button>
+        )}
+      </div>
+    );
+  }
   return (
     <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <div className="mb-2 flex flex-wrap items-center gap-2">

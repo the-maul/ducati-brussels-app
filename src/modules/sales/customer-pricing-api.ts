@@ -17,7 +17,7 @@ import {
 // Tables hors types.ts tant que la migration n'est pas posee (types.ts n'est pas regenere a la main).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const loose = (table: string): any => (supabase.from as unknown as (t: string) => unknown)(table);
-const rpcLoose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
+const rpcLoose = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
 
 /** Table / colonne / fonction absente : migration pas encore appliquee. */
 export function isMissingObject(e: { code?: string; message?: string } | null | undefined): boolean {

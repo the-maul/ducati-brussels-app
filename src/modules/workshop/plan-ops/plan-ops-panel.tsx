@@ -219,10 +219,11 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
     if (po.loading) return <div className="mb-4 flex items-center gap-2 text-[13px] text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t('planOps.loading')}</div>;
     if (!st || st === 'no_service') return null;
     return (
-      <section className="mb-4 rounded-md border border-border bg-card p-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('planOps.title')}</p>
-        <p className="mt-1 text-[14px] text-muted-foreground">{t(`planOps.empty_${st}`)}</p>
-      </section>
+      <p className="mb-3 flex flex-wrap items-center gap-x-2 rounded-md border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground">
+        <ListChecks className="size-4 shrink-0" aria-hidden />
+        <span className="font-bold text-foreground">{t('planOps.title')}</span>
+        <span>{t(`planOps.empty_${st}`)} {t('orLisible.planNoneHint')}</span>
+      </p>
     );
   }
   const first = po.ops[0];
@@ -246,7 +247,7 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
         </div>
         <div className="flex flex-wrap gap-2">
           {po.canFinish && (
-            <Button className="h-12 min-w-[150px] text-[15px]" disabled={po.finish.isPending} onClick={() => setFinishOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-[150px] text-[15px]" disabled={po.finish.isPending} onClick={() => setFinishOpen(true)}>
               <ClipboardCheck /> {t('planOps.finish')}
             </Button>
           )}

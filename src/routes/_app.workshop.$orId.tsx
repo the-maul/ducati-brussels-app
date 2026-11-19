@@ -1,23 +1,24 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing, Play } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing, ChevronDown, ChevronUp, MoreHorizontal, Paperclip, PackagePlus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useConfirm } from '@/components/confirm-provider';
+import { listAttachments } from '@/modules/documents/ged-api';
 import { createRepairQuoteFromOr, duplicateRepairOrder } from '@/modules/workshop/or-copy';
 import { PageHeader } from '@/components/layout/page-header';
-import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getRepairOrderFull } from '@/modules/workshop/api';
 import { orWorkedMinutes } from '@/modules/workshop/chrono-api';
-import { updateRepairOrder, transformToInvoice, checkupSchemaReady, startRepairOrder, type RoInput } from '@/modules/workshop/write-api';
+import { updateRepairOrder, transformToInvoice, checkupSchemaReady, type RoInput } from '@/modules/workshop/write-api';
 import { OrEditor, type OrPayload, type OrEditorIntent } from '@/modules/workshop/or-editor';
 import { openAccidentFile, accidentSchemaReady, findAccidentFileFor, getAccidentFile } from '@/modules/workshop/accident/api';
 import { AccidentStatusBadge } from '@/modules/workshop/accident/accident-file-screen';
 import { AccidentInsurancePanel } from '@/modules/workshop/accident/insurance-panel';
 import { insuranceSchemaReady } from '@/modules/workshop/accident/insurance-api';
-import { WarrantyStatusBadge } from '@/modules/workshop/warranty/warranty-views';
-import { ensureAccidentFileForOr } from '@/modules/workshop/or-page-api';
+import { ensureAccidentFileForOr, listVehicleOrs } from '@/modules/workshop/or-page-api';
 import { isAccidentOr } from '@/modules/workshop/or-page-rules';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { openPickingForRepairOrder } from '@/modules/workshop/kits/api';
@@ -25,7 +26,7 @@ import { OrderFromWorkshopDialog } from '@/modules/workshop/kits/order-from-work
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
 import { BasketFromWorkshopDialog } from '@/modules/purchases/basket-from-workshop-dialog';
-import { ProposalAddButton } from '@/modules/purchases/proposal-add-dialog';
+import { ProposalAddDialog } from '@/modules/purchases/proposal-add-dialog';
 import { ReservedPartsBlock } from '@/modules/workshop/reservations/reserved-parts-block';
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
@@ -42,19 +43,18 @@ import { getDocumentFull, type DocumentFull } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { OrStatusBadge } from '@/modules/workshop/or-base/or-status-badge';
+import { OrProgressBanner } from '@/modules/workshop/or-base/or-progress-banner';
+import { openSiblings } from '@/modules/workshop/or-base/progress-rules';
 import { OrPrintDialog } from '@/modules/workshop/or-base/print-dialog';
 import { OrDepositPanel } from '@/modules/workshop/or-base/deposit-panel';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
-import { canNotifyReady, canStartOr } from '@/modules/workshop/or-base/rules';
-import { ReadySmsLine } from '@/modules/crm/sms-queue';
-import { OrWorkControls } from '@/modules/workshop/pointage/work-controls';
-import { pointageSchemaReady } from '@/modules/workshop/pointage/api';
+import { canNotifyReady } from '@/modules/workshop/or-base/rules';
 import { loadJourney } from '@/modules/workshop/journey/store';
-import { ReceptionPanel, ReceptionSheet, useReception } from '@/modules/workshop/reception/reception-sheet';
-import { shouldPromptReception } from '@/modules/workshop/reception/rules';
+import { ReceptionPanel, ReceptionSheet } from '@/modules/workshop/reception/reception-sheet';
 import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
 import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
   head: () => ({ meta: [{ title: pageTitle('workshopOr') }] }),
@@ -72,6 +72,9 @@ function OrView() {
   const [error, setError] = useState<string | null>(null);
   const [orderOpen, setOrderOpen] = useState(false);
   const [basketOpen, setBasketOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [gedOpen, setGedOpen] = useState(false);
+  const confirm = useConfirm();
   const [verbalOpen, setVerbalOpen] = useState(false);
   const [mail, setMail] = useState<ProposalMail | null>(null);
   const [deferredStep, setDeferredStep] = useState<DeferredIntervention[] | null>(null);
@@ -87,14 +90,19 @@ function OrView() {
   const partsPopupDone_ = useCallback(() => setPartsPopupDone(true), []);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
-  // Lot A parcours mecanicien (19/11) : un seul chrono, Demarrer / Pause / Reprendre / Terminer.
-  const pointageSchema = useQuery({ queryKey: ['pointage-schema'], queryFn: pointageSchemaReady, staleTime: Infinity });
-  const pointageOn = pointageSchema.data === true;
   // Parcours deja commence : le bouton devient « Reprendre le parcours » (etape, cases cochees).
   const savedJourney = useQuery({ queryKey: ['journey-saved', orId], queryFn: () => loadJourney(orId) });
-  // Lot C parcours mecanicien (19/11) : serie de photos de reception (fiche OR, et avant « Demarrer »).
-  const reception = useReception(orId, activeCompanyId);
+  // Lot C parcours mecanicien (19/11) : serie de photos de reception. Lot « OR lisible » : ouverte par le
+  // gros bouton « Prendre les photos » du bandeau ; a la fin, retour a l'OR, etape cochee, bouton « Demarrer ».
   const [receptionOpen, setReceptionOpen] = useState<{ startMode: boolean; go?: () => void } | null>(null);
+  // Autres OR ouverts de la meme moto (essai du 19/11 : photos et chrono partis sur un ancien OR).
+  const vehicleOrs = useQuery({
+    queryKey: ['vehicle-ors', activeCompanyId, data?.or.vehicle_id ?? null],
+    enabled: !!activeCompanyId && !!data?.or.vehicle_id,
+    queryFn: () => listVehicleOrs(activeCompanyId!, data!.or.vehicle_id!),
+  });
+  // GED repliee : le nombre de documents suffit a l'ouverture.
+  const ged = useQuery({ queryKey: ['attachments', 'repair_order', orId], queryFn: () => listAttachments('repair_order', orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   // Reservation des pieces au RDV (mission 10, carte 6) : en base, elle remplace le popup et la commande de pieces.
   const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
@@ -147,13 +155,6 @@ function OrView() {
     }
   };
 
-  // Decision Q43 (18/11) : « Demarrer » passe l'OR en cours (le premier pointage le fait aussi).
-  const start = useMutation({
-    mutationFn: () => startRepairOrder(orId),
-    meta: { success: false },
-    onSuccess: () => { toast.success(t('orBase.started')); refresh(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
-  });
   const save = useMutation({
     mutationFn: async (p: OrPayload) => { await updateRepairOrder(orId, toInput(p)); await ensureAccident(p); },
     onSuccess: refresh,
@@ -278,67 +279,105 @@ function OrView() {
     if (intent === 'proposal') proposal.mutate(p); else save.mutate(p);
   };
 
+  const siblings = openSiblings(vehicleOrs.data ?? [], orId);
+  const gedCount = ged.data?.length ?? 0;
+  const goInvoice = () => { setError(null); toInvoice.mutate(); };
+  const invoiceBusy = toInvoice.isPending || invoiceNow.isPending || controlAndInvoice.isPending;
+  // « Dupliquer l'OR » : confirmation (le 19/11, une copie est partie d'un clic perdu dans la barre).
+  const askDuplicate = async () => {
+    const ok = await confirm({ title: t('orLisible.dupTitle'), message: t('orLisible.dupMessage'), confirmLabel: t('orLisible.dupOk') });
+    if (ok) { setError(null); duplicateOr.mutate(); }
+  };
+  const canNotify = canNotifyReady({ status: or.status, hasContact: !!or.contact_id });
+  const openInvoice = or.invoice_document_id
+    ? () => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })
+    : undefined;
+
   return (
     <>
       <PageHeader
         title={`OR ${or.number ?? ''}`}
         breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: `OR ${or.number ?? ''}` }]}
         actions={
+          // Lot « OR lisible » (19/11) : 11 boutons de meme poids → Imprimer + « Plus d'actions » (par theme)
+          // + Retour ; l'action de l'etape est le gros bouton du bandeau. Aucune fonction retiree.
           <div className="flex flex-wrap gap-2">
-            {canStartOr(or.status) && pointageSchema.data === false && (
-              <Button variant="outline" onClick={() => start.mutate()} disabled={start.isPending || !workAllowed} title={workAllowed ? t('orBase.startHint') : t('checkup.workBlocked')}>
-                {start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('orBase.start')}
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setPrintOpen(true)}><Printer /> {t('orBase.print')}</Button>
-            {canNotifyReady({ status: or.status, hasContact: !!or.contact_id }) && (
-              <Button variant="outline" onClick={() => setReadyOpen(true)}><BellRing /> {t('orBase.notifyReady')}</Button>
-            )}
-            {invoiced && or.invoice_document_id && <Button variant="outline" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: or.invoice_document_id! } })}><Receipt /> {t('workshop.viewInvoice')}</Button>}
-            {!invoiced && <Button onClick={() => { setError(null); toInvoice.mutate(); }} disabled={toInvoice.isPending || invoiceNow.isPending || controlAndInvoice.isPending || pending}>{toInvoice.isPending || invoiceNow.isPending || controlAndInvoice.isPending ? <Loader2 className="animate-spin" /> : <FileText />} {t('workshop.toInvoice')}</Button>}
-            {!invoiced && <Button variant="outline" onClick={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}><ClipboardList /> {t('workshop.quoteParts')}</Button>}
-            {!invoiced && (
-              <Button variant="outline" onClick={() => { setError(null); repairQuote.mutate(); }} disabled={repairQuote.isPending} title={t('parcG8.repairQuoteHint')}>
-                {repairQuote.isPending ? <Loader2 className="animate-spin" /> : <FilePen />} {t('parcG8.repairQuote')}
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => { setError(null); duplicateOr.mutate(); }} disabled={duplicateOr.isPending}>
-              {duplicateOr.isPending ? <Loader2 className="animate-spin" /> : <CopyPlus />} {t('parcG8.duplicateOr')}
-            </Button>
-            {!invoiced && (
-              <Button variant="outline" onClick={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })} disabled={!workAllowed} title={!workAllowed ? t('checkup.workBlocked') : undefined}>
-                <ListChecks /> {savedJourney.data ? t('workshop.resumeJourney') : t('workshop.startJourney')}
-              </Button>
-            )}
-            {!invoiced && (
-              <Button variant="outline" onClick={() => { setError(null); toPicking.mutate(); }} disabled={toPicking.isPending}>
-                {toPicking.isPending ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {t('workshop.createPicking')}
-              </Button>
-            )}
-            {/* Une seule facon de commander (carte 7, debut) : avec la reservation en base, le manque va au panier. */}
-            {!invoiced && !reservationsOn && <Button variant="outline" onClick={() => setOrderOpen(true)}><ShoppingCart /> {t('workshop.orderMissing')}</Button>}
-            {!invoiced && <Button variant="outline" onClick={() => setBasketOpen(true)}><ShoppingBasket /> {t('basket.addToStandard')}</Button>}
-            {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
-            {!invoiced && <ProposalAddButton companyId={activeCompanyId} kind="repair_order" sourceId={orId} />}
-            <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>{accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('accidentFile.openExisting') : t('accidentFile.open')}</Button>
-            <Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
+            <Button variant="outline" className="h-11" onClick={() => setPrintOpen(true)}><Printer /> {t('orBase.print')}</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-11"><MoreHorizontal /> {t('orLisible.moreActions')} <ChevronDown className="size-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel>{t('orLisible.group_documents')}</DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <MenuItem icon={<Printer />} onSelect={() => setPrintOpen(true)}>{t('orBase.print')}</MenuItem>
+                  {invoiced && openInvoice && <MenuItem icon={<Receipt />} onSelect={openInvoice}>{t('workshop.viewInvoice')}</MenuItem>}
+                  {!invoiced && <MenuItem icon={<FileText />} disabled={invoiceBusy || pending} onSelect={goInvoice}>{t('workshop.toInvoice')}</MenuItem>}
+                  {!invoiced && (
+                    <MenuItem icon={<ClipboardList />} onSelect={() => navigate({ to: '/sales/new', search: { contactId: or.contact_id ?? undefined, vehicleId: or.vehicle_id ?? undefined, orNumber: or.number ?? undefined, workshop: true } })}>
+                      {t('workshop.quoteParts')}
+                    </MenuItem>
+                  )}
+                  {!invoiced && <MenuItem icon={<FilePen />} disabled={repairQuote.isPending} onSelect={() => { setError(null); repairQuote.mutate(); }}>{t('parcG8.repairQuote')}</MenuItem>}
+                </DropdownMenuGroup>
+                {!invoiced && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>{t('orLisible.group_parts')}</DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                      <MenuItem icon={<ClipboardCheck />} disabled={toPicking.isPending} onSelect={() => { setError(null); toPicking.mutate(); }}>{t('workshop.createPicking')}</MenuItem>
+                      {/* Une seule facon de commander (carte 7, debut) : avec la reservation en base, le manque va au panier. */}
+                      {!reservationsOn && <MenuItem icon={<ShoppingCart />} onSelect={() => setOrderOpen(true)}>{t('workshop.orderMissing')}</MenuItem>}
+                      <MenuItem icon={<ShoppingBasket />} onSelect={() => setBasketOpen(true)}>{t('basket.addToStandard')}</MenuItem>
+                      {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
+                      {activeCompanyId && <MenuItem icon={<PackagePlus />} onSelect={() => setProposalOpen(true)}>{t('purchasesG8.propButton')}</MenuItem>}
+                    </DropdownMenuGroup>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t('orLisible.group_other')}</DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  {!invoiced && (
+                    <MenuItem icon={<ListChecks />} disabled={!workAllowed} onSelect={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })}>
+                      {savedJourney.data ? t('workshop.resumeJourney') : t('workshop.startJourney')}
+                    </MenuItem>
+                  )}
+                  {canNotify && <MenuItem icon={<BellRing />} onSelect={() => setReadyOpen(true)}>{t('orBase.notifyReady')}</MenuItem>}
+                  <MenuItem icon={<CopyPlus />} disabled={duplicateOr.isPending} onSelect={() => void askDuplicate()}>{t('parcG8.duplicateOr')}</MenuItem>
+                  <MenuItem icon={<LifeBuoy />} disabled={accident.isPending} onSelect={() => accident.mutate()}>{accidentFile ? t('accidentFile.openExisting') : t('accidentFile.open')}</MenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="ghost" className="h-11" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>
           </div>
         }
       />
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <OrStatusBadge status={or.status} />
-        <ReadySmsLine orId={orId} status={or.status} />
-        {or.warranty_status !== 'aucune' && <WarrantyStatusBadge status={or.warranty_status} />}
-        {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
-      </div>
-      {/* Lot A (19/11) : etat du travail + Demarrer / Pause / Reprendre / Terminer (pointeuse unique). */}
-      {pointageOn && !invoiced && or.status !== 'annule' && (
-        <OrWorkControls
-          orId={orId} companyId={activeCompanyId} orStatus={or.status} workAllowed={workAllowed} onChanged={refresh}
-          gateStart={reception.loaded && shouldPromptReception(reception.status, or.status) ? (go) => setReceptionOpen({ startMode: true, go }) : undefined}
-        />
+      {/* Lot « OR lisible » (19/11) : ou en est cet OR, une seule lecture, un gros bouton pour l'etape suivante. */}
+      <OrProgressBanner
+        orId={orId} companyId={activeCompanyId} orStatus={or.status} warrantyStatus={or.warranty_status}
+        workAllowed={workAllowed} warrantyPending={pending} hasService={!!serviceCode}
+        invoiceBusy={invoiceBusy} fallbackWorkedMinutes={worked.data ?? 0}
+        onPhotos={() => setReceptionOpen({ startMode: false })}
+        onInvoice={goInvoice}
+        onViewInvoice={openInvoice}
+        onNotifyReady={canNotify ? () => setReadyOpen(true) : undefined}
+        onApproval={checkupReady ? () => setVerbalOpen(true) : undefined}
+        onChanged={refresh}
+      />
+      {siblings.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-[13px] text-warning">
+          <AlertTriangle className="size-4 shrink-0" aria-hidden />
+          <span className="font-bold">{t('orLisible.siblingsTitle')}</span>
+          <span className="min-w-0 flex-1 text-foreground">{t('orLisible.siblingsHint')}</span>
+          {siblings.slice(0, 3).map((o) => (
+            <Button key={o.id} size="sm" variant="outline" className="h-9 gap-2 bg-card" onClick={() => navigate({ to: '/workshop/$orId', params: { orId: o.id } })}>
+              {fillVars(t('orLisible.siblingOpen'), { number: o.number ?? '' })} <OrStatusBadge status={o.status} />
+            </Button>
+          ))}
+        </div>
       )}
-      {/* Lot C (19/11) : photos et commentaires de reception, dans la GED de l'OR. */}
+      {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
+      {/* Lot C (19/11) : photos et commentaires de reception, dans la GED de l'OR (vignettes). */}
       {activeCompanyId && (
         <ReceptionPanel orId={orId} orStatus={or.status} companyId={activeCompanyId} onOpen={() => setReceptionOpen({ startMode: false })} />
       )}
@@ -358,7 +397,7 @@ function OrView() {
             <p className="text-[12px] text-muted-foreground">{accidentFile ? t('orPage.accidentLinked') : t('orPage.accidentNone')}</p>
           </div>
           {accidentFile && <AccidentStatusBadge status={accidentFile.status} />}
-          <Button onClick={() => accident.mutate()} disabled={accident.isPending}>
+          <Button variant="outline" onClick={() => accident.mutate()} disabled={accident.isPending}>
             {accident.isPending ? <Loader2 className="animate-spin" /> : <LifeBuoy />} {accidentFile ? t('orPage.accidentOpenFile') : t('orPage.accidentCreateFile')}
           </Button>
         </div>
@@ -370,22 +409,13 @@ function OrView() {
           <AccidentInsurancePanel companyId={activeCompanyId!} fileId={accidentFile.id} repairOrderId={orId} orTotalTtc={Number(or.total_ttc)} origin="OR" />
         </div>
       )}
-      {pending && <p className="mb-3 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">{t('workshop.warrantyBlocked')}</p>}
-      {!workAllowed && (
-        <p className="mb-3 flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('checkup.workBlocked')}
-        </p>
-      )}
-      {schema.data === false && (
-        <p className="mb-3 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('checkup.migrationMissing')}</p>
-      )}
       <OrEditor
         companyId={activeCompanyId!} initial={data} busy={busy} error={error} onSubmit={onSubmit}
         checkupReady={checkupReady && !invoiced} approvalPending={approval === 'en_attente'}
         expertInPanel={!!accidentFile && insuranceSchema.data === true}
         header={checkupReady ? (
           <ApprovalPanel
-            or={orx}
+            or={orx} compactWhenNone
             onVerbal={() => setVerbalOpen(true)}
             onSignAtCounter={() => signAtCounter.mutate()} signBusy={signAtCounter.isPending}
             onOpenProposal={orx.proposal_document_id ? () => navigate({ to: '/sales/$documentId', params: { documentId: orx.proposal_document_id! } }) : undefined}
@@ -398,14 +428,32 @@ function OrView() {
         <OrDepositPanel companyId={activeCompanyId!} or={{ id: or.id, status: or.status, contact_id: or.contact_id, vehicle_id: or.vehicle_id, total_ttc: Number(or.total_ttc) }} />
       </div>
       {(serviceCode || isMaintenanceReasonCode(reasonCode)) && or.status !== 'annule' && (
-        <div className="mt-6">
-          <ReservedPartsBlock orId={orId} serviceCode={serviceCode} readOnly={invoiced} />
+        <div className="mt-3">
+          <ReservedPartsBlock orId={orId} serviceCode={serviceCode} readOnly={invoiced} compactWhenEmpty />
         </div>
       )}
-      <div className="mt-6">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>
-        <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
-      </div>
+      {/* GED repliee : une ligne (nombre de documents), depliee a la demande. */}
+      <section className="mt-3 rounded-md border border-border bg-card">
+        <button
+          type="button" onClick={() => setGedOpen((x) => !x)} aria-expanded={gedOpen}
+          className="flex min-h-11 w-full flex-wrap items-center gap-2 px-3 py-2 text-left text-[13px]"
+        >
+          <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="font-bold">{t('orLisible.gedTitle')}</span>
+          <span className={cn('min-w-0 flex-1', gedCount ? '' : 'text-muted-foreground')}>
+            {gedCount ? fillVars(t('orLisible.gedCount'), { n: gedCount }) : t('orLisible.gedNone')}
+          </span>
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            {gedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />} {gedOpen ? t('orLisible.hide') : (gedCount ? t('orLisible.show') : t('orLisible.gedAdd'))}
+          </span>
+        </button>
+        {gedOpen && (
+          <div className="border-t border-border p-3">
+            <AttachmentsPanel companyId={activeCompanyId!} entityType="repair_order" entityId={orId} />
+          </div>
+        )}
+      </section>
+      {proposalOpen && activeCompanyId && <ProposalAddDialog companyId={activeCompanyId} kind="repair_order" sourceId={orId} onClose={() => setProposalOpen(false)} />}
       {orderOpen && (
         <OrderFromWorkshopDialog
           orId={orId} companyId={activeCompanyId!} label={`OR ${or.number ?? ''}`.trim()}
@@ -468,5 +516,14 @@ function OrView() {
         />
       )}
     </>
+  );
+}
+
+/** Entree du menu « Plus d'actions » : icone + libelle, hauteur tactile. */
+function MenuItem({ icon, children, onSelect, disabled }: { icon: ReactNode; children: ReactNode; onSelect: () => void; disabled?: boolean }) {
+  return (
+    <DropdownMenuItem disabled={disabled} onSelect={onSelect} className="min-h-10 gap-2 text-[14px] [&_svg]:size-4">
+      {icon} {children}
+    </DropdownMenuItem>
   );
 }

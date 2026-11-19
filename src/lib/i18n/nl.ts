@@ -9,6 +9,7 @@ import { g8aNl } from './g8-articles';
 import { smsNl } from './sms';
 import { receptionNl, planOpsNl } from './parcours-cd';
 import { myWorkshopNl } from './mon-atelier';
+import { orLisibleNl } from './or-lisible';
 import { productionNl } from './production';
 
 export const nl: DictionaryShape = {
@@ -9399,6 +9400,8 @@ export const nl: DictionaryShape = {
   planOps: planOpsNl,
   // Parcours mecanicien, lot F (19/11/2026) : ecran tablette « Mon atelier ».
   myWorkshop: myWorkshopNl,
+  // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
+  orLisible: orLisibleNl,
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,

@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { DEFAULT_REPAIR_TYPES, WORKSHOP_REPAIR_TYPE_TABLE_KEY, isAccidentOr, shouldOpenAccidentFile, type TeamMemberRow } from './or-page-rules';
 import { accidentSchemaReady, findAccidentFileFor, openAccidentFile } from './accident/api';
+import type { SiblingOr } from './or-base/progress-rules';
 
 /** Membres de la societe (nom + roles), meme fonction que l'assignation des taches CRM. */
 export async function listCompanyTeam(companyId: string): Promise<TeamMemberRow[]> {
@@ -60,4 +61,15 @@ export async function ensureAccidentFileForOr(p: {
     companyId: p.companyId, repairOrderId: p.orId, contactId: p.contactId, vehicleId: p.vehicleId, expertName: p.expertName || null,
   });
   return { fileId, created: true };
+}
+
+/**
+ * Lot « OR lisible » (19/11/2026) : les autres OR de la meme moto (pour signaler ceux encore
+ * ouverts sur la fiche OR, voir `openSiblings`). Colonnes nommees, 20 au plus.
+ */
+export async function listVehicleOrs(companyId: string, vehicleId: string): Promise<SiblingOr[]> {
+  const { data, error } = await supabase.from('repair_orders').select('id, number, status, created_at')
+    .eq('company_id', companyId).eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20);
+  if (error) return [];
+  return (data ?? []) as SiblingOr[];
 }

@@ -304,7 +304,7 @@ export function ReceptionPanel({ orId, orStatus, companyId, onOpen }: {
           </div>
         </div>
         {!closed && (
-          <Button className="h-12 min-w-[160px] text-[15px]" variant={rec.status === 'complete' ? 'outline' : 'default'} onClick={onOpen}>
+          <Button className="h-12 min-w-[160px] text-[15px]" variant="outline" onClick={onOpen}>
             <Camera /> {rec.photos.length ? t('reception.openContinue') : t('reception.open')}
           </Button>
         )}

@@ -35,8 +35,10 @@ const STYLE: Record<ApprovalState, { icon: LucideIcon; box: string; text: string
 
 const fmtWhen = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '');
 
-export function ApprovalPanel({ or, onVerbal, onSignAtCounter, onOpenProposal, onResend, signBusy }: {
+export function ApprovalPanel({ or, onVerbal, onSignAtCounter, onOpenProposal, onResend, signBusy, compactWhenNone = false }: {
   or: OrLike;
+  /** Lot « OR lisible » (19/11) : sans proposition, une ligne d'aide au lieu du grand bloc. */
+  compactWhenNone?: boolean;
   onVerbal: () => void;
   onSignAtCounter?: () => void;
   onOpenProposal?: () => void;
@@ -55,6 +57,15 @@ export function ApprovalPanel({ or, onVerbal, onSignAtCounter, onOpenProposal, o
     : state === 'refuse' ? t('checkup.approvalRefused')
     : t('checkup.approvalNoneHint');
 
+  if (compactWhenNone && state === 'none' && !or.proposal_document_id) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground">
+        <FileText className="size-4 shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">{t('orLisible.approvalNone')}</span>
+        <Button type="button" size="sm" variant="ghost" onClick={onVerbal}><PhoneCall /> {t('checkup.verbalApproval')}</Button>
+      </div>
+    );
+  }
   return (
     <div className={cn('flex flex-wrap items-center gap-3 rounded-md border p-4', s.box)}>
       <Icon className={cn('size-8 shrink-0', s.text)} aria-hidden />

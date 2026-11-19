@@ -20,7 +20,9 @@ import { pricedArticles } from './insert-api';
 import { kitInsertLines, toRoLine, type KitComponent } from './insert-rules';
 
 type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
-const rpc = supabase.rpc as unknown as Rpc;
+// `.bind` obligatoire (19/11) : detache de son client, `supabase.rpc` levait une TypeError avalee par
+// le `.catch(() => [])` du planning : l'OR ne recevait jamais les lignes du kit (Q49).
+const rpc = supabase.rpc.bind(supabase) as unknown as Rpc;
 
 type KitLineRow = { article_id: string | null; reference: string | null; designation: string; quantity: number | string };
 

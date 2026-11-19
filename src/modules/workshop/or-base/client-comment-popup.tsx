@@ -3,6 +3,9 @@
  * sur un nouvel OR), le commentaire de la fiche client (`contacts.notes`) s'affiche tout seul.
  * « Modifier » permet de le corriger sur place (la fiche client est mise a jour), « Valider » ferme.
  * Rien ne s'affiche si la fiche n'a pas de commentaire. Une fois par client et par ecran ouvert.
+ * Lot « OR lisible » (19/11) : les lignes « Statut G8 : Client / Prospect… » ecrites par l'import
+ * G8 ne sont pas un commentaire (presque toutes les fiches en ont une) : la fenetre ne s'ouvre que
+ * pour un vrai texte, et n'affiche que lui ; « Modifier » garde la fiche complete.
  */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { t, fillVars } from '@/lib/i18n';
 import { getContactComment, saveContactComment } from './api';
+import { meaningfulClientComment } from './progress-rules';
 
 export function ClientCommentPopup({ contactId }: { contactId: string | null }) {
   const qc = useQueryClient();
@@ -28,7 +32,7 @@ export function ClientCommentPopup({ contactId }: { contactId: string | null }) 
   useEffect(() => {
     if (!contactId || shownFor === contactId || !q.data) return;
     setShownFor(contactId);
-    if (q.data.notes.trim()) { setDraft(q.data.notes); setEditing(false); setOpen(true); }
+    if (meaningfulClientComment(q.data.notes)) { setDraft(q.data.notes); setEditing(false); setOpen(true); }
   }, [contactId, shownFor, q.data]);
 
   const save = useMutation({
@@ -54,7 +58,7 @@ export function ClientCommentPopup({ contactId }: { contactId: string | null }) 
         </DialogHeader>
         {editing
           ? <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} autoFocus />
-          : <p className="whitespace-pre-wrap rounded-md border border-border bg-muted/40 px-3 py-2 text-[14px]">{q.data.notes}</p>}
+          : <p className="whitespace-pre-wrap rounded-md border border-border bg-muted/40 px-3 py-2 text-[14px]">{meaningfulClientComment(q.data.notes)}</p>}
         <DialogFooter className="gap-2">
           {editing ? (
             <Button variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>

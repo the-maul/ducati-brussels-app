@@ -565,7 +565,7 @@ type ArticleHitRow = {
   real_qty: number | null; reserved_qty: number | null; on_order_qty: number | null;
 };
 let lineSearchMissing = false;
-const rpcLoose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
+const rpcLoose = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>;
 const isMissingFn = (e: { code?: string; message: string }) => e.code === 'PGRST202' || e.code === '42883' || /Could not find the function|does not exist/i.test(e.message);
 
 export async function searchSaleArticles(companyId: string, term: string, limit = 20): Promise<SaleArticle[]> {

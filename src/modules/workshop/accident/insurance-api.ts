@@ -105,7 +105,7 @@ export async function getAccidentInsurance(fileId: string): Promise<AccidentInsu
 }
 
 type RpcResult = { error: { code?: string; message: string } | null };
-const rpcLoose = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<RpcResult>;
+const rpcLoose = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<RpcResult>;
 
 /** Origine d'une saisie de l'expert (trace events, Q51). */
 export type ExpertOrigin = 'OR' | 'dossier';
