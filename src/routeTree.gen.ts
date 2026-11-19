@@ -98,6 +98,7 @@ import { Route as AppSettingsExtensionRouteImport } from './routes/_app.settings
 import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kiosk'
 import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
 import { Route as AppSettingsNumberingRouteImport } from './routes/_app.settings.numbering'
+import { Route as AppSettingsSmsRouteImport } from './routes/_app.settings.sms'
 import { Route as AppSettingsStripeRouteImport } from './routes/_app.settings.stripe'
 import { Route as AppSettingsTablesRouteImport } from './routes/_app.settings.tables'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app.settings.users'
@@ -585,6 +586,11 @@ const AppSettingsNumberingRoute = AppSettingsNumberingRouteImport.update({
   path: '/numbering',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsSmsRoute = AppSettingsSmsRouteImport.update({
+  id: '/sms',
+  path: '/sms',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsStripeRoute = AppSettingsStripeRouteImport.update({
   id: '/stripe',
   path: '/stripe',
@@ -883,6 +889,7 @@ export interface FileRoutesByFullPath {
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
+  '/settings/sms': typeof AppSettingsSmsRoute
   '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/settings/users': typeof AppSettingsUsersRoute
@@ -1000,6 +1007,7 @@ export interface FileRoutesByTo {
   '/settings/kiosk': typeof AppSettingsKioskRoute
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
+  '/settings/sms': typeof AppSettingsSmsRoute
   '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
@@ -1132,6 +1140,7 @@ export interface FileRoutesById {
   '/_app/settings/kiosk': typeof AppSettingsKioskRoute
   '/_app/settings/migration': typeof AppSettingsMigrationRoute
   '/_app/settings/numbering': typeof AppSettingsNumberingRoute
+  '/_app/settings/sms': typeof AppSettingsSmsRoute
   '/_app/settings/stripe': typeof AppSettingsStripeRoute
   '/_app/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/_app/settings/users': typeof AppSettingsUsersRoute
@@ -1265,6 +1274,7 @@ export interface FileRouteTypes {
     | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
+    | '/settings/sms'
     | '/settings/stripe'
     | '/settings/tables'
     | '/settings/users'
@@ -1382,6 +1392,7 @@ export interface FileRouteTypes {
     | '/settings/kiosk'
     | '/settings/migration'
     | '/settings/numbering'
+    | '/settings/sms'
     | '/settings/stripe'
     | '/settings/users'
     | '/stock/cessions'
@@ -1513,6 +1524,7 @@ export interface FileRouteTypes {
     | '/_app/settings/kiosk'
     | '/_app/settings/migration'
     | '/_app/settings/numbering'
+    | '/_app/settings/sms'
     | '/_app/settings/stripe'
     | '/_app/settings/tables'
     | '/_app/settings/users'
@@ -2202,6 +2214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsNumberingRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/sms': {
+      id: '/_app/settings/sms'
+      path: '/sms'
+      fullPath: '/settings/sms'
+      preLoaderRoute: typeof AppSettingsSmsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/stripe': {
       id: '/_app/settings/stripe'
       path: '/stripe'
@@ -2688,6 +2707,7 @@ interface AppSettingsRouteChildren {
   AppSettingsKioskRoute: typeof AppSettingsKioskRoute
   AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
   AppSettingsNumberingRoute: typeof AppSettingsNumberingRoute
+  AppSettingsSmsRoute: typeof AppSettingsSmsRoute
   AppSettingsStripeRoute: typeof AppSettingsStripeRoute
   AppSettingsTablesRoute: typeof AppSettingsTablesRouteWithChildren
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
@@ -2704,6 +2724,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsKioskRoute: AppSettingsKioskRoute,
   AppSettingsMigrationRoute: AppSettingsMigrationRoute,
   AppSettingsNumberingRoute: AppSettingsNumberingRoute,
+  AppSettingsSmsRoute: AppSettingsSmsRoute,
   AppSettingsStripeRoute: AppSettingsStripeRoute,
   AppSettingsTablesRoute: AppSettingsTablesRouteWithChildren,
   AppSettingsUsersRoute: AppSettingsUsersRoute,

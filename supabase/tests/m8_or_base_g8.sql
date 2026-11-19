@@ -73,11 +73,17 @@ values ((select v::uuid from _ctx where k = 'company'), (select v::uuid from _ct
 
 select public._cron_appointment_reminders();
 
+-- Depuis le lot SMS Brevo (20261119170000), la tache mail n'enfile plus de SMS : les rappels SMS
+-- passent par _cron_sms_appointment_reminders (essai supabase/tests/m8_sms_brevo.sql).
 insert into _t(check_name, result)
-select 'rappel RDV : 1 SMS (case cochee), pas pour le RDV sans la case',
+select case when to_regprocedure('public._cron_sms_appointment_reminders()') is null
+            then 'rappel RDV : 1 SMS (case cochee), pas pour le RDV sans la case'
+            else 'rappel RDV : la tache mail n''enfile plus de SMS (lot SMS Brevo)' end,
        case when (select count(*) from public.notifications n
                    where n.channel = 'sms' and n.template = 'appointment_reminder' and n.to_address = '+32470000000'
-                     and n.created_at > now() - interval '1 minute') = 1 then 'ok' else 'KO' end;
+                     and n.created_at > now() - interval '1 minute')
+                 = case when to_regprocedure('public._cron_sms_appointment_reminders()') is null then 1 else 0 end
+            then 'ok' else 'KO' end;
 insert into _t(check_name, result)
 select 'rappel RDV : le mail part pour les deux RDV (inchange)',
        case when (select count(*) from public.notifications n
@@ -88,7 +94,9 @@ select public._cron_appointment_reminders();
 insert into _t(check_name, result)
 select 'rappel RDV : relance le meme jour sans doublon',
        case when (select count(*) from public.notifications n where n.to_address in ('+32470000000', 'essai-or-base@example.invalid')
-                     and n.created_at > now() - interval '1 minute') = 3 then 'ok' else 'KO' end;
+                     and n.created_at > now() - interval '1 minute')
+                 = case when to_regprocedure('public._cron_sms_appointment_reminders()') is null then 3 else 2 end
+            then 'ok' else 'KO' end;
 
 insert into _t(check_name, result)
 select 'droits : _cron_appointment_reminders non executable par authenticated',

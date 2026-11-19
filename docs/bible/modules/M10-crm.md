@@ -147,6 +147,11 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 - Brancher un vrai envoi : décision client, fournisseur SMS, et une migration qui ouvre un autre mode
   (avec l'interrupteur Arrêté / Test / Actif, comme les relances).
 
+## Ajouté le 19/11 — SMS par Brevo (file de notifications)
+- La file `notifications` envoie désormais les **SMS par Brevo** (`supabase/functions/_shared/brevo-sms.ts`), le « fournisseur générique » est retiré. Détail, règles et garde-fous : chapitre M08, section « Ajouté le 19/11 — SMS par Brevo ». Écran : Paramètres → SMS ; liste « SMS programmés » depuis le planning atelier.
+- Interrupteur `sms_settings` (Arrêté par défaut / Test / Actif), comme les relances (`followup_settings`). Un SMS envoyé chez un client (fin de travaux, rappel) est ajouté aux échanges de la fiche (`communications`, canal sms).
+- Les e-mails de la file (rappel de RDV, relance facture) passent toujours par Resend, **non configuré** : ils finissent « skipped ». Les mails sortants du DMS passent par Outlook (`graph-send-email`). Voir « À trancher » du lot SMS.
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé | État | Preuve |

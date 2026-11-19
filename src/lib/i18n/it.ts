@@ -6,6 +6,7 @@
 import type { DictionaryShape } from './fr';
 
 import { g8aIt } from './g8-articles';
+import { smsIt } from './sms';
 
 export const it: DictionaryShape = {
   app: {
@@ -9119,4 +9120,5 @@ export const it: DictionaryShape = {
     ignored: "Proposta ignorata: il lavoro notturno resta la rete di sicurezza.",
   },
   g8a: g8aIt,
+  sms: smsIt,
 };

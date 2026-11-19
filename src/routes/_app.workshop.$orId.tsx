@@ -45,6 +45,7 @@ import { OrStatusBadge } from '@/modules/workshop/or-base/or-status-badge';
 import { OrPrintDialog } from '@/modules/workshop/or-base/print-dialog';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
 import { canNotifyReady } from '@/modules/workshop/or-base/rules';
+import { ReadySmsLine } from '@/modules/crm/sms-queue';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -296,6 +297,7 @@ function OrView() {
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <OrStatusBadge status={or.status} />
+        <ReadySmsLine orId={orId} status={or.status} />
         {or.warranty_status !== 'aucune' && <WarrantyStatusBadge status={or.warranty_status} />}
         {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>

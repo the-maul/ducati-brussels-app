@@ -7,7 +7,8 @@
  * mail, rien ne part. L'envoi reel est derriere `READY_MAIL_LIVE` (false) : a ouvrir quand l'atelier
  * aura valide le texte. « Marquer Client informe » passe l'OR au statut G8 « Client informe »
  * (client prevenu autrement, par telephone par exemple).
- * Pas de SMS : aucun fournisseur SMS n'est pose (bible M08 / M10).
+ * SMS : le SMS automatique de fin de travaux part par Brevo (lot SMS, declencheur en base, ATE018) ;
+ * son etat s'affiche sur l'OR (ReadySmsLine, src/modules/crm/sms-queue.tsx).
  */
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';

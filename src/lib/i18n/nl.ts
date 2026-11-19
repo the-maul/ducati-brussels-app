@@ -6,6 +6,7 @@
 import type { DictionaryShape } from './fr';
 
 import { g8aNl } from './g8-articles';
+import { smsNl } from './sms';
 
 export const nl: DictionaryShape = {
   app: {
@@ -9119,4 +9120,5 @@ export const nl: DictionaryShape = {
     ignored: "Voorstel genegeerd: de nachtelijke taak blijft het vangnet.",
   },
   g8a: g8aNl,
+  sms: smsNl,
 };

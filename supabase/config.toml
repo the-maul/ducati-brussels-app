@@ -79,3 +79,7 @@ verify_jwt = false
 # code (STRIPE_WEBHOOK_SECRET). La verification du jeton doit rester coupee, sinon Stripe recoit 401.
 [functions.stripe-webhook]
 verify_jwt = false
+# SMS par Brevo (18/11/2026) : Parametres -> SMS (etat de la cle, solde, SMS de test). Utilisateur
+# connecte verifie dans la fonction (membre actif ; SMS de test = administrateur, controle en base).
+[functions.sms-brevo]
+verify_jwt = false

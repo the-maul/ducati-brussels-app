@@ -6,6 +6,7 @@
  * Toute clé ajoutée ici doit l'être dans les trois autres.
  */
 import { g8aFr } from './g8-articles';
+import { smsFr } from './sms';
 
 export const fr = {
   app: {
@@ -9138,6 +9139,7 @@ export const fr = {
     ignored: "Proposition ignorée : la tâche de nuit reste le filet de sécurité.",
   },
   g8a: g8aFr,
+  sms: smsFr,
 } as const;
 
 export type Dictionary = typeof fr;

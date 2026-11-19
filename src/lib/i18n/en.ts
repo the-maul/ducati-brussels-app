@@ -6,6 +6,7 @@
 import type { DictionaryShape } from './fr';
 
 import { g8aEn } from './g8-articles';
+import { smsEn } from './sms';
 
 export const en: DictionaryShape = {
   app: {
@@ -9119,4 +9120,5 @@ export const en: DictionaryShape = {
     ignored: "Proposal ignored: the nightly job remains the safety net.",
   },
   g8a: g8aEn,
+  sms: smsEn,
 };

@@ -10,7 +10,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarClock, ChevronLeft, ChevronRight, Inbox, Plus, Search } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Inbox, MessageSquareText, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,6 +38,7 @@ import { StatusIcon } from './status-icon';
 import { LoansView } from '../loans/loans-view';
 import { loansSchemaReady } from '../loans/api';
 import { Field } from './ui-bits';
+import { ScheduledSmsDialog } from '@/modules/crm/sms-queue';
 
 export const PLANNING_VIEWS = ['reception', 'activite', 'prets', 'reglages'] as const;
 export type PlanningView = (typeof PLANNING_VIEWS)[number];
@@ -51,6 +52,8 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
 }) {
   const { activeCompany, isAdmin, hasRole } = useAuth();
   const canSettings = isAdmin() || hasRole('chef_atelier');
+  // Annuler / programmer un SMS : droit d'ecriture sur les RDV (verifie aussi en base, can_write_table).
+  const canWriteSms = canSettings || hasRole('mecanicien');
   const base = usePlanningBase(companyId);
   const refresh = usePlanningRefresh(companyId);
   const [ref, setRef] = useState(() => startOfDay(new Date()));
@@ -58,6 +61,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(APPOINTMENT_STATUSES.filter((s) => s !== 'annule')));
   const [dialog, setDialog] = useState<{ appt: PlanningAppointment | null; defaults?: AppointmentDefaults } | null>(null);
   const [searching, setSearching] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
   const [askTime, setAskTime] = useState<PlanningAppointment | null>(null);
   const [partsFor, setPartsFor] = useState<PlanningAppointment | null>(null);
   const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
@@ -128,6 +132,8 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
             )}
             <div className="ml-auto flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setSearching(true)}><Search className="size-4" /> {t('planningG8.search')}</Button>
+              {/* G8 « SMS programmes » (lot SMS Brevo) : liste, annulation, programmation de rappels. */}
+              <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}><MessageSquareText className="size-4" /> {t('sms.planningButton')}</Button>
               <Button variant="outline" size="sm" onClick={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })}>
                 <Inbox className="size-4" /> {t('planningG8.newWaiting')}{period.waiting.length ? ` (${period.waiting.length})` : ''}
               </Button>
@@ -175,6 +181,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
           reservationsOn={reservationSchema.data === true} onClose={() => setDialog(null)}
           onSaved={() => { setDialog(null); refresh(); }} onOrCreated={(orId) => { setDialog(null); refresh(); onOpenOr(orId); }} />
       )}
+      {smsOpen && <ScheduledSmsDialog companyId={companyId} canWrite={canWriteSms} onClose={() => setSmsOpen(false)} />}
       {searching && (
         <AppointmentSearchDialog companyId={companyId} onClose={() => setSearching(false)} onPick={(r) => {
           setSearching(false);

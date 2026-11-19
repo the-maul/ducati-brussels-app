@@ -148,6 +148,16 @@ function SettingsIndex() {
           <span className="text-sm text-muted-foreground">{t('stripePay.settingsDesc')}</span>
         </Link>
 
+        {/* T14 / T15 : SMS par Brevo (fin de travaux, rappels de RDV, SMS programmes, SMS de test). */}
+        <Link
+          to="/settings/sms"
+          className="flex flex-col gap-2 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-colors hover:border-ring/40"
+        >
+          <MessageSquareText className="size-6 text-primary" />
+          <span className="font-ui text-[15px] font-bold">{t('sms.settingsTitle')}</span>
+          <span className="text-sm text-muted-foreground">{t('sms.settingsDesc')}</span>
+        </Link>
+
         {/* CRM011 : rappel de l'interrupteur des relances (Arrete / Test / Actif), reglage dans CRM → Relances. */}
         <FollowupModeCard />
 
