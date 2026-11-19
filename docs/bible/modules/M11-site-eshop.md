@@ -82,6 +82,16 @@ Vérifié le 18/09/2026 dans la base (lecture seule).
 | SIW000–SIW008 | Site web et e-commerce | hors DMS | assurés par Shopify (décision W-1 du 18/09) |
 | INV010 | Stock e-shop = stock magasin | 🟦 en cours | sens site → DMS fait le 21/09 (une vente Shopify sort le stock du DMS, mission 03) ; sens DMS → site : carte « Le stock et le prix du DMS s'affichent en direct sur le site » |
 
+## Ajouté le 19/11 — Shopify dans la fenêtre « Mise en production »
+
+- Deux lignes : « Shopify : stock, prix et publication » (`shopify_sync_settings.mode` : arrete → Arrêté, essai →
+  Test, tous → Actif ; démarrer = `tous`, pause = `arrete`) et « Shopify : commandes du site »
+  (`shopify_order_settings.import_enabled`). Mêmes fonctions que l'écran Pièces → Shopify / Ventes → Commandes du
+  site (`shopify_sync_set_mode`, `shopify_orders_set_import`). Bloquées tant que les clés Shopify ne sont pas
+  posées. État prod au 19/11 : stock/prix en **Test** (essai), commandes **Arrêté**.
+- La confirmation de commande par mail (`order_confirm`) concerne l'ancienne boutique du DMS (`web_orders`, 0 ligne
+  en prod), pas Shopify ; interrupteur `order_confirm_mail`, arrêté.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |

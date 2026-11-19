@@ -228,6 +228,9 @@ describe('fonctions Edge', () => {
     expect(dispatch.includes("Deno.env.get('SMS_API_KEY')")).toBe(false);
     expect(dispatch.includes('sms_dispatch_claim')).toBe(true);
     expect(dispatch.includes('sms_dispatch_result')).toBe(true);
-    expect(dispatch.includes('channel=neq.sms')).toBe(true);
+    // Mails (19/11/2026) : pris en charge en base (mail_dispatch_claim exclut les SMS), envoyes par
+    // Microsoft Graph ; Resend est retire.
+    expect(dispatch.includes('mail_dispatch_claim')).toBe(true);
+    expect(dispatch.includes('api.resend.com')).toBe(false);
   });
 });

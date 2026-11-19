@@ -83,3 +83,7 @@ verify_jwt = false
 # connecte verifie dans la fonction (membre actif ; SMS de test = administrateur, controle en base).
 [functions.sms-brevo]
 verify_jwt = false
+# Mise en production (19/11/2026) : Parametres -> Mise en production (presence des secrets, oui / non).
+# Administrateur de la societe verifie dans la fonction.
+[functions.production-status]
+verify_jwt = false

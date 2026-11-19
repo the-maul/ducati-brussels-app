@@ -106,8 +106,14 @@ export async function sendLettersByMail(p: {
 }): Promise<SendResult> {
   const res: SendResult = { sent: 0, failed: [], skipped: null, to: null };
   for (const prep of p.prepared) {
-    const delivery = resolveDunningDelivery(p.mode, p.testRecipient, prep.pdf.subject, prep.letter.contactName);
-    if (!delivery.send) { res.skipped = delivery.reason; return res; }
+    const delivery = resolveDunningDelivery(p.mode, p.testRecipient, prep.pdf.subject, prep.letter.contactName, prep.letter.email);
+    if (!delivery.send) {
+      const reason = delivery.reason;
+      // Envoi reel (mise en production) : un client sans adresse e-mail n'arrete pas les autres.
+      if (reason === 'no_email') { res.failed.push({ client: prep.letter.contactName, error: 'no_email' }); continue; }
+      res.skipped = reason;
+      return res;
+    }
     res.to = delivery.to;
     try {
       const letterBytes = await buildDunningLettersPdf([prep.pdf]);
@@ -128,7 +134,7 @@ export async function sendLettersByMail(p: {
       });
       const r = data as { ok?: boolean; error?: string } | null;
       if (error || !r?.ok) throw new Error(r?.error ?? (error as Error | null)?.message ?? 'send_failed');
-      await recordDunningLetters(p.companyId, historyRows(prep, crypto.randomUUID(), 'mail', delivery.to, true, p.withInvoice, delivery.subject));
+      await recordDunningLetters(p.companyId, historyRows(prep, crypto.randomUUID(), 'mail', delivery.to, delivery.isTest, p.withInvoice, delivery.subject));
       res.sent += 1;
     } catch (e) {
       res.failed.push({ client: prep.letter.contactName, error: (e as Error).message });

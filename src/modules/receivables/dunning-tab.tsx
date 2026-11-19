@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, FlaskConical, Loader2, Mail, Printer, ShieldOff } from 'lucide-react';
+import { Eye, FlaskConical, Loader2, Mail, Printer, Send, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,6 +61,8 @@ export function DunningTab({ companyId, canWrite }: { companyId: string; canWrit
   const tplMap = useMemo(() => new Map<string, DunningTemplate>(templates.map((x) => [x.code, x])), [templates]);
   const mode = normalizeDunningMode(settingsQ.data?.dunning_mode);
   const testTo = settingsQ.data?.effective_test_recipient ?? null;
+  // Envoi reel aux clients : seulement apres Parametres → Mise en production.
+  const live = mode === 'actif';
   const selected = rows.filter((r) => sel.has(r.document_id));
   const total = rows.reduce((s, r) => s + r.amount_due, 0);
 
@@ -89,11 +91,11 @@ export function DunningTab({ companyId, canWrite }: { companyId: string; canWrit
     onError: (e) => setError(errorMessage(e)),
   });
   const send = useMutation({
-    mutationFn: async () => sendLettersByMail({ companyId, prepared: await buildPrepared(true), mode, testRecipient: testTo, withInvoice, message }),
+    mutationFn: async () => sendLettersByMail({ companyId, prepared: await buildPrepared(!live), mode, testRecipient: testTo, withInvoice, message }),
     onSuccess: (r) => {
       setConfirm(false);
       if (r.skipped) { setError(t(r.skipped === 'arrete' ? 'receivables.mailStopped' : 'receivables.noTestRecipient')); return; }
-      setInfo(fillVars(t('receivables.mailSentTest'), { n: String(r.sent), to: r.to ?? '' }));
+      setInfo(live ? fillVars(t('receivables.mailSentLive'), { n: String(r.sent) }) : fillVars(t('receivables.mailSentTest'), { n: String(r.sent), to: r.to ?? '' }));
       if (r.failed.length) setError(r.failed.map((f) => `${f.client} : ${f.error}`).join(' · '));
       setSel(new Set());
       qc.invalidateQueries({ queryKey: ['dunning-candidates'] });
@@ -104,12 +106,13 @@ export function DunningTab({ companyId, canWrite }: { companyId: string; canWrit
 
   return (
     <div className="space-y-3">
-      {/* Mode d'envoi : test uniquement */}
-      <div className={`flex flex-wrap items-center gap-2 rounded-md px-3 py-2 text-[13px] ${mode === 'arrete' ? 'bg-neutral-bg text-neutral-tag' : 'bg-warning-bg text-warning'}`}>
+      {/* Mode d'envoi : arrete / test / actif (actif = Parametres → Mise en production) */}
+      <div className={`flex flex-wrap items-center gap-2 rounded-md px-3 py-2 text-[13px] ${mode === 'arrete' ? 'bg-neutral-bg text-neutral-tag' : live ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'}`}>
         {mode === 'arrete'
           ? <StatusBadge tone="neutral" icon={ShieldOff} label={t('receivables.modeStopped')} />
+          : live ? <StatusBadge tone="success" icon={Send} label={t('receivables.modeActive')} />
           : <StatusBadge tone="warning" icon={FlaskConical} label={t('receivables.modeTest')} />}
-        <span>{mode === 'arrete' ? t('receivables.modeStoppedHelp') : testTo ? fillVars(t('receivables.modeTestHelp'), { to: testTo }) : t('receivables.noTestRecipient')}</span>
+        <span>{mode === 'arrete' ? t('receivables.modeStoppedHelp') : live ? t('receivables.modeActiveHelp') : testTo ? fillVars(t('receivables.modeTestHelp'), { to: testTo }) : t('receivables.noTestRecipient')}</span>
       </div>
 
       <div className="grid gap-3 rounded-md border border-border bg-card p-3 md:grid-cols-4">
@@ -157,7 +160,7 @@ export function DunningTab({ companyId, canWrite }: { companyId: string; canWrit
         <div className="ml-auto flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => { setError(null); preview.mutate(); }} disabled={busy || sel.size === 0}>{preview.isPending ? <Loader2 className="animate-spin" /> : <Eye />} {t('receivables.preview')}</Button>
           {canWrite && <Button variant="outline" size="sm" onClick={() => { setError(null); setInfo(null); print.mutate(); }} disabled={busy || sel.size === 0}>{print.isPending ? <Loader2 className="animate-spin" /> : <Printer />} {t('receivables.printLetters')}</Button>}
-          {canWrite && <Button size="sm" onClick={() => { setError(null); setInfo(null); setConfirm(true); }} disabled={busy || sel.size === 0 || mode === 'arrete' || !testTo}><Mail /> {t('receivables.sendMailTest')}</Button>}
+          {canWrite && <Button size="sm" onClick={() => { setError(null); setInfo(null); setConfirm(true); }} disabled={busy || sel.size === 0 || mode === 'arrete' || (!live && !testTo)}><Mail /> {t(live ? 'receivables.sendMailLive' : 'receivables.sendMailTest')}</Button>}
         </div>
       </div>
       {info && <p className="rounded-md bg-success-bg px-3 py-2 text-[13px] text-success">{info}</p>}
@@ -205,13 +208,13 @@ export function DunningTab({ companyId, canWrite }: { companyId: string; canWrit
       <AlertDialog open={confirm} onOpenChange={(o) => { if (!send.isPending) setConfirm(o); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('receivables.sendMailTest')}</AlertDialogTitle>
-            <AlertDialogDescription>{fillVars(t('receivables.sendConfirmBody'), { n: String(sel.size), to: testTo ?? '—' })}</AlertDialogDescription>
+            <AlertDialogTitle>{t(live ? 'receivables.sendMailLive' : 'receivables.sendMailTest')}</AlertDialogTitle>
+            <AlertDialogDescription>{live ? fillVars(t('receivables.sendConfirmBodyLive'), { n: String(sel.size) }) : fillVars(t('receivables.sendConfirmBody'), { n: String(sel.size), to: testTo ?? '—' })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={send.isPending}>{t('action.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); send.mutate(); }} disabled={send.isPending}>
-              {send.isPending ? <Loader2 className="animate-spin" /> : <Mail />} {t('receivables.sendMailTestDo')}
+              {send.isPending ? <Loader2 className="animate-spin" /> : <Mail />} {t(live ? 'receivables.sendMailLiveDo' : 'receivables.sendMailTestDo')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

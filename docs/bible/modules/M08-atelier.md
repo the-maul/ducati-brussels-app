@@ -680,6 +680,14 @@ Source : `docs/g8-inventaire/nomenclatures-g8.md` (37 nomenclatures, prix de la 
 - **Piège** : `maintenance_fluid_article_set` (ancienne entrée) versionne désormais chaque kit touché. Lignes
   encore sans article : `maintenance_kits_unlinked(société)` (courroies sans référence au catalogue).
 
+## Ajouté le 19/11 — rappel de RDV par mail (heure de Bruxelles) et mise en production
+
+- `_cron_appointment_reminders` : « demain » et l'heure du texte sont calculés à l'heure de **Bruxelles** (avant :
+  UTC, le mail annonçait 1 h ou 2 h de moins ; bug signalé par le lot SMS).
+- Le rappel de RDV par mail a un interrupteur (`appointment_reminder_mail`, arrêté par défaut) et part par Outlook
+  (file `notifications` → Graph). SMS de fin de travaux et rappels SMS : leurs réglages existants (`sms_settings`)
+  sont pilotables depuis Paramètres → Mise en production.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |

@@ -7,6 +7,7 @@ import type { DictionaryShape } from './fr';
 
 import { g8aEn } from './g8-articles';
 import { smsEn } from './sms';
+import { productionEn } from './production';
 
 export const en: DictionaryShape = {
   app: {
@@ -9089,6 +9090,12 @@ export const en: DictionaryShape = {
     printedOk: "Reminders printed and logged in the history (letter).",
     sendMailTest: "Send by email (test)",
     sendMailTestDo: "Send to the test address",
+    modeActive: "Live (sent to customers)",
+    modeActiveHelp: "Real sending: each reminder goes to the customer's email address. To go back to test or stop: Settings → Go-live, or the setting below.",
+    sendMailLive: "Send by email to customers",
+    sendMailLiveDo: "Send to customers",
+    sendConfirmBodyLive: "{n} invoice(s) selected. REAL SENDING: each letter goes to the customer's email address.",
+    mailSentLive: "{n} reminder(s) sent to customers.",
     sendConfirmBody: "{n} invoice(s) selected. TEST MODE: each letter only goes to {to}, nothing is sent to the customer.",
     mailSentTest: "{n} reminder(s) sent in test to {to}.",
     mailStopped: "Reminders stopped: nothing was sent.",
@@ -9161,7 +9168,7 @@ export const en: DictionaryShape = {
     dunningMode: "Email reminders",
     testRecipient: "Test address",
     defaultInstallments: "Default instalments",
-    settingsHelp: "Real sending to customers is not possible for now: in test mode everything goes to {to}. Empty address: the maintenance reminders one.",
+    settingsHelp: "Real sending to customers: only through Settings → Go-live. In test mode everything goes to {to}. Empty address: the maintenance reminders one.",
     level: "Level",
     format: "Format",
     active: "Active",
@@ -9215,4 +9222,5 @@ export const en: DictionaryShape = {
   },
   g8a: g8aEn,
   sms: smsEn,
+  production: productionEn,
 };

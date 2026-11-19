@@ -47,6 +47,12 @@
 // Lecture en best-effort : si la migration 20260921191000 n'est pas encore appliquée, on
 // retombe sur le nom et l'adresse de la société ; une erreur de lecture n'empêche jamais l'envoi.
 // Le mode `dryRun` renvoie le HTML complet (aperçu dans la fenêtre d'envoi).
+// GRAPH PARTAGÉ (Q53, 19/11/2026) : jeton, appel /sendMail et règle de l'expéditeur autorisé sont
+// dans `_shared/graph-mail.ts`, réutilisés par la file de notifications et les relances.
+// INVITATION EN PIED DE MAIL : interrupteur `portal_invite` (Paramètres → Mise en production) ;
+// arrêté → aucun pied d'invitation, quel que soit l'écran.
+// RELANCES D'IMPAYÉS en mode « actif » (ouvert seulement par la fenêtre de mise en production) :
+// le mail part au destinataire demandé (le client), sans préfixe de test.
 // Secrets : MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET
 //   (app Azure, permission APPLICATION Mail.Send).
 // deno-lint-ignore-file
@@ -57,21 +63,14 @@ import {
 } from '../_shared/mail-message.ts';
 import { asMailLocale, DEFAULT_MAIL_LOCALE, type MailLocale } from '../_shared/mail-i18n.ts';
 import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
+import { allowedSender, companyMailboxes, domainOf, graphConfigured, sendGraphMail } from '../_shared/graph-mail.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const TENANT = Deno.env.get('MS_GRAPH_TENANT_ID');
-const CID = Deno.env.get('MS_GRAPH_CLIENT_ID');
-const CSECRET = Deno.env.get('MS_GRAPH_CLIENT_SECRET');
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 const J = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
-async function token(): Promise<string | null> {
-  const form = new URLSearchParams({ client_id: CID!, client_secret: CSECRET!, scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' });
-  const r = await fetch(`https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
-  return r.ok ? (await r.json()).access_token : null;
-}
 async function db(path: string, init: RequestInit = {}) {
   return fetch(`${URL}/rest/v1/${path}`, { ...init, headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 }
@@ -86,7 +85,6 @@ async function caller(req: Request): Promise<{ id: string; email: string } | nul
   return u?.id ? { id: u.id, email: String(u.email ?? '').toLowerCase() } : null;
 }
 
-const domainOf = (a: string) => a.split('@')[1]?.toLowerCase() ?? '';
 type FooterKind = 'join' | 'login' | null;
 
 /**
@@ -178,7 +176,7 @@ Deno.serve(async (req) => {
   // cochée par défaut ; décochée, le bloc d'invitation n'est pas ajouté.
   let invite = payload?.invite !== false;
   const dryRun = payload?.dryRun === true;
-  if (!dryRun && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
+  if (!dryRun && !graphConfigured()) return J({ error: 'graph_not_configured' }, 501);
 
   const user = await caller(req);
   if (!user) return J({ error: 'not_signed_in' }, 401);
@@ -190,14 +188,21 @@ Deno.serve(async (req) => {
   // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucun mail ne part (la verification sans envoi reste possible).
   if (!dryRun && await isTestCompany(companyId)) return J({ error: TEST_COMPANY_ERROR }, 409);
 
-  // RELANCES D IMPAYES (rattrapage G8, 18/11/2026, migration 20261118171000) : MODE TEST UNIQUEMENT.
-  // Quel que soit le destinataire demande, le mail part a l adresse de test de la societe
+  // RELANCES D IMPAYES (rattrapage G8, 18/11/2026, migration 20261118171000). En mode test,
+  // quel que soit le destinataire demande, le mail part a l adresse de test de la societe
   // (receivable_settings.dunning_test_recipient, sinon followup_settings.test_recipient), objet
   // prefixe, sans copie, sans pied d invitation, sans trace dans l historique du client. Mode
-  // « arrete » : rien ne part. L envoi reel aux clients n existe pas (contrainte en base).
+  // « arrete » : rien ne part.
+  // Mise en production (19/11/2026) : « actif » n'est posable que par la fenetre de mise en
+  // production ; le mail part alors au client demande, sans prefixe, sans copie ni invitation.
   if (payload?.purpose === 'dunning') {
     const rs = await first<{ dunning_mode?: string; dunning_test_recipient?: string | null }>(`receivable_settings?select=dunning_mode,dunning_test_recipient&company_id=eq.${companyId}`);
     if (rs?.dunning_mode === 'arrete') return J({ error: 'dunning_stopped' }, 409);
+    if (rs?.dunning_mode === 'actif') {
+      cc = [];
+      invite = false;
+      trace = undefined;
+    } else {
     const fs = await first<{ test_recipient?: string | null }>(`followup_settings?select=test_recipient&company_id=eq.${companyId}`);
     const rcpt = String(rs?.dunning_test_recipient || fs?.test_recipient || '').trim().toLowerCase();
     if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(rcpt)) return J({ error: 'no_test_recipient' }, 409);
@@ -209,25 +214,26 @@ Deno.serve(async (req) => {
     invite = false;
     contactId = undefined;
     trace = undefined;
+    }
   }
 
-  const boxes = await (await db(`company_mailboxes?select=address&company_id=eq.${companyId}&is_active=eq.true`)).json();
-  const shared = new Set((Array.isArray(boxes) ? boxes : []).map((b: { address: string }) => b.address.toLowerCase()));
+  // Interrupteur « invitation a l'espace client en pied de mail » (defaut actif). Doute : inchange.
+  if (invite) {
+    try {
+      const r = await db('rpc/automation_mode', { method: 'POST', body: JSON.stringify({ _company: companyId, _key: 'portal_invite' }) });
+      if (r.ok && (await r.json()) === 'arrete') invite = false;
+    } catch { /* migration absente : comportement d'avant */ }
+  }
+
+  const shared = new Set(await companyMailboxes(db, companyId));
   const domains = new Set([...shared].map(domainOf));
 
-  // Boîte d'expédition, vérifiée côté serveur.
-  let mailbox: string | undefined;
-  const wanted = typeof from === 'string' ? from.trim().toLowerCase() : '';
-  if (wanted) {
-    const isShared = shared.has(wanted);
-    const isOwn = wanted === user.email && domains.has(domainOf(wanted));
-    if (!isShared && !isOwn) return J({ error: 'unknown_mailbox' }, 400);
-    mailbox = wanted;
-  } else {
-    const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
-    mailbox = co?.[0]?.inbound_mailbox?.toLowerCase();
-  }
-  if (!mailbox) return J({ error: 'no_mailbox' }, 400);
+  // Boîte d'expédition, vérifiée côté serveur (règle commune : _shared/graph-mail.ts).
+  const wanted = typeof from === 'string' ? from : '';
+  const co = wanted ? null : await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json();
+  const pick = allowedSender({ wanted, userEmail: user.email, shared, fallback: co?.[0]?.inbound_mailbox ?? null });
+  if ('error' in pick) return J({ error: pick.error }, 400);
+  const mailbox = pick.mailbox;
 
   // Pièces jointes : [{ name, contentType, contentBytes(base64) }]
   const atts = toGraphAttachments(attachments);
@@ -274,14 +280,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  const tok = await token();
-  if (!tok) return J({ error: 'graph_auth_failed' }, 502);
-
-  const sendRes = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
-    method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(graphBody),
-  });
-  if (!sendRes.ok) return J({ error: 'send_failed', detail: (await sendRes.text()).slice(0, 200) }, 502);
+  const sendRes = await sendGraphMail(mailbox, graphBody);
+  if (!sendRes.ok) {
+    if (sendRes.error === 'graph_auth_failed') return J({ error: 'graph_auth_failed' }, 502);
+    return J({ error: 'send_failed', detail: sendRes.error.slice(0, 200) }, 502);
+  }
 
   // Trace du document envoyé (qui, quand, à qui, quelle boîte, quels fichiers + empreinte SHA-256
   // de chaque fichier : le PDF archivé en GED se prouve identique à celui envoyé, lot du 03/11/2026).

@@ -14,6 +14,10 @@
 //   (app Azure avec permission APPLICATION Mail.Read). SUPABASE_URL / SERVICE_ROLE injectés.
 //   ANTHROPIC_API_KEY est consommé par classify-prospect-email, pas ici.
 // Config : table `company_mailboxes` (Paramètres → Sociétés).
+// INTERRUPTEURS (Mise en production, 19/11/2026, actifs par défaut : ils tournaient déjà) :
+//   `outlook_poll` arrêté → les boîtes de la société ne sont plus relevées ;
+//   `prospect_classify` arrêté → un mail d'expéditeur inconnu n'est PAS envoyé à Claude : il est
+//   noté « écarté » avec le motif « classification arrêtée » (visible, rien n'est créé).
 //
 // ACCÈS (lot sécurité S, 19/09) : pg_cron (en-tête x-cron-secret = secret CRON_SECRET), clé de
 // service, ou utilisateur connecté membre actif d'au moins une société (bouton « relever » de
@@ -132,10 +136,16 @@ Deno.serve(async (req: Request) => {
   if (!Array.isArray(mailboxesAll)) return new Response(JSON.stringify({ error: 'mailboxes_query', detail: mailboxesAll }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   // SOCIETE DE TEST (lot ItalTest, 19/11/2026) : aucune boite relevee pour elle (la base refuse deja ses boites).
   const tests = await testCompanyIds();
-  const mailboxes = (mailboxesAll as Array<Record<string, string>>).filter((m) => !tests.has(m.company_id));
+  // Interrupteurs par société (Mise en production ; migration absente : rien d'arrêté, comportement d'avant).
+  const offOf = async (key: string): Promise<Set<string>> => {
+    try { return new Set(((await rpc('automation_companies_off', { _key: key })) as string[] ?? []).map(String)); } catch { return new Set(); }
+  };
+  const pollOff = await offOf('outlook_poll');
+  const classifyOff = await offOf('prospect_classify');
+  const mailboxes = (mailboxesAll as Array<Record<string, string>>).filter((m) => !tests.has(m.company_id) && !pollOff.has(m.company_id));
 
   // Nos propres adresses : un mail que l'on s'envoie entre boîtes n'est pas un prospect.
-  const ownAddresses = new Set((mailboxes as Array<Record<string, string>>).map((m) => (m.address || '').toLowerCase()));
+  const ownAddresses = new Set((mailboxesAll as Array<Record<string, string>>).map((m) => (m.address || '').toLowerCase()));
 
   const addr = (o: unknown) => (((o as Record<string, unknown>)?.emailAddress as Record<string, unknown>)?.address as string) || '';
 
@@ -189,6 +199,12 @@ Deno.serve(async (req: Request) => {
         if (!contactId && direction === 'in' && matchEmail) {
           if (ownAddresses.has(matchEmail.toLowerCase()) || isAutomatic(subject, matchEmail)) {
             await rpc('log_ignored_email', { _company: coId, _email: matchEmail, _subject: subject, _received: ts, _external_id: m.id, _verdict: 'message automatique ou interne' });
+            ignored++;
+            maxTs = ts;
+            continue;
+          }
+          if (classifyOff.has(coId)) {
+            await rpc('log_ignored_email', { _company: coId, _email: matchEmail, _subject: subject, _received: ts, _external_id: m.id, _verdict: 'classification IA arretee (Mise en production)' });
             ignored++;
             maxTs = ts;
             continue;

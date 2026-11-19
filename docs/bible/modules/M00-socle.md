@@ -281,6 +281,40 @@ Vérifié le 18/09/2026 dans le code et dans la base (projet `ujmrosbgkvgvwfnury
 | — (dossier M0) | Recherche globale client / VIN / plaque / réf / n° de document | 🟦 partiel | `global-search.tsx` : clients, véhicules, articles seulement |
 | — (dossier M0) | Séquences documentaires par société | ✅ fait | `document_sequences`, `next_document_number`, `_app.settings.numbering.tsx` |
 
+## Ajouté le 19/11 — Mise en production (Paramètres, administrateurs)
+
+**Demande client (19/11)** : un bouton « Mise en production » qui liste tout ce qui sera démarré, pour
+passer de la recette à l'exploitation sans rien oublier, et revenir en arrière en cas de problème.
+
+- **Où** : carte « Mise en production » en tête de Paramètres → fenêtre `src/modules/settings/production-dialog.tsx`
+  (règles pures `production-rules.ts`, accès `production-api.ts`, libellés `src/lib/i18n/production.ts`, 4 langues).
+- **La liste (17 éléments, `production_overview`)** : Shopify stock/prix/publication (`shopify_sync_settings.mode`
+  arrete/essai/tous) · Shopify commandes du site (`shopify_order_settings.import_enabled`) · relances d'entretien
+  (`followup_settings.mode`) · relances d'impayés (`receivable_settings.dunning_mode`) · relance automatique des
+  factures échues · rappel de RDV par mail · confirmation de commande e-shop · invitation à l'espace client en pied
+  de mail (ces 4 : `automation_switches`, nouveaux) · SMS (`sms_settings.mode`) · SMS de fin de travaux
+  (`sms_settings.ready_auto`) · rappels de RDV par SMS (`reminder_auto`) · transfert comptable automatique
+  (`accounting_transfer_settings.params.enabled` + fréquence) · relève Outlook · tri IA des prospects · résumé IA
+  des échanges (`automation_switches`, nouveaux) · application client publique (`signup_settings.client_app_open`)
+  · Stripe (affiché « non utilisé », jamais démarrable, décision client). Plus les **tâches pg_cron** (état,
+  dernière exécution, message d'échec).
+- **État** : Arrêté / Test / Actif / Non utilisé = couleur + icône + libellé (`StatusBadge`, jamais le rouge de la
+  marque). **Ce qui manque** : secret absent (relevé par la fonction Edge `production-status`, oui / non, jamais la
+  valeur : table `integration_status`), boîte d'envoi, adresse / numéro de test, fréquence compta, dépendance
+  (SMS avant SMS de fin de travaux, relève avant IA).
+- **Actions** (`production_apply(_company, _keys, _action)`) : `start` (Actif), `test`, `pause` (Arrêté). Tout ou
+  rien : un élément refusé annule l'appel. Passe par l'interrupteur EXISTANT de chaque module
+  (`shopify_sync_set_mode`, `shopify_orders_set_import`, `followup_settings_set`, `sms_settings_set`…), qui garde
+  sa propre trace ; en plus une ligne `events` `production_switch` par élément (qui, quand, quoi, ancien / nouveau,
+  action). Refus : non configuré (`MEP_NOT_CONFIGURED:<clé>:<manques>`), société de test (`MEP_TEST_COMPANY`,
+  via `_sms_is_test_company` → `is_test_company` du lot ItalTest s'il existe), Stripe (`MEP_NOT_USED`). La pause
+  reste possible partout, même pour une société de test.
+- **Nouveaux interrupteurs** (`automation_switches`, `automation_mode(_company, _key)`) : arrêtés par défaut, sauf
+  ce qui tournait déjà volontairement en production le 19/11 (vérifié : relève Outlook toutes les 5 min, 9
+  prospects « mail » en 30 jours, 9 résumés en 7 jours, pied d'invitation P-5 / P-6) → actifs par défaut.
+- **Piège** : `production_overview` / `production_apply` sont réservés aux administrateurs (`MEP_FORBIDDEN`).
+  Les relances d'impayés ne passent en « actif » QUE par cette fenêtre : `receivable_settings_set` le refuse.
+
 ## 9. Historique
 
 | Date | Changement | Commit ou migration |

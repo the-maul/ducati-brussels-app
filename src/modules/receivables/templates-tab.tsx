@@ -128,7 +128,7 @@ export function TemplatesTab({ companyId, canWrite, isAdmin }: { companyId: stri
 function SettingsCard({ companyId, isAdmin }: { companyId: string; isAdmin: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['receivable-settings', companyId], queryFn: () => getReceivableSettings(companyId), retry: false });
-  const [mode, setMode] = useState<'arrete' | 'test'>('test');
+  const [mode, setMode] = useState<'arrete' | 'test' | 'actif'>('test');
   const [rcpt, setRcpt] = useState('');
   const [count, setCount] = useState('12');
   const [days, setDays] = useState('365');
@@ -141,7 +141,8 @@ function SettingsCard({ companyId, isAdmin }: { companyId: string; isAdmin: bool
   }, [q.data]);
   const save = useMutation({
     mutationFn: () => setReceivableSettings(companyId, {
-      dunning_mode: mode, dunning_test_recipient: rcpt.trim() || null, default_installments: Number(count) || 12,
+      // « actif » ne se pose que par Parametres → Mise en production : l'ecran ne le renvoie pas.
+      ...(mode === 'actif' ? {} : { dunning_mode: mode }), dunning_test_recipient: rcpt.trim() || null, default_installments: Number(count) || 12,
       voucher_validity_days: Number(days) || 365, voucher_min_amount: parseAmount(min),
     }),
     onSuccess: () => { setMsg(t('receivables.saved')); qc.invalidateQueries({ queryKey: ['receivable-settings'] }); },
@@ -153,9 +154,13 @@ function SettingsCard({ companyId, isAdmin }: { companyId: string; isAdmin: bool
       <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('receivables.settingsTitle')}</p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Field label={t('receivables.dunningMode')}>
-          <Select value={mode} onValueChange={(v) => setMode(v as 'arrete' | 'test')} disabled={!isAdmin}>
+          <Select value={mode} onValueChange={(v) => setMode(v as 'arrete' | 'test' | 'actif')} disabled={!isAdmin}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="arrete">{t('receivables.modeStopped')}</SelectItem><SelectItem value="test">{t('receivables.modeTest')}</SelectItem></SelectContent>
+            <SelectContent>
+              <SelectItem value="arrete">{t('receivables.modeStopped')}</SelectItem><SelectItem value="test">{t('receivables.modeTest')}</SelectItem>
+              {/* Actif : seulement par Parametres → Mise en production (lecture ici). */}
+              <SelectItem value="actif" disabled={mode !== 'actif'}>{t('receivables.modeActive')}</SelectItem>
+            </SelectContent>
           </Select>
         </Field>
         <Field label={t('receivables.testRecipient')}><Input type="email" value={rcpt} onChange={(e) => setRcpt(e.target.value)} placeholder={q.data?.effective_test_recipient ?? ''} disabled={!isAdmin} /></Field>

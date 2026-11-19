@@ -6,11 +6,10 @@
  * rappel (lettre AR) ; niveau, agio %, montant minimum ; à l'envoi « montant frais » et « majorer
  * de % » ; 4 blocs de texte. Ici : frais = frais fixes + majoration % du montant dû, arrondis au cent.
  *
- * ENVOI EN MODE TEST UNIQUEMENT (journal du 03/11 : « relances = test → simon@themaul.be ») :
- * `resolveDunningDelivery` ne connaît que « arrêté » (rien ne part) et « test » (tout part à
- * l'adresse de test, objet préfixé). Un mode « actif » éventuel est TRAITÉ COMME TEST : l'envoi
- * réel aux clients n'existe pas dans ce code. La base (contrainte sur `receivable_settings`) et
- * `graph-send-email` (purpose `dunning`) refont le même contrôle.
+ * ENVOI (journal du 03/11 : « relances = test → simon@themaul.be ») : « arrêté » (rien ne part),
+ * « test » (tout part à l'adresse de test, objet préfixé). « actif » (envoi au client) n'est posable
+ * QUE par la fenêtre Paramètres → Mise en production (19/11/2026, production_apply) ; l'écran des
+ * réglages des relances le refuse. `graph-send-email` (purpose `dunning`) refait le contrôle.
  */
 import { isEmail, testSubject } from '../../../supabase/functions/_shared/followups-mode';
 
@@ -74,19 +73,28 @@ export function meetsMinimum(letter: DunningLetter, tpl: Pick<DunningTemplate, '
   return letter.totalDue + 0.005 >= Number(tpl.min_amount || 0);
 }
 
-export type DunningMode = 'arrete' | 'test';
-/** Tout ce qui n'est pas « arrêté » est TEST : il n'y a pas d'envoi réel aux clients. */
+export type DunningMode = 'arrete' | 'test' | 'actif';
+/** arrêté et actif sont explicites ; tout le reste (vide, inconnu) est TEST. */
 export function normalizeDunningMode(m: unknown): DunningMode {
-  return m === 'arrete' ? 'arrete' : 'test';
+  return m === 'arrete' ? 'arrete' : m === 'actif' ? 'actif' : 'test';
 }
 
 export type DunningDelivery =
-  | { send: false; reason: 'arrete' | 'no_test_recipient' }
-  | { send: true; to: string; subject: string; isTest: true };
+  | { send: false; reason: 'arrete' | 'no_test_recipient' | 'no_email' }
+  | { send: true; to: string; subject: string; isTest: boolean };
 
-/** Où part la relance : jamais chez le client, toujours à l'adresse de test (ou nulle part). */
-export function resolveDunningDelivery(mode: unknown, testRecipient: string | null | undefined, subject: string, clientLabel: string): DunningDelivery {
-  if (normalizeDunningMode(mode) === 'arrete') return { send: false, reason: 'arrete' };
+/**
+ * Où part la relance : arrêté → nulle part ; test → adresse de test (jamais le client) ;
+ * actif (mise en production) → l'adresse du client, objet tel quel.
+ */
+export function resolveDunningDelivery(mode: unknown, testRecipient: string | null | undefined, subject: string, clientLabel: string, clientEmail?: string | null): DunningDelivery {
+  const m = normalizeDunningMode(mode);
+  if (m === 'arrete') return { send: false, reason: 'arrete' };
+  if (m === 'actif') {
+    const client = String(clientEmail ?? '').trim().toLowerCase();
+    if (!isEmail(client)) return { send: false, reason: 'no_email' };
+    return { send: true, to: client, subject, isTest: false };
+  }
   const to = String(testRecipient ?? '').trim().toLowerCase();
   if (!isEmail(to)) return { send: false, reason: 'no_test_recipient' };
   return { send: true, to, subject: testSubject(subject, clientLabel), isTest: true };

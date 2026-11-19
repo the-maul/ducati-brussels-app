@@ -104,12 +104,14 @@ describe('relances d impayés', () => {
     expect(meetsMinimum(forced[0], { min_amount: 10 })).toBe(false);
     expect(meetsMinimum(forced[1], { min_amount: 35.5 })).toBe(true);
   });
-  test('MODE TEST UNIQUEMENT : jamais l adresse du client', () => {
-    const d = resolveDunningDelivery('test', 'Simon@TheMaul.be', 'Rappel', 'Marco Rossi');
+  test('mode test : jamais l adresse du client ; actif (mise en production) : le client', () => {
+    const d = resolveDunningDelivery('test', 'Simon@TheMaul.be', 'Rappel', 'Marco Rossi', 'marco@example.invalid');
     expect(d).toEqual({ send: true, to: 'simon@themaul.be', subject: '[TEST relance pour Marco Rossi] Rappel', isTest: true });
-    // Un mode « actif » éventuel est traité comme TEST : il n'y a pas d'envoi réel dans ce code.
-    expect(normalizeDunningMode('actif')).toBe('test');
-    expect(resolveDunningDelivery('actif', 'simon@themaul.be', 'R', 'X')).toMatchObject({ send: true, to: 'simon@themaul.be', isTest: true });
+    // « actif » n'est posable que par Parametres → Mise en production (19/11/2026).
+    expect(normalizeDunningMode('actif')).toBe('actif');
+    expect(normalizeDunningMode('inconnu')).toBe('test');
+    expect(resolveDunningDelivery('actif', 'simon@themaul.be', 'R', 'X', 'Marco@Example.invalid')).toEqual({ send: true, to: 'marco@example.invalid', subject: 'R', isTest: false });
+    expect(resolveDunningDelivery('actif', 'simon@themaul.be', 'R', 'X', null)).toEqual({ send: false, reason: 'no_email' });
     expect(resolveDunningDelivery('arrete', 'simon@themaul.be', 'R', 'X')).toEqual({ send: false, reason: 'arrete' });
     expect(resolveDunningDelivery('test', '', 'R', 'X')).toEqual({ send: false, reason: 'no_test_recipient' });
     expect(resolveDunningDelivery('test', 'pas une adresse', 'R', 'X')).toEqual({ send: false, reason: 'no_test_recipient' });

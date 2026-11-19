@@ -21,14 +21,14 @@ const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n
 
 /* ------------------------------------------------------------------ réglages */
 export type ReceivableSettings = {
-  dunning_mode: 'arrete' | 'test'; dunning_test_recipient: string | null; effective_test_recipient: string | null;
+  dunning_mode: 'arrete' | 'test' | 'actif'; dunning_test_recipient: string | null; effective_test_recipient: string | null;
   default_installments: number; voucher_validity_days: number; voucher_min_amount: number;
 };
 export async function getReceivableSettings(companyId: string): Promise<ReceivableSettings> {
   const rows = await rpc<ReceivableSettings[]>('receivable_settings_get', { _company: companyId });
   const r = rows?.[0];
   return {
-    dunning_mode: r?.dunning_mode === 'arrete' ? 'arrete' : 'test',
+    dunning_mode: r?.dunning_mode === 'arrete' ? 'arrete' : r?.dunning_mode === 'actif' ? 'actif' : 'test',
     dunning_test_recipient: r?.dunning_test_recipient ?? null,
     effective_test_recipient: r?.effective_test_recipient ?? null,
     default_installments: num(r?.default_installments) || 12,
