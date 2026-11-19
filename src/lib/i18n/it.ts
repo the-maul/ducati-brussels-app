@@ -7,6 +7,7 @@ import type { DictionaryShape } from './fr';
 
 import { g8aIt } from './g8-articles';
 import { smsIt } from './sms';
+import { productionIt } from './production';
 
 export const it: DictionaryShape = {
   app: {
@@ -9089,6 +9090,12 @@ export const it: DictionaryShape = {
     printedOk: "Solleciti stampati e registrati nello storico (posta).",
     sendMailTest: "Invia per e-mail (test)",
     sendMailTestDo: "Invia all'indirizzo di test",
+    modeActive: "Attivo (invio ai clienti)",
+    modeActiveHelp: "Invio reale: ogni sollecito parte all'indirizzo e-mail del cliente. Per tornare in test o fermare: Impostazioni → Messa in produzione, o l'impostazione qui sotto.",
+    sendMailLive: "Invia per e-mail ai clienti",
+    sendMailLiveDo: "Invia ai clienti",
+    sendConfirmBodyLive: "{n} fattura/e selezionata/e. INVIO REALE: ogni lettera parte all'indirizzo e-mail del cliente.",
+    mailSentLive: "{n} sollecito/i inviato/i ai clienti.",
     sendConfirmBody: "{n} fattura/e selezionata/e. MODALITÀ TEST: ogni lettera parte solo a {to}, nulla viene inviato al cliente.",
     mailSentTest: "{n} sollecito/i inviato/i in test a {to}.",
     mailStopped: "Solleciti fermi: non è partito nulla.",
@@ -9161,7 +9168,7 @@ export const it: DictionaryShape = {
     dunningMode: "Solleciti via e-mail",
     testRecipient: "Indirizzo di test",
     defaultInstallments: "Rate predefinite",
-    settingsHelp: "Invio reale ai clienti per ora impossibile: in modalità test tutto parte a {to}. Indirizzo vuoto: quello dei promemoria di manutenzione.",
+    settingsHelp: "Invio reale ai clienti: solo da Impostazioni → Messa in produzione. In modalità test tutto parte a {to}. Indirizzo vuoto: quello dei promemoria di manutenzione.",
     level: "Livello",
     format: "Formato",
     active: "Attivo",
@@ -9268,4 +9275,5 @@ export const it: DictionaryShape = {
   },
   g8a: g8aIt,
   sms: smsIt,
+  production: productionIt,
 };

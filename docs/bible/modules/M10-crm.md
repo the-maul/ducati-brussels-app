@@ -152,6 +152,36 @@ Source : [`../../plan-nouveau-client.md`](../../plan-nouveau-client.md) et `etat
 - Interrupteur `sms_settings` (Arrêté par défaut / Test / Actif), comme les relances (`followup_settings`). Un SMS envoyé chez un client (fin de travaux, rappel) est ajouté aux échanges de la fiche (`communications`, canal sms).
 - Les e-mails de la file (rappel de RDV, relance facture) passent toujours par Resend, **non configuré** : ils finissent « skipped ». Les mails sortants du DMS passent par Outlook (`graph-send-email`). Voir « À trancher » du lot SMS.
 
+## Ajouté le 19/11 — mails automatiques par Outlook (Q53) et mise en production
+
+- **Constat « relances en test, jamais rien reçu »** (lecture prod du 19/11) : la tâche pg_cron `followups-plan`
+  échoue CHAQUE JOUR depuis le 31/10 (20/20) : `vehicles_maintenance_upcoming` refusait l'appel sans jeton
+  (« Accès refusé à la société ») ; table `followups` vide, donc `followups-send` n'avait jamais rien à envoyer à
+  l'adresse de test. Corrigé (migration 20261119220000 : appel interne accepté, utilisateur toujours contrôlé).
+  `followups_daily` ignore désormais les sociétés de test (ItalTest copie les 2 867 échéances d'ITALBIKE) :
+  aucune relance n'y est jamais planifiée par la tâche de 6 h.
+  À la première planification : environ 129 relances (source `dcs_extract`, « plan » toujours exclu), dont ~28
+  dues tout de suite → ~28 mails de TEST à l'adresse de test le premier matin.
+- **File `notifications`, mails** : `dispatch-notifications` envoie désormais par **Microsoft Graph** (Resend
+  retiré, il n'a jamais été configuré : 23 mails « skipped » depuis juin). La base décide (`mail_dispatch_claim`) :
+  société de test → `skipped / test_company` ; interrupteur du modèle (`invoice_reminder` → relance automatique
+  des factures, `appointment_reminder` → rappel de RDV, `order_confirm` → confirmation e-shop ; autre → `no_switch`)
+  arrêté → `skipped / mail_off` ; test → adresse de test (`mail_test_recipient`), objet « [TEST pour <client>] » ;
+  actif → client ; RDV changé / passé, facture payée entre-temps → `skipped`. Résultat : `mail_dispatch_result`
+  (provider `graph`, `sent_to`, `is_test`).
+- **Boîte d'envoi** des mails automatiques : `notification_sender(_company)` = réglage
+  `automation_settings.sender_mailbox` (Mise en production) s'il désigne une boîte active, sinon une boîte
+  « atelier », sinon **info@**, sinon la boîte principale, sinon la première boîte active. Utilisée aussi par
+  `followups-send` (avant : la boîte principale `companies.inbound_mailbox`, aujourd'hui domenico@) et par le
+  transfert comptable. Le mail reste dans ses « Éléments envoyés ».
+- **Code Graph partagé** : `supabase/functions/_shared/graph-mail.ts` (jeton, `/sendMail`, règle de l'expéditeur
+  autorisé `allowedSender` reprise de graph-send-email, signature de boîte partagée). graph-send-email,
+  followups-send, dispatch-notifications et accounting-auto-transfer l'utilisent.
+- **Interrupteurs ajoutés** : relève Outlook (`outlook_poll`), tri IA des mails d'inconnus (`prospect_classify` :
+  arrêté → le mail est noté « écarté — classification IA arrêtée », rien n'est créé), résumé IA (`exchange_summary`
+  : arrêté → échanges marqués traités sans paragraphe), invitation en pied de mail (`portal_invite`, lue par
+  graph-send-email). Actifs par défaut (ils tournaient déjà).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé | État | Preuve |

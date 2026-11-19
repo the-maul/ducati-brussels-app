@@ -400,3 +400,16 @@ le bon, sans vente ni encaissement) ; mode `BA` distinct de `CHQC` (cartes cadea
 la page = ceux de « Soldes à encaisser ».
 | 2026-11-18 | **Rattrapage G8 caisse** (PDV007, PDV008, PDV009 ; décision Q31) : remise en banque par mode avec report du fond de caisse, bordereau, archives (commenter, modifier, annuler motivés), archiver sans remise ; fond proposé à l'ouverture ; mouvements de fond typés (TVA, compte) ; calcul monnaie ; 24 journaux de caisse G8 (écran, PDF, Excel) sans brouillon | `20261118150000_m6_remise_en_banque.sql`, `20261118151000_m6_journaux_caisse.sql` (à appliquer) |
 | 2026-11-18 | **Rattrapage G8 documents de vente** : liste des factures complète (pagination serveur, filtres, marge, transfert, totaux, panier moyen, impression par plage, envoi groupé en mode test, export Excel, dupliquer, refacturer), facturation groupée des BL, « Choisissez votre document », Documents clients (11 onglets), acompte direct `ACD`, documents en attente, options d'édition | `20261118160000_m6_documents_vente_g8.sql` (à appliquer) |
+
+## Ajouté le 19/11 — relances d'impayés : passage en « actif » par la mise en production
+
+- `receivable_settings.dunning_mode` accepte `arrete | test | actif`. **Actif ne se pose que par Paramètres →
+  Mise en production** (`production_apply`) ; l'écran Modèles et réglages l'affiche (option grisée) et ne le renvoie
+  jamais, `receivable_settings_set` le refuse toujours.
+- En actif, `resolveDunningDelivery` (src/modules/receivables/dunning.ts) envoie à l'adresse du client (objet tel
+  quel, historique `is_test = false`) ; un client sans e-mail est signalé sans bloquer les autres. graph-send-email
+  (purpose `dunning`) : actif → au destinataire demandé, sans copie ni invitation.
+- La **relance automatique des factures échues** (tâche `invoice-reminders`, mail générique hebdomadaire par
+  facture, antérieure aux lettres G8) a son propre interrupteur (`invoice_reminder_auto`, arrêté par défaut) : avant
+  le 19/11 elle visait directement l'adresse du client, sans mode test (rien n'est parti : Resend absent).
+

@@ -9,7 +9,9 @@
 //      aujourd'hui, ventes / règlements / options cochées dans les paramètres ;
 //   2. enregistre le transfert (record_accounting_transfer, mode « auto ») : historique, marquage ;
 //   3. si « envoi par e-mail » est coché ET qu'une adresse est saisie (désactivé par défaut), envoie les
-//      deux fichiers depuis la première boîte Outlook active de la société (Microsoft Graph).
+//      deux fichiers depuis la boîte des mails automatiques (Paramètres → Mise en production, défaut
+//      info@ ; 19/11/2026) par Microsoft Graph.
+// Interrupteur : params.enabled (Mise en production : Démarrer / Mettre en pause) + fréquence.
 //
 // Accès : pg_cron (x-cron-secret) ou clé de service. Secrets : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 // (injectés), CRON_SECRET, et pour l'e-mail MS_GRAPH_TENANT_ID / MS_GRAPH_CLIENT_ID / MS_GRAPH_CLIENT_SECRET.
@@ -19,34 +21,20 @@ declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identify } from '../_shared/acces.ts';
 import { testCompanyIds } from '../_shared/test-company.ts';
+import { sendGraphMail } from '../_shared/graph-mail.ts';
 import { buildEbpTransfer } from '../_shared/ebp-format.ts';
 import { autoTransferDue, loadEbpRules, loadEbpSettings, loadEbpSources, type EbpDbClient } from '../_shared/ebp-sources.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const TENANT = Deno.env.get('MS_GRAPH_TENANT_ID');
-const CID = Deno.env.get('MS_GRAPH_CLIENT_ID');
-const CSECRET = Deno.env.get('MS_GRAPH_CLIENT_SECRET');
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
 
-async function graphToken(): Promise<string | null> {
-  if (!TENANT || !CID || !CSECRET) return null;
-  const form = new URLSearchParams({ client_id: CID, client_secret: CSECRET, scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' });
-  const res = await fetch(`https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
-  if (!res.ok) return null;
-  return (await res.json()).access_token ?? null;
-}
-
 async function sendFiles(mailbox: string, to: string, subject: string, files: { name: string; content: string }[]): Promise<string | null> {
-  const token = await graphToken();
-  if (!token) return 'graph_not_configured';
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Graph partage (Q53, 19/11/2026) : _shared/graph-mail.ts.
+  const res = await sendGraphMail(mailbox, {
       message: {
         subject,
         body: { contentType: 'Text', content: subject },
@@ -54,9 +42,8 @@ async function sendFiles(mailbox: string, to: string, subject: string, files: { 
         attachments: files.map((f) => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: f.name, contentType: 'text/plain', contentBytes: b64(f.content) })),
       },
       saveToSentItems: true,
-    }),
   });
-  return res.ok ? null : `graph_${res.status}`;
+  return res.ok ? null : res.error.slice(0, 120);
 }
 
 Deno.serve(async (req) => {
@@ -103,9 +90,12 @@ Deno.serve(async (req) => {
       if (error) { report.push({ company: co.name, error: error.message }); continue; }
       let mail: string | null = 'disabled';
       if (settings.auto.sendEmail && settings.auto.email) {
-        const { data: box } = await client.from('company_mailboxes').select('address').eq('company_id', co.id).eq('is_active', true).limit(1).maybeSingle();
-        mail = box?.address
-          ? await sendFiles(box.address, settings.auto.email, `Transfert comptable n° ${rec?.transfer_no} - ${co.name} - ${from} au ${today}`,
+        // Boite des mails automatiques (Parametres → Mise en production), sinon la premiere boite active.
+        const { data: sender } = await client.rpc('notification_sender', { _company: co.id });
+        const { data: box } = sender ? { data: null } : await client.from('company_mailboxes').select('address').eq('company_id', co.id).eq('is_active', true).limit(1).maybeSingle();
+        const address = (typeof sender === 'string' && sender) || box?.address;
+        mail = address
+          ? await sendFiles(address, settings.auto.email, `Transfert comptable n° ${rec?.transfer_no} - ${co.name} - ${from} au ${today}`,
             [{ name: settings.entriesFile, content: result.ecritures }, { name: settings.accountsFile, content: result.comptes }])
           : 'no_mailbox';
       }

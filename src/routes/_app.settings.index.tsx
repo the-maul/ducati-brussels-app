@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { DemoTemplateCard } from '@/modules/orders/demo-template-card';
 import { FollowupModeCard } from '@/modules/crm/followup-mode-banner';
 import { MinimaxModeCard } from '@/modules/purchases/minimax-mode-card';
+import { ProductionCard } from '@/modules/settings/production-dialog';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/settings/')({
@@ -16,6 +17,9 @@ function SettingsIndex() {
     <>
       <PageHeader title={t('settings.title')} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Mise en production (19/11/2026) : tout ce qui sort, demarrage / test / pause, administrateurs. */}
+        <ProductionCard />
+
         {/* Rapprochements : sorti du menu principal le 28/10/2026, la file est tombee a 8 cas.
             Il reste ici parce qu'il porte aussi les liens Shopify et la creation des articles
             manquants, et que de nouveaux cas apparaissent a chaque import de tarif. */}

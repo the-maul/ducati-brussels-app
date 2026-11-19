@@ -7,6 +7,7 @@ import type { DictionaryShape } from './fr';
 
 import { g8aNl } from './g8-articles';
 import { smsNl } from './sms';
+import { productionNl } from './production';
 
 export const nl: DictionaryShape = {
   app: {
@@ -9089,6 +9090,12 @@ export const nl: DictionaryShape = {
     printedOk: "Aanmaningen afgedrukt en in de historiek genoteerd (brief).",
     sendMailTest: "Per mail versturen (test)",
     sendMailTestDo: "Naar het testadres versturen",
+    modeActive: "Actief (verzending naar klanten)",
+    modeActiveHelp: "Echte verzending: elke aanmaning gaat naar het e-mailadres van de klant. Terug naar test of stoppen: Instellingen → Ingebruikname, of de instelling hieronder.",
+    sendMailLive: "Per mail naar de klanten versturen",
+    sendMailLiveDo: "Naar de klanten versturen",
+    sendConfirmBodyLive: "{n} factuur/facturen geselecteerd. ECHTE VERZENDING: elke brief gaat naar het e-mailadres van de klant.",
+    mailSentLive: "{n} aanmaning(en) naar de klanten verstuurd.",
     sendConfirmBody: "{n} factuur/facturen geselecteerd. TESTMODUS: elke brief gaat enkel naar {to}, er wordt niets naar de klant gestuurd.",
     mailSentTest: "{n} aanmaning(en) in test verstuurd naar {to}.",
     mailStopped: "Aanmaningen gestopt: er is niets vertrokken.",
@@ -9161,7 +9168,7 @@ export const nl: DictionaryShape = {
     dunningMode: "Aanmaningen per mail",
     testRecipient: "Testadres",
     defaultInstallments: "Standaard aantal termijnen",
-    settingsHelp: "Echte verzending naar klanten is voorlopig onmogelijk: in testmodus gaat alles naar {to}. Leeg adres: dat van de onderhoudsherinneringen.",
+    settingsHelp: "Echte verzending naar klanten: enkel via Instellingen → Ingebruikname. In testmodus gaat alles naar {to}. Leeg adres: dat van de onderhoudsherinneringen.",
     level: "Niveau",
     format: "Formaat",
     active: "Actief",
@@ -9268,4 +9275,5 @@ export const nl: DictionaryShape = {
   },
   g8a: g8aNl,
   sms: smsNl,
+  production: productionNl,
 };

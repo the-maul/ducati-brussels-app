@@ -232,3 +232,12 @@ si elles passent après, rejouer ce fichier) ; essai à blanc `supabase/tests/m1
 - LCR au format CFON : sans objet en Belgique, non fait. Migrations : `20261118172000`, `20261118173000`
   (voir M06, section « Ajouté le 18/11 — rattrapage G8 (encaissements) », pour l'ordre complet).
 | 2026-11-18 | **Rattrapage G8 — export EBP identique à G8** (ECRITURES.TXT + COMPTES.TXT), paramétrage des comptes façon G8, historique / annulation des transferts, marquage Compta, transfert automatique (désactivé par défaut) ; EBP = voie officielle tant que Falco n'est pas branché ; garantie à 0 € sans écriture (Q33) | branche `lot-g8-export-compta`, `20261118250000_m12_export_ebp_g8.sql` **non appliquée** |
+
+## Ajouté le 19/11 — transfert comptable automatique dans la « Mise en production »
+
+- Ligne « Transfert comptable automatique (EBP) » : Actif = `params.enabled` vrai ET fréquence ≠ off. Démarrer /
+  mettre en pause bascule `params.enabled` (la fréquence choisie est conservée). Sans fréquence : « non configuré —
+  choisir la fréquence dans Comptabilité ». État prod au 19/11 : fréquence `off` → Arrêté.
+- L'envoi des fichiers au comptable part de la boîte des mails automatiques (`notification_sender`, défaut info@),
+  par le code Graph partagé (`_shared/graph-mail.ts`). Avant : la première boîte active.
+

@@ -19,6 +19,10 @@
  * Réservée à la clé de service : chaque appel coûte un appel à Claude.
  *
  * Secret requis : ANTHROPIC_API_KEY.
+ *
+ * INTERRUPTEUR (Mise en production, 19/11/2026) : `exchange_summary` par société (actif par défaut,
+ * il tournait déjà). Arrêté : aucun appel à Claude pour cette société ; ses échanges sont marqués
+ * traités sans paragraphe (ils ne bloquent pas la file des autres sociétés).
  */
 import Anthropic from "npm:@anthropic-ai/sdk";
 
@@ -110,13 +114,24 @@ Deno.serve(async (req) => {
   try { const b = await req.json(); if (Number.isFinite(b?.limit)) limit = Math.max(1, Math.min(20, b.limit)); } catch { /* corps vide */ }
 
   const pending = (await rpc("pending_exchange_summaries", { _limit: limit })) as Pending[] ?? [];
+  // Sociétés où le résumé est arrêté (migration 20261119220000 absente : aucune).
+  let off = new Set<string>();
+  const leadCompany = new Map<string, string>();
+  try {
+    off = new Set(((await rpc("automation_companies_off", { _key: "exchange_summary" })) as string[] ?? []).map(String));
+    if (off.size && pending.length) {
+      const ids = [...new Set(pending.map((p) => p.lead_id))].join(",");
+      const r = await fetch(`${URL}/rest/v1/leads?select=id,company_id&id=in.(${ids})`, { headers: { apikey: SVC!, Authorization: `Bearer ${SVC}` } });
+      for (const l of (r.ok ? await r.json() : []) as { id: string; company_id: string }[]) leadCompany.set(l.id, l.company_id);
+    }
+  } catch { off = new Set(); }
   const anthropic = new Anthropic({ apiKey });
   let summarized = 0, skipped = 0;
   const errors: string[] = [];
 
   for (const p of pending) {
     try {
-      if (isNoise(p)) {
+      if (isNoise(p) || off.has(leadCompany.get(p.lead_id) ?? "")) {
         await rpc("append_lead_exchange_note", { _comm: p.communication_id, _lead: p.lead_id, _text: "" });
         skipped++;
         continue;

@@ -7,6 +7,7 @@
  */
 import { g8aFr } from './g8-articles';
 import { smsFr } from './sms';
+import { productionFr } from './production';
 
 export const fr = {
   app: {
@@ -9108,6 +9109,12 @@ export const fr = {
     printedOk: "Relances éditées et notées dans l'historique (courrier).",
     sendMailTest: "Envoyer par mail (test)",
     sendMailTestDo: "Envoyer à l'adresse de test",
+    modeActive: "Actif (envoi aux clients)",
+    modeActiveHelp: "Envoi réel : chaque relance part à l'adresse e-mail du client. Pour revenir en test ou arrêter : Paramètres → Mise en production, ou le réglage ci-dessous.",
+    sendMailLive: "Envoyer par mail aux clients",
+    sendMailLiveDo: "Envoyer aux clients",
+    sendConfirmBodyLive: "{n} facture(s) sélectionnée(s). ENVOI RÉEL : chaque lettre part à l'adresse e-mail du client.",
+    mailSentLive: "{n} relance(s) envoyée(s) aux clients.",
     sendConfirmBody: "{n} facture(s) sélectionnée(s). MODE TEST : chaque lettre part uniquement à {to}, rien n'est envoyé au client.",
     mailSentTest: "{n} relance(s) envoyée(s) en test à {to}.",
     mailStopped: "Relances arrêtées : rien n'est parti.",
@@ -9180,7 +9187,7 @@ export const fr = {
     dunningMode: "Relances par mail",
     testRecipient: "Adresse de test",
     defaultInstallments: "Échéances par défaut",
-    settingsHelp: "Envoi réel aux clients impossible pour l'instant : en mode test, tout part à {to}. Adresse vide : celle des relances d'entretien.",
+    settingsHelp: "Envoi réel aux clients : uniquement par Paramètres → Mise en production. En mode test, tout part à {to}. Adresse vide : celle des relances d'entretien.",
     level: "Niveau",
     format: "Format",
     active: "Actif",
@@ -9287,6 +9294,7 @@ export const fr = {
   },
   g8a: g8aFr,
   sms: smsFr,
+  production: productionFr,
 } as const;
 
 export type Dictionary = typeof fr;

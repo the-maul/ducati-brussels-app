@@ -33,20 +33,21 @@
 // permission APPLICATION Mail.Send), CRON_SECRET, APP_ORIGINS (adresse de l'espace client,
 // premiere valeur ; sinon la premiere adresse connue). Sans cle Graph : 501 graph_not_configured,
 // rien n'est marque.
+// BOITE D'ENVOI (Q53, 19/11/2026) : la boite partagee des mails automatiques (Parametres → Mise en
+// production, defaut info@), comme la file de notifications ; Graph via _shared/graph-mail.ts.
+// Avant : la boite principale de la societe (companies.inbound_mailbox).
 // Deploiement : npx supabase@2.117.0 functions deploy followups-send --project-ref ujmrosbgkvgvwfnuryna
 // deno-lint-ignore-file
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 import { identify, isActiveMember, isUuid } from '../_shared/acces.ts';
-import { buildGraphMessage, signatureFor, signatureHtml, MAIL_STYLE, type SignatureCompany } from '../_shared/mail-message.ts';
+import { buildGraphMessage, MAIL_STYLE } from '../_shared/mail-message.ts';
 import { mailTexts } from '../_shared/mail-i18n.ts';
 import { normalizeFollowupMode, resolveDelivery, type FollowupMode } from '../_shared/followups-mode.ts';
 import { testCompanyIds } from '../_shared/test-company.ts';
+import { automationSender, graphConfigured, sendGraphMail, sharedBoxSignature } from '../_shared/graph-mail.ts';
 
 const URL = Deno.env.get('SUPABASE_URL');
 const SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const TENANT = Deno.env.get('MS_GRAPH_TENANT_ID');
-const CID = Deno.env.get('MS_GRAPH_CLIENT_ID');
-const CSECRET = Deno.env.get('MS_GRAPH_CLIENT_SECRET');
 const DEFAULT_APP_ORIGINS = ['https://ducatilive.netlify.app', 'https://app.ducatibruxelles.be', 'https://dms.ducatibruxelles.be'];
 const APP_ORIGINS = (Deno.env.get('APP_ORIGINS') ?? '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
 const CLIENT_ORIGIN = APP_ORIGINS[0] ?? DEFAULT_APP_ORIGINS[0];
@@ -65,12 +66,6 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<{ ok: 
   const txt = await r.text();
   return { ok: true, data: txt ? JSON.parse(txt) as T : null };
 }
-async function graphToken(): Promise<string | null> {
-  const form = new URLSearchParams({ client_id: CID!, client_secret: CSECRET!, scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' });
-  const r = await fetch(`https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
-  return r.ok ? (await r.json()).access_token : null;
-}
-
 type ContactLite = { first_name: string | null; last_name: string | null; company_name: string | null } | null;
 type Followup = { id: string; company_id: string; kind: string; status: string; send_at: string; locale: string; to_email: string | null; contact: ContactLite };
 type Rendered = { subject: string; body: string; to_email: string | null; locale: string; link: string; template_key: string | null };
@@ -109,30 +104,10 @@ async function loadSettings(companyIds: string[]): Promise<Map<string, Settings>
   return out;
 }
 
-/** Boite d'envoi : la boite principale de la societe, sinon la premiere boite partagee active. */
-async function senderFor(companyId: string): Promise<{ mailbox: string | null; name: string | null }> {
-  const co = await (await db(`companies?select=inbound_mailbox&id=eq.${companyId}`)).json().catch(() => null);
-  const boxes = await (await db(`company_mailboxes?select=address,signature_name&company_id=eq.${companyId}&is_active=eq.true&order=address`)).json().catch(() => []);
-  const list = Array.isArray(boxes) ? boxes as { address: string; signature_name?: string | null }[] : [];
-  const main = String(co?.[0]?.inbound_mailbox ?? '').toLowerCase() || null;
-  const mailbox = main ?? (list[0]?.address?.toLowerCase() ?? null);
-  const box = list.find((b) => b.address.toLowerCase() === mailbox);
-  return { mailbox, name: box?.signature_name ?? null };
-}
-
-/** Signature de la boite (coordonnees de la fiche societe) ; jamais d'exception. */
-async function signatureOf(companyId: string, mailbox: string, mailboxName: string | null): Promise<string> {
-  try {
-    const r = await db(`companies?select=name,address,zip,city,mail_signature_brand,mail_signature_address,mail_signature_phone,mail_signature_site_url,mail_signature_site_label&id=eq.${companyId}`);
-    let company: SignatureCompany | null = null;
-    if (r.ok) { const rows = await r.json(); company = Array.isArray(rows) && rows[0] ? rows[0] : null; }
-    if (!company) {
-      const r2 = await db(`companies?select=name,address,zip,city&id=eq.${companyId}`);
-      const rows = r2.ok ? await r2.json() : [];
-      company = Array.isArray(rows) && rows[0] ? rows[0] : null;
-    }
-    return signatureHtml(signatureFor({ from: mailbox, shared: true, mailboxName, company }));
-  } catch { return ''; }
+/** Boite d'envoi des mails automatiques (notification_sender) et sa signature. */
+async function senderFor(companyId: string): Promise<{ mailbox: string | null; signature: string }> {
+  const mailbox = await automationSender(db, companyId);
+  return { mailbox, signature: mailbox ? await sharedBoxSignature(db, companyId, mailbox) : '' };
 }
 
 /**
@@ -200,12 +175,11 @@ Deno.serve(async (req: Request) => {
   if (list.length === 0 && Object.keys(held).length > 0) {
     return J({ ok: true, skipped: 'arrete', processed: 0, sent: 0, failed: 0, held: Object.values(held).reduce((a, b) => a + b, 0), errors: [] });
   }
-  if (!dryRun && list.length > 0 && (!TENANT || !CID || !CSECRET)) return J({ error: 'graph_not_configured' }, 501);
+  if (!dryRun && list.length > 0 && !graphConfigured()) return J({ error: 'graph_not_configured' }, 501);
 
   let sent = 0, failed = 0;
   const errors: { id: string; error: string }[] = [];
-  const senders = new Map<string, { mailbox: string | null; name: string | null; signature: string }>();
-  let tok: string | null = null;
+  const senders = new Map<string, { mailbox: string | null; signature: string }>();
 
   for (const f of list) {
     const rendered = await rpc<Rendered[]>('followup_render', { _id: f.id, _origin: CLIENT_ORIGIN });
@@ -225,8 +199,7 @@ Deno.serve(async (req: Request) => {
 
     let s = senders.get(f.company_id);
     if (!s) {
-      const { mailbox, name } = await senderFor(f.company_id);
-      s = { mailbox, name, signature: mailbox ? await signatureOf(f.company_id, mailbox, name) : '' };
+      s = await senderFor(f.company_id);
       senders.set(f.company_id, s);
     }
     if (!s.mailbox) { failed++; errors.push({ id: f.id, error: 'no_mailbox' }); await rpc('followup_mark_error', { _id: f.id, _error: 'aucune boite d envoi pour la societe' }); continue; }
@@ -237,13 +210,10 @@ Deno.serve(async (req: Request) => {
       // L'apercu montre ce qui partirait VRAIMENT : adresse de test et objet prefixe en mode test.
       return J({ ok: true, dryRun: true, id: f.id, from: s.mailbox, to: d.to, subject: d.subject, locale: m.locale, html: graphBody.message.body.content, link: m.link, mode: st.mode, isTest: d.isTest, realTo });
     }
-    tok = tok ?? await graphToken();
-    if (!tok) return J({ error: 'graph_auth_failed', sent, failed }, 502);
-    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(s.mailbox)}/sendMail`, {
-      method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify(graphBody),
-    });
+    const res = await sendGraphMail(s.mailbox, graphBody);
+    if (!res.ok && res.error === 'graph_auth_failed') return J({ error: 'graph_auth_failed', sent, failed }, 502);
     if (!res.ok) {
-      const detail = `graph_${res.status}: ${(await res.text()).slice(0, 200)}`;
+      const detail = res.error;
       failed++; errors.push({ id: f.id, error: detail });
       await rpc('followup_mark_error', { _id: f.id, _error: detail });
       continue;
