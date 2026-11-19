@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch } from '@/lib/use-list-search';
-import { Plus, Timer, CalendarDays, BookOpen, LifeBuoy, Wrench, ShieldCheck, Car, PackageCheck, BarChart3, FileQuestion, type LucideIcon } from 'lucide-react';
+import { Plus, Timer, CalendarDays, BookOpen, LifeBuoy, Wrench, ShieldCheck, Car, PackageCheck, BarChart3, FileQuestion, CalendarClock, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -48,6 +48,7 @@ function WorkshopList() {
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/planning', search: { week: undefined } })}><CalendarDays /> {t('workshop.planning')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/chrono' })}><Timer /> {t('workshop.chrono')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/maintenance-plans' })}><BookOpen /> {t('workshop.maintenancePlans')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/parts/upcoming' })}><CalendarClock /> {t('upcomingParts.button')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/accidents' })}><LifeBuoy /> {t('accidentFile.title')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/stock/cessions' })}><Wrench /> {t('cession.title')}</Button>
             {canWrite && (

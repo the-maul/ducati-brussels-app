@@ -239,6 +239,11 @@ de la liste. **Ignorer** (`minimax_proposal_ignore`) : notée avec le dernier mo
 pièce (`last_move_id`) ; elle n'est plus reproposée tant que son stock ne bouge pas. Mode automatique :
 rien ne change (corps de production). Pas de cloche : le bandeau tient lieu de rappel.
 
+## Ajouté le 19/11 — commande urgente des pièces d'un RDV (lot B du parcours mécanicien)
+- Le seuil « urgente si RDV à moins de N jours » reste **un seul réglage** : `reference_values` `order_threshold` / `urgente`, `extra.urgent_within_days` (5). Il se règle aussi dans Planning → Réglages → « Pièces des RDV » (`workshop_parts_settings_set`, qui écrit ce même réglage).
+- « Commander en urgente » (écran `/parts/upcoming`) déplace une ligne d'un panier standard **ouvert** vers le panier urgente ouvert (suppression + ajout par les fonctions internes du panier, totaux recalculés) ; un RDV avancé sous le seuil fait la même chose seul. Les pièces fin de série / remplacées ne vont plus au panier depuis la réservation atelier (le RDV n'échoue plus).
+- La réception ne sait pas pour quel RDV la pièce a été commandée : l'entrée en stock réserve pour le RDV / l'OR le plus proche qui manque de la pièce (voir « À trancher » du lot).
+
 ## 8. Exigences du cahier couvertes
 
 | Code | Libellé court | État | Preuve |

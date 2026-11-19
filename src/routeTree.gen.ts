@@ -70,6 +70,7 @@ import { Route as AppPartsLinksRouteImport } from './routes/_app.parts.links'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
 import { Route as AppPartsPriceToolsRouteImport } from './routes/_app.parts.price-tools'
 import { Route as AppPartsReplacementsRouteImport } from './routes/_app.parts.replacements'
+import { Route as AppPartsUpcomingRouteImport } from './routes/_app.parts.upcoming'
 import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
 import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
@@ -443,6 +444,11 @@ const AppPartsPriceToolsRoute = AppPartsPriceToolsRouteImport.update({
 const AppPartsReplacementsRoute = AppPartsReplacementsRouteImport.update({
   id: '/replacements',
   path: '/replacements',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsUpcomingRoute = AppPartsUpcomingRouteImport.update({
+  id: '/upcoming',
+  path: '/upcoming',
   getParentRoute: () => AppPartsRoute,
 } as any)
 const AppPartsShopifyRoute = AppPartsShopifyRouteImport.update({
@@ -864,6 +870,7 @@ export interface FileRoutesByFullPath {
   '/parts/new': typeof AppPartsNewRoute
   '/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/parts/replacements': typeof AppPartsReplacementsRoute
+  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -984,6 +991,7 @@ export interface FileRoutesByTo {
   '/parts/new': typeof AppPartsNewRoute
   '/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/parts/replacements': typeof AppPartsReplacementsRoute
+  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -1115,6 +1123,7 @@ export interface FileRoutesById {
   '/_app/parts/new': typeof AppPartsNewRoute
   '/_app/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/_app/parts/replacements': typeof AppPartsReplacementsRoute
+  '/_app/parts/upcoming': typeof AppPartsUpcomingRoute
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
@@ -1249,6 +1258,7 @@ export interface FileRouteTypes {
     | '/parts/new'
     | '/parts/price-tools'
     | '/parts/replacements'
+    | '/parts/upcoming'
     | '/parts/shopify'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
@@ -1369,6 +1379,7 @@ export interface FileRouteTypes {
     | '/parts/new'
     | '/parts/price-tools'
     | '/parts/replacements'
+    | '/parts/upcoming'
     | '/parts/shopify'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
@@ -1499,6 +1510,7 @@ export interface FileRouteTypes {
     | '/_app/parts/new'
     | '/_app/parts/price-tools'
     | '/_app/parts/replacements'
+    | '/_app/parts/upcoming'
     | '/_app/parts/shopify'
     | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
@@ -2016,6 +2028,13 @@ declare module '@tanstack/react-router' {
       path: '/replacements'
       fullPath: '/parts/replacements'
       preLoaderRoute: typeof AppPartsReplacementsRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/upcoming': {
+      id: '/_app/parts/upcoming'
+      path: '/upcoming'
+      fullPath: '/parts/upcoming'
+      preLoaderRoute: typeof AppPartsUpcomingRouteImport
       parentRoute: typeof AppPartsRoute
     }
     '/_app/parts/shopify': {
@@ -2577,6 +2596,7 @@ interface AppPartsRouteChildren {
   AppPartsNewRoute: typeof AppPartsNewRoute
   AppPartsPriceToolsRoute: typeof AppPartsPriceToolsRoute
   AppPartsReplacementsRoute: typeof AppPartsReplacementsRoute
+  AppPartsUpcomingRoute: typeof AppPartsUpcomingRoute
   AppPartsShopifyRoute: typeof AppPartsShopifyRoute
   AppPartsIndexRoute: typeof AppPartsIndexRoute
 }
@@ -2592,6 +2612,7 @@ const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsNewRoute: AppPartsNewRoute,
   AppPartsPriceToolsRoute: AppPartsPriceToolsRoute,
   AppPartsReplacementsRoute: AppPartsReplacementsRoute,
+  AppPartsUpcomingRoute: AppPartsUpcomingRoute,
   AppPartsShopifyRoute: AppPartsShopifyRoute,
   AppPartsIndexRoute: AppPartsIndexRoute,
 }
