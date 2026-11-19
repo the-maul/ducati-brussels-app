@@ -228,6 +228,15 @@ Branche `lot-italtest`, migration `20261119160000_m0_societe_de_test_italtest.sq
   annulation, en gardant ses verrous (les déclencheurs posés par la migration verrouillent `notifications` et les
   réglages d'envoi pendant l'essai) : garder chaque essai sous 90 s. Les fichiers déposés en GED depuis ItalTest restent
   dans le stockage après un rafraîchissement (les lignes `attachments` sont purgées, pas les fichiers).
+- **Correctif du 19/11 (lot-italtest-fix, migration `20261119260000`)** : ItalTest réelle créée en production
+  (id `5593d97e-69ad-43dd-8237-4ab8aa4e5c08`, 49 s) et vérifiée en lecture : toutes les tables copiées ont le compte
+  d'ITALBIKE (dont 5 894 kits par modèle-année et les tables des forfaits), stock identique (16 203,17), aucun historique.
+  Les essais créent désormais leur propre société « ItalTest essai » : reprendre « ItalTest » serait un
+  rafraîchissement (purge de ~280 000 lignes + copie), qui demande **plusieurs appels de 85 s** depuis l'API SQL
+  (`admin_test_company_step(id, 85000)` jusqu'à `pret`) ou ~2 à 3 min depuis l'écran. Tables du lot « Mise en
+  production » : `automation_settings`, `automation_switches`, `integration_status` non copiées, les deux premières
+  forcées à l'arrêt pour une société de test (déclencheurs ENABLE ALWAYS). Un contrôle de liens peut prendre ~6 s à
+  froid (lecture disque) : l'appel de l'écran reste sous 8 s (5,9 s mesuré).
 
 ## 5. État en production
 

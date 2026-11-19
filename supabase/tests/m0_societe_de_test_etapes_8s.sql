@@ -10,6 +10,7 @@
 -- controle des liens et purge des ~280 000 lignes copiees, les etapes les plus lourdes).
 -- Chaque ligne du resultat doit valoir « ok ».
 -- =====================================================================
+-- Societe de test propre a l essai (« ItalTest essai »), independante de l ItalTest reelle.
 create temp table _t(n serial, check_name text, result text) on commit drop;
 grant all on _t to authenticated; grant usage on sequence _t_n_seq to authenticated;
 create temp table _ctx(k text primary key, v text) on commit drop;
@@ -18,7 +19,7 @@ grant all on _ctx to authenticated;
 do $s$
 declare _r jsonb;
 begin
-  _r := public.admin_clone_company_for_test('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest');
+  _r := public.admin_clone_company_for_test('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest essai');
   insert into _ctx values ('tgt', _r ->> 'company_id');
   insert into _t(check_name, result) values ('1 copie complete prete', case when _r ->> 'status' = 'pret' then 'ok' else 'KO ' || left(_r::text, 300) end);
 end $s$;
@@ -30,7 +31,7 @@ declare
   _tgt uuid; _r jsonb; _calls int := 0; _t0 timestamptz; _d numeric; _max numeric := 0; _maxphase text;
   _start timestamptz := clock_timestamp(); _phases text := '';
 begin
-  _tgt := public.admin_test_company_start('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest');
+  _tgt := public.admin_test_company_start('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest essai');
   loop
     _t0 := clock_timestamp();
     _r := public.admin_test_company_step(_tgt, 4000);
@@ -45,8 +46,8 @@ begin
      case when _r ->> 'status' <> 'erreur' then 'ok' else 'KO ' || left(_r::text, 300) end),
     ('3 appel le plus long : ' || round(_max, 1) || ' s (etape ' || coalesce(_maxphase, '?') || '), sous la limite de 8 s',
      case when _max < 7 then 'ok' else 'KO' end),
-    ('4 lot le plus long : ' || coalesce(_r #>> '{progress,max_batch_ms}', '?') || ' ms (' || coalesce(_r #>> '{progress,max_batch_at}', '?') || ')',
-     case when coalesce((_r #>> '{progress,max_batch_ms}')::numeric, 0) < 4000 then 'ok' else 'KO' end);
+    ('4 lot le plus long (lecture disque variable, < 6 s : l appel reste sous 8 s) : ' || coalesce(_r #>> '{progress,max_batch_ms}', '?') || ' ms (' || coalesce(_r #>> '{progress,max_batch_at}', '?') || ')',
+     case when coalesce((_r #>> '{progress,max_batch_ms}')::numeric, 0) < 6000 then 'ok' else 'KO' end);
 end $s$;
 reset role;
 
