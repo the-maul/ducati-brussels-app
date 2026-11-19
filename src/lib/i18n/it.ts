@@ -2929,6 +2929,11 @@ export const it: DictionaryShape = {
   // Atelier (M8)
   // Recupero G8 "ordine di riparazione di base" (18/11/2026): stati, elenco, km, stampa, 30 punti, storico
   orBase: {
+    kitAuto_fromAppointment: "dall'appuntamento",
+    kitAuto_dupTitle: "Questo kit è già sull'ordine",
+    kitAuto_dupText: "{n} riga/e di questo kit sono già sull'ordine (ad es. inserite alla creazione dall'appuntamento). Reinserirle le raddoppierebbe.",
+    kitAuto_dupSkip: "Non reinserire",
+    kitAuto_dupInsert: "Inserisci comunque",
     colDeposit: "Acconto",
     pdfAdvance: "Acconto versato",
     printFormat: "Formato",
