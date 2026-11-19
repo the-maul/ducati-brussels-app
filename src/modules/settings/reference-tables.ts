@@ -169,6 +169,15 @@ export const REFERENCE_TABLES: RefTableDef[] = [
   // 20261118110000) et codes mecano (code scanne ou tape a la pointeuse, libelle = nom du mecanicien).
   { key: 'workshop_task', label: 'Tâches improductives (pointeuse)', group: 'atelier', extraColumns: [] },
   { key: 'workshop_mechanic', label: 'Codes mécano (pointeuse)', group: 'atelier', extraColumns: [] },
+  // Parcours mecanicien, lot A (19/11/2026, migration 20261119241000) : motifs de la « Pause »
+  // (code = motif). Le statut d'OR propose a la pause (attente piece → pieces en commande,
+  // attente accord client → attente devis) ; vide = l'OR garde son statut.
+  { key: 'workshop_pause_reason', label: 'Motifs de pause (pointeuse)', group: 'atelier',
+    extraColumns: [
+      { key: 'or_status', label: "Statut d'OR proposé à la pause", type: 'select', options: [
+        { value: 'attente_pieces', label: 'Pièces en commande' }, { value: 'attente_devis', label: 'Attente devis / accord client' },
+      ] },
+    ] },
   // Frais de devis atelier (mission 02, §1.4) : codes « accident » et « diagnostic ».
   { key: 'workshop_quote_fee', label: 'Frais de devis atelier', group: 'atelier',
     extraColumns: [

@@ -76,7 +76,7 @@ pointent leur présence et le temps passé sur chaque OR pour mesurer la product
 - **Cycle OR (B8)** : réception (observations, photos en GED) → OR → réparation → transformation en facture via M6. Statuts `a_faire`, `attente_devis`, `attente_pieces`, `en_cours`, `pret`, `client_informe` (G8, 18/11), `facture`, `annule`. Un OR facturé ne peut plus être re-facturé.
 - **Le stock est débité par la facture, pas par l'OR** (B7) : les pièces d'un OR ne bougent le stock réel qu'à la transformation en facture (`transformToInvoice` → `createDocument` FAC validée).
 - **Garantie (B10)** : statut `aucune`, `en_attente`, `accepte`, `refus_total`, `refus_partiel`. Une ligne cochée « garantie » passe à prix 0 sur l'OR et sur la facture. **Refus partiel** = on décoche ligne par ligne ce que le client paiera (re-routage manuel). Facturation interdite tant que la garantie est `en_attente` (contrôle dans `write-api.ts` et bouton grisé).
-- **Chronos (B11)** : un pointage `presence` (arrivée/départ) et des pointages `travail` rattachés à un OR ; démarrer un nouveau travail clôt le précédent ; minutes calculées à la clôture.
+- **Chronos (B11)** : un pointage `presence` (arrivée/départ) et des pointages `travail` rattachés à un OR ; démarrer un nouveau travail clôt le précédent ; minutes calculées à la clôture. **Depuis le 19/11 (lot A)** : une seule source de temps, Démarrer / Pause / Reprendre / Terminer, un seul pointage actif par mécanicien, arrêt automatique en fin d'horaire (section « Ajouté le 19/11 — parcours mécanicien »).
 - **Main-d'œuvre = article de type T** (ADR-002, `docs/decisions/ADR-002-type-gestion-T-main-oeuvre.md`) : sur l'OR, la ligne « main-d'œuvre » est un `kind = 'mo'` ; le rapprochement temps passé / temps facturé devait s'appuyer sur ces lignes (non fait, §7).
 - **Dossier accident = aide à la réparation Ducati** (mission 09 carte 5, 03/11/2026, M-83 ; remplace la fenêtre « Aide réparation Ducati » du commit `9504e36`) : **un dossier part complet ou ne part pas**. Complet = devis du DMS lié, formulaire Excel « Aide Réparation Moto Accidentée » généré depuis ses lignes pièces (dans le modèle Ducati lui-même), **≥ 4 photos** avant réparation, **une photo du n° de châssis gravé**, devis **≥ 1 500 € HTVA** (`ACCIDENT_FILE_MIN_HT` ; en dessous : commande standard, bouton « Envoyer » grisé). Remise prévue = 15 % des pièces (`ACCIDENT_FILE_DISCOUNT_RATE`), affichée sur la fiche. L'envoi est un **mail Outlook** (`graph-send-email`, boîte partagée ou adresse de l'utilisateur) à `technique.dwe@ducati.com` (Paramètres → Tables → « Mail du dossier accident », code `to` ; copie `cc` **vide par défaut**), objet « Dossier Accident : CLIENT - modèle 6 derniers du VIN », corps de Domenico (+ « Dossier urgent : … »), **4 pièces jointes régénérées à l'envoi** et conservées dans la GED du dossier (entité `accident_file`). Statuts : brouillon → envoyé (par le mail seulement) → accordé → pièces reçues → réparé → clos. Le rapport de l'expert se dépose sur le dossier mais ne part pas à Ducati.
 - **Frais de devis atelier** (mission 02, process-commandes-pieces §1.4, décision M-5) : quand un devis de pièces vient de l'atelier, on ajoute les frais du devis — **accident = 125 € HTVA fixe** ; **diagnostic = tarif horaire de l'atelier × heures, 4 h maximum, sans nouveau devis** (heures modifiables vers le bas seulement). Paramètres par société : Paramètres → Tables → **Frais de devis atelier** (`reference_values`, `table_key = 'workshop_quote_fee'`, codes `accident` : `amount_ht`, `vat_rate` ; `diagnostic` : `hourly_rate_ht`, `max_hours`, `vat_rate`). Aucun tarif horaire n'existait : `hourly_rate_ht = 0` reprend le prix de vente de l'article `MO` (type T), lui-même à 0 en production le 19/09 → **tarif horaire à saisir**. La ligne est une ligne dédiée sans article (pas de mouvement de stock à la facturation).
@@ -499,6 +499,55 @@ Comme G8 : **SMS automatique de fin de travaux** quand l'OR passe à « Prêt »
 - **Paramètres → SMS** (`/settings/sms`, administrateurs) : état de la clé (jamais la clé), solde SMS Brevo, expéditeur par défaut, réglages, modèles avec aperçu et compteur (Unicode signalé), **« Envoyer un SMS de test à mon numéro »** (numéro saisi, jamais un client, 5 par heure, part même en mode Arrêté) → fonction Edge `sms-brevo` (`sms_test_prepare`, trace dans la file).
 - **Société de test** : marquage du lot ItalTest (`test_companies`, `is_test_company`), lu par `_sms_is_test_company` s'il existe. Rien ne part jamais : SMS enfilé directement « Non envoyé / société de test », mode forcé à Arrêté, SMS de test et SMS programmés refusés, contrôle répété à l'envoi.
 - **Piège** : le mail de rappel de RDV (inchangé) formate l'heure en UTC (`to_char(starts_at)`) ; les SMS utilisent l'heure de Bruxelles.
+
+### Ajouté le 19/11 — parcours mécanicien, lots 0 et A : figures du manuel et un seul chrono (ATE010, ATE011, B11)
+Source : `docs/g8-inventaire/parcours-mecanicien.md` (§2.4, §2.8, §5 lots 0 et A). Demande du client du 19/11 :
+« il faut aussi qu'on puisse fermer la session en cours à l'atelier et la reprendre.. et ca mets en pause le chrono
+sur la mission. » Branche `lot-parcours-a`. Migrations **non appliquées** : `20261119240000_m8_figures_manuel_lecture.sql`,
+`20261119241000_m8_pointage_pause_reprise.sql` ; essai à blanc `supabase/tests/m8_pointage_pause_reprise.sql` (27/27) ;
+tests `tests/workshop-pointage.test.ts`.
+- **Lot 0 — figures du mode opératoire.** Les 13 196 figures du bucket privé `wsm-images` s'affichent dans le
+  parcours technicien (étapes, figures d'intro, outils spéciaux, zoom) par **adresse signée** (4 h, demandées par
+  lot : `journey/figure-urls.ts`). Le chemin du manuel perd « images/ » et la vignette « .DMBI. » (non envoyée) se
+  rabat sur la figure entière (`journey/figure-path.ts`). Il manquait la **règle de lecture** du bucket : posée pour
+  les comptes de l'équipe (`ducati_catalog_is_staff`, comme les tables `wsm_*`), pas pour les comptes clients.
+  `VITE_MANUELS_BASE` reste possible en développement (copie locale).
+- **Un seul chrono = la pointeuse** (`workshop_time_entries`). Le parcours technicien n'a plus de chrono à lui :
+  une opération du parcours = un pointage de travail avec `journey_operation`. L'ancien chrono local resté ouvert
+  est arrêté à l'ouverture et ne compte plus. Le temps du récapitulatif = le temps pointé de l'OR.
+- **Démarrer** (fiche OR, parcours, pointeuse) : `workshop_work_start(_or, _operation, _confirm_switch,
+  _mechanic_code, _mechanic_name, _origin)` pointe le mécanicien connecté (ou le code mécano de la pointeuse
+  partagée), passe l'OR « en cours » par `repair_order_start` (Q43, même garde d'accord client) et trace
+  `workshop_work_started`. **Reprendre** = la même fonction : sans opération, elle reprend l'opération du dernier
+  pointage du mécanicien sur cet OR, trace `workshop_work_resumed` ; l'avancement du parcours (étape, cases
+  cochées) vient de `workshop_journeys`, donc de n'importe quel poste.
+- **Un seul pointage actif par mécanicien** : si un autre travail est en cours, la fonction répond
+  `needs_confirm` ; après confirmation, l'ancien est clos `stop_kind = switch`, motif `autre_or`
+  (`autre_operation` pour une autre opération du même OR, sans confirmation). Index uniques partiels
+  `uq_wte_one_open_work_user` / `uq_wte_one_open_work_code`.
+- **Pause** : `workshop_work_pause(_reason, …, _or_status)` clôt le pointage (`stop_kind = pause`, motif). Motifs
+  dans Paramètres → Tables → « Motifs de pause (pointeuse) » (`reference_values` `workshop_pause_reason`) :
+  Attente pièce, Attente accord client, Pause / fin de journée, Autre urgence, Autre. `extra.or_status` propose le
+  statut : attente pièce → « Pièces en commande » (`attente_pieces`), attente accord → « Attente devis »
+  (`attente_devis`) ; appliqué seulement si personne d'autre ne travaille sur l'OR (trace
+  `repair_order_status_from_pause`). Sinon l'OR garde son statut.
+- **Terminer** : `workshop_work_stop` (`stop_kind = stop`). Ne touche pas au statut : « Prêt » et le SMS de fin de
+  travaux restent manuels, comme avant. **Départ** à la pointeuse = pause de fin de journée (`departure`).
+- **Arrêt automatique** (G8 « arrêt automatique ») : `workshop_planning_settings.auto_stop_mode` (`off` par défaut |
+  `end_of_schedule`), réglé dans Planning → Réglages. `workshop_time_auto_stop()` (pg_cron `workshop-time-auto-stop`,
+  toutes les 15 min, et à l'ouverture de la pointeuse) clôt les pointages encore ouverts à l'heure de fin de
+  l'horaire du compagnon (`workshop_mechanic_hours`, fin d'après-midi sinon de matinée), sinon à la fin de journée
+  du planning, sinon 18:00 (heure de Bruxelles) ; un pointage commencé après cette heure s'arrête à minuit.
+  Marqué `auto_stop` / `fin_journee`, tracé `workshop_work_auto_stopped` (origine `auto`).
+  **Correction** : `workshop_time_entry_correct` (admin, chef d'atelier) depuis la pointeuse, tracée
+  `workshop_time_entry_corrected`. Un pointage clos ne se rouvre pas et sa fin ne se modifie plus en direct
+  (déclencheur `trg_wte_guard`).
+- **Affichage** : bloc « Travail sur l'OR » (fiche OR et parcours, gros boutons 48 px) ; badge « En cours : X depuis
+  HH:MM » (info, icône lecture) / « En pause : motif » (attention, icône pause) sur le planning (vues Réception et
+  Activité) via la vue `workshop_or_work_status` (`security_invoker`) ; colonne « Fin du pointage » à la pointeuse.
+- **Pièges.** Un même compte ne peut plus avoir deux travaux ouverts (l'essai Q43 a été adapté : le second pointage
+  vient d'un code mécano). Les tâches improductives et les cessions pointent encore par l'ancien chemin (fermeture
+  côté navigateur) : elles respectent la règle « un seul actif » mais leur fin n'a pas de `stop_kind`.
 
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).

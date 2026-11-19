@@ -77,6 +77,12 @@ export type PlanningSettings = {
    */
   loan_deductible?: number | string;
   loan_terms_i18n?: Record<string, string>;
+  /**
+   * Arret automatique des pointages en fin de journee (lot A parcours mecanicien, migration
+   * 20261119241000, mode G8 « arret automatique ») : off | end_of_schedule. Absent tant que la
+   * migration manque : ni lu ni ecrit.
+   */
+  auto_stop_mode?: 'off' | 'end_of_schedule';
 };
 /** Reglages G8 observes (07-atelier.md §14) quand la ligne manque. */
 export const DEFAULT_SETTINGS: Omit<PlanningSettings, 'company_id'> = {

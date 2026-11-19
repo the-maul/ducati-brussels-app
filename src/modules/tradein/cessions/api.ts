@@ -274,9 +274,11 @@ type OpenEntry = { id: string; started_at: string; cession_id: string | null };
 
 async function openWorkEntry(companyId: string): Promise<OpenEntry | null> {
   const u = await uid();
+  // Un seul pointage actif par mecanicien (lot A parcours mecanicien, 19/11) : travail OU tache
+  // improductive, toutes societes du compte (sinon le nouveau pointage serait refuse en base).
   let q = loose.from('workshop_time_entries').select('id, started_at, cession_id')
-    .eq('company_id', companyId).eq('kind', 'travail').is('ended_at', null);
-  if (u) q = q.eq('mechanic_id', u);
+    .in('kind', ['travail', 'improductif']).is('ended_at', null);
+  q = u ? q.eq('mechanic_id', u).is('mechanic_code', null) : q.eq('company_id', companyId);
   const rows = unwrap<OpenEntry[]>(await q.order('started_at', { ascending: false }).limit(1));
   return rows?.[0] ?? null;
 }

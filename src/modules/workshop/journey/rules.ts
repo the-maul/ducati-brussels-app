@@ -425,9 +425,11 @@ export function summarize(
   official: number | null,
   billed: number | null,
   now: number | Date = Date.now(),
+  /** Lot A (19/11) : temps de la pointeuse (source unique) ; sans lui, l'ancien chrono du parcours. */
+  pointedMinutes?: number | null,
 ): JourneySummary {
   const progress = journeyProgress(state.operations, stepCounts);
-  const spent = spentMinutes(state.operations, now);
+  const spent = pointedMinutes != null && Number.isFinite(pointedMinutes) ? Math.floor(pointedMinutes) : spentMinutes(state.operations, now);
   return {
     progress, spent,
     times: compareTimes(spent, official, billed),

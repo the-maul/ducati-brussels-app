@@ -6,13 +6,13 @@
  * Chaque étape se coche ; l'avancement est enregistré par l'écran appelant à chaque geste.
  */
 import { useEffect, useRef } from 'react';
-import { ArrowLeft, Camera, Check, CircleDot, Gauge, Link2, NotebookPen, Package, Play, Square, Wrench } from 'lucide-react';
+import { ArrowLeft, Camera, Check, CircleDot, Gauge, Link2, NotebookPen, Package, Pause, Play, Square, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/status-badge';
 import { fill } from '@/modules/catalog/format';
 import { FigureGrid } from './figure-view';
-import { figureUrl } from './source';
+import { useFigureUrl } from './figure-urls';
 import { torqueLabel, torquesForStep, warningTone, fmtMinutes } from './rules';
 import type { Figure, OperationProgress, Procedure, Torque, Warning } from './types';
 import { t } from '@/lib/i18n';
@@ -59,12 +59,14 @@ function Chip({ icon: Icon, children }: { icon: typeof Wrench; children: React.R
 }
 
 export function ProcedureView({
-  procedure, operation, running, spentMin, onBack, onToggleStep, onToggleOperation,
+  procedure, operation, running, pointage = false, spentMin, onBack, onToggleStep, onToggleOperation,
   onChrono, onFinding, onOpenFigure, onOpenLinked,
 }: {
   procedure: Procedure;
   operation: OperationProgress;
   running: boolean;
+  /** Lot A (19/11) : le bouton pointe a la pointeuse (Demarrer cette operation / Pause), plus de chrono local. */
+  pointage?: boolean;
   spentMin: number;
   onBack: () => void;
   onToggleStep: (n: number) => void;
@@ -129,7 +131,7 @@ export function ProcedureView({
                 <div key={i} className="flex items-center gap-3 rounded-md border border-border bg-card p-2">
                   {o.image ? (
                     <button type="button" onClick={() => onOpenFigure(o.image!, o.description ?? o.reference ?? '')} className="size-16 shrink-0 overflow-hidden rounded bg-gray-0">
-                      <img src={figureUrl(o.image.src) ?? ''} alt="" className="size-full object-contain" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                      <ToolImage src={o.image.src} />
                     </button>
                   ) : <Wrench className="size-6 shrink-0 text-muted-foreground" aria-hidden />}
                   <div className="min-w-0">
@@ -237,15 +239,28 @@ export function ProcedureView({
       {/* Barre d'action collante en bas : chrono et fin d'opération, toujours atteignables au pouce */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center gap-2">
-          <Button variant={running ? 'destructive' : 'outline'} className="h-13 min-h-[52px] flex-1 text-[15px]" onClick={onChrono}>
-            {running ? <><Square /> {t('journey.chronoStop')}</> : <><Play /> {t('journey.chronoStart')}</>}
-          </Button>
+          {pointage ? (
+            <Button variant="outline" className="h-13 min-h-[52px] flex-1 text-[15px]" onClick={onChrono}>
+              {running ? <><Pause /> {t('pointage.pause')}</> : <><Play /> {t('pointage.startOperation')}</>}
+            </Button>
+          ) : (
+            <Button variant={running ? 'destructive' : 'outline'} className="h-13 min-h-[52px] flex-1 text-[15px]" onClick={onChrono}>
+              {running ? <><Square /> {t('journey.chronoStop')}</> : <><Play /> {t('journey.chronoStart')}</>}
+            </Button>
+          )}
           <Button className="h-13 min-h-[52px] flex-1 text-[15px]" onClick={onToggleOperation}>
             <Check /> {operation.done ? t('journey.undo') : t('journey.markDone')}
           </Button>
-          {running && <StatusBadge tone="warning" label={t('journey.chronoRunning')} className="hidden sm:inline-flex" />}
+          {running && <StatusBadge tone="info" icon={Play} label={pointage ? t('pointage.stateRunning') : t('journey.chronoRunning')} className="hidden sm:inline-flex" />}
         </div>
       </div>
     </div>
   );
+}
+
+/** Vignette d'un outil special : figure du stockage (adresse signee, lot 0). */
+function ToolImage({ src }: { src: string | null | undefined }) {
+  const url = useFigureUrl(src);
+  if (!url) return null;
+  return <img src={url} alt="" className="size-full object-contain" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />;
 }

@@ -47,6 +47,9 @@ import { OrDepositPanel } from '@/modules/workshop/or-base/deposit-panel';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
 import { canNotifyReady, canStartOr } from '@/modules/workshop/or-base/rules';
 import { ReadySmsLine } from '@/modules/crm/sms-queue';
+import { OrWorkControls } from '@/modules/workshop/pointage/work-controls';
+import { pointageSchemaReady } from '@/modules/workshop/pointage/api';
+import { loadJourney } from '@/modules/workshop/journey/store';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -80,6 +83,11 @@ function OrView() {
   const partsPopupDone_ = useCallback(() => setPartsPopupDone(true), []);
   const { data, isLoading } = useQuery({ queryKey: ['ro-full', orId], queryFn: () => getRepairOrderFull(orId) });
   const worked = useQuery({ queryKey: ['ro-worked', orId], queryFn: () => orWorkedMinutes(orId) });
+  // Lot A parcours mecanicien (19/11) : un seul chrono, Demarrer / Pause / Reprendre / Terminer.
+  const pointageSchema = useQuery({ queryKey: ['pointage-schema'], queryFn: pointageSchemaReady, staleTime: Infinity });
+  const pointageOn = pointageSchema.data === true;
+  // Parcours deja commence : le bouton devient « Reprendre le parcours » (etape, cases cochees).
+  const savedJourney = useQuery({ queryKey: ['journey-saved', orId], queryFn: () => loadJourney(orId) });
   const schema = useQuery({ queryKey: ['checkup-schema'], queryFn: checkupSchemaReady, staleTime: Infinity });
   // Reservation des pieces au RDV (mission 10, carte 6) : en base, elle remplace le popup et la commande de pieces.
   const reservationSchema = useQuery({ queryKey: ['reservation-schema'], queryFn: reservationSchemaReady, staleTime: Infinity });
@@ -270,7 +278,7 @@ function OrView() {
         breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: `OR ${or.number ?? ''}` }]}
         actions={
           <div className="flex flex-wrap gap-2">
-            {canStartOr(or.status) && (
+            {canStartOr(or.status) && pointageSchema.data === false && (
               <Button variant="outline" onClick={() => start.mutate()} disabled={start.isPending || !workAllowed} title={workAllowed ? t('orBase.startHint') : t('checkup.workBlocked')}>
                 {start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('orBase.start')}
               </Button>
@@ -292,7 +300,7 @@ function OrView() {
             </Button>
             {!invoiced && (
               <Button variant="outline" onClick={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })} disabled={!workAllowed} title={!workAllowed ? t('checkup.workBlocked') : undefined}>
-                <ListChecks /> {t('workshop.startJourney')}
+                <ListChecks /> {savedJourney.data ? t('workshop.resumeJourney') : t('workshop.startJourney')}
               </Button>
             )}
             {!invoiced && (
@@ -316,6 +324,10 @@ function OrView() {
         {or.warranty_status !== 'aucune' && <WarrantyStatusBadge status={or.warranty_status} />}
         {worked.data ? <span className="font-data text-[13px] tabular-nums text-muted-foreground">{t('workshop.workedTime')} : {worked.data} {t('workshop.minutes')}</span> : null}
       </div>
+      {/* Lot A (19/11) : etat du travail + Demarrer / Pause / Reprendre / Terminer (pointeuse unique). */}
+      {pointageOn && !invoiced && or.status !== 'annule' && (
+        <OrWorkControls orId={orId} companyId={activeCompanyId} orStatus={or.status} workAllowed={workAllowed} onChanged={refresh} />
+      )}
       {/* OR accident : le dossier accident, bien visible (ATE001b). */}
       {(accidentOr || accidentFile) && accidentSchema.data === true && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">

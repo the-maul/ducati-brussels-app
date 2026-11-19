@@ -119,9 +119,10 @@ begin
   insert into _t(check_name, result) values ('Q43 trace events repair_order_work_started (chrono)',
     case when exists (select 1 from public.events where entity_id = _or3::text and action = 'repair_order_work_started' and origin = 'chrono')
          then 'ok' else 'FAIL' end);
-  -- Un second pointage ne touche plus a rien (OR deja en cours, pas de seconde trace).
-  insert into public.workshop_time_entries (company_id, mechanic_id, mechanic_name, kind, or_id)
-  values (_co, auth.uid(), 'TEST MECANO 2', 'travail', _or3);
+  -- Un second pointage ne touche plus a rien (OR deja en cours, pas de seconde trace). Il vient d'un
+  -- autre mecanicien (code mecano) : un meme compte n'a qu'un pointage actif (lot A, 20261119241000).
+  insert into public.workshop_time_entries (company_id, mechanic_code, mechanic_name, kind, or_id)
+  values (_co, 'TEST-M2', 'TEST MECANO 2', 'travail', _or3);
   insert into _t(check_name, result) values ('Q43 second pointage : pas de seconde trace',
     case when (select count(*) from public.events where entity_id = _or3::text and action = 'repair_order_work_started') = 1 then 'ok' else 'FAIL' end);
 

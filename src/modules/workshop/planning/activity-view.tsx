@@ -21,6 +21,7 @@ import type { usePlanningBase } from './planning-data';
 import { contactLabel, fmtDate, fmtTime, motoLabel } from './ui-bits';
 import { typeBlockClass } from './reception-view';
 import { StatusIcon } from './status-icon';
+import { OrWorkBadge, useOrWorkStatusMap } from '../pointage/work-controls';
 
 const PX_PER_MIN = 1.6;
 const DRAG_MIME = 'application/x-ducati-appointment';
@@ -53,6 +54,8 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
   const orphans = ofDay.filter((a) => !a.mechanic_id || !mechanics.some((m) => m.id === a.mechanic_id));
   const all = useMemo(() => [...appts, ...waiting], [appts, waiting]);
   const labelEvery = s.slot_minutes >= 30 ? s.slot_minutes : 60;
+  // Lot A (19/11) : sur la case, l'OR « en cours (par qui, depuis quand) » ou « en pause (motif) ».
+  const work = useOrWorkStatusMap(ofDay.map((a) => a.or_id));
 
   const minutesAt = (e: DragEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -103,6 +106,7 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
           {/* Statut en petit badge sur la case (decision Q47) : couleur de statut + icone + libelle. */}
           <StatusBadge tone={statusTone(a.status)} icon={StatusIcon(a.status)} label={t(`planningG8.statusShort_${a.status}`)} className="px-1 py-px text-[10px]" />
         </div>
+        {a.or_id && work.map.get(a.or_id) && <div className="mt-0.5"><OrWorkBadge row={work.map.get(a.or_id)} reasons={work.reasons} compact /></div>}
         {a.contacts && <p className="truncate font-bold">{contactLabel(a.contacts)}</p>}
         {a.vehicles && <p className="truncate text-muted-foreground">{motoLabel(a.vehicles)}</p>}
         {a.work_description && <p className="truncate text-muted-foreground">{a.work_description}</p>}

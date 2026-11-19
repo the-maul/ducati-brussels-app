@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, LogIn, LogOut, Play, Square, ScanLine, Brush, Timer, BarChart3, X } from 'lucide-react';
+import { ArrowLeft, Loader2, LogIn, LogOut, Pause, Pencil, Play, Square, ScanLine, Brush, Timer, BarChart3, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -18,6 +18,12 @@ import { canStartWork } from '@/modules/workshop/checkup/rules';
 import { labourTimeSchemaReady, listImproductiveTasks, listMechanics } from '@/modules/workshop/labour-time/api';
 import { findMechanicByCode, findOrByScan, mechanicBoard } from '@/modules/workshop/labour-time/rules';
 import { ProductivityPanel } from '@/modules/workshop/labour-time/productivity-panel';
+import { useConfirm } from '@/components/confirm-provider';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { correctEntryEnd, listPauseReasons, pauseWork, pointageSchemaReady, runAutoStop, startWorkOnOr, stopWorkPointage } from '@/modules/workshop/pointage/api';
+import { reasonLabel, stopKindKey } from '@/modules/workshop/pointage/rules';
+import { PauseDialog } from '@/modules/workshop/pointage/work-controls';
+import { fill } from '@/modules/catalog/format';
 import { t, pageTitle } from '@/lib/i18n';
 
 /**
@@ -26,6 +32,11 @@ import { t, pageTitle } from '@/lib/i18n';
  * scan du n° d'OR) ou une **tâche improductive** ; tableau « atelier maintenant » ; onglet
  * « Productivité atelier ». Sans code mécano (ou migration 20261118110000 absente) : pointage au
  * nom du compte connecté, comme avant.
+ *
+ * Lot A du parcours mecanicien (19/11/2026, migration 20261119241000) : le travail se pointe par
+ * `workshop_work_start` (un seul pointage actif : un autre travail en cours est mis en pause apres
+ * confirmation), « Arreter » devient Pause (motif) / Terminer, « Depart » met le travail en pause ;
+ * les pointages arretes automatiquement en fin de journee sont signales et corrigeables.
  */
 export const Route = createFileRoute('/_app/workshop/chrono')({
   head: () => ({ meta: [{ title: pageTitle('workshopChrono') }] }),
@@ -35,7 +46,16 @@ export const Route = createFileRoute('/_app/workshop/chrono')({
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
 
 function ChronoPage() {
-  const { activeCompanyId, profile } = useAuth();
+  const { activeCompanyId, profile, hasRole } = useAuth();
+  const confirm = useConfirm();
+  // Lot A (19/11) : pointage unique Demarrer / Pause / Reprendre / Terminer.
+  const ptSchema = useQuery({ queryKey: ['pointage-schema'], queryFn: pointageSchemaReady, staleTime: Infinity });
+  const ptOn = ptSchema.data === true;
+  const reasonsQ = useQuery({ queryKey: ['pause-reasons', activeCompanyId], queryFn: () => listPauseReasons(activeCompanyId!), enabled: ptOn && !!activeCompanyId, staleTime: 300_000 });
+  const reasons = reasonsQ.data ?? [];
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [correcting, setCorrecting] = useState<{ id: string; started: string; ended: string } | null>(null);
+  const canCorrect = hasRole('admin') || hasRole('chef_atelier');
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'pointeuse' | 'productivite'>('pointeuse');
@@ -66,12 +86,53 @@ function ChronoPage() {
     qc.invalidateQueries({ queryKey: ['chrono-presence', activeCompanyId] });
     qc.invalidateQueries({ queryKey: ['chrono-work', activeCompanyId] });
     qc.invalidateQueries({ queryKey: ['chrono-today', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['or-work'] });
+    qc.invalidateQueries({ queryKey: ['or-work-status'] });
   };
   const onErr = (e: unknown) => toast.error(e instanceof Error ? e.message : t('workshop.errSave'));
-  const pres = useMutation({ mutationFn: () => togglePresence(activeCompanyId!, who), onSuccess: refresh, onError: onErr });
-  const start = useMutation({ mutationFn: (id: string) => startWork(activeCompanyId!, id, who), onSuccess: () => { setOrScan(''); refresh(); }, onError: onErr });
+  // Arret automatique : rattrapage a l'ouverture (le planificateur passe toutes les 15 min).
+  useEffect(() => {
+    if (!ptOn || !activeCompanyId) return;
+    void runAutoStop(activeCompanyId).then((n) => { if (n > 0) refresh(); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ptOn, activeCompanyId]);
+  const ptWho = { code: mechanic?.code ?? null, name: who.name || null };
+  const pres = useMutation({
+    mutationFn: async () => {
+      // « Depart » (fin de session) : le travail en cours est mis en PAUSE (fin de journee), puis la presence se clot.
+      if (ptOn && presence.data) await stopWorkPointage({ who: ptWho, kind: 'departure', origin: 'chrono' });
+      await togglePresence(activeCompanyId!, who);
+    },
+    onSuccess: refresh, onError: onErr,
+  });
+  const start = useMutation({
+    mutationFn: async (id: string) => {
+      if (!ptOn) { await startWork(activeCompanyId!, id, who); return; }
+      let res = await startWorkOnOr(id, { who: ptWho, origin: 'chrono' });
+      if (res.status === 'needs_confirm') {
+        const c = res.current;
+        const what = c.kind === 'improductif' ? t('pointage.currentTask') : fill(t('pointage.currentOr'), { number: c.or_number ?? '' });
+        const ok = await confirm({ title: t('pointage.switchTitle'), message: fill(t('pointage.switchConfirm'), { current: what, since: hhmm(c.started_at) }), confirmLabel: t('pointage.switchOk') });
+        if (!ok) return;
+        res = await startWorkOnOr(id, { who: ptWho, origin: 'chrono', confirmSwitch: true });
+      }
+      if (res.status === 'resumed') toast.success(t('pointage.resumed'));
+    },
+    onSuccess: () => { setOrScan(''); refresh(); }, onError: onErr,
+  });
   const task = useMutation({ mutationFn: () => startTask(activeCompanyId!, taskCode, who), onSuccess: refresh, onError: onErr });
-  const stop = useMutation({ mutationFn: () => stopWork(activeCompanyId!, who), onSuccess: refresh, onError: onErr });
+  const stop = useMutation({
+    mutationFn: () => (ptOn ? stopWorkPointage({ who: ptWho, origin: 'chrono' }).then(() => undefined) : stopWork(activeCompanyId!, who)),
+    onSuccess: refresh, onError: onErr,
+  });
+  const pause = useMutation({
+    mutationFn: (v: { reason: string; orStatus: string | null }) => pauseWork({ reason: v.reason, orStatus: v.orStatus, who: ptWho, origin: 'chrono' }),
+    onSuccess: () => { setPauseOpen(false); refresh(); }, onError: onErr,
+  });
+  const correct = useMutation({
+    mutationFn: (c: { id: string; ended: string }) => correctEntryEnd(c.id, new Date(c.ended).toISOString()),
+    onSuccess: () => { setCorrecting(null); refresh(); }, onError: onErr,
+  });
 
   const orNumber = (id: string | null) => ors.data?.find((o) => o.id === id)?.number ?? id?.slice(0, 8) ?? '—';
   const taskLabel = (code: string | null | undefined) => tasks.find((x) => x.code === code)?.label ?? code ?? '—';
@@ -152,8 +213,15 @@ function ChronoPage() {
           <div className="mb-4 space-y-3 rounded-md border border-border bg-card p-4">
             {current ? (
               <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge tone={current.kind === 'improductif' ? 'warning' : 'info'} label={`${currentLabel} · ${hhmm(current.started_at)}`} />
-                <Button className="ml-auto" variant="destructive" onClick={() => stop.mutate()} disabled={stop.isPending}>{stop.isPending ? <Loader2 className="animate-spin" /> : <Square />} {t('workshop.stopWork')}</Button>
+                <StatusBadge tone={current.kind === 'improductif' ? 'warning' : 'info'} icon={current.kind === 'improductif' ? Brush : Play} label={`${currentLabel} · ${hhmm(current.started_at)}`} />
+                {ptOn ? (
+                  <div className="ml-auto flex flex-wrap gap-2">
+                    <Button variant="outline" className="h-12 min-w-[132px] text-[15px]" onClick={() => setPauseOpen(true)} disabled={pause.isPending}><Pause /> {t('pointage.pause')}</Button>
+                    <Button variant="outline" className="h-12 min-w-[132px] text-[15px]" onClick={() => stop.mutate()} disabled={stop.isPending}>{stop.isPending ? <Loader2 className="animate-spin" /> : <Square />} {t('pointage.finish')}</Button>
+                  </div>
+                ) : (
+                  <Button className="ml-auto" variant="destructive" onClick={() => stop.mutate()} disabled={stop.isPending}>{stop.isPending ? <Loader2 className="animate-spin" /> : <Square />} {t('workshop.stopWork')}</Button>
+                )}
               </div>
             ) : null}
             <div className="flex flex-wrap items-end gap-3">
@@ -167,7 +235,7 @@ function ChronoPage() {
                   })}{(ors.data ?? []).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">{t('workshop.noOpenOr')}</div>}</SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => start.mutate(orId)} disabled={start.isPending || !orId}>{start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('workshop.startWork')}</Button>
+              <Button className={ptOn ? 'h-12 text-[15px]' : undefined} onClick={() => start.mutate(orId)} disabled={start.isPending || !orId}>{start.isPending ? <Loader2 className="animate-spin" /> : <Play />} {t('workshop.startWork')}</Button>
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('labourTime.scanOr')}</label>
                 <Input value={orScan} onChange={(e) => setOrScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && orScan.trim()) onScanOr(); }} className="w-44 font-data" placeholder={t('labourTime.scanOrPlaceholder')} />
@@ -214,9 +282,9 @@ function ChronoPage() {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('workshop.today')}</p>
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted"><tr><Th>{t('workshop.mechanicName')}</Th><Th>{t('workshop.colKind')}</Th><Th>{t('labourTime.colWork')}</Th><Th>{t('labourTime.start')}</Th><Th>{t('labourTime.end')}</Th><Th className="text-right">{t('workshop.minutes')}</Th></tr></thead>
+              <thead className="bg-muted"><tr><Th>{t('workshop.mechanicName')}</Th><Th>{t('workshop.colKind')}</Th><Th>{t('labourTime.colWork')}</Th><Th>{t('labourTime.start')}</Th><Th>{t('labourTime.end')}</Th><Th className="text-right">{t('workshop.minutes')}</Th>{ptOn && <Th>{t('pointage.colStop')}</Th>}</tr></thead>
               <tbody>
-                {today.data && today.data.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">—</td></tr>}
+                {today.data && today.data.length === 0 && <tr><td colSpan={ptOn ? 7 : 6} className="px-3 py-4 text-center text-muted-foreground">—</td></tr>}
                 {today.data?.map((e) => (
                   <tr key={e.id} className="border-b border-border last:border-0">
                     <td className="px-3 py-1.5">{e.mechanic_name ?? e.mechanic_code ?? '—'}</td>
@@ -225,12 +293,22 @@ function ChronoPage() {
                     <td className="px-3 py-1.5 font-mono text-[12px]">{hhmm(e.started_at)}</td>
                     <td className="px-3 py-1.5 font-mono text-[12px]">{e.ended_at ? hhmm(e.ended_at) : t('workshop.ongoing')}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{e.minutes != null ? e.minutes : ''}</td>
+                    {ptOn && <td className="px-3 py-1.5"><StopCell e={e as StopLike} reasons={reasons} canCorrect={canCorrect} onCorrect={() => setCorrecting({ id: e.id, started: e.started_at, ended: e.ended_at ?? '' })} /></td>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </TabsContent>
+
+        {ptOn && (
+          <PauseDialog open={pauseOpen} reasons={reasons} orStatus={null} busy={pause.isPending}
+            onCancel={() => setPauseOpen(false)} onConfirm={(v) => pause.mutate(v)} />
+        )}
+        {correcting && (
+          <CorrectDialog entry={correcting} busy={correct.isPending} onCancel={() => setCorrecting(null)}
+            onConfirm={(ended) => correct.mutate({ id: correcting.id, ended })} />
+        )}
 
         <TabsContent value="productivite">
           {activeCompanyId && <ProductivityPanel companyId={activeCompanyId} />}
@@ -242,4 +320,54 @@ function ChronoPage() {
 
 function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+}
+
+type StopLike = { ended_at: string | null; stop_kind?: string | null; stop_reason?: string | null; corrected_at?: string | null };
+
+/** Fin du pointage (lot A) : pause et motif, termine, arret automatique a corriger. */
+function StopCell({ e, reasons, canCorrect, onCorrect }: { e: StopLike; reasons: { code: string; label: string; orStatus: string | null }[]; canCorrect: boolean; onCorrect: () => void }) {
+  if (!e.ended_at) return <StatusBadge tone="info" icon={Play} label={t('pointage.stateRunning')} />;
+  const key = stopKindKey(e.stop_kind);
+  if (!key) return <span className="text-muted-foreground">—</span>;
+  const auto = e.stop_kind === 'auto_stop';
+  const why = e.stop_kind === 'pause' || e.stop_kind === 'switch' ? reasonLabel(e.stop_reason, reasons, t) : '';
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <StatusBadge
+        tone={auto ? 'warning' : e.stop_kind === 'stop' ? 'success' : 'neutral'}
+        icon={auto ? Timer : e.stop_kind === 'stop' ? Square : Pause}
+        label={why ? `${t(key)} : ${why}` : t(key)}
+      />
+      {e.corrected_at && <span className="text-[11px] text-muted-foreground">{t('pointage.corrected')}</span>}
+      {canCorrect && (
+        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onCorrect}><Pencil className="size-3.5" /> {t('pointage.correct')}</Button>
+      )}
+    </span>
+  );
+}
+
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** Correction de l'heure de fin par l'atelier (admin, chef d'atelier) : tracee dans events. */
+function CorrectDialog({ entry, busy, onCancel, onConfirm }: { entry: { started: string; ended: string }; busy: boolean; onCancel: () => void; onConfirm: (endedLocal: string) => void }) {
+  const [value, setValue] = useState(entry.ended ? toLocalInput(entry.ended) : '');
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('pointage.correctTitle')}</DialogTitle>
+          <DialogDescription>{fill(t('pointage.correctHint'), { start: new Date(entry.started).toLocaleString('fr-BE') })}</DialogDescription>
+        </DialogHeader>
+        <Input type="datetime-local" value={value} onChange={(e) => setValue(e.target.value)} className="h-12 font-data text-[15px]" />
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="h-11" onClick={onCancel}>{t('action.cancel')}</Button>
+          <Button className="h-11" disabled={!value || busy} onClick={() => onConfirm(value)}>{busy ? <Loader2 className="animate-spin" /> : <Pencil />} {t('action.save')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

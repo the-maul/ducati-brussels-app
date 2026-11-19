@@ -16,6 +16,7 @@ import type { PlanningAppointment } from './api';
 import type { usePlanningBase } from './planning-data';
 import { contactLabel, fmtDate, fmtTime, motoLabel } from './ui-bits';
 import { StatusIcon } from './status-icon';
+import { OrWorkBadge, useOrWorkStatusMap } from '../pointage/work-controls';
 
 /** Fond de la case = couleur du type de RDV (decision Q47), neutre sans couleur. */
 export function typeBlockClass(types: AppointmentType[], code: string | null) {
@@ -37,6 +38,8 @@ export function ReceptionView({ base, ctx, days, appts, mechanicFilter, statusFi
   canParts: (a: PlanningAppointment) => boolean;
 }) {
   const visible = appts.filter((a) => !a.unassigned && statusFilter.has(a.status) && (!mechanicFilter || a.mechanic_id === mechanicFilter));
+  // Lot A (19/11) : OR « en cours (par qui, depuis quand) » / « en pause (motif) ».
+  const work = useOrWorkStatusMap(visible.map((a) => a.or_id));
   const cols = days.length >= 6 ? 'lg:grid-cols-7' : days.length === 5 ? 'lg:grid-cols-5' : days.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3';
   return (
     <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 ${cols}`}>
@@ -79,6 +82,7 @@ export function ReceptionView({ base, ctx, days, appts, mechanicFilter, statusFi
                   {a.vehicles && <p className="truncate text-muted-foreground">{motoLabel(a.vehicles)}</p>}
                   {a.work_description && <p className="truncate text-muted-foreground">{a.work_description}</p>}
                   {a.mechanic_name && <p className="text-muted-foreground">{a.mechanic_name}</p>}
+                  {a.or_id && work.map.get(a.or_id) && <div className="mt-1"><OrWorkBadge row={work.map.get(a.or_id)} reasons={work.reasons} /></div>}
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onOpen(a)}>{t('action.edit')}</Button>
                     {a.or_id

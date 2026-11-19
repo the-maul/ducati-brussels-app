@@ -3,6 +3,11 @@
  * à l'atelier (gros boutons, texte lisible, portrait ou paysage).
  *
  * Enchaînement : choisir l'entretien dû → liste des opérations → procédure pas à pas → récapitulatif.
+ *
+ * Lot A du parcours mecanicien (19/11/2026) : plus de chrono a part. Le temps est celui de la
+ * pointeuse (un pointage de travail par operation, `journey_operation`) : Demarrer / Pause /
+ * Reprendre / Terminer. Quitter l'ecran n'arrete rien et ne fait tourner aucun chrono fantome :
+ * le temps compte = le pointage reel (pause, arret automatique en fin de journee).
  * L'avancement est enregistré à chaque geste et la reprise se fait là où le technicien s'est arrêté.
  * **Rien n'est facturé automatiquement** : le récapitulatif propose des lignes, l'OR reste maître.
  */
@@ -11,7 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
   AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ChevronRight, ClipboardCheck, FileText,
-  Loader2, NotebookPen, Package, Play, RotateCcw, ShoppingCart, Square, Timer,
+  Loader2, NotebookPen, Package, Pause, Play, RotateCcw, ShoppingCart, Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -31,7 +36,10 @@ import {
   officialMinutes, operationMinutes, resumePoint, runningOperationId, spentMinutes, startChrono,
   stopChrono, summarize, billedMinutes,
 } from './rules';
-import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, Procedure } from './types';
+import { OrWorkControls, PauseDialog, usePointage } from '../pointage/work-controls';
+import { minutesByOperation } from '../pointage/rules';
+import { canStartWork } from '../checkup/rules';
+import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, OperationProgress, Procedure } from './types';
 import { t } from '@/lib/i18n';
 import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
 
@@ -87,19 +95,35 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     enabled: !!source.data && !!modelYearId,
   });
 
-  // Reprise : l'avancement enregistré prime sur un nouveau départ.
-  useEffect(() => {
-    if (saved.data && !state) { setState(saved.data); setView('ops'); }
-    else if (saved.isSuccess && !saved.data && !state) setView('choose');
-  }, [saved.data, saved.isSuccess, state]);
+  // Lot A : la pointeuse est la seule source de temps (meme OR, meme mecanicien, tout poste).
+  const pt = usePointage({ orId, companyId });
+  const pointage = pt.ready;
 
-  // Le chrono qui tourne doit avancer à l'écran.
-  const running = state ? runningOperationId(state.operations) : null;
+  // Reprise : l'avancement enregistré prime sur un nouveau départ. Avec la pointeuse, un ancien
+  // chrono du parcours resté ouvert est arrêté à l'ouverture : il ne compte plus.
+  useEffect(() => {
+    if (saved.data && !state) {
+      const legacyRunning = pointage && runningOperationId(saved.data.operations);
+      setState(legacyRunning ? { ...saved.data, operations: stopChrono(saved.data.operations) } : saved.data);
+      setView('ops');
+    }
+    else if (saved.isSuccess && !saved.data && !state) setView('choose');
+  }, [saved.data, saved.isSuccess, state, pointage]);
+
+  // Opération en cours : mon pointage ouvert sur cet OR (pointeuse), sinon l'ancien chrono local.
+  const running = pointage
+    ? (pt.state.mineOpen?.journey_operation ?? null)
+    : state ? runningOperationId(state.operations) : null;
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => setTick((n) => n + 1), 30_000);
     return () => clearInterval(id);
   }, [running]);
+  const pointedByOp = useMemo(
+    () => (pointage ? minutesByOperation(pt.entries, orId, Date.now() + tick * 0) : {}),
+    [pointage, pt.entries, orId, tick],
+  );
+  const opMinutes = (op: OperationProgress) => (pointage ? Math.floor(pointedByOp[op.id] ?? 0) : operationMinutes(op));
 
   // Procédures du parcours : nécessaires pour compter les étapes (avancement, reprise).
   const procedureIds = useMemo(
@@ -200,7 +224,8 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
   const official = state ? officialMinutes(prog.temps, state.serviceLabel, serviceDef?.km ?? null) : null;
   const billed = billedMinutes(ro.lines.map((l) => ({ kind: l.kind, quantity: l.quantity })));
   const progress = state ? journeyProgress(state.operations, stepCounts) : null;
-  const spent = state ? spentMinutes(state.operations) : 0;
+  const spent = pointage ? Math.floor(pt.total) : state ? spentMinutes(state.operations) : 0;
+  const workAllowed = canStartWork(ro.or as { customer_approval?: string | null });
 
   const bikeLabel = `${prog.modele} ${prog.annee}`;
 
@@ -293,10 +318,26 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
     ...s, operations: s.operations.map((o) => (o.id === id ? { ...o, done: !o.done } : o)),
   }));
 
-  const toggleChrono = (id: string) => patch((s) => ({
-    ...s,
-    operations: runningOperationId(s.operations) === id ? stopChrono(s.operations) : startChrono(s.operations, id),
-  }));
+  // Lot A : Play sur une operation = pointage sur cette operation (le travail en cours sur une autre
+  // operation du meme OR s'arrete tout seul ; un autre OR demande confirmation). Sur l'operation en
+  // cours = Pause (motif). Sans la migration : l'ancien chrono local.
+  const toggleChrono = (id: string) => {
+    if (pointage) {
+      if (running === id) pt.setPauseOpen(true);
+      else pt.start.mutate(id);
+      return;
+    }
+    patch((s) => ({
+      ...s,
+      operations: runningOperationId(s.operations) === id ? stopChrono(s.operations) : startChrono(s.operations, id),
+    }));
+  };
+  const pauseDialog = pointage ? (
+    <PauseDialog
+      open={pt.pauseOpen} reasons={pt.reasons} orStatus={ro.or.status} busy={pt.pause.isPending}
+      onCancel={() => pt.setPauseOpen(false)} onConfirm={(v) => pt.pause.mutate(v)}
+    />
+  ) : null;
 
   const addFinding = (f: NewFinding) => patch((s) => ({
     ...s, findings: [...s.findings, { ...f, id: uid(), at: new Date().toISOString() }],
@@ -313,7 +354,8 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
           procedure={openProc}
           operation={openOp}
           running={running === openOp.id}
-          spentMin={operationMinutes(openOp) + tick * 0}
+          pointage={pointage}
+          spentMin={opMinutes(openOp) + tick * 0}
           onBack={() => { if (linkedId) setLinkedId(null); else { setOpenOpId(null); setView('ops'); } }}
           onToggleStep={linkedId ? () => undefined : toggleStep}
           onToggleOperation={() => toggleOperation(openOp.id)}
@@ -327,13 +369,14 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
           kind={finding?.kind ?? null} operationId={openOp.id} stepNo={finding?.stepNo ?? null}
           onAdd={addFinding} onClose={() => setFinding(null)}
         />
+        {pauseDialog}
       </>
     );
   }
 
   // --- récapitulatif -------------------------------------------------------
   if (view === 'summary') {
-    const s = summarize(state, stepCounts, official, billed);
+    const s = summarize(state, stepCounts, official, billed, Date.now(), pointage ? pt.total : null);
     return (
       <div className="pb-6">
         {banners}
@@ -475,6 +518,10 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
         </div>
       </div>
       <Progress value={progress?.percent ?? 0} className="mb-4 h-2.5" />
+      {/* Lot A : etat du pointage + Demarrer / Pause / Reprendre / Terminer, sur tout poste. */}
+      {pointage && (
+        <OrWorkControls orId={orId} companyId={companyId} orStatus={ro.or.status} workAllowed={workAllowed} />
+      )}
 
       <ul className="space-y-2">
         {state.operations.map((op, i) => {
@@ -482,7 +529,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
           const done = isOperationDone(op, n);
           const isRunning = running === op.id;
           const isResume = resume?.operationId === op.id;
-          const mins = operationMinutes(op) + tick * 0;
+          const mins = opMinutes(op) + tick * 0;
           return (
             <li key={op.id} className={`rounded-md border bg-card ${done ? 'border-success/40' : isResume ? 'border-ducati-red/50' : 'border-border'}`}>
               <div className="flex items-stretch gap-2 p-2 sm:p-3">
@@ -513,12 +560,13 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
                 </button>
 
                 <Button
-                  variant={isRunning ? 'destructive' : 'outline'}
+                  variant={isRunning ? 'default' : 'outline'}
                   className="h-12 w-12 shrink-0 self-start p-0"
+                  disabled={pointage && (pt.busy || (!isRunning && !workAllowed))}
                   onClick={() => toggleChrono(op.id)}
-                  aria-label={isRunning ? t('journey.chronoStop') : t('journey.chronoStart')}
+                  aria-label={isRunning ? (pointage ? t('pointage.pause') : t('journey.chronoStop')) : (pointage ? t('pointage.startOperation') : t('journey.chronoStart'))}
                 >
-                  {isRunning ? <Square /> : <Play />}
+                  {isRunning ? <Pause /> : <Play />}
                 </Button>
               </div>
             </li>
@@ -559,6 +607,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr }: { orId: string; c
         </Button>
       </div>
 
+      {pauseDialog}
       <FigureZoom figure={figure?.f ?? null} alt={figure?.alt ?? ''} onClose={() => setFigure(null)} />
       <FindingDialog
         kind={finding?.kind ?? null}

@@ -268,6 +268,21 @@ function SettingsSection({ settings, onChanged }: { settings: PlanningSettings; 
         </Field>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">{check('belgian_holidays')}{check('show_occupancy')}{check('block_overlaps')}</div>
+      {/* Lot A parcours mecanicien (19/11) : arret automatique des pointages, comme G8. */}
+      {s.auto_stop_mode !== undefined && (
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
+          <Field label={t('pointage.autoStopLabel')} className="md:col-span-2">
+            <Select value={s.auto_stop_mode} onValueChange={(v) => setS({ ...s, auto_stop_mode: v as 'off' | 'end_of_schedule' })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">{t('pointage.autoStop_off')}</SelectItem>
+                <SelectItem value="end_of_schedule">{t('pointage.autoStop_end_of_schedule')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <p className="self-end pb-2 text-[12px] text-muted-foreground md:col-span-3">{t('pointage.autoStopHint')}</p>
+        </div>
+      )}
       {contractReady && (
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
           <Field label={t('loans.deductibleLabel')}>

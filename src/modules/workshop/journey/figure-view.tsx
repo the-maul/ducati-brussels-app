@@ -2,14 +2,26 @@
  * M8 — Parcours d'entretien : figures du manuel.
  * Vignette large (le technicien a des gants) ; un appui ouvre la figure en plein écran,
  * un second appui zoome ×2,5 et on fait glisser pour se déplacer.
+ *
+ * Lot 0 du parcours mecanicien (19/11/2026) : les figures viennent du stockage « wsm-images »
+ * par adresse signee (`figure-urls.ts`), plus de la copie locale « /manuels/ ».
  */
 import { useState } from 'react';
-import { ImageOff, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ImageOff, Loader2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { figureUrl } from './source';
+import { useFigureUrl } from './figure-urls';
 import type { Figure } from './types';
 import { t } from '@/lib/i18n';
+
+function Pending({ className }: { className?: string }) {
+  return (
+    <div className={`grid min-h-[140px] place-items-center rounded-md border border-border bg-muted/40 ${className ?? ''}`}>
+      <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+      <span className="sr-only">{t('journey.loading')}</span>
+    </div>
+  );
+}
 
 function Missing({ className }: { className?: string }) {
   return (
@@ -17,7 +29,7 @@ function Missing({ className }: { className?: string }) {
       <div>
         <ImageOff className="mx-auto size-6 text-muted-foreground" aria-hidden />
         <p className="mt-1 text-[12px] text-muted-foreground">{t('journey.noFigure')}</p>
-        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground/70">{t('journey.noFigureHint')}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground/70">{t('journey.noFigureHint')}</p>
       </div>
     </div>
   );
@@ -26,7 +38,8 @@ function Missing({ className }: { className?: string }) {
 /** Une figure : vignette cliquable. */
 export function FigureThumb({ figure, alt, onOpen }: { figure: Figure; alt: string; onOpen: (f: Figure) => void }) {
   const [broken, setBroken] = useState(false);
-  const src = figureUrl(figure.src);
+  const src = useFigureUrl(figure.src);
+  if (src === undefined) return <Pending />;
   if (!src || broken) return <Missing />;
   return (
     <button
@@ -57,7 +70,7 @@ export function FigureGrid({ figures, alt, onOpen }: { figures: Figure[]; alt: s
 export function FigureZoom({ figure, alt, onClose }: { figure: Figure | null; alt: string; onClose: () => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [broken, setBroken] = useState(false);
-  const src = figure ? figureUrl(figure.zoom) ?? figureUrl(figure.src) : null;
+  const src = useFigureUrl(figure ? figure.zoom ?? figure.src : null);
   return (
     <Dialog open={!!figure} onOpenChange={(o) => { if (!o) { setZoomed(false); setBroken(false); onClose(); } }}>
       <DialogContent className="max-h-[96vh] max-w-[96vw] gap-2 overflow-hidden p-3 sm:p-4">
@@ -71,7 +84,7 @@ export function FigureZoom({ figure, alt, onClose }: { figure: Figure | null; al
           </div>
         </DialogHeader>
         <div className="max-h-[80vh] overflow-auto overscroll-contain rounded-md bg-gray-0">
-          {src && !broken ? (
+          {src === undefined && figure ? <Pending className="min-h-[50vh]" /> : src && !broken ? (
             <img
               src={src}
               alt={alt}
