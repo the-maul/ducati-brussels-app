@@ -37,6 +37,7 @@ import { useCustomerPricer, orInsurerTariff, type PricingContact } from '@/modul
 import { insurerRepriceNeeded, priceOrLine, repriceOrLines } from './or-line-pricing';
 import { articleBasePrices } from './or-line-pricing-api';
 import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
+import { useOrExplodedViews } from './exploded/or-exploded-views';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
 import {
   defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
@@ -401,6 +402,12 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   };
   const kitModelYear = preVehicle && vehicle?.id === preVehicle.id
     ? ((preVehicle as unknown as { ducati_model_year_id?: string | null }).ducati_model_year_id ?? null) : null;
+  // Lot E (19/11) : vues eclatees de la moto (src/modules/workshop/exploded/) ; la piece ajoutee arrive chiffree par priceOrLine.
+  const exploded = useOrExplodedViews({
+    companyId, modelYearId: kitModelYear, orId: o?.id ?? null, readOnly: o?.status === 'facture' || o?.status === 'annule',
+    pricer, effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp),
+    onAdd: (l) => setLines((ls) => [...ls.filter((x) => x.designation.trim() || x.article_id), { ...l, _key: `ro${counter++}` }]),
+  });
   // MO : la quantité est le nombre d'heures facturées (le temps saisi la suit) ; ligne couverte par
   // la garantie : sa quantité porte les heures garanties.
   const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null && !lineCoveredByWarranty(l, warrantyStatus) ? { quantity: q, billed_hours: q } : { quantity: q });
@@ -667,6 +674,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                     {l.kind === 'mo' && timeReady && (
                       <Button size="sm" variant="ghost" onClick={() => setTimeKey(l._key)} title={t('labourTime.windowTitle')} aria-label={t('labourTime.windowTitle')}><Clock className="size-4" /></Button>
                     )}
+                    {l.kind === 'piece' && exploded.rowButton(l.article_id)}
                     <Button size="sm" variant="ghost" onClick={() => removeLine(l._key)}><Trash2 className="size-4 text-danger" /></Button>
                   </td>
                 </tr>
@@ -706,6 +714,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
           <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
           <MicroficheImportButton companyId={companyId} onImport={addMicroficheLines} />
+          {exploded.button}
         </div>
         <div className="flex gap-5 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
           <span>{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>
@@ -728,6 +737,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const overlays = (
     <>
       <ClientCommentPopup contactId={contact?.id ?? null} />
+      {exploded.dialog}
       <AlertDialog open={!!kitDup} onOpenChange={(v) => { if (!v) setKitDup(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

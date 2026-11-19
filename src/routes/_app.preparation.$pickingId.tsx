@@ -22,6 +22,7 @@ import {
 } from '@/modules/sales/picking-api';
 import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
 import { SALE_STOCK_META } from '@/modules/sales/availability';
+import { PickingExplodedButton } from '@/modules/workshop/exploded/or-exploded-views';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/preparation/$pickingId')({
@@ -149,7 +150,7 @@ function PreparationTablet() {
       <div className="grid gap-3">
         {lines.map((l) => (
           <LineCard
-            key={l.id} line={l} locked={locked} pending={stepMut.isPending}
+            key={l.id} line={l} locked={locked} pending={stepMut.isPending} pickingId={pickingId}
             onStep={(step) => stepMut.mutate({ itemId: l.id, step })}
           />
         ))}
@@ -199,8 +200,8 @@ function LocationCard({ pickingId, current, locked, onSaved }: { pickingId: stri
   );
 }
 
-function LineCard({ line, locked, pending, onStep }: {
-  line: PickingLine; locked: boolean; pending: boolean; onStep: (step: PrepStep | null) => void;
+function LineCard({ line, locked, pending, onStep, pickingId }: {
+  line: PickingLine; locked: boolean; pending: boolean; onStep: (step: PrepStep | null) => void; pickingId: string;
 }) {
   const state = prepDisplayState(line);
   const free = (line.real_qty ?? 0) - (line.reserved_qty ?? 0);
@@ -220,7 +221,11 @@ function LineCard({ line, locked, pending, onStep }: {
             <div className="text-lg font-bold leading-tight">{line.designation || '—'}</div>
             <div className="mt-1 font-data text-base tabular-nums">× {qty(line.qty_ordered)}</div>
           </div>
-          <StateBadge state={state} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StateBadge state={state} />
+            {/* Lot E (19/11) : la piece sur la vue eclatee de la moto. */}
+            <PickingExplodedButton pickingId={pickingId} reference={line.reference} articleId={line.article_id} />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

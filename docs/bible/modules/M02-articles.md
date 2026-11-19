@@ -280,3 +280,9 @@ vide (≤ 1) ; l'ancienne passe à 0 / 0 et garde la trace dans `events` (`artic
 nouvelle : `article_minimax_received`). Déclencheur `trg_articles_minimax_transfer`, rattrapage des
 remplacements existants (185 références reçoivent un conditionnement, aucune n'avait de minimax à
 reporter). Migration `20261119130000_m4_minimax_immediat.sql` ; détail dans M04.
+
+## Ajouté le 19/11 — vues éclatées reliées à l'OR (lot E du parcours mécanicien)
+- L'écran du catalogue Ducati n'est pas refait : ses planches par groupe sont un composant partagé (`src/modules/catalog/model-year-drawings.tsx`), et la vue éclatée (`drawing-view.tsx`) accepte un **repère à mettre en évidence**, un **panneau du repère choisi** (utilisé par l'OR : stock, prix, statut, « Ajouter à l'OR », « Réserver ») et un **affichage sans image** (liste des repères + « Ouvrir chez Ducati »). Repères triés par `src/modules/catalog/positions.ts`.
+- Les images restent chez Ducati (`e-catalog.ducati.com`, publiques au 19/11, sans CORS) : rien n'est copié. Copier les images des planches utilisées = **à trancher** (accord Ducati).
+- Constat du 19/11 : `ducati_catalog_parts.replaced_part` et `ducati_catalog_drawing_lines.replaced_part` sont **vides partout** (seul le drapeau `replaced` est rempli : 6 487 pièces, 221 495 lignes). Pour retrouver une pièce remplacée sur une vue, on passe par les articles du DMS (`superseded_by_id`) et les liens `article_links`.
+- Détail : chapitre M08, « lot E du parcours mécanicien ».

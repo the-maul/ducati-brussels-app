@@ -1,11 +1,16 @@
 /**
  * Catalogue Ducati — une vue éclatée : image Ducati avec les repères cliquables (hotspots) et la
  * liste des pièces, avec pour chaque pièce l'article du DMS correspondant et sa disponibilité.
+ *
+ * Lot E du parcours mécanicien (19/11/2026) : la même vue sert l'OR et la picking list.
+ *  - `highlightPos` : repère à mettre en évidence à l'ouverture (pièce retrouvée par sa référence) ;
+ *  - `renderSelected` : panneau du repère choisi (référence, stock, prix, « Ajouter à l'OR »…) ;
+ *  - image Ducati indisponible : liste des repères cliquables et lien « Ouvrir chez Ducati ».
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ImageOff, Loader2, Timer, Replace } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ImageOff, Loader2, Timer, Replace } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SaleStockBadge } from '@/modules/sales/availability-badge';
@@ -16,8 +21,18 @@ import { getCatalogDrawing, listDrawingLines, type CatalogLine } from './api';
 import { fill, fmtMoney, hotspotBox } from './format';
 import { normalizeCatalogReference } from './reference';
 import { CreateArticleButton } from './create-article-button';
+import { positionsOf } from './positions';
 
-export function DrawingView({ drawingId, companyId, highlightRef = null, onBack }: { drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void }) {
+export type SelectedPosition = { position: string; lines: CatalogLine[] };
+
+export function DrawingView({ drawingId, companyId, highlightRef = null, highlightPos = null, onBack, renderSelected, backLabel }: {
+  drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void;
+  /** Repère mis en évidence à l'ouverture (lien depuis l'OR / la picking list). */
+  highlightPos?: string | null;
+  /** Panneau du repère choisi (au-dessus de la liste des pièces). */
+  renderSelected?: (sel: SelectedPosition) => ReactNode;
+  backLabel?: string;
+}) {
   const drawing = useQuery({ queryKey: ['ducati-catalog', 'drawing', drawingId], queryFn: () => getCatalogDrawing(drawingId) });
   const lines = useQuery({
     queryKey: ['ducati-catalog', 'lines', companyId, drawingId],
@@ -31,7 +46,10 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
 
   const d = drawing.data;
   const img = d?.image_url || d?.original_image_url || d?.thumbnail_url || null;
-  useEffect(() => { setNatural(null); setImgError(false); setSelected(null); }, [drawingId]);
+  useEffect(() => { setNatural(null); setImgError(false); setSelected(highlightPos ?? null); }, [drawingId, highlightPos]);
+  const positions = useMemo(() => positionsOf(d?.hotspots, lines.data), [d?.hotspots, lines.data]);
+  const selectedLines = useMemo(() => (selected ? (lines.data ?? []).filter((l) => l.position === selected) : []), [selected, lines.data]);
+  const ducatiUrl = d?.original_image_url || d?.image_url || null;
 
   const firstRowByPos = useMemo(() => {
     const m: Record<string, number> = {};
@@ -42,12 +60,17 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
   // Lien direct depuis une référence (fiche article, recherche) : surligner sa ligne.
   const target = highlightRef ? normalizeCatalogReference(highlightRef) : '';
   useEffect(() => {
+    if (highlightPos && lines.data) {
+      const n = lines.data.find((x) => x.position === highlightPos)?.line_no;
+      if (n != null) setTimeout(() => rowRefs.current[String(n)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return;
+    }
     if (!target || !lines.data) return;
     const l = lines.data.find((x) => x.reference_norm === target);
     if (!l) return;
     if (l.position) setSelected(l.position);
     setTimeout(() => rowRefs.current[String(l.line_no)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-  }, [target, lines.data]);
+  }, [target, lines.data, highlightPos]);
 
   const pick = (pos: string) => {
     setSelected(pos);
@@ -58,8 +81,14 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={onBack}><ArrowLeft /> {t('catalog.back')}</Button>
+        <Button variant="outline" size="sm" onClick={onBack}><ArrowLeft /> {backLabel ?? t('catalog.back')}</Button>
         {d && <h3 className="font-ui text-[15px] font-bold">{[d.code, d.description].filter(Boolean).join(' — ')}</h3>}
+        {ducatiUrl && (
+          <a href={ducatiUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" title={t('catalog.openAtDucatiHint')}
+            className="ml-auto inline-flex items-center gap-1 text-sm text-info hover:underline">
+            <ExternalLink className="size-4" /> {t('catalog.openAtDucati')}
+          </a>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -67,7 +96,24 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
           {drawing.isLoading ? (
             <Loader2 className="m-6 size-5 animate-spin text-muted-foreground" />
           ) : !img || imgError ? (
-            <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><ImageOff className="size-4" /> {t('catalog.imageMissing')}</div>
+            <div className="space-y-3 p-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><ImageOff className="size-4" /> {t('catalog.imageMissing')}</div>
+              {positions.length > 0 && (
+                <>
+                  <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('catalog.positionsTitle')}</p>
+                  <div className="flex flex-wrap gap-2" aria-label={t('catalog.positionsTitle')}>
+                    {positions.map((p) => (
+                      <button key={p} type="button" onClick={() => pick(p)}
+                        className={cn('min-h-11 min-w-11 rounded-[6px] border px-3 font-data text-base tabular-nums',
+                          selected === p ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-muted')}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">{t('catalog.positionsHint')}</p>
+                </>
+              )}
+            </div>
           ) : (
             <>
               <div className="relative w-full">
@@ -104,6 +150,8 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
           )}
         </div>
 
+        <div className="space-y-3">
+        {renderSelected && selected && selectedLines.length > 0 && renderSelected({ position: selected, lines: selectedLines })}
         <div className="max-h-[75vh] overflow-auto rounded-md border border-border bg-card">
           {lines.isLoading ? (
             <Loader2 className="m-6 size-5 animate-spin text-muted-foreground" />
@@ -132,6 +180,7 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, onBack 
               </TableBody>
             </Table>
           )}
+        </div>
         </div>
       </div>
     </div>

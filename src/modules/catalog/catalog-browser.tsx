@@ -3,17 +3,17 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, CheckCircle2, CircleDashed, AlertTriangle, ImageOff } from 'lucide-react';
+import { Loader2, CheckCircle2, CircleDashed, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StatusBadge } from '@/components/status-badge';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import {
-  listCatalogFamilies, listCatalogModels, listCatalogModelYears, listModelYearDrawings, getModelYearContext,
-  type CatalogDrawingRef, type CatalogModelYear,
+  listCatalogFamilies, listCatalogModels, listCatalogModelYears, getModelYearContext,
+  type CatalogModelYear,
 } from './api';
 import { DrawingView } from './drawing-view';
+import { ModelYearDrawings } from './model-year-drawings';
 import { CatalogReferencePanel } from './reference-panel';
 
 /** État partagé avec l'adresse de la page (liens directs depuis la fiche article et la recherche). */
@@ -45,22 +45,11 @@ export function CatalogBrowser({ companyId, search, onSearch }: {
   const families = useQuery({ queryKey: ['ducati-catalog', 'families'], queryFn: listCatalogFamilies });
   const models = useQuery({ queryKey: ['ducati-catalog', 'models', familyId], queryFn: () => listCatalogModels(familyId as string), enabled: !!familyId });
   const years = useQuery({ queryKey: ['ducati-catalog', 'years', modelId], queryFn: () => listCatalogModelYears(modelId as string), enabled: !!modelId });
-  const drawings = useQuery({ queryKey: ['ducati-catalog', 'my-drawings', modelYearId], queryFn: () => listModelYearDrawings(modelYearId as string), enabled: !!modelYearId });
 
   const filteredModels = useMemo(() => {
     const k = q.trim().toUpperCase();
     return (models.data ?? []).filter((m) => !k || m.description.toUpperCase().includes(k));
   }, [models.data, q]);
-
-  const groups = useMemo(() => {
-    const out: { id: string; label: string; items: CatalogDrawingRef[] }[] = [];
-    for (const d of drawings.data ?? []) {
-      let g = out.find((x) => x.id === d.group_id);
-      if (!g) { g = { id: d.group_id, label: [d.group?.code, d.group?.description].filter(Boolean).join(' — '), items: [] }; out.push(g); }
-      g.items.push(d);
-    }
-    return out;
-  }, [drawings.data]);
 
   if (drawingId) return <DrawingView drawingId={drawingId} companyId={companyId} highlightRef={search.ref ?? null} onBack={() => setDrawingId(null)} />;
   if (search.ref) return <CatalogReferencePanel companyId={companyId} reference={search.ref} onBack={() => onSearch({})} />;
@@ -113,29 +102,7 @@ export function CatalogBrowser({ companyId, search, onSearch }: {
         )}
 
         {modelId && !modelYearId && (years.data ?? []).length > 0 && <p className="text-sm text-muted-foreground">{t('catalog.chooseYear')}</p>}
-        {modelYearId && drawings.isLoading && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
-        {modelYearId && !drawings.isLoading && !groups.length && <p className="text-sm text-muted-foreground">{t('catalog.noDrawing')}</p>}
-
-        {groups.map((g) => (
-          <section key={g.id}>
-            <h3 className="mb-2 font-ui text-[13px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{g.label || g.id}</h3>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-              {g.items.map((d) => (
-                <button key={d.drawing_id} type="button" onClick={() => setDrawingId(d.drawing_id)}
-                  className="rounded-md border border-border bg-card p-2 text-left hover:border-primary">
-                  <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[4px] bg-muted">
-                    {d.drawing?.thumbnail_url
-                      ? <img src={d.drawing.thumbnail_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-                      : <ImageOff className="size-5 text-muted-foreground" />}
-                  </div>
-                  <div className="mt-1 text-[12px] font-semibold">{d.drawing?.code}</div>
-                  <div className="line-clamp-2 text-[12px] text-muted-foreground">{d.drawing?.description}</div>
-                  {!d.drawing?.parts_loaded_at && <div className="mt-1"><StatusBadge tone="warning" icon={CircleDashed} label={t('catalog.partsPending')} /></div>}
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
+        {modelYearId && <ModelYearDrawings modelYearId={modelYearId} onPick={setDrawingId} />}
       </div>
     </div>
   );
