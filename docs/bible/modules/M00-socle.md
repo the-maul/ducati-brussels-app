@@ -318,3 +318,25 @@ Vérifié le 18/09/2026 dans le code et dans la base (projet `ujmrosbgkvgvwfnury
 | 2026-11-03 | **Retour revient exactement à la page d'avant** (UX011, retour client « ne revient pas à la page d'avant avec la sélection ») : Retour saute le formulaire de création déjà utilisé et la même page (`history.go(-n)`), suivi des pages gardé dans l'onglet (survit au F5) ; recherche / filtres / onglet / page des listes Pièces, Clients, Ventes, Atelier, Véhicules, Commandes, CRM dans l'adresse ; brouillon d'onglet des formulaires Nouvel OR, nouveau document, nouveau client, nouvel article (`useFormDraft`, bandeau « Saisie en cours retrouvée ») ; « Ajouter une moto » revient au formulaire avec la moto créée (`?retour=`) ; défilement de la zone de travail restauré ; 2 libellés × 4 langues | branche `fix-bouton-retour-etat` ; aucune migration |
 | 2026-11-03 | **Postes et périphériques** (PDV030, M-106) : réglage transverse par poste et par rôle, poste du navigateur mémorisé localement, couche `src/lib/devices/` (caisse et étiquettes) | migration `20261103250000_m6_postes_peripheriques.sql` non appliquée |
 | 2026-11-18 | **Numérotation : deux modes au choix par société** (rattrapage G8, bloquant n° 5) : séries séparées FAC / TIK / AVO ou compteur unique façon G8 ; changement de mode seulement en début d'exercice ou programmé au 1er janvier ; prochain numéro réglable vers le haut par l'admin ou le comptable, motif tracé ; validation atomique (numéro + statut) ; garde sur les séries ; écran groupé avec explication par série ; trou FAC-2026-00002 à 00004 documenté (PV comptable) | branche `lot-g8-numerotation`, migration `20261118260000_m0_numerotation_deux_modes.sql` (**à appliquer**) |
+
+## Ajouté le 19/11 — lenteurs (« tout prend un temps de dingue à charger »)
+
+Mesures du 19/11 (EXPLAIN ANALYZE en utilisateur connecté simulé, transaction annulée), lot `lot-perf` :
+
+| Requête (admin ITALBIKE) | Avant | Après RLS | Après RLS + index |
+|---|---|---|---|
+| 50 dernières factures (`documents`) | 4 962 ms | 31 ms | 5 ms |
+| lignes des 100 dernières factures | 34 580 ms | 227 ms | — |
+| comptage des articles | 3 801 ms | 29 ms | — |
+| journal `events` de la semaine | 6 062 ms | 36 ms | — |
+| recherche client « dup » (OR, RDV) | 385 ms | 34 ms | — |
+| recherche moto « mon » | 171 ms | 29 ms | — |
+| 50 dernières motos | 143 ms | 8 ms | 0,9 ms |
+| tableau de bord (`dashboard_kpis`) | 450–730 ms | — | 83–91 ms |
+
+- **Cause n° 1 : RLS appelée par ligne.** Les politiques `is_member(company_id)`, `can_write_table(company_id, 't')`, `is_admin`, `has_role` exécutaient la fonction pour **chaque ligne** (25 à 250 µs l'appel). Migration `20261119230000_perf_rls_droits_calcules_une_fois.sql` : ensembles `rls_member_companies()`, `rls_admin_companies()`, `rls_role_companies(rôle)`, `rls_writable_companies(table)` calculés **une fois par requête**, et `public.rls_perf_rewrite_all()` qui réécrit les politiques (ALTER POLICY, mêmes noms / commandes / rôles). Équivalence prouvée par `supabase/tests/perf_rls_equivalence.sql` (fonctions identiques pour tous utilisateurs × sociétés × rôles × tables ; 414 expressions × 6 profils comparées ligne à ligne). Non touchés : `can_manage_accounting`, `_accounting_can_transfer` (vrais sans utilisateur pour la clé de service).
+- **Index** (`20261119231000`) : `documents (company_id, issue_date desc)`, `vehicles (company_id, created_at desc)`, `workshop_appointments (or_id | contact_id | vehicle_id)` (le changement de statut d'un OR met à jour le RDV `where or_id = …`).
+- **Tableau de bord** : la valeur du stock ne passe plus par `article_stock_list` (qui triait les 94 000 articles pour une somme) ; patch du texte de `dashboard_kpis` en place, résultat identique (essai `perf_index_tableau_de_bord.sql`).
+- **Écran** : la recherche d'article d'une ligne (OR, documents de vente) ne part plus pour chaque ligne libre à l'ouverture de la page, seulement quand le champ est utilisé ; ses deux lectures complémentaires partent en parallèle ; les sélecteurs de client (RDV, OR, vente, recherche globale) demandent 8 fiches au lieu de 500 (1,3 Mo par frappe pour « ma »).
+- **Appliquer** : à un moment calme (ALTER POLICY prend un verrou exclusif sur ~300 tables, le temps de la transaction).
+- **Reste** (hors code) : instance Supabase **Micro** (1 Go de RAM, CPU partagé) pour 2,6 Go de base, copie de société de test en cours qui double les données ; fonction SSR Netlify (≈ 0,5 s par page chargée) ; paquet JS principal 3,0 Mo (0,9 Mo compressé) dont ~2 Mo de dictionnaires des 4 langues chargés d'office.
