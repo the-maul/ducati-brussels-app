@@ -23,9 +23,10 @@ import type { ReceptionStatus } from '../reception/rules';
 import type { PlanningAppointment } from '../planning/api';
 import { OR_WORKABLE_STATUSES } from '../or-base/rules';
 import {
-  MY_ENTRIES_DAYS, buildDayCards, effectiveView, isHomePref, myIdentity, partsSummary, viewScope,
+  MY_ENTRIES_DAYS, buildDayCards, effectiveView, finalizeCards, isHomePref, myIdentity, partsSummary, staleDaysSetting,
+  vehicleOrGroups, viewScope,
   type DayAppointment, type DayCard, type DayOr, type HomePref, type MechanicLite, type MeIdentity, type MyEntry,
-  type PartsSummary, type ReservationLite, type WorkshopView,
+  type PartsSummary, type ReservationLite, type VehicleGroupInfo, type WorkshopView,
 } from './rules';
 
 type LooseResult = { data: unknown; error: { message: string; code?: string } | null };
@@ -58,9 +59,12 @@ const APPT_COLS = [
   'mileage', 'workshop', 'starts_at', 'planned_minutes', 'work_description', 'reception_notes', 'loaner_vehicle', 'status',
   'notify_sms', 'source', 'requested_slot', 'reason_code', 'service_code', CONTACT_COLS, VEHICLE_COLS,
 ].join(', ');
-const OR_BASE_COLS = ['id', 'number', 'status', 'created_at', 'operator', 'contact_id', 'vehicle_id', 'work_description', 'customer_approval', CONTACT_COLS, VEHICLE_COLS];
-/** Colonnes des migrations 20261103230000 (operator_id) et 20261103270000 (service_code). */
-const OR_EXTRA_COLS = ['operator_id', 'service_code'];
+const OR_BASE_COLS = ['id', 'number', 'status', 'created_at', 'operator', 'contact_id', 'vehicle_id', 'work_description', 'customer_approval', 'repair_type', CONTACT_COLS, VEHICLE_COLS];
+/**
+ * Colonnes des migrations 20261103230000 (operator_id), 20261103270000 (service_code) et
+ * 20261031110000 (reason_code, motif d'entree de la carte).
+ */
+const OR_EXTRA_COLS = ['operator_id', 'service_code', 'reason_code'];
 const ENTRY_COLS = 'id, kind, or_id, mechanic_id, mechanic_code, mechanic_name, journey_operation, started_at, ended_at, minutes, stop_kind, stop_reason, task_code';
 
 export type MyDayAppointment = DayAppointment & PlanningAppointment;
@@ -83,17 +87,31 @@ export type MyDay = {
   parts: Map<string, PartsSummary>;
   pointageReady: boolean;
   receptionReady: boolean;
+  /** Une moto, plusieurs OR ouverts : par carte, combien et lequel traiter (cle = `DayCard.key`). */
+  vehicleGroups: Map<string, VehicleGroupInfo>;
+  /** Seuil des « OR anciens a verifier » (reglage `stale_or_days`, 14 tant que la migration manque). */
+  staleDays: number;
 };
 
 async function listOrs(companyId: string, extraIds: string[]): Promise<DayOr[]> {
   const open = `status.in.(${OR_WORKABLE_STATUSES.join(',')})`;
   const filter = extraIds.length ? `${open},id.in.(${extraIds.join(',')})` : open;
   const run = (cols: string[]) => loose.from('repair_orders').select(cols.join(', ')).eq('company_id', companyId)
-    .or(filter).order('created_at', { ascending: true }).limit(300);
+    // Les plus recents d'abord : au-dela de 300 OR ouverts, ce sont les plus anciens qui tombent.
+    .or(filter).order('created_at', { ascending: false }).limit(300);
   let r = await run([...OR_BASE_COLS, ...OR_EXTRA_COLS]);
-  // Colonnes plus recentes absentes : on relit sans elles (meme principe que les sondes de schema).
+  // Colonnes plus recentes absentes : on relit sans elles (meme principe que les sondes de schema),
+  // le motif d'entree en premier (une carte sans motif vaut mieux qu'un ecran vide).
+  if (r.error) r = await run([...OR_BASE_COLS, ...OR_EXTRA_COLS.filter((c) => c !== 'reason_code')]);
   if (r.error) r = await run(OR_BASE_COLS);
   return rows<DayOr>(r);
+}
+
+/** Seuil des OR anciens : colonne `workshop_planning_settings.stale_or_days` (migration 20261119320000). */
+async function readStaleDays(companyId: string): Promise<number> {
+  const r = await loose.from('workshop_planning_settings').select('stale_or_days').eq('company_id', companyId).maybeSingle();
+  if (r.error) return staleDaysSetting(null); // colonne absente (migration non appliquee) : 14 jours
+  return staleDaysSetting((r.data as { stale_or_days?: unknown } | null)?.stale_or_days);
 }
 
 /** Tout ce que l'ecran affiche, pour le mecanicien connecte et le jour `today` (AAAA-MM-JJ, Bruxelles). */
@@ -105,7 +123,7 @@ export async function loadMyDay(p: {
   const from = new Date(now.getTime() - 36 * 3_600_000).toISOString();
   const to = new Date(now.getTime() + 36 * 3_600_000).toISOString();
   const since = new Date(now.getTime() - MY_ENTRIES_DAYS * 86_400_000).toISOString();
-  const [mechR, apptR, entryR, openR, pointageReady, receptionReady, reservationReady] = await Promise.all([
+  const [mechR, apptR, entryR, openR, pointageReady, receptionReady, reservationReady, staleDays] = await Promise.all([
     loose.from('workshop_mechanics').select('id, name, user_id, is_active, visible_in_planning').eq('company_id', p.companyId).limit(200),
     loose.from('workshop_appointments').select(APPT_COLS).eq('company_id', p.companyId)
       .gte('starts_at', from).lt('starts_at', to).neq('status', 'annule').order('starts_at').limit(300),
@@ -117,6 +135,7 @@ export async function loadMyDay(p: {
     pointageSchemaReady(),
     receptionSchemaReady(),
     reservationSchemaReady(),
+    readStaleDays(p.companyId).catch(() => staleDaysSetting(null)),
   ]);
   const mechanics = rows<MechanicLite>(mechR);
   const appointments = rows<MyDayAppointment>(apptR);
@@ -138,10 +157,10 @@ export async function loadMyDay(p: {
     ...scopeEntries.map((e) => e.or_id),
   ].filter((x): x is string => !!x))].slice(0, 150);
   const ors = await listOrs(p.companyId, linkedOrIds);
-  const cards = buildDayCards({ me, today: p.today, appointments, ors, myEntries: entries, scope, scopeEntries });
+  const built = buildDayCards({ me, today: p.today, appointments, ors, myEntries: entries, scope, scopeEntries });
 
-  const orIds = cards.map((c) => c.or?.id).filter((x): x is string => !!x);
-  const apptIds = cards.filter((c) => !c.or && c.appointment).map((c) => c.appointment!.id);
+  const orIds = built.map((c) => c.or?.id).filter((x): x is string => !!x);
+  const apptIds = built.filter((c) => !c.or && c.appointment).map((c) => c.appointment!.id);
   const [workStatus, progress, recR, resR, pickR] = await Promise.all([
     getOrWorkStatuses(orIds),
     getPlanProgress(orIds),
@@ -161,6 +180,10 @@ export async function loadMyDay(p: {
         .order('created_at', { ascending: false }).limit(300)
       : Promise.resolve({ data: [], error: null } as LooseResult),
   ]);
+
+  // OR anciens (plus de N jours, sans pointage recent) et ordre final (etat en cours / en pause de l'OR).
+  const cards = finalizeCards(built, { today: p.today, staleDays, myEntries: [...entries, ...scopeEntries], workStatus });
+  const vehicleGroups = vehicleOrGroups({ cards, ors, appointments, today: p.today });
 
   const reception = new Map<string, { status: ReceptionStatus; missing: number }>();
   if (!recR.error) {
@@ -189,7 +212,7 @@ export async function loadMyDay(p: {
   return {
     me, view, viewLabel: scope?.label ?? '', mechanics, cards, myEntries: entries, closedOrs,
     orNumbers: new Map(ors.map((o) => [o.id, o.number])),
-    workStatus, progress, reception, parts, pointageReady, receptionReady,
+    workStatus, progress, reception, parts, pointageReady, receptionReady, vehicleGroups, staleDays,
   };
 }
 

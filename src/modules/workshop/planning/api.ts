@@ -15,6 +15,7 @@ import { createRepairOrder } from '../write-api';
 import { operatorIdSchemaReady } from '../or-page-api';
 import { serviceKitOrLines } from '../kits/kit-from-appointment';
 import { isServiceCode, serviceCodeForReason } from '../service-code';
+import { staleDaysSetting } from '../my-workshop/rules';
 import {
   DEFAULT_APPOINTMENT_TYPES, isJobColor, canCreateOr, orIntakeNeeds, OR_STATUS_FROM_APPOINTMENT, APPOINTMENT_STATUS_WITH_OR,
   type AppointmentType, type CalendarBlock, type MechanicHours, type PlanningMechanic,
@@ -83,6 +84,12 @@ export type PlanningSettings = {
    * migration manque : ni lu ni ecrit.
    */
   auto_stop_mode?: 'off' | 'end_of_schedule';
+  /**
+   * « Mon atelier » (cartes lisibles, 19/11, migration 20261119320000) : un OR ouvert depuis plus
+   * de ce nombre de jours, sans pointage depuis autant de jours, passe dans « OR anciens a
+   * verifier » (14 par defaut, 1 a 365). Absent tant que la migration manque : ni lu ni ecrit.
+   */
+  stale_or_days?: number | string;
 };
 /** Reglages G8 observes (07-atelier.md §14) quand la ligne manque. */
 export const DEFAULT_SETTINGS: Omit<PlanningSettings, 'company_id'> = {
@@ -100,6 +107,8 @@ export async function savePlanningSettings(s: PlanningSettings): Promise<void> {
   // (workshop_parts_settings_set, tracee) ; ce formulaire ne les reecrit pas avec une valeur lue avant.
   // Lot C (20261119270000) : la serie de photos de reception a sa fonction (workshop_reception_settings_set).
   const { picking_auto_mode: _mode, picking_eve_hour: _hour, reception_photo_slots: _slots, ...row } = s as PlanningSettings & { picking_auto_mode?: unknown; picking_eve_hour?: unknown; reception_photo_slots?: unknown };
+  // Seuil des OR anciens : un champ vide ou hors limites redevient 14 (contrainte 1 a 365 en base).
+  if ('stale_or_days' in row && row.stale_or_days !== undefined) row.stale_or_days = staleDaysSetting(row.stale_or_days);
   unwrap(await loose.from('workshop_planning_settings').upsert({ ...row }, { onConflict: 'company_id' }));
 }
 

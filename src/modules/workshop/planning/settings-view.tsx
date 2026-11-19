@@ -289,6 +289,16 @@ function SettingsSection({ settings, onChanged }: { settings: PlanningSettings; 
           <p className="self-end pb-2 text-[12px] text-muted-foreground md:col-span-3">{t('pointage.autoStopHint')}</p>
         </div>
       )}
+      {/* « Mon atelier » (19/11) : seuil des OR anciens a verifier (migration 20261119320000). */}
+      {s.stale_or_days !== undefined && (
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Field label={t('myWorkshop.staleDaysLabel')}>
+            <Input type="number" min={1} max={365} step={1} inputMode="numeric" value={String(s.stale_or_days ?? '')}
+              onChange={(e) => setS({ ...s, stale_or_days: e.target.value === '' ? '' : Number(e.target.value) })} className="text-right tabular-nums" />
+          </Field>
+          <p className="col-span-1 self-end pb-2 text-[12px] text-muted-foreground md:col-span-4">{t('myWorkshop.staleDaysHint')}</p>
+        </div>
+      )}
       {contractReady && (
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
           <Field label={t('loans.deductibleLabel')}>

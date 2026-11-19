@@ -150,7 +150,9 @@ describe('lot F — mes motos du jour', () => {
     });
     expect(cards.map((c) => `${c.section}:${c.key}`)).toEqual(['unassigned:or:libre']);
   });
-  test('ordre : en cours, en pause, a l heure du RDV, puis termine ; mes motos avant les non attribuees', () => {
+  // Ordre revu le 19/11 (cartes lisibles, tests/atelier-mon-atelier-cartes.test.ts) : les RDV du jour
+  // par heure d'abord, quel que soit leur etat ; puis les OR en cours / en pause ; puis les autres.
+  test('ordre : RDV du jour par heure, puis en pause, puis le reste ; mes motos avant les non attribuees', () => {
     const cards = buildDayCards({
       me, today: TODAY,
       appointments: [
@@ -167,7 +169,7 @@ describe('lot F — mes motos du jour', () => {
         entry({ id: 'p', or_id: 'o-pause', ended_at: '2026-11-19T06:50:00Z', stop_kind: 'pause', stop_reason: 'attente_piece' }),
       ],
     });
-    expect(cards.map((c) => c.key)).toEqual(['or:o-run', 'or:o-pause', 'or:o-9h', 'or:o-pret', 'or:o-libre']);
+    expect(cards.map((c) => c.key)).toEqual(['or:o-pret', 'or:o-9h', 'or:o-run', 'or:o-pause', 'or:o-libre']);
   });
   test('un OR n apparait qu une fois', () => {
     const cards = buildDayCards({

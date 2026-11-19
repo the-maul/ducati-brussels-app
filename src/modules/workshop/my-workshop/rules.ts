@@ -93,6 +93,7 @@ export type DayAppointment = {
   id: string; starts_at: string; status: string; or_id: string | null;
   mechanic_id: string | null; mechanic_name: string | null; unassigned: boolean | null;
   planned_minutes: number | null; work_description: string | null; service_code?: string | null;
+  reason_code?: string | null; vehicle_id?: string | null;
   contacts?: ContactBits; vehicles?: VehicleBits;
 };
 
@@ -100,6 +101,9 @@ export type DayOr = {
   id: string; number: string | null; status: string; created_at: string;
   operator: string | null; operator_id?: string | null;
   work_description: string | null; customer_approval?: string | null; service_code?: string | null;
+  /** Motif d'entree (migration 20261031110000) et type de reparation : le motif de la carte. */
+  reason_code?: string | null; repair_type?: string | null;
+  vehicle_id?: string | null;
   contacts?: ContactBits; vehicles?: VehicleBits;
 };
 
@@ -112,6 +116,11 @@ export type DayCard = {
   appointment: DayAppointment | null;
   /** Mon etat de travail sur l'OR (lot A), depuis MES pointages. */
   work: OrWorkState | null;
+  /**
+   * OR ouvert depuis plus de N jours sans pointage recent (reglage, 14 par defaut) : section repliee
+   * « OR anciens a verifier » au lieu de « Mes motos du jour » / « OR a faire non attribues ».
+   */
+  stale?: boolean;
 };
 
 export const isTodayBrussels = (iso: string | null | undefined, today: string) => !!iso && brusselsParts(new Date(iso)).date === today;
@@ -196,7 +205,7 @@ export function buildDayCards(p: {
     seen.add(o.id);
     cards.push({ key: `or:${o.id}`, section: 'unassigned', or: o, appointment: a, work: workOf(o.id) });
   }
-  return sortCards(cards);
+  return sortCards(cards, p.today);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -273,18 +282,266 @@ export function notLinkedHint(view: WorkshopView, me: MeIdentity, mineCount: num
   return view.kind === 'me' && me.mechanicIds.length === 0 && mineCount === 0;
 }
 
-/** Rang d'une carte : en cours, en pause, a faire / a l'heure du RDV, puis terminees (pret). */
-export function cardRank(c: DayCard): number {
-  if (c.work?.mineOpen) return 0;
-  if (c.work?.mineLastPaused) return 1;
+/**
+ * Ordre de la liste (retour client du 19/11 : l'ancien OR accident d'une moto passait AVANT l'OR
+ * du RDV du jour de la meme moto, l'un trie par date de creation, l'autre par heure de RDV).
+ * Le meme tri pour tous les types de carte :
+ *  0. les RDV et OR du jour, par heure (heure du RDV du jour, sinon heure d'ouverture de l'OR) ;
+ *  1. les OR en cours ou en pause (mon pointage, ou l'etat de l'OR tous pointages confondus),
+ *     en cours d'abord, puis du plus recent au plus ancien ;
+ *  2. les autres OR ouverts, du plus recent au plus ancien ;
+ *  3. les OR qui ne se pointent plus (prets), du plus recent au plus ancien.
+ * Mes motos avant les OR non attribues (deux sections de l'ecran).
+ */
+export type OrLiveState = 'running' | 'paused' | 'stopped';
+
+const isTodayAppointment = (a: DayAppointment | null | undefined, today: string) =>
+  !!a && !HIDDEN_APPOINTMENT.has(a.status) && isTodayBrussels(a.starts_at, today);
+
+const isTodayCard = (c: Pick<DayCard, 'or' | 'appointment'>, today: string) =>
+  isTodayAppointment(c.appointment, today) || (!!c.or && isTodayBrussels(c.or.created_at, today));
+
+const isRunningCard = (c: DayCard, live?: OrLiveState) => !!c.work?.mineOpen || live === 'running';
+
+export function cardGroup(c: DayCard, today: string, live?: OrLiveState): 0 | 1 | 2 | 3 {
+  if (isTodayCard(c, today)) return 0;
+  if (c.work?.mineOpen || c.work?.mineLastPaused || live === 'running' || live === 'paused' || c.or?.status === 'en_cours') return 1;
   if (c.or && !isWorkable(c.or.status)) return 3;
   return 2;
 }
 
-export function sortCards(cards: DayCard[]): DayCard[] {
-  const when = (c: DayCard) => c.appointment?.starts_at ?? c.or?.created_at ?? '';
-  return [...cards].sort((a, b) => (a.section === b.section ? 0 : a.section === 'mine' ? -1 : 1)
-    || cardRank(a) - cardRank(b) || when(a).localeCompare(when(b)));
+/** Heure d'une carte du jour : celle du RDV du jour, sinon l'ouverture de l'OR. */
+const dayTime = (c: DayCard, today: string) =>
+  (isTodayAppointment(c.appointment, today) ? c.appointment!.starts_at : c.or?.created_at ?? c.appointment?.starts_at) ?? '';
+const openedAt = (c: DayCard) => c.or?.created_at ?? c.appointment?.starts_at ?? '';
+
+export function sortCards(cards: readonly DayCard[], today: string, live?: ReadonlyMap<string, OrLiveState>): DayCard[] {
+  const liveOf = (c: DayCard) => (c.or ? live?.get(c.or.id) : undefined);
+  return [...cards].sort((a, b) => {
+    const s = a.section === b.section ? 0 : a.section === 'mine' ? -1 : 1;
+    if (s) return s;
+    const ga = cardGroup(a, today, liveOf(a));
+    const gb = cardGroup(b, today, liveOf(b));
+    if (ga !== gb) return ga - gb;
+    if (ga === 0) return dayTime(a, today).localeCompare(dayTime(b, today)) || a.key.localeCompare(b.key);
+    if (ga === 1) {
+      const ra = isRunningCard(a, liveOf(a)) ? 0 : 1;
+      const rb = isRunningCard(b, liveOf(b)) ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+    }
+    return openedAt(b).localeCompare(openedAt(a)) || a.key.localeCompare(b.key);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cartes lisibles (retour client du 19/11) : n° d'OR, motif, heure / date de reception, anciennete
+// ---------------------------------------------------------------------------------------------
+/** Seuil par defaut des « OR anciens a verifier » (reglage du planning `stale_or_days`). */
+export const STALE_OR_DAYS_DEFAULT = 14;
+export const STALE_OR_DAYS_MAX = 365;
+/** Valeur du reglage : un entier de 1 a 365, sinon 14. */
+export function staleDaysSetting(v: unknown): number {
+  if (v === null || v === undefined || v === '') return STALE_OR_DAYS_DEFAULT;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= STALE_OR_DAYS_MAX ? n : STALE_OR_DAYS_DEFAULT;
+}
+
+/** Jours de calendrier entre deux dates AAAA-MM-JJ (to - from). */
+export function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** Anciennete en jours de calendrier de Bruxelles (0 = aujourd'hui). */
+export function orAgeDays(createdAt: string | null | undefined, today: string): number {
+  if (!createdAt) return 0;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return 0;
+  return Math.max(0, daysBetween(brusselsParts(d).date, today));
+}
+
+/** Libelle d'anciennete : cle i18n + nombre (« Ouvert aujourd'hui », « Ouvert depuis 16 jours »). */
+export function ageLabel(days: number): { key: 'age_today' | 'age_one' | 'age_many'; n: number } {
+  if (days <= 0) return { key: 'age_today', n: 0 };
+  return days === 1 ? { key: 'age_one', n: 1 } : { key: 'age_many', n: days };
+}
+
+/** Quand : heure du RDV du jour, sinon date de reception de l'OR (son ouverture), sinon le RDV. */
+export type CardWhen = { kind: 'appointment'; at: string; today: boolean } | { kind: 'received'; at: string } | { kind: 'none' };
+export function cardWhen(c: Pick<DayCard, 'or' | 'appointment'>, today: string): CardWhen {
+  if (isTodayAppointment(c.appointment, today)) return { kind: 'appointment', at: c.appointment!.starts_at, today: true };
+  if (c.or?.created_at) return { kind: 'received', at: c.or.created_at };
+  if (c.appointment) return { kind: 'appointment', at: c.appointment.starts_at, today: false };
+  return { kind: 'none' };
+}
+
+/** Motif de la carte : libelle (cle i18n `myWorkshop.motive_<label>`) et famille (icone). */
+export const MOTIVE_LABELS = [
+  'annual', 'oil', 'first_1000', 'desmo', 'maintenance', 'vidange', 'accident', 'warranty',
+  'tyres', 'brakes', 'diagnostic', 'repair', 'pdi', 'oro', 'accessories', 'other', 'unknown',
+] as const;
+export type MotiveLabel = (typeof MOTIVE_LABELS)[number];
+export type MotiveKind = 'maintenance' | 'accident' | 'warranty' | 'repair' | 'other' | 'unknown';
+export type Motive = { kind: MotiveKind; label: MotiveLabel };
+
+const SERVICE_MOTIVE: Record<string, MotiveLabel> = { annual: 'annual', oil: 'oil', first_1000: 'first_1000', desmo: 'desmo' };
+const REASON_MOTIVE: Record<string, MotiveLabel> = {
+  entretien_annuel: 'annual', entretien_annuel_huile: 'oil', entretien_1000: 'first_1000', vidange: 'vidange',
+  pneus: 'tyres', freins: 'brakes', accident: 'accident', garantie: 'warranty', diagnostic: 'diagnostic', autre: 'other',
+};
+const REPAIR_TYPE_MOTIVE: Record<string, MotiveLabel> = {
+  entretien: 'maintenance', reparation: 'repair', garantie_ducati: 'warranty', garantie_magasin: 'warranty', accident: 'accident',
+  pneus: 'tyres', diagnostic: 'diagnostic', pdi: 'pdi', oro: 'oro', accessoires: 'accessories', autre: 'other',
+};
+const serviceMotive = (code: string | null | undefined): MotiveLabel | null => (code ? SERVICE_MOTIVE[code] ?? null : null);
+function reasonMotive(code: string | null | undefined): MotiveLabel | null {
+  const c = String(code ?? '').trim().toLowerCase();
+  if (!c) return null;
+  if (REASON_MOTIVE[c]) return REASON_MOTIVE[c];
+  if (c.startsWith('entretien')) return 'maintenance';
+  if (c.startsWith('desmo')) return 'desmo';
+  if (c.startsWith('garantie')) return 'warranty';
+  return 'other';
+}
+function repairTypeMotive(code: string | null | undefined): MotiveLabel | null {
+  const c = String(code ?? '').trim().toLowerCase();
+  if (!c) return null;
+  return REPAIR_TYPE_MOTIVE[c] ?? (c.startsWith('garantie') ? 'warranty' : 'other');
+}
+
+export function motiveKind(l: MotiveLabel): MotiveKind {
+  switch (l) {
+    case 'annual': case 'oil': case 'first_1000': case 'desmo': case 'maintenance': case 'vidange': return 'maintenance';
+    case 'accident': return 'accident';
+    case 'warranty': return 'warranty';
+    case 'other': return 'other';
+    case 'unknown': return 'unknown';
+    default: return 'repair';
+  }
+}
+
+/**
+ * Le motif : celui de l'OR (entretien choisi, motif d'entree, type de reparation), sinon celui du
+ * RDV. Un accident l'emporte toujours (c'est lui qu'il ne faut pas confondre avec l'entretien) ;
+ * « Autre » seulement si rien de plus precis ; rien du tout : « Motif non renseigne ».
+ */
+export function cardMotive(c: Pick<DayCard, 'or' | 'appointment'>): Motive {
+  const o = c.or;
+  const a = c.appointment;
+  const fromOr = [serviceMotive(o?.service_code), reasonMotive(o?.reason_code), repairTypeMotive(o?.repair_type)].filter((x): x is MotiveLabel => !!x);
+  const fromAppt = [serviceMotive(a?.service_code), reasonMotive(a?.reason_code)].filter((x): x is MotiveLabel => !!x);
+  const all = [...fromOr, ...fromAppt];
+  const pick: MotiveLabel = all.includes('accident') ? 'accident'
+    : fromOr.find((x) => x !== 'other') ?? fromAppt.find((x) => x !== 'other') ?? all[0] ?? 'unknown';
+  return { kind: motiveKind(pick), label: pick };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Une moto, plusieurs OR ouverts : l'OR du RDV du jour en avant, les autres « ancien OR »
+// ---------------------------------------------------------------------------------------------
+export type VehicleGroupInfo = {
+  /** OR ouverts (relus, ni factures ni annules) de la moto. */
+  openOrs: number;
+  /** Cette carte : le dossier a traiter aujourd'hui, ou un ancien OR de la moto. */
+  role: 'primary' | 'old';
+  /** Les autres OR ouverts de la moto (hors celui de la carte), du plus recent au plus ancien. */
+  others: { id: string; number: string | null; created_at: string }[];
+  /** Dossier mis en avant : un OR (son numero) ou un RDV du jour sans OR. */
+  primary: { kind: 'or'; id: string; number: string | null } | { kind: 'rdv'; id: string } | null;
+  /** Le dossier mis en avant est celui d'un RDV du jour (sinon : simplement l'OR le plus recent). */
+  primaryToday: boolean;
+};
+
+/**
+ * Regroupement par moto (`vehicle_id`) : des que la moto a au moins deux dossiers ouverts (OR
+ * ouverts relus + RDV du jour sans OR), chaque carte de la moto dit combien et lequel traiter.
+ * Mis en avant : l'OR du RDV du jour (le plus tot s'il y en a plusieurs) ; a defaut un RDV du jour
+ * sans OR ; a defaut l'OR le plus recent. Tous les autres OR de la moto sont des « anciens OR ».
+ */
+export function vehicleOrGroups(p: {
+  cards: readonly DayCard[]; ors: readonly DayOr[]; appointments: readonly DayAppointment[]; today: string;
+}): Map<string, VehicleGroupInfo> {
+  const out = new Map<string, VehicleGroupInfo>();
+  const vehicleOf = (c: DayCard) => c.or?.vehicle_id ?? c.appointment?.vehicle_id ?? null;
+  const todayAppts = p.appointments.filter((a) => isTodayAppointment(a, p.today))
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const vehicles = new Set(p.cards.map(vehicleOf).filter((v): v is string => !!v));
+  for (const v of vehicles) {
+    const open = p.ors.filter((o) => o.vehicle_id === v && !HIDDEN_OR.has(o.status))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const rdvOnly = p.cards.filter((c) => !c.or && isTodayAppointment(c.appointment, p.today) && c.appointment!.vehicle_id === v)
+      .sort((a, b) => a.appointment!.starts_at.localeCompare(b.appointment!.starts_at));
+    if (open.length + rdvOnly.length < 2) continue;
+    const firstRdv = (orId: string) => todayAppts.find((a) => a.or_id === orId)?.starts_at ?? null;
+    const withRdv = open.filter((o) => firstRdv(o.id)).sort((a, b) => firstRdv(a.id)!.localeCompare(firstRdv(b.id)!));
+    const primary: VehicleGroupInfo['primary'] = withRdv[0] ? { kind: 'or', id: withRdv[0].id, number: withRdv[0].number }
+      : rdvOnly[0] ? { kind: 'rdv', id: rdvOnly[0].appointment!.id }
+        : open[0] ? { kind: 'or', id: open[0].id, number: open[0].number } : null;
+    for (const c of p.cards) {
+      if (vehicleOf(c) !== v) continue;
+      const isPrimary = !!primary && (primary.kind === 'or' ? c.or?.id === primary.id : !c.or && c.appointment?.id === primary.id);
+      out.set(c.key, {
+        openOrs: open.length,
+        role: isPrimary ? 'primary' : 'old',
+        others: open.filter((o) => o.id !== c.or?.id).map((o) => ({ id: o.id, number: o.number, created_at: o.created_at })),
+        primary,
+        primaryToday: !!withRdv[0] || !!rdvOnly[0],
+      });
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// OR anciens a verifier
+// ---------------------------------------------------------------------------------------------
+type LiveRow = { work_state?: string | null; running_since?: string | null; last_stopped_at?: string | null };
+
+/** Dernier pointage connu d'un OR : vue du lot A (tous comptes confondus) et mes pointages. */
+export function lastPointageAt(orId: string, row: LiveRow | null | undefined, entries: readonly WorkEntry[]): string | null {
+  const dates: (string | null | undefined)[] = [row?.running_since, row?.last_stopped_at];
+  for (const e of entries) if (e.or_id === orId) dates.push(e.ended_at ?? e.started_at);
+  return dates.filter((x): x is string => !!x).sort().pop() ?? null;
+}
+
+/**
+ * OR « ancien a verifier » : ouvert depuis plus de `staleDays` jours (calendrier de Bruxelles),
+ * aucun pointage depuis plus de `staleDays` jours, pas de RDV aujourd'hui, pas de pointage en
+ * cours. Un RDV sans OR n'est jamais ancien.
+ */
+export function isStaleCard(c: Pick<DayCard, 'or' | 'appointment' | 'work'>, p: {
+  today: string; staleDays: number; lastPointage: string | null; live?: OrLiveState;
+}): boolean {
+  if (!c.or) return false;
+  if (isTodayAppointment(c.appointment, p.today)) return false;
+  if (c.work?.mineOpen || p.live === 'running') return false;
+  if (orAgeDays(c.or.created_at, p.today) <= p.staleDays) return false;
+  if (p.lastPointage && orAgeDays(p.lastPointage, p.today) <= p.staleDays) return false;
+  return true;
+}
+
+/**
+ * Apres la lecture de l'etat des OR (vue du lot A) : marque les OR anciens et trie, l'etat en
+ * cours / en pause de l'OR (tous pointages confondus) comptant dans l'ordre.
+ */
+export function finalizeCards(cards: readonly DayCard[], p: {
+  today: string; staleDays: number; myEntries: readonly WorkEntry[]; workStatus: ReadonlyMap<string, LiveRow>;
+}): DayCard[] {
+  const live = new Map<string, OrLiveState>();
+  for (const [id, r] of p.workStatus) {
+    if (r.work_state === 'running' || r.work_state === 'paused' || r.work_state === 'stopped') live.set(id, r.work_state);
+  }
+  const marked = cards.map((c) => {
+    const orId = c.or?.id;
+    const stale = !!orId && isStaleCard(c, {
+      today: p.today, staleDays: p.staleDays, live: live.get(orId),
+      lastPointage: lastPointageAt(orId, p.workStatus.get(orId), p.myEntries),
+    });
+    return { ...c, stale };
+  });
+  return sortCards(marked, p.today, live);
 }
 
 // ---------------------------------------------------------------------------------------------

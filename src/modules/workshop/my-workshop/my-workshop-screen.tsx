@@ -25,17 +25,27 @@
  * partagee, sans se deconnecter ; le temps passe reste celui de la personne qui travaille, B11).
  * Un mecanicien simple ne voit pas le selecteur.
  * Compte relie a aucun compagnon et sans moto : un message utile au lieu d'une liste vide.
+ *
+ * Cartes lisibles (bug client du 19/11 : deux cartes identiques, meme client, meme Monster ; l'ancien
+ * OR accident du 03/11 passait avant l'OR du RDV du jour, photos et « Demarrer » faits sur le
+ * mauvais) : chaque carte dit le n° d'OR (ou « RDV sans OR »), le motif, l'heure du RDV ou la date
+ * de reception, l'anciennete ; ordre unique (RDV et OR du jour par heure, OR en cours / en pause,
+ * autres OR du plus recent au plus ancien) ; une moto a plusieurs OR ouverts : bandeau, l'OR du RDV
+ * du jour en avant, les autres « Ancien OR » (avertissement, confirmation avant d'y travailler) ;
+ * OR ouverts depuis plus de N jours sans pointage recent : section repliee « OR anciens a verifier ».
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  Bike, Camera, ClipboardList, FileText, Inbox, ListChecks, Loader2, Package, PackageCheck, PackageX, Pause, Play,
-  Eye, Link2, RefreshCw, RotateCcw, Square, Timer, User, UserX, Users, Wrench,
+  Bike, CalendarCheck, CalendarClock, Camera, ChevronDown, CircleHelp, ClipboardList, FileText, History, Inbox, ListChecks, Loader2,
+  Package, PackageCheck, PackageX, Pause, Play, Eye, Link2, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, Square, Tag, Timer,
+  TriangleAlert, User, UserX, Users, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { StatusBadge } from '@/components/status-badge';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -56,9 +66,10 @@ import { statusTone } from '../planning/rules';
 import { contactLabel, motoLabel } from '../planning/ui-bits';
 import { getHomePref, loadMyDay, saveHomePref, type MyDay } from './api';
 import {
-  HOME_PREFS, MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, canChooseWorkshop, cardGesture, cardOwner, chooserMechanics,
-  myCurrentWork, needsReceptionFirst, notLinkedHint, partsTone, photosState, photosTone, workshopViewParam,
-  type DayCard, type Gesture, type HomePref, type MyNow, type PartsState, type WorkshopView,
+  HOME_PREFS, MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, ageLabel, canChooseWorkshop, cardGesture, cardMotive, cardOwner,
+  cardWhen, chooserMechanics, myCurrentWork, needsReceptionFirst, notLinkedHint, orAgeDays, partsTone, photosState, photosTone,
+  workshopViewParam,
+  type DayCard, type Gesture, type HomePref, type MotiveKind, type MyNow, type PartsState, type WorkshopView,
 } from './rules';
 
 const ORIGIN = 'tablet';
@@ -66,6 +77,16 @@ const ORIGIN = 'tablet';
 const BIG = 'px-2.5 py-1 text-[14px]';
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(`${getLocale()}-BE`, { hour: '2-digit', minute: '2-digit' });
 const todayBrussels = () => brusselsParts(new Date()).date;
+/** Date courte : 03/11 (l'annee seulement si ce n'est pas l'annee en cours). */
+const shortDate = (iso: string) => {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(`${getLocale()}-BE`, sameYear ? { day: '2-digit', month: '2-digit' } : { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+/** Icone du motif (le libelle dit le motif exact). */
+const MOTIVE_ICON: Record<MotiveKind, typeof Wrench> = {
+  maintenance: CalendarClock, accident: ShieldAlert, warranty: ShieldCheck, repair: Wrench, other: Tag, unknown: CircleHelp,
+};
 
 const PARTS_ICON: Record<PartsState, typeof Package> = { none: Package, missing: PackageX, reserved: Package, prepared: PackageCheck };
 const ME_VALUE = '__me__';
@@ -110,6 +131,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const [pauseOpen, setPauseOpen] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [staleOpen, setStaleOpen] = useState(false);
 
   const refresh = () => {
     for (const k of [['my-workshop'], ['or-work-status'], ['plan-progress'], ['repair-orders'], ['chrono-work'], ['chrono-today']]) {
@@ -173,6 +195,19 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   /** Moto d'un autre mecanicien : le pointage sera au nom du compte connecte, on le dit avant. */
   const onCardGesture = async (card: DayCard, g: Gesture) => {
     if (!d) return;
+    // Ancien OR d'une moto qui a un RDV aujourd'hui : on le dit avant les photos et le pointage.
+    const grp = d.vehicleGroups.get(card.key);
+    if (grp?.role === 'old' && grp.primaryToday && card.or && g !== 'continue') {
+      const motive = t(`myWorkshop.motive_${cardMotive(card).label}`);
+      const hint = grp.primary?.kind === 'or' ? fill(t('myWorkshop.oldOrConfirmPrimary'), { number: grp.primary.number ?? '' })
+        : grp.primary?.kind === 'rdv' ? t('myWorkshop.oldOrConfirmRdv') : '';
+      const ok = await confirm({
+        title: fill(t('myWorkshop.oldOrTitle'), { number: card.or.number ?? '' }),
+        message: `${fill(t('myWorkshop.oldOrConfirm'), { date: shortDate(card.or.created_at), motive })} ${hint}`.trim(),
+        confirmLabel: t('myWorkshop.oldOrOk'),
+      });
+      if (!ok) return;
+    }
     const owner = cardOwner(card, d.me, d.mechanics);
     if (owner.foreign && g !== 'continue') {
       const name = owner.name || t('myWorkshop.someone');
@@ -234,15 +269,16 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   }
   if (!d) return null;
 
-  const mine = d.cards.filter((c) => c.section === 'mine');
+  const mine = d.cards.filter((c) => c.section === 'mine' && !c.stale);
+  const stale = d.cards.filter((c) => c.stale);
   const others = d.view.kind !== 'me';
   const choices = chooserMechanics(d.mechanics, d.me);
   const mineTitle = d.view.kind === 'all' ? t('myWorkshop.viewAllTitle')
     : d.view.kind === 'mechanic' ? fill(t('myWorkshop.viewMechanicTitle'), { name: d.viewLabel }) : t('myWorkshop.mineTitle');
-  const showNotLinked = notLinkedHint(d.view, d.me, mine.length);
+  const showNotLinked = notLinkedHint(d.view, d.me, d.cards.filter((c) => c.section === 'mine').length);
   const chooseValue = d.view.kind === 'all' ? VIEW_ALL : d.view.kind === 'mechanic' ? d.view.mechanicId : ME_VALUE;
   const pickView = (v: string) => onView?.(v === VIEW_ALL ? { kind: 'all' } : v === ME_VALUE ? { kind: 'me' } : { kind: 'mechanic', mechanicId: v });
-  const free = d.cards.filter((c) => c.section === 'unassigned');
+  const free = d.cards.filter((c) => c.section === 'unassigned' && !c.stale);
   const nowReasons = reasons.data ?? [];
   const nowOrNumber = now.kind !== 'idle' && now.entry.or_id ? d.orNumbers.get(now.entry.or_id) ?? null : null;
 
@@ -348,7 +384,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
         {mine.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {mine.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
+              <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
                 onGesture={(g) => { void onCardGesture(c, g); }}
                 onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
               />
@@ -385,7 +421,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
         {free.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {free.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} canWrite={canWrite} busy={busyKey === c.key} showOwner={false}
+              <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={false}
                 onGesture={(g) => { void onCardGesture(c, g); }}
                 onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
               />
@@ -393,6 +429,37 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
           </div>
         ) : <p className="text-[16px] text-muted-foreground">{t('myWorkshop.freeEmpty')}</p>}
       </section>
+
+      {/* ------------------------------------------------------------ OR anciens a verifier (replies) */}
+      {stale.length > 0 && (
+        <section aria-labelledby="mw-stale">
+          <Collapsible open={staleOpen} onOpenChange={setStaleOpen}>
+            <CollapsibleTrigger asChild>
+              <button type="button"
+                className="flex min-h-14 w-full items-center gap-2 rounded-md border border-warning bg-card px-4 py-3 text-left">
+                <History className="size-6 shrink-0 text-warning" aria-hidden />
+                <span id="mw-stale" className="font-display text-[20px] font-bold">{t('myWorkshop.staleTitle')}</span>
+                <span className="font-data tabular-nums text-muted-foreground">({stale.length})</span>
+                <span className="ml-auto flex items-center gap-1 text-[16px] text-muted-foreground">
+                  {staleOpen ? t('myWorkshop.staleHide') : t('myWorkshop.staleShow')}
+                  <ChevronDown className={`size-5 transition-transform ${staleOpen ? 'rotate-180' : ''}`} aria-hidden />
+                </span>
+              </button>
+            </CollapsibleTrigger>
+            <p className="mt-2 text-[15px] text-muted-foreground">{fill(t('myWorkshop.staleHint'), { n: d.staleDays })}</p>
+            <CollapsibleContent>
+              <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                {stale.map((c) => (
+                  <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
+                    onGesture={(g) => { void onCardGesture(c, g); }}
+                    onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
+                  />
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
+      )}
 
       <HomePrefSetting userId={userId} />
 
@@ -419,8 +486,8 @@ const GESTURE_LABEL: Record<Exclude<Gesture, 'none' | 'blocked'>, string> = {
 };
 const GESTURE_ICON = { start: Play, resume: RotateCcw, continue: ListChecks, create_or: FileText } as const;
 
-function BikeCard({ card, day, canWrite, busy, showOwner, onGesture, onOpenOr }: {
-  card: DayCard; day: MyDay; canWrite: boolean; busy: boolean;
+function BikeCard({ card, day, today, canWrite, busy, showOwner, onGesture, onOpenOr }: {
+  card: DayCard; day: MyDay; today: string; canWrite: boolean; busy: boolean;
   /** Atelier d'un autre ou de tous : a qui est la moto. */
   showOwner: boolean;
   onGesture: (g: Gesture) => void; onOpenOr: (orId: string) => void;
@@ -439,22 +506,58 @@ function BikeCard({ card, day, canWrite, busy, showOwner, onGesture, onOpenOr }:
   const PartsIcon = parts ? PARTS_ICON[parts.state] : Package;
   const running = !!card.work?.mineOpen;
   const paused = !running && !!card.work?.mineLastPaused;
+  // Ce qui distingue deux cartes de la meme moto : n° d'OR, motif, heure / reception, anciennete.
+  const when = cardWhen(card, today);
+  const motive = cardMotive(card);
+  const MotiveIcon = MOTIVE_ICON[motive.kind];
+  const age = or ? ageLabel(orAgeDays(or.created_at, today)) : null;
+  const group = day.vehicleGroups.get(card.key);
+  const old = group?.role === 'old';
+  const todayRdv = when.kind === 'appointment' && when.today;
+  const whenText = when.kind === 'appointment'
+    ? (when.today ? fill(t('myWorkshop.rdvAt'), { time: hhmm(when.at) }) : fill(t('myWorkshop.rdvOn'), { date: shortDate(when.at), time: hhmm(when.at) }))
+    : when.kind === 'received' ? fill(t('myWorkshop.receivedOn'), { date: shortDate(when.at) }) : '';
+  const ageText = age ? fill(t(`myWorkshop.${age.key}`), { n: age.n }) : '';
+  const ageWarn = old || (!!age && age.n > day.staleDays);
 
   return (
-    <article className={`flex flex-col rounded-md border bg-card p-4 shadow-[var(--shadow-card)] ${running ? 'border-info' : paused ? 'border-warning' : 'border-border'}`}>
+    <article className={`flex flex-col rounded-md border bg-card p-4 shadow-[var(--shadow-card)] ${running ? 'border-info' : paused || old ? 'border-warning' : 'border-border'}`}>
       <header className="flex items-start gap-3">
         <div className="min-w-[64px] shrink-0 text-center">
-          {a ? <p className="font-data text-[22px] font-bold leading-none tabular-nums">{hhmm(a.starts_at)}</p> : <Wrench className="mx-auto size-6 text-muted-foreground" aria-hidden />}
-          {a?.planned_minutes ? <p className="mt-1 font-data text-[13px] tabular-nums text-muted-foreground">{fill(t('myWorkshop.planned'), { min: a.planned_minutes })}</p> : null}
+          {when.kind === 'appointment' && when.today
+            ? <p className="font-data text-[22px] font-bold leading-none tabular-nums">{hhmm(when.at)}</p>
+            : old ? <History className="mx-auto size-6 text-warning" aria-hidden /> : <Wrench className="mx-auto size-6 text-muted-foreground" aria-hidden />}
+          {a?.planned_minutes && todayRdv ? <p className="mt-1 font-data text-[13px] tabular-nums text-muted-foreground">{fill(t('myWorkshop.planned'), { min: a.planned_minutes })}</p> : null}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[19px] font-bold leading-snug">{motoLabel(vehicle) || t('myWorkshop.noVehicle')}</p>
-          <p className="truncate text-[16px] text-muted-foreground">
-            {contactLabel(contact) || t('myWorkshop.noClient')}
-            {or?.number && <> · OR {or.number}</>}
-          </p>
+          <p className="font-data text-[20px] font-bold leading-tight tabular-nums">{or ? or.number || '—' : t('myWorkshop.rdvNoOr')}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <StatusBadge tone="neutral" icon={MotiveIcon} className={BIG} label={t(`myWorkshop.motive_${motive.label}`)} />
+            {old && <StatusBadge tone="warning" icon={History} className={BIG} label={t('myWorkshop.oldOr')} />}
+            {group && !old && todayRdv && <StatusBadge tone="info" icon={CalendarCheck} className={BIG} label={t('myWorkshop.todayOr')} />}
+          </div>
+          {(whenText || ageText) && (
+            <p className="mt-1.5 text-[15px] text-muted-foreground">
+              {whenText}{whenText && ageText ? ' · ' : ''}
+              {ageText && <span className={ageWarn ? 'font-bold text-warning' : undefined}>{ageText}</span>}
+            </p>
+          )}
+          <p className="mt-2 text-[19px] font-bold leading-snug">{motoLabel(vehicle) || t('myWorkshop.noVehicle')}</p>
+          <p className="truncate text-[16px] text-muted-foreground">{contactLabel(contact) || t('myWorkshop.noClient')}</p>
         </div>
       </header>
+
+      {group && (
+        <p className="mt-3 flex items-start gap-2 rounded-md border border-warning bg-warning-bg p-2.5 text-[15px] text-foreground" role="note">
+          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+          <span>
+            <span className="font-bold">{fill(t(or ? 'myWorkshop.vehicleOpenOrs' : 'myWorkshop.vehicleOpenOrsRdv'), { n: group.openOrs })}</span>
+            {group.others.length > 0 && <> · {fill(t('myWorkshop.otherOrs'), {
+              list: group.others.map((o) => `${o.number || '—'} (${shortDate(o.created_at)})`).join(', '),
+            })}</>}
+          </span>
+        </p>
+      )}
 
       {work && <p className="mt-2 line-clamp-2 text-[16px] leading-snug">{work}</p>}
 
@@ -480,7 +583,7 @@ function BikeCard({ card, day, canWrite, busy, showOwner, onGesture, onOpenOr }:
         {g !== 'none' && g !== 'blocked' && (() => {
           const Icon = GESTURE_ICON[g];
           return (
-            <Button className="h-16 min-w-[200px] flex-1 text-[18px]" disabled={busy} onClick={() => onGesture(g)}>
+            <Button variant={old ? 'outline' : 'default'} className="h-16 min-w-[200px] flex-1 text-[18px]" disabled={busy} onClick={() => onGesture(g)}>
               {busy ? <Loader2 className="size-6 animate-spin" /> : <Icon className="size-6" />} {t(GESTURE_LABEL[g])}
             </Button>
           );
