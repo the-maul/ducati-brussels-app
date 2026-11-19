@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { listContacts, getContact, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { getVehicle, vehiclePickLabel, type Vehicle } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
@@ -723,7 +723,7 @@ export function ContactPicker({ companyId, onPick }: { companyId: string; onPick
   const [term, setTerm] = useState('');
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['contact-pick', companyId, deb], queryFn: () => listContacts(companyId, deb), enabled: deb.length >= 2 });
+  const { data } = useQuery({ queryKey: ['contact-pick', companyId, deb], queryFn: () => listContacts(companyId, deb, undefined, PICKER_LIMIT), enabled: deb.length >= 2 });
   // Fiches liees des resultats affiches, en un appel (retour du 05/10).
   const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
 

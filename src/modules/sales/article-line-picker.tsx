@@ -39,6 +39,9 @@ export function ArticleLinePicker({ companyId, value, onText, onPick, placeholde
   const roundUp = useRoundSalePrices(companyId);
   const [deb, setDeb] = useState('');
   const [focused, setFocused] = useState(false);
+  // Perf (19/11/2026) : on ne cherche qu'une fois le champ utilise. Avant, chaque ligne libre
+  // d'un OR ou d'un document lancait sa recherche (3 requetes) des l'ouverture de la page.
+  const [engaged, setEngaged] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [active, setActive] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
@@ -46,7 +49,7 @@ export function ArticleLinePicker({ companyId, value, onText, onPick, placeholde
   const q = useQuery({
     queryKey: ['line-article', companyId, deb],
     queryFn: () => searchSaleArticles(companyId, deb),
-    enabled: deb.length >= 2, staleTime: 30_000,
+    enabled: engaged && deb.length >= 2, staleTime: 30_000,
   });
   const hits = deb.length >= 2 ? (q.data ?? []) : [];
   useEffect(() => { setActive(-1); }, [deb]);
@@ -79,7 +82,7 @@ export function ArticleLinePicker({ companyId, value, onText, onPick, placeholde
           <Input
             value={value} autoFocus={autoFocus}
             onChange={(e) => { setDismissed(false); onText(e.target.value); }}
-            onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onKeyDown={onKeyDown}
+            onFocus={() => { setFocused(true); setEngaged(true); }} onBlur={() => setFocused(false)} onKeyDown={onKeyDown}
             placeholder={placeholder ?? t('articlePick.placeholder')} className={className}
             role="combobox" aria-expanded={open} aria-autocomplete="list"
           />

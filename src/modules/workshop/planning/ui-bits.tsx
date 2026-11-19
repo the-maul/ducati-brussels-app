@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { listContacts, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { listContacts, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { t } from '@/lib/i18n';
 
@@ -31,7 +31,7 @@ export function Picked({ label, onClear }: { label: string; onClear: () => void 
 export function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
   const [term, setTerm] = useState(''); const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['rdv-cpick', companyId, deb], queryFn: () => listContacts(companyId, deb), enabled: deb.length >= 2 });
+  const { data } = useQuery({ queryKey: ['rdv-cpick', companyId, deb], queryFn: () => listContacts(companyId, deb, undefined, PICKER_LIMIT), enabled: deb.length >= 2 });
   // Fiches liees des resultats affiches, en un appel (retour du 05/10).
   const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
   return (

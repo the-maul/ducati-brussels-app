@@ -48,7 +48,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { listContacts, getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { listContacts, getContact, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { type SaleArticle } from '@/modules/sales/write-api';
 import { getVehicle, vehiclePickLabel } from '@/modules/vehicles/api';
@@ -825,7 +825,7 @@ function Picked({ label, onClear }: { label: string; onClear: () => void }) {
 function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
   const [term, setTerm] = useState(''); const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['ro-cpick', companyId, deb], queryFn: () => listContacts(companyId, deb), enabled: deb.length >= 2 });
+  const { data } = useQuery({ queryKey: ['ro-cpick', companyId, deb], queryFn: () => listContacts(companyId, deb, undefined, PICKER_LIMIT), enabled: deb.length >= 2 });
   // Fiches liees des resultats affiches, en un appel (retour du 05/10).
   const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
   return (

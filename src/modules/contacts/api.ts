@@ -45,11 +45,16 @@ export function getWatchNote(c: Contact): string | null {
 }
 
 /** Recherche contacts (accent-insensible, par mots) — pour pickers / recherche globale. */
-export async function listContacts(companyId: string, search?: string, type?: string): Promise<Contact[]> {
+/**
+ * `limit` : 500 par defaut (listes). Les selecteurs qui n'affichent que 8 lignes passent
+ * `PICKER_LIMIT` (perf 19/11/2026 : 500 fiches = 1,3 Mo par frappe pour un terme de 2 lettres).
+ */
+export const PICKER_LIMIT = 8;
+export async function listContacts(companyId: string, search?: string, type?: string, limit = 500): Promise<Contact[]> {
   const { data, error } = await supabase.rpc('contacts_search', {
     // `_type` vide plutôt que null : la fonction SQL traite les deux pareil
     // (`_type is null or _type = '' or ...`) et la signature générée attend une chaîne.
-    _company: companyId, _q: search ?? '', _type: type ?? '', _limit: 500, _offset: 0,
+    _company: companyId, _q: search ?? '', _type: type ?? '', _limit: limit, _offset: 0,
   });
   if (error) throw error;
   return (data as Contact[]) ?? [];
