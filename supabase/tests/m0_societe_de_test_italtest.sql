@@ -18,6 +18,9 @@
 --   F. ITALBIKE STORE n a pas bouge.
 -- Chaque ligne du resultat doit valoir « ok ».
 -- =====================================================================
+-- L essai cree SA societe de test (« ItalTest essai ») : il ne depend pas de l ItalTest reelle
+-- (qui existe en production depuis le 19/11 : la reprendre serait un rafraichissement, purge
+-- comprise, trop long pour un seul appel de l API).
 create temp table _t(n serial, check_name text, result text) on commit drop;
 grant all on _t to authenticated; grant usage on sequence _t_n_seq to authenticated;
 create temp table _ctx(k text primary key, v text) on commit drop;
@@ -37,7 +40,7 @@ select 'src_before', (select count(*) from public.articles where company_id = '3
 do $s$
 declare _src uuid := '3d9f0f13-a691-4d07-ad58-34590df86e33'; _r jsonb; _t0 timestamptz := clock_timestamp();
 begin
-  _r := public.admin_clone_company_for_test(_src, 'ItalTest');
+  _r := public.admin_clone_company_for_test(_src, 'ItalTest essai');
   insert into _ctx values ('tgt', _r ->> 'company_id'), ('clone_s', round(extract(epoch from clock_timestamp() - _t0))::text);
   insert into _t(check_name, result) values
     ('copie complete en un appel (' || round(extract(epoch from clock_timestamp() - _t0)) || ' s) : statut pret',
@@ -86,8 +89,8 @@ begin
              = (select count(distinct user_id) from public.user_roles where company_id = _src and role = 'admin')
            and (select count(*) from public.user_roles where company_id = _tgt) = (select count(distinct user_id) from public.user_roles where company_id = _src and role = 'admin')
           then 'ok' else 'KO' end),
-    ('A8 fiche societe : nom ItalTest, sans boite mail, sans Peppol, sans comptable',
-     case when exists (select 1 from public.companies where id = _tgt and name = 'ItalTest' and inbound_mailbox is null
+    ('A8 fiche societe : nom de la societe de test, sans boite mail, sans Peppol, sans comptable',
+     case when exists (select 1 from public.companies where id = _tgt and name = 'ItalTest essai' and inbound_mailbox is null
                          and peppol_id is null and accountant_email is null and sepa_creditor_id is null) then 'ok' else 'KO' end);
 end $s$;
 
@@ -227,6 +230,16 @@ begin
     execute 'select mode from public.sms_settings where company_id = $1' into _st using _tgt;
     insert into _t(check_name, result) values ('C16 SMS (Brevo) : mode « arrete » force', case when _st = 'arrete' then 'ok' else 'KO ' || coalesce(_st, 'null') end);
   end if;
+  if to_regclass('public.automation_switches') is not null then
+    execute $q$insert into public.automation_switches (company_id, key, mode) values ($1, 'appointment_reminder_mail', 'actif')
+              on conflict (company_id, key) do update set mode = 'actif'$q$ using _tgt;
+    execute $q$select mode from public.automation_switches where company_id = $1 and key = 'appointment_reminder_mail'$q$ into _st using _tgt;
+    insert into _t(check_name, result) values ('C17 interrupteurs de mise en production : « arrete » force', case when _st = 'arrete' then 'ok' else 'KO ' || coalesce(_st, 'null') end);
+    execute $q$insert into public.automation_settings (company_id, sender_mailbox, mail_test_recipient) values ($1, 'info@ducatibxl.be', 'a@b.be')
+              on conflict (company_id) do update set sender_mailbox = 'info@ducatibxl.be', mail_test_recipient = 'a@b.be'$q$ using _tgt;
+    execute $q$select coalesce(sender_mailbox, '') || coalesce(mail_test_recipient, '') from public.automation_settings where company_id = $1$q$ into _st using _tgt;
+    insert into _t(check_name, result) values ('C18 mails automatiques : ni boite d envoi ni adresse de test', case when _st = '' then 'ok' else 'KO ' || _st end);
+  end if;
   insert into public.shopify_sync_settings (company_id, mode) values (_tgt, 'tous')
     on conflict (company_id) do update set mode = 'tous';
   insert into public.shopify_order_settings (company_id, import_enabled) values (_tgt, true)
@@ -307,7 +320,7 @@ set local role authenticated;
 do $s$
 declare _err text; _tgt uuid := (select v::uuid from _ctx where k = 'tgt');
 begin
-  begin perform public.admin_test_company_start('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest'); _err := 'accepte'; exception when others then _err := sqlstate; end;
+  begin perform public.admin_test_company_start('3d9f0f13-a691-4d07-ad58-34590df86e33', 'ItalTest essai'); _err := 'accepte'; exception when others then _err := sqlstate; end;
   insert into _t(check_name, result) values ('D8 non administrateur : lancer la copie refuse', case when _err = '42501' then 'ok' else 'KO ' || _err end);
   begin perform public.admin_test_company_step(_tgt, 1000); _err := 'accepte'; exception when others then _err := sqlstate; end;
   insert into _t(check_name, result) values ('D9 non administrateur : faire avancer la copie refuse', case when _err = '42501' then 'ok' else 'KO ' || _err end);
