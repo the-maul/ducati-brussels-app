@@ -158,3 +158,16 @@ export function reserveOutcome(r: ReserveResult): ReserveOutcome {
   if (r.orderBlocked) return { kind: 'blocked', reserved: r.qtyReserved, missing };
   return { kind: 'basket', reserved: r.qtyReserved, missing, basket: r.basketKind === 'standard' ? 'standard' : 'urgente' };
 }
+
+// ------------------------------------------------------------------ operation du parcours (lot F)
+/** Pieces de l'operation qui ont un article du DMS (une seule fois par article). */
+export function operationArticles(info: { lines: readonly { article_id: string | null; designation: string }[] }): { articleId: string; designation: string }[] {
+  const seen = new Set<string>();
+  const out: { articleId: string; designation: string }[] = [];
+  for (const l of info.lines) {
+    if (!l.article_id || seen.has(l.article_id)) continue;
+    seen.add(l.article_id);
+    out.push({ articleId: l.article_id, designation: l.designation });
+  }
+  return out;
+}

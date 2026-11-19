@@ -7,6 +7,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/lib/auth/auth-context';
 import { JourneyScreen } from '@/modules/workshop/journey/journey-screen';
+import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/journey/$orId')({
@@ -35,6 +36,8 @@ function JourneyRoute() {
           companyId={activeCompanyId}
           initialOp={op ?? null}
           onBackToOr={() => navigate({ to: '/workshop/$orId', params: { orId } })}
+          // Lot E integre au parcours (lot F, 19/11) : « Voir sur la vue eclatee » par operation.
+          operationExtra={(info) => <OperationExplodedButton info={info} companyId={activeCompanyId} />}
         />
       )}
     </>

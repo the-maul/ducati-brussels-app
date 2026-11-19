@@ -39,6 +39,8 @@ export const PAGE_RULES: PageRule[] = [
   { to: '/vehicles', write: ['vendeur'], read: ['magasinier', 'mecanicien', 'chef_atelier', 'comptable', 'marketing'] },
   { to: '/tradein', write: ['vendeur'], read: ['chef_atelier', 'comptable'] },
   { to: '/workshop', write: ['mecanicien', 'chef_atelier'], read: ['vendeur', 'magasinier', 'comptable'] },
+  // Ecran tablette « Mon atelier » (lot F, 19/11/2026) : entree du menu, EXACTEMENT les droits de l'atelier.
+  { to: '/workshop/my-workshop', write: ['mecanicien', 'chef_atelier'], read: ['vendeur', 'magasinier', 'comptable'] },
   // Rapprochements avant Pièces : préfixe plus long.
   { to: '/parts/links', write: ['magasinier'], read: ['mecanicien', 'chef_atelier'] },
   { to: '/parts', write: ['magasinier', 'chef_atelier', 'comptable'], read: ['vendeur', 'mecanicien', 'marketing'] },
@@ -101,6 +103,8 @@ export const PAGE_ALIASES: Record<string, string> = {
   '/crm/relances': '/crm',
   // Achats -> commandes fournisseur (paniers Ducati, mission 09) : memes droits que les achats.
   '/purchases/baskets': '/purchases',
+  // Atelier -> « Mon atelier » (lot F du parcours mecanicien, 19/11/2026) : memes droits que l'atelier.
+  '/workshop/my-workshop': '/workshop',
 };
 
 /** La règle qui gouverne un chemin : le préfixe le plus long qui corresponde. */

@@ -17,6 +17,7 @@ export function orStatusLabel(status: string): string {
   return label === key ? status : label;
 }
 
-export function OrStatusBadge({ status }: { status: string }) {
-  return <StatusBadge tone={orStatusTone(status)} icon={ICONS[status] ?? Clock} label={orStatusLabel(status)} />;
+/** `className` : badge agrandi de l'ecran tablette « Mon atelier » (lot F). */
+export function OrStatusBadge({ status, className }: { status: string; className?: string }) {
+  return <StatusBadge tone={orStatusTone(status)} icon={ICONS[status] ?? Clock} label={orStatusLabel(status)} className={className} />;
 }

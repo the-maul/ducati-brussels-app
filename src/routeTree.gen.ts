@@ -70,8 +70,8 @@ import { Route as AppPartsLinksRouteImport } from './routes/_app.parts.links'
 import { Route as AppPartsNewRouteImport } from './routes/_app.parts.new'
 import { Route as AppPartsPriceToolsRouteImport } from './routes/_app.parts.price-tools'
 import { Route as AppPartsReplacementsRouteImport } from './routes/_app.parts.replacements'
-import { Route as AppPartsUpcomingRouteImport } from './routes/_app.parts.upcoming'
 import { Route as AppPartsShopifyRouteImport } from './routes/_app.parts.shopify'
+import { Route as AppPartsUpcomingRouteImport } from './routes/_app.parts.upcoming'
 import { Route as AppPreparationPickingIdRouteImport } from './routes/_app.preparation.$pickingId'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchasesOrderIdRouteImport } from './routes/_app.purchases.$orderId'
@@ -124,6 +124,7 @@ import { Route as AppWorkshopOrIdRouteImport } from './routes/_app.workshop.$orI
 import { Route as AppWorkshopChronoRouteImport } from './routes/_app.workshop.chrono'
 import { Route as AppWorkshopKitsRouteImport } from './routes/_app.workshop.kits'
 import { Route as AppWorkshopMaintenancePlansRouteImport } from './routes/_app.workshop.maintenance-plans'
+import { Route as AppWorkshopMyWorkshopRouteImport } from './routes/_app.workshop.my-workshop'
 import { Route as AppWorkshopNewRouteImport } from './routes/_app.workshop.new'
 import { Route as AppWorkshopPlanningRouteImport } from './routes/_app.workshop.planning'
 import { Route as MonEspaceFacturesIndexRouteImport } from './routes/mon-espace.factures.index'
@@ -446,14 +447,14 @@ const AppPartsReplacementsRoute = AppPartsReplacementsRouteImport.update({
   path: '/replacements',
   getParentRoute: () => AppPartsRoute,
 } as any)
-const AppPartsUpcomingRoute = AppPartsUpcomingRouteImport.update({
-  id: '/upcoming',
-  path: '/upcoming',
-  getParentRoute: () => AppPartsRoute,
-} as any)
 const AppPartsShopifyRoute = AppPartsShopifyRouteImport.update({
   id: '/shopify',
   path: '/shopify',
+  getParentRoute: () => AppPartsRoute,
+} as any)
+const AppPartsUpcomingRoute = AppPartsUpcomingRouteImport.update({
+  id: '/upcoming',
+  path: '/upcoming',
   getParentRoute: () => AppPartsRoute,
 } as any)
 const AppPreparationPickingIdRoute = AppPreparationPickingIdRouteImport.update({
@@ -718,6 +719,11 @@ const AppWorkshopMaintenancePlansRoute =
     path: '/maintenance-plans',
     getParentRoute: () => AppWorkshopRoute,
   } as any)
+const AppWorkshopMyWorkshopRoute = AppWorkshopMyWorkshopRouteImport.update({
+  id: '/my-workshop',
+  path: '/my-workshop',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
 const AppWorkshopNewRoute = AppWorkshopNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -870,8 +876,8 @@ export interface FileRoutesByFullPath {
   '/parts/new': typeof AppPartsNewRoute
   '/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/parts/replacements': typeof AppPartsReplacementsRoute
-  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
+  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/baskets': typeof AppPurchasesBasketsRouteWithChildren
@@ -917,6 +923,7 @@ export interface FileRoutesByFullPath {
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
   '/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
+  '/workshop/my-workshop': typeof AppWorkshopMyWorkshopRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
@@ -991,8 +998,8 @@ export interface FileRoutesByTo {
   '/parts/new': typeof AppPartsNewRoute
   '/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/parts/replacements': typeof AppPartsReplacementsRoute
-  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/parts/shopify': typeof AppPartsShopifyRoute
+  '/parts/upcoming': typeof AppPartsUpcomingRoute
   '/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
@@ -1035,6 +1042,7 @@ export interface FileRoutesByTo {
   '/workshop/chrono': typeof AppWorkshopChronoRoute
   '/workshop/kits': typeof AppWorkshopKitsRoute
   '/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
+  '/workshop/my-workshop': typeof AppWorkshopMyWorkshopRoute
   '/workshop/new': typeof AppWorkshopNewRoute
   '/workshop/planning': typeof AppWorkshopPlanningRoute
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
@@ -1123,8 +1131,8 @@ export interface FileRoutesById {
   '/_app/parts/new': typeof AppPartsNewRoute
   '/_app/parts/price-tools': typeof AppPartsPriceToolsRoute
   '/_app/parts/replacements': typeof AppPartsReplacementsRoute
-  '/_app/parts/upcoming': typeof AppPartsUpcomingRoute
   '/_app/parts/shopify': typeof AppPartsShopifyRoute
+  '/_app/parts/upcoming': typeof AppPartsUpcomingRoute
   '/_app/preparation/$pickingId': typeof AppPreparationPickingIdRoute
   '/_app/purchases/$orderId': typeof AppPurchasesOrderIdRoute
   '/_app/purchases/baskets': typeof AppPurchasesBasketsRouteWithChildren
@@ -1170,6 +1178,7 @@ export interface FileRoutesById {
   '/_app/workshop/chrono': typeof AppWorkshopChronoRoute
   '/_app/workshop/kits': typeof AppWorkshopKitsRoute
   '/_app/workshop/maintenance-plans': typeof AppWorkshopMaintenancePlansRoute
+  '/_app/workshop/my-workshop': typeof AppWorkshopMyWorkshopRoute
   '/_app/workshop/new': typeof AppWorkshopNewRoute
   '/_app/workshop/planning': typeof AppWorkshopPlanningRoute
   '/mon-espace/factures/$documentId': typeof MonEspaceFacturesDocumentIdRoute
@@ -1258,8 +1267,8 @@ export interface FileRouteTypes {
     | '/parts/new'
     | '/parts/price-tools'
     | '/parts/replacements'
-    | '/parts/upcoming'
     | '/parts/shopify'
+    | '/parts/upcoming'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/baskets'
@@ -1305,6 +1314,7 @@ export interface FileRouteTypes {
     | '/workshop/chrono'
     | '/workshop/kits'
     | '/workshop/maintenance-plans'
+    | '/workshop/my-workshop'
     | '/workshop/new'
     | '/workshop/planning'
     | '/mon-espace/factures/$documentId'
@@ -1379,8 +1389,8 @@ export interface FileRouteTypes {
     | '/parts/new'
     | '/parts/price-tools'
     | '/parts/replacements'
-    | '/parts/upcoming'
     | '/parts/shopify'
+    | '/parts/upcoming'
     | '/preparation/$pickingId'
     | '/purchases/$orderId'
     | '/purchases/new'
@@ -1423,6 +1433,7 @@ export interface FileRouteTypes {
     | '/workshop/chrono'
     | '/workshop/kits'
     | '/workshop/maintenance-plans'
+    | '/workshop/my-workshop'
     | '/workshop/new'
     | '/workshop/planning'
     | '/mon-espace/factures/$documentId'
@@ -1510,8 +1521,8 @@ export interface FileRouteTypes {
     | '/_app/parts/new'
     | '/_app/parts/price-tools'
     | '/_app/parts/replacements'
-    | '/_app/parts/upcoming'
     | '/_app/parts/shopify'
+    | '/_app/parts/upcoming'
     | '/_app/preparation/$pickingId'
     | '/_app/purchases/$orderId'
     | '/_app/purchases/baskets'
@@ -1557,6 +1568,7 @@ export interface FileRouteTypes {
     | '/_app/workshop/chrono'
     | '/_app/workshop/kits'
     | '/_app/workshop/maintenance-plans'
+    | '/_app/workshop/my-workshop'
     | '/_app/workshop/new'
     | '/_app/workshop/planning'
     | '/mon-espace/factures/$documentId'
@@ -2030,18 +2042,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPartsReplacementsRouteImport
       parentRoute: typeof AppPartsRoute
     }
-    '/_app/parts/upcoming': {
-      id: '/_app/parts/upcoming'
-      path: '/upcoming'
-      fullPath: '/parts/upcoming'
-      preLoaderRoute: typeof AppPartsUpcomingRouteImport
-      parentRoute: typeof AppPartsRoute
-    }
     '/_app/parts/shopify': {
       id: '/_app/parts/shopify'
       path: '/shopify'
       fullPath: '/parts/shopify'
       preLoaderRoute: typeof AppPartsShopifyRouteImport
+      parentRoute: typeof AppPartsRoute
+    }
+    '/_app/parts/upcoming': {
+      id: '/_app/parts/upcoming'
+      path: '/upcoming'
+      fullPath: '/parts/upcoming'
+      preLoaderRoute: typeof AppPartsUpcomingRouteImport
       parentRoute: typeof AppPartsRoute
     }
     '/_app/preparation/$pickingId': {
@@ -2408,6 +2420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkshopMaintenancePlansRouteImport
       parentRoute: typeof AppWorkshopRoute
     }
+    '/_app/workshop/my-workshop': {
+      id: '/_app/workshop/my-workshop'
+      path: '/my-workshop'
+      fullPath: '/workshop/my-workshop'
+      preLoaderRoute: typeof AppWorkshopMyWorkshopRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
     '/_app/workshop/new': {
       id: '/_app/workshop/new'
       path: '/new'
@@ -2596,8 +2615,8 @@ interface AppPartsRouteChildren {
   AppPartsNewRoute: typeof AppPartsNewRoute
   AppPartsPriceToolsRoute: typeof AppPartsPriceToolsRoute
   AppPartsReplacementsRoute: typeof AppPartsReplacementsRoute
-  AppPartsUpcomingRoute: typeof AppPartsUpcomingRoute
   AppPartsShopifyRoute: typeof AppPartsShopifyRoute
+  AppPartsUpcomingRoute: typeof AppPartsUpcomingRoute
   AppPartsIndexRoute: typeof AppPartsIndexRoute
 }
 
@@ -2612,8 +2631,8 @@ const AppPartsRouteChildren: AppPartsRouteChildren = {
   AppPartsNewRoute: AppPartsNewRoute,
   AppPartsPriceToolsRoute: AppPartsPriceToolsRoute,
   AppPartsReplacementsRoute: AppPartsReplacementsRoute,
-  AppPartsUpcomingRoute: AppPartsUpcomingRoute,
   AppPartsShopifyRoute: AppPartsShopifyRoute,
+  AppPartsUpcomingRoute: AppPartsUpcomingRoute,
   AppPartsIndexRoute: AppPartsIndexRoute,
 }
 
@@ -2823,6 +2842,7 @@ interface AppWorkshopRouteChildren {
   AppWorkshopChronoRoute: typeof AppWorkshopChronoRoute
   AppWorkshopKitsRoute: typeof AppWorkshopKitsRoute
   AppWorkshopMaintenancePlansRoute: typeof AppWorkshopMaintenancePlansRoute
+  AppWorkshopMyWorkshopRoute: typeof AppWorkshopMyWorkshopRoute
   AppWorkshopNewRoute: typeof AppWorkshopNewRoute
   AppWorkshopPlanningRoute: typeof AppWorkshopPlanningRoute
   AppWorkshopIndexRoute: typeof AppWorkshopIndexRoute
@@ -2836,6 +2856,7 @@ const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
   AppWorkshopChronoRoute: AppWorkshopChronoRoute,
   AppWorkshopKitsRoute: AppWorkshopKitsRoute,
   AppWorkshopMaintenancePlansRoute: AppWorkshopMaintenancePlansRoute,
+  AppWorkshopMyWorkshopRoute: AppWorkshopMyWorkshopRoute,
   AppWorkshopNewRoute: AppWorkshopNewRoute,
   AppWorkshopPlanningRoute: AppWorkshopPlanningRoute,
   AppWorkshopIndexRoute: AppWorkshopIndexRoute,

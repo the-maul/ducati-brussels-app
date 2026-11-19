@@ -27,6 +27,7 @@ import {
   Wallet,
   HandCoins,
   BellRing,
+  Tablet,
   type LucideIcon,
   Globe,
 } from 'lucide-react';
@@ -50,6 +51,8 @@ export const mainNav: NavItem[] = [
   // Dépôt-vente (rattrapage G8 du 18/11/2026) : écran unique, sous Reprises, mêmes droits (alias /tradein).
   { labelKey: 'nav.consignment', to: '/consignment', icon: HandCoins, child: true },
   { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
+  // Ecran tablette « Mon atelier » (lot F du parcours mecanicien, 19/11/2026) : memes droits que l'atelier.
+  { labelKey: 'nav.myWorkshop', to: '/workshop/my-workshop', icon: Tablet, child: true },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },
   // Un seul catalogue (décision M-25) : les articles du DMS. Les vues éclatées Ducati s'ouvrent depuis la fiche
   // article ou la fiche moto.

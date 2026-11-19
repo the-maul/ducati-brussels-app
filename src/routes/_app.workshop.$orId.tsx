@@ -53,6 +53,7 @@ import { loadJourney } from '@/modules/workshop/journey/store';
 import { ReceptionPanel, ReceptionSheet, useReception } from '@/modules/workshop/reception/reception-sheet';
 import { shouldPromptReception } from '@/modules/workshop/reception/rules';
 import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
+import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
 import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -343,7 +344,10 @@ function OrView() {
       )}
       {/* Lot D (19/11) : operations du plan d'entretien de la moto, cochees et tracees, « Terminer » → Pret. */}
       {activeCompanyId && (
-        <PlanOpsPanel orId={orId} companyId={activeCompanyId} orStatus={or.status} autoInit={!!serviceCode} onChanged={refresh} />
+        <PlanOpsPanel
+          orId={orId} companyId={activeCompanyId} orStatus={or.status} autoInit={!!serviceCode} onChanged={refresh}
+          operationExtra={(info) => <OperationExplodedButton info={info} companyId={activeCompanyId} />}
+        />
       )}
       {/* OR accident : le dossier accident, bien visible (ATE001b). */}
       {(accidentOr || accidentFile) && accidentSchema.data === true && (

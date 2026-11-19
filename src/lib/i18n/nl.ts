@@ -8,6 +8,7 @@ import type { DictionaryShape } from './fr';
 import { g8aNl } from './g8-articles';
 import { smsNl } from './sms';
 import { receptionNl, planOpsNl } from './parcours-cd';
+import { myWorkshopNl } from './mon-atelier';
 import { productionNl } from './production';
 
 export const nl: DictionaryShape = {
@@ -37,6 +38,7 @@ export const nl: DictionaryShape = {
     dashboard: 'Dashboard',
     vehicles: 'Voertuigen',
     workshop: 'Werkplaats & service',
+    myWorkshop: 'Mijn werkplaats',
     parts: 'Onderdelen & accessoires',
     partsCatalog: 'Ducati-catalogus',
     partsShopify: 'Shopify-producten',
@@ -7518,6 +7520,7 @@ export const nl: DictionaryShape = {
     workshopNew: 'Nieuwe werkorder',
     workshopChrono: "Werkplaatschrono's",
     workshopJourney: 'Onderhoudstraject',
+    workshopMine: 'Mijn werkplaats',
     workshopKits: 'Onderhoudskits',
     workshopAccidents: 'Ongevaldossiers', workshopAccident: 'Ongevaldossier',
     workshopMaintenancePlans: 'Onderhoudsplannen',
@@ -9394,6 +9397,8 @@ export const nl: DictionaryShape = {
   // Parcours mecanicien, lots C et D (19/11/2026) : photos de reception, reparation guidee.
   reception: receptionNl,
   planOps: planOpsNl,
+  // Parcours mecanicien, lot F (19/11/2026) : ecran tablette « Mon atelier ».
+  myWorkshop: myWorkshopNl,
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,

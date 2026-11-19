@@ -56,6 +56,31 @@ export function workStateLabel(s: OrWorkState, reasons: PauseReason[]): string {
   return t('pointage.stateNone');
 }
 
+type ConfirmFn = ReturnType<typeof useConfirm>;
+
+/**
+ * « Demarrer » / « Reprendre » avec la regle du pointage unique : si un autre travail est en cours,
+ * on demande confirmation avant de le mettre en pause. `null` = le mecanicien a renonce.
+ * Partage par la fiche OR, le parcours et l'ecran tablette « Mon atelier » (lot F).
+ */
+export async function startWorkWithConfirm(
+  orId: string, opts: { operation?: string | null; who?: Who | null; origin?: string }, confirm: ConfirmFn,
+): Promise<StartResult | null> {
+  let res = await startWorkOnOr(orId, { operation: opts.operation ?? null, who: opts.who, origin: opts.origin });
+  if (res.status === 'needs_confirm') {
+    const c = res.current;
+    const what = c.kind === 'improductif' ? t('pointage.currentTask') : fill(t('pointage.currentOr'), { number: c.or_number ?? '' });
+    const ok = await confirm({
+      title: t('pointage.switchTitle'),
+      message: fill(t('pointage.switchConfirm'), { current: what, since: hhmm(c.started_at) }),
+      confirmLabel: t('pointage.switchOk'),
+    });
+    if (!ok) return null;
+    res = await startWorkOnOr(orId, { operation: opts.operation ?? null, who: opts.who, origin: opts.origin, confirmSwitch: true });
+  }
+  return res;
+}
+
 export function usePointage(p: { orId: string; companyId: string | null; who?: Who | null; onChanged?: () => void }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -87,21 +112,8 @@ export function usePointage(p: { orId: string; companyId: string | null; who?: W
 
   /** Demarrer (ou Reprendre) ; demande confirmation si un autre travail est en cours. */
   const start = useMutation({
-    mutationFn: async (operation: string | null | undefined): Promise<StartResult | null> => {
-      let res = await startWorkOnOr(p.orId, { operation: operation ?? null, who: p.who });
-      if (res.status === 'needs_confirm') {
-        const c = res.current;
-        const what = c.kind === 'improductif' ? t('pointage.currentTask') : fill(t('pointage.currentOr'), { number: c.or_number ?? '' });
-        const ok = await confirm({
-          title: t('pointage.switchTitle'),
-          message: fill(t('pointage.switchConfirm'), { current: what, since: hhmm(c.started_at) }),
-          confirmLabel: t('pointage.switchOk'),
-        });
-        if (!ok) return null;
-        res = await startWorkOnOr(p.orId, { operation: operation ?? null, who: p.who, confirmSwitch: true });
-      }
-      return res;
-    },
+    mutationFn: (operation: string | null | undefined): Promise<StartResult | null> =>
+      startWorkWithConfirm(p.orId, { operation, who: p.who }, confirm),
     meta: { success: false },
     onSuccess: (res) => {
       if (!res) return;
@@ -256,7 +268,7 @@ export function OrWorkControls({ orId, companyId, orStatus, workAllowed, onChang
 }
 
 /** Etat compact d'un OR (planning, pointeuse) depuis la vue `workshop_or_work_status`. */
-export function OrWorkBadge({ row, reasons = [], compact }: { row: OrWorkStatusRow | null | undefined; reasons?: PauseReason[]; compact?: boolean }) {
+export function OrWorkBadge({ row, reasons = [], compact, className }: { row: OrWorkStatusRow | null | undefined; reasons?: PauseReason[]; compact?: boolean; className?: string }) {
   if (!row || row.work_state === 'stopped') return null;
   const state = row.work_state;
   const label = state === 'running'
@@ -268,7 +280,7 @@ export function OrWorkBadge({ row, reasons = [], compact }: { row: OrWorkStatusR
   return (
     <StatusBadge
       tone={workStateTone(state)} icon={workStateIcon(state)} label={label}
-      className={compact ? 'max-w-full truncate px-1 py-px text-[10px]' : undefined}
+      className={compact ? 'max-w-full truncate px-1 py-px text-[10px]' : className}
     />
   );
 }

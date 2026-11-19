@@ -8,6 +8,7 @@
 import { g8aFr } from './g8-articles';
 import { smsFr } from './sms';
 import { receptionFr, planOpsFr } from './parcours-cd';
+import { myWorkshopFr } from './mon-atelier';
 import { productionFr } from './production';
 
 export const fr = {
@@ -48,6 +49,7 @@ export const fr = {
     dashboard: 'Tableau de bord',
     vehicles: 'Véhicules',
     workshop: 'Atelier & SAV',
+    myWorkshop: "Mon atelier",
     parts: 'Pièces & Accessoires',
     partsCatalog: 'Catalogue Ducati',
     partsShopify: 'Produits Shopify',
@@ -7534,6 +7536,7 @@ export const fr = {
     workshopNew: 'Nouvel OR',
     workshopChrono: 'Chronos atelier',
     workshopJourney: "Parcours d'entretien",
+    workshopMine: "Mon atelier",
     workshopKits: "Kits d'entretien",
     workshopAccidents: 'Dossiers accident', workshopAccident: 'Dossier accident',
     workshopMaintenancePlans: "Plans d'entretien",
@@ -9413,6 +9416,8 @@ export const fr = {
   // Parcours mecanicien, lots C et D (19/11/2026) : photos de reception, reparation guidee.
   reception: receptionFr,
   planOps: planOpsFr,
+  // Parcours mecanicien, lot F (19/11/2026) : ecran tablette « Mon atelier ».
+  myWorkshop: myWorkshopFr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

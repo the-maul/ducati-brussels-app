@@ -176,14 +176,14 @@ export function FinishDialog({ open, done, notDone, busy, onCancel, onConfirm }:
 }
 
 /** Avancement x / y (couleur + icone + libelle). */
-export function PlanProgressBadge({ done, resolved, total, compact }: { done: number; resolved: number; total: number; compact?: boolean }) {
+export function PlanProgressBadge({ done, resolved, total, compact, className }: { done: number; resolved: number; total: number; compact?: boolean; className?: string }) {
   if (!total) return null;
   const tone = progressTone({ total, resolved });
   return (
     <StatusBadge
       tone={tone} icon={tone === 'success' ? CheckCircle2 : ListChecks}
       label={fill(t(compact ? 'planOps.progressShort' : 'planOps.progress'), { done, total })}
-      className={compact ? 'max-w-full truncate px-1 py-px text-[10px]' : undefined}
+      className={compact ? 'max-w-full truncate px-1 py-px text-[10px]' : className}
     />
   );
 }
