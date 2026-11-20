@@ -638,6 +638,12 @@ Bug réel du client (19/11) : deux cartes identiques (même client, même Monste
 - **Réglage N** : `workshop_planning_settings.stale_or_days` (14 par défaut, 1 à 365), Atelier → Planning → Réglages ; affiché seulement quand la migration est posée. Sans elle : 14 jours, l'écran fonctionne.
 - **Pièges** : (1) dans le cas du client, si l'ancien OR a été pointé aujourd'hui (le faux départ), il reste dans « Mes motos du jour » mais derrière l'OR du RDV et marqué « Ancien OR » ; (2) `reason_code` est relu en colonne facultative (repli sans elle) ; (3) avant application : sauvegarde à demander au client (CLAUDE.md §5.0).
 
+### Ajouté le 20/11 — revue UX / UI (« Mon atelier, c'est brouillon ») (ATE010, UX)
+Revue complète écran par écran : `docs/revue-ux-ui.md` (captures `docs/revue-ux-captures/`). Branche `lot-ux-ui`, sans migration.
+- **Quick wins faits** : « Mon atelier » à en-tête compact (le bloc de pointage n'apparaît que si un pointage tourne ou est en pause, « Aucun pointage en cours » en badge) ; photos de réception avec un seul bouton rouge ; « Terminer le parcours » rouge seulement à 100 % ; liste des opérations de l'OR repliée au-delà de 8 et « Mode opératoire non disponible » dit une fois ; frise « étape actuelle » ; « (saisi à la main) » au lieu de « (ancienne saisie) » ; menu latéral replié de 768 à 1279 px ; en-têtes de page qui ne s'écrasent plus.
+- **Bug relevé, non corrigé** : l'en-tête de « Mon atelier » lit les pointages de la société active, mais `workshop_work_start` (un seul pointage actif par mécanicien) les voit toutes sociétés confondues. Démarrer dans ItalTest proposait de mettre en pause un pointage d'ITALBIKE STORE. À trancher : règle par société ou par personne.
+- **Proposé, à valider avec le client** : maquette de « Mon atelier » (bandeau « Je travaille sur… », frise commune avec l'OR, un seul rouge, une seule confirmation) ; fiche OR en 3 zones (identité fixe + onglets Travail / Lignes / Documents).
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
 - **Tous les objets utilisés par le code existent** : `repair_orders`, `repair_order_lines`, `workshop_time_entries`, `workshop_appointments` avec toutes les colonnes écrites (y compris `price_mode` lu à la facturation), fonctions `or_worked_minutes`, `next_document_number`. RLS active et triggers d'audit (`trg_ro_audit`, `trg_rolines_audit`, `trg_appt_audit`, `trg_wte_audit`) présents.

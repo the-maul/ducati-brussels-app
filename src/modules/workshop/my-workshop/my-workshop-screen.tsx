@@ -286,22 +286,32 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
     <div className="mx-auto w-full max-w-[1400px] space-y-5 pb-10 text-[16px]">
       {/* ------------------------------------------------------------ moi + mon pointage */}
       <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5" aria-label={t('myWorkshop.nowTitle')}>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="grid size-14 shrink-0 place-items-center rounded-md bg-accent text-muted-foreground"><User className="size-7" aria-hidden /></div>
+        {/* Revue UX (20/11) : en-tete compact. Sans pointage en cours, l'etat tient sur la meme ligne
+            que le nom et les motos du jour remontent dans le premier ecran de la tablette. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="grid size-11 shrink-0 place-items-center rounded-md bg-accent text-muted-foreground"><User className="size-6" aria-hidden /></div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[22px] font-bold leading-tight">{d.me.displayName || t('myWorkshop.meUnknown')}</p>
+            <p className="truncate font-display text-[20px] font-bold leading-tight">{d.me.displayName || t('myWorkshop.meUnknown')}</p>
             <p className="text-[15px] text-muted-foreground">
               {new Date().toLocaleDateString(`${getLocale()}-BE`, { weekday: 'long', day: 'numeric', month: 'long' })}
               {!d.me.mechanicIds.length && <> · {t('myWorkshop.notLinked')}</>}
             </p>
           </div>
+          {now.kind === 'idle' && (
+            <StatusBadge tone="neutral" icon={Timer} className={BIG} label={t('myWorkshop.idle')} />
+          )}
+          {now.kind === 'idle' && canWrite && d.pointageReady && (
+            <Button variant="ghost" className="h-12 text-[16px]" onClick={() => navigate({ to: '/workshop/chrono' })}>
+              <Timer className="size-5" /> {t('myWorkshop.chrono')}
+            </Button>
+          )}
           <Button variant="ghost" className="h-12 text-[15px]" onClick={() => day.refetch()} disabled={day.isFetching} aria-label={t('myWorkshop.reload')}>
             {day.isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />} <span className="hidden sm:inline">{t('myWorkshop.reload')}</span>
           </Button>
         </div>
 
         {canChoose && (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <label htmlFor="mw-view" className="flex items-center gap-2 text-[16px] font-bold"><Users className="size-5" aria-hidden /> {t('myWorkshop.viewLabel')}</label>
             <Select value={chooseValue} onValueChange={pickView} open={chooserOpen} onOpenChange={setChooserOpen}>
               <SelectTrigger id="mw-view" className="h-12 w-full text-[16px] sm:w-[320px]"><SelectValue /></SelectTrigger>
@@ -314,12 +324,13 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
           </div>
         )}
         {others && (
-          <p className="mt-3 flex items-start gap-2 rounded-md border border-info bg-info-bg p-3 text-[16px]" role="status">
+          <p className="mt-3 flex items-start gap-2 rounded-md border border-info bg-info-bg p-2.5 text-[15px]" role="status">
             <Eye className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
             {d.view.kind === 'all' ? t('myWorkshop.viewAllNotice') : fill(t('myWorkshop.viewOtherNotice'), { name: d.viewLabel })}
           </p>
         )}
 
+        {now.kind !== 'idle' && (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-border bg-background p-3">
           <div className="min-w-0 flex-1">
             {now.kind === 'running' && (
@@ -341,12 +352,6 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
                   {fill(t('myWorkshop.pausedOn'), { number: nowOrNumber ?? '', at: now.entry.ended_at ? hhmm(now.entry.ended_at) : '' })}
                   {nowCard?.or && <> · {motoLabel(nowCard.or.vehicles ?? null)}</>}
                 </p>
-              </>
-            )}
-            {now.kind === 'idle' && (
-              <>
-                <StatusBadge tone="neutral" icon={Timer} className={BIG} label={t('myWorkshop.idle')} />
-                <p className="mt-2 text-[17px] text-muted-foreground">{t('myWorkshop.idleHint')}</p>
               </>
             )}
           </div>
@@ -373,6 +378,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
             </div>
           )}
         </div>
+        )}
         {!d.pointageReady && <p className="mt-3 text-[15px] text-warning">{t('myWorkshop.pointageMissing')}</p>}
       </section>
 
@@ -381,6 +387,10 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
         <h2 id="mw-mine" className="mb-3 flex items-center gap-2 font-display text-[20px] font-bold">
           <Bike className="size-6" aria-hidden /> {mineTitle} <span className="font-data tabular-nums text-muted-foreground">({mine.length})</span>
         </h2>
+        {/* Que faire ensuite : dit une seule fois, au-dessus des cartes, tant que rien ne tourne. */}
+        {now.kind === 'idle' && canWrite && d.pointageReady && mine.length > 0 && (
+          <p className="-mt-1 mb-3 text-[15px] text-muted-foreground">{t('myWorkshop.idleHint')}</p>
+        )}
         {mine.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {mine.map((c) => (
@@ -408,7 +418,9 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-card p-6 text-[17px] text-muted-foreground">
-            <Inbox className="size-7 shrink-0" aria-hidden /> {t('myWorkshop.mineEmpty')}
+            <Inbox className="size-7 shrink-0" aria-hidden />
+            {d.view.kind === 'all' ? t('myWorkshop.mineEmptyAll')
+              : d.view.kind === 'mechanic' ? fill(t('myWorkshop.mineEmptyMechanic'), { name: d.viewLabel }) : t('myWorkshop.mineEmpty')}
           </div>
         )}
       </section>
@@ -575,7 +587,9 @@ function BikeCard({ card, day, today, canWrite, busy, showOwner, onGesture, onOp
         {or && day.receptionReady && <StatusBadge tone={photosTone(ps)} icon={Camera} label={t(`myWorkshop.photos_${ps}`)} className={BIG} />}
         {parts && parts.state !== 'none' && (
           <StatusBadge tone={partsTone(parts.state)} icon={PartsIcon} className={BIG}
-            label={parts.state === 'missing' ? fill(t('myWorkshop.parts_missing'), { n: parts.missing }) : t(`myWorkshop.parts_${parts.state}`)} />
+            label={parts.state === 'missing'
+              ? (parts.missing === 1 ? t('myWorkshop.parts_missing_one') : fill(t('myWorkshop.parts_missing'), { n: parts.missing }))
+              : t(`myWorkshop.parts_${parts.state}`)} />
         )}
       </div>
 

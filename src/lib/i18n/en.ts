@@ -3108,7 +3108,7 @@ export const en: DictionaryShape = {
     save: 'Save', errSave: 'Error', toInvoice: 'Convert to invoice', viewInvoice: 'View the invoice',
     print: 'Print', quoteParts: 'Parts quote',
     // chronos (B11)
-    chrono: 'Time clock', chronoTitle: 'Workshop timers', chronoSubtitle: 'Attendance and working time per repair order (productivity B11).',
+    chrono: 'Time clock', chronoTitle: 'Workshop time clock', chronoSubtitle: 'Arrival, departure and working time per repair order.',
     mechanicName: 'Mechanic', presenceIn: 'Clock in', presenceOut: 'Clock out', presentSince: 'Present since',
     pickOr: 'Work on a repair order', working: 'Work in progress', stopWork: 'Stop', startWork: 'Start',
     today: 'Today', entryKind_presence: 'Attendance', entryKind_travail: 'Work', minutes: 'min', ongoing: 'in progress',
@@ -3365,7 +3365,7 @@ export const en: DictionaryShape = {
   orPage: {
     none: 'None',
     you: '(you)',
-    legacyValue: '{value} (old entry)',
+    legacyValue: '{value} (typed by hand)',
     operatorPlaceholder: 'Team member…',
     repairTypePlaceholder: 'Choose the type…',
     accidentTitle: 'Accident file',
@@ -3997,7 +3997,7 @@ export const en: DictionaryShape = {
 
   stock: {
     title: 'Stock & stocktake',
-    subtitle: 'Triple stock (actual / reserved / available), WAC value and movements.',
+    subtitle: 'Actual, reserved and available stock per item, WAC value and movements.',
     search: 'Search (reference, description, location…)',
     empty: 'No article in stock.',
     totalValue: 'Stock value',

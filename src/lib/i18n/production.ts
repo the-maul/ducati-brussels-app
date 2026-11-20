@@ -122,7 +122,7 @@ export const productionFr = {
     generic: 'Erreur : {msg}',
   },
   crons: {
-    title: 'Tâches planifiées (pg_cron)',
+    title: 'Tâches automatiques du serveur',
     intro: 'Les tâches qui tournent seules sur le serveur. Une tâche qui tourne n\'envoie rien tant que l\'élément qu\'elle sert est arrêté.',
     colJob: 'Tâche',
     colSchedule: 'Fréquence',
@@ -255,7 +255,7 @@ export const productionNl: ProductionShape = {
     generic: 'Fout: {msg}',
   },
   crons: {
-    title: 'Geplande taken (pg_cron)',
+    title: 'Automatische servertaken',
     intro: 'De taken die zelfstandig op de server draaien. Een draaiende taak verstuurt niets zolang het element dat ze bedient gestopt is.',
     colJob: 'Taak',
     colSchedule: 'Frequentie',
@@ -386,7 +386,7 @@ export const productionEn: ProductionShape = {
     generic: 'Error: {msg}',
   },
   crons: {
-    title: 'Scheduled tasks (pg_cron)',
+    title: 'Automatic server tasks',
     intro: 'The tasks that run on their own on the server. A running task sends nothing while the item it serves is stopped.',
     colJob: 'Task',
     colSchedule: 'Frequency',
@@ -517,7 +517,7 @@ export const productionIt: ProductionShape = {
     generic: 'Errore: {msg}',
   },
   crons: {
-    title: 'Attività pianificate (pg_cron)',
+    title: 'Attività automatiche del server',
     intro: 'Le attività che girano da sole sul server. Un\'attività in corso non invia nulla finché l\'elemento che serve è fermo.',
     colJob: 'Attività',
     colSchedule: 'Frequenza',

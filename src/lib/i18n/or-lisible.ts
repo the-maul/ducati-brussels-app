@@ -16,7 +16,7 @@ export const orLisibleFr = {
   step_ready: "Prêt",
   step_invoice: "Facture",
   state_done: "fait",
-  state_current: "étape en cours",
+  state_current: "étape actuelle",
   state_todo: "à faire",
   state_skipped: "remis à plus tard",
   state_warning: "incomplet",
