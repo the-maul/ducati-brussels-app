@@ -46,16 +46,27 @@ export type NeedInput = {
   draftQty: number;
 };
 
-/** Libre pour ce document : réel − réservé, ce que le document a réservé ou sorti lui étant rendu. */
-export function freeForDocument(n: Pick<NeedInput, 'realQty' | 'reservedQty' | 'ownRealDelta' | 'ownReservedDelta'>): number {
-  return (num(n.realQty) - num(n.ownRealDelta)) - (num(n.reservedQty) - num(n.ownReservedDelta));
+/**
+ * Libre pour ce document : réel − réservé, la réservation du document lui étant rendue. Ce que le
+ * document a déjà SORTI (facture / ticket / BL validés) n'est plus à servir : il est déduit du
+ * besoin (`deliveredQty`), pas rendu au stock (constat du 20/11 : une facture d'OR validée sur un
+ * stock à 0 affichait « 2 pièces manquantes pour ce client » alors que filtre et huile étaient
+ * montés et facturés).
+ */
+export function freeForDocument(n: Pick<NeedInput, 'realQty' | 'reservedQty' | 'ownReservedDelta'>): number {
+  return num(n.realQty) - (num(n.reservedQty) - num(n.ownReservedDelta));
 }
 
-/** Quantité manquante (même formule que la fonction SQL _document_order_needs). */
+/** Quantité déjà sortie du stock par le document lui-même (plafonnée au besoin). */
+export function deliveredQty(n: Pick<NeedInput, 'qtyNeeded' | 'ownRealDelta'>): number {
+  return Math.min(Math.max(-num(n.ownRealDelta), 0), Math.max(num(n.qtyNeeded), 0));
+}
+
+/** Quantité manquante (même formule que la fonction SQL _document_order_needs, 20261120365000). */
 export function missingQty(n: NeedInput): number {
   if (!n.mgmtType || !(ORDERABLE_MGMT_TYPES as readonly string[]).includes(n.mgmtType)) return 0;
   const free = Math.max(freeForDocument(n), 0);
-  return Math.max(num(n.qtyNeeded) - free - num(n.onOrderQty) - num(n.draftQty), 0);
+  return Math.max(num(n.qtyNeeded) - deliveredQty(n) - free - num(n.onOrderQty) - num(n.draftQty), 0);
 }
 
 /** Pièce d'un document avec son calcul (réponse de `document_order_needs`). */

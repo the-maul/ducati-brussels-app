@@ -55,7 +55,7 @@ export function DocumentOrdersPanel({
       {orderable && !alert && missing > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-[13px]">
           <PackageSearch className="size-4 shrink-0 text-muted-foreground" />
-          <span>{t('orderFromDoc.missingLine').replace('{n}', String(missing))}</span>
+          <span>{t(missing === 1 ? 'orderFromDoc.missingLineOne' : 'orderFromDoc.missingLine').replace('{n}', String(missing))}</span>
           <Button size="sm" variant="outline" className="ml-auto" onClick={onOrder}><ShoppingCart /> {t('orderFromDoc.button')}</Button>
         </div>
       )}

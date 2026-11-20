@@ -8,7 +8,7 @@
  */
 import { test, expect } from 'bun:test';
 import {
-  missingQty, freeForDocument, missingNeeds, defaultProposal, selectedLines, proposalTotalHt, proposalPayload,
+  missingQty, freeForDocument, deliveredQty, missingNeeds, defaultProposal, selectedLines, proposalTotalHt, proposalPayload,
   canOrderFromDocument, type OrderNeed, type NeedInput,
 } from '../src/modules/orders/from-document';
 
@@ -38,7 +38,7 @@ test('la réservation du document lui est rendue (RES), comme la sortie d\'une f
   // RES de 2 pièces sur un stock réel de 2 : réservé 2 (par ce document) → rien ne manque
   expect(freeForDocument({ realQty: 2, reservedQty: 2, ownReservedDelta: 2 })).toBe(2);
   expect(missingQty(need({ qtyNeeded: 2, realQty: 2, reservedQty: 2, ownReservedDelta: 2 }))).toBe(0);
-  // FAC qui a sorti 1 pièce d'un stock de 1 : réel 0, sortie propre −1 → libre 1
+  // FAC qui a sorti 1 pièce d'un stock de 1 : réel 0, sortie propre −1 → déjà servie
   expect(missingQty(need({ qtyNeeded: 1, realQty: 0, ownRealDelta: -1 }))).toBe(0);
   // réservée par un AUTRE document : elle n'est pas libre
   expect(missingQty(need({ qtyNeeded: 2, realQty: 2, reservedQty: 2 }))).toBe(2);
@@ -96,4 +96,15 @@ test('documents depuis lesquels on commande', () => {
   expect(canOrderFromDocument({ doc_type: 'DEV', status: 'converti' })).toBe(false);
   expect(canOrderFromDocument({ doc_type: 'AVO', status: 'validee' })).toBe(false);
   expect(canOrderFromDocument({ doc_type: 'TIK', status: 'validee' })).toBe(false);
+});
+
+test('constat 20/11 : facture validée sur un stock à 0, les pièces sorties ne manquent plus au client', () => {
+  // filtre (1) et huile (3,1 l) facturés et sortis d'un stock vide : réel négatif, sortie propre = besoin
+  expect(missingQty(need({ qtyNeeded: 1, realQty: -1, ownRealDelta: -1 }))).toBe(0);
+  expect(missingQty(need({ qtyNeeded: 3.1, realQty: -3.1, ownRealDelta: -3.1 }))).toBe(0);
+  expect(deliveredQty({ qtyNeeded: 1, ownRealDelta: -1 })).toBe(1);
+  // livraison partielle (BL d'1 sur 2, stock épuisé) : il en manque encore 1
+  expect(missingQty(need({ qtyNeeded: 2, realQty: 0, ownRealDelta: -1 }))).toBe(1);
+  // document pas encore validé (aucune sortie) : inchangé
+  expect(missingQty(need({ qtyNeeded: 1, realQty: 0 }))).toBe(1);
 });
