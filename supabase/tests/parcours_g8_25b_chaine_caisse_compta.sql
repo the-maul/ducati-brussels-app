@@ -73,8 +73,8 @@ begin
   insert into public.articles (company_id, reference, designation, mgmt_type, purchase_price, pamp, sale_price_ttc, vat_rate)
   values (_co, 'ZZB2-CHAINE', 'ESSAI chaine caisse compta', 'A', 5, 5, 12.10, 21) returning id into _art;
   perform public.record_stock_move(_art, 'entree', 5, 5, false, null, 'screen', null, 'essai stock initial');
-  insert into public.contacts (company_id, type, status, first_name, last_name)
-  values (_co, 'particulier', 'client', 'ESSAI', 'CHAINE B2') returning id, code into _ctc, _code;
+  insert into public.contacts (company_id, civility, type, status, first_name, last_name)
+  values (_co, 'Monsieur', 'particulier', 'client', 'ESSAI', 'CHAINE B2') returning id, code into _ctc, _code;
 
   -- ------------------------------------------------ 1. caisse : fond = tiroir + 350 (G8 : report 350)
   insert into public.cash_sessions (company_id, opening_float, opened_by, note)

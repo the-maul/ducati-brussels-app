@@ -3,9 +3,9 @@
  * Sections : identité, adresse, permis & ID, B2B, catégorisation.
  * État contrôlé simple ; mappé vers ContactInsert à la soumission.
  */
-import { useState, useRef, type ReactNode } from 'react';
+import { useState, useRef, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown, Link2 } from 'lucide-react';
+import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown, Link2, AlertTriangle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { listOwnedVehicles, listLinkedContacts } from './subobjects-api';
@@ -31,8 +31,10 @@ import {
 import { PhoneInput } from '@/components/phone-input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { t, LOCALES, DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n';
+import { t, fillVars, LOCALES, DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
+import { identityMissing, type IdentityField } from './identity-rules';
+import { identityFieldsLabel } from '@/lib/db-error-i18n';
 import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/lib/contact-normalize';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
 import { listRef } from '@/modules/settings/reference-api';
@@ -461,6 +463,10 @@ export function ContactForm({
     return lockType ? { ...s, type: lockType } : s;
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  // Q67 (comme G8) : champs d'identité à compléter, signalés après une tentative d'enregistrement.
+  const [missingAsk, setMissingAsk] = useState<IdentityField[]>([]);
+  const initialMissing = useMemo(() => (initial ? identityMissing(initial) : []), [initial]);
+  const miss = (k: IdentityField) => (missingAsk.includes(k) && identityMissing(f).includes(k) ? 'border-danger' : '');
   // Mission 04, carte 1 : à la création, seul l'essentiel est ouvert ; le reste est replié.
   const [moreOpen, setMoreOpen] = useState<boolean>(initial !== null || !!lockType);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -522,6 +528,14 @@ export function ContactForm({
       setLocalError(t('contacts.requiredName'));
       return;
     }
+    // Q67 (G8 « Validation fiche client ») : particulier → civilité, prénom, nom ; société →
+    // raison sociale. À la création et à la modification (une fiche reprise incomplète se complète).
+    const missing = identityMissing(f);
+    setMissingAsk(missing);
+    if (missing.length) {
+      setLocalError(fillVars(t('q67.errRequired'), { fields: identityFieldsLabel(missing) }));
+      return;
+    }
     // Mission 04, carte 5 : IBAN contrôlé (modulo 97) s'il a été saisi ou modifié ;
     // un IBAN repris de G8 non modifié ne bloque pas l'enregistrement du reste.
     if (f.iban.trim() && normalizeIban(f.iban) !== normalizeIban(initial?.iban) && !isValidIban(f.iban)) {
@@ -578,6 +592,16 @@ export function ContactForm({
   return (
     <form onSubmit={submit} className="space-y-6">
       {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
+      {/* Q67 : fiche reprise incomplète (sans civilité / prénom) → l'écran demande de compléter. */}
+      {initialMissing.length > 0 && (
+        <div className="flex items-start gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-[13px] text-warning" role="status">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-semibold">{t('q67.completeTitle')}</p>
+            <p>{fillVars(t('q67.completeBody'), { fields: identityFieldsLabel(initialMissing) })}</p>
+          </div>
+        </div>
+      )}
       {/* Fiche deja existante (même e-mail ou même numéro) : on propose de l'ouvrir. */}
       <Dialog open={dupes !== null} onOpenChange={(o) => { if (!o) closeDupes(); }}>
         <DialogContent>
@@ -649,7 +673,7 @@ export function ContactForm({
             )}
             {isPro && (
               <Field label={t('contacts.companyName')}>
-                <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} />
+                <Input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} className={miss('company_name')} />
               </Field>
             )}
             {isPro && (
@@ -680,7 +704,7 @@ export function ContactForm({
                 value={personCivility(f.civility) ?? CIVILITY_NONE}
                 onValueChange={(v) => set('civility', v === CIVILITY_NONE ? '' : v)}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className={miss('civility')}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={CIVILITY_NONE}>{t('contacts.civilityNone')}</SelectItem>
                   {PERSON_CIVILITIES.map((c) => (
@@ -701,10 +725,10 @@ export function ContactForm({
               </Select>
             </Field>
             <Field label={t('contacts.firstName')}>
-              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} disabled={nameLocked} />
+              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} disabled={nameLocked} className={miss('first_name')} />
             </Field>
             <Field label={t('contacts.lastName')}>
-              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} disabled={nameLocked} />
+              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} disabled={nameLocked} className={miss('last_name')} />
             </Field>
             {nameLocked && nameSource && (
               <p className="col-span-full flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">

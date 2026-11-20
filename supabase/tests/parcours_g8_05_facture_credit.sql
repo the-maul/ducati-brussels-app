@@ -49,8 +49,8 @@ declare
   _cli uuid; _art uuid; _doc uuid; _bad uuid; _exp text; _num text; _err text; _d record; _m record; _st record; _n int;
 begin
   -- ------------------------------------------------ client et article de l'essai
-  insert into public.contacts (company_id, type, last_name, first_name)
-  values (_co, 'particulier', 'ESSAI B1', 'Facture credit') returning id into _cli;
+  insert into public.contacts (company_id, civility, type, last_name, first_name)
+  values (_co, 'Monsieur', 'particulier', 'ESSAI B1', 'Facture credit') returning id into _cli;
   insert into public.articles (company_id, reference, designation, mgmt_type, sale_price_ht, sale_price_ttc, vat_rate)
   values (_co, 'ESSAIB1-05-' || substr(md5(random()::text), 1, 6), 'ESSAI B1 manchon caoutchouc', 'A', 1.44, 1.74, 21)
   returning id into _art;

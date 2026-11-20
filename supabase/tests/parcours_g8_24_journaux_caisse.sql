@@ -49,8 +49,8 @@ begin
 
   insert into public.cash_sessions (company_id, opening_float, opened_by, note)
   values (_co, _b0, auth.uid(), 'ESSAI parcours 24') returning id into _s;
-  insert into public.contacts (company_id, type, status, first_name, last_name)
-  values (_co, 'particulier', 'client', 'ESSAI', 'JOURNAUX B2') returning id into _ctc;
+  insert into public.contacts (company_id, civility, type, status, first_name, last_name)
+  values (_co, 'Monsieur', 'particulier', 'client', 'ESSAI', 'JOURNAUX B2') returning id into _ctc;
 
   -- Ticket A : 2 x 10 HT, 21 % -> 24,20 especes
   insert into public.documents (company_id, number, status, doc_type, issue_date, total_ht, total_vat, total_ttc, price_mode)

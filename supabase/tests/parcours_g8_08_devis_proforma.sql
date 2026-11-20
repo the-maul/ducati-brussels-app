@@ -48,7 +48,7 @@ declare
   _today date := (now() at time zone 'Europe/Brussels')::date;
   _cli uuid; _art uuid; _dev uuid; _dup uuid; _res uuid; _exp text; _expr text; _num text; _numr text; _d record; _st record; _n int;
 begin
-  insert into public.contacts (company_id, type, last_name, first_name) values (_co, 'particulier', 'ESSAI B1', 'Devis') returning id into _cli;
+  insert into public.contacts (company_id, civility, type, last_name, first_name) values (_co, 'Monsieur', 'particulier', 'ESSAI B1', 'Devis') returning id into _cli;
   insert into public.articles (company_id, reference, designation, mgmt_type, sale_price_ht, sale_price_ttc, vat_rate)
   values (_co, 'ESSAIB1-08-' || substr(md5(random()::text), 1, 6), 'ESSAI B1 manchon caoutchouc', 'A', 1.44, 1.74, 21) returning id into _art;
   perform public.record_stock_move(_art, 'entree', 5, 0.80, false, null, 'reception', 'ESSAI-B1', 'stock de depart de l essai');

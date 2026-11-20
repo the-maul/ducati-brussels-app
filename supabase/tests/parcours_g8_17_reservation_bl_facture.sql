@@ -141,7 +141,7 @@ declare
   _cli uuid; _art uuid; _art2 uuid; _res uuid; _bl uuid; _inv uuid; _bl1 uuid; _bl2 uuid; _inv2 uuid;
   _expbl text; _expfac text; _d record; _b record; _st record; _lines text; _moves text; _n int;
 begin
-  insert into public.contacts (company_id, type, last_name, first_name) values (_co, 'particulier', 'ESSAI B1', 'Livraison') returning id into _cli;
+  insert into public.contacts (company_id, civility, type, last_name, first_name) values (_co, 'Monsieur', 'particulier', 'ESSAI B1', 'Livraison') returning id into _cli;
   insert into public.articles (company_id, reference, designation, mgmt_type, sale_price_ht, sale_price_ttc, vat_rate)
   values (_co, 'ESSAIB1-17-' || substr(md5(random()::text), 1, 6), 'ESSAI B1 manchon caoutchouc', 'A', 1.44, 1.74, 21) returning id into _art;
   perform public.record_stock_move(_art, 'entree', 5, 0.80, false, null, 'reception', 'ESSAI-B1', 'stock de depart de l essai');

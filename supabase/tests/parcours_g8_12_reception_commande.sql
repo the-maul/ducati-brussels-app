@@ -53,8 +53,8 @@ begin
   perform public.record_stock_move(_a, 'entree', 3, 0.75, false, null, 'screen', 'ESSAI', 'stock de depart');
   perform public.record_stock_move(_b, 'sortie', -1, null, false, null, 'sale', 'ESSAI', 'vente sans stock');
 
-  insert into public.contacts (company_id, type, first_name, last_name, gsm)
-  values (_co, 'particulier', 'Essai', 'PARCOURS12', '+32470000012') returning id into _cli;
+  insert into public.contacts (company_id, civility, type, first_name, last_name, gsm)
+  values (_co, 'Monsieur', 'particulier', 'Essai', 'PARCOURS12', '+32470000012') returning id into _cli;
   -- Réservation (même enchaînement que l'écran de vente : brouillon, lignes, document_assign_number, réservation de stock)
   insert into public.documents (company_id, doc_type, status, contact_id, issue_date, total_ht, total_vat, total_ttc, price_mode)
   values (_co, 'RES', 'brouillon', _cli, _today, 2, 0.42, 2.42, 'ttc') returning id into _res;
@@ -164,7 +164,7 @@ begin
   insert into _t(check_name, result) values ('Infos commandes client : reservation ' || coalesce(_resnum, '?') || ' du client, qte 2, telephone, casier',
     case when exists (select 1 from public.receipt_customer_infos(_rec_id) i
                        where i.article_id = _a and i.source_kind = 'document' and i.source_id = _res and i.source_number = _resnum
-                         and i.source_type = 'RES' and i.contact_id = _cli and i.contact_name = 'Essai PARCOURS12'
+                         and i.source_type = 'RES' and i.contact_id = _cli and upper(i.contact_name) = 'ESSAI PARCOURS12'
                          and i.contact_phone = '+32470000012' and i.qty_needed = 2 and i.qty_received = 5
                          and i.bin_location = 'A12' and i.informed_at is null) then 'ok' else 'KO' end);
 

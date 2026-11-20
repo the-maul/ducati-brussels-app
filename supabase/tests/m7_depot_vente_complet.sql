@@ -31,8 +31,8 @@ declare
   _dep uuid; _buy uuid; _c uuid; _c2 uuid; r jsonb; r2 jsonb; cs record; cs2 record; v record; d record; _err text;
   _val_before numeric; _val_after numeric; _real numeric; _cred numeric; _deb numeric;
 begin
-  insert into public.contacts (company_id, first_name, last_name) values (_co, 'Essai', 'DEPOSANT DEPOT') returning id into _dep;
-  insert into public.contacts (company_id, first_name, last_name) values (_co, 'Essai', 'ACHETEUR DEPOT') returning id into _buy;
+  insert into public.contacts (company_id, civility, first_name, last_name) values (_co, 'Monsieur', 'Essai', 'DEPOSANT DEPOT') returning id into _dep;
+  insert into public.contacts (company_id, civility, first_name, last_name) values (_co, 'Monsieur', 'Essai', 'ACHETEUR DEPOT') returning id into _buy;
   _val_before := public.stock_value_owned(_co);
 
   -- ------------------------------------------------ calcul du decompte (meme regle que consignment-rules.ts)
