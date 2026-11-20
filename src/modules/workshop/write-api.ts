@@ -74,15 +74,24 @@ function lineTotals(l: RoLineInput, warrantyStatus?: string | null) {
   return { ht: r2(ht), ttc: r2(ttc) };
 }
 
-/** Totaux de l'OR : les actions du check-up « OK » ou « reportées » ne comptent pas. */
+/**
+ * Totaux de l'OR : les actions du check-up « OK » ou « reportées » ne comptent pas.
+ * Lot parcours-fix (20/11) : MÊME règle que la facture (`computeTotals` des ventes, pied G8) — somme
+ * des HT non arrondis, TVA calculée sur ces HT, chacun arrondi au centime ; TTC = HT + TVA. Avant,
+ * l'OR additionnait les TTC arrondis ligne par ligne (113,26 € contre 113,24 € sur la facture).
+ * Miroir SQL : _repair_order_totals_refresh (migration 20261120362000).
+ */
 export function computeRoTotals(lines: RoLineInput[], warrantyStatus?: string | null) {
-  let ht = 0, ttc = 0;
+  let ht = 0, vat = 0;
   for (const l of lines) {
     if (l.checkup_state === 'ok' || l.checkup_state === 'reporte') continue;
-    const tot = lineTotals(l, warrantyStatus); ht += tot.ht; ttc += tot.ttc;
+    const price = lineCoveredByWarranty(l, warrantyStatus) ? 0 : l.unit_price_ht;
+    const lineHt = l.quantity * price * (1 - (l.discount_pct || 0) / 100);
+    ht += lineHt;
+    vat += (lineHt * (l.vat_rate || 0)) / 100;
   }
-  ht = r2(ht); ttc = r2(ttc);
-  return { total_ht: ht, total_vat: r2(ttc - ht), total_ttc: ttc };
+  const total_ht = r2(ht), total_vat = r2(vat);
+  return { total_ht, total_vat, total_ttc: r2(total_ht + total_vat) };
 }
 
 async function nextNumber(companyId: string): Promise<string> {
