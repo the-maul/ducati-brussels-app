@@ -15,7 +15,7 @@ export function ReservedPartsDialog({ appointmentId, startsAt, serviceCode, onCl
       <DialogContent className="max-w-3xl">
         <DialogHeader><DialogTitle>{fillVars(t('reservation.dialogTitle'), { date: fmtDateTime(startsAt) })}</DialogTitle></DialogHeader>
         <ReservedPartsBlock appointmentId={appointmentId} serviceCode={serviceCode} />
-        <DialogFooter><Button onClick={onClose}>{t('reservation.close')}</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>{t('reservation.close')}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

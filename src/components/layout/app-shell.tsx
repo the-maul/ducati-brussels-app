@@ -19,6 +19,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Charte §4.2 (revue UX du 20/11) : de 768 a 1279 px (tablette, portable), la sidebar s'ouvre
+  // repliee (icones, 64 px) pour laisser la largeur au travail ; le bouton menu la deplie.
+  useEffect(() => {
+    const w = window.innerWidth;
+    if (w >= 768 && w < 1280) setCollapsed(true);
+  }, []);
+
   // Bouton menu : ouvre le tiroir sur smartphone, replie la sidebar sur desktop.
   const onMenu = () => (isMobile ? setMobileOpen((o) => !o) : setCollapsed((c) => !c));
 

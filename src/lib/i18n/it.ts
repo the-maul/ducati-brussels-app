@@ -10,6 +10,7 @@ import { smsIt } from './sms';
 import { receptionIt, planOpsIt } from './parcours-cd';
 import { myWorkshopIt } from './mon-atelier';
 import { orLisibleIt } from './or-lisible';
+import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { productionIt } from './production';
 
 export const it: DictionaryShape = {
@@ -3108,7 +3109,7 @@ export const it: DictionaryShape = {
     save: 'Salva', errSave: 'Errore', toInvoice: 'Trasforma in fattura', viewInvoice: 'Vedi la fattura',
     print: 'Stampa', quoteParts: 'Preventivo ricambi',
     // chronos (B11)
-    chrono: 'Timbratrice', chronoTitle: 'Cronometri officina', chronoSubtitle: 'Presenza e tempo di lavoro per OR (produttività B11).',
+    chrono: 'Timbratrice', chronoTitle: 'Timbratrice officina', chronoSubtitle: 'Arrivo, uscita e tempo di lavoro per OR.',
     mechanicName: 'Meccanico', presenceIn: 'Timbra l\'entrata', presenceOut: 'Timbra l\'uscita', presentSince: 'Presente dalle',
     pickOr: 'Lavora su un OR', working: 'Lavoro in corso', stopWork: 'Ferma', startWork: 'Avvia',
     today: 'Oggi', entryKind_presence: 'Presenza', entryKind_travail: 'Lavoro', minutes: 'min', ongoing: 'in corso',
@@ -3365,7 +3366,7 @@ export const it: DictionaryShape = {
   orPage: {
     none: 'Nessuno',
     you: '(tu)',
-    legacyValue: '{value} (vecchio inserimento)',
+    legacyValue: '{value} (inserito a mano)',
     operatorPlaceholder: 'Membro del team…',
     repairTypePlaceholder: 'Scegli il tipo…',
     accidentTitle: 'Pratica incidente',
@@ -3739,7 +3740,7 @@ export const it: DictionaryShape = {
     invoiceTo: 'da fatturare a',
     vWishedPrice: 'Prezzo desiderato dal cliente',
     vWishedPriceOnPdf: 'Visibile sul PDF',
-    valOpen: 'Conferma la permuta', valEdit: 'Modifica la permuta', valCancel: 'Annulla la permuta',
+    valOpen: 'Conferma la permuta', valEdit: 'Modifica prezzi e classificazione', valCancel: 'Annulla la permuta',
     cancelConfirm: 'Annullare questa permuta? Se era confermata, il veicolo uscirà dallo stock usato.',
     valTitle: 'Conferma della permuta',
     valStep1Title: "L'acquirente conferma di aver ricevuto",
@@ -3997,7 +3998,7 @@ export const it: DictionaryShape = {
 
   stock: {
     title: 'Stock e inventario',
-    subtitle: 'Triplo stock (reale / riservato / disponibile), valore PAMP e movimenti.',
+    subtitle: 'Stock reale, riservato e disponibile per articolo, valore PAMP e movimenti.',
     search: 'Cerca (riferimento, descrizione, ubicazione…)',
     empty: 'Nessun articolo a stock.',
     totalValue: 'Valore dello stock',
@@ -9403,6 +9404,8 @@ export const it: DictionaryShape = {
   myWorkshop: myWorkshopIt,
   // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
   orLisible: orLisibleIt,
+  // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
+  ...decisionsQ57Q60It,
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,

@@ -38,6 +38,7 @@ import { insurerRepriceNeeded, priceOrLine, repriceOrLines } from './or-line-pri
 import { articleBasePrices } from './or-line-pricing-api';
 import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
 import { useOrExplodedViews } from './exploded/or-exploded-views';
+import { mergeReservedLine, OR_LINE_RESERVED_EVENT, type OrLineReservedDetail } from './exploded/rules';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
 import {
   defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
@@ -414,6 +415,21 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     pricer, effectiveHt: (ht, v) => effectiveSaleHt(ht, v, roundUp),
     onAdd: (l) => setLines((ls) => [...ls.filter((x) => x.designation.trim() || x.article_id), { ...l, _key: `ro${counter++}` }]),
   });
+  // Q59 (20/11/2026) : « Réserver » (vue éclatée, ici ou dans le parcours / les opérations) a déjà
+  // enregistré la ligne en base ; l'éditeur ajuste SA ligne de cette pièce (sans doublon) ou l'ajoute,
+  // pour que son prochain enregistrement la garde.
+  const editorOrId = o?.id ?? null;
+  useEffect(() => {
+    if (!editorOrId || typeof window === 'undefined') return;
+    const onReserved = (ev: Event) => {
+      const d = (ev as CustomEvent<OrLineReservedDetail>).detail;
+      if (!d || d.orId !== editorOrId) return;
+      setLines((ls) => mergeReservedLine(ls.filter((x) => x.designation.trim() || x.article_id), d.line, d.lineQty,
+        (l) => ({ ...blankLine(), ...l, _key: `ro${counter++}` })));
+    };
+    window.addEventListener(OR_LINE_RESERVED_EVENT, onReserved);
+    return () => window.removeEventListener(OR_LINE_RESERVED_EVENT, onReserved);
+  }, [editorOrId]);
   // MO : la quantité est le nombre d'heures facturées (le temps saisi la suit) ; ligne couverte par
   // la garantie : sa quantité porte les heures garanties.
   const setQuantity = (l: EditLine, q: number) => setLine(l._key, l.kind === 'mo' && l.billed_hours != null && !lineCoveredByWarranty(l, warrantyStatus) ? { quantity: q, billed_hours: q } : { quantity: q });

@@ -32,11 +32,12 @@ import { fmtMoney } from '@/modules/catalog/format';
 import { listReservedParts } from '@/modules/workshop/reservations/api';
 import type { OrLinePricer } from '@/modules/workshop/or-line-pricing';
 import { t, fillVars } from '@/lib/i18n';
-import { articleCatalogRefs, articleSupply, getModelYearInfo, getPricedArticle, locateFirst, reserveForOr } from './api';
+import { articleCatalogRefs, articleSupply, getModelYearInfo, getPricedArticle, locateFirst, reserveForOr, reserveForOrWithLine } from './api';
 import {
-  canAddLine, canReserveLine, catalogPickToOrLine, freeQty, reserveOutcome, stepQty,
-  type ActionContext, type CatalogOrLine,
+  canAddLine, canReserveLine, catalogPickToOrLine, freeQty, OR_LINE_RESERVED_EVENT, reserveOutcome, stepQty,
+  type ActionContext, type CatalogOrLine, type OrLineReservedDetail, type ReserveLineResult,
 } from './rules';
+import { useOrLinePricer } from './or-pricer';
 
 /** Pièce à retrouver : par sa référence, ou par l'article du DMS (ligne d'OR). */
 export type ExplodedTarget = { reference?: string | null; articleId?: string | null } | null;
@@ -149,6 +150,11 @@ function NoModelYear({ reference }: { reference: string | null }) {
 
 /** Le repère choisi : ses pièces, leur état, et les actions sur l'OR. */
 function PositionPanel({ sel, companyId, orId = null, readOnly = false, onAdd = null, pricer = null, effectiveHt }: { sel: SelectedPosition } & ExplodedViewsProps) {
+  // Q59 : « Reserver » ajoute aussi la ligne a l'OR, chiffree comme dans l'editeur. Hors editeur
+  // (parcours, operations), le pricer de l'OR est lu ici.
+  const own = useOrLinePricer(companyId, orId, !pricer && !!orId && !readOnly);
+  const linePricer = pricer ?? own.pricer;
+  const lineEffectiveHt = pricer ? effectiveHt : own.effectiveHt;
   const ids = sel.lines.map((l) => l.article_id).filter((x): x is string => !!x);
   const supply = useQuery({ queryKey: ['exploded', 'supply', ids.join(',')], queryFn: () => articleSupply(ids), enabled: ids.length > 0, staleTime: 300_000 });
   const reserved = useQuery({ queryKey: ['reserved-parts', 'or', orId], queryFn: () => listReservedParts({ orId }), enabled: !!orId });
@@ -161,18 +167,20 @@ function PositionPanel({ sel, companyId, orId = null, readOnly = false, onAdd = 
         {sel.lines.map((l) => (
           <PartRow key={l.line_no} l={l} ctx={ctx} supply={l.article_id ? supply.data?.get(l.article_id) ?? null : null}
             onOr={l.article_id ? (reserved.data ?? []).find((r) => r.articleId === l.article_id && r.status === 'active') ?? null : null}
-            companyId={companyId} onAdd={onAdd} pricer={pricer} effectiveHt={effectiveHt} />
+            companyId={companyId} onAdd={onAdd} pricer={pricer} effectiveHt={effectiveHt}
+            linePricer={linePricer} lineEffectiveHt={lineEffectiveHt} />
         ))}
       </div>
     </section>
   );
 }
 
-function PartRow({ l, ctx, supply, onOr, onAdd, pricer, effectiveHt }: {
+function PartRow({ l, ctx, supply, onOr, onAdd, pricer, effectiveHt, linePricer, lineEffectiveHt }: {
   l: CatalogLine; ctx: ActionContext; supply: string | null;
   onOr: { qtyNeeded: number; qtyReserved: number } | null;
   companyId: string; onAdd: ((line: CatalogOrLine) => void) | null; pricer: OrLinePricer | null;
   effectiveHt?: (ht: number, vat: number) => number;
+  linePricer: OrLinePricer | null; lineEffectiveHt?: (ht: number, vat: number) => number;
 }) {
   const qc = useQueryClient();
   const [qty, setQty] = useState(1);
@@ -192,18 +200,38 @@ function PartRow({ l, ctx, supply, onOr, onAdd, pricer, effectiveHt }: {
     onSuccess: (line) => { onAdd?.(line); toast.success(fillVars(t('exploded.added'), { ref, qty })); },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('exploded.errAdd')),
   });
+  // Q59 (20/11/2026) : « Reserver » met la piece de cote ET ajoute (ou ajuste) la ligne de l'OR,
+  // en une transaction ; l'editeur ouvert recoit la ligne (evenement) pour ne pas l'effacer.
   const reserve = useMutation({
     meta: { success: false },
-    mutationFn: () => reserveForOr(ctx.orId as string, l.article_id as string, qty),
+    mutationFn: async (): Promise<(ReserveLineResult & { legacy?: boolean }) | null> => {
+      const articleId = l.article_id as string;
+      let line: CatalogOrLine | null = null;
+      if (linePricer) {
+        const a = await getPricedArticle(articleId).catch(() => null);
+        if (a) line = await catalogPickToOrLine(a, qty, linePricer, lineEffectiveHt);
+      }
+      const r = await reserveForOrWithLine(ctx.orId as string, articleId, qty, line);
+      if (r) return r;
+      const old = await reserveForOr(ctx.orId as string, articleId, qty);
+      return old ? { ...old, lineStatus: 'kept', lineQty: 0, line: null, legacy: true } : null;
+    },
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['reserved-parts'] });
       qc.invalidateQueries({ queryKey: ['ducati-catalog', 'lines'] });
+      qc.invalidateQueries({ queryKey: ['plan-op-lines'] });
       if (!r) { toast.info(t('exploded.reserveMissing')); return; }
+      if (r.line && ctx.orId && typeof window !== 'undefined') {
+        const detail: OrLineReservedDetail = { orId: ctx.orId, line: r.line, lineQty: r.lineQty };
+        window.dispatchEvent(new CustomEvent(OR_LINE_RESERVED_EVENT, { detail }));
+      }
       const o = reserveOutcome(r);
-      if (o.kind === 'already') toast.info(fillVars(t('exploded.reservedAlready'), { ref }));
-      else if (o.kind === 'reserved') toast.success(fillVars(t('exploded.reserved'), { ref, n: o.reserved }));
-      else if (o.kind === 'basket') toast.success(fillVars(t('exploded.reservedBasket'), { ref, n: o.reserved, missing: o.missing, kind: t(`exploded.basket_${o.basket}`) }));
-      else toast.warning(fillVars(t('exploded.reservedBlocked'), { ref, n: o.reserved, missing: o.missing }));
+      const lineMsg = r.legacy ? '' : r.lineStatus === 'created' ? ` ${fillVars(t('reserveLine.created'), { qty: r.lineQty })}`
+        : r.lineStatus === 'adjusted' ? ` ${fillVars(t('reserveLine.adjusted'), { qty: r.lineQty })}` : ` ${fillVars(t('reserveLine.kept'), { qty: r.lineQty })}`;
+      if (o.kind === 'already') toast.info(fillVars(t('exploded.reservedAlready'), { ref }) + lineMsg);
+      else if (o.kind === 'reserved') toast.success(fillVars(t('exploded.reserved'), { ref, n: o.reserved }) + lineMsg);
+      else if (o.kind === 'basket') toast.success(fillVars(t('exploded.reservedBasket'), { ref, n: o.reserved, missing: o.missing, kind: t(`exploded.basket_${o.basket}`) }) + lineMsg);
+      else toast.warning(fillVars(t('exploded.reservedBlocked'), { ref, n: o.reserved, missing: o.missing }) + lineMsg);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('exploded.errReserve')),
   });
@@ -253,7 +281,7 @@ function PartRow({ l, ctx, supply, onOr, onAdd, pricer, effectiveHt }: {
             <Button type="button" variant="outline" size="icon" className="size-11" onClick={() => setQty((q) => stepQty(q, 1))} aria-label={t('exploded.qtyMore')}><Plus /></Button>
           </div>
           {canReserveLine(l, ctx) && (
-            <Button type="button" variant="outline" className="h-11 px-4" onClick={() => reserve.mutate()} disabled={reserve.isPending} title={t('exploded.reserveHint')}>
+            <Button type="button" variant="outline" className="h-11 px-4" onClick={() => reserve.mutate()} disabled={reserve.isPending} title={t('reserveLine.hint')}>
               {reserve.isPending ? <Loader2 className="animate-spin" /> : <PackageCheck />} {t('exploded.reserve')}
             </Button>
           )}

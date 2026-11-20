@@ -8,7 +8,7 @@
  * typés avec confirmation (Paramètres → Tables → Types de mouvement de caisse), grille de calcul monnaie
  * partagée (`cash-count.tsx`), avertissement « caisse ouverte depuis la veille » (jamais bloquant).
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Lock, Wallet, AlertTriangle, FileDown, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,8 @@ function OpenForm({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
   const { data: proposed } = useQuery({ queryKey: ['cash-drawer-balance', companyId], queryFn: () => getDrawerBalance(companyId) });
   const [float, setFloat] = useState<string | null>(null);
-  const value = float ?? (proposed != null ? String(proposed) : '');
+  // Fond proposé à 0 : champ vide (placeholder) — sinon taper « 100 » devant le « 0 » donnait 1000 €.
+  const value = float ?? (proposed != null && proposed !== 0 ? String(proposed) : '');
   const [note, setNote] = useState('');
   const gap = proposed != null && value.trim() !== '' ? Math.round((num(value) - proposed) * 100) / 100 : 0;
   const open = useMutation({
@@ -71,7 +72,7 @@ function OpenForm({ companyId }: { companyId: string }) {
   return (
     <div className="max-w-md space-y-3 rounded-md border border-border bg-card p-4">
       <p className="flex items-center gap-2 text-sm font-bold"><Wallet className="size-4" /> {t('cash.noSession')}</p>
-      <div className="space-y-1"><Label>{t('cash.openingFloat')}</Label><Input type="number" step="0.01" value={value} onChange={(e) => setFloat(e.target.value)} className="text-right tabular-nums" placeholder="0,00" /></div>
+      <div className="space-y-1"><Label>{t('cash.openingFloat')}</Label><Input type="number" step="0.01" value={value} onChange={(e) => setFloat(e.target.value)} onFocus={(e) => e.currentTarget.select()} className="text-right tabular-nums" placeholder="0,00" /></div>
       {proposed != null && <p className="font-data text-[12px] tabular-nums text-muted-foreground">{t('cash.proposedFloat')} : <b>{eur(proposed)}</b></p>}
       {gap !== 0 && (
         <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[12px] text-warning">
@@ -88,9 +89,10 @@ function OpenForm({ companyId }: { companyId: string }) {
 /* ---------------- Session ouverte ---------------- */
 function OpenSession({ companyId, session }: { companyId: string; session: CashSession }) {
   const qc = useQueryClient();
-  const nowIso = useMemo(() => new Date().toISOString(), []); // borne haute figée pour cette vue
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
-  const { data: movements } = useQuery({ queryKey: ['cash-mov', session.id], queryFn: () => listSessionMovements(companyId, session.opened_at, nowIso) });
+  // Borne haute recalculée à chaque lecture : figée au montage, un mouvement saisi ensuite (sortie
+  // de 10 € pour consommables) restait hors des espèces théoriques jusqu'au rechargement de la page.
+  const { data: movements } = useQuery({ queryKey: ['cash-mov', session.id], queryFn: () => listSessionMovements(companyId, session.opened_at, new Date(Date.now() + 60_000).toISOString()) });
   // Rapport X : calculé sur la session (tickets et règlements rattachés), non numéroté.
   const { data: z } = useQuery({ queryKey: ['cash-z', session.id], queryFn: () => getSessionReport(session) });
   const [closed, setClosed] = useState<CashSession | null>(null);

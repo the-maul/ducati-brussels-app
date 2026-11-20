@@ -210,7 +210,9 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
 }) {
   const navigate = useNavigate();
   const po = usePlanOps({ orId, companyId, orStatus, autoInit, onChanged });
-  const [open, setOpen] = useState(true);
+  // Revue UX (20/11) : une longue liste (entretien annuel : 28 operations) se replie par defaut sur
+  // la fiche OR, pour que l'en-tete client / moto / lignes ne soit pas 6 ecrans plus bas.
+  const [openPref, setOpen] = useState<boolean | null>(null);
   const [notDone, setNotDone] = useState<PlanOp | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   if (!po.ready) return null;
@@ -228,6 +230,9 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
   }
   const first = po.ops[0];
   const pr = po.progress;
+  const open = openPref ?? po.ops.length <= 8;
+  // Aucune operation n'a de mode operatoire : on le dit une fois, pas sur chaque ligne.
+  const anyProcedure = po.ops.some((o) => !!o.procedure_id);
   const openProcedure = (op: PlanOp) => navigate({ to: '/workshop/journey/$orId', params: { orId }, search: { op: op.op_key } });
   return (
     <section className="mb-4 rounded-md border border-border bg-card p-3 shadow-[var(--shadow-card)]">
@@ -254,12 +259,15 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
           <Button variant="outline" className="h-12 text-[15px]" onClick={() => openProcedure(po.ops.find((o) => o.status === 'a_faire') ?? first)}>
             <BookOpen /> {t('planOps.openJourney')}
           </Button>
-          <Button variant="ghost" className="h-12" onClick={() => setOpen((x) => !x)} aria-expanded={open}>
+          <Button variant="ghost" className="h-12" onClick={() => setOpen(!open)} aria-expanded={open}>
             {open ? <ChevronUp /> : <ChevronDown />} {open ? t('planOps.hide') : t('planOps.show')}
           </Button>
         </div>
       </div>
 
+      {open && !anyProcedure && (
+        <p className="mt-3 flex items-center gap-1.5 text-[13px] text-muted-foreground"><BookOpen className="size-4" aria-hidden />{t('planOps.noProcedure')}</p>
+      )}
       {open && (
         <ul className="mt-3 space-y-1.5">
           {po.ops.map((op, i) => {
@@ -291,7 +299,7 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
                       )}
                       {op.procedure_id
                         ? <button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:underline" onClick={() => openProcedure(op)}><BookOpen className="size-3.5" aria-hidden />{t('planOps.procedure')}</button>
-                        : <span className="inline-flex items-center gap-1"><BookOpen className="size-3.5" aria-hidden />{t('planOps.noProcedure')}</span>}
+                        : anyProcedure && <span className="inline-flex items-center gap-1"><BookOpen className="size-3.5" aria-hidden />{t('planOps.noProcedure')}</span>}
                     </div>
                     {linked.length > 0 && (
                       <ul className="mt-1 flex flex-wrap gap-1.5">

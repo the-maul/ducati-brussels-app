@@ -159,6 +159,55 @@ export function reserveOutcome(r: ReserveResult): ReserveOutcome {
   return { kind: 'basket', reserved: r.qtyReserved, missing, basket: r.basketKind === 'standard' ? 'standard' : 'urgente' };
 }
 
+// ------------------------------------------------------------------ Q59 : « Reserver » ajoute la ligne
+/**
+ * Decision client Q59 (20/11/2026) : « Reserver » met la piece de cote ET ajoute la ligne a l'OR
+ * (chiffree par priceOrLine), sans doublon. Miroir de workshop_reservation_add_line
+ * (migration 20261120103000) : quantite voulue = besoin de la reservation ; lignes « piece » de
+ * l'article (hors cartes du check-up OK / reportees) ; si elles couvrent deja le besoin, rien ne
+ * change ; sinon la premiere ligne (hors garantie d'abord) recoit la difference ; sans ligne, une
+ * ligne est ajoutee.
+ */
+export type ReserveLineResult = ReserveResult & {
+  lineStatus: 'created' | 'adjusted' | 'kept';
+  lineQty: number;
+  line: CatalogOrLine | null;
+};
+export type MergeableLine = {
+  kind: string; article_id?: string | null; quantity: number; is_warranty?: boolean; checkup_state?: string | null;
+};
+const q3 = (n: number) => Math.round(n * 1000) / 1000;
+const countsForArticle = (l: MergeableLine, articleId: string) =>
+  l.kind === 'piece' && l.article_id === articleId && l.checkup_state !== 'ok' && l.checkup_state !== 'reporte';
+
+/** Plan cote base (et miroir pour les tests) : ce que deviennent les lignes pour un besoin donne. */
+export function reserveLinePlan(lines: readonly MergeableLine[], articleId: string, needed: number):
+  | { kind: 'kept' } | { kind: 'adjust'; index: number; quantity: number } | { kind: 'create'; quantity: number } {
+  const idx = lines.map((l, i) => ({ l, i })).filter((x) => countsForArticle(x.l, articleId));
+  const total = q3(idx.reduce((s, x) => s + (Number(x.l.quantity) || 0), 0));
+  if (total >= needed) return { kind: 'kept' };
+  const add = q3(needed - total);
+  if (!idx.length) return { kind: 'create', quantity: add };
+  const first = [...idx].sort((a, b) => Number(!!a.l.is_warranty) - Number(!!b.l.is_warranty) || a.i - b.i)[0];
+  return { kind: 'adjust', index: first.i, quantity: q3((Number(first.l.quantity) || 0) + add) };
+}
+
+/**
+ * L'editeur de l'OR ouvert recoit la ligne enregistree par « Reserver » : il ajuste SA ligne de
+ * cet article (sans doublon) ou l'ajoute, pour qu'un enregistrement de l'editeur ne l'efface pas.
+ * `lineQty` = quantite totale de l'article sur l'OR en base apres la reservation.
+ */
+export function mergeReservedLine<L extends MergeableLine>(lines: readonly L[], line: CatalogOrLine, lineQty: number, make: (l: CatalogOrLine) => L): L[] {
+  const plan = reserveLinePlan(lines, line.article_id, lineQty);
+  if (plan.kind === 'kept') return [...lines];
+  if (plan.kind === 'adjust') return lines.map((l, i) => (i === plan.index ? { ...l, quantity: plan.quantity } : l));
+  return [...lines, make({ ...line, quantity: plan.quantity })];
+}
+
+/** Evenement navigateur : une ligne d'OR vient d'etre ajoutee / ajustee par « Reserver ». */
+export const OR_LINE_RESERVED_EVENT = 'ducati:or-line-reserved';
+export type OrLineReservedDetail = { orId: string; line: CatalogOrLine; lineQty: number };
+
 // ------------------------------------------------------------------ operation du parcours (lot F)
 /** Pieces de l'operation qui ont un article du DMS (une seule fois par article). */
 export function operationArticles(info: { lines: readonly { article_id: string | null; designation: string }[] }): { articleId: string; designation: string }[] {

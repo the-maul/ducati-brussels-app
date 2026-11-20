@@ -21,7 +21,8 @@ export const Route = createFileRoute('/_app/stock/')({
   component: StockList,
 });
 
-const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+// Revue UX (20/11) : separateur de milliers (801 519,71 € et non 801519,71 €), comme le reste de l'ecran.
+const eur = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /** Filtres multicritères de l'écran (état). */
 type FiltersState = { supplierId: string; rayon: string; dateFrom: string; dateTo: string };

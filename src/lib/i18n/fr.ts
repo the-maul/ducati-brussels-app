@@ -10,6 +10,7 @@ import { smsFr } from './sms';
 import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
 import { orLisibleFr } from './or-lisible';
+import { decisionsQ57Q60Fr } from './decisions-q57-q60';
 import { productionFr } from './production';
 
 export const fr = {
@@ -2914,7 +2915,7 @@ export const fr = {
 
   // Check-up a l'accueil, proposition d'intervention, accord client, interventions reportees (M8/M9, ATE008 ATE009)
   checkup: {
-    reason: 'Motif d\'entree', reasonPlaceholder: 'Pourquoi la moto entre-t-elle ?', reasonNone: 'Non precise',
+    reason: 'Motif d\'entrée', reasonPlaceholder: 'Pourquoi la moto entre-t-elle ?', reasonNone: 'Non précisé',
     tabFiche: 'Fiche et lignes', tabCheckup: 'Check-up', linesFromCheckup: '{n} action(s) du check-up sont comptees dans le total (onglet Check-up).',
     intro: 'Une carte par action : son etat, une photo, le temps, les pieces. Les actions « a faire » et « a prevoir » partent dans la proposition envoyee au client.',
     nextDue: 'Prochain entretien :', prefillFromPlan: 'Pre-remplir depuis le plan d\'entretien',
@@ -2924,16 +2925,16 @@ export const fr = {
     editWhilePending: 'La proposition est partie chez le client. Si vous modifiez les actions, renvoyez-la.',
     emptyTitle: 'Aucune action pour l\'instant', emptyHint: 'Ajoutez un constat (pneu, freins…) ou pre-remplissez depuis le plan d\'entretien.',
     addFinding: '+ Constat', labelPlaceholder: 'Ex. Plaquettes avant usees', removeCard: 'Retirer cette action', fromPlan: 'Depuis le plan d\'entretien',
-    state_ok: 'OK', state_a_faire: 'A faire', state_a_prevoir: 'A prevoir', state_reporte: 'Reportee par le client',
+    state_ok: 'OK', state_a_faire: 'À faire', state_a_prevoir: 'À prévoir', state_reporte: 'Reportée par le client',
     takePhoto: 'Prendre une photo', retakePhoto: 'Reprendre la photo', fromGallery: 'Galerie', removePhoto: 'Retirer la photo',
     hours: 'Temps (heures)', hoursHint: 'Heures decimales (1,5 = 1 h 30)', suggestedHours: 'Propose : {h} h (plan d\'entretien)', rate: '{rate} / h',
     labour: 'Main-d\'oeuvre', parts: 'Pieces', addPart: 'Ajouter une piece', removePart: 'Retirer la piece',
     totalProposed: '{n} action(s) proposee(s) au client', needClient: 'Un client est requis pour envoyer la proposition.', needAction: 'Aucune action « a faire » ou « a prevoir ».',
     sendProposal: 'Envoyer la proposition', proposalCreated: 'Proposition d\'intervention creee : choisissez la boite d\'envoi et envoyez.',
     noProposal: 'Aucune proposition sur cet OR.', migrationMissing: 'Le check-up et l\'accord client seront actifs des que la migration 20261031110000 sera appliquee.',
-    workBlocked: 'Accord client en attente : aucune intervention ne demarre tant que le client n\'a pas signe (ou donne son accord verbal, note ci-dessous).',
-    approvalTitle: 'Accord client', approval_none: 'Aucune proposition envoyee', approval_en_attente: 'EN ATTENTE', approval_signe: 'Signe',
-    approval_accord_verbal: 'Accord verbal', approval_refuse: 'Refuse',
+    workBlocked: 'Accord client en attente : aucune intervention ne démarre tant que le client n\'a pas signé (ou donné son accord verbal, noté ci-dessous).',
+    approvalTitle: 'Accord client', approval_none: 'Aucune proposition envoyée', approval_en_attente: 'EN ATTENTE', approval_signe: 'Signé',
+    approval_accord_verbal: 'Accord verbal', approval_refuse: 'Refusé',
     approvalSigned: 'Signe le {when} par {who} ({channel}).', approvalVerbal: 'Accord verbal le {when} par {who} ({channel}).',
     approvalPendingHint: 'Le client n\'a pas encore signe. Appelez-le si besoin et notez son accord verbal.',
     approvalRefused: 'Le client a refuse la proposition.', approvalNoneHint: 'Faites le check-up puis envoyez la proposition au client.',
@@ -2941,11 +2942,11 @@ export const fr = {
     channel_signature_distance: 'signature a distance', channel_signature_comptoir: 'signature au comptoir', channel_telephone: 'telephone', channel_comptoir: 'au comptoir', channel_mail: 'e-mail',
     verbalTitle: 'Accord verbal du client', verbalIntro: 'A noter seulement si le client a donne son accord (telephone, comptoir, e-mail). Trace dans l\'historique.',
     verbalWho: 'Accord donne par', verbalWhen: 'Quand', verbalChannel: 'Canal', verbalNote: 'Note', verbalConfirm: 'Noter l\'accord', verbalSaved: 'Accord verbal enregistre.',
-    deferredStepTitle: 'Date pour les interventions reportees', deferredStepIntro: 'Le client avait reporte ces travaux. Convenez d\'une date avec lui avant de remettre les cles.',
-    deferredDate: 'Date proposee', deferredDateHint: 'Par defaut : dans 30 jours.', deferredTotal: 'Total', deferredNotNow: 'Pas maintenant', deferredConfirm: 'Fixer la date',
-    deferredPlanned: 'Interventions planifiees au {date}.', deferredTitle: 'Interventions reportees', deferredTab: 'Reportees', deferredEmpty: 'Aucune intervention reportee.',
-    deferredNoDate: 'Sans date', deferredSetDate: 'Fixer une date', deferredAbandonConfirm: 'Abandonner cette intervention reportee ?',
-    deferred_a_planifier: 'A planifier', deferred_planifie: 'Planifiee', deferred_relance: 'Relancee', deferred_fait: 'Faite', deferred_abandonne: 'Abandonnee',
+    deferredStepTitle: 'Date pour les interventions reportées', deferredStepIntro: 'Le client avait reporté ces travaux. Convenez d\'une date avec lui avant de remettre les clés.',
+    deferredDate: 'Date proposée', deferredDateHint: 'Par défaut : dans 30 jours.', deferredTotal: 'Total', deferredNotNow: 'Pas maintenant', deferredConfirm: 'Fixer la date',
+    deferredPlanned: 'Interventions planifiées au {date}.', deferredTitle: 'Interventions reportées', deferredTab: 'Reportées', deferredEmpty: 'Aucune intervention reportée.',
+    deferredNoDate: 'Sans date', deferredSetDate: 'Fixer une date', deferredAbandonConfirm: 'Abandonner cette intervention reportée ?',
+    deferred_a_planifier: 'À planifier', deferred_planifie: 'Planifiée', deferred_relance: 'Relancée', deferred_fait: 'Faite', deferred_abandonne: 'Abandonnée',
     mailSubject: 'Proposition d\'intervention {number} — {company}',
     mailBody: 'Bonjour {client},\n\nLors de l\'accueil de votre moto (OR {or}), notre atelier a fait un check-up. Vous trouverez en piece jointe notre proposition d\'intervention n° {number}.\n\nPour l\'accepter, cochez ce que vous souhaitez faire maintenant et signez d\'un clic :\n{link}\n\nNous restons a votre disposition.\n\nCordialement,',
     pdfTitle: 'Proposition d\'intervention', pdfDeferred: 'reportee', pdfSignedTitle: 'Signe electroniquement', pdfSignedBy: 'Par', pdfSignedRemote: 'a distance', pdfSignedCounter: 'au comptoir',
@@ -3123,7 +3124,7 @@ export const fr = {
     save: 'Enregistrer', errSave: 'Erreur', toInvoice: 'Transformer en facture', viewInvoice: 'Voir la facture',
     print: 'Imprimer', quoteParts: 'Devis de pièces',
     // chronos (B11)
-    chrono: 'Pointeuse', chronoTitle: 'Chronos atelier', chronoSubtitle: 'Présence et temps de travail par OR (productivité B11).',
+    chrono: 'Pointeuse', chronoTitle: 'Pointeuse atelier', chronoSubtitle: 'Arrivée, départ et temps de travail par OR.',
     mechanicName: 'Mécanicien', presenceIn: 'Pointer l\'arrivée', presenceOut: 'Pointer le départ', presentSince: 'Présent depuis',
     pickOr: 'Travailler sur un OR', working: 'Travail en cours', stopWork: 'Arrêter', startWork: 'Démarrer',
     today: 'Aujourd\'hui', entryKind_presence: 'Présence', entryKind_travail: 'Travail', minutes: 'min', ongoing: 'en cours',
@@ -3380,7 +3381,7 @@ export const fr = {
   orPage: {
     none: 'Aucun',
     you: '(vous)',
-    legacyValue: '{value} (ancienne saisie)',
+    legacyValue: '{value} (saisi à la main)',
     operatorPlaceholder: 'Membre de l\'équipe…',
     repairTypePlaceholder: 'Choisir le type…',
     accidentTitle: 'Dossier accident',
@@ -3754,7 +3755,7 @@ export const fr = {
     invoiceTo: 'à facturer à',
     vWishedPrice: 'Prix souhaité par le client',
     vWishedPriceOnPdf: 'Visible sur le PDF',
-    valOpen: 'Valider la reprise', valEdit: 'Modifier la reprise', valCancel: 'Annuler la reprise',
+    valOpen: 'Valider la reprise', valEdit: 'Modifier prix et classement', valCancel: 'Annuler la reprise',
     cancelConfirm: 'Annuler cette reprise ? Si elle était validée, le véhicule sortira du stock occasion.',
     valTitle: 'Validation de la reprise',
     valStep1Title: "L'acheteur confirme avoir reçu",
@@ -4012,7 +4013,7 @@ export const fr = {
 
   stock: {
     title: 'Stock & inventaire',
-    subtitle: 'Triple stock (réel / réservé / disponible), valeur PAMP et mouvements.',
+    subtitle: 'Stock réel, réservé et disponible par article, valeur au PAMP et mouvements.',
     search: 'Rechercher (référence, désignation, localisation…)',
     empty: 'Aucun article en stock.',
     totalValue: 'Valeur du stock',
@@ -4632,7 +4633,7 @@ export const fr = {
     shopStock: 'Stock magasin',
     notInformed: 'À prévenir',
     markInformed: 'Client informé',
-    propButton: 'Prop. commande',
+    propButton: 'Proposition de commande',
     propTitle: 'Mise en proposition de commande',
     propHint: 'Les lignes rejoignent la proposition en brouillon du fournisseur et du type choisi (Achats › Propositions), à valider puis à passer en commande. Quantité arrondie au conditionnement d\'achat.',
     propNothing: 'Cochez au moins un article avec une quantité.',
@@ -5358,7 +5359,7 @@ export const fr = {
     // Propositions d'intervention de l'atelier (ATE009)
     proposals: {
       title: 'Une proposition de notre atelier attend votre signature',
-      line: 'Proposition {number} — ordre de reparation {or}',
+      line: 'Proposition {number} — ordre de réparation {or}',
       total: 'Total propose :', sign: 'Lire et signer', signedTitle: 'Propositions signees', view: 'Voir',
     },
     nav: {
@@ -9423,6 +9424,8 @@ export const fr = {
   myWorkshop: myWorkshopFr,
   // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
   orLisible: orLisibleFr,
+  // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
+  ...decisionsQ57Q60Fr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

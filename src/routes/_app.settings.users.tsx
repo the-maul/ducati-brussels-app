@@ -400,7 +400,7 @@ function CreateUserDialog({
         {done ? (
           <>
             <p className="rounded-md bg-muted px-3 py-2 text-[13px]">{done}</p>
-            <DialogFooter><Button onClick={onClose}>{t('users.close')}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={onClose}>{t('users.close')}</Button></DialogFooter>
           </>
         ) : (
           <>

@@ -10,6 +10,7 @@ import { smsEn } from './sms';
 import { receptionEn, planOpsEn } from './parcours-cd';
 import { myWorkshopEn } from './mon-atelier';
 import { orLisibleEn } from './or-lisible';
+import { decisionsQ57Q60En } from './decisions-q57-q60';
 import { productionEn } from './production';
 
 export const en: DictionaryShape = {
@@ -3108,7 +3109,7 @@ export const en: DictionaryShape = {
     save: 'Save', errSave: 'Error', toInvoice: 'Convert to invoice', viewInvoice: 'View the invoice',
     print: 'Print', quoteParts: 'Parts quote',
     // chronos (B11)
-    chrono: 'Time clock', chronoTitle: 'Workshop timers', chronoSubtitle: 'Attendance and working time per repair order (productivity B11).',
+    chrono: 'Time clock', chronoTitle: 'Workshop time clock', chronoSubtitle: 'Arrival, departure and working time per repair order.',
     mechanicName: 'Mechanic', presenceIn: 'Clock in', presenceOut: 'Clock out', presentSince: 'Present since',
     pickOr: 'Work on a repair order', working: 'Work in progress', stopWork: 'Stop', startWork: 'Start',
     today: 'Today', entryKind_presence: 'Attendance', entryKind_travail: 'Work', minutes: 'min', ongoing: 'in progress',
@@ -3365,7 +3366,7 @@ export const en: DictionaryShape = {
   orPage: {
     none: 'None',
     you: '(you)',
-    legacyValue: '{value} (old entry)',
+    legacyValue: '{value} (typed by hand)',
     operatorPlaceholder: 'Team member…',
     repairTypePlaceholder: 'Choose the type…',
     accidentTitle: 'Accident file',
@@ -3739,7 +3740,7 @@ export const en: DictionaryShape = {
     invoiceTo: 'to be invoiced to',
     vWishedPrice: 'Price wished by the customer',
     vWishedPriceOnPdf: 'Shown on the PDF',
-    valOpen: 'Confirm the trade-in', valEdit: 'Edit the trade-in', valCancel: 'Cancel the trade-in',
+    valOpen: 'Confirm the trade-in', valEdit: 'Edit prices and classification', valCancel: 'Cancel the trade-in',
     cancelConfirm: 'Cancel this trade-in? If it was confirmed, the vehicle will leave the used stock.',
     valTitle: 'Trade-in confirmation',
     valStep1Title: 'The buyer confirms having received',
@@ -3997,7 +3998,7 @@ export const en: DictionaryShape = {
 
   stock: {
     title: 'Stock & stocktake',
-    subtitle: 'Triple stock (actual / reserved / available), WAC value and movements.',
+    subtitle: 'Actual, reserved and available stock per item, WAC value and movements.',
     search: 'Search (reference, description, location…)',
     empty: 'No article in stock.',
     totalValue: 'Stock value',
@@ -9403,6 +9404,8 @@ export const en: DictionaryShape = {
   myWorkshop: myWorkshopEn,
   // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
   orLisible: orLisibleEn,
+  // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
+  ...decisionsQ57Q60En,
   g8a: g8aEn,
   sms: smsEn,
   production: productionEn,

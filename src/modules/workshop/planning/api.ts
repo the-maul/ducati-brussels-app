@@ -84,7 +84,16 @@ export type PlanningSettings = {
    * 20261119241000, mode G8 « arret automatique ») : off | end_of_schedule. Absent tant que la
    * migration manque : ni lu ni ecrit.
    */
-  auto_stop_mode?: 'off' | 'end_of_schedule';
+  auto_stop_mode?: 'off' | 'end_of_schedule' | 'ask';
+  /**
+   * Q57 (20/11/2026, migration 20261120101000) : mode « ask » = « Vous etes toujours la ? » a
+   * l'heure de fin ; pause automatique apres `end_of_day_prompt_minutes` (5) sans reponse ;
+   * « Oui, je continue » repousse de `end_of_day_snooze_minutes` (60). Absents sans la migration.
+   */
+  end_of_day_prompt_minutes?: number | string;
+  end_of_day_snooze_minutes?: number | string;
+  /** Q60 (migration 20261120100000) : identite collee sur la tablette partagee, en secondes (120). */
+  shared_identity_seconds?: number | string;
   /**
    * « Mon atelier » (cartes lisibles, 19/11, migration 20261119320000) : un OR ouvert depuis plus
    * de ce nombre de jours, sans pointage depuis autant de jours, passe dans « OR anciens a
@@ -107,9 +116,18 @@ export async function savePlanningSettings(s: PlanningSettings): Promise<void> {
   // Lot B (20261119250000) : la picking list des RDV a ses reglages et sa fonction
   // (workshop_parts_settings_set, tracee) ; ce formulaire ne les reecrit pas avec une valeur lue avant.
   // Lot C (20261119270000) : la serie de photos de reception a sa fonction (workshop_reception_settings_set).
-  const { picking_auto_mode: _mode, picking_eve_hour: _hour, reception_photo_slots: _slots, ...row } = s as PlanningSettings & { picking_auto_mode?: unknown; picking_eve_hour?: unknown; reception_photo_slots?: unknown };
+  // Q58 / Q60 (20/11) : la veille ouvree (workshop_parts_settings_set) et la duree d'identite de la
+  // tablette partagee (section Tablettes) ont leur propre enregistrement : pas reecrits ici.
+  const { picking_auto_mode: _mode, picking_eve_hour: _hour, reception_photo_slots: _slots, picking_eve_basis: _basis, shared_identity_seconds: _ttl, ...row } = s as PlanningSettings & { picking_auto_mode?: unknown; picking_eve_hour?: unknown; reception_photo_slots?: unknown; picking_eve_basis?: unknown };
   // Seuil des OR anciens : un champ vide ou hors limites redevient 14 (contrainte 1 a 365 en base).
   if ('stale_or_days' in row && row.stale_or_days !== undefined) row.stale_or_days = staleDaysSetting(row.stale_or_days);
+  // Q57 / Q60 : champ vide ou hors limites → valeur par defaut (contraintes en base).
+  const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n >= lo && n <= hi ? n : dflt;
+  };
+  if (row.end_of_day_prompt_minutes !== undefined) row.end_of_day_prompt_minutes = clampInt(row.end_of_day_prompt_minutes, 1, 60, 5);
+  if (row.end_of_day_snooze_minutes !== undefined) row.end_of_day_snooze_minutes = clampInt(row.end_of_day_snooze_minutes, 5, 240, 60);
   unwrap(await loose.from('workshop_planning_settings').upsert({ ...row }, { onConflict: 'company_id' }));
 }
 

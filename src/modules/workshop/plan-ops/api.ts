@@ -7,6 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { toNotDoneReason, type NotDoneReason, type PlanOp, type PlanOpLine, type PlanOpStatus } from './rules';
 import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
+import { withIdentityIfShared } from '../shared-tablet/store';
+import { sharedTrace } from '../shared-tablet/api';
 
 export const NOT_DONE_REASON_TABLE_KEY = 'workshop_op_not_done_reason';
 
@@ -72,8 +74,17 @@ export type SetResult = { status: PlanOpStatus | 'unchanged'; operation_id: stri
 
 /** Cocher « fait », marquer « non faite » (motif), revenir « a faire » : trace (qui, quand, pointage). */
 export function setPlanOp(opId: string, status: PlanOpStatus, opts: { reason?: string | null; note?: string | null; mechanicCode?: string | null } = {}): Promise<SetResult> {
-  return call<SetResult>('repair_order_operation_set', {
-    _op: opId, _status: status, _reason: opts.reason ?? null, _note: opts.note ?? null, _mechanic_code: opts.mechanicCode ?? null,
+  // Q60 (20/11/2026) : tablette partagee → « Qui etes-vous ? » d'abord ; l'operation est reliee au
+  // pointage du compagnon identifie (son code) et le geste est trace (qui, depuis quel compte).
+  return withIdentityIfShared(async (id) => {
+    const r = await call<SetResult>('repair_order_operation_set', {
+      _op: opId, _status: status, _reason: opts.reason ?? null, _note: opts.note ?? null,
+      _mechanic_code: opts.mechanicCode ?? id?.code ?? null,
+    });
+    if (id && r.status !== 'unchanged') {
+      await sharedTrace(id.session, 'operation_set', 'repair_order_plan_operations', opId, { status, reason: opts.reason ?? null }).catch(() => undefined);
+    }
+    return r;
   });
 }
 

@@ -12,6 +12,8 @@ import { compressImageFile } from '@/lib/image-tools';
 import { deleteAttachment, signedUrl, uploadAttachment, type Attachment } from '@/modules/documents/ged-api';
 import { parseSlots, type ReceptionPhoto, type ReceptionSlot, type ReceptionStatus } from './rules';
 import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
+import { withIdentityIfShared } from '../shared-tablet/store';
+import { sharedTrace } from '../shared-tablet/api';
 
 export const RECEPTION_GED_FOLDER = 'Réception';
 
@@ -108,7 +110,18 @@ export async function listVehicleReceptionPhotos(vehicleId: string): Promise<Veh
  * Prend une photo : reduite (2 000 px, JPEG), deposee dans la GED de l'OR (dossier « Réception »),
  * puis rangee dans la case. Une case deja prise est remplacee : l'ancienne piece quitte la GED.
  */
-export async function addReceptionPhoto(p: {
+export function addReceptionPhoto(p: {
+  companyId: string; orId: string; slot: string; label: string; file: File; comment?: string | null;
+}): Promise<{ photoId: string; missing: string[] }> {
+  // Q60 (20/11/2026) : tablette partagee → « Qui etes-vous ? » d'abord, photo tracee (qui, depuis quel compte).
+  return withIdentityIfShared(async (id) => {
+    const r = await addReceptionPhotoCore(p);
+    if (id) await sharedTrace(id.session, 'reception_photo', 'repair_orders', p.orId, { slot: p.slot, photo_id: r.photoId }).catch(() => undefined);
+    return r;
+  });
+}
+
+async function addReceptionPhotoCore(p: {
   companyId: string; orId: string; slot: string; label: string; file: File; comment?: string | null;
 }): Promise<{ photoId: string; missing: string[] }> {
   const compact = await compressImageFile(p.file, 'upload');
