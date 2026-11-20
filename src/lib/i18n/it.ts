@@ -16,6 +16,7 @@ import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
 import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
+import { designTransverseIt } from './design-transverse';
 
 export const it: DictionaryShape = {
   app: {
@@ -9419,4 +9420,6 @@ export const it: DictionaryShape = {
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,
+  // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
+  designTransverse: designTransverseIt,
 };

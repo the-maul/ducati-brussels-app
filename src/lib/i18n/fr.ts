@@ -16,6 +16,7 @@ import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
+import { designTransverseFr } from './design-transverse';
 
 export const fr = {
   app: {
@@ -9439,6 +9440,8 @@ export const fr = {
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,
+  // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
+  designTransverse: designTransverseFr,
 } as const;
 
 export type Dictionary = typeof fr;
