@@ -892,12 +892,17 @@ export async function generateCreditNote(invoiceId: string, selection?: CreditSe
     cashSessionId: open?.id ?? null, sourceDocType: doc.doc_type,
   });
 
-  // Réintégration du stock : entrée réel +qté pour chaque ligne article créditée (B4).
+  // Réintégration du stock : entrée réel +qté pour chaque ligne article créditée (B4). Le mouvement
+  // porte le numéro de l'AVOIR (B7, G8 Historique mouvements : « Avoir » est le document d'origine de
+  // l'entrée) et la facture créditée en note (parcours G8 n° 6, vérification du 20/11/2026 : avant, la
+  // référence était le numéro de la facture et l'avoir n'apparaissait pas dans l'historique du stock).
+  const avo = await getDocumentFull(avoId);
   for (const c of credited) {
     if (!lineMovesStock(c.line) || !c.line.article_id) continue;
     const { error } = await supabase.rpc('record_stock_move', {
       _article: c.line.article_id, _type: 'entree', _qty: c.quantity, _unit_cost: undefined,
-      _is_reservation: false, _bin: undefined, _origin: 'sale', _ref: doc.number ?? undefined, _note: 'Avoir / réintégration',
+      _is_reservation: false, _bin: undefined, _origin: 'sale', _ref: avo.doc.number ?? doc.number ?? undefined,
+      _note: `Avoir / réintégration ${doc.number ?? ''}`.trim(),
     });
     if (error) throw error;
   }
@@ -905,7 +910,6 @@ export async function generateCreditNote(invoiceId: string, selection?: CreditSe
   // Règlement de l avoir (lot facture légale) : lettrage du dû de la facture (mode AVO, sans trésorerie),
   // puis remboursement du surplus au mode des règlements réellement perçus (contre-passations déduites,
   // arrondi `ARR` ignoré, espèces arrondies à 5 cents : `refundLines`, PDV010).
-  const avo = await getDocumentFull(avoId);
   const paid = await listPayments(invoiceId);
   const received = receivedByMethod(paid.filter((p) => p.method !== CREDIT_SETTLEMENT_METHOD));
   const settlement = creditNoteSettlement(doc, received, Number(avo.doc.total_ttc));
