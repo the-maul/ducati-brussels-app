@@ -14,6 +14,7 @@ import { uxAtelierEn } from './ux-atelier';
 import { decisionsQ57Q60En } from './decisions-q57-q60';
 import { dashboardCaEn } from './dashboard-ca';
 import { decisionsQ63Q67En } from './decisions-q63-q67';
+import { vpG8En } from './vp-g8';
 import { purchasePrintEn } from './purchase-print';
 import { productionEn } from './production';
 
@@ -5017,14 +5018,15 @@ export const en: DictionaryShape = {
       RES: "Reservation / customer order: reserves the stock.",
       BC: "Purchase order signed by the customer (motorcycle sale).",
       BL: "Delivery note.",
-      OR: "Repair order (workshop). In G8, OR and ORO share a counter; here each has its own.",
-      ORO: "Reconditioning order for a used vehicle (vehicle cost price).",
+      OR: "Repair order (workshop) and internal transfer: one single counter, as in G8.",
+      ORO: "Former series of internal transfers (reconditioning of a used vehicle): new transfers use the repair order counter.",
       CMD: "Supplier order.",
       CDP: "Parts order.",
       CEX: "Ducati Excel order (DCS).",
       REC: "Supplier receipt.",
       REP: "Trade-in form: starting point of the used vehicle flow.",
-      OCC: "Used vehicle reference (in G8: OCC followed by 7 digits).",
+      OCC: "Reference of the used vehicle item created when a trade-in is validated: OCC followed by 7 digits, as in G8.",
+      EAN: "Internal EAN barcode given to every new item without a barcode: 3000 + 8 digits + check digit, as in G8.",
       DEP: "Consignment.",
       COC: "Certificate of conformity request.",
       Z: "Z report: cash register closing (receipts journal), numbered at closing.",
@@ -9416,6 +9418,8 @@ export const en: DictionaryShape = {
   ...purchasePrintEn,
   ...dashboardCaEn,
   ...decisionsQ63Q67En,
+  // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
+  vpG8: vpG8En,
   g8a: g8aEn,
   sms: smsEn,
   production: productionEn,

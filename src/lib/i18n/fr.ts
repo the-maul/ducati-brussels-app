@@ -14,6 +14,7 @@ import { uxAtelierFr } from './ux-atelier';
 import { decisionsQ57Q60Fr } from './decisions-q57-q60';
 import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
+import { vpG8Fr } from './vp-g8';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
 
@@ -5033,14 +5034,15 @@ export const fr = {
       RES: "Réservation / commande client : réserve le stock.",
       BC: "Bon de commande signé par le client (vente moto).",
       BL: "Bon de livraison.",
-      OR: "Ordre de réparation (atelier). Dans G8, OR et ORO partagent un compteur ; ici chacun a le sien.",
-      ORO: "Ordre de remise en état d'une occasion (coût de revient du véhicule).",
+      OR: "Ordre de réparation (atelier) et cession interne : un seul compteur, comme dans G8.",
+      ORO: "Ancienne série des cessions internes (remise en état d'une occasion) : les nouvelles cessions prennent le compteur des OR.",
       CMD: "Commande fournisseur.",
       CDP: "Commande de pièces.",
       CEX: "Commande Excel Ducati (DCS).",
       REC: "Réception fournisseur.",
       REP: "Fiche de reprise : point de départ du flux occasion.",
-      OCC: "Référence d'occasion (dans G8 : OCC suivi de 7 chiffres).",
+      OCC: "Référence de l'article d'occasion créé à la validation d'une reprise : OCC suivi de 7 chiffres, comme dans G8.",
+      EAN: "Code-barres EAN interne donné à chaque nouvel article sans code-barres : 3000 + 8 chiffres + clé de contrôle, comme dans G8.",
       DEP: "Dépôt-vente.",
       COC: "Demande de certificat de conformité.",
       Z: "Journal Z : clôture de caisse (journal des recettes), numéro pris à la clôture.",
@@ -9436,6 +9438,8 @@ export const fr = {
   ...purchasePrintFr,
   ...dashboardCaFr,
   ...decisionsQ63Q67Fr,
+  // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
+  vpG8: vpG8Fr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

@@ -89,7 +89,7 @@ export const NUMBERING_GROUPS: NumberingGroup[] = ['sales', 'workshop', 'purchas
 const GROUP_OF: Record<string, NumberingGroup> = {
   VEN: 'sales', FAC: 'sales', TIK: 'sales', AVO: 'sales', FAA: 'sales', DEV: 'sales', RES: 'sales', BC: 'sales', BL: 'sales',
   OR: 'workshop', ORO: 'workshop',
-  CMD: 'purchases', CDP: 'purchases', CEX: 'purchases', REC: 'purchases',
+  CMD: 'purchases', CDP: 'purchases', CEX: 'purchases', REC: 'purchases', EAN: 'purchases',
   REP: 'vehicles', OCC: 'vehicles', DEP: 'vehicles', COC: 'vehicles',
   Z: 'cash', RMB: 'cash', REM: 'cash', MVC: 'cash', MFC: 'cash',
 };
@@ -99,14 +99,14 @@ export function groupOf(docType: string): NumberingGroup {
 }
 
 /** Ordre d'affichage dans un groupe (le compteur unique et les factures d'abord). */
-const ORDER = ['VEN', 'FAC', 'TIK', 'AVO', 'FAA', 'DEV', 'RES', 'BC', 'BL', 'OR', 'ORO', 'CMD', 'CDP', 'CEX', 'REC', 'REP', 'OCC', 'DEP', 'COC', 'Z'];
+const ORDER = ['VEN', 'FAC', 'TIK', 'AVO', 'FAA', 'DEV', 'RES', 'BC', 'BL', 'OR', 'ORO', 'CMD', 'CDP', 'CEX', 'REC', 'EAN', 'REP', 'OCC', 'DEP', 'COC', 'Z'];
 export function compareDocTypes(a: string, b: string): number {
   const ia = ORDER.indexOf(a); const ib = ORDER.indexOf(b);
   return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.localeCompare(b);
 }
 
 /** Types dont l'écran connaît l'explication (`numbering.help.<type>`). */
-export const KNOWN_HELP_TYPES = ['VEN', 'FAC', 'TIK', 'AVO', 'FAA', 'DEV', 'RES', 'BC', 'BL', 'OR', 'ORO', 'CMD', 'CDP', 'CEX', 'REC', 'REP', 'OCC', 'DEP', 'COC', 'Z'] as const;
+export const KNOWN_HELP_TYPES = ['VEN', 'FAC', 'TIK', 'AVO', 'FAA', 'DEV', 'RES', 'BC', 'BL', 'OR', 'ORO', 'CMD', 'CDP', 'CEX', 'REC', 'EAN', 'REP', 'OCC', 'DEP', 'COC', 'Z'] as const;
 export function hasHelp(docType: string): boolean {
   return (KNOWN_HELP_TYPES as readonly string[]).includes(docType);
 }

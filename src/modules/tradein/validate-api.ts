@@ -144,6 +144,18 @@ export type ValidateArgs = {
   attestation: { place: string; date: string; signed: boolean } | null;
 };
 
+/** VP3 : prochaine reference OCC libre (next_occ_reference) ; sans la migration 20261120342000 : `fallback`. */
+async function nextOccReference(companyId: string, fallback: string): Promise<string> {
+  const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>)(
+    'next_occ_reference', { _company: companyId },
+  );
+  if (error) {
+    if (error.code === 'PGRST202' || error.code === '42883') return fallback;
+    throw error;
+  }
+  return String(data);
+}
+
 /**
  * Validation finale (étape 3) : crée l'article occasion (O = TVA marge /
  * P = 21 %), l'entrée de stock valorisée (B5/B7), passe le véhicule en
@@ -154,13 +166,18 @@ export async function validateReprise(a: ValidateArgs): Promise<{ articleId: str
   const unitCost = stockUnitCost(a.data);
 
   // Déjà validé (modification) ? → pas de double article/stock
-  const { data: veh } = await supabase.from('vehicles').select('article_id').eq('id', a.vehicleId).maybeSingle();
+  const { data: veh } = await supabase.from('vehicles').select('article_id, reference').eq('id', a.vehicleId).maybeSingle();
   let articleId = (veh?.article_id as string | null) ?? null;
+  let occReference: string | null = null;
 
   if (!articleId) {
+    // VP3 (20/11/2026, comme G8) : l'article occasion recoit la reference OCC + 7 chiffres
+    // (OCC1260035) ; le dossier garde son n° de reprise REP- (type R). Base pas encore migree :
+    // l'ancienne reference (n° REP).
+    occReference = await nextOccReference(a.companyId, a.oroNumber);
     // 1) Article occasion (B1 : O particulier / P professionnel)
     const { data: art, error: ae } = await supabase.from('articles').insert({
-      company_id: a.companyId, reference: a.oroNumber, designation: a.designation,
+      company_id: a.companyId, reference: occReference, designation: a.designation,
       mgmt_type: isPro ? 'P' : 'O', purchase_price: unitCost, pamp: unitCost,
       sale_price_ttc: a.data.sale_price, vat_rate: a.data.vat_rate,
       // UID famille : 08 OCCASIONS > 01 PARTICULIERS / 02 PROS > 01
@@ -204,6 +221,8 @@ export async function validateReprise(a: ValidateArgs): Promise<{ articleId: str
   const { error: ve } = await supabase.from('vehicles').update({
     article_id: articleId, status: 'stock_vo',
     purchase_price: unitCost, cost_price: unitCost, display_price: a.data.sale_price || null,
+    // VP3 : la fiche moto prend la reference OCC si elle n'en a pas encore.
+    ...(occReference && !(veh as { reference?: string | null } | null)?.reference ? { reference: occReference } : {}),
   }).eq('id', a.vehicleId);
   if (ve) throw ve;
 

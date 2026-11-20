@@ -14,6 +14,7 @@ import { uxAtelierNl } from './ux-atelier';
 import { decisionsQ57Q60Nl } from './decisions-q57-q60';
 import { dashboardCaNl } from './dashboard-ca';
 import { decisionsQ63Q67Nl } from './decisions-q63-q67';
+import { vpG8Nl } from './vp-g8';
 import { purchasePrintNl } from './purchase-print';
 import { productionNl } from './production';
 
@@ -5017,14 +5018,15 @@ export const nl: DictionaryShape = {
       RES: "Reservering / klantbestelling: reserveert de voorraad.",
       BC: "Bestelbon ondertekend door de klant (motorverkoop).",
       BL: "Leveringsbon.",
-      OR: "Herstelorder (werkplaats). In G8 delen OR en ORO een teller; hier heeft elk zijn eigen.",
-      ORO: "Opknaporder voor een tweedehands voertuig (kostprijs van het voertuig).",
+      OR: "Herstelorder (werkplaats) en interne overdracht: één teller, zoals in G8.",
+      ORO: "Oude reeks van de interne overdrachten (opknappen van een tweedehands voertuig): nieuwe overdrachten gebruiken de teller van de OR.",
       CMD: "Leveranciersbestelling.",
       CDP: "Onderdelenbestelling.",
       CEX: "Ducati Excel-bestelling (DCS).",
       REC: "Ontvangst van leverancier.",
       REP: "Overnamefiche: vertrekpunt van de tweedehandsflow.",
-      OCC: "Tweedehandsreferentie (in G8: OCC gevolgd door 7 cijfers).",
+      OCC: "Referentie van het tweedehandsartikel dat bij de validatie van een inruil wordt aangemaakt: OCC gevolgd door 7 cijfers, zoals in G8.",
+      EAN: "Interne EAN-barcode voor elk nieuw artikel zonder barcode: 3000 + 8 cijfers + controlecijfer, zoals in G8.",
       DEP: "Consignatie.",
       COC: "Aanvraag van gelijkvormigheidsattest.",
       Z: "Z-rapport: kassaafsluiting (ontvangstenboek), nummer bij de afsluiting.",
@@ -9416,6 +9418,8 @@ export const nl: DictionaryShape = {
   ...purchasePrintNl,
   ...dashboardCaNl,
   ...decisionsQ63Q67Nl,
+  // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
+  vpG8: vpG8Nl,
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,
