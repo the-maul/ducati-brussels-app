@@ -1,0 +1,140 @@
+# Sauvegarde EXTERNE quotidienne, hors Supabase (en plus des sauvegardes Supabase de 7 jours).
+#
+#   1. Base : pg_dump (format custom) → chiffré avec age (clé PUBLIQUE) → envoyé au bucket.
+#      Le fichier en clair ne touche jamais le disque : tout passe dans un tuyau.
+#   2. Fichiers du Storage (ged, shop-assets, wsm-images) : copiés par le protocole S3 de Supabase
+#      vers le bucket externe, chiffrés par rclone (contenu ET noms de fichiers).
+#
+# DÉSACTIVÉ tant que la variable de dépôt BACKUP_ENABLED ne vaut pas « true ».
+# Aucun secret n'est écrit ici : tout vient des secrets GitHub (Settings → Secrets and variables →
+# Actions). Liste complète et procédure : docs/infra-mise-en-prod.md §1.4.
+#
+# RECOMMANDÉ : faire tourner ce workflow dans le dépôt PRIVÉ the-maul/ducati-backup (copier ce fichier),
+# pas dans le dépôt public : les journaux d'un dépôt public sont visibles par tous (rien de sensible
+# n'y est affiché, mais un dépôt privé est la bonne place pour la clé d'accès à la base).
+#
+# Secrets attendus :
+#   SUPABASE_DB_URL                URI « Session pooler » (IPv4) de Supabase → Connect, avec le mot de passe
+#   SUPABASE_S3_ACCESS_KEY_ID      Supabase → Storage → Settings → S3 access keys
+#   SUPABASE_S3_SECRET_ACCESS_KEY
+#   BACKUP_S3_ENDPOINT             point d'accès S3 du stockage externe (ex. https://<compte>.eu.r2.cloudflarestorage.com)
+#   BACKUP_S3_ACCESS_KEY_ID        clé limitée à CE bucket (écriture seule si possible)
+#   BACKUP_S3_SECRET_ACCESS_KEY
+#   BACKUP_RCLONE_CRYPT_PASSWORD   mot de passe de chiffrement des fichiers (à garder AUSSI hors GitHub)
+#   BACKUP_RCLONE_CRYPT_SALT       second mot de passe (sel) rclone (idem)
+# Variables (non secrètes) :
+#   BACKUP_ENABLED                 « true » pour activer
+#   BACKUP_S3_BUCKET               nom du bucket externe (ex. ducati-sauvegardes)
+#   BACKUP_S3_REGION               région du bucket (ex. auto pour R2, fr-par pour Scaleway)
+#   BACKUP_AGE_RECIPIENT           clé PUBLIQUE age (age1…) ; la clé privée reste hors ligne chez le client
+#   BACKUP_SKIP_WSM                « true » pour ne pas copier wsm-images (8,3 Go, regénérable)
+name: Sauvegarde externe
+
+on:
+  schedule:
+    - cron: '15 2 * * *'   # 02:15 UTC chaque nuit (03:15 / 04:15 à Bruxelles)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde-externe
+  cancel-in-progress: false
+
+jobs:
+  sauvegarde:
+    if: ${{ vars.BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      PROJECT_REF: ujmrosbgkvgvwfnuryna
+      # Remote « supa » : Storage Supabase par le protocole S3.
+      RCLONE_CONFIG_SUPA_TYPE: s3
+      RCLONE_CONFIG_SUPA_PROVIDER: Other
+      RCLONE_CONFIG_SUPA_ENDPOINT: https://ujmrosbgkvgvwfnuryna.storage.supabase.co/storage/v1/s3
+      RCLONE_CONFIG_SUPA_REGION: eu-west-3
+      RCLONE_CONFIG_SUPA_FORCE_PATH_STYLE: 'true'
+      RCLONE_CONFIG_SUPA_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_SUPA_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+      # Remote « dest » : stockage externe (S3 compatible).
+      RCLONE_CONFIG_DEST_TYPE: s3
+      RCLONE_CONFIG_DEST_PROVIDER: Other
+      RCLONE_CONFIG_DEST_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      RCLONE_CONFIG_DEST_REGION: ${{ vars.BACKUP_S3_REGION }}
+      RCLONE_CONFIG_DEST_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_DEST_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_DEST_NO_CHECK_BUCKET: 'true'
+      BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+    steps:
+      - name: Vérifier que tout est configuré (sans rien afficher)
+        env:
+          A: ${{ secrets.SUPABASE_DB_URL }}
+          B: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+          C: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          D: ${{ secrets.BACKUP_RCLONE_CRYPT_PASSWORD }}
+          E: ${{ secrets.BACKUP_RCLONE_CRYPT_SALT }}
+          F: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          G: ${{ vars.BACKUP_S3_BUCKET }}
+        run: |
+          missing=""
+          for v in A B C D E F G; do [ -n "${!v}" ] || missing="$missing $v"; done
+          if [ -n "$missing" ]; then
+            echo "::error::Réglages manquants (voir l'en-tête du workflow) :$missing"; exit 1
+          fi
+
+      - name: Installer pg_dump 17, rclone, age
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 age
+          curl -fsSL https://rclone.org/install.sh | sudo bash >/dev/null
+          pg_dump --version; rclone version | head -1; age --version
+
+      - name: Base — pg_dump chiffré vers le bucket
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -o pipefail
+          D=$(date -u +%Y-%m-%d)
+          # Schémas métier + comptes (auth) + métadonnées des fichiers (storage) + tâches planifiées (cron).
+          # Le coffre « vault » n'est volontairement pas exporté (secrets chiffrés).
+          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges \
+              --schema=public --schema=auth --schema=storage --schema=cron \
+              --exclude-table-data='cron.job_run_details' \
+            | age -r "$AGE_RECIPIENT" \
+            | rclone rcat "dest:$BUCKET/base/quotidien/$PROJECT_REF-$D.dump.age"
+          # Le 1er du mois : copie mensuelle conservée 12 mois.
+          if [ "$(date -u +%d)" = "01" ]; then
+            rclone copyto "dest:$BUCKET/base/quotidien/$PROJECT_REF-$D.dump.age" \
+                          "dest:$BUCKET/base/mensuel/$PROJECT_REF-$D.dump.age"
+          fi
+          rclone lsl "dest:$BUCKET/base/quotidien/$PROJECT_REF-$D.dump.age"
+
+      - name: Fichiers — copie chiffrée des buckets du Storage
+        env:
+          CRYPT_PW: ${{ secrets.BACKUP_RCLONE_CRYPT_PASSWORD }}
+          CRYPT_SALT: ${{ secrets.BACKUP_RCLONE_CRYPT_SALT }}
+          SKIP_WSM: ${{ vars.BACKUP_SKIP_WSM }}
+        run: |
+          export RCLONE_CONFIG_CHIFFRE_TYPE=crypt
+          export RCLONE_CONFIG_CHIFFRE_REMOTE="dest:$BUCKET/fichiers"
+          export RCLONE_CONFIG_CHIFFRE_PASSWORD=$(rclone obscure "$CRYPT_PW")
+          export RCLONE_CONFIG_CHIFFRE_PASSWORD2=$(rclone obscure "$CRYPT_SALT")
+          D=$(date -u +%Y-%m-%d)
+          buckets="ged shop-assets"
+          [ "$SKIP_WSM" = "true" ] || buckets="$buckets wsm-images"
+          for b in $buckets; do
+            # sync + backup-dir : un fichier supprimé ou remplacé côté Supabase n'est pas perdu,
+            # il part dans _remplaces/<date>/ (purge conseillée après 90 jours, règle du bucket).
+            rclone sync "supa:$b" "chiffre:$b" --backup-dir "chiffre:_remplaces/$D/$b" \
+              --fast-list --transfers 8 --checkers 16 --s3-no-check-bucket --stats-one-line --stats 60s
+          done
+
+      - name: Rétention — base quotidienne 35 jours, mensuelle 13 mois
+        run: |
+          rclone delete "dest:$BUCKET/base/quotidien" --min-age 35d
+          rclone delete "dest:$BUCKET/base/mensuel" --min-age 400d
+          rclone size "dest:$BUCKET"

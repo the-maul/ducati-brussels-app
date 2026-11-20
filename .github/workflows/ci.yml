@@ -1,0 +1,47 @@
+# Contrôle automatique de chaque pull request et de chaque push sur main.
+# Trois étapes : types (tsc), tests (bun test), build (le même que Netlify).
+# Aucun secret n'est nécessaire : le build n'utilise que les valeurs publiques du fichier .env.
+#
+# Types : 9 erreurs connues au 20/11/2026 (src/lib/myducati.ts, imports de migration, crm/api.ts…) → l'étape est informative (continue-on-error).
+# Quand le compteur arrive à 0, retirer « continue-on-error » pour la rendre bloquante.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.x
+
+      - name: Installer les dépendances (lockfile figé)
+        run: bun install --frozen-lockfile
+
+      - name: Types (tsc --noEmit) — informatif tant qu'il reste des erreurs connues
+        continue-on-error: true
+        run: bunx tsc --noEmit
+
+      - name: Tests (bun test)
+        run: bun test
+
+      - name: Build (identique à Netlify)
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: bun run build
