@@ -100,6 +100,8 @@ import { Route as AppSettingsKioskRouteImport } from './routes/_app.settings.kio
 import { Route as AppSettingsMigrationRouteImport } from './routes/_app.settings.migration'
 import { Route as AppSettingsNumberingRouteImport } from './routes/_app.settings.numbering'
 import { Route as AppSettingsSmsRouteImport } from './routes/_app.settings.sms'
+import { Route as AppSettingsMinimaxRouteImport } from './routes/_app.settings.minimax'
+import { Route as AppSettingsDemoWorkbookRouteImport } from './routes/_app.settings.demo-workbook'
 import { Route as AppSettingsStripeRouteImport } from './routes/_app.settings.stripe'
 import { Route as AppSettingsTablesRouteImport } from './routes/_app.settings.tables'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app.settings.users'
@@ -598,6 +600,16 @@ const AppSettingsSmsRoute = AppSettingsSmsRouteImport.update({
   path: '/sms',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsMinimaxRoute = AppSettingsMinimaxRouteImport.update({
+  id: '/minimax',
+  path: '/minimax',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsDemoWorkbookRoute = AppSettingsDemoWorkbookRouteImport.update({
+  id: '/demo-workbook',
+  path: '/demo-workbook',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsStripeRoute = AppSettingsStripeRouteImport.update({
   id: '/stripe',
   path: '/stripe',
@@ -903,6 +915,8 @@ export interface FileRoutesByFullPath {
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
   '/settings/sms': typeof AppSettingsSmsRoute
+  '/settings/minimax': typeof AppSettingsMinimaxRoute
+  '/settings/demo-workbook': typeof AppSettingsDemoWorkbookRoute
   '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/settings/users': typeof AppSettingsUsersRoute
@@ -1023,6 +1037,8 @@ export interface FileRoutesByTo {
   '/settings/migration': typeof AppSettingsMigrationRoute
   '/settings/numbering': typeof AppSettingsNumberingRoute
   '/settings/sms': typeof AppSettingsSmsRoute
+  '/settings/minimax': typeof AppSettingsMinimaxRoute
+  '/settings/demo-workbook': typeof AppSettingsDemoWorkbookRoute
   '/settings/stripe': typeof AppSettingsStripeRoute
   '/settings/users': typeof AppSettingsUsersRoute
   '/stock/cessions': typeof AppStockCessionsRoute
@@ -1158,6 +1174,8 @@ export interface FileRoutesById {
   '/_app/settings/migration': typeof AppSettingsMigrationRoute
   '/_app/settings/numbering': typeof AppSettingsNumberingRoute
   '/_app/settings/sms': typeof AppSettingsSmsRoute
+  '/_app/settings/minimax': typeof AppSettingsMinimaxRoute
+  '/_app/settings/demo-workbook': typeof AppSettingsDemoWorkbookRoute
   '/_app/settings/stripe': typeof AppSettingsStripeRoute
   '/_app/settings/tables': typeof AppSettingsTablesRouteWithChildren
   '/_app/settings/users': typeof AppSettingsUsersRoute
@@ -1294,6 +1312,8 @@ export interface FileRouteTypes {
     | '/settings/migration'
     | '/settings/numbering'
     | '/settings/sms'
+    | '/settings/minimax'
+    | '/settings/demo-workbook'
     | '/settings/stripe'
     | '/settings/tables'
     | '/settings/users'
@@ -1414,6 +1434,8 @@ export interface FileRouteTypes {
     | '/settings/migration'
     | '/settings/numbering'
     | '/settings/sms'
+    | '/settings/minimax'
+    | '/settings/demo-workbook'
     | '/settings/stripe'
     | '/settings/users'
     | '/stock/cessions'
@@ -1548,6 +1570,8 @@ export interface FileRouteTypes {
     | '/_app/settings/migration'
     | '/_app/settings/numbering'
     | '/_app/settings/sms'
+    | '/_app/settings/minimax'
+    | '/_app/settings/demo-workbook'
     | '/_app/settings/stripe'
     | '/_app/settings/tables'
     | '/_app/settings/users'
@@ -2252,6 +2276,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsSmsRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/minimax': {
+      id: '/_app/settings/minimax'
+      path: '/minimax'
+      fullPath: '/settings/minimax'
+      preLoaderRoute: typeof AppSettingsMinimaxRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/demo-workbook': {
+      id: '/_app/settings/demo-workbook'
+      path: '/demo-workbook'
+      fullPath: '/settings/demo-workbook'
+      preLoaderRoute: typeof AppSettingsDemoWorkbookRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/stripe': {
       id: '/_app/settings/stripe'
       path: '/stripe'
@@ -2748,6 +2786,8 @@ interface AppSettingsRouteChildren {
   AppSettingsMigrationRoute: typeof AppSettingsMigrationRoute
   AppSettingsNumberingRoute: typeof AppSettingsNumberingRoute
   AppSettingsSmsRoute: typeof AppSettingsSmsRoute
+  AppSettingsMinimaxRoute: typeof AppSettingsMinimaxRoute
+  AppSettingsDemoWorkbookRoute: typeof AppSettingsDemoWorkbookRoute
   AppSettingsStripeRoute: typeof AppSettingsStripeRoute
   AppSettingsTablesRoute: typeof AppSettingsTablesRouteWithChildren
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
@@ -2765,6 +2805,8 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsMigrationRoute: AppSettingsMigrationRoute,
   AppSettingsNumberingRoute: AppSettingsNumberingRoute,
   AppSettingsSmsRoute: AppSettingsSmsRoute,
+  AppSettingsMinimaxRoute: AppSettingsMinimaxRoute,
+  AppSettingsDemoWorkbookRoute: AppSettingsDemoWorkbookRoute,
   AppSettingsStripeRoute: AppSettingsStripeRoute,
   AppSettingsTablesRoute: AppSettingsTablesRouteWithChildren,
   AppSettingsUsersRoute: AppSettingsUsersRoute,

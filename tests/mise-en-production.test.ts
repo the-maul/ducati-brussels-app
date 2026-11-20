@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   canAct, cronTone, isCheckable, missingFor, normalizeProductionMode, productionErrorKey, productionTone,
-  selectionAllows, targetMode, type ProductionItem,
+  selectionAllows, targetMode, type ProductionItem, choiceEnabled, planChanges, APPLY_ORDER,
 } from '../src/modules/settings/production-rules';
 import { allowedSender, plainToHtml } from '../supabase/functions/_shared/graph-mail';
 import { productionFr, productionNl, productionEn, productionIt } from '../src/lib/i18n/production';
@@ -124,5 +124,35 @@ describe('mise en production : libelles', () => {
         expect((d.missing as Record<string, string>)[m]?.length ?? 0).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe('mise en production : choix Arrete / Test / Actif par ligne (revue UX/UI 20/11/2026)', () => {
+  const sms = item({ key: 'sms', group: 'sms', test_ok: true });
+  const smsEnd = item({ key: 'sms_end_of_work', group: 'sms', test_ok: true, missing: ['depends_sms'] });
+  const live = item({ key: 'shopify_stock', group: 'shopify', mode: 'actif' });
+
+  test('le mode actuel et les actions impossibles ne sont pas cliquables', () => {
+    expect(choiceEnabled(live, 'start', false)).toBe(false); // deja actif
+    expect(choiceEnabled(live, 'pause', false)).toBe(true);
+    expect(choiceEnabled(sms, 'pause', false)).toBe(false); // deja arrete
+    expect(choiceEnabled(sms, 'start', false)).toBe(true);
+    expect(choiceEnabled(sms, 'start', true)).toBe(false); // societe de test : jamais actif
+    // La dependance peut etre choisie en meme temps : le bouton reste cliquable.
+    expect(choiceEnabled(smsEnd, 'start', false)).toBe(true);
+  });
+
+  test('planChanges : regroupe par action, signale la dependance non choisie', () => {
+    const items = [sms, smsEnd, live];
+    const alone = planChanges(items, { sms_end_of_work: 'start' }, false);
+    expect(alone.byAction.start).toEqual(['sms_end_of_work']);
+    expect(alone.invalid).toEqual(['sms_end_of_work']);
+    const both = planChanges(items, { sms: 'start', sms_end_of_work: 'start', shopify_stock: 'pause' }, false);
+    expect(both.invalid).toEqual([]);
+    expect(both.byAction).toEqual({ pause: ['shopify_stock'], test: [], start: ['sms', 'sms_end_of_work'] });
+    expect(both.count).toBe(3);
+    // Choisir le mode actuel = aucun changement.
+    expect(planChanges(items, { shopify_stock: 'start' }, false).count).toBe(0);
+    expect(APPLY_ORDER).toEqual(['pause', 'test', 'start']);
   });
 });
