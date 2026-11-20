@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, FileDown, Tag, Users, Truck, Send, CircleSlash, ClipboardList, History } from 'lucide-react';
+import { ArrowLeft, Loader2, FileDown, Tag, Users, Truck, Send, CircleSlash, ClipboardList, History, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -17,6 +17,7 @@ import { PurchaseEditor } from '@/modules/purchases/purchase-editor';
 import { CustomerInfosDialog, useReceiptCustomerInfos } from '@/modules/purchases/customer-infos-dialog';
 import { getOrderFollow, logOrderSend, closeOrderRemainder, proposalToOrder } from '@/modules/purchases/g8-api';
 import { purchaseStatusTone, SEND_CHANNELS, type SendChannel } from '@/modules/purchases/g8-rules';
+import { openPurchasePdf, PRINTABLE_PURCHASE_TYPES } from '@/modules/purchases/purchase-print-pdf';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { t, fillVars, pageTitle } from '@/lib/i18n';
@@ -52,6 +53,7 @@ function PurchaseView() {
   const [sendOpen, setSendOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   // G8 : la fenêtre « Infos commandes client » s'ouvre seule après la réception s'il y a des clients en attente.
   useEffect(() => { if (infos && (infosQ.data?.length ?? 0) > 0) setInfosOpen(true); }, [infos, infosQ.data]);
@@ -88,6 +90,14 @@ function PurchaseView() {
     catch (e) { toast.error(e instanceof Error ? e.message : t('purchases.errSave')); }
     setBusy(false);
   };
+  // Q65 (20/11/2026) : éditions G8 COMMANDE / RECEPTION — PDF A4 dans un nouvel onglet.
+  const canPrint = (PRINTABLE_PURCHASE_TYPES as readonly string[]).includes(order.doc_type);
+  const print = async () => {
+    setPrinting(true);
+    try { await openPurchasePdf(data); }
+    catch (e) { toast.error(e instanceof Error && e.message ? e.message : t('purchasePrint.error')); }
+    setPrinting(false);
+  };
   const dcs = async (kind: 'STANDARD' | 'URGENTE') => {
     downloadDcs(order, lines, kind);
     // Branchement sur l'historique des envois (le fichier DCS existant reste inchangé)
@@ -102,6 +112,7 @@ function PurchaseView() {
         actions={
           <div className="flex flex-wrap gap-2">
             {canReceive && canWrite && <Button onClick={() => navigate({ to: '/purchases/new', search: { docType: 'REC', recall: order.id } })}><Truck /> {t('purchasesG8.receive')}</Button>}
+            {canPrint && <Button variant="outline" onClick={print} disabled={printing} title={t('purchasePrint.printHint')}>{printing ? <Loader2 className="animate-spin" /> : <Printer />} {t('purchasePrint.print')}</Button>}
             {canSend && canWrite && <Button variant="outline" onClick={() => setSendOpen(true)}><Send /> {t('purchasesG8.markSent')}</Button>}
             {canReceive && canWrite && <Button variant="outline" onClick={() => setCloseOpen(true)}><CircleSlash /> {t('purchasesG8.closeRemainder')}</Button>}
             {order.doc_type === 'PCF' && order.status === 'validee' && canWrite && <Button onClick={toOrder} disabled={busy}><ClipboardList /> {t('purchasesG8.toOrder')}</Button>}

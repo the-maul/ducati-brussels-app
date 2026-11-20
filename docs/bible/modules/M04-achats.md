@@ -299,3 +299,13 @@ par le chemin déjà en place.
 | 2026-11-03 | Mission 09 cartes 1, 2, 4 — Panier de commande Ducati (standard / urgente, plusieurs ouverts) : minimax automatique (bouton + pg_cron quotidien, `stock_max`), comptoir (« Commandes de pièces à passer » → panier), atelier (OR → panier standard), site (commande Shopify → panier), « Enlever ce qui est déjà en stock », minimum 250 € HTVA, urgente une par jour sans minimum à +12 % (défaut 10 → 12), fichier **`ExportDucati.xls`** exact téléchargé et conservé en GED, n° DCS saisi après coup, écran Achats → Commandes fournisseur ; `part_order_rules` insensible à la casse (aucune règle n'était lue en prod) ; aucun mouvement de stock | `20261103100000_m4_paniers_de_commande` (**non appliquée**, testée le 03/11 en transaction annulée) |
 | 2026-11-18 | **Réassort minimax immédiat** (décisions de Simon) : toute sortie de stock qui fait passer une pièce sous son minimum la met tout de suite au panier standard (pas de doublon, jamais d'échec de la vente, filtre rouge / jaune, multi-société) ; réglage par société automatique / proposition manuelle (fenêtre à la validation vente / caisse / picking, comme G8) ; minimax et conditionnement suivent la nouvelle référence au remplacement (rattrapage : 185 références) | `20261119130000_m4_minimax_immediat.sql` (à appliquer, essai à blanc 23/23) |
 | 2026-11-19 | Q52 — nuit en proposition manuelle : la tâche de nuit ne remplit plus le panier, elle prépare la liste des pièces sous leur minimum, retrouvée le lendemain dans les achats (Ajouter / Ignorer ; ignorée = pas reproposée tant que le stock ne bouge pas) ; automatique inchangé | `20261119210000_m4_minimax_nuit_manuel.sql` (à appliquer, essai à blanc 11/11) |
+
+
+## Ajouté le 20/11 — impression des commandes et des réceptions (décision Q65)
+Branche `lot-decisions-q63-q67`, sans migration. Bouton **Imprimer** sur la fiche d'une commande fournisseur (CMD) ou
+d'une réception (REC) validée (`_app.purchases.$orderId.tsx`) : PDF A4 à la charte, même moteur que les PDF de vente
+(`src/modules/purchases/purchase-print-pdf.ts`, modèle pur `purchase-print.ts`, tests `tests/purchase-print*.test.ts`) :
+en-tête société, fournisseur, n°, dates, facture / BL fournisseur, opérateur (nom), lignes (référence, réf. fournisseur,
+désignation, qté commandée / reçue / reliquat, PA HT, remise, total HT), totaux enregistrés (HT, TVA, TTC, port, remise),
+bloc **Reliquats** pour une réception partielle (« Commande entièrement reçue » sinon). Langue de l'utilisateur.
+Limites : brouillons non imprimables ; reliquat = reste à recevoir aujourd'hui ; TVA non ventilée par taux.
