@@ -190,7 +190,9 @@ export function belgianHolidayOn(d: Date): HolidayKey | null {
 // ---------------------------------------------------------------------------------------------
 export type MechanicHours = { mechanic_id: string; weekday: number; am_start: string | null; am_end: string | null; pm_start: string | null; pm_end: string | null };
 export type CalendarBlock = { id?: string; kind: 'ferie' | 'fermeture' | 'absence' | 'pause'; mechanic_id: string | null; starts_at: string; ends_at: string; label?: string | null };
-export type PlanningMechanic = { id: string; name: string; visible_in_planning: boolean; is_active: boolean; sort_order: number; user_id: string | null; workshop?: string | null };
+export type PlanningMechanic = { id: string; name: string; visible_in_planning: boolean; is_active: boolean; sort_order: number; user_id: string | null; workshop?: string | null;
+  /** VP9 (comme G8) : compte dans la charge atelier ; absent tant que la migration 20261120346000 n'est pas en base (= compte). */
+  counts_in_load?: boolean | null };
 export type Interval = [number, number]; // minutes depuis minuit [debut, fin)
 
 /** Plages de travail d'un compagnon un jour donne (matin + apres-midi). */
@@ -277,13 +279,22 @@ export const plannedOrSlot = (a: { planned_minutes: number | null }, slotMinutes
 
 export type DayLoad = { capacity: number; planned: number; pct: number | null; closed: ReturnType<typeof closedDayReason> };
 
-/** Charge d'un jour : capacite des compagnons, temps prevu des RDV, taux d'occupation (G8 « 2h/24h, 8,33 % »). */
+/** VP9 (comme G8) : seuls les compagnons comptent dans la charge atelier (case par personne). */
+export const countsInWorkshopLoad = (m: Pick<PlanningMechanic, 'counts_in_load'>) => m.counts_in_load !== false;
+
+/**
+ * Charge d'un jour : capacite des compagnons, temps prevu des RDV, taux d'occupation (G8 « 2h/24h, 8,33 % »).
+ * Toute l'equipe : seuls les compagnons qui comptent dans la charge (VP9), et les RDV qui leur sont
+ * confies ou sans compagnon. Filtre sur une personne : sa charge propre, qu'elle compte ou non.
+ */
 export function dayLoad(day: Date, mechanics: PlanningMechanic[], appts: LoadAppointment[], ctx: DayContext, slotMinutes: number, mechanicId?: string | null): DayLoad {
   const key = localYmd(day);
-  const ms = planningMechanics(mechanics).filter((m) => !mechanicId || m.id === mechanicId);
+  const ms = planningMechanics(mechanics).filter((m) => (mechanicId ? m.id === mechanicId : countsInWorkshopLoad(m)));
+  const excluded = new Set(mechanics.filter((m) => !countsInWorkshopLoad(m)).map((m) => m.id));
   const capacity = ms.reduce((s, m) => s + mechanicDayCapacity(m.id, day, ctx), 0);
   const planned = appts
-    .filter((a) => countsInLoad(a) && localYmd(new Date(a.starts_at)) === key && (!mechanicId || a.mechanic_id === mechanicId))
+    .filter((a) => countsInLoad(a) && localYmd(new Date(a.starts_at)) === key
+      && (mechanicId ? a.mechanic_id === mechanicId : !(a.mechanic_id && excluded.has(a.mechanic_id))))
     .reduce((s, a) => s + plannedOrSlot(a, slotMinutes), 0);
   return { capacity, planned, pct: occupancyPct(planned, capacity), closed: closedDayReason(day, ctx) };
 }
