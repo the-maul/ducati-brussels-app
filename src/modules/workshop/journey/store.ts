@@ -89,7 +89,9 @@ async function writeBase(companyId: string | null, state: JourneyState): Promise
     const { error } = await loose.from(TABLE).upsert({
       or_id: state.orId,
       company_id: companyId,
-      model_year_id: state.modelYearId,
+      // '' ou modèle-année du manuel absent du catalogue : NULL (la base le ramène aussi à NULL,
+      // trigger 20261120360000) ; l'identifiant reste dans `state`.
+      model_year_id: state.modelYearId || null,
       service_label: state.serviceLabel,
       started_at: state.startedAt,
       finished_at: state.finishedAt,

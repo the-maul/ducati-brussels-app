@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -60,13 +60,35 @@ import { ReceptionPanel, ReceptionSheet } from '@/modules/workshop/reception/rec
 import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
 import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
 import { t, tIn, fillVars, pageTitle, ensureLocale } from '@/lib/i18n';
+import { isOrRouteId, workshopPathAlias } from '@/modules/workshop/or-base/route-id';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
   // Lot UX atelier (20/11/2026) : l'onglet de la fiche est garde dans l'adresse (?tab=).
   validateSearch: (s: Record<string, unknown>): { tab?: OrTab } => ({ tab: parseOrTab(s.tab) }),
   head: () => ({ meta: [{ title: pageTitle('workshopOr') }] }),
-  component: OrView,
+  // Constat du 20/11 : /workshop/mon-atelier tombait ici (« mon-atelier » pris pour un n° d'OR) et
+  // lancait ~6 requetes en 400 a chaque chargement. Alias connus → leur page ; autre id non valide :
+  // « Introuvable » sans aucune requete.
+  beforeLoad: ({ params }) => {
+    const to = workshopPathAlias(params.orId);
+    if (to) throw redirect({ to, replace: true });
+  },
+  component: OrRoute,
 });
+
+function OrRoute() {
+  const { orId } = Route.useParams();
+  if (!isOrRouteId(orId)) return (
+    <>
+      <PageHeader
+        title={t('nav.workshop')}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('nav.workshop') }]}
+      />
+      <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p>
+    </>
+  );
+  return <OrView />;
+}
 
 /** Mail de la proposition d'intervention, dans la langue du client, avec son lien de signature. */
 type ProposalMail = { full: DocumentFull; contact: Contact; preset: { subject: string; body: string } };
@@ -224,10 +246,11 @@ function OrView() {
     onSuccess: (docId) => navigate({ to: '/sales/$documentId', params: { documentId: docId } }),
     onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
-  const hasMoLines = (data?.lines ?? []).some((l) => l.kind === 'mo');
-  const afterDeferred = () => { if (labourSchema.data === true && hasMoLines) setControlOpen(true); else invoiceNow.mutate(); };
+  // Lot parcours-fix (20/11, comme G8) : le controle du temps atelier s'ouvre TOUJOURS avant la facture,
+  // meme sans ligne de MO (il montre alors le temps pointe face a 0 h facturee). Il ne bloque pas.
+  const afterDeferred = () => { if (labourSchema.data === true) setControlOpen(true); else invoiceNow.mutate(); };
   const controlAndInvoice = useMutation({
-    mutationFn: async (rows: ControlRow[]) => { await saveTimeControl(orId, rows); return transformToInvoice(orId); },
+    mutationFn: async (rows: ControlRow[]) => { if (rows.length) await saveTimeControl(orId, rows); return transformToInvoice(orId); },
     onSuccess: (docId) => { setControlOpen(false); refresh(); navigate({ to: '/sales/$documentId', params: { documentId: docId } }); },
     onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });

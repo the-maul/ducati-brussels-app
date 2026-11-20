@@ -32,3 +32,20 @@ test('refus partiel : seule la ligne refusee compte', () => {
   ], 'refus_partiel');
   expect(r.total_ht).toBe(40);
 });
+
+// Lot parcours-fix (20/11/2026) : l'OR TESTOR-2026-00001 valait 113,26 € TTC, sa facture 113,24 €.
+// Le total de l'OR suit maintenant la règle de la facture (HT puis TVA sur le total, comme G8).
+test('OR du test du 20/11 : 113,24 € TTC comme la facture (pas 113,26)', async () => {
+  const { computeTotals } = await import('../src/modules/sales/write-api');
+  const lines = [
+    line({ unit_price_ht: 27.27 }), line({ unit_price_ht: 10.74 }), line({ unit_price_ht: 3.31 }),
+    line({ unit_price_ht: 11.29 }), line({ quantity: 3.1, unit_price_ht: 13.22 }),
+    line({ unit_price_ht: 0 }), line({ kind: 'texte', quantity: 0, unit_price_ht: 0 }),
+  ];
+  const r = computeRoTotals(lines);
+  expect(r.total_ht).toBe(93.59);
+  expect(r.total_vat).toBe(19.65);
+  expect(r.total_ttc).toBe(113.24);
+  const inv = computeTotals(lines.map((l) => ({ ...l, line_type: l.kind === 'texte' ? 'texte' : 'article', article_id: null, reference: null })) as never);
+  expect(inv.total_ttc).toBe(r.total_ttc);
+});

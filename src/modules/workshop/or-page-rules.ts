@@ -69,6 +69,17 @@ export function defaultOperator(p: {
   return { operatorId: null, legacyText: null };
 }
 
+/**
+ * Libelle d'un operateur sans compte (constat du 20/11/2026, revue UX n° 6) : « John » vient d'un
+ * RDV du planning dont la fiche compagnon n'est reliee a aucun compte → « compagnon sans compte »
+ * (et non « saisi a la main », qui laissait croire a une frappe). Sinon : vrai texte libre.
+ */
+export function legacyOperatorKind(text: string | null | undefined, mechanics: { name: string; user_id?: string | null }[]): 'mechanic' | 'typed' {
+  const k = norm(text);
+  if (!k) return 'typed';
+  return mechanics.some((m) => !m.user_id && norm(m.name) === k) ? 'mechanic' : 'typed';
+}
+
 /** Ce qui s'enregistre : l'id (si la colonne existe) et le nom en texte (ancien champ, impression). */
 export function operatorToSave(choice: OperatorChoice, members: TeamMemberRow[], fallbackText = ''): { operatorId: string | null; operatorText: string } {
   if (choice.operatorId) {
