@@ -40,8 +40,9 @@ import { MicroficheImportButton, microficheToSaleArticle, type MicroficheItem } 
 import { useOrExplodedViews } from './exploded/or-exploded-views';
 import { mergeReservedLine, OR_LINE_RESERVED_EVENT, type OrLineReservedDetail } from './exploded/rules';
 import { listCompanyTeam, listRepairTypes } from './or-page-api';
+import { listMechanics as listPlanningMechanics } from './planning/api';
 import {
-  defaultOperator, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
+  defaultOperator, legacyOperatorKind, operatorToSave, workshopTeamOptions, nextRepairType, legacyRepairType, matchRepairTypeCode,
   showExpertFields, showWarrantyField, type OperatorChoice,
 } from './or-page-rules';
 import { Input } from '@/components/ui/input';
@@ -82,7 +83,7 @@ import { CommentTemplatesMenu } from './or-base/comment-templates-menu';
 import { ClientCommentPopup } from './or-base/client-comment-popup';
 import { orStatusLabel } from './or-base/or-status-badge';
 import {
-  OR_EDIT_STATUSES, checkMileage, editableStatus, formatOrDate, lastReading, mileageAck, mileageRequired, normalizeCheckPoints,
+  OR_EDIT_STATUSES, checkMileage, editableStatus, displayedReading, formatOrDate, lastReading, mileageAck, mileageRequired, normalizeCheckPoints,
   type CheckPoints, type MileageReading,
 } from './or-base/rules';
 
@@ -287,6 +288,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   // Dernier releve de la moto (OR, fiche moto, dernier entretien, declaration) : controle du km G8.
   const readingsQ = useQuery({ queryKey: ['vehicle-mileage', vehicle?.id], enabled: !!vehicle?.id, queryFn: () => vehicleMileageReadings(vehicle!.id), staleTime: 30_000 });
   const last = vehicle?.id ? lastReading(readingsQ.data ?? [], o?.id ?? null, o?.created_at ?? null) : null;
+  // Constat du 20/11 : sans releve anterieur, on affiche le km de cet OR (meme valeur que le bandeau).
+  const shownReading = vehicle?.id && o?.vehicle_id === vehicle.id ? displayedReading(last, o) : last;
   const orBaseQ = useQuery({ queryKey: ['or-base-schema'], queryFn: orBaseSchemaReady, staleTime: Infinity });
   const teamQ = useQuery({ queryKey: ['company-team', companyId], queryFn: () => listCompanyTeam(companyId), staleTime: 300_000 });
   const typesQ = useQuery({ queryKey: ['workshop-repair-types', companyId], queryFn: () => listRepairTypes(companyId), staleTime: 300_000 });
@@ -304,6 +307,9 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     });
   }, [members, user?.id, o, operatorTouched]);
   const teamOptions = workshopTeamOptions(members, [user?.id, operatorChoice.operatorId]);
+  // Constat du 20/11 : operateur sans compte venu d'un RDV → « compagnon sans compte », pas « saisi a la main ».
+  const crewQ = useQuery({ queryKey: ['planning-mechanics', companyId], queryFn: () => listPlanningMechanics(companyId), staleTime: 300_000, enabled: !!operatorChoice.legacyText && !operatorChoice.operatorId });
+  const legacyOperatorKey = legacyOperatorKind(operatorChoice.legacyText, crewQ.data ?? []) === 'mechanic' ? 'orPage.mechanicNoAccount' : 'orPage.legacyValue';
   // Ancien texte (« ENTRETIEN ») : rattache a son code des que la liste est chargee ; hors liste, garde tel quel.
   useEffect(() => {
     if (!typesQ.isSuccess) return;
@@ -523,7 +529,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           {mileageError && <p className="text-[12px] text-danger">{mileageError}</p>}
           {vehicle && !mileageError && (
             <p className="text-[12px] text-muted-foreground">
-              {last ? `${readingText(last)} · ${fillVars(t('orBase.lastReadingSource'), { source: t(`orBase.readingSource.${last.source}`) })}` : readingsQ.isSuccess ? t('orBase.noReading') : ''}
+              {shownReading ? `${readingText(shownReading)} · ${fillVars(t('orBase.lastReadingSource'), { source: t(`orBase.readingSource.${shownReading.source}`) })}` : readingsQ.isSuccess ? t('orBase.noReading') : ''}
             </p>
           )}
         </Field>
@@ -570,7 +576,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
             <SelectContent>
               <SelectItem value={NO_VALUE}>{t('orPage.none')}</SelectItem>
               {operatorChoice.legacyText && !operatorChoice.operatorId && (
-                <SelectItem value={LEGACY}>{t('orPage.legacyValue').replace('{value}', operatorChoice.legacyText)}</SelectItem>
+                <SelectItem value={LEGACY}>{t(legacyOperatorKey).replace('{value}', operatorChoice.legacyText)}</SelectItem>
               )}
               {teamOptions.map((m) => (
                 <SelectItem key={m.userId} value={m.userId}>

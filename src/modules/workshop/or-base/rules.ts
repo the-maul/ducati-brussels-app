@@ -124,6 +124,21 @@ export function lastReading(readings: ReadonlyArray<MileageReading>, excludeOrId
   return best;
 }
 
+/**
+ * Releve AFFICHE sous le kilometrage de l'OR (constat du 20/11) : le dernier releve anterieur a l'OR,
+ * sinon le km de cet OR lui-meme. Avant, un OR qui portait le premier releve de la moto (24 500 km
+ * dans le bandeau) affichait « Aucun relevé connu pour cette moto » : son propre km (et la fiche moto
+ * mise a jour par lui) etait exclu du controle. Le controle « km inferieur » garde `lastReading`.
+ */
+export function displayedReading(
+  last: MileageReading | null,
+  or: { id: string; number?: string | null; mileage?: number | null; created_at?: string | null } | null | undefined,
+): MileageReading | null {
+  if (last) return last;
+  if (!or || or.mileage == null || !Number.isFinite(Number(or.mileage)) || Number(or.mileage) <= 0) return null;
+  return { km: Number(or.mileage), at: or.created_at ?? null, source: 'or', ref: or.number ?? null, orId: or.id };
+}
+
 /** Lit la saisie (« 12 500 », « 12500 », « 12.500 ») en entier ; null si vide ou illisible. */
 export function parseMileage(input: string | number | null | undefined): number | null {
   if (input == null) return null;
