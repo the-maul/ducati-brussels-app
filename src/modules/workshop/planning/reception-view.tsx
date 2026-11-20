@@ -9,13 +9,14 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import {
-  appointmentBlockClass, dayLoad, formatMinutes, localYmd, occupancyTone, receptionSort,
+  appointmentBlockClass, dayLoad, formatMinutes, localYmd, receptionSort,
   statusTone, type AppointmentType, type DayContext,
 } from './rules';
 import type { PlanningAppointment } from './api';
 import type { usePlanningBase } from './planning-data';
 import { contactLabel, fmtDate, fmtTime, motoLabel } from './ui-bits';
 import { StatusIcon } from './status-icon';
+import { OccupancyGauge } from './occupancy-gauge';
 import { OrWorkBadge, useOrWorkStatusMap } from '../pointage/work-controls';
 import { PlanProgressBadge, usePlanProgressMap } from '../plan-ops/plan-ops-panel';
 
@@ -52,25 +53,24 @@ export function ReceptionView({ base, ctx, days, appts, mechanicFilter, statusFi
         return (
           <div key={localYmd(d)} className="rounded-md border border-border bg-card p-2">
             <div className="mb-2 flex items-start justify-between gap-1">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{fmtDate(d)}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{fmtDate(d)}</p>
                 {load.closed ? (
                   <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-neutral-tag">
                     <Ban className="size-3" />
                     {load.closed.holiday ? t(`planningG8.holiday_${load.closed.holiday}`) : load.closed.label || t(`planningG8.block_${load.closed.kind}`)}
                   </p>
                 ) : (
-                  <p className="mt-0.5 font-data text-[12px] tabular-nums text-muted-foreground">
-                    {formatMinutes(load.planned)} / {formatMinutes(load.capacity)}
-                    {base.settings.show_occupancy && load.pct !== null && (
-                      <span className={`ml-1 font-bold ${occupancyTone(load.pct) === 'danger' ? 'text-danger' : occupancyTone(load.pct) === 'warning' ? 'text-warning' : 'text-success'}`}>
-                        {load.pct.toLocaleString('fr-BE', { maximumFractionDigits: 2 })} %
-                      </span>
-                    )}
-                  </p>
+                  <>
+                    <p className="mt-0.5 font-data text-[12px] tabular-nums text-muted-foreground">
+                      {formatMinutes(load.planned)} / {formatMinutes(load.capacity)}
+                    </p>
+                    {/* Revue UX (20/11) : jauge avec icone + libelle, plus la couleur seule. */}
+                    {base.settings.show_occupancy && load.pct !== null && <OccupancyGauge pct={load.pct} />}
+                  </>
                 )}
               </div>
-              <Button size="sm" variant="ghost" className="h-7 px-1.5" onClick={() => onNew(d)} aria-label={t('planningG8.newRdvDay')}><Plus className="size-4" /></Button>
+              <Button size="sm" variant="ghost" className="h-7 px-1.5 pointer-coarse:h-11 pointer-coarse:min-w-11" onClick={() => onNew(d)} aria-label={t('planningG8.newRdvDay')}><Plus className="size-4" /></Button>
             </div>
             <div className="space-y-2">
               {rows.length === 0 && <p className="px-1 text-[12px] text-muted-foreground">—</p>}
@@ -88,11 +88,11 @@ export function ReceptionView({ base, ctx, days, appts, mechanicFilter, statusFi
                   {a.or_id && work.map.get(a.or_id) && <div className="mt-1"><OrWorkBadge row={work.map.get(a.or_id)} reasons={work.reasons} /></div>}
                   {a.or_id && planProgress.get(a.or_id) && <div className="mt-1"><PlanProgressBadge done={planProgress.get(a.or_id)!.done} resolved={planProgress.get(a.or_id)!.done + planProgress.get(a.or_id)!.not_done} total={planProgress.get(a.or_id)!.total} /></div>}
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onOpen(a)}>{t('action.edit')}</Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2 pointer-coarse:h-11 pointer-coarse:px-3" onClick={() => onOpen(a)}>{t('action.edit')}</Button>
                     {a.or_id
-                      ? <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onViewOr(a.or_id!)}><FileText className="size-3.5" /> {t('workshop.viewOr')}</Button>
-                      : a.status !== 'annule' && <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onCreateOr(a)}>{t('planningG8.validateAndOr')}</Button>}
-                    {onParts && canParts(a) && <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onParts(a)}><Package className="size-3.5" /> {t('reservation.button')}</Button>}
+                      ? <Button size="sm" variant="ghost" className="h-7 px-2 pointer-coarse:h-11 pointer-coarse:px-3" onClick={() => onViewOr(a.or_id!)}><FileText className="size-3.5" /> {t('workshop.viewOr')}</Button>
+                      : a.status !== 'annule' && <Button size="sm" variant="ghost" className="h-7 px-2 pointer-coarse:h-11 pointer-coarse:px-3" onClick={() => onCreateOr(a)}>{t('planningG8.validateAndOr')}</Button>}
+                    {onParts && canParts(a) && <Button size="sm" variant="ghost" className="h-7 px-2 pointer-coarse:h-11 pointer-coarse:px-3" onClick={() => onParts(a)}><Package className="size-3.5" /> {t('reservation.button')}</Button>}
                   </div>
                 </div>
               ))}

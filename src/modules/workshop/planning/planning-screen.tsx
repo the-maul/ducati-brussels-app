@@ -131,20 +131,20 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
         <div className="inline-flex rounded-md border border-border bg-card p-0.5" role="tablist">
           {views.map((v) => (
             <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => onView(v)}
-              className={`rounded-[var(--radius-badge)] px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] ${view === v ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent'}`}>
+              className={`rounded-[var(--radius-badge)] px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] pointer-coarse:min-h-11 ${view === v ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent'}`}>
               {t(`planningG8.view_${v}`)}
             </button>
           ))}
         </div>
         {(view === 'reception' || view === 'activite') && (
           <>
-            <Button variant="outline" size="sm" onClick={() => go(-1)} aria-label={t('planningG8.previous')}><ChevronLeft className="size-4" /></Button>
-            <Button variant="outline" size="sm" onClick={() => setRef(startOfDay(new Date()))}>{t('planningG8.today')}</Button>
-            <Button variant="outline" size="sm" onClick={() => go(1)} aria-label={t('planningG8.next')}><ChevronRight className="size-4" /></Button>
-            <Input type="date" value={localYmd(ref)} onChange={(e) => e.target.value && setRef(startOfDay(new Date(`${e.target.value}T00:00`)))} className="h-8 w-40" />
+            <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => go(-1)} aria-label={t('planningG8.previous')}><ChevronLeft className="size-4" /></Button>
+            <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setRef(startOfDay(new Date()))}>{t('planningG8.today')}</Button>
+            <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => go(1)} aria-label={t('planningG8.next')}><ChevronRight className="size-4" /></Button>
+            <Input type="date" value={localYmd(ref)} onChange={(e) => e.target.value && setRef(startOfDay(new Date(`${e.target.value}T00:00`)))} className="h-8 w-40 pointer-coarse:h-11" />
             {view === 'reception' && (
               <Select value={mechanicFilter ?? ALL} onValueChange={(v) => setMechanicFilter(v === ALL ? null : v)}>
-                <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-44 pointer-coarse:h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>{t('planningG8.allMechanics')}</SelectItem>
                   {planningMechanics(base.mechanics).map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
@@ -152,13 +152,13 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
               </Select>
             )}
             <div className="ml-auto flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSearching(true)}><Search className="size-4" /> {t('planningG8.search')}</Button>
+              <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setSearching(true)}><Search className="size-4" /> {t('planningG8.search')}</Button>
               {/* G8 « SMS programmes » (lot SMS Brevo) : liste, annulation, programmation de rappels. */}
-              <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}><MessageSquareText className="size-4" /> {t('sms.planningButton')}</Button>
-              <Button variant="outline" size="sm" onClick={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })}>
+              <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setSmsOpen(true)}><MessageSquareText className="size-4" /> {t('sms.planningButton')}</Button>
+              <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })}>
                 <Inbox className="size-4" /> {t('planningG8.newWaiting')}{period.waiting.length ? ` (${period.waiting.length})` : ''}
               </Button>
-              <Button size="sm" onClick={() => newAt(ref)}><Plus className="size-4" /> {t('workshop.newRdv')}</Button>
+              <Button size="sm" className="pointer-coarse:h-11" onClick={() => newAt(ref)}><Plus className="size-4" /> {t('workshop.newRdv')}</Button>
             </div>
           </>
         )}
