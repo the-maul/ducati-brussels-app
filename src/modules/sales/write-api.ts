@@ -2,6 +2,7 @@
  * M6 — Écriture des documents de vente : création, totaux, numérotation, décrément stock, règlement.
  * Le POS complet (encaissement multi-modes, clôture Z, avoirs) viendra étoffer ce socle.
  */
+import { listSalesOperators, operatorColumns } from './operators-api';
 import { supabase } from '@/integrations/supabase/client';
 import { getArticleSaleFlags, type ArticleSaleFlags } from '@/modules/articles/g8/api';
 import type { Database } from '@/integrations/supabase/types';
@@ -374,6 +375,11 @@ export async function createDocument(p: {
   repairOrderId?: string | null;
   /** Condition de règlement imprimée (facturation groupée des BL, G8 : appliquée à toutes les factures générées). */
   paymentCondition?: string | null;
+  /**
+   * Opérateur choisi (Q63, comme G8 : le vendeur qui fait la vente). Absent : la base pose
+   * l'opérateur relié à l'utilisateur connecté, sinon son nom (trg_documents_operator).
+   */
+  operatorId?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
 
@@ -407,6 +413,8 @@ export async function createDocument(p: {
     ...(p.cashSessionId ? { cash_session_id: p.cashSessionId } : {}),
     ...(p.paymentCondition ? { condition_reglement: p.paymentCondition } : {}),
     ...headerColumns({ ...p, pied, marginPurchasePrice: mpp }),
+    // Colonne posée par la migration 20261120150000 (Q63) : envoyée seulement si elle existe.
+    ...((await operatorColumns(p.operatorId)) as object),
   };
   // Facture d'un OR : colonne `repair_order_id` (hors types.ts), ajoutée hors typage.
   const withRo = (h: typeof header): typeof header => (p.repairOrderId ? ({ ...h, repair_order_id: p.repairOrderId } as typeof header) : h);
@@ -451,6 +459,14 @@ export async function createDocument(p: {
   return docId;
 }
 
+/** Opérateur (Q63) du document d'origine, s'il est encore actif dans sa société. */
+async function activeOperatorOf(doc: { company_id: string }): Promise<string | null> {
+  const id = (doc as { operator_id?: string | null }).operator_id ?? null;
+  if (!id) return null;
+  const ops = await listSalesOperators(doc.company_id).catch(() => []);
+  return ops.some((o) => o.id === id && o.isActive) ? id : null;
+}
+
 /** Colonne `documents.repair_order_id` inconnue de la base (PGRST204 / 42703). */
 const isMissingRepairOrderColumn = (e: { code?: string; message?: string } | null | undefined): boolean =>
   !!e && (e.code === 'PGRST204' || e.code === '42703') && /repair_order_id/.test(e.message ?? '');
@@ -478,6 +494,8 @@ export async function updateDraftDocument(p: {
   documentId: string; companyId: string; docType: string; contactId?: string | null; vehicleId?: string | null;
   issueDate: string; dueDate?: string | null; status: 'brouillon' | 'validee'; notes?: string | null;
   lines: LineInput[]; pied?: PiedInput; paymentTerms?: string | null;
+  /** Opérateur choisi (Q63) : se change tant que le document est un brouillon. */
+  operatorId?: string | null;
 }): Promise<string> {
   const validated = p.status === 'validee';
   const { doc, lines: oldLines } = await getDocumentFull(p.documentId);
@@ -491,6 +509,7 @@ export async function updateDraftDocument(p: {
   // Un brouillon qui quitte le régime de la marge repasse explicitement en 'normal'.
   const header = headerColumns({ ...p, pied, marginPurchasePrice: mpp });
   if (isMargeDocument(doc) && pied.vatScheme !== 'marge') Object.assign(header, margeColumns('normal', null));
+  Object.assign(header, await operatorColumns(p.operatorId));
   let { error: he } = await supabase.from('documents').update(header)
     .eq('id', p.documentId).eq('status', 'brouillon');
   if (isMissingMargeColumn(he)) ({ error: he } = await supabase.from('documents').update(stripMargeColumns(header)).eq('id', p.documentId).eq('status', 'brouillon'));
@@ -686,6 +705,8 @@ export async function convertDocument(sourceId: string, targetType: string): Pro
     lines: lineInputs, pied: docRowToPied(doc), sourceDocumentId: sourceId,
     // Les conditions de reglement suivent le document (devis -> BC -> facture).
     ...(doc.condition_reglement ? { paymentTerms: doc.condition_reglement } : {}),
+    // L'opérateur suit le document (Q63), s'il est toujours actif ; sinon celui de l'utilisateur.
+    operatorId: await activeOperatorOf(doc),
   });
 
   // Report des acomptes perçus de la source (réservation) sur la cible → déduction auto. Un acompte déjà

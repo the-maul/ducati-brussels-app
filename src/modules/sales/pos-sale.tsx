@@ -73,6 +73,12 @@ import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { SupplyStateBadge } from '@/modules/articles/supply-badge';
+import { useSalesOperators } from './use-sales-operators';
+import { OperatorSelect } from './operator-select';
+import { operatorMissing } from './operators';
+import { identityMissing } from '@/modules/contacts/identity-rules';
+import { PERSON_CIVILITIES } from '@/modules/contacts/civility';
+import { identityFieldsLabel } from '@/lib/db-error-i18n';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -115,6 +121,12 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Opérateur (Q63, comme G8) : le vendeur qui fait la vente, choisi à chaque vente ; par défaut
+  // l'utilisateur connecté s'il est opérateur. Son nom est imprimé et compte dans ses statistiques.
+  const { operators, defaultId: defaultOperator } = useSalesOperators(companyId);
+  const [operatorId, setOperatorId] = useState<string | null>(null);
+  const [operatorAsk, setOperatorAsk] = useState(false);
+  useEffect(() => { if (!operatorId && defaultOperator) setOperatorId(defaultOperator); }, [defaultOperator, operatorId]);
   const [askUnpaid, setAskUnpaid] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
   const [mailTo, setMailTo] = useState<string | null>(null);
@@ -209,6 +221,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
       const open = posCollectsNow(docType) ? await getOpenSession(companyId) : null;
       if (posCollectsNow(docType) && !open) { setError(t('pos.noSessionBody')); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); setBusy(false); return; }
       if (mustInvoice && !contact) { setError(invoiceRequiredMessage(mustInvoice)); setBusy(false); return; }
+      if (operatorMissing(operators, operatorId)) { setOperatorAsk(true); setError(t('q63.required')); setBusy(false); return; }
       const lines = posTicketLines(cart);
       const issueDate = localIsoDate();
       const terms = contact?.payment_terms?.trim() || null;
@@ -218,6 +231,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
         ...(contact ? { paymentTerms: terms } : {}),
         // Le ticket est rattaché à la session par la base ; la facture du comptoir l'est ici.
         cashSessionId: docType === 'FAC' && open && sessionLinkable(open) ? open.id : null,
+        operatorId,
       });
       const tot = computeTotals(lines, pied);
       setActiveDoc({ id, ttc: tot.total_ttc, contact, docType, creditBlocking: credit.blocking });
@@ -278,7 +292,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     />
   );
 
-  const newSale = () => { setCart([]); setContact(null); setActiveDoc(null); setError(null); setDocKind('express'); setDiscountPct(''); setDiscountAmount(''); setShippingHt(''); setShippingTaxed(true); setDeviceNote(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
+  const newSale = () => { setCart([]); setContact(null); setOperatorId(defaultOperator); setOperatorAsk(false); setActiveDoc(null); setError(null); setDocKind('express'); setDiscountPct(''); setDiscountAmount(''); setShippingHt(''); setShippingTaxed(true); setDeviceNote(null); setAskUnpaid(false); setMailOpen(false); setMailTo(null); dispatch({ type: 'newSale' }); setManual(null); qc.invalidateQueries({ queryKey: ['stock', companyId] }); };
   const askNewSale = () => {
     const collects = !!activeDoc && posCollectsNow(activeDoc.docType);
     if (collects && remaining > 0.005) {
@@ -435,6 +449,11 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
         {/* Client (facture) + total + encaisser */}
         <div className="space-y-3 rounded-md border border-border bg-card p-4">
           <div className="space-y-1">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('q63.operator')} *</label>
+            <OperatorSelect operators={operators} value={operatorId} onChange={(v) => { setOperatorId(v); setOperatorAsk(false); }}
+              invalid={operatorAsk && !operatorId} disabled={!!activeDoc} />
+          </div>
+          <div className="space-y-1">
             <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('posDetail.docType')}</label>
             <Select value={docKind} onValueChange={(v) => setDocKind(v as PosDocKind)}>
               <SelectTrigger title={t('posDetail.changeHint')}><SelectValue /></SelectTrigger>
@@ -517,18 +536,22 @@ function LabourDialog({ companyId, onClose, onPick }: { companyId: string; onClo
   );
 }
 
-/** Client rapide (G8 : « Nouveau client » depuis la saisie) : nom obligatoire, la fiche se complète plus tard. */
+/**
+ * Client rapide (G8 : « Nouveau client » depuis la saisie) : civilité, nom et prénom obligatoires
+ * (décision Q67, comme G8), en MAJUSCULES ; la fiche se complète plus tard.
+ */
 function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: string; onClose: () => void; onCreated: (c: Contact) => void }) {
-  const [f, setF] = useState({ last: '', first: '', mobile: '', email: '' });
+  const [f, setF] = useState({ civility: '', last: '', first: '', mobile: '', email: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const missing = identityMissing({ type: 'particulier', civility: f.civility, first_name: f.first, last_name: f.last });
   const create = async () => {
-    if (!f.last.trim()) return;
+    if (missing.length) { setErr(fillVars(t('q67.errRequired'), { fields: identityFieldsLabel(missing) })); return; }
     setBusy(true); setErr(null);
     try {
       const c = await createContact({
-        company_id: companyId, type: 'particulier', status: 'client',
-        last_name: f.last.trim().toUpperCase(), first_name: f.first.trim() ? f.first.trim().toUpperCase() : null,
+        company_id: companyId, type: 'particulier', status: 'client', civility: f.civility,
+        last_name: f.last.trim().toUpperCase(), first_name: f.first.trim().toUpperCase(),
         mobile: f.mobile.trim() ? normalizeMobile(f.mobile) : null, email: f.email.trim() ? normalizeEmail(f.email) : null,
       });
       onCreated(c);
@@ -546,6 +569,13 @@ function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: strin
           <DialogDescription>{t('posDetail.quickClientHint')}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
+          <PosField label={`${t('q67.civility')} *`}>
+            <Select value={f.civility} onValueChange={(v) => setF((x) => ({ ...x, civility: v }))}>
+              <SelectTrigger><SelectValue placeholder={t('q67.civility')} /></SelectTrigger>
+              <SelectContent>{PERSON_CIVILITIES.map((c) => <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>)}</SelectContent>
+            </Select>
+          </PosField>
+          <div />
           {field('last', t('posDetail.lastName'))}
           {field('first', t('posDetail.firstName'))}
           {field('mobile', t('posDetail.mobile'), 'tel')}
@@ -554,7 +584,7 @@ function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: strin
         {err && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={create} disabled={busy || !f.last.trim()}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} {t('posDetail.create')}</Button>
+          <Button onClick={create} disabled={busy || missing.length > 0}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} {t('posDetail.create')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

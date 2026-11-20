@@ -18,6 +18,7 @@ import { formatCompanyNumber } from './invoice-legal';
 import { printDocument } from './print-document';
 import { CASH_METHOD } from './cash-rounding';
 import { buildTicketReceipt, type TicketReceiptInput } from './receipt-ticket';
+import { operatorPrintName } from './operators';
 
 /** Construit le ticket d'un document (lecture seule). */
 export async function loadTicketReceipt(
@@ -77,7 +78,7 @@ export async function loadTicketReceipt(
       phone: (co.phone as string) ?? null,
     },
     doc: {
-      docType: doc.doc_type, number: doc.number, issuedAt: createdAt, operator: doc.operator ?? null,
+      docType: doc.doc_type, number: doc.number, issuedAt: createdAt, operator: operatorPrintName(doc.operator) || null,
       totalHt: Number(doc.total_ht), totalVat: Number(doc.total_vat), totalTtc: Number(doc.total_ttc),
       taxExempt: !!doc.tax_exempt, marge,
       globalDiscountPct: Number(doc.global_discount_pct || 0), globalDiscountAmount: Number(doc.global_discount_amount || 0),

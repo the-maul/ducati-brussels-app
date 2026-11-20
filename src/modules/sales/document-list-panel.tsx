@@ -25,6 +25,7 @@ import {
   emptyDocListFilters, countDocListFilters, marginPct, averageBasket, paymentsSummary, displayNumber,
   type DocListFilters, type DocListRow, type FiscalChoice, type ClientKind, type TransferFilter, type DocListSort,
 } from './document-list';
+import { operatorPrintName } from './operators';
 
 const eur = (n: number | null | undefined) => (n == null ? '—' : `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`);
 const pct = (n: number | null) => (n == null ? '—' : `${n.toFixed(2).replace('.', ',')} %`);
@@ -242,7 +243,7 @@ export function DocumentListPanel({
                 <td className="whitespace-nowrap px-3 py-2 tabular-nums">{fmtDate(r.issue_date)}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{r.contact_code ?? ''}</td>
                 <td className="px-3 py-2">{r.contact_name ?? <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-3 py-2">{r.operator ?? ''}</td>
+                <td className="px-3 py-2">{operatorPrintName(r.operator)}</td>
                 <td className={`px-3 py-2 text-right tabular-nums ${r.due > 0.004 ? 'font-semibold text-danger' : ''}`}>{eur(r.due)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{r.discount ? eur(r.discount) : ''}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(r.total_ht)}</td>

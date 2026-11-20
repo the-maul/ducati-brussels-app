@@ -61,6 +61,9 @@ import { isBlockedSale, clientPriceDefaults, creditCheck, creditRefuses, dueDate
 import { ClientSaleBanners } from './client-sale-banners';
 import { TariffPriceDialog } from './tariff-price-dialog';
 import { PendingDocumentsDialog } from './pending-documents-dialog';
+import { useSalesOperators } from './use-sales-operators';
+import { OperatorSelect } from './operator-select';
+import { operatorMissing, operatorPrintName } from './operators';
 
 const DOC_TYPES = EDITOR_DOC_TYPES;
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -101,7 +104,14 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
   const qc = useQueryClient();
   const confirmDialog = useConfirm();
   const { profile, user } = useAuth();
-  const operatorName = draft?.doc.operator || profile?.full_name?.trim() || profile?.email || user?.email || '';
+  const operatorName = operatorPrintName(draft?.doc.operator || profile?.full_name?.trim() || profile?.email || user?.email || '');
+  // Opérateur (Q63, comme G8) : le vendeur qui fait la vente, dans la liste des opérateurs de la
+  // société ; par défaut l'utilisateur connecté s'il est opérateur ; changeable tant que brouillon.
+  const { operators, defaultId: defaultOperator } = useSalesOperators(companyId);
+  const draftOperatorId = (draft?.doc as { operator_id?: string | null } | undefined)?.operator_id ?? null;
+  const [operatorId, setOperatorId] = useState<string | null>(draftOperatorId);
+  const [operatorAsk, setOperatorAsk] = useState(false);
+  useEffect(() => { if (!operatorId && !draft && defaultOperator) setOperatorId(defaultOperator); }, [defaultOperator, operatorId, draft]);
   const roundUp = useRoundSalePrices(companyId);
   // Type proposé (mission 08, carte 3) : brouillon rouvert → son type ; devis atelier depuis un OR
   // → DEV ; lien `?docType=` ; sinon le réglage de la société, sinon « Devis / proforma ».
@@ -362,6 +372,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
     // Refus clairs avant d'écrire : sans ligne, validation sans client, validation à 0 € (audit du 31/10/2026).
     const refused = documentValidationError({ docType, status, contactId: contact?.id ?? null, lines: payload, requireAmount: true });
     if (refused) { fail(documentValidationMessage(refused)); return; }
+    if (operatorMissing(operators, operatorId)) { setOperatorAsk(true); fail(t('q63.required')); return; }
     // Client bloque : vente refusee (la base refuse aussi) ; encours bloquant : vente a credit refusee.
     if (status === 'validee' && isBlockedSale(flags, docType)) { fail(t('clientRules.blockedRefused')); return; }
     if (status === 'validee' && creditRefuses(credit, docType)) {
@@ -387,7 +398,7 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         : draft?.doc.notes ?? null;
       const common = {
         companyId, docType, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, issueDate, dueDate: dueDate || null,
-        status, notes, lines: payload, pied, paymentTerms,
+        status, notes, lines: payload, pied, paymentTerms, operatorId,
       };
       const id = draft ? await updateDraftDocument({ documentId: draft.doc.id, ...common }) : await createDocument(common);
       if (draft) qc.invalidateQueries({ queryKey: ['doc-full', id] });
@@ -444,8 +455,9 @@ export function DocumentEditor({ companyId, initialContactId, initialVehicleId, 
         </Field>
         <Field label={t('sales.date')}><Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></Field>
         <Field label={t('sales.dueDate')}><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
-        <Field label={t('sales.operator')}>
-          <Input value={operatorName} readOnly disabled title={t('sales.operatorAuto')} />
+        <Field label={`${t('q63.operator')}${operators.some((o) => o.isActive) ? ' *' : ''}`}>
+          <OperatorSelect operators={operators} value={operatorId} onChange={(v) => { setOperatorId(v); setOperatorAsk(false); }}
+            invalid={operatorAsk && !operatorId} fallbackName={operatorName} />
         </Field>
       </div>
 

@@ -413,3 +413,30 @@ la page = ceux de « Soldes à encaisser ».
   facture, antérieure aux lettres G8) a son propre interrupteur (`invoice_reminder_auto`, arrêté par défaut) : avant
   le 19/11 elle visait directement l'adresse du client, sans mode test (rien n'est parti : Resend absent).
 
+
+
+## Ajouté le 20/11 — opérateur au comptoir comme G8 (décision Q63)
+Branche `lot-decisions-q63-q67`. Migration **`20261120150000_m6_operateur_comptoir_g8.sql` (non appliquée)**,
+essai à blanc `supabase/tests/m6_operateur_comptoir_g8.sql` (8/8). Règles pures `src/modules/sales/operators.ts`
+(tests `tests/decisions-q63-q67.test.ts`).
+- **Référentiel** : Paramètres → Tables → **« Opérateurs (vendeurs) »** (`reference_values`, `table_key = sales_operator`,
+  G8 Fichiers › Opérateurs) : code, nom (imprimé), actif (« fiche désactivée »), type (vendeur magasin / atelier /
+  chef atelier / rétrocession), **compte DMS lié (e-mail)**. Rempli par la migration : opérateurs G8 repris des documents
+  importés (société de test : ceux de sa source), actifs s'ils ont vendu dans les 12 mois avant le dernier document
+  repris (DOMENICO, JOHN, LIVIO, LUC, LUIS, RENAUD, SIMON), les autres désactivés (ADMINISTRATEUR, INTERNET compris) ;
+  chaque nom relié au compte du même nom / prénom / début d'e-mail s'il est unique ; comptes nommés restants ajoutés.
+- **Comptoir (`/pos`) et Nouveau document** : liste « Opérateur * » ; défaut = l'utilisateur connecté s'il est opérateur
+  (même e-mail) ; sinon choix **obligatoire** (G8) dès que la société a des opérateurs actifs ; au comptoir, remis au
+  défaut à chaque nouvelle vente ; changeable tant que le document est un brouillon. La conversion garde l'opérateur
+  (s'il est encore actif).
+- **Base** (`trg_documents_operator` remplacé) : `documents.operator_id` (nouvelle colonne) = opérateur actif de la
+  société, sinon refus (`hint operator_unknown`) ; `documents.operator` = son **nom** ; `operator_user_id` = son compte
+  lié, sinon l'utilisateur connecté. Sans choix : l'opérateur relié à l'utilisateur, sinon le nom du profil, **jamais un
+  e-mail** (`person_display_name` : partie avant « @ » en majuscules). Validé : l'opérateur ne change plus
+  (`operator_locked`). Documents repris / fonctions serveur : inchangés.
+- **Impression** : ticket, facture A4, PDF, fiche document, listes, journaux de caisse : `operatorPrintName` (jamais un
+  e-mail). **Rattrapage** : les documents existants dont l'opérateur est un e-mail prennent le nom (11 en production),
+  une ligne `events` `documents_operator_name_fix` par société.
+- **Statistiques par opérateur** : inchangées (`_stats_facts` lit `documents.operator`, désormais le nom choisi).
+- Limite : le filtre « Opérateur » de la liste des factures reste par compte DMS (`operator_user_id`) ; une vente de
+  JOHN (sans compte) y apparaît sous le compte qui l'a saisie. Statistiques et journaux, eux, sont par nom.

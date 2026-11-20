@@ -18,6 +18,7 @@ import { formatCompanyNumber } from './invoice-legal';
 import { tIn, ensureLocale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { normalizePrintOptions, titleKey, printableLines, type PrintOptions } from './print-options';
+import { operatorPrintName } from './operators';
 
 const eur = (n: number) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -196,7 +197,7 @@ async function buildPrintSection(full: DocumentFull, companyName: string, option
     <div>${esc(t('salesPdf.clientNo'))}<b>${esc(numClient)}</b></div>
     <div>${esc(t('salesPdf.condition'))}<b>${esc(condition)}</b></div>
     <div>${esc(t('salesPdf.dueDate'))}<b>${esc(echeance)}</b></div>
-    <div>${esc(t('salesPdf.operator'))}<b>${esc(doc.operator ?? '')}</b></div>
+    <div>${esc(t('salesPdf.operator'))}<b>${esc(operatorPrintName(doc.operator))}</b></div>
   </div>
 
   ${opts.totalsOnly ? '' : `<table class="lines">
