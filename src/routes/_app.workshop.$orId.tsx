@@ -53,7 +53,7 @@ import { loadJourney } from '@/modules/workshop/journey/store';
 import { ReceptionPanel, ReceptionSheet } from '@/modules/workshop/reception/reception-sheet';
 import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
 import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
-import { t, tIn, fillVars, pageTitle } from '@/lib/i18n';
+import { t, tIn, fillVars, pageTitle, ensureLocale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/workshop/$orId')({
@@ -168,6 +168,7 @@ function OrView() {
     const contact = await getContact(full.doc.contact_id);
     if (!contact) throw new Error(t('checkup.needClient'));
     const locale = contactLocale(contact);
+    await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
     const vars = { number: full.doc.number ?? '', company: companyName, client: contactDisplayName(contact), link: proposalSignUrl(token), or: data?.or.number ?? '' };
     setMail({ full, contact, preset: { subject: fillVars(tIn(locale, 'checkup.mailSubject'), vars), body: fillVars(tIn(locale, 'checkup.mailBody'), vars) } });
   };

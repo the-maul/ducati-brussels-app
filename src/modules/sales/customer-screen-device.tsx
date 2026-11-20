@@ -17,7 +17,7 @@ import { Link } from '@tanstack/react-router';
 import { Loader2, LogIn, Maximize, WifiOff, MonitorSmartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
-import { tIn, fillVars, type Locale } from '@/lib/i18n';
+import { tIn, fillVars, type Locale, useLocaleReady } from '@/lib/i18n';
 import { CustomerDisplay } from './customer-display';
 import { CustomerScreenView } from './customer-screen-view';
 import { QrCodeSvg } from './qr-code-svg';
@@ -68,6 +68,7 @@ const fullscreen = () => {
 };
 
 function Corner({ locale, offline }: { locale: Locale; offline?: boolean }) {
+  useLocaleReady(locale); // dictionnaire charge a la demande (lot perf 2)
   return (
     <>
       {offline && (

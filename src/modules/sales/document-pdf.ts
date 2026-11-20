@@ -18,7 +18,7 @@
  */
 import { patchPdfText } from '@/modules/documents/pdf-text';
 import { code128Svg } from '@/modules/articles/barcode';
-import { tIn, DEFAULT_LOCALE, type Locale } from '@/lib/i18n';
+import { tIn, DEFAULT_LOCALE, type Locale, ensureLocale } from '@/lib/i18n';
 import { lineHasAmount, type LineType } from './write-api';
 
 /**
@@ -289,7 +289,8 @@ const COLS = [
  * pas sur le premier affichage de l'application).
  */
 export async function buildSalesDocumentPdf(d: SalesPdfInput): Promise<Uint8Array> {
-  const { jsPDF } = await import('jspdf');
+  // Langue du client chargee avant la mise en page (dictionnaires a la demande, lot perf 2).
+  const [{ jsPDF }] = await Promise.all([import('jspdf'), ensureLocale(d.locale)]);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   patchPdfText(doc as unknown as { text: (...a: unknown[]) => unknown });
   drawDocument(doc, d);

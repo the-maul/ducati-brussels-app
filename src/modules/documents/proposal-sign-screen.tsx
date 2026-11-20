@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchImageForPdf } from '@/lib/image-tools';
-import { tIn, fillVars } from '@/lib/i18n';
+import { tIn, fillVars, useLocaleReady } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buildSalesDocumentPdf, type SalesPdfInput } from '@/modules/sales/document-pdf';
 import { partitionProposal, sha256Hex, type ProposalGroup } from '@/modules/workshop/checkup/rules';
@@ -37,6 +37,8 @@ export function ProposalSignScreen({ token, mode, backToOrId }: { token: string;
   const q = useQuery({ queryKey: ['proposal-sign', token], queryFn: () => fetchProposal(token), retry: false });
   const p = q.data ?? null;
   const locale = proposalLocale(p);
+  // Langue du client chargee a la demande (lot perf 2) : la page attend son dictionnaire.
+  const localeReady = useLocaleReady(locale);
   const t = (key: string) => tIn(locale, key);
   const groups = useMemo(() => (p ? groupsFor(p) : []), [p]);
   const [kept, setKept] = useState<Set<string>>(new Set());
@@ -93,7 +95,7 @@ export function ProposalSignScreen({ token, mode, backToOrId }: { token: string;
     </Button>
   ) : null;
 
-  if (q.isLoading) return <Frame><div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div></Frame>;
+  if (q.isLoading || !localeReady) return <Frame><div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div></Frame>;
   if (q.isError || !p) {
     return (
       <Frame>

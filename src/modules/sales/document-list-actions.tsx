@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t, tIn } from '@/lib/i18n';
+import { t, tIn, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { listCompanyMailboxes } from '@/modules/crm/api';
@@ -142,6 +142,7 @@ export function BatchMailDialog({ companyId, rows, onClose }: { companyId: strin
       try {
         const full = await getDocumentFull(row.id);
         const locale = contactLocale(contact);
+        await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
         const vars: Record<string, string> = { type: tIn(locale, `sales.type_${row.doc_type}`), number, company: companyName, client: row.contact_name ?? '' };
         const fill = (s: string) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
         const body = fill(tIn(locale, 'salesMail.bodyDefault')) + (extra.trim() ? `\n\n${extra.trim()}` : '');

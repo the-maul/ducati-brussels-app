@@ -9,7 +9,7 @@ import { normalizePrintOptions, titleKey, type PrintOptions } from './print-opti
 import { supabase } from '@/integrations/supabase/client';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { fetchImageForPdf } from '@/lib/image-tools';
-import { tIn, type Locale } from '@/lib/i18n';
+import { tIn, type Locale, ensureLocale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { signedUrl } from '@/modules/documents/ged-api';
 import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
@@ -80,6 +80,7 @@ export async function loadLegalMentions(
   doc: DocumentFull['doc'], payments: Record<string, unknown>[], locale: Locale,
 ): Promise<string[] | null> {
   if (!(LEGAL_MENTION_DOC_TYPES as readonly string[]).includes(doc.doc_type)) return null;
+  await ensureLocale(locale);
   const source = doc.source_document_id && (doc.doc_type === 'AVO' || doc.doc_type === 'FAA')
     ? (await supabase.from('documents').select('number, issue_date').eq('id', doc.source_document_id).maybeSingle()).data
     : null;
@@ -116,6 +117,7 @@ export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<Pr
   // Langue du client (I18N004) : celle de sa fiche, FR sans client ou sans langue. Tous les
   // libellés fixes du PDF et la désignation des lignes la suivent ; l'écran de l'utilisateur, non.
   const locale: Locale = contactLocale(c);
+  await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
   const t = (key: string) => tIn(locale, key);
 
   // Régime de la marge (M-89) : d'après `documents.vat_scheme` ; tant que la colonne n'existe

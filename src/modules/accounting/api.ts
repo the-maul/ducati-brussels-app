@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildUblInvoice, ublExportBlockers, type UblInvoice, type UblLine, type UblParty } from './ubl';
 import { docVatScheme, isMargeDocument } from '@/modules/sales/write-api';
 import { MARGIN_MENTION_KEY, MARGIN_DEFAULT_RATE } from '@/modules/sales/vat-scheme';
-import { t, tIn } from '@/lib/i18n';
+import { t, tIn, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 
 export type JournalRow = {
@@ -125,6 +125,7 @@ export async function exportInvoiceUbl(documentId: string): Promise<void> {
     : l));
   // Régime de la marge (M-89, lot ef3f953) : catégorie E 0 %, mention dans la langue du client, jamais `O`.
   const marge = isMargeDocument(doc);
+  if (marge) await ensureLocale(contactLocale(contact)); // mention dans la langue du client (lot perf 2)
   const inv: UblInvoice = {
     number: doc.number ?? documentId.slice(0, 8), issueDate: doc.issue_date, dueDate: isCredit ? null : doc.due_date, isCredit,
     isPrepayment: doc.doc_type === 'FAA',

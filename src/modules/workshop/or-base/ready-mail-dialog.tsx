@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { clientAppUrl } from '@/lib/client-app-url';
-import { t, tIn, fillVars } from '@/lib/i18n';
+import { t, tIn, fillVars, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { listCompanyMailboxes } from '@/modules/crm/api';
 import { contactDisplayName, getContact } from '@/modules/contacts/api';
@@ -51,6 +51,7 @@ export function ReadyMailDialog({ companyId, companyName, or, onClose, onInforme
       const contact = or.contact_id ? await getContact(or.contact_id) : null;
       const vehicle = or.vehicle_id ? await getVehicle(or.vehicle_id) : null;
       const locale = contactLocale(contact as { locale?: unknown } | null);
+      await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
       const vars = {
         company: companyName, client: contact ? contactDisplayName(contact) : '',
         vehicle: vehicle ? vehicleLabel(vehicle) : tIn(locale, 'orBase.readyVehicleFallback'),

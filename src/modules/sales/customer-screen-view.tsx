@@ -10,7 +10,7 @@ import { CheckCircle2, Clock, CreditCard, Loader2, Mail, PenLine, QrCode, Bankno
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SignaturePad } from '@/modules/documents/signature-pad';
-import { LOCALES, tIn, fillVars, type Locale } from '@/lib/i18n';
+import { LOCALES, tIn, fillVars, type Locale, useLocaleReady } from '@/lib/i18n';
 import { buildEpcPayload, formatIban } from './epc-qr';
 import { QrCodeSvg } from './qr-code-svg';
 import { amountToPay, isScreenEmail, type ResolvedScreen, type ScreenMethod, type ScreenSnapshot } from './customer-screen';
@@ -39,6 +39,9 @@ export type CustomerScreenViewProps = {
 
 export function CustomerScreenView(props: CustomerScreenViewProps) {
   const { snapshot, resolved, locale, companyName, registerCode, chooseLocale, onLocale, preview } = props;
+  // Les quatre langues s'affichent ici (boutons de langue) : leurs dictionnaires, charges a la
+  // demande (lot perf 2), re-rendent l'ecran a leur arrivee ; en attendant, repli FR.
+  useLocaleReady(...LOCALES);
   const tc = (key: string) => tIn(locale, `customerScreen.${key}`);
   const p = snapshot?.payload ?? {};
 

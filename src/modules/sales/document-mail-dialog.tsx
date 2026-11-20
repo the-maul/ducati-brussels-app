@@ -21,7 +21,7 @@ import { MailPreview } from '@/components/mail-preview';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listCompanyMailboxes, listCommunications } from '@/modules/crm/api';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
-import { t, tIn, getLocale } from '@/lib/i18n';
+import { t, tIn, getLocale, useLocaleReady } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { errorMessage } from '@/lib/mutation-feedback';
 import type { DocumentFull } from './write-api';
@@ -30,7 +30,19 @@ import { sendDocumentMail, mailErrorLabel, accountantCopy, getAccountantEmail, t
 
 const fill = (s: string, vars: Record<string, string>) => Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
 
-export function DocumentMailDialog({ full, contact, companyName, onClose, preset, onSent, initialTo }: {
+type DocumentMailDialogProps = Parameters<typeof DocumentMailDialogInner>[0];
+
+/**
+ * Fenetre d'envoi d'un document. Le dictionnaire de la langue du client est charge a la demande
+ * (lot perf 2) : la fenetre s'ouvre une fois pret (quelques ms), pour que l'objet et le message
+ * proposes soient bien dans sa langue.
+ */
+export function DocumentMailDialog(props: DocumentMailDialogProps) {
+  const ready = useLocaleReady(props.contact ? contactLocale(props.contact) : getLocale());
+  return ready ? <DocumentMailDialogInner {...props} /> : null;
+}
+
+function DocumentMailDialogInner({ full, contact, companyName, onClose, preset, onSent, initialTo }: {
   full: DocumentFull; contact: Contact | null; companyName: string; onClose: () => void;
   /** Objet et message proposés à la place des textes par défaut (ex. proposition d'intervention avec son lien de signature). */
   preset?: { subject: string; body: string } | null;

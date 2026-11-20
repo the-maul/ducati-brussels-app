@@ -5,7 +5,7 @@
  * regle (ou migration absente) : impression A4 historique (print-document.ts), rien ne change.
  */
 import { supabase } from '@/integrations/supabase/client';
-import { tIn } from '@/lib/i18n';
+import { tIn, ensureLocale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { contactDisplayName } from '@/modules/contacts/api';
 import { printReceipt, type DeviceContext, type ReceiptDoc } from '@/lib/devices';
@@ -37,6 +37,7 @@ export async function loadTicketReceipt(
   const co = (company ?? {}) as Record<string, unknown>;
   const c = (contact ?? null) as Record<string, unknown> | null;
   const locale = contactLocale(c);
+  await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
   const methodLabel = new Map((methods ?? []).map((m) => [m.code, m.label]));
 
   // Regime de la marge : colonne du document, sinon detection par article O (comme print-document).

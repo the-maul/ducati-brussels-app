@@ -15,7 +15,7 @@ import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './w
 import { vehicleBlockLines, vatBreakdown, type VehicleBlockSource } from './document-pdf';
 import { loadLegalMentions } from './document-pdf-data';
 import { formatCompanyNumber } from './invoice-legal';
-import { tIn } from '@/lib/i18n';
+import { tIn, ensureLocale } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
 import { normalizePrintOptions, titleKey, printableLines, type PrintOptions } from './print-options';
 
@@ -53,6 +53,7 @@ async function buildPrintSection(full: DocumentFull, companyName: string, option
   // Langue du client (I18N004) : le papier remis au client est dans SA langue (fiche contact),
   // mêmes libellés que le PDF (`salesPdf.*`), pas ceux de l'écran de l'utilisateur.
   const locale = contactLocale(c);
+  await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
   const t = (key: string) => tIn(locale, key);
   const tk = titleKey(opts.title);
   const typeLabel = tk ? t(tk) : t(`sales.type_${doc.doc_type}`);

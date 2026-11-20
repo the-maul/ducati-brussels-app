@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { listContactCurrentVehicles } from '@/modules/vehicles/api';
-import { t, tIn, fillVars, LOCALES, type Locale } from '@/lib/i18n';
+import { t, tIn, fillVars, LOCALES, type Locale, ensureLocale } from '@/lib/i18n';
 import type { PlanningSettings } from '../planning/api';
 import { localYmd } from '../planning/rules';
 import { Field } from '../planning/ui-bits';
@@ -109,6 +109,7 @@ function ContractForm(p: Props & {
           deductible_amount: amount, contract_place: place.trim() || null,
         });
       }
+      await ensureLocale(locale); // dictionnaire de la langue du contrat (charge a la demande, lot perf 2)
       const fuel = (f: string | null | undefined) => (f ? tIn(locale, `loans.fuel_${f}`) : '');
       const co = p.company;
       printLoanContract({

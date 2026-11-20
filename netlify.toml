@@ -13,3 +13,17 @@
 # Le bundle SSR (Nitro) a depasse les 2 Go de memoire par defaut le 18/11/2026 (rattrapage G8).
 [build.environment]
   NODE_OPTIONS = "--max-old-space-size=6144"
+
+# Perf 2 (20/11/2026) : le navigateur demande /favicon.ico a chaque nouvel onglet ; le fichier
+# n'existant pas, la demande reveillait la fonction SSR (250 a 600 ms, une invocation facturee)
+# pour rendre une page 404. On sert l'image de la marque deja presente, en statique.
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/brands/ducati.webp"
+  status = 200
+
+# Region de la fonction SSR : elle ne se regle PAS ici pour TanStack Start (fonction generee au
+# build). Par defaut Netlify la place a Ohio (us-east-2) alors que la base est a Paris
+# (eu-west-3). Reglage cote compte (offre Pro ou superieure) : Netlify -> le site -> Cloud
+# compute -> Functions -> Region -> Configure -> « EU (Frankfurt) » (fra) ou
+# « EU (Ireland) » (dub) ; Paris (cdg) sur demande au support. Puis redeployer.

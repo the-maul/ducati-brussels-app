@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { t, tIn, type Locale } from '@/lib/i18n';
+import { t, tIn, type Locale, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { getRepairOrderFull } from '../api';
@@ -138,7 +138,9 @@ async function loadPdfData(orId: string): Promise<{ data: OrPdfData; locale: Loc
     } : null,
     deposit: deposits.get(orId)?.amount ?? null,
   };
-  return { data, locale: contactLocale(c) };
+  const locale = contactLocale(c);
+  await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
+  return { data, locale };
 }
 
 /** Ticket 80 mm (decision Q46) depuis les memes donnees que le PDF, dans la langue du client. */
