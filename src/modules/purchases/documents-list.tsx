@@ -4,11 +4,16 @@
  * franco, minimum, totaux), Propositions, Rétrocessions, Échéances fournisseurs, Montants TVA par fournisseur
  * (date de réception ou de facture), Frais de réception, Historique des commandes (date et heure d'envoi,
  * n° de réception), Remises de fin d'année ; export Excel de chaque onglet.
+ *
+ * Revue UX/UI (20/11/2026) : trois onglets seulement (Réceptions · Commandes · Propositions) ; les
+ * rapports (rétrocessions, échéances, TVA, frais, historique, remises de fin d'année) passent dans
+ * un menu « Rapports » ; une phrase d'aide sous chaque terme G8 ; les boutons de vue (Livraisons /
+ * Factures achat, base de TVA) ne sont plus rouges : le rouge reste à « Nouvelle réception ».
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileSpreadsheet, Merge } from 'lucide-react';
+import { ChevronDown, FileBarChart, Loader2, FileSpreadsheet, Merge } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Input } from '@/components/ui/input';
@@ -16,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/status-badge';
 import { listSuppliers, supplierName } from './api';
 import {
@@ -36,6 +43,20 @@ function exportXlsx(name: string, header: string[], rows: (string | number | nul
 }
 
 type Tab = 'REC' | 'CMD' | 'PCF' | 'RTF' | 'due' | 'vat' | 'fees' | 'history' | 'rfa';
+/** Les documents du quotidien, en onglets. */
+const DOC_TABS: Tab[] = ['REC', 'CMD', 'PCF'];
+/** Les rapports, dans le menu « Rapports ». */
+const REPORT_TABS: Tab[] = ['RTF', 'due', 'vat', 'fees', 'history', 'rfa'];
+
+/** Bouton de vue (choix dans une barre) : contour, le choix actif en gras sur fond gris, jamais rouge. */
+function ViewToggle({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Button size="sm" variant="outline" aria-pressed={on} onClick={onClick}
+      className={cn(on && 'border-foreground bg-accent font-bold')}>
+      {children}
+    </Button>
+  );
+}
 
 export function PurchaseDocumentsList({ companyId, canWrite }: { companyId: string; canWrite: boolean }) {
   const [tab, setTab] = useState<Tab>('REC');
@@ -65,11 +86,35 @@ export function PurchaseDocumentsList({ companyId, canWrite }: { companyId: stri
         </Field>
       </div>
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="flex-wrap">
-          {(['REC', 'CMD', 'PCF', 'RTF', 'due', 'vat', 'fees', 'history', 'rfa'] as Tab[]).map((k) => (
-            <TabsTrigger key={k} value={k}>{t(`purchasesG8.tab_${k}`)}</TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex flex-wrap items-center gap-2">
+          <TabsList className="h-auto flex-wrap">
+            {DOC_TABS.map((k) => (
+              <TabsTrigger key={k} value={k}>{t(`purchasesG8.tab_${k}`)}</TabsTrigger>
+            ))}
+          </TabsList>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" aria-pressed={REPORT_TABS.includes(tab)}
+                className={cn(REPORT_TABS.includes(tab) && 'border-foreground bg-accent font-bold')}>
+                <FileBarChart />
+                {REPORT_TABS.includes(tab)
+                  ? fillVars(t('designTransverse.purchases.reportsActive'), { name: t(`purchasesG8.tab_${tab}`) })
+                  : t('designTransverse.purchases.reports')}
+                <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-w-sm">
+              {REPORT_TABS.map((k) => (
+                <DropdownMenuItem key={k} onSelect={() => setTab(k)} className="flex-col items-start gap-0.5">
+                  <span className={cn(tab === k && 'font-bold')}>{t(`purchasesG8.tab_${k}`)}</span>
+                  <span className="text-[12px] text-muted-foreground">{t(`designTransverse.purchases.help_${k}`)}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {/* Aide sous chaque terme G8 : ce que contient l'onglet ou le rapport ouvert. */}
+        <p className="mt-2 text-[13px] text-muted-foreground">{t(`designTransverse.purchases.help_${tab}`)}</p>
         <TabsContent value="REC"><DocsTab companyId={companyId} docType="REC" filter={filter} canWrite={canWrite} /></TabsContent>
         <TabsContent value="CMD"><DocsTab companyId={companyId} docType="CMD" filter={filter} canWrite={canWrite} /></TabsContent>
         <TabsContent value="PCF"><DocsTab companyId={companyId} docType="PCF" filter={filter} canWrite={canWrite} /></TabsContent>
@@ -111,7 +156,7 @@ function DocsTab({ companyId, docType, filter, canWrite }: { companyId: string; 
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {docType === 'REC' && (['all', 'bl', 'invoice'] as const).map((v) => (
-          <Button key={v} size="sm" variant={view === v ? 'default' : 'outline'} onClick={() => setView(v)}>{t(`purchasesG8.view_${v}`)}</Button>
+          <ViewToggle key={v} on={view === v} onClick={() => setView(v)}>{t(`purchasesG8.view_${v}`)}</ViewToggle>
         ))}
         {canMerge && canWrite && (
           <Button size="sm" variant="outline" disabled={selected.length < 2} onClick={() => setMergeOpen(true)}><Merge /> {fillVars(t('purchasesG8.mergeBtn'), { n: selected.length })}</Button>
@@ -119,6 +164,7 @@ function DocsTab({ companyId, docType, filter, canWrite }: { companyId: string; 
         <span className="ml-auto font-data text-[13px] tabular-nums text-muted-foreground">{fillVars(t('purchasesG8.countTotals'), { n: rows.length, ht: eur(totalHt), ttc: eur(totalTtc) })}</span>
         <Button size="sm" variant="outline" onClick={exp} disabled={!rows.length}><FileSpreadsheet /> {t('purchasesG8.excel')}</Button>
       </div>
+      {docType === 'REC' && <p className="text-[12px] text-muted-foreground">{t('designTransverse.purchases.help_views')}</p>}
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted">
@@ -238,7 +284,7 @@ function VatTab({ companyId, filter }: { companyId: string; filter: ListFilter }
     rows.map((r) => [r.supplier_name, r.vat_number, r.vat_rate, r.base_ht, r.vat, r.ttc, r.receipts]));
   return (
     <div className="space-y-2">
-      <div className="flex gap-2">{(['receipt', 'invoice'] as const).map((b) => <Button key={b} size="sm" variant={basis === b ? 'default' : 'outline'} onClick={() => setBasis(b)}>{t(`purchasesG8.basis_${b}`)}</Button>)}</div>
+      <div className="flex gap-2">{(['receipt', 'invoice'] as const).map((b) => <ViewToggle key={b} on={basis === b} onClick={() => setBasis(b)}>{t(`purchasesG8.basis_${b}`)}</ViewToggle>)}</div>
       <TabFrame onExport={exp} disabled={!rows.length} total={`${eur(rows.reduce((s, r) => s + r.base_ht, 0))} ${t('purchases.totalHt')} · ${eur(rows.reduce((s, r) => s + r.vat, 0))} ${t('purchases.totalVat')}`} loading={q.isLoading} error={q.error as Error | null}>
         <thead className="bg-muted"><tr>{[t('purchases.colSupplier'), t('purchasesG8.vatNumber'), t('purchases.colVat'), t('purchases.totalHt'), t('purchases.totalVat'), t('purchases.totalTtc'), t('purchasesG8.receiptsCount')].map((h, i) => <Th key={i} className={i >= 2 ? 'text-right' : ''}>{h}</Th>)}</tr></thead>
         <tbody>
