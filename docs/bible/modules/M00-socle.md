@@ -388,3 +388,58 @@ Mesures du 19/11 (EXPLAIN ANALYZE en utilisateur connecté simulé, transaction 
 - **Écran** : la recherche d'article d'une ligne (OR, documents de vente) ne part plus pour chaque ligne libre à l'ouverture de la page, seulement quand le champ est utilisé ; ses deux lectures complémentaires partent en parallèle ; les sélecteurs de client (RDV, OR, vente, recherche globale) demandent 8 fiches au lieu de 500 (1,3 Mo par frappe pour « ma »).
 - **Appliquer** : à un moment calme (ALTER POLICY prend un verrou exclusif sur ~300 tables, le temps de la transaction).
 - **Reste** (hors code) : instance Supabase **Micro** (1 Go de RAM, CPU partagé) pour 2,6 Go de base, copie de société de test en cours qui double les données ; fonction SSR Netlify (≈ 0,5 s par page chargée) ; paquet JS principal 3,0 Mo (0,9 Mo compressé) dont ~2 Mo de dictionnaires des 4 langues chargés d'office.
+
+## Ajouté le 20/11 — lenteurs, lot 2 (passage Supabase Micro → Small)
+
+Lot `lot-perf-2`, migrations `20261120110000` → `20261120115000` (**non appliquées**). Mesures du 20/11
+(EXPLAIN ANALYZE en administrateur ITALBIKE simulé, transaction annulée ; tailles mesurées au build).
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Paquet JS principal (`index-*.js`) | 3 258 ko (1 028 ko compressé) | 1 984 ko (605 ko compressé), −41 % |
+| Code de la fonction SSR Netlify (`router-*.mjs`) | 3 146 ko | 1 630 ko, −48 % (démarrage à froid plus court) |
+| Recherche client `contacts_search` « martin » / « dup » / « jean dupont » / « 0475 » | 124 / 122 / 126 / 128 ms | 9 / 5 / 2,5 / 32 ms |
+| Comptage `contacts_search_count` « martin » | 119 ms | 7 ms |
+| Recherche d'article d'une ligne `article_line_search` « huile » / « 96481331 » / « filtre air » | 279 / 206 / 270 ms | 84 / 1,8 / 67 ms |
+| Écran `/stock` | 5 appels `article_stock_list` en série (~100 ms en base chacun) + 4 808 lignes dessinées (307 000 caractères) : 8,7 s | 1 appel `stock_screen_page` (75–85 ms), 100 lignes par page, total et valeur calculés en base |
+| Écran `/stock/depreciation` | même lecture : 9,6 s | même correction |
+| Disponibilité des lignes d'un document de vente (fiche et liste) | tout le stock (5 appels × 93 ms) | les seuls articles affichés : 1 appel, 5 ms |
+| Fiche OR (rechargement) | 59 requêtes, dont ~12 sondes de schéma et 8 lectures `reference_values`, en 3 vagues | ~41 : sondes en 1 appel groupé (0 au rechargement suivant dans l'onglet), paramètres en 1 lecture partagée |
+| Relève Outlook sans nouveau message | 1 écriture + 1 ligne `events` par boîte toutes les 5 min | rien |
+| Index de `test_company_id_map` | 108 Mo | 10 Mo (essai de reconstruction) |
+| Filtre « opérateur » de la liste des OR | 1 000 lignes rapatriées | les noms seulement (`or_operators`) |
+
+- **Langues à la demande** : seul le FR est dans le paquet ; NL / EN / IT (≈140 ko compressé chacune) se chargent quand on en a besoin et, de toute façon, en tâche de fond 4 s après l'ouverture. `tIn()` reste synchrone ; les fabriques de documents, mails, SMS, UBL attendent `ensureLocale(langue)` ; les écrans dans la langue du client (écran client de la caisse, page de signature, fenêtres de mail / SMS) attendent `useLocaleReady`. Piège n° 14 de `00-architecture.md`. Essai : `tests/i18n-chargement-a-la-demande.test.ts`.
+- **React Query** (`src/router.tsx`) : donnée réutilisée 30 s, plus de relecture de toute la page au retour sur l'onglet, 1 nouvel essai sur erreur (avant 3, soit 7 s d'attente). Les écrans « en direct » gardent leur `refetchInterval` (cloche, écran client, Mon atelier, paiement QR).
+- **Sondes de schéma** groupées (`src/lib/schema-probe.ts`, fonction `schema_probe`) ; repli automatique sur l'ancienne requête si la fonction manque ; jamais bloquant (4 s puis 8 s au plus, puis « absent »). Piège n° 15.
+- **Tables de paramètres** : `listRef` lit toutes les valeurs de la société en une fois (≈250 lignes, 45 ko), gardées 30 s, vidées à chaque écriture du module ; même visibilité (la RLS ne dépend que de la société).
+- **Index trigramme** (`pg_trgm`, schéma `extensions`) sur le texte de recherche des clients et des articles ; les fonctions gardent leur règle mot pour mot, avec un pré-filtre logiquement redondant (mot le plus long, 3 lettres et plus). Essais d'équivalence : `perf2_recherche_clients_equivalence.sql` (7/7), `perf2_recherche_articles_equivalence.sql` (3/3, ~80 recherches comparées ligne à ligne et dans l'ordre).
+- **Stock paginé** (`stock_screen_page`) : mêmes filtres que l'écran, même périmètre « actif » que `article_stock_list`, export **complet** (toutes les pages) ; repli sur l'ancienne lecture tant que la migration n'est pas posée. Essai `perf2_stock_ecran_equivalence.sql` (6/6 : chaque filtre comparé à `article_stock_list`, pages bout à bout = liste complète, non-membre = rien). Par défaut, l'écran coche « Stock ≠ 0 ». L'erreur 400 vue sur `/stock` n'apparaît pas en ITALBIKE (tous les appels de la page en 200 le 20/11) ; la page n'appelle aucun `contacts(name)`.
+- **Sélecteur d'articles des achats** (`purchase-editor.tsx`) : la recherche (≈260 ms en base) ne part qu'une fois le champ utilisé, comme l'OR depuis le 19/11.
+- **Netlify** : `netlify.toml` sert `/favicon.ico` en statique (avant : la fonction SSR rendait une page 404 à chaque nouvel onglet, 250–600 ms). La **région** de la fonction SSR ne se règle pas dans le dépôt : Netlify → site → Cloud compute → Functions → Region → EU (Frankfurt) ou EU (Ireland), offre Pro ou supérieure (Paris sur demande au support), puis redéployer. TTFB mesuré depuis Bruxelles : 350–800 ms par page (2,1 s à froid).
+- **`pg_stat_statements`** n'a pas été remis à zéro au passage en Small (compteurs depuis le 10/06, serveur redémarré le 20/11 à 10:34 UTC). Comparaison par instantanés (11:00 → 11:50 UTC) : hors essais des agents, les plus coûteuses étaient `article_stock_list` (45 appels, 112 ms, traité), `contacts_search` (161 ms, traité), `article_line_search` (249 ms, traité), `dashboard_kpis` (81 ms aujourd'hui, traité le 19/11) et l'écoute Realtime de Supabase (`realtime.list_changes`, 3 050 appels de 30 ms : elle relit tout le journal d'écritures de la base pour les deux tables suivies, `counter_displays` et `document_payments` ; moins d'écritures inutiles = moins de travail).
+- **Reste** : la cloche et la barre latérale lancent ~12 lectures toutes les 1 à 2 min par onglet ouvert (dont 7 sur `team_notifications`), à regrouper en une fonction ; `labels-batch.tsx` et `client-documents-api.ts` lisent encore tout le stock ; `VACUUM FULL public.test_company_id_map` (19 Mo → ~5 Mo, à lancer seul, hors migration).
+
+### Table `events` (999 Mo, 37 % de la base) — proposition, rien n'est supprimé
+
+Mesures du 20/11 : 519 663 lignes ; 702 Mo de lignes, 220 Mo de texte long (TOAST), 76 Mo d'index. Chaque
+mise à jour y stocke la ligne **entière** avant et après (déclencheur générique `audit_row`, 109 tables).
+
+| Contenu | Lignes | Taille | Nature |
+|---|---|---|---|
+| `articles` mises à jour | 108 367 | 230 Mo | sur les 30 derniers jours, ~99 % automatiques : traductions des désignations (48 600), disponibilité fournisseur (6 700), dates de dernière vente / achat (9 100) |
+| `articles` créations | 94 145 | 130 Mo | imports catalogue / G8 |
+| `contacts` mises à jour | 30 611 | 83 Mo | surtout imports et nettoyages (ex. 2 934 « téléphone → GSM » le 18/11) |
+| `company_mailboxes` mises à jour | 76 814 | 69 Mo | **74 405 sans aucun changement** (relève Outlook, 70 Mo de bruit pur) |
+| `documents` lignes créées / modifiées | 120 533 | 84 Mo | import G8 des 28/10 – 03/11 |
+| `documents` créations / mises à jour | 42 041 | 63 Mo | métier |
+| `vehicles` mises à jour | 6 184 | 28 Mo | métier |
+| `maintenance_kit_items` créations | 14 842 | 11 Mo | génération des kits du 18/11 |
+| reste (≈ 40 types) | ≈ 26 000 | ≈ 70 Mo | métier |
+
+Rythme : une semaine normale = ~9 100 lignes / 9,5 Mo, dont **8 060 lignes / 7,5 Mo de relève Outlook vide** (88 % des lignes). Les semaines d'import montent à 60 000 – 140 000 lignes / 100 – 120 Mo.
+
+1. **Fait** (migration `20261120110000`) : la relève Outlook n'écrit plus rien quand aucun curseur n'avance → une semaine normale passe de ~9 100 à ~1 050 lignes (≈ 390 Mo par an évités). Aucune information perdue : ces lignes ne portaient aucun changement.
+2. **À décider** : `audit_row` ignore toute mise à jour qui ne change rien d'autre que `updated_at` (même principe, toutes tables).
+3. **À décider** : pour une mise à jour, `audit_row` ne garde que les colonnes modifiées (avant / après) + l'identifiant. Qui, quoi, quand, ancien / nouveau restent tracés (règle 4, B7) ; le seul lecteur en base (historique des prospects) compare déjà colonne par colonne. Mesuré : `company_mailboxes` 70 → 17,5 Mo, `documents` 46,6 → 7,4 Mo, `vehicles` 29 → 17 Mo, `communications` 12 → 0,7 Mo, soit environ −75 % sur les mises à jour futures.
+4. **À décider (purge)** : supprimer les 74 405 lignes « relève Outlook sans changement » (70 Mo, aucune information). En option, après export (fichier CSV dans le stockage) : les mises à jour **automatiques** d'articles de plus de 90 jours (traductions, disponibilité fournisseur, dates de dernière vente / achat), au moins 64 000 lignes / ~140 Mo. L'audit métier (documents, stock, OR, contacts saisis à l'écran, prix) reste entier. L'espace ne revient au disque qu'après `VACUUM FULL public.events` (réécriture de la table, verrou d'environ 1 min pour 1 Go, la nuit).
