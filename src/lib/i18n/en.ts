@@ -7534,7 +7534,7 @@ export const en: DictionaryShape = {
     workshop: 'Workshop & service',
     workshopOr: 'Repair order',
     workshopNew: 'New repair order',
-    workshopChrono: 'Workshop timers',
+    workshopChrono: 'Workshop time clock',
     workshopJourney: 'Guided work',
     workshopMine: 'My workshop',
     workshopKits: 'Maintenance kits',

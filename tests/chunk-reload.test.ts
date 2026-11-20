@@ -123,11 +123,15 @@ describe('reloadOnceForChunkError — un seul rechargement', () => {
   });
 });
 
-describe("libellés de l'écran de secours (4 langues)", () => {
+describe('libellés de l\'écran de secours et titre de la pointeuse (4 langues)', () => {
   const KEYS = ['chunkErrorTitle', 'chunkErrorText', 'reload', 'pendingLoading', 'pendingSlowTitle', 'pendingSlowText'] as const;
   it('existent et ne sont pas vides', () => {
     for (const d of [fr, en, nl, itDict]) {
       for (const k of KEYS) expect(d.rootPage[k].trim().length).toBeGreaterThan(0);
     }
+  });
+  it('onglet /workshop/chrono : « Pointeuse atelier »', () => {
+    expect(fr.pageTitles.workshopChrono).toBe('Pointeuse atelier');
+    for (const d of [en, nl, itDict]) expect(d.pageTitles.workshopChrono).toBe(d.workshop.chronoTitle);
   });
 });

@@ -7534,7 +7534,7 @@ export const nl: DictionaryShape = {
     workshop: 'Werkplaats & service',
     workshopOr: 'Werkorder',
     workshopNew: 'Nieuwe werkorder',
-    workshopChrono: "Werkplaatschrono's",
+    workshopChrono: 'Prikklok werkplaats',
     workshopJourney: 'Begeleid parcours',
     workshopMine: 'Mijn werkplaats',
     workshopKits: 'Onderhoudskits',

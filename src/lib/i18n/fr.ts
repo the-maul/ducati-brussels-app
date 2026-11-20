@@ -7551,7 +7551,7 @@ export const fr = {
     workshop: 'Atelier & SAV',
     workshopOr: 'OR',
     workshopNew: 'Nouvel OR',
-    workshopChrono: 'Chronos atelier',
+    workshopChrono: 'Pointeuse atelier',
     workshopJourney: 'Parcours guidé',
     workshopMine: "Mon atelier",
     workshopKits: "Kits d'entretien",
