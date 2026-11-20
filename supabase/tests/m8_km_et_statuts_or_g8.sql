@@ -102,7 +102,7 @@ begin
   insert into public.workshop_appointments (company_id, contact_id, vehicle_id, mileage, starts_at, planned_minutes, status)
   values (_co, _c, _v, 12000, now() + interval '1 hour', 60, 'prevu') returning id into _rdv;
   insert into public.repair_orders (company_id, number, contact_id, vehicle_id, mileage, status)
-  values (_co, 'ESSAI-ST-1', _c, _v, 12000, 'a_faire') returning id into _or3;
+  values (_co, 'ESSAI-ST-1', _c, _v, 12500, 'a_faire') returning id into _or3;
   -- Meme si l'ecran envoyait encore l'ancien statut « en cours », le RDV s'aligne sur l'OR.
   update public.workshop_appointments set or_id = _or3, status = 'en_cours' where id = _rdv;
   insert into _t(check_name, result) values ('Q43 OR cree depuis le RDV « a faire » → RDV « receptionne » (arrive)',

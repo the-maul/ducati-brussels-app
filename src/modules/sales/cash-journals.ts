@@ -14,6 +14,7 @@
  * Les journaux « par poste » attendent la caisse par poste (carte K17).
  */
 import { t, fillVars } from '@/lib/i18n';
+import { operatorPrintName } from './operators';
 
 /* ---------------------------------------------------------------- données (JSON de cash_journal_data) */
 export type JDocument = {
@@ -385,7 +386,7 @@ export function familyKey(path: string | null, level: number): string {
 
 function ventByDocument(data: JournalData, grain: Grain, dim: 'operator' | 'client'): JournalSection[] {
   const margins = documentMargins(data);
-  const keyOf = (d: JDocument) => (dim === 'operator' ? d.operator : d.contact_label) || noneLabel();
+  const keyOf = (d: JDocument) => (dim === 'operator' ? operatorPrintName(d.operator) : d.contact_label) || noneLabel();
   const columns = [col(grain, 'text'), col(dim, 'text'), col('count', 'number'), col('ht', 'money'), col('vat', 'money'), col('ttc', 'money'), col('margin', 'money'), col('marginPct', 'pct')];
   const rows: JournalRow[] = [];
   const docs = sortedDocs(data);

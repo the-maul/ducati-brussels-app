@@ -71,7 +71,7 @@ insert into _t(check_name, result)
 select 'fin de travaux : SMS enfile en NL, numero E.164, mais « skipped / sms_off » (pas de reglage = arrete)',
        case when (select count(*) from public.notifications n where n.template = 'workshop_ready' and n.entity_id = (select v from _ctx where k = 'or1')
                     and n.status = 'skipped' and n.error = 'sms_off' and n.to_address = '+32470000001' and n.locale = 'nl'
-                    and n.body like 'Beste Essai, uw Ducati Monster SMS-ESSAI staat klaar%ESSAI-SMS-1%') = 1
+                    and n.body ilike 'Beste Essai, uw Ducati Monster SMS-ESSAI staat klaar%ESSAI-SMS-1%') = 1
             then 'ok' else 'KO ' || coalesce((select string_agg(status || '/' || coalesce(error, '') || '/' || body, ' | ') from public.notifications
                                                  where entity_id = (select v from _ctx where k = 'or1')), 'rien') end;
 
@@ -133,7 +133,7 @@ select 'rappel RDV : 1 SMS pour le RDV coche dans les 24 h, rien pour le RDV san
        case when (select count(*) from public.notifications where template = 'appointment_reminder_sms'
                     and contact_id = (select v::uuid from _ctx where k = 'c_nl')) = 1
              and exists (select 1 from public.notifications where template = 'appointment_reminder_sms'
-                           and split_part(entity_id, '@', 1) = (select v from _ctx where k = 'appt_on') and body like 'Beste Essai, herinnering%')
+                           and split_part(entity_id, '@', 1) = (select v from _ctx where k = 'appt_on') and body ilike 'Beste Essai, herinnering%')
             then 'ok' else 'KO' end;
 
 select public._cron_appointment_reminders();
@@ -159,7 +159,7 @@ insert into _t(check_name, result)
 select 'liste « SMS programmes » : le SMS differe est visible, texte rendu',
        case when exists (select 1 from public.sms_list((select v::uuid from _ctx where k = 'company'), 'scheduled', 200) l
                           where split_part(l.entity_id, '@', 1) = (select v from _ctx where k = 'appt_far')
-                            and l.scheduled_at > now() + interval '1 day' and l.body like 'Rappel Essai : RDV le %')
+                            and l.scheduled_at > now() + interval '1 day' and l.body ilike 'Rappel Essai : RDV le %')
             then 'ok' else 'KO' end;
 
 select public.sms_cancel((select id from public.notifications where split_part(entity_id, '@', 1) = (select v from _ctx where k = 'appt_far')), 'essai');

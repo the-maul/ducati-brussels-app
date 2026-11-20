@@ -64,8 +64,8 @@ begin
   insert into _t(check_name, result) values ('code de tarif unique (casse / espaces)', case when _ok then 'ok' else 'FAIL' end);
 
   -- ------------------------------------------------ client de test : tarif, blocage, encours
-  insert into public.contacts (company_id, type, status, last_name, first_name, price_list_id, credit_limit, credit_limit_blocking)
-  values (_co, 'particulier', 'client', 'ESSAI TARIF', 'G8', _pl, 100, true) returning id into _c;
+  insert into public.contacts (company_id, type, status, civility, last_name, first_name, price_list_id, credit_limit, credit_limit_blocking)
+  values (_co, 'particulier', 'client', 'Monsieur', 'ESSAI TARIF', 'G8', _pl, 100, true) returning id into _c;
   insert into _t(check_name, result) values ('client rattache au tarif', case when (select price_list_id from public.contacts where id = _c) = _pl then 'ok' else 'FAIL' end);
 
   -- brouillon : jamais compte dans l encours

@@ -48,6 +48,7 @@ import { t, tIn, pageTitle, useLocaleReady } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 import { errorMessage } from '@/lib/mutation-feedback';
+import { operatorPrintName } from '@/modules/sales/operators';
 
 export const Route = createFileRoute('/_app/sales/$documentId')({
   head: () => ({ meta: [{ title: pageTitle('salesDocument') }] }),
@@ -208,7 +209,7 @@ function DocumentView() {
     <>
       <PageHeader
         title={`${t(`sales.type_${doc.doc_type}`)} ${doc.number ?? t('sales.draftSuffix')}`}
-        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}${doc.operator ? ` · ${t('sales.operator')} ${doc.operator}` : ''}`}
+        description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}${doc.operator ? ` · ${t('sales.operator')} ${operatorPrintName(doc.operator)}` : ''}`}
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { errorMessage } from '@/lib/mutation-feedback';
 import { toast } from 'sonner';
 import { Loader2, FileText, Receipt, LifeBuoy, ClipboardList, ListChecks, ClipboardCheck, ShoppingCart, ShoppingBasket, AlertTriangle, FilePen, CopyPlus, Printer, BellRing, ChevronDown, MoreHorizontal, Paperclip, PackagePlus, Wrench, Euro, FolderOpen, History, PenLine } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -132,7 +133,8 @@ function OrView() {
     onSuccess: (fileId) => navigate({ to: '/workshop/accidents/$fileId', params: { fileId } }),
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); qc.invalidateQueries({ queryKey: ['reserved-parts'] }); };
+  // Q64 : le km de l'OR met à jour la fiche moto (en base) → fiche et relevés relus.
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['ro-full', orId] }); qc.invalidateQueries({ queryKey: ['repair-orders'] }); qc.invalidateQueries({ queryKey: ['reserved-parts'] }); qc.invalidateQueries({ queryKey: ['vehicle'] }); qc.invalidateQueries({ queryKey: ['vehicle-mileage'] }); };
 
   const toInput = (p: OrPayload): RoInput => ({
     companyId: activeCompanyId!, contactId: p.contactId, vehicleId: p.vehicleId, mileage: p.mileage, operator: p.operator, operatorId: p.operatorId,
@@ -164,7 +166,7 @@ function OrView() {
   const save = useMutation({
     mutationFn: async (p: OrPayload) => { await updateRepairOrder(orId, toInput(p)); await ensureAccident(p); },
     onSuccess: refresh,
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
 
   /** Ouvre la fenêtre d'envoi (objet / corps dans la langue du client, lien de signature inclus). */
@@ -188,7 +190,7 @@ function OrView() {
       return created;
     },
     onSuccess: () => { refresh(); toast.success(t('checkup.proposalCreated')); },
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
 
   // Renvoyer la proposition existante (même document, jeton renouvelé si expiré).
@@ -219,14 +221,14 @@ function OrView() {
   const invoiceNow = useMutation({
     mutationFn: () => transformToInvoice(orId),
     onSuccess: (docId) => navigate({ to: '/sales/$documentId', params: { documentId: docId } }),
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
   const hasMoLines = (data?.lines ?? []).some((l) => l.kind === 'mo');
   const afterDeferred = () => { if (labourSchema.data === true && hasMoLines) setControlOpen(true); else invoiceNow.mutate(); };
   const controlAndInvoice = useMutation({
     mutationFn: async (rows: ControlRow[]) => { await saveTimeControl(orId, rows); return transformToInvoice(orId); },
     onSuccess: (docId) => { setControlOpen(false); refresh(); navigate({ to: '/sales/$documentId', params: { documentId: docId } }); },
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
   const toInvoice = useMutation({
     mutationFn: async () => (data?.or.vehicle_id ? listDeferredToPlan(data.or.vehicle_id) : []),
@@ -239,18 +241,18 @@ function OrView() {
   const toPicking = useMutation({
     mutationFn: () => openPickingForRepairOrder(orId),
     onSuccess: (pickingId) => navigate({ to: '/preparation/$pickingId', params: { pickingId } }),
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
   // Rattrapage G8 : devis de reparation qui recopie les lignes de l'OR, et duplication de l'OR.
   const repairQuote = useMutation({
     mutationFn: () => createRepairQuoteFromOr(orId, t('parcG8.repairQuoteNote')),
     onSuccess: (documentId) => navigate({ to: '/sales/$documentId/edit', params: { documentId } }),
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
   const duplicateOr = useMutation({
     mutationFn: () => duplicateRepairOrder(orId),
     onSuccess: (newId) => { toast.success(t('parcG8.orDuplicated')); navigate({ to: '/workshop/$orId', params: { orId: newId } }); },
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
 
   // Ligne d'identite : memes requetes (memes cles) que l'editeur, donc lues une seule fois.

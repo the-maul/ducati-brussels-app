@@ -29,6 +29,7 @@ import { listAllDocuments } from './document-list-api';
 import { DEFAULT_PRINT_OPTIONS, type PrintOptions } from './print-options';
 import { PrintOptionsFields } from './print-options-dialog';
 import { exportAoa, displayNumber, marginPct, paymentsSummary, type DocListFilters, type DocListRow, type ExportColumn } from './document-list';
+import { operatorPrintName } from './operators';
 
 type Mode = 'selection' | 'numbers' | 'dates';
 
@@ -231,7 +232,7 @@ export function docListExportColumns(methodLabel: (c: string) => string): Export
     { key: 'date', header: t('sales.colDate'), value: (r) => r.issue_date },
     { key: 'code', header: t('docList.colCode'), value: (r) => r.contact_code ?? '' },
     { key: 'client', header: t('sales.client'), value: (r) => r.contact_name ?? '' },
-    { key: 'operator', header: t('sales.operator'), value: (r) => r.operator ?? '' },
+    { key: 'operator', header: t('sales.operator'), value: (r) => operatorPrintName(r.operator) },
     { key: 'due', header: t('docList.colDue'), value: (r) => r.due },
     { key: 'discount', header: t('docList.colDiscount'), value: (r) => r.discount },
     { key: 'ht', header: t('docList.ht'), value: (r) => r.total_ht },

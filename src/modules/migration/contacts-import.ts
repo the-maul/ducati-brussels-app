@@ -84,7 +84,8 @@ export function parseContactsCsv(text: string): ImportPreview {
 
 /** Applique l'import : insère les contacts valides. Retourne le nombre créé. */
 export async function applyContactsImport(companyId: string, preview: ImportPreview): Promise<number> {
-  const payloads = preview.mapped.filter((m) => !m.error).map((m) => ({ ...m.payload, company_id: companyId, status: 'client' }));
+  // imported_from : fiche importée, à compléter ensuite (Q67 : civilité / prénom pas exigés à l'import).
+  const payloads = preview.mapped.filter((m) => !m.error).map((m) => ({ ...m.payload, company_id: companyId, status: 'client', imported_from: 'import_ecran' }));
   if (payloads.length === 0) return 0;
   // Insertion par lots de 200
   let created = 0;

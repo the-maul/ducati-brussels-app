@@ -37,8 +37,8 @@ begin
 
   -- Facture validee 121 EUR + virement percu
   -- une facture validee a toujours un client (trigger documents_require_client_and_lines)
-  insert into public.contacts (company_id, type, status, first_name, last_name)
-  values (_co, 'particulier', 'client', 'ESSAI', 'EBP G8') returning id into _ctc;
+  insert into public.contacts (company_id, civility, type, status, first_name, last_name)
+  values (_co, 'Monsieur', 'particulier', 'client', 'ESSAI', 'EBP G8') returning id into _ctc;
   insert into public.documents (company_id, doc_type, status, issue_date, total_ht, total_vat, total_ttc, price_mode, contact_id)
   values (_co, 'FAC', 'brouillon', current_date, 100, 21, 121, 'ht', _ctc) returning id into _doc;
   insert into public.document_lines (document_id, designation, quantity, unit_price_ht, vat_rate, line_ht, line_ttc, sort_order, line_type)

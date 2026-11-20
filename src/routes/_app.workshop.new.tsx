@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
+import { errorMessage } from '@/lib/mutation-feedback';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ function NewOr() {
       }
       navigate({ to: '/workshop/$orId', params: { orId: id } });
     },
-    onError: (e) => setError(e instanceof Error ? e.message : t('workshop.errSave')),
+    onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });
   if (!activeCompanyId) return null;
   return (

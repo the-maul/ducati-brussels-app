@@ -348,3 +348,25 @@ les remises en caisse » (client) : remise sur la ligne (PU catalogue + %) ; sin
 **Pièges** : la fusion de deux **fournisseurs** cités dans une ligne de tarif est refusée par le filet de sécurité
 de `contact_merge` (table non ajoutée à la fusion) — supprimer ou recréer la ligne avant. Le simulateur de
 l'onglet « Règles par client » utilise le même calcul (plus `resolve_customer_price`, gardée en base).
+
+
+## Ajouté le 20/11 — fiche client comme G8 (décision Q67)
+Branche `lot-decisions-q63-q67`. Migrations **`20261120154000_m1_fiche_client_g8.sql`** et
+**`20261120155000_m1_majuscules_fiches_existantes.sql`** (non appliquées), essai à blanc
+`supabase/tests/m1_fiche_client_g8.sql` (13/13). Règles pures `src/modules/contacts/identity-rules.ts`.
+- **Particulier** : civilité, nom et prénom **obligatoires** ; **société** (professionnel, fournisseur, banque / leasing) :
+  raison sociale obligatoire, pas de civilité. Écran (fiche client, client rapide de la caisse, reprise) ET base
+  (`trg_contacts_identity_g8`, `hint contact_identity_required`, champs manquants dans `detail`, message traduit
+  FR / NL / EN / IT par `src/lib/db-error-i18n.ts`, branché dans `errorMessage`).
+- Contrôle en base pour les écritures directes des écrans (`current_user = authenticated`, hors déclencheur imbriqué),
+  à la création et quand l'identité change : fonctions serveur (inscription, espace client, prospect, fusion, cascade,
+  RGPD) et import de fichier (`imported_from`) non bloqués. **Pas de blocage rétroactif** : une fiche incomplète se
+  modifie (adresse, statut…) ; à l'ouverture, bandeau « Fiche à compléter », et l'enregistrement depuis la fiche demande
+  de compléter.
+- **MAJUSCULES** : nom, prénom, raison sociale toujours en majuscules en base (accents gardés : é → É).
+- **Fiches existantes** : seules les fiches dont une de ces valeurs change sont écrites (≈ 150 par société le 20/11),
+  ancienne valeur dans `contacts_names_archive_20261120` (RLS : administrateurs ; retour en arrière dans l'en-tête de la
+  migration), **un seul event** `contacts_names_uppercase` par société (audit ligne à ligne coupé le temps de la mise à
+  jour, `session_replication_role = replica`). Archive classée « non copiée » pour la société de test.
+- Effet visible : les SMS / mails qui reprennent `{prenom}` l'écrivent en majuscules (« Beste ESSAI »), comme G8.
+- Création d'une fiche liée privée depuis une fiche pro sans prénom / civilité : refusée avec le message « compléter ».

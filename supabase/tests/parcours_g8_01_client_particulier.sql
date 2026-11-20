@@ -84,10 +84,10 @@ begin
   select count(*) into _n from public.contacts_search(_other, _tag, null, 20, 0, 'name') x;
   insert into _t(check_name, result) values ('RLS : fiche absente de la liste d une autre societe', case when _n = 0 then 'ok' else 'KO ' || _n end);
 
-  -- 11. Ecart G8 / DMS constate (a trancher, pas un defaut) : saisie gardee telle quelle
+  -- 11. Decision Q67 (20/11/2026, comme G8) : nom et prenom enregistres en MAJUSCULES
   insert into _t(check_name, result) values
-    ('A TRANCHER (constat) : nom garde tel que saisi (G8 : MAJUSCULES), civilite / prenom non exiges en base',
-     case when c.last_name = 'Dupont ' || _tag then 'ok' else 'KO nom modifie : ' || c.last_name end);
+    ('Q67 : nom enregistre en MAJUSCULES (G8)',
+     case when c.last_name = upper('Dupont ' || _tag) then 'ok' else 'KO nom : ' || c.last_name end);
 end $s$;
 
 select n, check_name, result from _t order by n;

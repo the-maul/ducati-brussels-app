@@ -18,6 +18,7 @@ import {
   buildSalesDocumentPdf, validityMention, salesPdfFileName, vehicleBlockLines,
   type SalesPdfInput, type SalesPdfSignature, type ValidityRule, type VehicleBlockSource,
 } from './document-pdf';
+import { operatorPrintName } from './operators';
 
 /** Sous-type « Proposition d'intervention » (check-up atelier, ATE009, migration 20261031110000). */
 export const PROPOSAL_DOC_KIND = 'proposition_intervention';
@@ -200,7 +201,7 @@ export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<Pr
     createdAt: doc.created_at,
     dueDate: doc.due_date,
     condition: doc.condition_reglement,
-    operator: doc.operator,
+    operator: operatorPrintName(doc.operator) || null,
     clientCode: s(c?.legacy_code) || s(c?.code) || (c?.id ? s(c.id).slice(0, 8) : doc.code_client_legacy),
     company: {
       name: s(co.name) || s(co.legal_name),

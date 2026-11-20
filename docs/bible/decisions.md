@@ -8,6 +8,23 @@ Format : **code** — décision. *Source · date.* Chapitres concernés.
 
 ---
 
+## 2026-11-20 — Décisions Q63 à Q67 (lot décisions Q63-Q67)
+
+- **Q63** — **Opérateur au comptoir comme G8** : au comptoir et en vente, on choisit le vendeur dans la liste des
+  opérateurs de la société (Paramètres → Tables → Opérateurs) ; par défaut l'utilisateur connecté s'il est opérateur ;
+  son **nom**, jamais son e-mail, est imprimé et enregistré (statistiques par opérateur). Documents existants : le nom
+  remplace l'e-mail. *Client (Simon) · 20/11.* [M06](modules/M06-ventes-caisse.md)
+- **Q64** — **Le km relevé sur l'OR met à jour la fiche moto** s'il est supérieur au dernier relevé ; un km inférieur est
+  bloqué sauf « Forcer l'enregistrement du kilométrage inférieur » ; tracé dans events. *Client · 20/11.*
+  [M08](modules/M08-atelier.md)
+- **Q65** — **Impression des commandes fournisseur et des réceptions** (éditions G8 COMMANDE / RECEPTION), PDF A4 à la
+  charte avec reliquats. *Client · 20/11.* [M04](modules/M04-achats.md)
+- **Q66** — **CA du tableau de bord en HT**, sous deux formes : hors ventes pour le compte des déposants, et y compris
+  dépôt-vente (jour et mois). *Client · 20/11.* [M13](modules/M13-reporting.md)
+- **Q67** — **Fiche client comme G8** : particulier → civilité, nom, prénom obligatoires ; société → raison sociale ;
+  nom / prénom / raison sociale en MAJUSCULES (fiches existantes converties, archive datée, un event par société) ; pas
+  de blocage rétroactif, l'écran demande de compléter à la modification. *Client · 20/11.* [M01](modules/M01-contacts.md)
+
 ## 2026-11-18 — Forfaits G8 dans le DMS (lot forfaits G8, ATE013)
 
 - **Q40** — **La main-d'œuvre contenue dans un forfait G8 (MO_ATELIER x heures) se facture au taux de

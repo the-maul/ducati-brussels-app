@@ -28,6 +28,17 @@ export const REFERENCE_TABLES: RefTableDef[] = [
       ] },
     ],
   },
+  // Opérateurs (G8 Fichiers › Opérateurs ; décision Q63 du 20/11/2026) : code, nom imprimé sur le
+  // ticket / la facture, actif (« fiche désactivée »), type, compte DMS lié (e-mail) = opérateur
+  // proposé par défaut à cet utilisateur au comptoir et en vente.
+  { key: 'sales_operator', label: 'Opérateurs (vendeurs)', group: 'vente',
+    extraColumns: [
+      { key: 'kind', label: 'Type', type: 'select', options: [
+        { value: 'vendeur', label: 'Vendeur magasin' }, { value: 'atelier', label: 'Atelier' },
+        { value: 'chef_atelier', label: 'Chef atelier' }, { value: 'retrocession', label: 'Rétrocession' },
+      ] },
+      { key: 'email', label: 'Compte DMS lié (e-mail)', type: 'text' },
+    ] },
   { key: 'payment_method', label: 'Modes de règlement', group: 'vente',
     extraColumns: [{ key: 'visible_pos', label: 'Visible caisse', type: 'bool' }] },
   // Mouvements de fond de caisse (rattrapage G8 du 18/11/2026, G8 Compta > Comptes mouvements fond de caisse) :

@@ -137,3 +137,13 @@ les sous-totaux. Hors périmètre (à trancher) : commissions vendeurs, marge ne
 | 2026-06-12 | Statistiques avancées : classement, marge, N-1, transformation | `901e7dc`, `20260612210000_m13_advanced_stats.sql` |
 | 2026-06-12 | Rapports compatibles avec les factures G8 sans lignes | `5bb6280`, `20260612290000_m13_reports_header_aware.sql` |
 | 2026-11-18 | **Rattrapage G8** : chiffres justes (avoirs déduits, brouillons et FAA exclus, tickets comptés, coût figé), module statistiques façon G8 (9 onglets, 4 niveaux + article, N-1, export Excel, stats quotidiennes), statistiques de la fiche article | branche `lot-g8-stats` ; `20261118180000_m13_chiffres_justes.sql`, `20261118181000_m13_statistiques_g8.sql` **non appliquées** |
+
+
+## Ajouté le 20/11 — CA HT du tableau de bord (décision Q66)
+Branche `lot-decisions-q63-q67`. Migration **`20261120153000_m13_ca_ht_hors_depot.sql` (non appliquée)**, essai à blanc
+`supabase/tests/m13_ca_ht_hors_depot.sql` (12/12). `dashboard_kpis` (même signature, anciennes clés gardées, ≈ 80 ms
+avant comme après) ajoute `revenue_ht_today` / `revenue_ht_month` (**CA HT hors ventes pour le compte des déposants**),
+`revenue_ht_*_incl_consignment` (**y compris dépôt-vente**) et `consignment_ht_*` (l'écart). Ventes = `_stats_is_sale`
+(factures, tickets, avoirs déduits ; brouillons, annulés, FAA exclus) ; part dépôt-vente = lignes d'article de type D
+(remise globale au prorata). La commission facturée au déposant reste du CA du magasin. Carte du tableau de bord :
+CA HT en grand, « y compris dépôt-vente » dessous ; sans la migration, ancien CA TTC.

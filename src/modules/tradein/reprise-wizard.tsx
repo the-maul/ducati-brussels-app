@@ -42,6 +42,9 @@ import {
 import { PhotoEditor } from '@/components/photo-editor';
 import { compressImageFile } from '@/lib/image-tools';
 import { t } from '@/lib/i18n';
+import { identityMissing } from '@/modules/contacts/identity-rules';
+import { errorMessage } from '@/lib/mutation-feedback';
+import { PERSON_CIVILITIES } from '@/modules/contacts/civility';
 import { VinIdentifyPanel } from '@/modules/vehicles/vin-identify-panel';
 
 type Step = 'type' | 'docs' | 'client' | 'existing' | 'new' | 'vehicle' | 'photos' | 'done';
@@ -65,7 +68,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
 
   // Client — recherche (Oui) et création (Non)
   const [c, setC] = useState({
-    lastName: '', firstName: '', company: '', vat: '', country: 'BE',
+    civility: '', lastName: '', firstName: '', company: '', vat: '', country: 'BE',
     phonePrefix: '+32', phone: '', email: '', address: '', zip: '', city: '',
   });
   const setCf = (k: keyof typeof c, v: string) => setC((p) => ({ ...p, [k]: v }));
@@ -177,6 +180,8 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
         type: isPro ? 'professionnel' : 'particulier',
         status: 'prospect',
         first_name: c.firstName.trim() || null,
+        // Q67 (comme G8) : civilité de la personne (obligatoire pour un particulier).
+        civility: c.civility || null,
         last_name: c.lastName.trim() || null,
         company_name: isPro ? (c.company.trim() || null) : null,
         vat_number: isPro ? (vat || null) : null,
@@ -190,7 +195,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
       return createContact(payload);
     },
     onSuccess: (ct) => { setContactId(ct.id); setContactLabel(contactDisplayName(ct)); setStep('vehicle'); },
-    onError: (e) => setError(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => setError(errorMessage(e)),
   });
 
   // ── Résumé texte (notes véhicule, mail marchands, communication client) ─────
@@ -489,6 +494,13 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
           )}
           {isPro && <p className="mt-4 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('tradein.wizPersonSection')}</p>}
           <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={`${t('q67.civility')}${isPro ? '' : ' *'}`}>
+              <Select value={c.civility} onValueChange={(val) => setCf('civility', val)}>
+                <SelectTrigger className="h-12 text-[15px]"><SelectValue placeholder={t('q67.civility')} /></SelectTrigger>
+                <SelectContent>{PERSON_CIVILITIES.map((pc) => <SelectItem key={pc.value} value={pc.value}>{t(pc.labelKey)}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+            <div className="hidden sm:block" />
             <Field label={t('tradein.fLastName')}><Input className="h-12 text-[15px]" value={c.lastName} onChange={(e) => setCf('lastName', e.target.value)} /></Field>
             <Field label={t('tradein.fFirstName')}><Input className="h-12 text-[15px]" value={c.firstName} onChange={(e) => setCf('firstName', e.target.value)} /></Field>
             <Field label={t('contacts.country')}>
@@ -513,7 +525,7 @@ export function RepriseWizard({ companyId }: { companyId: string }) {
             next={{
               label: t('tradein.wizNext'),
               pending: createClient.isPending,
-              disabled: !c.lastName.trim() && !c.company.trim(),
+              disabled: identityMissing({ type: isPro ? 'professionnel' : 'particulier', civility: c.civility, first_name: c.firstName, last_name: c.lastName, company_name: c.company }).length > 0,
               onClick: () => { setError(null); createClient.mutate(); },
             }}
           />

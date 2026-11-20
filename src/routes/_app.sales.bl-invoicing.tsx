@@ -20,6 +20,7 @@ import { ContactPicker } from '@/modules/sales/document-editor';
 import { groupDeliveryNotes, selectionTotals, type BlCandidate } from '@/modules/sales/bl-invoicing';
 import { invoiceDeliveryNotes, listDeliveryNotesToInvoice, listPaymentTerms, type BlInvoiceResult } from '@/modules/sales/bl-invoicing-api';
 import { todayIso } from '@/modules/sales/document-list';
+import { operatorPrintName } from '@/modules/sales/operators';
 
 /**
  * Ventes → Facturation des BL (G8 « Utilitaires factures › Génération des factures par B.L. client »,
@@ -188,7 +189,7 @@ function BlInvoicingPage() {
                 <td className="px-3 py-2 text-right tabular-nums">{eur(b.total_ht)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(b.total_ttc)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{b.paid_amount ? eur(b.paid_amount) : ''}</td>
-                <td className="px-3 py-2">{b.operator ?? ''}</td>
+                <td className="px-3 py-2">{operatorPrintName(b.operator)}</td>
                 <td className="max-w-[16rem] truncate px-3 py-2" title={b.notes ?? ''}>{b.notes ?? ''}</td>
                 <td className="px-3 py-2">{b.tax_exempt && <StatusBadge tone="info" icon={Globe} label={t('sales.taxExempt')} />}</td>
               </tr>
