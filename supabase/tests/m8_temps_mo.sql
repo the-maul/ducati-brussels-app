@@ -35,8 +35,10 @@ declare
 begin
   select id into _contact from public.contacts
    where company_id = _co and type <> 'fournisseur' and is_active order by created_at limit 1;
-  insert into public.repair_orders (company_id, number, contact_id, status)
-  values (_co, 'OR-ESSAI-TEMPS-MO', _contact, 'en_cours') returning id into _or;
+  -- VP8 (20/11, comme G8) : un OR exige une moto (n° de serie) ; km eleve pour ne pas passer sous le dernier releve.
+  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, mileage, status)
+  values (_co, 'OR-ESSAI-TEMPS-MO', _contact,
+          (select v.id from public.vehicles v where v.company_id = _co and v.vin is not null order by v.created_at limit 1), 999999, 'en_cours') returning id into _or;
 
   -- 1. lignes : MO classique avec temps, carte check-up sans temps, piece
   perform public.repair_order_write_lines(_or, jsonb_build_array(
