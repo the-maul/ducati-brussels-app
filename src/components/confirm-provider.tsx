@@ -83,7 +83,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{message}</AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-pre-line">{message}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => settle(false)}>{cancelLabel}</AlertDialogCancel>

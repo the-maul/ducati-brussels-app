@@ -10,6 +10,7 @@ import { smsIt } from './sms';
 import { receptionIt, planOpsIt } from './parcours-cd';
 import { myWorkshopIt } from './mon-atelier';
 import { orLisibleIt } from './or-lisible';
+import { uxAtelierIt } from './ux-atelier';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { productionIt } from './production';
 
@@ -9404,6 +9405,8 @@ export const it: DictionaryShape = {
   myWorkshop: myWorkshopIt,
   // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
   orLisible: orLisibleIt,
+  // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
+  uxAtelier: uxAtelierIt,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60It,
   g8a: g8aIt,

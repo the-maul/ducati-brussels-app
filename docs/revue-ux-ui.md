@@ -622,8 +622,8 @@ Vérifications :
 ## À refondre en priorité (à valider avec le client)
 
 1. **Le pointage d'une autre société** (constat n° 1) : correctif avant la mise en production — S/M.
-2. **« Mon atelier » selon la maquette** : frise commune, un seul rouge, une seule confirmation — M.
-3. **La fiche OR en 3 zones** : ligne d'identité fixe + onglets Travail / Lignes / Documents — M.
+2. **« Mon atelier » selon la maquette** : frise commune, un seul rouge, une seule confirmation — M. **Fait le 20/11** (branche `lot-ux-atelier`, captures `docs/revue-ux-captures/apres/`).
+3. **La fiche OR en 3 zones** : ligne d'identité fixe + onglets Travail / Lignes / Documents — M. **Fait le 20/11** (branche `lot-ux-atelier`).
 4. **Le mode tactile global à 44 px** et le bouton désactivé gris : un réglage dans `components/ui` — S.
 5. **Le stock paginé** et la recherche en premier — M.
 6. **La fiche client en 6 onglets** et la fiche moto en onglets (charte §5.7) — M/L.

@@ -43,6 +43,11 @@ export type OrProgressInput = {
   workAllowed: boolean;
   /** Garantie en attente de réponse : pas de facture. */
   warrantyPending: boolean;
+  /**
+   * Lot UX atelier (20/11) : une liste d'opérations viendra (entretien choisi, RDV sans OR encore) :
+   * l'étape « Opérations » est montrée « à faire », sans compteur. Présentation seulement.
+   */
+  planExpected?: boolean;
 };
 
 export type StepKey = 'reception' | 'work' | 'operations' | 'ready' | 'invoice';
@@ -119,6 +124,7 @@ export function orProgress(i: OrProgressInput): OrProgress {
   }
   steps.push({ key: 'work', state: at('work', finished || (workStarted && current !== 'work')) });
   if (hasPlan) steps.push({ key: 'operations', state: at('operations', finished || planDone), count: { done: i.planResolved, total: i.planTotal } });
+  else if (i.planExpected && !finished && !cancelled) steps.push({ key: 'operations', state: 'todo' });
   steps.push({ key: 'ready', state: at('ready', finished) });
   steps.push({ key: 'invoice', state: at('invoice', invoiced) });
 

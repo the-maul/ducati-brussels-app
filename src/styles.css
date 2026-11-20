@@ -232,3 +232,20 @@
     flex: 1 1 100%;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Écrans d'atelier (lot UX atelier, 20/11/2026) : cibles tactiles d'au moins
+   44 px (charte §5.1 et §8, mode atelier) sur « Mon atelier » et la fiche OR,
+   y compris les champs du tableau des lignes et les boutons-icônes. Portée
+   limitée aux conteneurs `.touch-44` : les autres écrans ne bougent pas.
+   ───────────────────────────────────────────────────────────────────────── */
+.touch-44 :is(button, [role="button"], [role="tab"], [role="combobox"], select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])) {
+  min-height: 2.75rem;
+}
+.touch-44 :is(button, [role="button"], [role="tab"]) {
+  min-width: 2.75rem;
+}
+.touch-44 input:is([type="checkbox"], [type="radio"]) {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}

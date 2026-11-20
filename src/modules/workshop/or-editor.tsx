@@ -124,8 +124,19 @@ export type OrPayload = {
 
 export type OrEditorIntent = 'save' | 'proposal';
 
-export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions, draftKey = null, onDraftDiscard, expertInPanel = false }: {
+export function OrEditor({ companyId, initial, defaultContactId = null, defaultVehicleId = null, busy, error, onSubmit, checkupReady = false, approvalPending = false, header, proposalActions, draftKey = null, onDraftDiscard, expertInPanel = false, pane, workTop, linesBottom }: {
   companyId: string; initial?: RepairOrderFull | null; busy: boolean; error?: string | null;
+  /**
+   * Lot UX atelier (20/11/2026) : fiche OR en onglets. `work` = reception et fiche (+ check-up),
+   * `lines` = lignes, kits, vues eclatees, totaux ; `none` = onglet Documents (rien de l'editeur).
+   * L'editeur reste monte (un seul etat, un seul « Enregistrer ») : les volets non choisis sont
+   * caches, pas demontes. Absent = page d'origine (nouvel OR) : tout a la suite.
+   */
+  pane?: 'work' | 'lines' | 'none';
+  /** Blocs de la page affiches en tete du volet Travail (photos, operations, dossier accident). */
+  workTop?: ReactNode;
+  /** Blocs de la page affiches sous les lignes (pieces reservees, acompte). */
+  linesBottom?: ReactNode;
   /** Dossier accident ouvert : expert et date de passage se saisissent dans son volet assurance. */
   expertInPanel?: boolean;
   /** Nouvel OR : cle du brouillon de saisie (UX011, `useFormDraft`) ; null en edition. */
@@ -487,8 +498,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
     ref: r.ref ? fillVars(t('orBase.lastReadingRef'), { ref: r.ref }) : '',
   });
 
-  const fiche = (
-    <div className="space-y-4">
+  const workPart = (
+    <>
       {formDraft.restored && <FormDraftBanner onDiscard={() => { formDraft.discard(); onDraftDiscard?.(); }} />}
       {/* En-tête */}
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -619,7 +630,23 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       </div>
       <CheckPointsPanel value={checkPoints} onChange={setCheckPoints} />
       {orBaseQ.data === false && <p className="rounded-md bg-info-bg px-3 py-2 text-[12px] text-info">{t('orBase.migrationMissing')}</p>}
+    </>
+  );
 
+  // « Enregistrer » : rouge sur la page d'origine (seul bouton) ; dans la fiche en onglets, en
+  // contour et colle en bas du volet (le seul rouge de l'ecran est l'etape suivante du bandeau).
+  const saveRow = pane ? (
+    <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-2 md:-bottom-6">
+      <Button variant="outline" className="h-12 min-w-[180px] text-[15px]" onClick={() => submit('save')} disabled={busy}>
+        {busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}
+      </Button>
+    </div>
+  ) : (
+    <div className="flex justify-end"><Button onClick={() => submit('save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
+  );
+
+  const linesPart = (
+    <>
       {/* T4 : tarif de l'assureur (OR accident) */}
       {insurerTariff && (
         <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
@@ -642,7 +669,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
 
       {/* Lignes */}
       <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full border-collapse font-data text-[13px]">
+        <table className="w-full min-w-[60rem] border-collapse font-data text-[13px]">
           <thead className="bg-muted"><tr>
             <Th className="w-28">{t('workshop.colKind')}</Th><Th>{t('workshop.colDesignation')}</Th>
             <Th className="w-20 text-right">{t('workshop.colQty')}</Th><Th className="w-28 text-right">{t('workshop.colPuHt')}</Th>
@@ -674,14 +701,17 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
                       : <ArticlePicker companyId={companyId} value={l.designation} onText={(v) => setLine(l._key, { designation: v })} onPick={(a) => pickLineArticle(l._key, a)} />}
                     {l.kind === 'mo' && timeSummary(l) && <p className="mt-0.5 font-data text-[12px] tabular-nums text-muted-foreground">{timeSummary(l)}</p>}
                   </td>
-                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setQuantity(l, num(e.target.value))} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={covered} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
-                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.quantity)} onChange={(e) => setQuantity(l, num(e.target.value))} className="h-8 min-w-[5rem] text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.01" value={String(l.unit_price_ht)} onChange={(e) => setLine(l._key, { unit_price_ht: num(e.target.value) })} disabled={covered} className="h-8 min-w-[6.5rem] text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} className="h-8 min-w-[5rem] text-right tabular-nums" /></td>
+                  <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 min-w-[5rem] text-right tabular-nums" /></td>
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
                   <td className="px-2 py-1 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <input type="checkbox" checked={l.is_warranty} onChange={(e) => setLine(l._key, { is_warranty: e.target.checked, warranty_decision: e.target.checked ? l.warranty_decision ?? null : null })} className="size-4 accent-[var(--ducati-red)]" title={t('workshop.warrantyHint')} />
+                      {/* Cible de 44 px autour de la case (tablette, lot UX atelier). */}
+                      <label className="inline-grid size-11 cursor-pointer place-items-center" title={t('workshop.warrantyHint')}>
+                        <input type="checkbox" checked={l.is_warranty} onChange={(e) => setLine(l._key, { is_warranty: e.target.checked, warranty_decision: e.target.checked ? l.warranty_decision ?? null : null })} className="size-4 accent-[var(--ducati-red)]" aria-label={t('workshop.warrantyLine')} />
+                      </label>
                       {covered && <span className="rounded-[var(--radius-badge)] bg-info-bg px-1 font-data text-[11px] font-bold text-info" title={t('warranty.lineCovered')}>G</span>}
                       {rerouted && <span className="rounded-[var(--radius-badge)] bg-warning-bg px-1 font-data text-[11px] font-bold text-warning" title={t('warranty.lineRerouted')}>{t('warranty.clientShort')}</span>}
                     </div>
@@ -734,17 +764,17 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         />
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus /> {t('workshop.addLine')}</Button>
           <Button type="button" variant="outline" onClick={() => setKitOpen(true)}><Package /> {t('parcG8.kitInsertButton')}</Button>
           <MicroficheImportButton companyId={companyId} onImport={addMicroficheLines} />
           {exploded.button}
         </div>
-        <div className="flex gap-5 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
-          <span>{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>
-          <span className="text-muted-foreground">{t('workshop.totalVat')} {eur(totals.total_vat)}</span>
-          <span className="text-base">{t('workshop.totalTtc')} <b>{eur(totals.total_ttc)}</b></span>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md border border-border bg-card px-4 py-2 font-data text-sm tabular-nums">
+          <span className="whitespace-nowrap">{t('workshop.totalHt')} <b>{eur(totals.total_ht)}</b></span>
+          <span className="whitespace-nowrap text-muted-foreground">{t('workshop.totalVat')} {eur(totals.total_vat)}</span>
+          <span className="whitespace-nowrap text-base">{t('workshop.totalTtc')} <b>{eur(totals.total_ttc)}</b></span>
         </div>
       </div>
 
@@ -754,9 +784,11 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           onInsert={(ins) => insertKitLines(ins)} onClose={() => setKitOpen(false)} />
       )}
       {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-      <div className="flex justify-end"><Button onClick={() => submit('save')} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}</Button></div>
-    </div>
+      {saveRow}
+    </>
   );
+
+  const fiche = <div className="space-y-4">{workPart}{linesPart}</div>;
 
   // Popup « Commentaire client » (G8) et avertissement « km inferieur au dernier releve ».
   const overlays = (
@@ -797,6 +829,53 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       </AlertDialog>
     </>
   );
+
+  if (pane) {
+    const errorLine = error ? <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p> : null;
+    const workFiche = <div className="space-y-4">{workPart}{errorLine}{saveRow}</div>;
+    return (
+      <>
+        <div hidden={pane !== 'work'} className="space-y-4">
+          {header}
+          {workTop}
+          {checkupReady && o ? (
+            <Tabs value={tab} onValueChange={(v) => setTab(v as 'fiche' | 'checkup')}>
+              <TabsList className="h-12">
+                <TabsTrigger value="fiche" className="h-10 px-4 text-[14px]"><FileText className="mr-1.5 size-4" /> {t('uxAtelier.ficheTab')}</TabsTrigger>
+                <TabsTrigger value="checkup" className="h-10 px-4 text-[14px]">
+                  <ClipboardCheck className="mr-1.5 size-4" /> {t('checkup.tabCheckup')}
+                  {proposedCount > 0 && <span className="ml-1.5 rounded-[var(--radius-badge)] bg-warning-bg px-1.5 font-data text-[11px] tabular-nums text-warning">{proposedCount}</span>}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="fiche" className="mt-4">{workFiche}</TabsContent>
+              <TabsContent value="checkup" className="mt-4">
+                <CheckupTab
+                  companyId={companyId} orId={o.id} vehicleId={vehicle?.id ?? null} reasonCode={reasonCode || null} serviceCode={serviceCode}
+                  cards={cards} onChange={setCards} rate={rate} rateLoading={rateQ.isLoading}
+                  busy={busy} error={error} approvalPending={approvalPending}
+                  hasClient={!!contact}
+                  onSave={() => submit('save')}
+                  onSendProposal={() => submit('proposal')}
+                  extraActions={proposalActions}
+                  sendSecondary
+                />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <section className="space-y-3">
+              <h2 className="text-[17px] font-bold">{t('uxAtelier.ficheTab')}</h2>
+              {workFiche}
+            </section>
+          )}
+        </div>
+        <div hidden={pane !== 'lines'} className="space-y-4">
+          {linesPart}
+          {linesBottom}
+        </div>
+        {overlays}
+      </>
+    );
+  }
 
   // Nouvel OR ou migration absente : pas d'onglet Check-up (il faut un OR enregistré pour les photos).
   if (!checkupReady || !o) return <div className="space-y-4">{header}{fiche}{overlays}</div>;

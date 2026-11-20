@@ -5,7 +5,7 @@
  * NB : la société active et l'utilisateur sont des placeholders ; ils seront
  * branchés sur l'auth Supabase + le contexte multi-société en M0.
  */
-import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, FlaskConical, CircleUser, LogOut, KeyRound, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList, Receipt } from 'lucide-react';
+import { PanelLeft, Bell, Bike, Globe, Building2, ChevronDown, FlaskConical, CircleUser, LogOut, KeyRound, Home, Signature, UserPlus, CalendarClock, Landmark, ShoppingCart, Wallet, Languages, PenLine, ClipboardList, Receipt } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   DropdownMenu,
@@ -36,6 +36,8 @@ import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-
 import { eur } from '@/modules/sales/balance-panel';
 import { listWebOrderAlerts, WEB_ORDER_ROLES } from '@/modules/sales/web-orders-api';
 import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
+import { getHomePref, saveHomePref } from '@/modules/workshop/my-workshop/api';
+import { HOME_PREFS, isHomePref, type HomePref } from '@/modules/workshop/my-workshop/rules';
 import { toast } from 'sonner';
 import { t, isLocale, LOCALES, useLocale } from '@/lib/i18n';
 
@@ -615,6 +617,18 @@ function UserMenu() {
   const isStaff = rolesForActiveCompany.length > 0;
   // Langue de l'interface (décision client du 30/10/2026) : FR, NL, EN, IT, par utilisateur.
   const locale = useLocale();
+  // Page d'accueil apres connexion (lot UX atelier, 20/11) : reglage du compte, sorti de « Mon atelier ».
+  // Colonne absente (migration 20261119290000 non appliquee) : null → l'entree ne s'affiche pas.
+  const qc = useQueryClient();
+  const homePref = useQuery({
+    queryKey: ['home-pref', user?.id ?? null], queryFn: () => getHomePref(user!.id), enabled: !!user && isStaff, staleTime: 300_000,
+  });
+  const changeHome = (value: string) => {
+    if (!user || !isHomePref(value) || value === homePref.data) return;
+    saveHomePref(user.id, value as HomePref)
+      .then(() => { toast.success(t('myWorkshop.homeSaved')); void qc.invalidateQueries({ queryKey: ['home-pref', user.id] }); })
+      .catch((e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')));
+  };
   const changeLocale = (value: string) => {
     if (!isLocale(value) || value === locale) return;
     setUserLocale(value)
@@ -665,6 +679,22 @@ function UserMenu() {
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        {homePref.data != null && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Home className="size-4" />
+              {t('uxAtelier.homeMenu')}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuLabel className="max-w-64 text-[11px] font-normal text-muted-foreground">{t('myWorkshop.homeHint')}</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={homePref.data} onValueChange={changeHome}>
+                {HOME_PREFS.map((p) => (
+                  <DropdownMenuRadioItem key={p} value={p}>{t(`myWorkshop.home_${p}`)}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut className="size-4" />
           {t('auth.signOut')}

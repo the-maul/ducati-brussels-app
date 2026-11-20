@@ -6,11 +6,10 @@
  * ou un chef d'atelier ; absent = le mien. Ignore pour un mecanicien simple.
  */
 import { createFileRoute } from '@tanstack/react-router';
-import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/lib/auth/auth-context';
 import { MyWorkshopScreen } from '@/modules/workshop/my-workshop/my-workshop-screen';
 import { parseWorkshopView, workshopViewParam } from '@/modules/workshop/my-workshop/rules';
-import { t, pageTitle } from '@/lib/i18n';
+import { pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/my-workshop')({
   validateSearch: (s: Record<string, unknown>): { mechanic?: string } => ({
@@ -26,11 +25,7 @@ function MyWorkshopRoute() {
   const navigate = Route.useNavigate();
   return (
     <>
-      <PageHeader
-        title={t('myWorkshop.title')}
-        description={t('myWorkshop.subtitle')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('myWorkshop.title') }]}
-      />
+      {/* Lot UX atelier (20/11) : l'en-tete tient sur une ligne, dans l'ecran (titre, date, atelier de, relire). */}
       {activeCompanyId && (
         <MyWorkshopScreen
           companyId={activeCompanyId}

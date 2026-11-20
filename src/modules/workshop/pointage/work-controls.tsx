@@ -64,9 +64,22 @@ type ConfirmFn = ReturnType<typeof useConfirm>;
  * Partage par la fiche OR, le parcours et l'ecran tablette « Mon atelier » (lot F).
  */
 export async function startWorkWithConfirm(
-  orId: string, opts: { operation?: string | null; who?: Who | null; origin?: string }, confirm: ConfirmFn,
+  orId: string,
+  opts: {
+    operation?: string | null; who?: Who | null; origin?: string;
+    /**
+     * Lot UX atelier (20/11) : « Mon atelier » a deja dit, dans SA confirmation unique, que ce
+     * pointage-la serait mis en pause. Si la base demande la meme chose, on ne redemande pas ;
+     * un autre pointage que celui annonce redemande toujours.
+     */
+    expectSwitchEntry?: string | null;
+  },
+  confirm: ConfirmFn,
 ): Promise<StartResult | null> {
   let res = await startWorkOnOr(orId, { operation: opts.operation ?? null, who: opts.who, origin: opts.origin });
+  if (res.status === 'needs_confirm' && opts.expectSwitchEntry && res.current.entry_id === opts.expectSwitchEntry) {
+    return startWorkOnOr(orId, { operation: opts.operation ?? null, who: opts.who, origin: opts.origin, confirmSwitch: true });
+  }
   if (res.status === 'needs_confirm') {
     const c = res.current;
     const what = c.kind === 'improductif' ? t('pointage.currentTask') : fill(t('pointage.currentOr'), { number: c.or_number ?? '' });

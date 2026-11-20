@@ -7,12 +7,12 @@
  * Il remplace le bloc « Travail sur l'OR (pointeuse) » : mêmes gestes (Démarrer, Pause, Reprendre,
  * Terminer du lot A ; « Terminer » des opérations du lot D), mêmes fonctions en base.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import {
-  AlertTriangle, Ban, BellRing, Camera, CheckCircle2, CircleDot, Circle, ClipboardCheck, Clock, FileText, ListChecks, Loader2,
+  AlertTriangle, Ban, BellRing, Camera, CheckCircle2, Circle, ClipboardCheck, Clock, FileText, ListChecks, Loader2,
   Pause, PenLine, Play, Receipt, RotateCcw, Square, XCircle, type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,8 @@ import { useReception } from '../reception/reception-sheet';
 import { finishPlanOps, getPlanProgress } from '../plan-ops/api';
 import { FinishDialog } from '../plan-ops/plan-ops-panel';
 import { setRepairOrderStatus, startRepairOrder } from '../write-api';
-import { orProgress, type Headline, type NextAction, type SideAction, type StepState, type Tone } from './progress-rules';
+import { orProgress, type Headline, type NextAction, type SideAction, type Tone } from './progress-rules';
+import { OrStepsTrail } from './or-steps-trail';
 
 const HEAD_ICON: Record<Headline, LucideIcon> = {
   cancelled: XCircle, invoiced: Receipt, ready: CheckCircle2, informed: BellRing, blocked_approval: Ban, blocked_warranty: Clock,
@@ -40,12 +41,6 @@ const NEXT_ICON: Record<NextAction, LucideIcon> = {
 };
 const SIDE_ICON: Record<SideAction, LucideIcon> = {
   pause: Pause, stop: Square, photos: Camera, journey: ListChecks, notify_ready: BellRing, approval: PenLine,
-};
-const STEP_ICON: Record<StepState, LucideIcon> = {
-  done: CheckCircle2, current: CircleDot, todo: Circle, skipped: Clock, warning: AlertTriangle,
-};
-const STEP_TEXT: Record<StepState, string> = {
-  done: 'text-success', current: 'text-info', todo: 'text-muted-foreground', skipped: 'text-warning', warning: 'text-warning',
 };
 const TONE_BOX: Record<Tone, string> = {
   success: 'border-success bg-success-bg text-success', warning: 'border-warning bg-warning-bg text-warning',
@@ -69,6 +64,13 @@ export function OrProgressBanner(p: {
   onNotifyReady?: () => void;
   onApproval?: () => void;
   onChanged: () => void;
+  /**
+   * Lot UX atelier (20/11) : ligne d'identite de l'OR (n°, client, moto + plaque, km) et actions
+   * (Imprimer, « Plus d'actions »). Fournies : le bandeau devient la barre d'identite collee en haut
+   * de la fiche (toujours visible), avec la frise compacte et le gros bouton de l'etape suivante.
+   */
+  identity?: ReactNode;
+  actions?: ReactNode;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -128,6 +130,7 @@ export function OrProgressBanner(p: {
     hasService: p.hasService,
     workAllowed: p.workAllowed,
     warrantyPending: p.warrantyPending,
+    planExpected: p.hasService,
   });
 
   const busy = pt.busy || startOr.isPending || finish.isPending || ready.isPending || !!p.invoiceBusy;
@@ -170,68 +173,38 @@ export function OrProgressBanner(p: {
   const pending = (pr.next === 'start' || pr.next === 'resume') ? (pt.start.isPending || startOr.isPending)
     : pr.next === 'ready' ? ready.isPending : pr.next === 'finish' ? finish.isPending : pr.next === 'invoice' ? !!p.invoiceBusy : false;
 
-  return (
-    <section aria-label={t('orLisible.title')} className="mb-4 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('orLisible.title')}</p>
-          <div className={cn('mt-1 inline-flex items-center gap-2 rounded-[var(--radius-badge)] border px-3 py-1.5', TONE_BOX[pr.tone])}>
-            <HeadIcon className="size-5 shrink-0" aria-hidden />
-            <span className="text-[17px] font-bold leading-tight">{headText}</span>
-          </div>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">{hint}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            {p.warrantyStatus && p.warrantyStatus !== 'aucune' && <WarrantyStatusBadge status={p.warrantyStatus} />}
-            <ReadySmsLine orId={p.orId} status={p.orStatus} />
-            {(pt.total || p.fallbackWorkedMinutes || 0) > 0 && <span className="font-data text-[13px] tabular-nums text-muted-foreground">{fillVars(t('orLisible.workedTime'), { time: fmtWorkMinutes(pt.total || p.fallbackWorkedMinutes || 0) })}</span>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {sideShown.map((a) => {
-            const Icon = SIDE_ICON[a];
-            return (
-              <Button key={a} variant="outline" className="h-12 text-[15px]" disabled={busy} onClick={() => doSide(a)}>
-                {a === 'stop' && pt.finish.isPending ? <Loader2 className="animate-spin" /> : <Icon />} {t(`orLisible.side_${a}`)}
-              </Button>
-            );
-          })}
-          {pr.next !== 'none' && (
-            <div className="flex flex-col items-stretch">
-              <span className="mb-0.5 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('orLisible.nextLabel')}</span>
-              <Button
-                variant={pr.next === 'view_invoice' ? 'outline' : 'default'}
-                className="h-14 min-w-[220px] text-[17px]" disabled={busy} onClick={() => void doNext(pr.next)}
-              >
-                {pending ? <Loader2 className="animate-spin" /> : <NextIcon className="size-5" />} {t(`orLisible.next_${pr.next}`)}
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
+  const sideButtons = sideShown.map((a) => {
+    const Icon = SIDE_ICON[a];
+    return (
+      <Button key={a} variant="outline" className="h-12 text-[15px]" disabled={busy} onClick={() => doSide(a)}>
+        {a === 'stop' && pt.finish.isPending ? <Loader2 className="animate-spin" /> : <Icon />} {t(`orLisible.side_${a}`)}
+      </Button>
+    );
+  });
+  const nextButton = pr.next !== 'none' && (
+    <Button
+      variant={pr.next === 'view_invoice' ? 'outline' : 'default'} title={t('orLisible.nextLabel')}
+      className="h-12 min-w-[200px] text-[17px]" disabled={busy} onClick={() => void doNext(pr.next)}
+    >
+      {pending ? <Loader2 className="animate-spin" /> : <NextIcon className="size-5" />} {t(`orLisible.next_${pr.next}`)}
+    </Button>
+  );
+  const headChip = (
+    <div className={cn('inline-flex max-w-full items-center gap-2 rounded-[var(--radius-badge)] border px-2.5 py-1', TONE_BOX[pr.tone])} title={hint}>
+      <HeadIcon className="size-5 shrink-0" aria-hidden />
+      <span className="truncate text-[15px] font-bold leading-tight">{headText}</span>
+    </div>
+  );
+  const extras = (
+    <>
+      {p.warrantyStatus && p.warrantyStatus !== 'aucune' && <WarrantyStatusBadge status={p.warrantyStatus} />}
+      <ReadySmsLine orId={p.orId} status={p.orStatus} />
+      {(pt.total || p.fallbackWorkedMinutes || 0) > 0 && <span className="font-data text-[13px] tabular-nums text-muted-foreground">{fillVars(t('orLisible.workedTime'), { time: fmtWorkMinutes(pt.total || p.fallbackWorkedMinutes || 0) })}</span>}
+    </>
+  );
 
-      <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {pr.steps.map((s, idx) => {
-          const Icon = STEP_ICON[s.state];
-          const detail = s.key === 'reception' && s.count && s.count.total > 0
-            ? fillVars(t('orLisible.photosCount'), { taken: s.count.done, total: s.count.total })
-            : s.key === 'operations' && s.count ? fillVars(t('orLisible.opsCount'), { done: s.count.done, total: s.count.total }) : null;
-          return (
-            <li
-              key={s.key} aria-current={s.state === 'current' ? 'step' : undefined}
-              className={cn('flex items-center gap-2 rounded-md border px-3 py-2',
-                s.state === 'current' ? 'border-info bg-info-bg' : 'border-border bg-card')}
-            >
-              <span className="font-data text-[12px] font-bold tabular-nums text-muted-foreground">{idx + 1}</span>
-              <Icon className={cn('size-5 shrink-0', STEP_TEXT[s.state])} aria-hidden />
-              <div className="min-w-0">
-                <p className={cn('truncate text-[14px] leading-tight', s.state === 'current' ? 'font-bold' : '')}>{t(`orLisible.step_${s.key}`)}{detail ? ` · ${detail}` : ''}</p>
-                <p className={cn('text-[11px] leading-tight', STEP_TEXT[s.state])}>{t(`orLisible.state_${s.state}`)}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-
+  const dialogs = (
+    <>
       <PauseDialog
         open={pt.pauseOpen} reasons={pt.reasons} orStatus={p.orStatus} busy={pt.pause.isPending}
         onCancel={() => pt.setPauseOpen(false)} onConfirm={(v) => pt.pause.mutate(v)}
@@ -240,6 +213,54 @@ export function OrProgressBanner(p: {
         open={finishOpen} done={row?.done ?? 0} notDone={row?.not_done ?? 0} busy={finish.isPending}
         onCancel={() => setFinishOpen(false)} onConfirm={() => finish.mutate()}
       />
+    </>
+  );
+
+  // Lot UX atelier (20/11) : barre d'identite collee en haut de la fiche OR, toujours visible
+  // (n°, client, moto + plaque, km, etat + frise compacte, gros bouton de l'etape suivante).
+  if (p.identity) {
+    return (
+      <section
+        aria-label={t('orLisible.title')}
+        className="sticky -top-4 z-20 mb-3 rounded-md md:-top-6 border border-border bg-card px-3 py-2.5 shadow-[var(--shadow-card)]"
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="min-w-0 flex-1">{p.identity}</div>
+          {p.actions && <div className="flex flex-wrap items-center gap-2">{p.actions}</div>}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+          {headChip}
+          <OrStepsTrail steps={pr.steps} className="min-w-[min(100%,27rem)] flex-1" />
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {sideButtons}
+            {nextButton}
+          </div>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{hint}</p>
+          {extras}
+        </div>
+        {dialogs}
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label={t('orLisible.title')} className="mb-4 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('orLisible.title')}</p>
+          <div className="mt-1">{headChip}</div>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">{hint}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">{extras}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {sideButtons}
+          {nextButton}
+        </div>
+      </div>
+      <OrStepsTrail steps={pr.steps} size="full" className="mt-4" />
+      {dialogs}
     </section>
   );
 }

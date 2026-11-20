@@ -2,45 +2,33 @@
  * M8 — Parcours mecanicien, lot F (19/11/2026) : ecran tablette « Mon atelier ».
  * Demande du client : un point d'entree par mecanicien, la tablette tenue a cote de la moto.
  *
- *  - En haut : le mecanicien connecte, son pointage en cours ou en pause (lot A) et de tres gros
- *    boutons Pause / Reprendre / Terminer.
- *  - « Mes motos du jour » : RDV du jour et OR qui lui sont attribues, puis les OR « a faire » non
- *    attribues. Par moto : moto, client, travaux, statut, avancement x / y (lot D), photos de
- *    reception (lot C), pieces (lot B).
- *  - Un geste par moto : Demarrer / Reprendre enchaine la serie de photos si elle n'est pas
- *    faite (lot C), le pointage (lot A) puis le parcours guide de l'OR (lot D), ou la vue
- *    eclatee de chaque operation (lot E) est branchee. Tout est reutilise, rien n'est refait.
+ * Lot UX atelier (20/11/2026, maquette validee de la revue UX/UI) — « je ne comprends jamais ou
+ * j'en suis » :
+ *  - une ligne d'en-tete : ecran, date, « Atelier de » (admin / chef d'atelier), relire ;
+ *  - un bandeau colle « Je travaille sur… » (moto, operation, Pause / Terminer / Continuer le
+ *    parcours), present SEULEMENT si un pointage tourne ; sur une tablette partagee (Q60), le
+ *    bandeau de la personne identifiee ;
+ *  - « Aujourd'hui » : les motos dans l'ordre de l'ecran (meme tri `sortCards`), la moto d'abord,
+ *    la MEME frise que la fiche OR (Reception → Travail → Operations → Pret → Facture) a la place
+ *    des badges ; badges seulement pour les alertes (pieces manquantes, ancien OR, accord client) ;
+ *  - un seul bouton rouge : la moto « a faire maintenant » (ou « Continuer le parcours ») ;
+ *  - une seule confirmation au plus avant de travailler (ancien OR + moto d'un autre + autre
+ *    travail en cours, en un message) ;
+ *  - « A prendre » et « OR anciens » replies ; la page d'accueil se regle dans le menu du compte.
+ * Aucune regle metier ne change : memes fonctions (`buildDayCards`, `sortCards`, `cardGesture`,
+ * `startWorkWithConfirm`, photos de reception, parcours guide).
  *
- * Ergonomie tablette : cibles d'au moins 48 px (gestes 64 px), texte de 16 a 22 px, rien au
- * survol, une colonne en portrait et deux en paysage, peu d'informations par carte.
- * Charte : tokens uniquement, statut = couleur + icone + libelle, le rouge Ducati (bouton
- * principal) reserve au geste de la moto et a « Reprendre ».
+ * Ergonomie tablette : cibles d'au moins 44 px (gestes 56 px), texte de 15 a 20 px, rien au survol,
+ * une colonne en portrait, deux quand la zone de travail depasse 1100 px (container query). Charte : tokens, statut = couleur + icone + libelle.
  * Rafraichissement : relecture toutes les 45 s (et au retour sur l'onglet), sans recharger la page.
- *
- * Choix de l'atelier (retour client du 19/11) : un administrateur ou un chef d'atelier choisit
- * « Atelier de : moi / un compagnon du planning / Tous » (memorise dans l'adresse, `?mechanic=`).
- * Les gestes restent ceux du compte connecte : sur la moto d'un autre, Demarrer / Reprendre /
- * Ouvrir l'OR demandent une confirmation qui dit que le pointage sera au nom du compte connecte
- * (pas en lecture seule : le chef d'atelier reprend ou aide sur une moto, sur une tablette
- * partagee, sans se deconnecter ; le temps passe reste celui de la personne qui travaille, B11).
- * Un mecanicien simple ne voit pas le selecteur.
- * Compte relie a aucun compagnon et sans moto : un message utile au lieu d'une liste vide.
- *
- * Cartes lisibles (bug client du 19/11 : deux cartes identiques, meme client, meme Monster ; l'ancien
- * OR accident du 03/11 passait avant l'OR du RDV du jour, photos et « Demarrer » faits sur le
- * mauvais) : chaque carte dit le n° d'OR (ou « RDV sans OR »), le motif, l'heure du RDV ou la date
- * de reception, l'anciennete ; ordre unique (RDV et OR du jour par heure, OR en cours / en pause,
- * autres OR du plus recent au plus ancien) ; une moto a plusieurs OR ouverts : bandeau, l'OR du RDV
- * du jour en avant, les autres « Ancien OR » (avertissement, confirmation avant d'y travailler) ;
- * OR ouverts depuis plus de N jours sans pointage recent : section repliee « OR anciens a verifier ».
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  Bike, CalendarCheck, CalendarClock, Camera, ChevronDown, CircleHelp, ClipboardList, FileText, History, Inbox, ListChecks, Loader2,
-  Package, PackageCheck, PackageX, Pause, Play, Eye, Link2, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, Square, Tag, Timer,
+  CalendarClock, ChevronDown, CircleHelp, ClipboardList, FileText, History, Inbox, ListChecks, Loader2,
+  Package, PackageX, PenLine, Pause, Play, Link2, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, Square, Tag, Timer,
   TriangleAlert, User, UserX, Users, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,31 +40,28 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { fill } from '@/modules/catalog/format';
 import { getLocale, t } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { brusselsParts } from '../reservations/parts-flow';
-import { OrStatusBadge } from '../or-base/or-status-badge';
-import { PlanProgressBadge } from '../plan-ops/plan-ops-panel';
-import { OrWorkBadge, PauseDialog, startWorkWithConfirm } from '../pointage/work-controls';
+import { OrStepsTrail } from '../or-base/or-steps-trail';
+import { PauseDialog, startWorkWithConfirm } from '../pointage/work-controls';
 import { listPauseReasons, pauseWork, stopWorkPointage } from '../pointage/api';
-import { stopLabel } from '../pointage/rules';
+import { stopLabel, type PauseReason } from '../pointage/rules';
 import { ReceptionSheet } from '../reception/reception-sheet';
 import { createOrFromPlanningAppointment, type PlanningAppointment } from '../planning/api';
 import type { PlanningMechanic } from '../planning/rules';
-import { StatusIcon } from '../planning/status-icon';
-import { statusTone } from '../planning/rules';
-import { contactLabel, motoLabel } from '../planning/ui-bits';
-import { getHomePref, loadMyDay, saveHomePref, type MyDay } from './api';
+import { contactLabel } from '../planning/ui-bits';
+import { loadMyDay, type MyDay } from './api';
 import { useSharedTablet } from '../shared-tablet/shared-tablet-provider';
 import { SharedNowPanel } from '../shared-tablet/shared-now-panel';
 import {
-  HOME_PREFS, MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, ageLabel, canChooseWorkshop, cardGesture, cardMotive, cardOwner,
-  cardWhen, chooserMechanics, myCurrentWork, needsReceptionFirst, notLinkedHint, orAgeDays, partsTone, photosState, photosTone,
+  MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, ageLabel, canChooseWorkshop, cardGesture, cardMotive, cardOwner,
+  cardWhen, chooserMechanics, myCurrentWork, needsReceptionFirst, notLinkedHint, orAgeDays,
   workshopViewParam,
-  type DayCard, type Gesture, type HomePref, type MotiveKind, type MyNow, type PartsState, type WorkshopView,
+  type DayCard, type Gesture, type MotiveKind, type MyEntry, type MyNow, type WorkshopView,
 } from './rules';
+import { cardAlerts, cardSteps, doNowKey, durationParts, startReasons, type CardAlert, type StartReason } from './card-view';
 
 const ORIGIN = 'tablet';
-/** Badges agrandis (lisibles a bout de bras) : memes couleurs, icones et libelles que partout. */
-const BIG = 'px-2.5 py-1 text-[14px]';
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(`${getLocale()}-BE`, { hour: '2-digit', minute: '2-digit' });
 const todayBrussels = () => brusselsParts(new Date()).date;
 /** Date courte : 03/11 (l'annee seulement si ce n'est pas l'annee en cours). */
@@ -85,12 +70,17 @@ const shortDate = (iso: string) => {
   const sameYear = d.getFullYear() === new Date().getFullYear();
   return d.toLocaleDateString(`${getLocale()}-BE`, sameYear ? { day: '2-digit', month: '2-digit' } : { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+/** « 17:58 » aujourd'hui, sinon « 18/11 17:58 ». */
+const whenShort = (iso: string, today: string) => (brusselsParts(new Date(iso)).date === today ? hhmm(iso) : `${shortDate(iso)} ${hhmm(iso)}`);
+const durationText = (fromIso: string, nowMs: number) => {
+  const d = durationParts(fromIso, nowMs);
+  return d.h > 0 ? fill(t('uxAtelier.durationHours'), { h: d.h, min: String(d.min).padStart(2, '0') }) : fill(t('uxAtelier.durationMinutes'), { min: d.min });
+};
 /** Icone du motif (le libelle dit le motif exact). */
 const MOTIVE_ICON: Record<MotiveKind, typeof Wrench> = {
   maintenance: CalendarClock, accident: ShieldAlert, warranty: ShieldCheck, repair: Wrench, other: Tag, unknown: CircleHelp,
 };
-
-const PARTS_ICON: Record<PartsState, typeof Package> = { none: Package, missing: PackageX, reserved: Package, prepared: PackageCheck };
+const ALERT_ICON: Record<CardAlert, typeof Package> = { parts_missing: PackageX, old_or: History, approval_pending: PenLine };
 const ME_VALUE = '__me__';
 
 export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
@@ -111,10 +101,12 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const confirm = useConfirm();
   const userId = user?.id ?? null;
 
-  // Le jour suit l'horloge de Bruxelles (une tablette laissee allumee passe minuit).
+  // Le jour suit l'horloge de Bruxelles (une tablette laissee allumee passe minuit) ; la duree du
+  // pointage en cours avance avec la meme horloge.
   const [today, setToday] = useState(todayBrussels);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setToday(todayBrussels()), 60_000);
+    const id = setInterval(() => { setToday(todayBrussels()); setNowMs(Date.now()); }, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -140,6 +132,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [staleOpen, setStaleOpen] = useState(false);
+  const [freeOpen, setFreeOpen] = useState<boolean | null>(null);
 
   const refresh = () => {
     for (const k of [['my-workshop'], ['or-work-status'], ['plan-progress'], ['repair-orders'], ['chrono-work'], ['chrono-today']]) {
@@ -162,9 +155,9 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
     else navigate({ to: '/workshop/$orId', params: { orId } });
   };
 
-  /** Pointage (lot A, un seul pointage actif, confirmation) puis le travail. */
-  const pointThenGo = async (orId: string, card: DayCard | null, gesture: Gesture) => {
-    const res = await startWorkWithConfirm(orId, { origin: ORIGIN }, confirm);
+  /** Pointage (lot A, un seul pointage actif) puis le travail. `expectSwitch` : deja annonce dans la confirmation. */
+  const pointThenGo = async (orId: string, card: DayCard | null, gesture: Gesture, expectSwitch: string | null = null) => {
+    const res = await startWorkWithConfirm(orId, { origin: ORIGIN, expectSwitchEntry: expectSwitch }, confirm);
     if (!res || res.status === 'needs_confirm') { refresh(); return; }
     toast.success(res.status === 'resumed' ? t('pointage.resumed') : res.status === 'started' ? t('pointage.started') : t('myWorkshop.alreadyRunning'));
     refresh();
@@ -173,7 +166,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
 
   /** Le geste de la moto : (ouvrir l'OR) → photos si besoin (lot C) → pointage (lot A) → parcours (lot D). */
   const gesture = useMutation({
-    mutationFn: async ({ card, g }: { card: DayCard; g: Gesture }) => {
+    mutationFn: async ({ card, g, expectSwitch }: { card: DayCard; g: Gesture; expectSwitch: string | null }) => {
       if (!d) return;
       if (g === 'continue' && card.or) { goToWork(card.or.id, card, card.work?.mineOpen?.journey_operation ?? null); return; }
       let orId = card.or?.id ?? null;
@@ -189,10 +182,10 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
       const id = orId;
       const recStatus = d.reception.get(id)?.status ?? 'none';
       if (needsReceptionFirst(g, recStatus, orStatus, d.receptionReady)) {
-        setReception({ orId: id, orNumber, go: () => { void pointThenGo(id, card, g).catch(onErr).finally(() => setBusyKey(null)); } });
+        setReception({ orId: id, orNumber, go: () => { void pointThenGo(id, card, g, expectSwitch).catch(onErr).finally(() => setBusyKey(null)); } });
         return 'reception';
       }
-      await pointThenGo(id, card, g);
+      await pointThenGo(id, card, g, expectSwitch);
     },
     meta: { success: false },
     onMutate: ({ card }) => setBusyKey(card.key),
@@ -200,41 +193,54 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
     onError: onErr,
   });
 
-  /** Moto d'un autre mecanicien : le pointage sera au nom du compte connecte, on le dit avant. */
-  const onCardGesture = async (card: DayCard, g: Gesture) => {
-    if (!d) return;
-    // Ancien OR d'une moto qui a un RDV aujourd'hui : on le dit avant les photos et le pointage.
-    const grp = d.vehicleGroups.get(card.key);
-    if (grp?.role === 'old' && grp.primaryToday && card.or && g !== 'continue') {
-      const motive = t(`myWorkshop.motive_${cardMotive(card).label}`);
-      const hint = grp.primary?.kind === 'or' ? fill(t('myWorkshop.oldOrConfirmPrimary'), { number: grp.primary.number ?? '' })
-        : grp.primary?.kind === 'rdv' ? t('myWorkshop.oldOrConfirmRdv') : '';
-      const ok = await confirm({
-        title: fill(t('myWorkshop.oldOrTitle'), { number: card.or.number ?? '' }),
-        message: `${fill(t('myWorkshop.oldOrConfirm'), { date: shortDate(card.or.created_at), motive })} ${hint}`.trim(),
-        confirmLabel: t('myWorkshop.oldOrOk'),
-      });
-      if (!ok) return;
-    }
-    const owner = cardOwner(card, d.me, d.mechanics);
-    // Tablette partagee : le pointage est au nom de la personne identifiee, rien a confirmer.
-    if (owner.foreign && g !== 'continue' && !shared) {
-      const name = owner.name || t('myWorkshop.someone');
-      const meName = d.me.displayName || t('myWorkshop.meUnknown');
-      const ok = await confirm({
-        title: fill(t('myWorkshop.foreignTitle'), { name }),
-        message: fill(t('myWorkshop.foreignConfirm'), { me: meName, name })
-          + (d.me.mechanicIds.length ? '' : ` ${fill(t('myWorkshop.foreignNotLinked'), { name })}`),
-        confirmLabel: t('myWorkshop.foreignOk'),
-      });
-      if (!ok) return;
-    }
-    gesture.mutate({ card, g });
-  };
-
-  // ------------------------------------------------------------------ bandeau du haut
+  // ------------------------------------------------------------------ mon pointage du moment
   const now: MyNow = useMemo(() => (d ? myCurrentWork(d.myEntries, userId, d.closedOrs) : { kind: 'idle' }), [d, userId]);
   const nowCard = now.kind !== 'idle' && now.entry.or_id ? d?.cards.find((c) => c.or?.id === now.entry.or_id) ?? null : null;
+
+  /** Une seule confirmation (lot UX atelier) : ancien OR, moto d'un autre et autre travail, en un message. */
+  const onCardGesture = async (card: DayCard, g: Gesture) => {
+    if (!d) return;
+    const grp = d.vehicleGroups.get(card.key);
+    const reasonsToSay: StartReason[] = startReasons({
+      gesture: g, shared,
+      oldWithTodayRdv: grp?.role === 'old' && !!grp.primaryToday,
+      owner: cardOwner(card, d.me, d.mechanics),
+      meLinked: d.me.mechanicIds.length > 0,
+      running: now.kind === 'running' ? { entryId: now.entry.id, orId: now.entry.or_id, kind: now.entry.kind } : null,
+      cardOrId: card.or?.id ?? null,
+    });
+    let expectSwitch: string | null = null;
+    if (reasonsToSay.length) {
+      const meName = d.me.displayName || t('myWorkshop.meUnknown');
+      const number = card.or?.number ?? '';
+      const lines: string[] = [card.or ? fill(t('uxAtelier.confirmIntro'), { me: meName, number }) : fill(t('uxAtelier.confirmIntroNoOr'), { me: meName })];
+      for (const r of reasonsToSay) {
+        if (r.kind === 'old_or' && card.or) {
+          const motive = t(`myWorkshop.motive_${cardMotive(card).label}`);
+          const hint = grp?.primary?.kind === 'or' ? fill(t('myWorkshop.oldOrConfirmPrimary'), { number: grp.primary.number ?? '' })
+            : grp?.primary?.kind === 'rdv' ? t('myWorkshop.oldOrConfirmRdv') : '';
+          lines.push(`${fill(t('myWorkshop.oldOrConfirm'), { date: shortDate(card.or.created_at), motive })} ${hint}`.trim());
+        }
+        if (r.kind === 'foreign') {
+          const name = r.name || t('myWorkshop.someone');
+          lines.push(fill(t('uxAtelier.confirmForeign'), { name }) + (r.notLinked ? ` ${fill(t('myWorkshop.foreignNotLinked'), { name })}` : ''));
+        }
+        if (r.kind === 'switch' && now.kind === 'running') {
+          const current = r.orId ? d.orNumbers.get(r.orId) ?? '' : '';
+          lines.push(r.task ? fill(t('uxAtelier.confirmSwitchTask'), { since: hhmm(now.entry.started_at) })
+            : fill(t('uxAtelier.confirmSwitch'), { current, since: hhmm(now.entry.started_at) }));
+          expectSwitch = r.entryId;
+        }
+      }
+      const ok = await confirm({
+        title: card.or ? fill(t(g === 'resume' ? 'uxAtelier.confirmTitleResume' : 'uxAtelier.confirmTitle'), { number }) : t('uxAtelier.confirmTitleNoOr'),
+        message: lines.join('\n'),
+        confirmLabel: g === 'resume' ? t('pointage.resume') : t('pointage.start'),
+      });
+      if (!ok) return;
+    }
+    gesture.mutate({ card, g, expectSwitch });
+  };
 
   const pause = useMutation({
     mutationFn: (v: { reason: string; orStatus: string | null }) => {
@@ -282,143 +288,102 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const stale = d.cards.filter((c) => c.stale);
   const others = d.view.kind !== 'me';
   const choices = chooserMechanics(d.mechanics, d.me);
-  const mineTitle = d.view.kind === 'all' ? t('myWorkshop.viewAllTitle')
-    : d.view.kind === 'mechanic' ? fill(t('myWorkshop.viewMechanicTitle'), { name: d.viewLabel }) : t('myWorkshop.mineTitle');
   const showNotLinked = notLinkedHint(d.view, d.me, d.cards.filter((c) => c.section === 'mine').length);
   const chooseValue = d.view.kind === 'all' ? VIEW_ALL : d.view.kind === 'mechanic' ? d.view.mechanicId : ME_VALUE;
   const pickView = (v: string) => onView?.(v === VIEW_ALL ? { kind: 'all' } : v === ME_VALUE ? { kind: 'me' } : { kind: 'mechanic', mechanicId: v });
   const free = d.cards.filter((c) => c.section === 'unassigned' && !c.stale);
   const nowReasons = reasons.data ?? [];
   const nowOrNumber = now.kind !== 'idle' && now.entry.or_id ? d.orNumbers.get(now.entry.or_id) ?? null : null;
+  const canAct = canWrite && d.pointageReady;
+  const gestureOf = (c: DayCard) => cardGesture(c, canAct);
+  const isOld = (c: DayCard) => d.vehicleGroups.get(c.key)?.role === 'old';
+  const doNow = doNowKey(mine.map((c) => ({ key: c.key, gesture: gestureOf(c), old: isOld(c) })), { running: now.kind === 'running', shared });
+  const todayTitle = d.view.kind === 'all' ? t('uxAtelier.todayAll')
+    : d.view.kind === 'mechanic' ? fill(t('uxAtelier.todayMechanic'), { name: d.viewLabel }) : t('uxAtelier.today');
+  // Mon OR en pause qui n'est pas dans la liste regardee (atelier d'un autre) : on garde « Reprendre ».
+  const pausedElsewhere = !shared && now.kind === 'paused' && !!now.entry.or_id && !mine.some((c) => c.or?.id === now.entry.or_id);
+  const freeIsOpen = freeOpen ?? (mine.length === 0 && free.length > 0);
+  const dateText = new Date().toLocaleDateString(`${getLocale()}-BE`, { weekday: 'long', day: '2-digit', month: '2-digit' });
+
+  const card = (c: DayCard, opts: { showOwner: boolean }) => (
+    <BikeCard key={c.key} card={c} day={d} today={today} gesture={gestureOf(c)} busy={busyKey === c.key}
+      showOwner={opts.showOwner} doNow={doNow === c.key} reasons={nowReasons}
+      onGesture={(g) => { void onCardGesture(c, g); }}
+      onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
+    />
+  );
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-5 pb-10 text-[16px]">
-      {/* ------------------------------------------------------------ moi + mon pointage */}
-      <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5" aria-label={t('myWorkshop.nowTitle')}>
-        {shared ? (
+    <div className="touch-44 @container mx-auto w-full max-w-[1400px] space-y-4 pb-10 text-[16px]">
+      {/* ------------------------------------------------------------ en-tete sur une ligne */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="font-display text-[22px] font-bold uppercase leading-tight">{t('myWorkshop.title')}</h1>
+        <p className="min-w-0 text-[16px] text-muted-foreground first-letter:uppercase">
+          {dateText}
+          {!shared && !d.me.mechanicIds.length && <> · {t('myWorkshop.notLinked')}</>}
+        </p>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {canChoose && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="mw-view" className="flex items-center gap-1.5 text-[15px] font-bold"><Users className="size-5" aria-hidden /> {t('myWorkshop.viewLabel')}</label>
+              <Select value={chooseValue} onValueChange={pickView} open={chooserOpen} onOpenChange={setChooserOpen}>
+                <SelectTrigger id="mw-view" className="h-11 w-[170px] text-[16px] lg:w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ME_VALUE} className="h-11 text-[16px]">{fill(t('myWorkshop.viewMe'), { name: d.me.displayName || t('myWorkshop.meUnknown') })}</SelectItem>
+                  {choices.map((m) => <SelectItem key={m.id} value={m.id} className="h-11 text-[16px]">{m.name}</SelectItem>)}
+                  <SelectItem value={VIEW_ALL} className="h-11 text-[16px]">{t('myWorkshop.viewAll')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <Button variant="outline" className="h-11 w-11 p-0" onClick={() => day.refetch()} disabled={day.isFetching} aria-label={t('myWorkshop.reload')} title={t('myWorkshop.reload')}>
+            {day.isFetching ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
+          </Button>
+        </div>
+      </header>
+
+      {/* ------------------------------------------------------------ je travaille sur… */}
+      {shared ? (
+        <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]" aria-label={t('myWorkshop.nowTitle')}>
           <SharedNowPanel
-            reasons={nowReasons} orNumbers={d.orNumbers} canWrite={canWrite && d.pointageReady}
+            reasons={nowReasons} orNumbers={d.orNumbers} canWrite={canAct}
             onResume={(orId) => pointThenGo(orId, d.cards.find((c) => c.or?.id === orId) ?? null, 'resume')}
             onChanged={refresh}
           />
-        ) : (
-          <>
-        {/* Revue UX (20/11) : en-tete compact. Sans pointage en cours, l'etat tient sur la meme ligne
-            que le nom et les motos du jour remontent dans le premier ecran de la tablette. */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-md bg-accent text-muted-foreground"><User className="size-6" aria-hidden /></div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[20px] font-bold leading-tight">{d.me.displayName || t('myWorkshop.meUnknown')}</p>
-            <p className="text-[15px] text-muted-foreground">
-              {new Date().toLocaleDateString(`${getLocale()}-BE`, { weekday: 'long', day: 'numeric', month: 'long' })}
-              {!d.me.mechanicIds.length && <> · {t('myWorkshop.notLinked')}</>}
-            </p>
-          </div>
-          {now.kind === 'idle' && (
-            <StatusBadge tone="neutral" icon={Timer} className={BIG} label={t('myWorkshop.idle')} />
-          )}
-          {now.kind === 'idle' && canWrite && d.pointageReady && (
-            <Button variant="ghost" className="h-12 text-[16px]" onClick={() => navigate({ to: '/workshop/chrono' })}>
-              <Timer className="size-5" /> {t('myWorkshop.chrono')}
+        </section>
+      ) : now.kind === 'running' && (
+        <WorkingOnBanner
+          entry={now.entry} orNumber={nowOrNumber} card={nowCard} day={d} nowMs={nowMs} canAct={canAct} busy={topBusy}
+          finishPending={finish.isPending}
+          onPause={() => setPauseOpen(true)}
+          onFinish={() => finish.mutate()}
+          onContinue={() => { if (now.entry.or_id) goToWork(now.entry.or_id, nowCard, now.entry.journey_operation ?? null); }}
+        />
+      )}
+      {pausedElsewhere && now.kind === 'paused' && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning bg-card px-4 py-2">
+          <StatusBadge tone="warning" icon={Pause} className="px-2.5 py-1 text-[14px]"
+            label={fill(t('pointage.pausedReason'), { reason: stopLabel(now.entry.stop_kind, now.entry.stop_reason, nowReasons, t) })} />
+          <span className="min-w-0 flex-1 text-[16px]">{fill(t('myWorkshop.pausedOn'), { number: nowOrNumber ?? '', at: now.entry.ended_at ? whenShort(now.entry.ended_at, today) : '' })}</span>
+          {canAct && (
+            <Button variant="outline" className="h-12 text-[16px]" disabled={topBusy} onClick={() => resume.mutate()}>
+              {resume.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />} {t('pointage.resume')}
             </Button>
           )}
-          <Button variant="ghost" className="h-12 text-[15px]" onClick={() => day.refetch()} disabled={day.isFetching} aria-label={t('myWorkshop.reload')}>
-            {day.isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />} <span className="hidden sm:inline">{t('myWorkshop.reload')}</span>
-          </Button>
         </div>
+      )}
+      {!d.pointageReady && <p className="text-[15px] text-warning">{t('myWorkshop.pointageMissing')}</p>}
 
-        {canChoose && (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <label htmlFor="mw-view" className="flex items-center gap-2 text-[16px] font-bold"><Users className="size-5" aria-hidden /> {t('myWorkshop.viewLabel')}</label>
-            <Select value={chooseValue} onValueChange={pickView} open={chooserOpen} onOpenChange={setChooserOpen}>
-              <SelectTrigger id="mw-view" className="h-12 w-full text-[16px] sm:w-[320px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ME_VALUE} className="h-12 text-[16px]">{fill(t('myWorkshop.viewMe'), { name: d.me.displayName || t('myWorkshop.meUnknown') })}</SelectItem>
-                {choices.map((m) => <SelectItem key={m.id} value={m.id} className="h-12 text-[16px]">{m.name}</SelectItem>)}
-                <SelectItem value={VIEW_ALL} className="h-12 text-[16px]">{t('myWorkshop.viewAll')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        {others && (
-          <p className="mt-3 flex items-start gap-2 rounded-md border border-info bg-info-bg p-2.5 text-[15px]" role="status">
-            <Eye className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
-            {d.view.kind === 'all' ? t('myWorkshop.viewAllNotice') : fill(t('myWorkshop.viewOtherNotice'), { name: d.viewLabel })}
-          </p>
-        )}
-
-        {now.kind !== 'idle' && (
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-border bg-background p-3">
-          <div className="min-w-0 flex-1">
-            {now.kind === 'running' && (
-              <>
-                <StatusBadge tone="info" icon={Play} className={BIG}
-                  label={now.entry.kind === 'improductif' ? t('myWorkshop.runningTask') : fill(t('myWorkshop.runningOr'), { number: nowOrNumber ?? '' })} />
-                <p className="mt-2 text-[17px]">
-                  {fill(t('myWorkshop.since'), { at: hhmm(now.entry.started_at) })}
-                  {now.entry.journey_operation && <> · {fill(t('myWorkshop.onOperation'), { op: now.entry.journey_operation })}</>}
-                  {nowCard?.or && <> · {motoLabel(nowCard.or.vehicles ?? null)}</>}
-                </p>
-              </>
-            )}
-            {now.kind === 'paused' && (
-              <>
-                <StatusBadge tone="warning" icon={Pause} className={BIG}
-                  label={fill(t('pointage.pausedReason'), { reason: stopLabel(now.entry.stop_kind, now.entry.stop_reason, nowReasons, t) })} />
-                <p className="mt-2 text-[17px]">
-                  {fill(t('myWorkshop.pausedOn'), { number: nowOrNumber ?? '', at: now.entry.ended_at ? hhmm(now.entry.ended_at) : '' })}
-                  {nowCard?.or && <> · {motoLabel(nowCard.or.vehicles ?? null)}</>}
-                </p>
-              </>
-            )}
-          </div>
-          {canWrite && d.pointageReady && (
-            <div className="flex w-full flex-wrap gap-3 sm:w-auto">
-              {now.kind === 'running' && now.entry.kind === 'travail' && (
-                <Button variant="outline" className="h-16 min-w-[160px] flex-1 text-[18px] sm:flex-none" disabled={topBusy} onClick={() => setPauseOpen(true)}>
-                  <Pause className="size-6" /> {t('pointage.pause')}
-                </Button>
-              )}
-              {now.kind === 'paused' && (
-                <Button className="h-16 min-w-[160px] flex-1 text-[18px] sm:flex-none" disabled={topBusy} onClick={() => resume.mutate()}>
-                  {resume.isPending ? <Loader2 className="size-6 animate-spin" /> : <RotateCcw className="size-6" />} {t('pointage.resume')}
-                </Button>
-              )}
-              {now.kind === 'running' && (
-                <Button variant="outline" className="h-16 min-w-[160px] flex-1 text-[18px] sm:flex-none" disabled={topBusy} onClick={() => finish.mutate()}>
-                  {finish.isPending ? <Loader2 className="size-6 animate-spin" /> : <Square className="size-6" />} {t('pointage.finish')}
-                </Button>
-              )}
-              <Button variant="ghost" className="h-16 text-[16px]" onClick={() => navigate({ to: '/workshop/chrono' })}>
-                <Timer className="size-5" /> {t('myWorkshop.chrono')}
-              </Button>
-            </div>
-          )}
-        </div>
-        )}
-          </>
-        )}
-        {!d.pointageReady && <p className="mt-3 text-[15px] text-warning">{t('myWorkshop.pointageMissing')}</p>}
-      </section>
-
-      {/* ------------------------------------------------------------ mes motos du jour */}
-      <section aria-labelledby="mw-mine">
-        <h2 id="mw-mine" className="mb-3 flex items-center gap-2 font-display text-[20px] font-bold">
-          <Bike className="size-6" aria-hidden /> {mineTitle} <span className="font-data tabular-nums text-muted-foreground">({mine.length})</span>
+      {/* ------------------------------------------------------------ aujourd'hui */}
+      <section aria-labelledby="mw-today">
+        <h2 id="mw-today" className="mb-3 flex flex-wrap items-baseline gap-x-2 text-[19px] font-bold uppercase tracking-[0.02em]">
+          {todayTitle}
+          <span className="font-data text-[16px] font-normal normal-case tabular-nums text-muted-foreground">
+            {mine.length === 1 ? t('uxAtelier.motosOne') : fill(t('uxAtelier.motos'), { n: mine.length })}
+          </span>
         </h2>
-        {/* Que faire ensuite : dit une seule fois, au-dessus des cartes, tant que rien ne tourne. */}
-        {now.kind === 'idle' && canWrite && d.pointageReady && mine.length > 0 && (
-          <p className="-mt-1 mb-3 text-[15px] text-muted-foreground">{t('myWorkshop.idleHint')}</p>
-        )}
         {mine.length ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {mine.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
-                onGesture={(g) => { void onCardGesture(c, g); }}
-                onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
-              />
-            ))}
-          </div>
+          <div className="grid gap-3 @min-[1100px]:grid-cols-2">{mine.map((c) => card(c, { showOwner: others }))}</div>
         ) : showNotLinked ? (
           <div className="flex flex-wrap items-start gap-4 rounded-md border border-warning bg-card p-5" role="status">
             <UserX className="size-8 shrink-0 text-warning" aria-hidden />
@@ -427,7 +392,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
               <p className="mt-1 text-[16px] text-muted-foreground">{canChoose ? t('myWorkshop.notLinkedAdmin') : t('myWorkshop.notLinkedMechanic')}</p>
               {canChoose && (
                 <div className="mt-3 flex flex-wrap gap-3">
-                  <Button className="h-12 text-[16px]" onClick={() => setChooserOpen(true)}><Users className="size-5" /> {t('myWorkshop.chooseWorkshop')}</Button>
+                  <Button variant="outline" className="h-12 text-[16px]" onClick={() => setChooserOpen(true)}><Users className="size-5" /> {t('myWorkshop.chooseWorkshop')}</Button>
                   <Button asChild variant="outline" className="h-12 text-[16px]">
                     <Link to="/workshop/planning" search={{ view: 'reglages' }}><Link2 className="size-5" /> {t('myWorkshop.linkAccount')}</Link>
                   </Button>
@@ -436,7 +401,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-card p-6 text-[17px] text-muted-foreground">
+          <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-card p-5 text-[17px] text-muted-foreground">
             <Inbox className="size-7 shrink-0" aria-hidden />
             {d.view.kind === 'all' ? t('myWorkshop.mineEmptyAll')
               : d.view.kind === 'mechanic' ? fill(t('myWorkshop.mineEmptyMechanic'), { name: d.viewLabel }) : t('myWorkshop.mineEmpty')}
@@ -444,55 +409,24 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
         )}
       </section>
 
-      {/* ------------------------------------------------------------ OR a faire non attribues */}
-      <section aria-labelledby="mw-free">
-        <h2 id="mw-free" className="mb-3 flex items-center gap-2 font-display text-[20px] font-bold">
-          <ClipboardList className="size-6" aria-hidden /> {t('myWorkshop.freeTitle')} <span className="font-data tabular-nums text-muted-foreground">({free.length})</span>
-        </h2>
-        {free.length ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {free.map((c) => (
-              <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={false}
-                onGesture={(g) => { void onCardGesture(c, g); }}
-                onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
-              />
-            ))}
-          </div>
-        ) : <p className="text-[16px] text-muted-foreground">{t('myWorkshop.freeEmpty')}</p>}
-      </section>
+      {/* ------------------------------------------------------------ a prendre (replie) */}
+      <FoldSection
+        id="mw-free" icon={ClipboardList} tone="neutral" open={freeIsOpen} onOpenChange={setFreeOpen}
+        title={t('uxAtelier.freeTitle')} count={free.length}
+        hint={free.length === 1 ? t('uxAtelier.freeHintOne') : free.length ? fill(t('uxAtelier.freeHint'), { n: free.length }) : t('myWorkshop.freeEmpty')}
+      >
+        {free.length > 0 && <div className="grid gap-3 @min-[1100px]:grid-cols-2">{free.map((c) => card(c, { showOwner: false }))}</div>}
+      </FoldSection>
 
       {/* ------------------------------------------------------------ OR anciens a verifier (replies) */}
       {stale.length > 0 && (
-        <section aria-labelledby="mw-stale">
-          <Collapsible open={staleOpen} onOpenChange={setStaleOpen}>
-            <CollapsibleTrigger asChild>
-              <button type="button"
-                className="flex min-h-14 w-full items-center gap-2 rounded-md border border-warning bg-card px-4 py-3 text-left">
-                <History className="size-6 shrink-0 text-warning" aria-hidden />
-                <span id="mw-stale" className="font-display text-[20px] font-bold">{t('myWorkshop.staleTitle')}</span>
-                <span className="font-data tabular-nums text-muted-foreground">({stale.length})</span>
-                <span className="ml-auto flex items-center gap-1 text-[16px] text-muted-foreground">
-                  {staleOpen ? t('myWorkshop.staleHide') : t('myWorkshop.staleShow')}
-                  <ChevronDown className={`size-5 transition-transform ${staleOpen ? 'rotate-180' : ''}`} aria-hidden />
-                </span>
-              </button>
-            </CollapsibleTrigger>
-            <p className="mt-2 text-[15px] text-muted-foreground">{fill(t('myWorkshop.staleHint'), { n: d.staleDays })}</p>
-            <CollapsibleContent>
-              <div className="mt-3 grid gap-4 lg:grid-cols-2">
-                {stale.map((c) => (
-                  <BikeCard key={c.key} card={c} day={d} today={today} canWrite={canWrite} busy={busyKey === c.key} showOwner={others}
-                    onGesture={(g) => { void onCardGesture(c, g); }}
-                    onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
-                  />
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </section>
+        <FoldSection
+          id="mw-stale" icon={History} tone="warning" open={staleOpen} onOpenChange={setStaleOpen}
+          title={t('myWorkshop.staleTitle')} count={stale.length} hint={fill(t('myWorkshop.staleHint'), { n: d.staleDays })}
+        >
+          <div className="grid gap-3 @min-[1100px]:grid-cols-2">{stale.map((c) => card(c, { showOwner: others }))}</div>
+        </FoldSection>
       )}
-
-      <HomePrefSetting userId={userId} />
 
       <PauseDialog
         open={pauseOpen} reasons={nowReasons} orStatus={nowCard?.or?.status ?? null} busy={pause.isPending}
@@ -510,17 +444,119 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Bandeau « Je travaille sur… » (colle en haut, seulement quand un pointage tourne)
+// ---------------------------------------------------------------------------------------------
+function WorkingOnBanner({ entry, orNumber, card, day, nowMs, canAct, busy, finishPending, onPause, onFinish, onContinue }: {
+  entry: MyEntry;
+  orNumber: string | null; card: DayCard | null; day: MyDay; nowMs: number; canAct: boolean; busy: boolean; finishPending: boolean;
+  onPause: () => void; onFinish: () => void; onContinue: () => void;
+}) {
+  const task = entry.kind !== 'travail';
+  const v = card?.or?.vehicles ?? card?.appointment?.vehicles ?? null;
+  const moto = v ? [v.brand, v.model].filter(Boolean).join(' ') : '';
+  const progress = entry.or_id ? day.progress.get(entry.or_id) : undefined;
+  const motive = card ? t(`myWorkshop.motive_${cardMotive(card).label}`) : '';
+  const target = entry.or_id ? afterStartTarget({
+    planTotal: progress?.total ?? 0, serviceCode: card?.or?.service_code ?? card?.appointment?.service_code ?? null,
+  }) : null;
+  const opText = entry.journey_operation
+    ? (progress && progress.total > 0
+      ? fill(t('uxAtelier.operationOf'), { done: progress.done + progress.not_done, total: progress.total, op: entry.journey_operation })
+      : fill(t('myWorkshop.onOperation'), { op: entry.journey_operation }))
+    : progress && progress.total > 0 ? fill(t('uxAtelier.operationsDone'), { done: progress.done + progress.not_done, total: progress.total }) : '';
+  return (
+    <section
+      aria-label={t('uxAtelier.workingOn')}
+      className="sticky -top-4 z-20 rounded-md border-2 border-info bg-card p-3 md:-top-6 shadow-[var(--shadow-card)] sm:p-4"
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-[min(100%,22rem)] flex-1">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.04em] text-info">
+            <Play className="size-4" aria-hidden /> {task ? t('uxAtelier.workingOnTask') : t('uxAtelier.workingOn')}
+            <span className="font-data normal-case tabular-nums text-muted-foreground">· {durationText(entry.started_at, nowMs)}</span>
+          </p>
+          {!task && (
+            <p className="mt-0.5 text-[19px] font-bold leading-tight">
+              <span className="font-mono">{orNumber ?? ''}</span>
+              {moto && <> · {moto}</>}
+              {v?.plate && <> · <span className="font-mono">{v.plate}</span></>}
+            </p>
+          )}
+          {task && <p className="mt-0.5 text-[19px] font-bold leading-tight">{t('myWorkshop.runningTask')}</p>}
+          {(motive || opText) && (
+            <p className="mt-0.5 line-clamp-2 text-[15px] text-muted-foreground">{[motive, opText].filter(Boolean).join(' · ')}</p>
+          )}
+        </div>
+        {canAct && (
+          <div className="flex flex-1 flex-wrap justify-end gap-2">
+            {!task && (
+              <Button variant="outline" className="h-14 min-w-[130px] flex-1 text-[17px] sm:flex-none" disabled={busy} onClick={onPause}>
+                <Pause className="size-5" /> {t('pointage.pause')}
+              </Button>
+            )}
+            <Button variant="outline" className="h-14 min-w-[130px] flex-1 text-[17px] sm:flex-none" disabled={busy} onClick={onFinish}>
+              {finishPending ? <Loader2 className="size-5 animate-spin" /> : <Square className="size-5" />} {t('pointage.finish')}
+            </Button>
+            {!task && target && (
+              <Button className="h-14 min-w-[220px] flex-1 text-[17px] sm:flex-none" disabled={busy} onClick={onContinue}>
+                {target.to === 'journey' ? <ListChecks className="size-5" /> : <FileText className="size-5" />}
+                {target.to === 'journey' ? t('uxAtelier.continueJourney') : t('uxAtelier.openOrSheet')}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Section repliee (« A prendre », « OR anciens a verifier »)
+// ---------------------------------------------------------------------------------------------
+function FoldSection({ id, icon: Icon, tone, open, onOpenChange, title, count, hint, children }: {
+  id: string; icon: typeof Wrench; tone: 'neutral' | 'warning'; open: boolean; onOpenChange: (v: boolean) => void;
+  title: string; count: number; hint: string; children: ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id}>
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn('flex min-h-14 w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md border bg-card px-4 py-2 text-left',
+              tone === 'warning' ? 'border-warning' : 'border-border')}
+          >
+            <Icon className={cn('size-6 shrink-0', tone === 'warning' ? 'text-warning' : 'text-muted-foreground')} aria-hidden />
+            <span id={id} className="text-[18px] font-bold uppercase tracking-[0.02em]">{title}</span>
+            <span className="font-data tabular-nums text-muted-foreground">({count})</span>
+            <span className="min-w-0 flex-1 truncate text-[15px] text-muted-foreground">{hint}</span>
+            <span className="ml-auto flex items-center gap-1 text-[15px] text-muted-foreground">
+              {open ? t('myWorkshop.staleHide') : t('myWorkshop.staleShow')}
+              <ChevronDown className={cn('size-5 transition-transform', open ? 'rotate-180' : '')} aria-hidden />
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">{children}</CollapsibleContent>
+      </Collapsible>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
 // Une moto
 // ---------------------------------------------------------------------------------------------
 const GESTURE_LABEL: Record<Exclude<Gesture, 'none' | 'blocked'>, string> = {
-  start: 'pointage.start', resume: 'pointage.resume', continue: 'myWorkshop.continue', create_or: 'myWorkshop.createOr',
+  start: 'pointage.start', resume: 'pointage.resume', continue: 'myWorkshop.continue', create_or: 'pointage.start',
 };
-const GESTURE_ICON = { start: Play, resume: RotateCcw, continue: ListChecks, create_or: FileText } as const;
+const GESTURE_ICON = { start: Play, resume: RotateCcw, continue: ListChecks, create_or: Play } as const;
 
-function BikeCard({ card, day, today, canWrite, busy, showOwner, onGesture, onOpenOr }: {
-  card: DayCard; day: MyDay; today: string; canWrite: boolean; busy: boolean;
+function BikeCard({ card, day, today, gesture: g, busy, showOwner, doNow, reasons, onGesture, onOpenOr }: {
+  card: DayCard; day: MyDay; today: string; gesture: Gesture; busy: boolean;
   /** Atelier d'un autre ou de tous : a qui est la moto. */
   showOwner: boolean;
+  /** LA moto a faire maintenant : son geste est le seul bouton rouge de l'ecran. */
+  doNow: boolean;
+  reasons: PauseReason[];
   onGesture: (g: Gesture) => void; onOpenOr: (orId: string) => void;
 }) {
   const owner = cardOwner(card, day.me, day.mechanics);
@@ -529,15 +565,7 @@ function BikeCard({ card, day, today, canWrite, busy, showOwner, onGesture, onOp
   const vehicle = or?.vehicles ?? a?.vehicles ?? null;
   const contact = or?.contacts ?? a?.contacts ?? null;
   const work = or?.work_description || a?.work_description || '';
-  const g = cardGesture(card, canWrite && day.pointageReady);
-  const progress = or ? day.progress.get(or.id) : undefined;
-  const rec = or ? day.reception.get(or.id) : undefined;
-  const ps = photosState(rec?.status, rec?.missing ?? 0);
-  const parts = day.parts.get(card.key);
-  const PartsIcon = parts ? PARTS_ICON[parts.state] : Package;
-  const running = !!card.work?.mineOpen;
-  const paused = !running && !!card.work?.mineLastPaused;
-  // Ce qui distingue deux cartes de la meme moto : n° d'OR, motif, heure / reception, anciennete.
+  const moto = vehicle ? [vehicle.brand, vehicle.model].filter(Boolean).join(' ') : '';
   const when = cardWhen(card, today);
   const motive = cardMotive(card);
   const MotiveIcon = MOTIVE_ICON[motive.kind];
@@ -546,120 +574,113 @@ function BikeCard({ card, day, today, canWrite, busy, showOwner, onGesture, onOp
   const old = group?.role === 'old';
   const todayRdv = when.kind === 'appointment' && when.today;
   const whenText = when.kind === 'appointment'
-    ? (when.today ? fill(t('myWorkshop.rdvAt'), { time: hhmm(when.at) }) : fill(t('myWorkshop.rdvOn'), { date: shortDate(when.at), time: hhmm(when.at) }))
+    ? (when.today ? '' : fill(t('myWorkshop.rdvOn'), { date: shortDate(when.at), time: hhmm(when.at) }))
     : when.kind === 'received' ? fill(t('myWorkshop.receivedOn'), { date: shortDate(when.at) }) : '';
-  const ageText = age ? fill(t(`myWorkshop.${age.key}`), { n: age.n }) : '';
+  const ageText = age && age.key !== 'age_today' ? fill(t(`myWorkshop.${age.key}`), { n: age.n }) : '';
   const ageWarn = old || (!!age && age.n > day.staleDays);
+  const steps = cardSteps(card, {
+    receptionReady: day.receptionReady, reception: or ? day.reception.get(or.id) : null,
+    pointageReady: day.pointageReady, workStatus: or ? day.workStatus.get(or.id) : null,
+    progress: or ? day.progress.get(or.id) : null,
+  });
+  const alerts = cardAlerts(card, { parts: day.parts.get(card.key), old });
+  const parts = day.parts.get(card.key);
+
+  // Etat du pointage sur la moto, en une ligne (couleur + icone + libelle).
+  const mineOpen = card.work?.mineOpen ?? null;
+  const minePaused = !mineOpen ? card.work?.mineLastPaused ?? null : null;
+  const ws = or ? day.workStatus.get(or.id) : undefined;
+  const live: { tone: 'info' | 'warning'; icon: typeof Play; text: string } | null = mineOpen
+    ? { tone: 'info', icon: Play, text: fill(t('uxAtelier.mineRunning'), { at: whenShort(mineOpen.started_at, today) }) }
+    : minePaused
+      ? { tone: 'warning', icon: Pause, text: fill(t('uxAtelier.pausedSince'), { at: minePaused.ended_at ? whenShort(minePaused.ended_at, today) : '', reason: stopLabel(minePaused.stop_kind, minePaused.stop_reason, reasons, t) }) }
+      : ws?.work_state === 'running'
+        ? { tone: 'info', icon: Play, text: fill(t('uxAtelier.otherRunning'), { who: ws.running_by ?? '?', at: ws.running_since ? whenShort(ws.running_since, today) : '' }) }
+        : ws?.work_state === 'paused'
+          ? { tone: 'warning', icon: Pause, text: fill(t('pointage.pausedReason'), { reason: stopLabel(ws.last_stop_kind, ws.last_stop_reason, reasons, t) }) }
+          : null;
+
+  const showGesture = g !== 'none' && g !== 'blocked';
+  const GIcon = showGesture ? GESTURE_ICON[g] : Play;
 
   return (
-    <article className={`flex flex-col rounded-md border bg-card p-4 shadow-[var(--shadow-card)] ${running ? 'border-info' : paused || old ? 'border-warning' : 'border-border'}`}>
+    <article className={cn('flex flex-col rounded-md border bg-card p-4 shadow-[var(--shadow-card)]',
+      doNow ? 'border-2 border-foreground' : mineOpen ? 'border-2 border-info' : old || minePaused ? 'border-warning' : 'border-border')}>
       <header className="flex items-start gap-3">
-        <div className="min-w-[64px] shrink-0 text-center">
-          {when.kind === 'appointment' && when.today
+        <div className="w-[60px] shrink-0 text-center">
+          {todayRdv
             ? <p className="font-data text-[22px] font-bold leading-none tabular-nums">{hhmm(when.at)}</p>
             : old ? <History className="mx-auto size-6 text-warning" aria-hidden /> : <Wrench className="mx-auto size-6 text-muted-foreground" aria-hidden />}
           {a?.planned_minutes && todayRdv ? <p className="mt-1 font-data text-[13px] tabular-nums text-muted-foreground">{fill(t('myWorkshop.planned'), { min: a.planned_minutes })}</p> : null}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-data text-[20px] font-bold leading-tight tabular-nums">{or ? or.number || '—' : t('myWorkshop.rdvNoOr')}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="neutral" icon={MotiveIcon} className={BIG} label={t(`myWorkshop.motive_${motive.label}`)} />
-            {old && <StatusBadge tone="warning" icon={History} className={BIG} label={t('myWorkshop.oldOr')} />}
-            {group && !old && todayRdv && <StatusBadge tone="info" icon={CalendarCheck} className={BIG} label={t('myWorkshop.todayOr')} />}
-          </div>
-          {(whenText || ageText) && (
-            <p className="mt-1.5 text-[15px] text-muted-foreground">
-              {whenText}{whenText && ageText ? ' · ' : ''}
-              {ageText && <span className={ageWarn ? 'font-bold text-warning' : undefined}>{ageText}</span>}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <p className="min-w-0 text-[20px] font-bold uppercase leading-tight">
+              {moto || t('myWorkshop.noVehicle')}
+              {vehicle?.plate && <span className="font-mono text-[17px] font-normal normal-case"> · {vehicle.plate}</span>}
             </p>
-          )}
-          <p className="mt-2 text-[19px] font-bold leading-snug">{motoLabel(vehicle) || t('myWorkshop.noVehicle')}</p>
-          <p className="truncate text-[16px] text-muted-foreground">{contactLabel(contact) || t('myWorkshop.noClient')}</p>
+            <p className="truncate text-[16px]">{contactLabel(contact) || t('myWorkshop.noClient')}</p>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[15px] text-muted-foreground">
+            <span className={cn('font-mono', or ? 'text-foreground' : '')}>{or ? or.number || '—' : t('uxAtelier.noOrYet')}</span>
+            <span aria-hidden>·</span>
+            <span className="inline-flex items-center gap-1"><MotiveIcon className="size-4" aria-hidden /> {t(`myWorkshop.motive_${motive.label}`)}</span>
+            {whenText && <><span aria-hidden>·</span><span>{whenText}</span></>}
+            {ageText && <><span aria-hidden>·</span><span className={ageWarn ? 'font-bold text-warning' : undefined}>{ageText}</span></>}
+            {showOwner && owner.name && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><User className="size-4" aria-hidden /> {owner.name}</span></>}
+          </p>
+          {work && <p className="mt-1 line-clamp-1 text-[15px]">{work}</p>}
         </div>
+        {doNow && (
+          <StatusBadge tone="info" icon={Play} className="hidden shrink-0 px-2.5 py-1 text-[13px] sm:inline-flex" label={t('uxAtelier.doNow')} />
+        )}
       </header>
 
-      {group && (
-        <p className="mt-3 flex items-start gap-2 rounded-md border border-warning bg-warning-bg p-2.5 text-[15px] text-foreground" role="note">
-          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
-          <span>
-            <span className="font-bold">{fill(t(or ? 'myWorkshop.vehicleOpenOrs' : 'myWorkshop.vehicleOpenOrsRdv'), { n: group.openOrs })}</span>
-            {group.others.length > 0 && <> · {fill(t('myWorkshop.otherOrs'), {
-              list: group.others.map((o) => `${o.number || '—'} (${shortDate(o.created_at)})`).join(', '),
-            })}</>}
-          </span>
+      {doNow && <StatusBadge tone="info" icon={Play} className="mt-2 self-start px-2.5 py-1 text-[13px] sm:hidden" label={t('uxAtelier.doNow')} />}
+
+      {live && (
+        <p className={cn('mt-2 flex items-center gap-1.5 text-[15px] font-bold', live.tone === 'info' ? 'text-info' : 'text-warning')}>
+          <live.icon className="size-4 shrink-0" aria-hidden /> {live.text}
         </p>
       )}
 
-      {work && <p className="mt-2 line-clamp-2 text-[16px] leading-snug">{work}</p>}
+      <OrStepsTrail steps={steps} className="mt-3" />
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {showOwner && owner.name && (
-          <StatusBadge tone="neutral" icon={User} className={BIG} label={fill(t('myWorkshop.ownerBadge'), { name: owner.name })} />
-        )}
-        {or ? <OrStatusBadge status={or.status} className={BIG} /> : a && (
-          <StatusBadge tone={statusTone(a.status)} icon={StatusIcon(a.status)} label={t(`planningG8.status_${a.status}`)} className={BIG} />
-        )}
-        {or && <OrWorkBadge row={day.workStatus.get(or.id)} className={BIG} />}
-        {progress && progress.total > 0 && (
-          <PlanProgressBadge done={progress.done} resolved={progress.done + progress.not_done} total={progress.total} className={BIG} />
-        )}
-        {or && day.receptionReady && <StatusBadge tone={photosTone(ps)} icon={Camera} label={t(`myWorkshop.photos_${ps}`)} className={BIG} />}
-        {parts && parts.state !== 'none' && (
-          <StatusBadge tone={partsTone(parts.state)} icon={PartsIcon} className={BIG}
-            label={parts.state === 'missing'
-              ? (parts.missing === 1 ? t('myWorkshop.parts_missing_one') : fill(t('myWorkshop.parts_missing'), { n: parts.missing }))
-              : t(`myWorkshop.parts_${parts.state}`)} />
-        )}
-      </div>
+      {(alerts.length > 0 || group) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {alerts.map((al) => (
+            <StatusBadge key={al} tone="warning" icon={ALERT_ICON[al]} className="px-2.5 py-1 text-[14px]"
+              label={al === 'parts_missing'
+                ? (parts?.missing === 1 ? t('myWorkshop.parts_missing_one') : fill(t('myWorkshop.parts_missing'), { n: parts?.missing ?? 0 }))
+                : al === 'old_or' ? t('myWorkshop.oldOr') : t('uxAtelier.alertApproval')} />
+          ))}
+          {group && (
+            <span className="inline-flex min-w-0 items-start gap-1.5 text-[14px] text-foreground">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              <span>
+                <span className="font-bold">{fill(t(or ? 'myWorkshop.vehicleOpenOrs' : 'myWorkshop.vehicleOpenOrsRdv'), { n: group.openOrs })}</span>
+                {group.others.length > 0 && <> · {fill(t('myWorkshop.otherOrs'), {
+                  list: group.others.map((o) => `${o.number || '—'} (${shortDate(o.created_at)})`).join(', '),
+                })}</>}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        {g !== 'none' && g !== 'blocked' && (() => {
-          const Icon = GESTURE_ICON[g];
-          return (
-            <Button variant={old ? 'outline' : 'default'} className="h-16 min-w-[200px] flex-1 text-[18px]" disabled={busy} onClick={() => onGesture(g)}>
-              {busy ? <Loader2 className="size-6 animate-spin" /> : <Icon className="size-6" />} {t(GESTURE_LABEL[g])}
-            </Button>
-          );
-        })()}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {showGesture && (
+          <Button variant={doNow ? 'default' : 'outline'} className="h-14 min-w-[180px] flex-1 text-[18px]" disabled={busy} onClick={() => onGesture(g)}>
+            {busy ? <Loader2 className="size-6 animate-spin" /> : <GIcon className="size-6" />} {t(GESTURE_LABEL[g])}
+          </Button>
+        )}
         {g === 'blocked' && <p className="flex-1 self-center text-[15px] text-warning">{t('checkup.workBlocked')}</p>}
         {or && (
-          <Button variant="outline" className="h-16 min-w-[140px] text-[17px]" onClick={() => onOpenOr(or.id)}>
+          <Button variant="outline" className="h-14 min-w-[140px] text-[17px]" onClick={() => onOpenOr(or.id)}>
             <FileText className="size-5" /> {t('myWorkshop.openOr')}
           </Button>
         )}
       </div>
-      {g === 'start' && day.receptionReady && rec?.status !== 'complete' && rec?.status !== 'plus_tard' && (
-        <p className="mt-2 flex items-center gap-2 text-[14px] text-muted-foreground"><Camera className="size-4" aria-hidden /> {t('myWorkshop.photosFirst')}</p>
-      )}
     </article>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------
-// Page d'accueil apres connexion
-// ---------------------------------------------------------------------------------------------
-function HomePrefSetting({ userId }: { userId: string }) {
-  const qc = useQueryClient();
-  const pref = useQuery({ queryKey: ['home-pref', userId], queryFn: () => getHomePref(userId), staleTime: 300_000 });
-  const save = useMutation({
-    mutationFn: (v: HomePref) => saveHomePref(userId, v),
-    meta: { success: false },
-    onSuccess: () => { toast.success(t('myWorkshop.homeSaved')); void qc.invalidateQueries({ queryKey: ['home-pref', userId] }); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
-  });
-  if (pref.data == null) return null; // colonne absente (migration 20261119290000 non appliquee)
-  return (
-    <section className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="text-[16px] font-bold">{t('myWorkshop.homeTitle')}</p>
-        <p className="text-[14px] text-muted-foreground">{t('myWorkshop.homeHint')}</p>
-      </div>
-      <Select value={pref.data} onValueChange={(v) => save.mutate(v as HomePref)} disabled={save.isPending}>
-        <SelectTrigger className="h-12 w-full text-[16px] sm:w-[280px]" aria-label={t('myWorkshop.homeTitle')}><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {HOME_PREFS.map((p) => <SelectItem key={p} value={p} className="h-12 text-[16px]">{t(`myWorkshop.home_${p}`)}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </section>
   );
 }

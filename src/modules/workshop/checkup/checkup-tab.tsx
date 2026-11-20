@@ -43,8 +43,10 @@ const STATE_STYLE: Record<CheckupState, { icon: LucideIcon; tone: 'success' | 'd
 
 export function CheckupTab({
   companyId, orId, vehicleId, reasonCode, serviceCode = null, cards, onChange, rate, rateLoading, busy, error, approvalPending, hasClient,
-  onSave, onSendProposal, extraActions,
+  onSave, onSendProposal, extraActions, sendSecondary = false,
 }: {
+  /** Lot UX atelier (20/11) : dans la fiche OR en onglets, le seul rouge est l'etape suivante du bandeau. */
+  sendSecondary?: boolean;
   companyId: string; orId: string; vehicleId: string | null; reasonCode: string | null;
   /** Entretien choisi de l'OR (mission 10, carte 1) : pilote l'echeance et les pieces du pre-remplissage. */
   serviceCode?: ServiceCode | null;
@@ -130,7 +132,7 @@ export function CheckupTab({
           <Button type="button" variant="outline" className="h-12 text-[15px]" onClick={onSave} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <Save />} {t('workshop.save')}
           </Button>
-          <Button type="button" className="h-12 text-[15px]" onClick={onSendProposal} disabled={busy || totals.count === 0 || !hasClient}
+          <Button type="button" variant={sendSecondary ? 'outline' : 'default'} className="h-12 text-[15px]" onClick={onSendProposal} disabled={busy || totals.count === 0 || !hasClient}
             title={!hasClient ? t('checkup.needClient') : totals.count === 0 ? t('checkup.needAction') : undefined}>
             {busy ? <Loader2 className="animate-spin" /> : <Send />} {t('checkup.sendProposal')}
           </Button>
