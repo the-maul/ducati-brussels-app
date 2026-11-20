@@ -3127,7 +3127,7 @@ export const nl: DictionaryShape = {
     createOrFromRdv: 'Werkorder aanmaken', viewOr: 'Werkorder bekijken', prevWeek: 'Vorige week', nextWeek: 'Volgende week', thisWeek: 'Deze week',
     noRdv: 'Geen afspraken.', changeStatus: 'Status',
     // parcours d'entretien (mission 07)
-    journey: 'Onderhoudstraject', startJourney: 'Onderhoudstraject starten', resumeJourney: 'Onderhoudstraject hervatten',
+    journey: 'Begeleid parcours', startJourney: 'Begeleid parcours starten', resumeJourney: 'Begeleid parcours hervatten',
     // Mission 07 carte 2 : kit d'entretien → liste de préparation → commande
     createPicking: 'Picking list aanmaken', orderMissing: 'Ontbrekende onderdelen bestellen',
   },
@@ -3241,7 +3241,7 @@ export const nl: DictionaryShape = {
 
   // Parcours d'entretien pas à pas — écran technicien, pensé tablette (M8, mission 07)
   journey: {
-    title: 'Onderhoudstraject',
+    title: 'Begeleid parcours',
     subtitle: 'De handelingen van de onderhoudsbeurt, stap voor stap, met de figuren, de aanhaalmomenten en de tijden.',
     back: 'Terug naar de werkorder',
     backToOps: 'Terug naar de handelingen',
@@ -3253,7 +3253,7 @@ export const nl: DictionaryShape = {
     noFigure: 'Figuur niet beschikbaar.',
     noFigureHint: 'Niet gevonden in de opslag van de handleidingen, of geen netwerk.',
     // pas de moto / pas de programme
-    noVehicle: 'Deze werkorder heeft geen motor. Koppel een motor aan de werkorder om een onderhoudstraject te starten.',
+    noVehicle: 'Deze werkorder heeft geen motor. Koppel een motor aan de werkorder om het begeleid parcours te starten.',
     noCatalog: 'De motor van deze werkorder is nog niet gekoppeld aan de Ducati-catalogus: zonder modeljaar geen onderhoudsprogramma.',
     noCatalogHint: 'Motorfiche → Herkenning via het VIN.',
     noProgram: 'Geen onderhoudsprogramma voor dit modeljaar ({id}) in de beschikbare gegevens.',
@@ -7527,7 +7527,7 @@ export const nl: DictionaryShape = {
     workshopOr: 'Werkorder',
     workshopNew: 'Nieuwe werkorder',
     workshopChrono: "Werkplaatschrono's",
-    workshopJourney: 'Onderhoudstraject',
+    workshopJourney: 'Begeleid parcours',
     workshopMine: 'Mijn werkplaats',
     workshopKits: 'Onderhoudskits',
     workshopAccidents: 'Ongevaldossiers', workshopAccident: 'Ongevaldossier',

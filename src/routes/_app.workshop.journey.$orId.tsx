@@ -3,7 +3,7 @@
  * Écran plein cadre pensé pour la tablette de l'atelier : l'en-tête reste court, tout le reste
  * est donné au manuel.
  */
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/lib/auth/auth-context';
 import { JourneyScreen } from '@/modules/workshop/journey/journey-screen';
@@ -21,21 +21,25 @@ function JourneyRoute() {
   const { orId } = Route.useParams();
   const { op } = Route.useSearch();
   const { activeCompanyId } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <>
       <PageHeader
         title={t('journey.title')}
         description={t('journey.subtitle')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('journey.title') }]}
+        // Revue UX/UI (20/11/2026) : un seul « Retour » par ecran, celui de l'ossature. La fiche OR
+        // reste a un clic par le fil d'Ariane (Atelier › Fiche OR › Parcours guide).
+        breadcrumbs={[
+          { label: t('nav.workshop'), to: '/workshop' },
+          { label: t('designTransverse.journey.orSheet'), to: `/workshop/${orId}` },
+          { label: t('journey.title') },
+        ]}
       />
       {activeCompanyId && (
         <JourneyScreen
           orId={orId}
           companyId={activeCompanyId}
           initialOp={op ?? null}
-          onBackToOr={() => navigate({ to: '/workshop/$orId', params: { orId } })}
           // Lot E integre au parcours (lot F, 19/11) : « Voir sur la vue eclatee » par operation.
           operationExtra={(info) => <OperationExplodedButton info={info} companyId={activeCompanyId} />}
         />

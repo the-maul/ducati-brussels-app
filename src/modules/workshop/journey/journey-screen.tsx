@@ -69,8 +69,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 type View = 'choose' | 'ops' | 'procedure' | 'summary';
 
-export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, operationExtra }: {
-  orId: string; companyId: string; onBackToOr: () => void;
+export function JourneyScreen({ orId, companyId, initialOp = null, operationExtra }: {
+  orId: string; companyId: string;
   /** Lot D : operation a ouvrir directement (lien « Mode operatoire » de la fiche OR). */
   initialOp?: string | null;
   /**
@@ -270,7 +270,6 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
               </div>
             </div>
           )}
-          <Button variant="outline" className="mt-4 h-12 text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
         </div>
       </div>
     );
@@ -358,7 +357,6 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
             );
           })}
         </ul>
-        <Button variant="outline" className="mt-4 h-12 text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
       </div>
     );
   }
@@ -596,7 +594,6 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
           <Button variant="outline" className="h-13 min-h-[52px] text-[15px]" onClick={() => setOrderOpen(true)}>
             <ShoppingCart /> {t('workshop.orderMissing')}
           </Button>
-          <Button variant="outline" className="h-13 min-h-[52px] text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
           {finishButton}
         </div>
         {planDialogs}
@@ -627,7 +624,6 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="h-12 text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
           {/* Revue UX (20/11) : « Terminer le parcours » n'est l'action principale (rouge) que quand tout
               est coche ; avant, le rouge va a « Démarrer » / a l'operation en cours. */}
           <Button className="h-12 text-[15px]" variant={finishButton || (progress?.percent ?? 0) < 100 ? 'outline' : 'default'} onClick={() => setView('summary')}><ClipboardCheck /> {t('journey.finish')}</Button>

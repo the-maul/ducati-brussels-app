@@ -3127,7 +3127,7 @@ export const en: DictionaryShape = {
     createOrFromRdv: 'Create the repair order', viewOr: 'View the repair order', prevWeek: 'Previous week', nextWeek: 'Next week', thisWeek: 'This week',
     noRdv: 'No appointments.', changeStatus: 'Status',
     // parcours d'entretien (mission 07)
-    journey: 'Service walkthrough', startJourney: 'Start the service walkthrough', resumeJourney: 'Resume the service walkthrough',
+    journey: 'Guided work', startJourney: 'Start guided work', resumeJourney: 'Resume guided work',
     // Mission 07 carte 2 : kit d'entretien → liste de préparation → commande
     createPicking: 'Create the picking list', orderMissing: 'Order the missing parts',
   },
@@ -3241,7 +3241,7 @@ export const en: DictionaryShape = {
 
   // Parcours d'entretien pas à pas — écran technicien, pensé tablette (M8, mission 07)
   journey: {
-    title: 'Service walkthrough',
+    title: 'Guided work',
     subtitle: 'The service operations, step by step, with the figures, the torques and the times.',
     back: 'Back to the repair order',
     backToOps: 'Back to the operations',
@@ -3253,7 +3253,7 @@ export const en: DictionaryShape = {
     noFigure: 'Figure not available.',
     noFigureHint: 'Not found in the manual storage, or the network is unavailable.',
     // pas de moto / pas de programme
-    noVehicle: 'This repair order has no bike. Link a bike to the repair order to start a service walkthrough.',
+    noVehicle: 'This repair order has no bike. Link a bike to the repair order to start guided work.',
     noCatalog: 'The bike of this repair order is not yet linked to the Ducati catalogue: without a model year, no service programme.',
     noCatalogHint: 'Bike record → Identification by VIN.',
     noProgram: 'No service programme for this model year ({id}) in the available data.',
@@ -7527,7 +7527,7 @@ export const en: DictionaryShape = {
     workshopOr: 'Repair order',
     workshopNew: 'New repair order',
     workshopChrono: 'Workshop timers',
-    workshopJourney: 'Maintenance journey',
+    workshopJourney: 'Guided work',
     workshopMine: 'My workshop',
     workshopKits: 'Maintenance kits',
     workshopAccidents: 'Accident files', workshopAccident: 'Accident file',
