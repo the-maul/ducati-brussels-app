@@ -13,7 +13,7 @@ import { contactDisplayName } from '@/modules/contacts/api';
 import { code128Svg } from '@/modules/articles/barcode';
 import { isMargeDocument, type DocumentFull, type DocumentMargeExtra } from './write-api';
 import { vehicleBlockLines, vatBreakdown, type VehicleBlockSource } from './document-pdf';
-import { loadLegalMentions } from './document-pdf-data';
+import { loadLegalMentions, repairOrderMileage, withOrMileage } from './document-pdf-data';
 import { formatCompanyNumber } from './invoice-legal';
 import { tIn } from '@/lib/i18n';
 import { contactLocale, designationFor } from '@/lib/i18n/client-locale';
@@ -46,9 +46,10 @@ async function buildPrintSection(full: DocumentFull, companyName: string, option
     supabase.from('reference_values').select('code, label').eq('company_id', doc.company_id).eq('table_key', 'payment_method'),
   ]);
   const methodLabel = new Map((methods ?? []).map((m) => [m.code, m.label]));
+  const orKm = doc.vehicle_id ? await repairOrderMileage(doc.id).catch(() => null) : null;
   const co = (company ?? {}) as Record<string, unknown>;
   const c = (contact ?? null) as Record<string, unknown> | null;
-  const v = (vehicle ?? null) as Record<string, unknown> | null;
+  const v = withOrMileage(vehicle, orKm);
 
   // Langue du client (I18N004) : le papier remis au client est dans SA langue (fiche contact),
   // mêmes libellés que le PDF (`salesPdf.*`), pas ceux de l'écran de l'utilisateur.
@@ -80,7 +81,8 @@ async function buildPrintSection(full: DocumentFull, companyName: string, option
   const heure = doc.created_at ? new Date(doc.created_at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '';
   const condition = (doc.condition_reglement as string) || t('salesPdf.conditionDefault');
   const echeance = dmy(doc.due_date) || dmy(doc.issue_date);
-  const numClient = (c?.legacy_code as string) || (c?.id ? String(c.id).slice(0, 8) : '');
+  // N° client G8 (legacy_code) sinon le code client du DMS ; jamais un bout d'UUID quand un code existe.
+  const numClient = (c?.legacy_code as string) || (c?.code as string) || (c?.id ? String(c.id).slice(0, 8) : '');
 
   const clientBox = c ? [
     `<strong>${esc(contactDisplayName(c as never))}</strong>`,

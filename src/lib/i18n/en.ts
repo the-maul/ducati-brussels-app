@@ -3739,7 +3739,7 @@ export const en: DictionaryShape = {
     invoiceTo: 'to be invoiced to',
     vWishedPrice: 'Price wished by the customer',
     vWishedPriceOnPdf: 'Shown on the PDF',
-    valOpen: 'Confirm the trade-in', valEdit: 'Edit the trade-in', valCancel: 'Cancel the trade-in',
+    valOpen: 'Confirm the trade-in', valEdit: 'Edit prices and classification', valCancel: 'Cancel the trade-in',
     cancelConfirm: 'Cancel this trade-in? If it was confirmed, the vehicle will leave the used stock.',
     valTitle: 'Trade-in confirmation',
     valStep1Title: 'The buyer confirms having received',

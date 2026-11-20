@@ -48,7 +48,11 @@ function OroView() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['oro-full', oroId] }); qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] }); };
+  // La validation ouvre la cession VO (ORO) : le panneau des cessions et l'historique de coût se relisent aussi.
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['oro-full', oroId] }); qc.invalidateQueries({ queryKey: ['oro', activeCompanyId] });
+    qc.invalidateQueries({ queryKey: ['vehicle-cessions'] }); qc.invalidateQueries({ queryKey: ['vehicle-cost-changes'] });
+  };
 
   const del = useMutation({ mutationFn: (id: string) => deleteOroLine(id, oroId), onSuccess: refresh });
   const close = useMutation({ mutationFn: () => closeOro(oroId), onSuccess: refresh });

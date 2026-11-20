@@ -8,6 +8,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
+import { contactDisplayName } from '@/modules/contacts/api';
 import { DEFAULT_THRESHOLDS, type ExcelTab } from './thresholds';
 
 const sb = supabase as unknown as {
@@ -163,12 +164,14 @@ export type ClientOrderForExcel = { id: string; number: string | null; contact_i
 
 /** Commandes clients de type Excel non annulées, pour charger leurs pièces dans le classeur. */
 export async function listClientOrdersForExcel(companyId: string): Promise<ClientOrderForExcel[]> {
-  const { data, error } = await sb.from('part_orders').select('id, number, contact_id, created_at, dispatch_status, contacts(name)')
+  const { data, error } = await sb.from('part_orders').select('id, number, contact_id, created_at, dispatch_status, contacts(type, first_name, last_name, company_name)')
     .eq('company_id', companyId).eq('order_kind', 'excel').neq('dispatch_status', 'annulee')
     .order('created_at', { ascending: false }).limit(100);
   if (error) throw error;
-  return ((data ?? []) as (ClientOrderForExcel & { contacts: { name: string } | null })[])
-    .map((o) => ({ id: o.id, number: o.number, contact_id: o.contact_id, contact_name: o.contacts?.name ?? null, created_at: o.created_at, dispatch_status: o.dispatch_status }));
+  // contacts n'a pas de colonne « name » : le nom s'affiche via contactDisplayName.
+  type C = { type: string | null; first_name: string | null; last_name: string | null; company_name: string | null };
+  return ((data ?? []) as unknown as (ClientOrderForExcel & { contacts: C | null })[])
+    .map((o) => ({ id: o.id, number: o.number, contact_id: o.contact_id, contact_name: o.contacts ? contactDisplayName(o.contacts) : null, created_at: o.created_at, dispatch_status: o.dispatch_status }));
 }
 
 /**
