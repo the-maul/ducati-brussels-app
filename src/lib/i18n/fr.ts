@@ -11,6 +11,9 @@ import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
 import { orLisibleFr } from './or-lisible';
 import { decisionsQ57Q60Fr } from './decisions-q57-q60';
+import { dashboardCaFr } from './dashboard-ca';
+import { decisionsQ63Q67Fr } from './decisions-q63-q67';
+import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
 
 export const fr = {
@@ -8485,7 +8488,7 @@ export const fr = {
     hours: "h",
     quickClient: "Client rapide",
     quickClientTitle: "Nouveau client (rapide)",
-    quickClientHint: "Nom obligatoire ; la fiche se complète plus tard depuis Clients.",
+    quickClientHint: "Civilité, nom et prénom obligatoires (comme G8), enregistrés en MAJUSCULES ; la fiche se complète plus tard depuis Clients.",
     lastName: "Nom",
     firstName: "Prénom",
     mobile: "Portable",
@@ -9426,6 +9429,10 @@ export const fr = {
   orLisible: orLisibleFr,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60Fr,
+  // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.
+  ...purchasePrintFr,
+  ...dashboardCaFr,
+  ...decisionsQ63Q67Fr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

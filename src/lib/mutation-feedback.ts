@@ -26,6 +26,7 @@ import { MutationCache } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { t } from '@/lib/i18n';
+import { translateDbError } from '@/lib/db-error-i18n';
 
 export interface MutationFeedbackMeta {
   /** Message du toast de succès. `false` pour n'en afficher aucun. */
@@ -50,6 +51,9 @@ function readMeta(meta: unknown): MutationFeedbackMeta {
  */
 export function errorMessage(err: unknown): string {
   if (typeof err === 'string' && err.trim()) return err;
+  // Règles G8 posées en base (Q63, Q64, Q67) : message traduit dans la langue de l'écran.
+  const known = translateDbError(err);
+  if (known) return known;
   if (err && typeof err === 'object') {
     const o = err as { message?: unknown; details?: unknown; hint?: unknown };
     const parts = [o.message, o.details, o.hint]

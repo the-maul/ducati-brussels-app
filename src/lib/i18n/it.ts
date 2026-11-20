@@ -11,6 +11,9 @@ import { receptionIt, planOpsIt } from './parcours-cd';
 import { myWorkshopIt } from './mon-atelier';
 import { orLisibleIt } from './or-lisible';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
+import { dashboardCaIt } from './dashboard-ca';
+import { decisionsQ63Q67It } from './decisions-q63-q67';
+import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
 
 export const it: DictionaryShape = {
@@ -8465,7 +8468,7 @@ export const it: DictionaryShape = {
     hours: "h",
     quickClient: "Cliente rapido",
     quickClientTitle: "Nuovo cliente (rapido)",
-    quickClientHint: "Nome obbligatorio; la scheda si completa poi da Clienti.",
+    quickClientHint: "Titolo, cognome e nome obbligatori (come G8), registrati in MAIUSCOLO; la scheda si completa poi da Clienti.",
     lastName: "Cognome",
     firstName: "Nome",
     mobile: "Cellulare",
@@ -9406,6 +9409,10 @@ export const it: DictionaryShape = {
   orLisible: orLisibleIt,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60It,
+  // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.
+  ...purchasePrintIt,
+  ...dashboardCaIt,
+  ...decisionsQ63Q67It,
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,

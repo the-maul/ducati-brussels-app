@@ -11,6 +11,9 @@ import { receptionEn, planOpsEn } from './parcours-cd';
 import { myWorkshopEn } from './mon-atelier';
 import { orLisibleEn } from './or-lisible';
 import { decisionsQ57Q60En } from './decisions-q57-q60';
+import { dashboardCaEn } from './dashboard-ca';
+import { decisionsQ63Q67En } from './decisions-q63-q67';
+import { purchasePrintEn } from './purchase-print';
 import { productionEn } from './production';
 
 export const en: DictionaryShape = {
@@ -8465,7 +8468,7 @@ export const en: DictionaryShape = {
     hours: "h",
     quickClient: "Quick customer",
     quickClientTitle: "New customer (quick)",
-    quickClientHint: "Name required; complete the record later from Customers.",
+    quickClientHint: "Title, last name and first name required (as in G8), saved in CAPITALS; complete the record later from Customers.",
     lastName: "Last name",
     firstName: "First name",
     mobile: "Mobile",
@@ -9406,6 +9409,10 @@ export const en: DictionaryShape = {
   orLisible: orLisibleEn,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60En,
+  // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.
+  ...purchasePrintEn,
+  ...dashboardCaEn,
+  ...decisionsQ63Q67En,
   g8a: g8aEn,
   sms: smsEn,
   production: productionEn,
