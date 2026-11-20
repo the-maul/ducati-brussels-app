@@ -69,19 +69,22 @@ begin
   -- Parametres > Tables > Reglages des cessions : cout horaire interne 28,20 € HT.
   update public.reference_values set label = '28.20' where company_id = _co and table_key = 'cession_settings' and code = 'internal_hourly_rate';
 
-  -- Constat (checklist ATE-089) : G8 exige type, operateur et n° de serie ; le DMS ouvre une cession VO
-  -- sans moto ni operateur (seul le type est exige). A trancher, ne fait pas echouer l'essai.
-  _probe := public.open_internal_cession(_co, '01', null);
-  insert into _t(check_name, result) values ('constat ATE-089 : cession VO sans moto ni operateur acceptee (G8 : obligatoires, a trancher)',
-    case when (select vehicle_id is null and operator_id is null from public.internal_cessions where id = _probe) then 'ok' else 'KO' end);
-  perform public.cancel_internal_cession(_probe);
+  -- ATE-089 (VP8, decide le 20/11 : comme G8) : type, operateur et n° de serie obligatoires ;
+  -- une cession VO sans moto est refusee.
+  begin
+    _probe := public.open_internal_cession(_co, '01', null);
+    insert into _t(check_name, result) values ('ATE-089 (VP8) : cession VO sans moto refusee (comme G8)', 'KO acceptee');
+    perform public.cancel_internal_cession(_probe);
+  exception when others then
+    insert into _t(check_name, result) values ('ATE-089 (VP8) : cession VO sans moto refusee (comme G8)', case when sqlerrm like 'Cession : compléter%' then 'ok' else 'KO ' || sqlerrm end);
+  end;
 
   -- ------------------------------------------------------------ 1. ouverture de la cession VO sur la moto
-  select * into _seq from public.document_sequences where company_id = _co and doc_type = 'ORO';
+  select * into _seq from public.document_sequences where company_id = _co and doc_type = 'OR';  -- VP7 (20/11, comme G8) : meme compteur que les OR
   _exp := case when _seq.reset_yearly and _seq.current_year is distinct from public._numbering_year() then 1 else _seq.next_value end;
   _ces := public.open_internal_cession(_co, '01', _v, auth.uid(), 'Chef atelier', 'Remise en etat', null);
   select * into _c from public.internal_cessions where id = _ces;
-  insert into _t(check_name, result) values ('ouverture : n° ' || coalesce(_c.number, 'null') || ' = suivant de la serie ORO, Cession VO, PAMP, ouverte, moto',
+  insert into _t(check_name, result) values ('ouverture : n° ' || coalesce(_c.number, 'null') || ' = suivant de la serie OR (VP7), Cession VO, PAMP, ouverte, moto',
     case when _c.number like _seq.prefix || '%' and right(_c.number, _seq.padding) = lpad(_exp::text, _seq.padding, '0')
           and _c.cession_type = '01' and _c.type_label = 'Cession VO' and _c.accounted and _c.cost_basis = 'pamp'
           and _c.status = 'ouvert' and _c.vehicle_id = _v and _c.work_description = 'Remise en etat' then 'ok' else 'KO ' || row_to_json(_c)::text end);

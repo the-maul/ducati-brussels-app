@@ -17,6 +17,7 @@ import { listRef } from '@/modules/settings/reference-api';
 import { listVehicles } from '@/modules/vehicles/api';
 import { listCompanyTeam } from '@/modules/workshop/or-page-api';
 import { openCession, readCessionSettings } from './api';
+import { cessionMissingFields, cessionRequiredMessage, cessionTypeRequiresVehicle } from '@/modules/workshop/required-g8';
 
 export type PresetVehicle = { id: string; label: string };
 
@@ -53,6 +54,10 @@ export function CessionNewDialog({ open, onOpenChange, companyId, vehicle, onCre
     if (!operatorId && user && team.data?.some((m) => m.user_id === user.id)) setOperatorId(user.id);
   }, [operatorId, user, team.data]);
 
+  // VP8 (comme G8) : type, operateur et n° de serie (pour les types qui demandent une moto).
+  const typeRow = (types.data ?? []).find((r) => r.code === type);
+  const needsVehicle = cessionTypeRequiresVehicle(type, (typeRow?.extra ?? null) as Record<string, unknown> | null);
+  const missing = cessionMissingFields({ type, hasOperator: !!operatorId, vehicleId: veh?.id ?? null, typeRequiresVehicle: needsVehicle });
   const create = useMutation({
     meta: { success: false },
     mutationFn: () => openCession({
@@ -110,15 +115,16 @@ export function CessionNewDialog({ open, onOpenChange, companyId, vehicle, onCre
                 )}
               </div>
             )}
-            <p className="mt-1 text-[12px] text-muted-foreground">{t('cession.vehicleOptional')}</p>
+            <p className="mt-1 text-[12px] text-muted-foreground">{needsVehicle ? t('vpG8.cessionVehicleRequired') : t('cession.vehicleOptional')}</p>
           </Field>
           <Field label={t('cession.work')}>
             <Textarea value={work} onChange={(e) => setWork(e.target.value)} rows={2} />
           </Field>
         </div>
+        {missing.length > 0 && <p className="text-[12px] text-muted-foreground">{cessionRequiredMessage(missing)}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('cession.cancelBtn')}</Button>
-          <Button onClick={() => create.mutate()} disabled={!type || create.isPending}>
+          <Button onClick={() => create.mutate()} disabled={missing.length > 0 || create.isPending}>
             {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cession.create')}
           </Button>
         </DialogFooter>
