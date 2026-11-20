@@ -45,7 +45,9 @@ function PosPage() {
           <TabsTrigger value="count">{t('pos.countTab')}</TabsTrigger>
         </TabsList>
         {/* Pas de vente caisse fermée (PDV010) : « Ouvrir la caisse » mène à l'onglet de la session. */}
-        <TabsContent value="sale" className="mt-4"><PosSale companyId={activeCompanyId} companyName={companyName} onOpenCash={() => setTab('session')} screenCode={ecran ?? null} /></TabsContent>
+        {/* Revue UX (20/11) : la vente reste montee quand on passe sur un autre onglet de la caisse
+            (le panier n'est plus perdu en allant voir la session). */}
+        <TabsContent value="sale" forceMount className="mt-4 data-[state=inactive]:hidden"><PosSale companyId={activeCompanyId} companyName={companyName} onOpenCash={() => setTab('session')} screenCode={ecran ?? null} /></TabsContent>
         <TabsContent value="session" className="mt-4"><CashScreen companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="closures" className="mt-4"><ClosuresScreen companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="deposits" className="mt-4"><CashDepositsScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
