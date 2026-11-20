@@ -249,3 +249,17 @@
   min-width: 1.5rem;
   min-height: 1.5rem;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Libellés à 12 px minimum (revue UX/UI du 20/11/2026, charte §3.2 --text-label).
+   Les en-têtes de tableaux et les libellés de formulaires écrits en 10 ou 11 px dans les
+   écrans (≈ 300 endroits : petits composants `Th` / `Field` locaux) passent à 12 px, en un
+   seul réglage. Vise : les cellules d'en-tête, les <label> / <legend>, et tout libellé au
+   style de la charte (majuscules + espacement 0.04em). Hors @layer pour battre l'utilitaire.
+   ───────────────────────────────────────────────────────────────────────── */
+:is(th, label, legend):is(.text-\[10px\], .text-\[11px\]),
+:is(th, label) > :is(span, p):is(.text-\[10px\], .text-\[11px\]),
+.uppercase.tracking-\[0\.04em\]:is(.text-\[10px\], .text-\[11px\]) {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+}

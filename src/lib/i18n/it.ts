@@ -18,6 +18,7 @@ import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
 import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
+import { designTransverseIt } from './design-transverse';
 
 export const it: DictionaryShape = {
   app: {
@@ -3128,7 +3129,7 @@ export const it: DictionaryShape = {
     createOrFromRdv: 'Crea l\'OR', viewOr: 'Vedi l\'OR', prevWeek: 'Settimana precedente', nextWeek: 'Settimana successiva', thisWeek: 'Questa settimana',
     noRdv: 'Nessun appuntamento.', changeStatus: 'Stato',
     // parcours d'entretien (mission 07)
-    journey: 'Percorso di manutenzione', startJourney: 'Avvia il percorso di manutenzione', resumeJourney: 'Riprendi il percorso di manutenzione',
+    journey: 'Percorso guidato', startJourney: 'Avvia il percorso guidato', resumeJourney: 'Riprendi il percorso guidato',
     // Mission 07 carte 2 : kit d'entretien → liste de préparation → commande
     createPicking: 'Crea la picking list', orderMissing: 'Ordina i ricambi mancanti',
   },
@@ -3242,7 +3243,7 @@ export const it: DictionaryShape = {
 
   // Parcours d'entretien pas à pas — écran technicien, pensé tablette (M8, mission 07)
   journey: {
-    title: 'Percorso di manutenzione',
+    title: 'Percorso guidato',
     subtitle: 'Le operazioni del tagliando, passo dopo passo, con le figure, le coppie e i tempi.',
     back: 'Torna all\'OR',
     backToOps: 'Torna alle operazioni',
@@ -3254,7 +3255,7 @@ export const it: DictionaryShape = {
     noFigure: 'Figura non disponibile.',
     noFigureHint: "Assente dall'archivio dei manuali, o rete non disponibile.",
     // pas de moto / pas de programme
-    noVehicle: 'Questo OR non ha una moto. Collegare una moto all\'OR per avviare un percorso di manutenzione.',
+    noVehicle: 'Questo OR non ha una moto. Collegare una moto all\'OR per avviare il percorso guidato.',
     noCatalog: 'La moto di questo OR non è ancora collegata al catalogo Ducati: senza modello-anno, nessun programma di manutenzione.',
     noCatalogHint: 'Scheda moto → Riconoscimento tramite VIN.',
     noProgram: 'Nessun programma di manutenzione per questo modello-anno ({id}) nei dati disponibili.',
@@ -7528,7 +7529,7 @@ export const it: DictionaryShape = {
     workshopOr: 'OR',
     workshopNew: 'Nuovo OR',
     workshopChrono: 'Cronometri officina',
-    workshopJourney: 'Percorso di manutenzione',
+    workshopJourney: 'Percorso guidato',
     workshopMine: 'La mia officina',
     workshopKits: 'Kit di manutenzione',
     workshopAccidents: 'Pratiche incidente', workshopAccident: 'Pratica incidente',
@@ -9425,4 +9426,6 @@ export const it: DictionaryShape = {
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,
+  // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
+  designTransverse: designTransverseIt,
 };

@@ -18,6 +18,7 @@ import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
+import { designTransverseFr } from './design-transverse';
 
 export const fr = {
   app: {
@@ -3143,7 +3144,7 @@ export const fr = {
     createOrFromRdv: 'Créer l\'OR', viewOr: 'Voir l\'OR', prevWeek: 'Semaine précédente', nextWeek: 'Semaine suivante', thisWeek: 'Cette semaine',
     noRdv: 'Aucun rendez-vous.', changeStatus: 'Statut',
     // parcours d'entretien (mission 07)
-    journey: 'Parcours d’entretien', startJourney: 'Démarrer le parcours d’entretien', resumeJourney: 'Reprendre le parcours d’entretien',
+    journey: 'Parcours guidé', startJourney: 'Démarrer le parcours guidé', resumeJourney: 'Reprendre le parcours guidé',
     // Mission 07 carte 2 : kit d’entretien → liste de préparation → commande
     createPicking: 'Créer la picking list', orderMissing: 'Commander les pièces manquantes',
   },
@@ -3257,7 +3258,7 @@ export const fr = {
 
   // Parcours d'entretien pas à pas — écran technicien, pensé tablette (M8, mission 07)
   journey: {
-    title: 'Parcours d’entretien',
+    title: 'Parcours guidé',
     subtitle: 'Les opérations de l’entretien, pas à pas, avec les figures, les couples et les temps.',
     back: 'Retour à l’OR',
     backToOps: 'Retour aux opérations',
@@ -3269,7 +3270,7 @@ export const fr = {
     noFigure: 'Figure non disponible.',
     noFigureHint: 'Absente du stockage des manuels, ou réseau indisponible.',
     // pas de moto / pas de programme
-    noVehicle: 'Cet OR n’a pas de moto. Reliez une moto à l’OR pour lancer un parcours d’entretien.',
+    noVehicle: 'Cet OR n’a pas de moto. Reliez une moto à l’OR pour lancer le parcours guidé.',
     noCatalog: 'La moto de cet OR n’est pas encore reliée au catalogue Ducati : sans modèle-année, pas de programme d’entretien.',
     noCatalogHint: 'Fiche moto → Reconnaissance par le VIN.',
     noProgram: 'Aucun programme d’entretien pour ce modèle-année ({id}) dans les données disponibles.',
@@ -7545,7 +7546,7 @@ export const fr = {
     workshopOr: 'OR',
     workshopNew: 'Nouvel OR',
     workshopChrono: 'Chronos atelier',
-    workshopJourney: "Parcours d'entretien",
+    workshopJourney: 'Parcours guidé',
     workshopMine: "Mon atelier",
     workshopKits: "Kits d'entretien",
     workshopAccidents: 'Dossiers accident', workshopAccident: 'Dossier accident',
@@ -9445,6 +9446,8 @@ export const fr = {
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,
+  // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
+  designTransverse: designTransverseFr,
 } as const;
 
 export type Dictionary = typeof fr;

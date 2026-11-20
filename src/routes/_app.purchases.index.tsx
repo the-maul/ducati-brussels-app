@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Plus, Truck, Users, ShoppingCart, ShoppingBasket, PackageCheck, ClipboardList, Undo2 } from 'lucide-react';
+import { ChevronDown, Plus, Truck, Users, ShoppingCart, ShoppingBasket, PackageCheck, ClipboardList, Undo2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth/auth-context';
 import { PurchaseDocumentsList } from '@/modules/purchases/documents-list';
 import { t, pageTitle } from '@/lib/i18n';
@@ -30,11 +31,20 @@ function PurchasesList() {
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/reorder', search: { highlight: undefined } })}><ShoppingCart /> {t('purchases.reorderTitle')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/proposal' })}><PackageCheck /> {t('purchases.proposalBtn')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/purchases/baskets' })}><ShoppingBasket /> {t('basket.title')}</Button>
+            {/* Revue UX/UI (20/11/2026) : une seule action rouge, celle du magasinier (« Nouvelle réception ») ;
+                les autres « Nouveau… » sont dans le menu « Créer ». */}
             {canWrite && (
               <>
-                <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'PCF' } })}><ClipboardList /> {t('purchasesG8.new_PCF')}</Button>
-                <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'RTF' } })}><Undo2 /> {t('purchasesG8.new_RTF')}</Button>
-                <Button variant="outline" onClick={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline"><Plus /> {t('designTransverse.purchases.create')} <ChevronDown /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => navigate({ to: '/purchases/new', search: { docType: 'CMD' } })}><Plus /> {t('purchases.newCommand')}</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => navigate({ to: '/purchases/new', search: { docType: 'PCF' } })}><ClipboardList /> {t('purchasesG8.new_PCF')}</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => navigate({ to: '/purchases/new', search: { docType: 'RTF' } })}><Undo2 /> {t('purchasesG8.new_RTF')}</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button onClick={() => navigate({ to: '/purchases/new', search: { docType: 'REC' } })}><Truck /> {t('purchases.newReception')}</Button>
               </>
             )}

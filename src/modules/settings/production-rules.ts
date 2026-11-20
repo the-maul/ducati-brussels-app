@@ -128,3 +128,49 @@ export function cronTone(job: CronJob): { tone: StatusTone; state: 'inactive' | 
   if (job.last_status === 'failed') return { tone: 'danger', state: 'failed' };
   return { tone: 'success', state: 'ok' };
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Revue UX/UI (20/11/2026) : sur chaque ligne, un choix « Arrêté · Test · Actif » en 3 boutons au
+   lieu d'une case à cocher. Mêmes règles qu'avant (canAct / missingFor) : seul l'écran change. Les
+   choix de toutes les lignes sont appliqués ensemble, une action à la fois (la base refait les
+   contrôles et refuse tout ou rien pour chaque action).
+   ───────────────────────────────────────────────────────────────────────── */
+
+/** Les trois choix d'une ligne, dans l'ordre d'affichage. */
+export const PRODUCTION_CHOICES: { action: ProductionAction; mode: ProductionMode }[] = [
+  { action: 'pause', mode: 'arrete' },
+  { action: 'test', mode: 'test' },
+  { action: 'start', mode: 'actif' },
+];
+
+/** Ordre d'application : d'abord ce qui s'arrête, puis le test, enfin ce qui démarre. */
+export const APPLY_ORDER: ProductionAction[] = ['pause', 'test', 'start'];
+
+/** Le bouton de ce choix est-il cliquable sur cette ligne ? (dépendances : peuvent être choisies en même temps) */
+export function choiceEnabled(item: ProductionItem, action: ProductionAction, isTestCompany: boolean): boolean {
+  if (targetMode(action) === item.mode) return false;
+  const all = new Set<string>(Object.values(DEPENDS));
+  return canAct(item, action, isTestCompany, action === 'start' ? all : new Set());
+}
+
+export type ProductionPlan = {
+  /** Clés à passer par action (vide si rien). */
+  byAction: Record<ProductionAction, string[]>;
+  /** Lignes dont le choix n'est pas possible tel quel (ex. dépendance arrêtée et non choisie). */
+  invalid: string[];
+  count: number;
+};
+
+/** Les changements choisis, regroupés par action, et ceux qui ne passeraient pas. */
+export function planChanges(items: ProductionItem[], targets: Readonly<Record<string, ProductionAction>>, isTestCompany: boolean): ProductionPlan {
+  const byAction: Record<ProductionAction, string[]> = { pause: [], test: [], start: [] };
+  const invalid: string[] = [];
+  const starting = new Set(Object.entries(targets).filter(([, a]) => a === 'start').map(([k]) => k));
+  for (const it of items) {
+    const action = targets[it.key];
+    if (!action || targetMode(action) === it.mode) continue;
+    byAction[action].push(it.key);
+    if (!canAct(it, action, isTestCompany, starting)) invalid.push(it.key);
+  }
+  return { byAction, invalid, count: byAction.pause.length + byAction.test.length + byAction.start.length };
+}
