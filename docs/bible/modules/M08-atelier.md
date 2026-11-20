@@ -880,3 +880,18 @@ Source : `docs/g8-inventaire/nomenclatures-g8.md` (37 nomenclatures, prix de la 
 | 2026-11-03 | **Registre des véhicules à moteur** : entrée à l'ouverture de l'OR, sortie à sa facture (déclencheur SQL, M-88) | branche `lot-registre-vehicules`, migration `20261103190000_m3_registre_vehicules_moteur.sql` (**non appliquée**) |
 | 2026-11-18 | **Rattrapage G8, lot parc** : kit / forfait inséré en lignes (OR et vente), remplacer une référence dans tous les kits, devis de réparation recopiant l'OR, dupliquer un OR | branche `lot-g8-parc`, migration `20261118143000` (**non appliquée**) |
 | 2026-11-19 | **Contrat de prêt repris de G8** (ATE005, ATE022, T10 « contrat G8 + nos CG ») : tout le contrat G8 (conducteur, permis, licence, moto du client + OR + livraison prévue, moto de prêt + puissance, départ / retour date-heure-km-carburant, franchise par société 500 € par défaut, mention police, « lu et approuvé », double exemplaire), pré-rempli, nos CG au verso dans la langue du client ; retour → km + carburant de la moto de prêt et km de sa fiche du parc | branche `lot-contrat-pret`, migration `20261119180000_m8_contrat_pret_g8.sql` (**non appliquée**), essai `supabase/tests/m8_contrat_pret_g8.sql` |
+
+
+### Ajouté le 20/11 — km de l'OR vers la fiche moto (décision Q64)
+Branche `lot-decisions-q63-q67`. Migration **`20261120151000_m8_km_or_vers_fiche_moto.sql` (non appliquée)**, essai à
+blanc `supabase/tests/m8_km_or_vers_fiche_moto.sql` (7/7). Pas de second historique : l'historique des relevés reste
+`vehicleMileageReadings` (OR non annulés + fiche + entretien + km déclaré).
+- **Fiche moto** (`trg_repair_orders_mileage_to_vehicle`) : km de l'OR **supérieur** au km de la fiche → la fiche le prend
+  (création, modification, changement de statut) ; faute de frappe corrigée à la baisse sur l'OR qui avait posé le km de
+  la fiche → la fiche reprend le plus grand relevé restant. Trace `events` `vehicle_mileage_from_or` (ancien / nouveau
+  km, n° d'OR) en plus de l'audit de la fiche.
+- **Km inférieur bloqué sauf « Forcer »** (`trg_repair_orders_mileage_lower`, comme G8) : écrans seulement (imports et
+  fonctions serveur non contrôlés). « Forcer » = `mileage_ack_previous` (relevé dépassé). `hint mileage_lower`, message
+  traduit à l'écran. Fiche OR : la fenêtre « Kilométrage inférieur » a la case G8 **« Forcer l'enregistrement du
+  kilométrage inférieur »** (Enregistrer grisé sans la case). Planning « Valider RDV et saisie OR » : un km de RDV
+  inférieur demande de forcer, sinon rouvre le RDV pour corriger.

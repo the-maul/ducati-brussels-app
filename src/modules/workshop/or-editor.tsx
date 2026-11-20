@@ -45,6 +45,7 @@ import {
   showExpertFields, showWarrantyField, type OperatorChoice,
 } from './or-page-rules';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -187,6 +188,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [internalNotes, setInternalNotes] = useState(o?.notes ?? '');
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [lowerAsk, setLowerAsk] = useState<{ km: number; last: MileageReading; intent: OrEditorIntent } | null>(null);
+  const [forceLower, setForceLower] = useState(false);
   const [warrantyStatus, setWarranty] = useState(o?.warranty_status ?? 'aucune');
   const [expertName, setExpertName] = useState(o?.expert_name ?? '');
   const [expertDate, setExpertDate] = useState(o?.expert_date ?? '');
@@ -775,7 +777,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={!!lowerAsk} onOpenChange={(v) => { if (!v) setLowerAsk(null); }}>
+      <AlertDialog open={!!lowerAsk} onOpenChange={(v) => { if (!v) { setLowerAsk(null); setForceLower(false); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('orBase.lowerTitle')}</AlertDialogTitle>
@@ -787,10 +789,18 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Q64 (comme G8) : bloquant sauf la case « Forcer l'enregistrement du kilométrage inférieur ». */}
+          <label className="flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-[13px]">
+            <Checkbox checked={forceLower} onCheckedChange={(v) => setForceLower(v === true)} className="mt-0.5" />
+            <span>
+              <span className="font-semibold">{t('q64.forceLabel')}</span>
+              {lowerAsk && <span className="block text-[12px] text-muted-foreground">{fillVars(t('q64.forceHint'), { last: lowerAsk.last.km.toLocaleString('fr-BE') })}</span>}
+            </span>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('orBase.lowerFix')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const a = lowerAsk; setLowerAsk(null); if (a) submit(a.intent, true); }}>
-              {lowerAsk ? fillVars(t('orBase.lowerConfirm'), { km: lowerAsk.km.toLocaleString('fr-BE') }) : ''}
+            <AlertDialogAction disabled={!forceLower} onClick={() => { const a = lowerAsk; setLowerAsk(null); setForceLower(false); if (a) submit(a.intent, true); }}>
+              {lowerAsk ? fillVars(t('q64.save'), { km: lowerAsk.km.toLocaleString('fr-BE') }) : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

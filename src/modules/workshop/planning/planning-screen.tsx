@@ -17,7 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
+import { useConfirm } from '@/components/confirm-provider';
+import { errorMessage } from '@/lib/mutation-feedback';
 import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-parts-dialog';
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
@@ -90,16 +92,30 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
       toast.error(e instanceof Error ? e.message : t('feedback.error'));
     }
   };
-  const createOr = async (a: PlanningAppointment, intakeDone = false) => {
+  const confirm = useConfirm();
+  const createOr = async (a: PlanningAppointment, intakeDone = false, forceAck: number | null = null) => {
     if (!a.planned_minutes || a.planned_minutes <= 0) { setAskTime(a); return; }
     // Decision Q42 (18/11) : moto sans km, ou pas de moto → on les demande avant d'ouvrir l'OR.
     if (!intakeDone && orIntakeNeeds(a) !== 'none') { setIntake(a); return; }
     try {
-      const orId = await createOrFromPlanningAppointment(a, base.mechanics);
+      const orId = await createOrFromPlanningAppointment(a, base.mechanics, forceAck);
       refresh();
       onOpenOr(orId);
     } catch (e) {
-      toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message === 'mileage_required' ? t('planningG8.errMileageOr') : e.message) : t('feedback.error'));
+      // Q64 (comme G8) : km du RDV inférieur au dernier relevé → bloqué sauf « Forcer ».
+      const hint = (e as { hint?: string } | null)?.hint;
+      const last = Number((e as { details?: string } | null)?.details ?? 0);
+      if (hint === 'mileage_lower' && last > 0 && forceAck == null) {
+        const ok = await confirm({
+          title: t('orBase.lowerTitle'),
+          message: fillVars(t('q64.errLower'), { km: (a.mileage ?? 0).toLocaleString('fr-BE'), last: last.toLocaleString('fr-BE') }),
+          confirmLabel: t('q64.forceLabel'), cancelLabel: t('orBase.lowerFix'),
+        });
+        if (ok) void createOr(a, true, last);
+        else setDialog({ appt: a });
+        return;
+      }
+      toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message === 'mileage_required' ? t('planningG8.errMileageOr') : e.message) : errorMessage(e));
     }
   };
   const newAt = (day: Date, mechanicId?: string | null) => setDialog({

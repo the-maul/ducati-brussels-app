@@ -286,7 +286,8 @@ export async function setAppointmentStatus(id: string, status: string): Promise<
  * Decisions du 18/11 : km obligatoire des qu'une moto est connue (Q42, `mileage_required`) ; l'OR
  * nait « a faire » et le RDV passe « receptionne » (Q43 ; la base aligne aussi le RDV sur l'OR).
  */
-export async function createOrFromPlanningAppointment(a: PlanningAppointment, mechanics: PlanningMechanic[]): Promise<string> {
+/** `mileageAckPrevious` : relevé dépassé quand l'utilisateur a forcé un km inférieur (Q64, comme G8). */
+export async function createOrFromPlanningAppointment(a: PlanningAppointment, mechanics: PlanningMechanic[], mileageAckPrevious: number | null = null): Promise<string> {
   if (!canCreateOr(a)) throw new Error('planned_time_required');
   if (orIntakeNeeds(a) === 'mileage') throw new Error('mileage_required');
   const m = a.mechanic_id ? mechanics.find((x) => x.id === a.mechanic_id) ?? null : null;
@@ -301,6 +302,7 @@ export async function createOrFromPlanningAppointment(a: PlanningAppointment, me
     operator: m?.name ?? a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
     receptionNotes: a.reception_notes ?? null, status: OR_STATUS_FROM_APPOINTMENT, warrantyStatus: 'aucune',
     reasonCode: a.reason_code ?? undefined, lines: kitLines, ...withOperatorId,
+    ...(mileageAckPrevious != null ? { mileageAckPrevious } : {}),
   });
   unwrap(await loose.from('workshop_appointments').update({ or_id: orId, status: APPOINTMENT_STATUS_WITH_OR }).eq('id', a.id));
   return orId;
