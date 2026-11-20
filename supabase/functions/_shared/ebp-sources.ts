@@ -484,6 +484,17 @@ export function buildMovement(m: MovementRow, rules: EbpRule[], settings: EbpSet
   };
 }
 
+/** Remise en banque d'espèces (table cash_deposits) sans sortie 01 dans une caisse : remise faite après le Z. */
+export type DepositRow = { id: string; number: number | string; deposited_amount: number | string; deposit_date: string; created_at: string };
+
+/** La remise vue comme le mouvement 01 qu'elle aurait posé caisse ouverte (date de remise, n° de remise). */
+export function depositMovement(d: DepositRow): MovementRow {
+  return {
+    id: d.id, kind: 'out', method: 'ESP', amount: num(d.deposited_amount), reason: null,
+    occurred_at: d.deposit_date, type_code: '01', movement_no: d.number == null ? null : Number(d.number),
+  };
+}
+
 // ------------------------------------------------------------------------------------------
 // Achats, cessions internes, commissions de dépôt-vente (options, désactivées par défaut comme dans G8)
 // ------------------------------------------------------------------------------------------
@@ -720,6 +731,24 @@ export async function loadEbpSources(db: EbpDbClient, companyId: string, sel: Eb
         if (done.has(`cash_movement:${m.id}`)) continue;
         if (!settings.payments.includeBankDeposits && m.type_code === '01') continue;
         treasury.push({ at: m.occurred_at, src: buildMovement(m, rules, settings) });
+      }
+      // Remises en banque d'espèces faites caisse FERMÉE (après le Z, décision Q31 : aucun ordre imposé) :
+      // la base n'ajoute la sortie 01 que dans une caisse ouverte, ces remises n'ont donc aucun mouvement.
+      // G8 écrit TOUJOURS la remise (« REMISE EN BANQUE ESP ») : la pièce est tirée de la remise elle-même
+      // (parcours G8 n° 23 / 25, lot-verif-parcours du 20/11/2026). Marquage « transféré » : cash_movement + id de la remise.
+      if (settings.payments.includeBankDeposits) {
+        try {
+          const deps = await all<DepositRow>(() => db.from('cash_deposits').select('id, number, deposited_amount, deposit_date, created_at')
+            .eq('company_id', companyId).eq('method', 'ESP').eq('kind', 'remise').eq('status', 'active').gt('deposited_amount', 0)
+            .gte('deposit_date', floor).lte('deposit_date', sel.to).order('created_at'));
+          const linked = new Set((await byIds<{ deposit_id: string }>(db, 'cash_movements', 'deposit_id', deps.map((d) => d.id), 'deposit_id')).map((m) => m.deposit_id));
+          for (const d of deps) {
+            if (linked.has(d.id) || done.has(`cash_movement:${d.id}`)) continue;
+            treasury.push({ at: d.created_at, src: buildMovement(depositMovement(d), rules, settings) });
+          }
+        } catch {
+          warnings.push('deposits_unavailable');
+        }
       }
     }
   }
