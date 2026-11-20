@@ -11,6 +11,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { JourneyState } from './types';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 const KEY = (orId: string) => `ducati.parcours.${orId}`;
 const TABLE = 'workshop_journeys';
@@ -32,14 +33,14 @@ let probe: Promise<boolean> | null = null;
 
 /** La table d'avancement existe-t-elle (migration appliquée) ? */
 export function probeJourneyTable(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe(`${TABLE}.or_id`, async () => {
     try {
       const { error } = await loose.from(TABLE).select('or_id').eq('or_id', '00000000-0000-0000-0000-000000000000').maybeSingle();
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

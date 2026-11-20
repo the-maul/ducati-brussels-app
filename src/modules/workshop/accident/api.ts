@@ -15,6 +15,7 @@ import {
   ACCIDENT_FILE_DEFAULT_TO, ACCIDENT_FILE_ENTITY, ACCIDENT_FILE_MAIL_TABLE_KEY, splitAddresses,
   type AccidentFileStatus,
 } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 type LooseBuilder = PromiseLike<LooseResult> & {
@@ -87,11 +88,16 @@ export type AccidentFilePhoto = {
 const FULL_SELECT = '*, vehicle:vehicles(id,brand,model,vin,plate), contact:contacts(id,first_name,last_name,company_name,type,email), quote:documents!accident_files_quote_document_id_fkey(id,number,total_ht,status,issue_date)';
 
 /** La migration est-elle posee ? (table absente → l'ecran l'explique au lieu de planter). */
-export async function accidentSchemaReady(): Promise<boolean> {
-  const r = await loose.from('accident_files').select('id').limit(1);
-  if (!r.error) return true;
-  if (r.error.code === '42P01' || /accident_files/.test(r.error.message)) return false;
-  throw new Error(r.error.message);
+let accidentProbe: Promise<boolean> | null = null;
+export function accidentSchemaReady(): Promise<boolean> {
+  // Sonde regroupee (lot perf 2) ; une erreur inattendue ne bloque plus l'ecran (bloc masque).
+  accidentProbe ??= batchedSchemaProbe('accident_files.id', async () => {
+    const r = await loose.from('accident_files').select('id').limit(1);
+    if (!r.error) return true;
+    if (r.error.code === '42P01' || /accident_files/.test(r.error.message)) return false;
+    throw new Error(r.error.message);
+  });
+  return accidentProbe;
 }
 
 export async function listAccidentFiles(companyId: string): Promise<AccidentFileFull[]> {

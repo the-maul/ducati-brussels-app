@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { toNotDoneReason, type NotDoneReason, type PlanOp, type PlanOpLine, type PlanOpStatus } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 export const NOT_DONE_REASON_TABLE_KEY = 'workshop_op_not_done_reason';
 
@@ -32,14 +33,14 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261119271000 est appliquee (table repair_order_plan_operations). */
 export function planOpsSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('repair_order_plan_operations.id', async () => {
     try {
       const { error } = await loose.from('repair_order_plan_operations').select('id').limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { LoanStatus, FuelLevel } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 type LooseBuilder = PromiseLike<LooseResult> & {
@@ -29,9 +30,9 @@ const unwrap = <T,>(r: LooseResult): T => {
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261118121000 est appliquee. */
 export function loansSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('workshop_loans.id', async () => {
     try { return !(await loose.from('workshop_loans').select('id').limit(1)).error; } catch { return false; }
-  })();
+  });
   return probe;
 }
 
@@ -113,9 +114,9 @@ export async function cancelLoan(id: string): Promise<void> {
 let contractProbe: Promise<boolean> | null = null;
 /** true quand la migration du contrat G8 (20261119180000) est appliquee. */
 export function loanContractSchemaReady(): Promise<boolean> {
-  contractProbe ??= (async () => {
+  contractProbe ??= batchedSchemaProbe(['workshop_loans.driver_name', 'workshop_loans.customer_vehicle_id'], async () => {
     try { return !(await loose.from('workshop_loans').select('driver_name, customer_vehicle_id').limit(1)).error; } catch { return false; }
-  })();
+  });
   return contractProbe;
 }
 

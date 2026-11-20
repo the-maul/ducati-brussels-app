@@ -4004,6 +4004,7 @@ export const nl: DictionaryShape = {
     colRef: 'Ref.', colDesignation: 'Omschrijving', colBin: 'Locatie', colReal: 'Werkelijk', colReserved: 'Gereserveerd',
     colAvailable: 'Beschikbaar', colPamp: 'PAMP', colValue: 'Waarde', colMin: 'Min.',
     onlyStocked: 'Voorraad ≠ 0', belowMin: 'Onder het minimum',
+    pageOf: '{from}–{to} van {total}', pagePrev: 'Vorige', pageNext: 'Volgende', exporting: 'Bezig met exporteren…',
     history: 'Bewegingen', historyOf: 'Bewegingen — {ref}', noHistory: 'Geen beweging.',
     colDate: 'Datum', colType: 'Type', colQty: 'Aant.', colOrigin: 'Oorsprong', colRefDoc: 'Ref. doc.', colOperator: 'Operator',
     // inventaire

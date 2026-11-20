@@ -32,7 +32,7 @@ import { DocumentCustomerScreen } from '@/modules/sales/document-customer-screen
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
 import { printDocument } from '@/modules/sales/print-document';
 import { exportInvoiceUbl } from '@/modules/accounting/api';
-import { listStock } from '@/modules/stock/stock-api';
+import { listStockFor } from '@/modules/stock/stock-api';
 import { computeDocAvailability, AVAILABILITY_DOC_TYPES, saleStockStatus } from '@/modules/sales/availability';
 import { AvailabilityBadge, SaleStockBadge } from '@/modules/sales/availability-badge';
 import { getDocumentLinesStock, listDocumentAllocations, cancelAllocation } from '@/modules/sales/on-order-api';
@@ -44,7 +44,7 @@ import { canOrderFromDocument } from '@/modules/orders/from-document';
 import { ProposalAddButton } from '@/modules/purchases/proposal-add-dialog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { openAccidentFile } from '@/modules/workshop/accident/api';
-import { t, tIn, pageTitle } from '@/lib/i18n';
+import { t, tIn, pageTitle, useLocaleReady } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { useReadOnly } from '@/lib/auth/read-only-context';
 import { errorMessage } from '@/lib/mutation-feedback';
@@ -66,9 +66,12 @@ function DocumentView() {
   const { companies, activeCompanyId } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ['doc-full', documentId], queryFn: () => getDocumentFull(documentId) });
   const showAvailability = data ? (AVAILABILITY_DOC_TYPES as readonly string[]).includes(data.doc.doc_type) : false;
+  // Perf 2 (20/11/2026) : le stock des seuls articles du document (avant : tout le stock de la
+  // societe, 5 appels successifs, pour quelques lignes). Memes valeurs (perimetre « actif »).
+  const lineArticleIds = (data?.lines ?? []).map((l) => l.article_id).filter((x): x is string => !!x);
   const stockQ = useQuery({
-    queryKey: ['stock-availability', activeCompanyId],
-    queryFn: () => listStock(activeCompanyId!),
+    queryKey: ['stock-availability', activeCompanyId, 'doc', lineArticleIds.join(',')],
+    queryFn: () => listStockFor(activeCompanyId!, lineArticleIds),
     enabled: !!activeCompanyId && showAvailability,
   });
   const stockMap = new Map((stockQ.data ?? []).map((r) => [r.article_id, r.available_qty]));
@@ -523,7 +526,12 @@ function DocumentView() {
   );
 }
 
-function SendSmsDialog({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
+function SendSmsDialog(props: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
+  // Texte propose dans la langue du client : son dictionnaire d'abord (charge a la demande, lot perf 2).
+  return useLocaleReady(contactLocale(props.contact)) ? <SendSmsDialogInner {...props} /> : null;
+}
+
+function SendSmsDialogInner({ companyId, document, contact, onClose }: { companyId: string; document: DocumentRow; contact: Contact; onClose: () => void }) {
   const label = document.number ?? t('sales.draftSuffix');
   const to = contact.mobile || contact.phone || '';
   // SMS proposé dans la langue du client (fiche contact, I18N004), modifiable.

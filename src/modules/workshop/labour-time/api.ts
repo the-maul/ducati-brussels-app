@@ -7,6 +7,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import type { ControlRow, PointedByMechanic, ProductivityRow } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 /** Codes mécano de la pointeuse (Paramètres → Tables). */
 export const WORKSHOP_MECHANIC_TABLE_KEY = 'workshop_mechanic';
@@ -20,14 +21,14 @@ const rpc = (fn: string, args: Record<string, unknown>) =>
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261118110000 est appliquée (colonne repair_order_lines.billed_hours). */
 export function labourTimeSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('repair_order_lines.billed_hours', async () => {
     try {
       const { error } = await supabase.from('repair_order_lines').select('billed_hours' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

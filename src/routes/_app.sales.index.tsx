@@ -20,7 +20,7 @@ import {
 } from '@/modules/sales/write-api';
 import { printDocument } from '@/modules/sales/print-document';
 import { listContactsByIds, contactDisplayName } from '@/modules/contacts/api';
-import { listStock } from '@/modules/stock/stock-api';
+import { listStockFor } from '@/modules/stock/stock-api';
 import { computeDocAvailability, AVAILABILITY_DOC_TYPES, type AvailabilityStatus } from '@/modules/sales/availability';
 import { AvailabilityBadge } from '@/modules/sales/availability-badge';
 import { PrepareButton } from '@/modules/sales/prepare-button';
@@ -148,10 +148,15 @@ function SalesList() {
     queryFn: () => listDocumentLinesFor(docIds),
     enabled: docIds.length > 0,
   });
+  // Perf 2 (20/11/2026) : stock des seuls articles des documents affiches (avant : tout le stock).
+  const lineArticleIds = useMemo(
+    () => [...new Set((linesQ.data ?? []).map((l) => l.article_id).filter((x): x is string => !!x))].sort(),
+    [linesQ.data],
+  );
   const stockQ = useQuery({
-    queryKey: ['stock-availability', activeCompanyId],
-    queryFn: () => listStock(activeCompanyId!),
-    enabled: !!activeCompanyId,
+    queryKey: ['stock-availability', activeCompanyId, 'list', lineArticleIds.join(',')],
+    queryFn: () => listStockFor(activeCompanyId!, lineArticleIds),
+    enabled: !!activeCompanyId && !!linesQ.data,
   });
 
   const availByDoc = useMemo(() => {

@@ -19,6 +19,7 @@ import { orBaseSchemaReady } from './or-base/api';
 import { invoiceQuantity } from './labour-time/rules';
 import { insurerPricingSchemaReady } from './or-line-pricing-api';
 import { notDoneTextForInvoice } from './plan-ops/api';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 export type RoLineInput = {
   kind: 'piece' | 'mo' | 'texte';
@@ -120,14 +121,14 @@ let schemaProbe: Promise<boolean> | null = null;
 
 /** true quand la migration 20261031110000 est appliquée (colonne repair_orders.customer_approval). */
 export function checkupSchemaReady(): Promise<boolean> {
-  schemaProbe ??= (async () => {
+  schemaProbe ??= batchedSchemaProbe('repair_orders.customer_approval', async () => {
     try {
       const { error } = await supabase.from('repair_orders').select('customer_approval' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return schemaProbe;
 }
 
@@ -142,14 +143,14 @@ let warrantyProbe: Promise<boolean> | null = null;
 
 /** true quand la migration 20261118130000 est appliquee (colonne repair_orders.warranty_cession_code). */
 export function warrantySchemaReady(): Promise<boolean> {
-  warrantyProbe ??= (async () => {
+  warrantyProbe ??= batchedSchemaProbe('repair_orders.warranty_cession_code', async () => {
     try {
       const { error } = await supabase.from('repair_orders').select('warranty_cession_code' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return warrantyProbe;
 }
 

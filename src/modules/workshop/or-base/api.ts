@@ -12,6 +12,7 @@ import {
   OR_LIST_PAGE_SIZE, combineOrFilters, pageRange, periodBounds, sanitizeSearch, searchFilter, viewFilter,
   OR_OPEN_STATUSES, type MileageReading, type OrListRow, type OrListView,
 } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 // ---------------------------------------------------------------------------------------------
 // Sonde de la migration 20261118100000
@@ -20,28 +21,28 @@ let orBaseProbe: Promise<boolean> | null = null;
 
 /** true quand la migration 20261118100000 est en base (colonne repair_orders.promised_at). */
 export function orBaseSchemaReady(): Promise<boolean> {
-  orBaseProbe ??= (async () => {
+  orBaseProbe ??= batchedSchemaProbe('repair_orders.promised_at', async () => {
     try {
       const { error } = await supabase.from('repair_orders').select('promised_at' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return orBaseProbe;
 }
 
 let apptMileageProbe: Promise<boolean> | null = null;
 /** true quand workshop_appointments.mileage existe (meme migration). */
 export function appointmentMileageReady(): Promise<boolean> {
-  apptMileageProbe ??= (async () => {
+  apptMileageProbe ??= batchedSchemaProbe('workshop_appointments.mileage', async () => {
     try {
       const { error } = await supabase.from('workshop_appointments').select('mileage' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return apptMileageProbe;
 }
 
@@ -146,6 +147,14 @@ export async function listRepairOrdersForExport(q: OrListQuery): Promise<OrListR
 
 /** Operateurs deja saisis sur les OR de la societe (filtre « opérateur » de la liste). */
 export async function listOrOperators(companyId: string): Promise<string[]> {
+  // Perf 2 (20/11/2026) : les noms distincts sont tires en base (or_operators, memes 1 000 derniers
+  // OR) au lieu de rapatrier 1 000 lignes ; repli sur l'ancienne lecture si la migration manque.
+  const viaRpc = await (supabase as unknown as {
+    rpc: (fn: string, a: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
+  }).rpc('or_operators', { _company: companyId });
+  if (!viaRpc.error && Array.isArray(viaRpc.data)) {
+    return [...new Set((viaRpc.data as unknown[]).map((s) => String(s ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  }
   const { data, error } = await supabase.from('repair_orders').select('operator')
     .eq('company_id', companyId).not('operator', 'is', null).order('created_at', { ascending: false }).limit(1000);
   if (error) return [];

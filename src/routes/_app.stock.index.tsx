@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useMemo, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown, Scale, FileSpreadsheet, Tags } from 'lucide-react';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown, Scale, FileSpreadsheet, Tags, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listStock, listStockHistory, type StockRow } from '@/modules/stock/stock-api';
+import { listStockHistory, stockScreenPage, listStockScreenAll, STOCK_SCREEN_PAGE, type StockRow, type StockScreenFilters } from '@/modules/stock/stock-api';
 import { downloadStockCsv } from '@/modules/stock/stock-export';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
 import { RAYONS_SORTED } from '@/modules/articles/product-families';
-import { t, pageTitle } from '@/lib/i18n';
+import { t, pageTitle, fillVars } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/')({
   head: () => ({ meta: [{ title: pageTitle('stock') }] }),
@@ -35,19 +36,12 @@ function countActive(f: FiltersState): number {
   return n;
 }
 
-/** Best-effort : category_path est un UID « RR-SS-CC » (RR = code rayon) ; on
- *  accepte aussi une correspondance sur le libellé pour les données legacy en texte libre. */
-function matchesRayon(categoryPath: string | null, rayon: { code: string; label: string }): boolean {
-  if (!categoryPath) return false;
-  const cp = categoryPath.toLowerCase();
-  return cp.startsWith(`${rayon.code.toLowerCase()}-`) || cp.includes(rayon.label.toLowerCase());
-}
-
 function StockList() {
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
-  const [onlyStocked, setOnlyStocked] = useState(false);
+  // Perf 2 (20/11/2026) : la liste est paginee et filtree en base ; par defaut les articles en stock.
+  const [onlyStocked, setOnlyStocked] = useState(true);
   const [belowMin, setBelowMin] = useState(false);
   const [reorderView, setReorderView] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -56,7 +50,10 @@ function StockList() {
   const active = countActive(f);
   const [histo, setHisto] = useState<StockRow | null>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: ['stock', activeCompanyId], queryFn: () => listStock(activeCompanyId!), enabled: !!activeCompanyId });
+  const [deb, setDeb] = useState('');
+  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
+  const [page, setPage] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-filter', activeCompanyId],
     queryFn: () => listSuppliers(activeCompanyId!, '', 500),
@@ -66,26 +63,34 @@ function StockList() {
   const supplierById = useMemo(() => new Map((suppliers ?? []).map((s) => [s.id, supplierName(s)])), [suppliers]);
   const rayon = useMemo(() => RAYONS_SORTED.find((r) => r.code === f.rayon), [f.rayon]);
 
-  const filtered = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    return (data ?? []).filter((r) => {
-      if (onlyStocked && Math.abs(r.real_qty) < 0.0001) return false;
-      if (belowMin && !(r.stock_min > 0 && r.available_qty < r.stock_min)) return false;
-      if (f.supplierId && r.supplier_id !== f.supplierId) return false;
-      if (rayon && !matchesRayon(r.category_path, rayon)) return false;
-      // TODO: filtrer par date de dernier mouvement (nécessite jointure sur stock_moves)
-      if (q && !(`${r.reference} ${r.designation} ${r.bin_location ?? ''}`.toLowerCase().includes(q))) return false;
-      return true;
-    });
-  }, [data, term, onlyStocked, belowMin, f.supplierId, rayon]);
+  // Memes filtres qu'avant, appliques en base (stock_screen_page) ; total et valeur calcules en base.
+  // TODO: filtrer par date de dernier mouvement (nécessite jointure sur stock_moves)
+  const filters = useMemo<StockScreenFilters>(() => ({
+    q: deb, only_stocked: onlyStocked, below_min: belowMin, reorder: reorderView,
+    supplier_id: f.supplierId || undefined, rayon_code: rayon?.code, rayon_label: rayon?.label,
+  }), [deb, onlyStocked, belowMin, reorderView, f.supplierId, rayon]);
+  const filtersKey = JSON.stringify(filters);
+  useEffect(() => { setPage(0); }, [filtersKey]);
+  const { data, isLoading } = useQuery({
+    queryKey: ['stock', activeCompanyId, 'screen', filtersKey, page],
+    queryFn: () => stockScreenPage(activeCompanyId!, filters, STOCK_SCREEN_PAGE, page * STOCK_SCREEN_PAGE),
+    enabled: !!activeCompanyId,
+    placeholderData: keepPreviousData,
+  });
+  const displayed = data?.rows ?? [];
+  const filtered = displayed;
+  const reorderRows = displayed;
+  const total = data?.total ?? 0;
+  const totalValue = data?.value ?? 0;
+  const lastPage = Math.max(0, Math.ceil(total / STOCK_SCREEN_PAGE) - 1);
 
-  const reorderRows = useMemo(
-    () => filtered.filter((r) => (r.stock_min > 0 && r.available_qty < r.stock_min) || r.available_qty < 0),
-    [filtered]
-  );
-  const displayed = reorderView ? reorderRows : filtered;
-
-  const totalValue = useMemo(() => displayed.reduce((s, r) => s + r.stock_value, 0), [displayed]);
+  // Export COMPLET du stock filtre (toutes les pages), pas seulement la page affichee.
+  const exportAll = async () => {
+    setExporting(true);
+    try { downloadStockCsv(await listStockScreenAll(activeCompanyId!, filters)); }
+    catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    finally { setExporting(false); }
+  };
 
   return (
     <>
@@ -114,8 +119,8 @@ function StockList() {
         <Button variant={reorderView ? 'default' : 'outline'} onClick={() => setReorderView((o) => !o)}>
           <AlertTriangle /> {t('stock.reorderView')}
         </Button>
-        <Button variant="outline" onClick={() => downloadStockCsv(displayed)} disabled={displayed.length === 0}>
-          <Download /> {t('stock.export')}
+        <Button variant="outline" onClick={() => { void exportAll(); }} disabled={total === 0 || exporting || !activeCompanyId}>
+          {exporting ? <Loader2 className="animate-spin" /> : <Download />} {exporting ? t('stock.exporting') : t('stock.export')}
         </Button>
         <span className="ml-auto font-data text-sm tabular-nums">{t('stock.totalValue')} : <b>{eur(totalValue)}</b></span>
       </div>
@@ -210,6 +215,14 @@ function StockList() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {total > STOCK_SCREEN_PAGE && (
+        <div className="mt-3 flex items-center justify-end gap-2 font-data text-[13px] tabular-nums text-muted-foreground">
+          <span>{fillVars(t('stock.pageOf'), { from: page * STOCK_SCREEN_PAGE + 1, to: Math.min(total, (page + 1) * STOCK_SCREEN_PAGE), total })}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}><ChevronLeft /> {t('stock.pagePrev')}</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page >= lastPage}>{t('stock.pageNext')} <ChevronRight /></Button>
         </div>
       )}
 

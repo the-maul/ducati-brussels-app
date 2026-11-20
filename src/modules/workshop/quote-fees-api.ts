@@ -3,12 +3,13 @@
  * + repli du tarif horaire sur l'article « MO » (main-d'œuvre, type T). Voir quote-fees.ts.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { listRef } from '@/modules/settings/reference-api';
 import { QUOTE_FEE_TABLE_KEY, resolveQuoteFeeParams, type QuoteFeeParams } from './quote-fees';
 
 export async function loadQuoteFeeParams(companyId: string): Promise<QuoteFeeParams> {
+  // Parametres lus dans la lecture groupee des tables de parametres (lot perf 2).
   const [ref, mo] = await Promise.all([
-    supabase.from('reference_values').select('code, is_active, extra')
-      .eq('company_id', companyId).eq('table_key', QUOTE_FEE_TABLE_KEY),
+    listRef(companyId, QUOTE_FEE_TABLE_KEY).then((rows) => ({ data: rows, error: null }), (error: unknown) => ({ data: null, error })),
     supabase.from('articles').select('sale_price_ht')
       .eq('company_id', companyId).eq('reference', 'MO').eq('mgmt_type', 'T').maybeSingle(),
   ]);

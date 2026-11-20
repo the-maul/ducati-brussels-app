@@ -66,6 +66,111 @@ export async function listStock(companyId: string, scope: StockScope = 'actif'):
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Ecran Stock / Depreciations pagine en base (perf 2, 20/11/2026, migration 20261120113000)
+// ---------------------------------------------------------------------------------------------
+
+/** Filtres des ecrans Stock et Depreciations (memes regles en base et dans le repli ci-dessous). */
+export type StockScreenFilters = {
+  q?: string; only_stocked?: boolean; below_min?: boolean; reorder?: boolean; dormant?: boolean;
+  supplier_id?: string; rayon_code?: string; rayon_label?: string;
+  /** Seulement ces articles (disponibilite des lignes d'un document). */
+  article_ids?: string[];
+};
+export type StockScreenPage = { rows: StockRow[]; total: number; value: number };
+
+/** Lignes par page a l'ecran ; l'export lit par pages de 1 000 (plafond d'une reponse). */
+export const STOCK_SCREEN_PAGE = 100;
+const EXPORT_PAGE = 1000;
+
+/**
+ * Filtre d'ecran, version JavaScript : celle d'avant (ecran /stock), gardee comme repli tant que
+ * la migration n'est pas posee. `stock_screen_page` applique exactement les memes regles.
+ */
+export function filterStockRows(rows: StockRow[], f: StockScreenFilters): StockRow[] {
+  const q = (f.q ?? '').trim().toLowerCase();
+  const code = (f.rayon_code ?? '').toLowerCase();
+  const label = (f.rayon_label ?? '').toLowerCase();
+  return rows.filter((r) => {
+    if (f.only_stocked && Math.abs(r.real_qty) < 0.0001) return false;
+    if (f.below_min && !(r.stock_min > 0 && r.available_qty < r.stock_min)) return false;
+    if (f.supplier_id && r.supplier_id !== f.supplier_id) return false;
+    if (code) {
+      const cp = (r.category_path ?? '').toLowerCase();
+      if (!r.category_path || !(cp.startsWith(`${code}-`) || (!!label && cp.includes(label)))) return false;
+    }
+    if (f.dormant && !(r.available_qty > 0)) return false;
+    if (q && !(`${r.reference ?? ''} ${r.designation ?? ''} ${r.bin_location ?? ''}`.toLowerCase().includes(q))) return false;
+    if (f.reorder && !((r.stock_min > 0 && r.available_qty < r.stock_min) || r.available_qty < 0)) return false;
+    if (f.article_ids && !f.article_ids.includes(r.article_id)) return false;
+    return true;
+  });
+}
+
+const looseRpc = supabase as unknown as {
+  rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+};
+const isMissingFn = (e: { code?: string; message: string }) => e.code === 'PGRST202' || e.code === '42883' || /stock_screen_page/.test(e.message);
+const toRow = (r: Record<string, unknown>): StockRow => ({
+  article_id: String(r.article_id), reference: String(r.reference ?? ''), designation: String(r.designation ?? ''), mgmt_type: String(r.mgmt_type ?? ''),
+  category_path: (r.category_path as string | null) ?? null, bin_location: (r.bin_location as string | null) ?? null, supplier_id: (r.supplier_id as string | null) ?? null,
+  real_qty: Number(r.real_qty), reserved_qty: Number(r.reserved_qty), available_qty: Number(r.available_qty),
+  pamp: Number(r.pamp), stock_value: Number(r.stock_value), stock_min: Number(r.stock_min),
+});
+
+/** Une page du stock filtre + nombre total + valeur totale (calcules en base). */
+export async function stockScreenPage(companyId: string, filters: StockScreenFilters, limit = STOCK_SCREEN_PAGE, offset = 0): Promise<StockScreenPage> {
+  const { data, error } = await looseRpc.rpc('stock_screen_page', { _company: companyId, _filters: filters, _limit: limit, _offset: offset });
+  if (error) {
+    if (!isMissingFn(error)) throw new Error(error.message);
+    // Migration pas encore posee : ancienne lecture complete, filtree et decoupee ici.
+    const all = filterStockRows(await listStock(companyId), filters);
+    return {
+      rows: all.slice(offset, offset + limit), total: all.length,
+      value: Math.round(all.reduce((s, r) => s + r.stock_value, 0) * 100) / 100,
+    };
+  }
+  const d = (data ?? {}) as { rows?: Record<string, unknown>[]; total?: number; value?: number };
+  return { rows: (d.rows ?? []).map(toRow), total: Number(d.total ?? 0), value: Number(d.value ?? 0) };
+}
+
+/** Toutes les lignes du stock filtre (export complet), par pages de 1 000. */
+export async function listStockScreenAll(companyId: string, filters: StockScreenFilters): Promise<StockRow[]> {
+  const out: StockRow[] = [];
+  for (let offset = 0; ; offset += EXPORT_PAGE) {
+    const page = await stockScreenPage(companyId, filters, EXPORT_PAGE, offset);
+    out.push(...page.rows);
+    if (page.rows.length < EXPORT_PAGE || out.length >= page.total) return out;
+    if (out.length >= MAX_ROWS) throw new StockTooLargeError();
+  }
+}
+
+/**
+ * Stock (perimetre « actif », memes valeurs que listStock) de quelques articles seulement : la
+ * disponibilite des lignes d'un document ne relit plus tout le stock de la societe.
+ */
+export async function listStockFor(companyId: string, articleIds: string[]): Promise<StockRow[]> {
+  const ids = [...new Set(articleIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+  const out: StockRow[] = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    out.push(...await listStockScreenAll(companyId, { article_ids: ids.slice(i, i + 500) }));
+  }
+  return out;
+}
+
+/** Articles par identifiant (reference / designation des depreciations actives). */
+export async function listArticleLabels(ids: string[]): Promise<Map<string, { reference: string; designation: string }>> {
+  const out = new Map<string, { reference: string; designation: string }>();
+  const uniq = [...new Set(ids)];
+  for (let i = 0; i < uniq.length; i += 200) {
+    const { data, error } = await supabase.from('articles').select('id, reference, designation').in('id', uniq.slice(i, i + 200));
+    if (error) throw error;
+    for (const a of data ?? []) out.set(a.id, { reference: a.reference, designation: a.designation });
+  }
+  return out;
+}
+
 export async function listStockHistory(articleId: string): Promise<StockMove[]> {
   const { data, error } = await supabase.rpc('article_stock_history', { _article: articleId });
   if (error) throw error;

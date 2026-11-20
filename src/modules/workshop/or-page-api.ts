@@ -7,6 +7,7 @@ import { listRef } from '@/modules/settings/reference-api';
 import { DEFAULT_REPAIR_TYPES, WORKSHOP_REPAIR_TYPE_TABLE_KEY, isAccidentOr, shouldOpenAccidentFile, type TeamMemberRow } from './or-page-rules';
 import { accidentSchemaReady, findAccidentFileFor, openAccidentFile } from './accident/api';
 import type { SiblingOr } from './or-base/progress-rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 /** Membres de la societe (nom + roles), meme fonction que l'assignation des taches CRM. */
 export async function listCompanyTeam(companyId: string): Promise<TeamMemberRow[]> {
@@ -30,14 +31,14 @@ let operatorProbe: Promise<boolean> | null = null;
 
 /** true quand la migration 20261103230000 est appliquee (colonne repair_orders.operator_id). */
 export function operatorIdSchemaReady(): Promise<boolean> {
-  operatorProbe ??= (async () => {
+  operatorProbe ??= batchedSchemaProbe('repair_orders.operator_id', async () => {
     try {
       const { error } = await supabase.from('repair_orders').select('operator_id' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return operatorProbe;
 }
 

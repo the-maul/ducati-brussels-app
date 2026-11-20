@@ -538,12 +538,16 @@ function SupplierPicker({ companyId, onPick }: { companyId: string; onPick: (s: 
 
 function ArticlePicker({ companyId, value, onText, onPick }: { companyId: string; value: string; onText: (v: string) => void; onPick: (a: PurchaseArticle) => void }) {
   const [deb, setDeb] = useState('');
+  // Perf 2 (20/11/2026), comme le selecteur de l'OR (lot perf du 19/11) : on ne cherche qu'une fois
+  // le champ utilise. Avant, chaque ligne deja remplie d'une commande lancait sa recherche (et
+  // ouvrait sa liste) des l'ouverture de la page.
+  const [engaged, setEngaged] = useState(false);
   useEffect(() => { const id = setTimeout(() => setDeb(value.trim()), 250); return () => clearTimeout(id); }, [value]);
-  const { data } = useQuery({ queryKey: ['purch-art', companyId, deb], queryFn: () => searchPurchaseArticles(companyId, deb), enabled: deb.length >= 2 });
+  const { data } = useQuery({ queryKey: ['purch-art', companyId, deb], queryFn: () => searchPurchaseArticles(companyId, deb), enabled: engaged && deb.length >= 2 });
   return (
     <div className="relative">
-      <Input value={value} onChange={(e) => onText(e.target.value)} placeholder={t('purchases.lineArticleOrText')} className="h-8" />
-      {data && data.length > 0 && deb.length >= 2 && (
+      <Input value={value} onChange={(e) => onText(e.target.value)} onFocus={() => setEngaged(true)} placeholder={t('purchases.lineArticleOrText')} className="h-8" />
+      {engaged && data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((a) => (
             <button key={a.id} type="button" onClick={() => onPick(a)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">

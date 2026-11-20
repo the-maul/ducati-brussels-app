@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { compressImageFile } from '@/lib/image-tools';
 import { deleteAttachment, signedUrl, uploadAttachment, type Attachment } from '@/modules/documents/ged-api';
 import { parseSlots, type ReceptionPhoto, type ReceptionSlot, type ReceptionStatus } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 export const RECEPTION_GED_FOLDER = 'Réception';
 
@@ -38,14 +39,14 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261119270000 est appliquee (table repair_order_reception_photos). */
 export function receptionSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('repair_order_reception_photos.id', async () => {
     try {
       const { error } = await loose.from('repair_order_reception_photos').select('id').limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

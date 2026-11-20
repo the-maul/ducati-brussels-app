@@ -4019,6 +4019,8 @@ export const fr = {
     colRef: 'Réf.', colDesignation: 'Désignation', colBin: 'Localisation', colReal: 'Réel', colReserved: 'Réservé',
     colAvailable: 'Disponible', colPamp: 'PAMP', colValue: 'Valeur', colMin: 'Mini',
     onlyStocked: 'Stock ≠ 0', belowMin: 'Sous le mini',
+    // Perf 2 (20/11/2026) : liste paginee en base.
+    pageOf: '{from}–{to} sur {total}', pagePrev: 'Précédent', pageNext: 'Suivant', exporting: 'Export en cours…',
     history: 'Mouvements', historyOf: 'Mouvements — {ref}', noHistory: 'Aucun mouvement.',
     colDate: 'Date', colType: 'Type', colQty: 'Qté', colOrigin: 'Origine', colRefDoc: 'Réf. doc', colOperator: 'Opérateur',
     // inventaire

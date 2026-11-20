@@ -14,6 +14,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { MaintenanceProgram, Procedure } from './types';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 /**
  * Vues publiées par le lot `lot-manuels` au-dessus des tables `wsm_*`
@@ -132,14 +133,14 @@ let probe: Promise<boolean> | null = null;
 
 /** Les tables des manuels existent-elles (lot `lot-manuels` appliqué) ? Une seule interrogation par session. */
 export function probeManualTables(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe(`${MANUAL_TABLES.program}.model_year_id`, async () => {
     try {
       const { error } = await loose.from(MANUAL_TABLES.program).select('model_year_id').limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

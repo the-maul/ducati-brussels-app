@@ -24,6 +24,7 @@ import { pickServiceForReason } from './checkup/rules';
 import {
   DEFAULT_URGENT_WITHIN_DAYS, basketLines, partKey, promptLines, type KitStockLine, type MissingPart, type PopupKind,
 } from './parts-popup-rules';
+import { listRef } from '@/modules/settings/reference-api';
 
 const sb = supabase as unknown as {
   from: (t: string) => any;
@@ -85,8 +86,10 @@ export async function askedPartKeys(p: { orId?: string | null; appointmentId?: s
 
 /** Reglage « urgente si le RDV est a moins de N jours » (ligne urgente des regles de commande). */
 export async function getUrgentWithinDays(companyId: string): Promise<number> {
-  const { data } = await sb.from('reference_values').select('extra')
-    .eq('company_id', companyId).eq('table_key', 'order_threshold').eq('code', 'urgente').maybeSingle();
+  // Lecture groupee des tables de parametres (lot perf 2) ; erreur : reglage par defaut, comme avant.
+  const rows = await listRef(companyId, 'order_threshold').catch(() => []);
+  const urgent = rows.filter((r) => r.code === 'urgente');
+  const data = urgent.length === 1 ? urgent[0] : null;
   const n = Number((data?.extra as { urgent_within_days?: unknown } | null)?.urgent_within_days);
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_URGENT_WITHIN_DAYS;
 }

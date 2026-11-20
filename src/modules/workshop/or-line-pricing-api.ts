@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { effectiveSaleHt } from '@/lib/pricing';
 import { articleVatRate } from '@/modules/sales/article-price';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 /** Prix catalogue HT des articles (arrondi societe compris, comme a la saisie d'une ligne). */
 export async function articleBasePrices(ids: readonly string[], roundUp: boolean): Promise<Map<string, number>> {
@@ -25,13 +26,13 @@ export async function articleBasePrices(ids: readonly string[], roundUp: boolean
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261119200000 est appliquee (colonne repair_orders.insurer_price_list_id). */
 export function insurerPricingSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('repair_orders.insurer_price_list_id', async () => {
     try {
       const { error } = await supabase.from('repair_orders').select('insurer_price_list_id' as never).limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }

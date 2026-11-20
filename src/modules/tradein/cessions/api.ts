@@ -7,6 +7,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listRef, upsertRef, type RefRow } from '@/modules/settings/reference-api';
 import type { CessionLineKind, CessionStatus, CostBasis } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 type LooseBuilder = PromiseLike<LooseResult> & {
@@ -110,14 +111,14 @@ const SELECT_HEAD =
 let schemaProbe: Promise<boolean> | null = null;
 /** true quand la migration 20261118240000 est en base (table `internal_cessions`). */
 export function cessionsSchemaReady(): Promise<boolean> {
-  schemaProbe ??= (async () => {
+  schemaProbe ??= batchedSchemaProbe('internal_cessions.id', async () => {
     try {
       const r = await loose.from('internal_cessions').select('id').limit(1);
       return !r.error;
     } catch {
       return false;
     }
-  })();
+  });
   return schemaProbe;
 }
 

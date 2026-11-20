@@ -4004,6 +4004,7 @@ export const en: DictionaryShape = {
     colRef: 'Ref.', colDesignation: 'Description', colBin: 'Location', colReal: 'Actual', colReserved: 'Reserved',
     colAvailable: 'Available', colPamp: 'WAC', colValue: 'Value', colMin: 'Min.',
     onlyStocked: 'Stock ≠ 0', belowMin: 'Below minimum',
+    pageOf: '{from}–{to} of {total}', pagePrev: 'Previous', pageNext: 'Next', exporting: 'Exporting…',
     history: 'Movements', historyOf: 'Movements — {ref}', noHistory: 'No movement.',
     colDate: 'Date', colType: 'Type', colQty: 'Qty', colOrigin: 'Origin', colRefDoc: 'Doc. ref.', colOperator: 'Operator',
     // inventaire

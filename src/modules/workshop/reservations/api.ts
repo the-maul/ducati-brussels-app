@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { DisplayStatus, ArticleReservation } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 const sb = supabase as unknown as {
   from: (t: string) => { select: (cols: string) => { limit: (n: number) => PromiseLike<{ error: unknown }> } };
@@ -21,14 +22,14 @@ export function isMissingSchema(e: unknown): boolean {
 let probe: Promise<boolean> | null = null;
 /** true quand la table stock_reservations est en base (sonde une fois par session). */
 export function reservationSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('stock_reservations.id', async () => {
     try {
       const { error } = await sb.from('stock_reservations').select('id').limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

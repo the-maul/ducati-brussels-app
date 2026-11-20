@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useMemo, type ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, TrendingDown, X } from 'lucide-react';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { ArrowLeft, Loader2, TrendingDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listStock, type StockRow } from '@/modules/stock/stock-api';
+import { stockScreenPage, listArticleLabels, STOCK_SCREEN_PAGE, type StockRow, type StockScreenFilters } from '@/modules/stock/stock-api';
 import { listDepreciations, createDepreciation, cancelDepreciation, getTotalDepreciation, type StockDepreciation } from '@/modules/stock/depreciation-api';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
 import { RAYONS_SORTED } from '@/modules/articles/product-families';
-import { t, pageTitle } from '@/lib/i18n';
+import { t, pageTitle, fillVars } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/stock/depreciation')({
   head: () => ({ meta: [{ title: pageTitle('stockDepreciation') }] }),
@@ -21,14 +21,6 @@ export const Route = createFileRoute('/_app/stock/depreciation')({
 });
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
-
-/** Best-effort : category_path est un UID « RR-SS-CC » (RR = code rayon) ; on
- *  accepte aussi une correspondance sur le libellé pour les données legacy en texte libre. */
-function matchesRayon(categoryPath: string | null, rayon: { code: string; label: string }): boolean {
-  if (!categoryPath) return false;
-  const cp = categoryPath.toLowerCase();
-  return cp.startsWith(`${rayon.code.toLowerCase()}-`) || cp.includes(rayon.label.toLowerCase());
-}
 
 function DepreciationPage() {
   const { activeCompanyId } = useAuth();
@@ -38,7 +30,7 @@ function DepreciationPage() {
   const [rayonCode, setRayonCode] = useState('');
   const [onlyDormant, setOnlyDormant] = useState(false);
 
-  const { data: stock, isLoading } = useQuery({ queryKey: ['stock', activeCompanyId], queryFn: () => listStock(activeCompanyId!), enabled: !!activeCompanyId });
+  const [page, setPage] = useState(0);
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-filter', activeCompanyId],
     queryFn: () => listSuppliers(activeCompanyId!, '', 500),
@@ -50,6 +42,14 @@ function DepreciationPage() {
     queryFn: () => listDepreciations(activeCompanyId!),
     enabled: !!activeCompanyId,
   });
+  // Reference / designation des articles deprecies (avant : pris dans le stock complet).
+  const deprecIds = useMemo(() => (depreciations ?? []).map((d) => d.article_id), [depreciations]);
+  const { data: labelById } = useQuery({
+    queryKey: ['article-labels', deprecIds],
+    queryFn: () => listArticleLabels(deprecIds),
+    enabled: deprecIds.length > 0,
+    staleTime: 300_000,
+  });
   const { data: totalDeprec } = useQuery({
     queryKey: ['stock-depreciations-total', activeCompanyId],
     queryFn: () => getTotalDepreciation(activeCompanyId!),
@@ -57,18 +57,25 @@ function DepreciationPage() {
   });
 
   const rayon = useMemo(() => RAYONS_SORTED.find((r) => r.code === rayonCode), [rayonCode]);
-  const stockById = useMemo(() => new Map((stock ?? []).map((r) => [r.article_id, r])), [stock]);
 
-  const filtered = useMemo(() => {
-    return (stock ?? []).filter((r) => {
-      if (supplierId && r.supplier_id !== supplierId) return false;
-      if (rayon && !matchesRayon(r.category_path, rayon)) return false;
-      // TODO: affiner « stock dormant » avec la date du dernier mouvement (jointure stock_moves) ;
-      // heuristique actuelle : article encore disponible en stock.
-      if (onlyDormant && !(r.available_qty > 0)) return false;
-      return true;
-    });
-  }, [stock, supplierId, rayon, onlyDormant]);
+  // Perf 2 (20/11/2026) : memes filtres qu'avant, appliques en base, liste paginee (100 lignes).
+  // TODO: affiner « stock dormant » avec la date du dernier mouvement (jointure stock_moves) ;
+  // heuristique actuelle : article encore disponible en stock.
+  const filters = useMemo<StockScreenFilters>(() => ({
+    supplier_id: supplierId || undefined, rayon_code: rayon?.code, rayon_label: rayon?.label, dormant: onlyDormant,
+  }), [supplierId, rayon, onlyDormant]);
+  const filtersKey = JSON.stringify(filters);
+  useEffect(() => { setPage(0); }, [filtersKey]);
+  const { data: stockPage, isLoading } = useQuery({
+    queryKey: ['stock', activeCompanyId, 'depreciation', filtersKey, page],
+    queryFn: () => stockScreenPage(activeCompanyId!, filters, STOCK_SCREEN_PAGE, page * STOCK_SCREEN_PAGE),
+    enabled: !!activeCompanyId,
+    placeholderData: keepPreviousData,
+  });
+  const stock = stockPage?.rows;
+  const filtered = stock ?? [];
+  const total = stockPage?.total ?? 0;
+  const lastPage = Math.max(0, Math.ceil(total / STOCK_SCREEN_PAGE) - 1);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['stock-depreciations', activeCompanyId] });
@@ -141,6 +148,13 @@ function DepreciationPage() {
           </tbody>
         </table>
       </div>
+      {total > STOCK_SCREEN_PAGE && (
+        <div className="-mt-4 mb-6 flex items-center justify-end gap-2 font-data text-[13px] tabular-nums text-muted-foreground">
+          <span>{fillVars(t('stock.pageOf'), { from: page * STOCK_SCREEN_PAGE + 1, to: Math.min(total, (page + 1) * STOCK_SCREEN_PAGE), total })}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}><ChevronLeft /> {t('stock.pagePrev')}</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page >= lastPage}>{t('stock.pageNext')} <ChevronRight /></Button>
+        </div>
+      )}
 
       <h2 className="mb-2 font-ui text-[15px] font-bold text-foreground">{t('stock.deprecActive')}</h2>
       <div className="mb-2 flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -160,7 +174,7 @@ function DepreciationPage() {
             {loadingDeprec && <tr><td colSpan={7} className="px-3 py-6 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
             {depreciations && depreciations.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{t('stock.deprecEmpty')}</td></tr>}
             {depreciations?.map((d) => (
-              <DepreciationRowActive key={d.id} d={d} article={stockById.get(d.article_id)} onCancel={() => cancel.mutate(d.id)} pending={cancel.isPending} />
+              <DepreciationRowActive key={d.id} d={d} article={labelById?.get(d.article_id)} onCancel={() => cancel.mutate(d.id)} pending={cancel.isPending} />
             ))}
           </tbody>
         </table>
@@ -196,7 +210,7 @@ function DepreciationRow({ row, pending, onApply }: { row: StockRow; pending: bo
   );
 }
 
-function DepreciationRowActive({ d, article, onCancel, pending }: { d: StockDepreciation; article: StockRow | undefined; onCancel: () => void; pending: boolean }) {
+function DepreciationRowActive({ d, article, onCancel, pending }: { d: StockDepreciation; article: Pick<StockRow, 'reference' | 'designation'> | undefined; onCancel: () => void; pending: boolean }) {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="px-3 py-2 font-mono text-[12px]">{new Date(d.created_at).toLocaleDateString('fr-BE')}</td>

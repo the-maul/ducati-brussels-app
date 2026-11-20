@@ -8,6 +8,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { InsurancePartyKind, DeductibleKind } from './insurance-rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 type LooseBuilder = PromiseLike<LooseResult> & {
@@ -44,22 +45,22 @@ export type InsurancePartyInput = Omit<InsuranceParty, 'id' | 'company_id' | 'cr
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261118130000 est appliquee (table insurance_parties). */
 export function insuranceSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('insurance_parties.id', async () => {
     const r = await loose.from('insurance_parties').select('id').limit(1);
     if (!r.error) return true;
     if (missing(r.error)) return false;
     throw new Error(r.error.message);
-  })().catch(() => false);
+  });
   return probe;
 }
 
 let tariffProbe: Promise<boolean> | null = null;
 /** true quand la migration 20261119200000 est appliquee (colonne insurance_parties.price_list_id). */
 export function insurerTariffSchemaReady(): Promise<boolean> {
-  tariffProbe ??= (async () => {
+  tariffProbe ??= batchedSchemaProbe('insurance_parties.price_list_id', async () => {
     const r = await loose.from('insurance_parties').select('price_list_id').limit(1);
     return !r.error;
-  })().catch(() => false);
+  });
   return tariffProbe;
 }
 

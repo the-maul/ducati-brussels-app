@@ -9,6 +9,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { toPauseReason, type PauseReason, type StartResult, type WorkEntry } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 export const PAUSE_REASON_TABLE_KEY = 'workshop_pause_reason';
 
@@ -29,14 +30,14 @@ const loose = supabase as unknown as { from: (table: string) => LooseQuery };
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261119241000 est appliquee (colonne workshop_time_entries.stop_kind). */
 export function pointageSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('workshop_time_entries.stop_kind', async () => {
     try {
       const { error } = await loose.from('workshop_time_entries').select('stop_kind').limit(1);
       return !error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 

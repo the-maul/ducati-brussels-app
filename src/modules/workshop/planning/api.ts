@@ -20,6 +20,7 @@ import {
   DEFAULT_APPOINTMENT_TYPES, isJobColor, canCreateOr, orIntakeNeeds, OR_STATUS_FROM_APPOINTMENT, APPOINTMENT_STATUS_WITH_OR,
   type AppointmentType, type CalendarBlock, type MechanicHours, type PlanningMechanic,
 } from './rules';
+import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 
 type LooseResult = { data: unknown; error: { code?: string; message: string } | null };
 type LooseBuilder = PromiseLike<LooseResult> & {
@@ -53,14 +54,14 @@ const unwrap = <T,>(r: LooseResult): T => {
 let probe: Promise<boolean> | null = null;
 /** true quand la migration 20261118120000 est appliquee (table workshop_mechanics). */
 export function planningSchemaReady(): Promise<boolean> {
-  probe ??= (async () => {
+  probe ??= batchedSchemaProbe('workshop_mechanics.id', async () => {
     try {
       const r = await loose.from('workshop_mechanics').select('id').limit(1);
       return !r.error;
     } catch {
       return false;
     }
-  })();
+  });
   return probe;
 }
 
