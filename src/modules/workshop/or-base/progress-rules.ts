@@ -51,7 +51,8 @@ export type OrProgressInput = {
 };
 
 export type StepKey = 'reception' | 'work' | 'operations' | 'ready' | 'invoice';
-export type StepState = 'done' | 'current' | 'todo' | 'skipped' | 'warning';
+/** `paused` : le travail est en pause (pointage en pause), ni fait ni en cours (test écran du 20/11). */
+export type StepState = 'done' | 'current' | 'todo' | 'skipped' | 'warning' | 'paused';
 export type Step = { key: StepKey; state: StepState; count?: { done: number; total: number } };
 
 /** Le geste du gros bouton. */
@@ -122,7 +123,8 @@ export function orProgress(i: OrProgressInput): OrProgress {
       : current === 'reception' ? 'current' : 'todo';
     steps.push({ key: 'reception', state: photos, count: { done: i.photosTaken, total: i.photosTotal } });
   }
-  steps.push({ key: 'work', state: at('work', finished || (workStarted && current !== 'work')) });
+  // Pointage en pause : « Travail : en pause », jamais « fait » (défaut vu au test écran du 20/11).
+  steps.push({ key: 'work', state: !finished && !cancelled && i.workState === 'paused' ? 'paused' : at('work', finished || (workStarted && current !== 'work')) });
   if (hasPlan) steps.push({ key: 'operations', state: at('operations', finished || planDone), count: { done: i.planResolved, total: i.planTotal } });
   else if (i.planExpected && !finished && !cancelled) steps.push({ key: 'operations', state: 'todo' });
   steps.push({ key: 'ready', state: at('ready', finished) });

@@ -70,6 +70,7 @@ import {
   warrantyRequestNote, warrantySummary,
 } from './warranty/rules';
 import { t, fillVars } from '@/lib/i18n';
+import { orMissingFields, orRequiredMessage } from './required-g8';
 import { useFormDraft } from '@/lib/use-form-draft';
 import { LabourTimeDialog } from './labour-time/time-dialog';
 import { labourTimeSchemaReady, listMechanics } from './labour-time/api';
@@ -198,6 +199,8 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(ox?.check_points));
   const [internalNotes, setInternalNotes] = useState(o?.notes ?? '');
   const [mileageError, setMileageError] = useState<string | null>(null);
+  // VP8 (comme G8) : operateur, client et n° de serie obligatoires (meme regle que la base).
+  const [requiredError, setRequiredError] = useState<string | null>(null);
   const [lowerAsk, setLowerAsk] = useState<{ km: number; last: MileageReading; intent: OrEditorIntent } | null>(null);
   const [forceLower, setForceLower] = useState(false);
   const [warrantyStatus, setWarranty] = useState(o?.warranty_status ?? 'aucune');
@@ -485,6 +488,14 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   // inferieur au dernier releve = avertissement bloquant a confirmer (G8). Le km deja enregistre
   // sur cet OR ne redemande pas (et garde sa confirmation eventuelle).
   const submit = (intent: OrEditorIntent, confirmed = false) => {
+    const missing = orMissingFields({
+      isNew: !o,
+      saved: o ? { contactId: o.contact_id, vehicleId: o.vehicle_id, hasOperator: !!((ox?.operator_id as string | null | undefined) || o.operator?.trim()) } : null,
+      contactId: contact?.id, vehicleId: vehicle?.id,
+      hasOperator: !!(savedOperator.operatorId || savedOperator.operatorText?.trim()),
+    });
+    if (missing.length > 0) { setRequiredError(orRequiredMessage(missing)); return; }
+    setRequiredError(null);
     const unchanged = !!o && mileage.trim() !== '' && Math.round(num(mileage)) === o.mileage;
     const required = kmRequired;
     const r = checkMileage({ input: mileage, hasVehicle: !!vehicle, last, confirmed: confirmed || unchanged, required });
@@ -785,7 +796,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
           effectiveHt={(ht, v) => effectiveSaleHt(ht, v, roundUp)}
           onInsert={(ins) => insertKitLines(ins)} onClose={() => setKitOpen(false)} />
       )}
-      {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
+      {(requiredError ?? error) && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{requiredError ?? error}</p>}
       {saveRow}
     </>
   );
@@ -841,7 +852,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
   );
 
   if (pane) {
-    const errorLine = error ? <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p> : null;
+    const errorLine = (requiredError ?? error) ? <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{requiredError ?? error}</p> : null;
     const workFiche = <div className="space-y-4">{workPart}{errorLine}{saveRow}</div>;
     return (
       <>

@@ -408,10 +408,17 @@ export async function createArticle(input: ArticleInsert): Promise<Article> {
     (p) => supabase.from('articles').insert(p as ArticleInsert).select().single(),
     async () => { throw new Error('createArticle: payload vide'); },
   );
-  // La référence sert de code-barres par défaut (demande client) : best-effort, ne bloque
-  // jamais la création (table article_barcodes pas encore migrée, doublon, etc.).
+  // VP2 (20/11/2026, comme G8) : code-barres EAN interne 3000… + clé créé d'office (fonction
+  // article_assign_internal_ean, migration 20261120341000). Base pas encore migrée : l'ancien
+  // défaut (la référence comme code-barres). Best-effort : ne bloque jamais la création.
   try {
-    await addBarcode(created.id, created.reference);
+    const { error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>)(
+      'article_assign_internal_ean', { _article: created.id },
+    );
+    if (error) {
+      if (!isMissingSchema(error)) throw error;
+      await addBarcode(created.id, created.reference);
+    }
   } catch {
     // silencieux : la fiche reste utilisable sans code-barres par défaut
   }

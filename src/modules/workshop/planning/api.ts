@@ -145,6 +145,8 @@ export async function saveMechanic(m: Partial<MechanicRow> & { company_id: strin
     company_id: m.company_id, name: m.name, user_id: m.user_id ?? null, workshop: m.workshop ?? null,
     visible_in_planning: m.visible_in_planning ?? true, sort_order: m.sort_order ?? 0, is_active: m.is_active ?? true,
   };
+  // VP9 : envoye seulement s'il a ete choisi (sinon la base pose la valeur par defaut G8).
+  if (typeof m.counts_in_load === 'boolean') row.counts_in_load = m.counts_in_load;
   if (m.id) {
     unwrap(await loose.from('workshop_mechanics').update(row).eq('id', m.id));
     return m.id;

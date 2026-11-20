@@ -111,6 +111,7 @@ function MechanicsSection({ companyId, base, onChanged }: { companyId: string; b
             <TableHead>{t('planningG8.workshop')}</TableHead>
             <TableHead>{t('planningG8.visible')}</TableHead>
             <TableHead>{t('planningG8.active')}</TableHead>
+            <TableHead title={t('vpG8.countsInLoadHint')}>{t('vpG8.countsInLoad')}</TableHead>
             <TableHead className="text-right">{t('planningG8.weekTotal')}</TableHead>
             <TableHead />
           </TableRow>
@@ -138,6 +139,14 @@ function MechanicsSection({ companyId, base, onChanged }: { companyId: string; b
                 <TableCell><Input value={String(val(r, 'workshop') ?? '')} onChange={(e) => set(r.id, { workshop: e.target.value || null })} className="h-8 w-28" /></TableCell>
                 <TableCell><input type="checkbox" checked={!!val(r, 'visible_in_planning')} onChange={(e) => set(r.id, { visible_in_planning: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" aria-label={t('planningG8.visible')} /></TableCell>
                 <TableCell><input type="checkbox" checked={!!val(r, 'is_active')} onChange={(e) => set(r.id, { is_active: e.target.checked })} className="size-4 accent-[var(--ducati-red)]" aria-label={t('planningG8.active')} /></TableCell>
+                <TableCell>
+                  {/* VP9 : un nouveau compagnon recoit la valeur par defaut G8 a l'enregistrement, modifiable ensuite. */}
+                  {!isNew && 'counts_in_load' in r && (
+                    <input type="checkbox" checked={val(r, 'counts_in_load') !== false}
+                      onChange={(e) => set(r.id, { counts_in_load: e.target.checked })} className="size-4 accent-[var(--ducati-red)]"
+                      aria-label={t('vpG8.countsInLoadHint')} title={t('vpG8.countsInLoadHint')} />
+                  )}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{formatMinutes(total)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right">
                   {!isNew && <Button size="sm" variant="ghost" className="h-8" onClick={() => setHoursFor(r as MechanicRow)}><Clock className="size-3.5" /> {t('planningG8.hours')}</Button>}
@@ -146,7 +155,7 @@ function MechanicsSection({ companyId, base, onChanged }: { companyId: string; b
               </TableRow>
             );
           })}
-          {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-sm text-muted-foreground">{t('planningG8.noMechanics')}</TableCell></TableRow>}
+          {rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-sm text-muted-foreground">{t('planningG8.noMechanics')}</TableCell></TableRow>}
         </TableBody>
       </Table>
       {hoursFor && <HoursDialog companyId={companyId} mechanic={hoursFor} hours={base.hours} onClose={() => setHoursFor(null)} onSaved={() => { setHoursFor(null); onChanged(); }} />}

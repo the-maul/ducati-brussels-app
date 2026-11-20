@@ -16,6 +16,7 @@ import { designEcransIt } from './design-ecrans';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
+import { vpG8It } from './vp-g8';
 import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
 import { designTransverseIt } from './design-transverse';
@@ -5020,14 +5021,15 @@ export const it: DictionaryShape = {
       RES: "Prenotazione / ordine cliente: riserva lo stock.",
       BC: "Ordine firmato dal cliente (vendita moto).",
       BL: "Bolla di consegna.",
-      OR: "Ordine di riparazione (officina). In G8, OR e ORO condividono un contatore; qui ognuno ha il suo.",
-      ORO: "Ordine di ricondizionamento di un usato (costo del veicolo).",
+      OR: "Ordine di riparazione (officina) e cessione interna: un solo contatore, come in G8.",
+      ORO: "Vecchia serie delle cessioni interne (ricondizionamento di un usato): le nuove cessioni usano il contatore degli OR.",
       CMD: "Ordine fornitore.",
       CDP: "Ordine ricambi.",
       CEX: "Ordine Excel Ducati (DCS).",
       REC: "Ricevimento fornitore.",
       REP: "Scheda di permuta: punto di partenza del flusso usato.",
-      OCC: "Riferimento usato (in G8: OCC seguito da 7 cifre).",
+      OCC: "Riferimento dell'articolo usato creato alla convalida di una permuta: OCC seguito da 7 cifre, come in G8.",
+      EAN: "Codice a barre EAN interno dato a ogni nuovo articolo senza codice: 3000 + 8 cifre + cifra di controllo, come in G8.",
       DEP: "Conto vendita.",
       COC: "Richiesta di certificato di conformità.",
       Z: "Rapporto Z: chiusura di cassa (giornale degli incassi), numero alla chiusura.",
@@ -9423,6 +9425,8 @@ export const it: DictionaryShape = {
   ...purchasePrintIt,
   ...dashboardCaIt,
   ...decisionsQ63Q67It,
+  // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
+  vpG8: vpG8It,
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,

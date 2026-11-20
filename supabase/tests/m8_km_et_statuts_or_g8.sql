@@ -65,10 +65,11 @@ begin
     insert into _t(check_name, result) values ('Q42 modification de l''OR sans toucher a la moto : km non redemande', 'FAIL ' || _err);
   end;
 
-  -- OR sans moto (moto a creer) puis moto rattachee : km exige a ce moment-la.
-  insert into public.repair_orders (company_id, number, contact_id, status) values (_co, 'ESSAI-KM-2', _c, 'a_faire') returning id into _or2;
+  -- Moto changee sur l'OR : km exige a ce moment-la. (VP8, 20/11 : un OR sans moto n'est plus
+  -- permis a la creation, comme G8 ; l'essai part d'un OR sur la moto 1 puis rattache la moto 2.)
+  insert into public.repair_orders (company_id, number, contact_id, vehicle_id, mileage, status) values (_co, 'ESSAI-KM-2', _c, _v, 12500, 'a_faire') returning id into _or2;
   begin
-    update public.repair_orders set vehicle_id = _v2 where id = _or2;
+    update public.repair_orders set vehicle_id = _v2, mileage = null where id = _or2;
     insert into _t(check_name, result) values ('Q42 moto rattachee sans km : refuse', 'FAIL accepte');
   exception when others then
     get stacked diagnostics _err = message_text;

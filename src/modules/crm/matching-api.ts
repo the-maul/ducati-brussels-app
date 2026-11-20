@@ -10,6 +10,7 @@ import { addCommunication, sendEmailViaOutlook } from '@/modules/crm/api';
 import { vehicleLabel, type Vehicle } from '@/modules/vehicles/api';
 import { tIn, fillVars, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
+import { greetingName } from '@/lib/person-name';
 
 export type VehicleUsage = 'route' | 'sport' | 'offroad' | 'piste';
 
@@ -117,7 +118,8 @@ export async function notifyInterestedContact(p: {
   // Message dans la LANGUE DU CLIENT (fiche contact, I18N004), pas celle de l'écran.
   const locale = contactLocale(contact);
   await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
-  const vars = { label, name: contactDisplayName(contact) };
+  // VP1 : « Bonjour Jean » (prenom en casse titre, pas en MAJUSCULES).
+  const vars = { label, name: greetingName(contact) };
   const subject = fillVars(tIn(locale, 'crm.matchSubject'), vars);
   const body = fillVars(tIn(locale, 'crm.matchBody'), vars);
 

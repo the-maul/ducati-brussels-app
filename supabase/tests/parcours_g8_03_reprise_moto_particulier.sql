@@ -30,7 +30,7 @@
 --   9. dossier REP (ORO) relié à la moto (B3) ;
 --  10. registre des véhicules : entrée code 4, source reprise, vendeur, date du jour ;
 --  11. n° livre de police recopié sur la fiche moto (correctif 20261120120200) ;
---  12. cession VO ouverte d'office (type 01, origine reprise, n° de la série ORO, dossier et vendeur) ;
+--  12. cession VO ouverte d'office (type 01, origine reprise, n° au compteur des OR — VP7 du 20/11, comme G8 —, dossier et vendeur) ;
 --  13. dossier en base : statut « repris », statut TVA particulier, prix minimum 6 000 (correctif 120100) ;
 --  14. traces events : création et entrée en stock de la moto ;
 --  15. écart G8 / DMS (constat) : référence REP-… (G8 : OCC + 7 chiffres).
@@ -129,9 +129,9 @@ begin
 
   -- Cession VO automatique (G8 : cession 5000011 « CESSION VO » ouverte d'office)
   select * into c from public.internal_cessions where vehicle_id = _veh and origin = 'reprise';
-  select prefix into _prefix from public.document_sequences where company_id = _co and doc_type = 'ORO';
+  select prefix into _prefix from public.document_sequences where company_id = _co and doc_type = 'OR';
   insert into _t(check_name, result) values
-    ('cession VO ouverte d office : type 01, ouverte, n° serie ORO, dossier et vendeur',
+    ('cession VO ouverte d office : type 01, ouverte, n° au compteur des OR (VP7), dossier et vendeur',
      case when c.id is not null and c.cession_type = '01' and c.status = 'ouvert' and c.number like _prefix || '%'
                and c.oro_id = _oro and c.contact_id = _seller then 'ok' else 'KO ' || coalesce(c.cession_type, 'aucune') end);
 

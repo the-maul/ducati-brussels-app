@@ -52,6 +52,7 @@ import { t } from '@/lib/i18n';
 import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
 import { FinishDialog, NotDoneDialog, usePlanOps } from '../plan-ops/plan-ops-panel';
 import { reasonText, type PlanOp, type PlanOpSlotInfo } from '../plan-ops/rules';
+import { serviceLabelDisplay } from '../service-label-fr';
 
 /** Demarre une fois l'entretien de l'OR, puis laisse l'ecran des operations prendre la main. */
 function AutoStart({ onStart }: { onStart: () => void }) {
@@ -492,7 +493,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
         {banners}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="font-data text-[13px] text-muted-foreground">{bikeLabel} · {state.serviceLabel}</p>
+            <p className="font-data text-[13px] text-muted-foreground">{bikeLabel} · {serviceLabelDisplay(state.serviceLabel)}</p>
             <h2 className="font-display text-[20px] font-bold uppercase">{t('journey.summary')}</h2>
           </div>
           <Button variant="outline" className="h-12 text-[15px]" onClick={() => setView('ops')}><ArrowLeft /> {t('journey.backToOps')}</Button>
@@ -562,7 +563,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
             onClick={async () => {
               try {
                 setError(null);
-                await appendJourneyLines(companyId, ro, s.lines, `${state.serviceLabel} — ${fill(t('journey.progress'), { done: s.progress.opsDone, total: s.progress.opsTotal, percent: s.progress.percent })} · ${t('journey.spent')} ${fmtMinutes(s.spent)}`);
+                await appendJourneyLines(companyId, ro, s.lines, `${serviceLabelDisplay(state.serviceLabel)} — ${fill(t('journey.progress'), { done: s.progress.opsDone, total: s.progress.opsTotal, percent: s.progress.percent })} · ${t('journey.spent')} ${fmtMinutes(s.spent)}`);
                 patch((st) => ({ ...st, reportedToOr: true, finishedAt: st.finishedAt ?? new Date().toISOString() }));
                 qc.invalidateQueries({ queryKey: ['journey-ctx', orId] });
                 qc.invalidateQueries({ queryKey: ['ro-full', orId] });
@@ -616,7 +617,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-data text-[13px] text-muted-foreground">{bikeLabel}{demoBikeId ? ` · ${t('journey.demoBike')}` : ''}</p>
-          <h2 className="font-display text-[20px] font-bold uppercase">{state.serviceLabel}</h2>
+          <h2 className="font-display text-[20px] font-bold uppercase">{serviceLabelDisplay(state.serviceLabel)}</h2>
           <p className="font-data text-[13px] tabular-nums text-muted-foreground">
             {progress && fill(t('journey.progress'), { done: progress.opsDone, total: progress.opsTotal, percent: progress.percent })}
             {' · '}{t('journey.totalSpent')} {fmtMinutes(spent)}

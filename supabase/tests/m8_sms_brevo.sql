@@ -204,6 +204,8 @@ select 'droits : claim / result non executables par un utilisateur',
             then 'ok' else 'KO' end;
 
 reset role;
+-- VP8 (20/11) : la suite est ecrite comme le serveur (sans utilisateur) : l'OR sans moto des fixtures reste permis.
+select set_config('request.jwt.claims', '', true);
 
 -- ------------------------------------------------------------ 8. envoi : claim / result
 update public.workshop_appointments set starts_at = starts_at + interval '30 minutes' where id = (select v::uuid from _ctx where k = 'appt_on');

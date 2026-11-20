@@ -65,8 +65,8 @@ select 'preparation : PAMP 0,75 et dernier prix d''achat 0,50',
 insert into _ctx select 'ces', public.open_internal_cession('3d9f0f13-a691-4d07-ad58-34590df86e33', '01',
   (select v::uuid from _ctx where k = 'vehicle'), null, 'Chef atelier', 'Remise en etat')::text;
 insert into _t(check_name, result)
-select 'ouverture : numero ORO, type « Cession VO » comptabilisee, valorisation PAMP, statut ouvert',
-       case when c.number like 'ORO%' and c.type_label = 'Cession VO' and c.accounted and c.cost_basis = 'pamp' and c.status = 'ouvert'
+select 'ouverture : numero au compteur des OR (VP7, comme G8), type « Cession VO » comptabilisee, valorisation PAMP, statut ouvert',
+       case when c.number like (select prefix from public.document_sequences where company_id = c.company_id and doc_type = 'OR') || '%' and c.type_label = 'Cession VO' and c.accounted and c.cost_basis = 'pamp' and c.status = 'ouvert'
             then 'ok' else 'KO ' || coalesce(c.number, '') || ' ' || coalesce(c.cost_basis, '') end
   from public.internal_cessions c where c.id = (select v::uuid from _ctx where k = 'ces');
 

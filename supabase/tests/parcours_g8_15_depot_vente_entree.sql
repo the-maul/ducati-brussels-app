@@ -26,8 +26,8 @@
 --  12. le dépôt figure dans la liste « en dépôt » ; recherche parc : famille « dépôt-vente » ;
 --  13. garde-fous : entrée valorisée d'un article D refusée ; moto déjà en dépôt refusée ;
 --      moto du stock de la concession (occasion en stock) refusée ; déposant obligatoire ;
---  14. À TRANCHER (constat, « ok » sur l'absence) : pas de cession interne ouverte d'office à
---      l'entrée du dépôt (G8 : cession 5000014) — voir rapport.
+--  14. VP4 (décidé le 20/11 : comme G8) : une cession interne est ouverte d'office à l'entrée du
+--      dépôt (G8 : cession 5000014), reliée au dépôt (frais à charge du déposant).
 -- Chaque ligne du résultat doit valoir « ok ».
 -- =====================================================================
 create temp table _t(n serial, check_name text, result text) on commit drop;
@@ -69,7 +69,7 @@ begin
      case when v.status::text = 'depot_vente' and v.display_price = 7000 and v.reference = cs.number and upper(v.vin) = _vin then 'ok' else 'KO ' || v.status::text end),
     ('conditions : prix demande 6 000, PV 7 000, minimum 6 500, conditions et mention legale par defaut',
      case when cs.asked_price = 6000 and cs.agreed_price = 7000 and cs.min_price = 6500 and cs.status = 'en_depot'
-               and cs.conditions like 'Le vehicule reste la propriete du deposant%' and cs.legal_mention is not null then 'ok' else 'KO' end),
+               and cs.conditions like 'Le v_hicule reste la propri_t_ du d_posant%' and cs.legal_mention is not null then 'ok' else 'KO' end),
     ('article de type D relie a la moto',
      case when (select mgmt_type::text from public.articles where id = cs.article_id) = 'D' and v.article_id = cs.article_id then 'ok' else 'KO' end);
 
@@ -131,10 +131,10 @@ begin
     insert into _t(check_name, result) values ('garde-fou : deposant obligatoire', 'ok');
   end;
 
-  -- Constat a trancher : G8 ouvre une cession interne d'office a l'entree du depot (5000014)
+  -- VP4 (20/11, comme G8) : cession interne ouverte d'office a l'entree du depot (5000014)
   insert into _t(check_name, result) values
-    ('A TRANCHER (constat) : pas de cession interne ouverte d office a l entree du depot (G8 : oui)',
-     case when not exists (select 1 from public.internal_cessions where vehicle_id = v.id) then 'ok' else 'KO une cession existe : mettre a jour le rapport' end);
+    ('VP4 : cession interne ouverte d office a l entree du depot (comme G8), reliee au depot',
+     case when (select count(*) from public.internal_cessions where vehicle_id = v.id and consignment_id = cs.id and origin = 'depot') = 1 then 'ok' else 'KO aucune cession' end);
 end $s$;
 
 select n, check_name, result from _t order by n;

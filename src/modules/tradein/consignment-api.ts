@@ -151,3 +151,19 @@ export async function listLinkedRepairs(vehicleId: string, sinceIso: string): Pr
 /** Total des OR non facturés : proposé comme réparations à déduire du reversement. */
 export const uninvoicedRepairsTotal = (rows: LinkedRepair[]): number =>
   Math.round(rows.filter((r) => r.kind === 'or' && !r.invoiced && r.status !== 'annule').reduce((s, r) => s + r.amount, 0) * 100) / 100;
+
+/** VP4 (20/11/2026) : frais de la cession du dépôt, à charge du déposant (déduits du reversement). */
+export type DepotCosts = {
+  basis: 'cout' | 'vente'; vat_rate: number; cost_ht: number; sale_ht: number;
+  amount_ht: number; amount_ttc: number; open_with_lines: number;
+  cessions: { id: string; number: string | null; status: string; total_cost: number; total_sale_ht: number }[];
+};
+/** null tant que la migration 20261120345000 n'est pas en base. */
+export async function getDepotCosts(consignmentId: string): Promise<DepotCosts | null> {
+  const { data, error } = await rpc('consignment_depot_costs', { _consignment: consignmentId });
+  if (error) {
+    if (isMissingSchema(error)) return null;
+    throw error;
+  }
+  return data as DepotCosts;
+}

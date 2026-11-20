@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { StatusBadge } from '@/components/status-badge';
 import { fill } from '@/modules/catalog/format';
 import { t } from '@/lib/i18n';
+import { serviceLabelDisplay } from '../service-label-fr';
 import {
   finishPlanOps, getPlanProgress, initPlanOps, listNotDoneReasons, listPlanOpLines, listPlanOps, planOpsSchemaReady, setPlanOp,
   type InitResult, type PlanProgressRow,
@@ -240,7 +241,7 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('planOps.title')}</p>
           <p className="mt-0.5 text-[14px]">
-            <span className="font-bold">{first.service_label ?? ''}</span>
+            <span className="font-bold">{serviceLabelDisplay(first.service_label)}</span>
             <span className="ml-2 text-[12px] text-muted-foreground">{t(`planOps.source_${first.source}`)}</span>
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">

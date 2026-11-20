@@ -8,6 +8,7 @@
  *   - mise en page des étiquettes d'adresse ;
  *   - mise à plat de l'export RGPD (portabilité) en feuilles de tableur.
  */
+import { titleCaseName } from '@/lib/person-name';
 
 /* ------------------------------------------------------------------ Belgique */
 
@@ -170,7 +171,7 @@ export type RenderContact = {
   company_name?: string | null; code?: string | null;
 };
 
-const initcap = (s: string) => s.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_m, p: string, l: string) => p + l.toUpperCase());
+const initcap = titleCaseName;
 
 /** Même rendu que la fonction SQL _campaign_render (aperçu à l'écran). */
 export function renderCampaignText(text: string, c: RenderContact): string {

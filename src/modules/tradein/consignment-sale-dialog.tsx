@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { listPaymentMethods } from '@/modules/sales/write-api';
 import { t } from '@/lib/i18n';
 import { computeSettlement, saleCheck, belowReserve, settingNumber, settingTruthy } from './consignment-rules';
-import { sellConsignment, listLinkedRepairs, uninvoicedRepairsTotal, type ConsignmentFull, type SaleResult } from './consignment-api';
+import { sellConsignment, listLinkedRepairs, uninvoicedRepairsTotal, getDepotCosts, type ConsignmentFull, type SaleResult } from './consignment-api';
 import { ContactSearch, Field, MoneyInput, eur, num } from './consignment-ui';
 
 export function ConsignmentSaleDialog({ open, onOpenChange, companyId, settings, consignment, onSold }: {
@@ -58,6 +58,17 @@ export function ConsignmentSaleDialog({ open, onOpenChange, companyId, settings,
     enabled: open && !!c.vehicle_id,
   });
   const suggested = uninvoicedRepairsTotal(repairsQ.data ?? []);
+  // VP4 (20/11/2026, comme G8) : les frais de la cession du depot sont payes par le deposant :
+  // repris d'office dans les reparations deduites du reversement (modifiable).
+  const depotQ = useQuery({ queryKey: ['consign-depot-costs', c.id], queryFn: () => getDepotCosts(c.id), enabled: open });
+  const depotTtc = depotQ.data?.amount_ttc ?? 0;
+  const [prefilled, setPrefilled] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) { setPrefilled(null); return; }
+    if (prefilled === c.id || !depotQ.data) return;
+    setPrefilled(c.id);
+    if (depotQ.data.amount_ttc > 0) setRepairs(String(depotQ.data.amount_ttc));
+  }, [open, c.id, depotQ.data, prefilled]);
   const methods = useQuery({ queryKey: ['payment-methods', companyId], queryFn: () => listPaymentMethods(companyId), enabled: open && !buyerInvoice });
 
   const sell = useMutation({
@@ -104,9 +115,18 @@ export function ConsignmentSaleDialog({ open, onOpenChange, companyId, settings,
           <Field label={t('consign.repairs')}>
             <MoneyInput value={repairs} onChange={setRepairs} />
             {suggested > 0 && (
-              <button type="button" className="text-xs text-info underline" onClick={() => setRepairs(String(suggested))}>
-                {t('consign.repairsSuggest').replace('{m}', eur(suggested))}
+              <button type="button" className="text-xs text-info underline" onClick={() => setRepairs(String(Math.round((suggested + depotTtc) * 100) / 100))}>
+                {depotTtc > 0
+                  ? t('vpG8.repairsSuggestWithDepot').replace('{m}', eur(suggested)).replace('{d}', eur(depotTtc))
+                  : t('consign.repairsSuggest').replace('{m}', eur(suggested))}
               </button>
+            )}
+            {depotTtc > 0 && <p className="text-xs text-muted-foreground">{t('vpG8.depotCostsHint').replace('{m}', eur(depotTtc))}</p>}
+            {(depotQ.data?.open_with_lines ?? 0) > 0 && (
+              <p className="flex items-start gap-1 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                {t('vpG8.depotCostsOpen').replace('{n}', String(depotQ.data?.open_with_lines ?? 0))}
+              </p>
             )}
           </Field>
         </div>

@@ -86,7 +86,7 @@ Termes hérités de G8 à employer tels quels dans l'UI, les données et les dis
 | **PAHT** | Prix d'Achat Hors Taxes (saisi à la réception). |
 | **Coût de revient** | Pour un véhicule d'occasion : `PAHT (ou prix de reprise) + ORO + frais`. Base de la marge réelle. |
 | **Arrêté (d'inventaire)** | **Photo datée** du stock à un instant T (le stock « arrêté » du triple stock). Sert de référence à l'inventaire ; réintégration unique après comptage (B4, B6). |
-| **Triple stock** | **réel** (physique) / **arrêté** (photo datée) / **disponible** (`réel − réservé + en commande`). Copies datées consultables a posteriori (B4). |
+| **Triple stock** | **réel** (physique) / **arrêté** (photo datée) / **disponible** (`réel − réservé`), la quantité **en commande** étant affichée à côté, jamais ajoutée (décision VP10 du 20/11/2026). Copies datées consultables a posteriori (B4). |
 | **TVA marge** | Régime TVA des occasions rachetées à des **particuliers** (type O) : la TVA est calculée à la revente **uniquement sur la marge** (valeur ajoutée), pas sur le prix total. Registre VO obligatoire (B2). |
 | **Dépôt-vente** | Type **D** : véhicule confié par un client, **n'entre PAS en valorisation de stock** (il reste sa propriété). À la vente : reversement au déposant + **commission** facturée. |
 | **REP** | Référence de **reprise**, type de gestion **R** (préfixe `REP-`). Point de départ du flux B3 : reprise → article occasion + fiche véhicule + ORO. |
@@ -131,7 +131,7 @@ Toute PR qui en viole un est **refusée**. Chaque invariant a ses tests (règle 
 - **B3 — Flux de reprise.** Reprise client (réf. type **R**, `REP-`) → **création automatique** de l'article
   occasion (O ou P) **+ fiche véhicule + ouverture d'un ORO** imputant pièces et MO au **coût de revient**.
   Rentabilité réelle = `PV − (prix de reprise + remise en état + frais)`.
-- **B4 — Triple stock.** réel / arrêté (photo) / disponible (`réel − réservé + en commande`).
+- **B4 — Triple stock.** réel / arrêté (photo) / disponible (`réel − réservé` ; « en commande » affiché à côté, non ajouté — VP10, 20/11/2026).
   Copies datées (15 et fin de mois) consultables a posteriori.
 - **B5 — PAMP.** Recalculé sur chaque entrée ; marges suivies à la fois sur PA **et** sur PAMP.
 - **B6 — Trois modes de réajustement d'inventaire.** annule-et-remplace · cumul (multi-emplacements) ·
@@ -177,8 +177,10 @@ Trois objets traversent tout le système, chacun avec un `company_id` :
 
 ### 4.3 Séquences documentaires (M0, par société et par type)
 Préfixes par défaut : `FAC-` (facture), `TIK-` (ticket caisse), `DEV-` (devis), `CMD-` (commande
-fournisseur), `REC-` (réception), `OR-` (ordre de réparation), `ORO-` (remise en état occasion),
-`OCC-` (occasion), `DEP-` (dépôt-vente), `REP-` (reprise), `COC-` (demande de COC).
+fournisseur), `REC-` (réception), `OR-` (ordre de réparation **et cession interne**, compteur commun
+comme G8 — VP7), `ORO-` (ancienne série des cessions), `OCC` + 7 chiffres (article d'occasion créé par la
+reprise, comme G8 — VP3), `DEP-` (dépôt-vente), `REP-` (reprise), `COC-` (demande de COC), `EAN` (code-barres
+interne `3000` + 8 chiffres + clé, comme G8 — VP2).
 
 > **Gérables par l'utilisateur (exigence client).** Les préfixes, le format (compteur, longueur,
 > remise à zéro annuelle, séparateur société) et leur signification sont **configurables dans un écran

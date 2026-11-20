@@ -6,16 +6,16 @@
  * Statut = couleur + icône + libellé (l'état de chaque étape est dit en toutes lettres ; en mode
  * compact il est porté par le titre et lu par les lecteurs d'écran).
  */
-import { AlertTriangle, CheckCircle2, Circle, CircleDot, Clock, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, CircleDot, Clock, PauseCircle, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t, fillVars } from '@/lib/i18n';
 import type { Step, StepState } from './progress-rules';
 
 const STEP_ICON: Record<StepState, LucideIcon> = {
-  done: CheckCircle2, current: CircleDot, todo: Circle, skipped: Clock, warning: AlertTriangle,
+  done: CheckCircle2, current: CircleDot, todo: Circle, skipped: Clock, warning: AlertTriangle, paused: PauseCircle,
 };
 const STEP_TEXT: Record<StepState, string> = {
-  done: 'text-success', current: 'text-info', todo: 'text-muted-foreground', skipped: 'text-warning', warning: 'text-warning',
+  done: 'text-success', current: 'text-info', todo: 'text-muted-foreground', skipped: 'text-warning', warning: 'text-warning', paused: 'text-warning',
 };
 
 /** Libellé de l'étape avec son compteur (« Opérations · 3/28 », « Réception (photos) · 6/6 photos »). */
@@ -71,8 +71,9 @@ export function OrStepsTrail({ steps, size = 'compact', className }: { steps: re
             >
               <Icon className={cn('size-4 shrink-0', STEP_TEXT[s.state])} aria-hidden />
               {stepLabel(s, true)}
-              <span className="sr-only"> : {state}</span>
-              {s.state === 'current' && <span className="hidden text-info sm:inline"> · {state}</span>}
+              {/* Un seul texte d'état (test écran du 20/11 : « étape actuelle · étape actuelle ») : visible pour
+                  l'étape actuelle en grand écran, lu seulement par les lecteurs d'écran sinon. */}
+              <span className={s.state === 'current' ? 'sr-only text-info sm:not-sr-only' : 'sr-only'}>{s.state === 'current' ? ` · ${state}` : ` : ${state}`}</span>
             </span>
           </li>
         );
