@@ -90,7 +90,10 @@ export const submitAppClientNotify = createServerFn({ method: 'POST' })
     if (!settings?.company_id) return { status: 'error', code: 'closed' };
 
     // 3. Limites : par appareil (empreinte salée de l'IP, jamais l'IP en clair) et globale.
+    // Netlify : x-nf-client-connection-ip ; Cloudflare Workers : cf-connecting-ip (sinon toutes
+    // les demandes tomberaient dans le même compteur « unknown »).
     const ip = getRequestHeader('x-nf-client-connection-ip')
+      ?? getRequestHeader('cf-connecting-ip')
       ?? getRequestIP({ xForwardedFor: true })
       ?? 'unknown';
     const clientHash = await hmac('app-client-ip', ip);

@@ -145,6 +145,8 @@ module reprises inopérant (détail : chapitres M02, M03, M07). **La table
 | **Réglages Auth** (URL du site, redirections) | Tableau de bord Supabase → Authentication → URL Configuration | **Non** |
 | **Variables Netlify** | Netlify → Site settings → Environment variables : `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (build), `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (runtime SSR, **secret**, sert à l'écran Utilisateurs) | Non (réglage manuel) |
 
+Cible d'essai **Cloudflare Workers** (20/11/2026, non déployée) : `bun run build:cloudflare` (preset Nitro `cloudflare-module`, `wrangler.jsonc`), workflow manuel désactivé `.github/workflows/deploiement-cloudflare.yml` ; détail `docs/deploiement-cloudflare.md`. Toute nouvelle fonction serveur doit lire `process.env` **dans** le gestionnaire (jamais au chargement du module) et ne pas dépendre d'un en-tête propre à Netlify.
+
 Points d'attention :
 - **Netlify ne renvoie aucun statut à GitHub** : un build cassé ne se voit pas depuis le dépôt. Vérifier dans l'interface Netlify.
 - **Auteur des commits** : sur le plan gratuit avec dépôt privé, Netlify ne construit que les commits d'un seul contributeur (`Simonclaw2505`, `docs/deploiement-netlify.md`). **Le dépôt est actuellement public** (vérifié via l'API GitHub le 18/09/2026) : cette contrainte est donc à revérifier.

@@ -1,0 +1,37 @@
+// Cloudflare Workers — DMS Ducati Bruxelles (cible d'essai, lot Cloudflare du 20/11/2026).
+// La production reste sur Netlify (netlify.toml) tant que la bascule n'est pas décidée.
+//
+// Utilisation :
+//   bun run build:cloudflare     → .output/ (public/ = statiques, server/ = Worker)
+//   bun run cf:dev               → serveur local Wrangler sur http://localhost:8787 (sans compte)
+//   bun run cf:deploy            → déploiement (compte + jeton Cloudflare requis : à faire par le client)
+//
+// Nitro (preset cloudflare-module) fusionne ce fichier dans .output/server/wrangler.json et y ajoute
+// lui-même `main` (le Worker construit) et `assets` (le dossier des statiques, liaison ASSETS) :
+// ne pas les mettre ici. Wrangler retrouve ce fichier généré grâce à .wrangler/deploy/config.json.
+//
+// Variables à poser dans Cloudflare (Workers → ducati-dms → Settings → Variables and Secrets) :
+//   SUPABASE_URL                 (texte)  adresse du projet Supabase
+//   SUPABASE_PUBLISHABLE_KEY     (texte)  clé publique Supabase (middleware d'authentification)
+//   SUPABASE_SERVICE_ROLE_KEY    (SECRET) écran Utilisateurs, inscription — posée par le client
+// Variables de BUILD (lues par Vite, incluses dans les pages ; jamais de secret) :
+//   VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY (déjà dans .env du dépôt),
+//   VITE_CLIENT_APP_URL, VITE_CLIENT_APP_HOST, VITE_MANUELS_BASE (facultatives).
+// Aucune valeur ici : rien de secret ne doit être commité.
+{
+  "$schema": "https://unpkg.com/wrangler@4.157.0/config-schema.json",
+  "name": "ducati-dms",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Journaux des requêtes et des erreurs dans le tableau de bord (7 jours en Workers Paid).
+  "observability": { "enabled": true },
+  // Les variables posées dans le tableau de bord ne sont pas effacées à chaque déploiement
+  // (sans cette ligne, `wrangler deploy` supprime les variables « texte » absentes de ce fichier).
+  "keep_vars": true
+  // Pas de domaine ici : l'essai se fait sur l'adresse ducati-dms.<compte>.workers.dev.
+  // Le domaine dms.ducatibruxelles.be s'ajoute au moment de la bascule (voir docs/deploiement-cloudflare.md).
+  //
+  // Option à évaluer après l'essai : exécuter le Worker près de la base (Paris) plutôt que près du
+  // visiteur, utile seulement si le rendu serveur appelle beaucoup Supabase.
+  // "placement": { "mode": "smart" },
+}
