@@ -1,0 +1,83 @@
+# Déploiement du DMS sur Cloudflare Workers — ESSAI, désactivé par défaut (lot Cloudflare, 20/11/2026).
+#
+# La production reste sur Netlify. Ce workflow ne se lance QUE :
+#   - à la main (onglet Actions → « Déploiement Cloudflare (essai) » → Run workflow),
+#   - et seulement si la variable de dépôt CLOUDFLARE_ACTIF vaut « oui »
+#     (Settings → Secrets and variables → Actions → Variables).
+# Sans les deux secrets ci-dessous, il s'arrête avec un message clair, sans rien envoyer.
+#
+# Secrets à poser par le propriétaire du dépôt (Settings → Secrets and variables → Actions → Secrets) :
+#   CLOUDFLARE_API_TOKEN   jeton créé PAR LE CLIENT dans son compte Cloudflare, droits minimaux :
+#                          Account → Workers Scripts → Edit (sur ce seul compte). Ajouter
+#                          Zone → Workers Routes → Edit (sur la seule zone ducatibruxelles.be)
+#                          uniquement le jour où le domaine est branché par ce workflow.
+#   CLOUDFLARE_ACCOUNT_ID  identifiant du compte Cloudflare (non secret, mais rangé avec le jeton).
+# Variables de build facultatives (Variables, pas Secrets) : VITE_CLIENT_APP_URL, VITE_CLIENT_APP_HOST.
+# Les variables du serveur (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY) se
+# posent dans Cloudflare (Workers → ducati-dms → Settings → Variables and Secrets), pas ici.
+#
+# Mode « version » : envoie une version SANS la mettre en ligne (adresse d'aperçu propre à la
+# version) ; mode « production » : la version devient celle servie sur ducati-dms.<compte>.workers.dev
+# (et sur le domaine s'il est branché). Retour arrière : `npx wrangler rollback` ou tableau de bord
+# → Deployments → version précédente.
+name: Déploiement Cloudflare (essai)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "version = aperçu sans mise en ligne ; production = mise en ligne"
+        type: choice
+        options: [version, production]
+        default: version
+
+concurrency:
+  group: deploiement-cloudflare
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deployer:
+    name: Tests, build Cloudflare, envoi
+    if: ${{ vars.CLOUDFLARE_ACTIF == 'oui' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Vérifier que le jeton et le compte sont posés
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID absents : rien n'est déployé."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.x
+
+      - name: Installer les dépendances (lockfile figé)
+        run: bun install --frozen-lockfile
+
+      - name: Tests (bun test)
+        run: bun test
+
+      - name: Build Cloudflare
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_CLIENT_APP_URL: ${{ vars.VITE_CLIENT_APP_URL }}
+          VITE_CLIENT_APP_HOST: ${{ vars.VITE_CLIENT_APP_HOST }}
+        run: bun run build:cloudflare
+
+      - name: Envoyer une version (sans mise en ligne)
+        if: ${{ inputs.mode == 'version' }}
+        run: npx -y wrangler@4.157.0 versions upload --message "${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
+
+      - name: Mettre en ligne
+        if: ${{ inputs.mode == 'production' }}
+        run: npx -y wrangler@4.157.0 deploy --message "${GITHUB_SHA::7} (${GITHUB_REF_NAME})"

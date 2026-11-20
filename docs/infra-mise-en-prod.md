@@ -263,6 +263,11 @@ comme piste plus tard, pas avant la mise en production.
 
 Coût : **≈ 20 $/mois** (+ recharges si le trafic dépasse les crédits ; à surveiller le 1er mois).
 
+> **Mise à jour du 20/11/2026 (lot Cloudflare)** : le client a un compte Cloudflare et veut tester
+> Workers. Une construction Cloudflare est prête à côté de celle de Netlify (`bun run build:cloudflare`,
+> `wrangler.jsonc`) et a été testée en local : voir `docs/deploiement-cloudflare.md` (verdict,
+> compatibilité, taille, déploiement, domaine, coûts, bascule et retour arrière).
+
 ### 3.4 Étapes de migration
 
 | # | Étape | Qui |

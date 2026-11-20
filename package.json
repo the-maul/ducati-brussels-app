@@ -7,6 +7,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:cloudflare": "DEPLOY_TARGET=cloudflare vite build",
+    "cf:dev": "npx -y wrangler@4.157.0 dev --local --port 8787",
+    "cf:deploy": "npx -y wrangler@4.157.0 deploy",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
