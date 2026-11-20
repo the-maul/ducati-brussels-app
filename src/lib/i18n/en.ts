@@ -11,6 +11,7 @@ import { receptionEn, planOpsEn } from './parcours-cd';
 import { myWorkshopEn } from './mon-atelier';
 import { orLisibleEn } from './or-lisible';
 import { uxAtelierEn } from './ux-atelier';
+import { designFichesEn } from './design-fiches';
 import { decisionsQ57Q60En } from './decisions-q57-q60';
 import { dashboardCaEn } from './dashboard-ca';
 import { decisionsQ63Q67En } from './decisions-q63-q67';
@@ -59,7 +60,7 @@ export const en: DictionaryShape = {
     receivables: "Collections",
     webOrders: 'Website orders',
     picking: 'Picking list',
-    clients: 'Contacts',
+    clients: 'Customers',
     crm: 'CRM',
     crmFollowups: 'Reminders',
     pos: 'Till',
@@ -136,7 +137,7 @@ export const en: DictionaryShape = {
     status_pret: 'Ready',
     status_erreur: 'Error',
     lastRefresh: 'Last copy: {date}',
-    counts: '{articles} items · {contacts} contacts · {vehicles} motorcycles · {stock} items in stock',
+    counts: '{articles} items · {contacts} customers · {vehicles} motorcycles · {stock} items in stock',
     create: 'Create {name} from {source}',
     refresh: 'Refresh {name} from {source}',
     confirmTitle: 'Refresh the test company?',
@@ -759,8 +760,8 @@ export const en: DictionaryShape = {
 
   // Contacts (M1)
   contacts: {
-    title: 'Contacts',
-    subtitle: 'All contacts: customers, prospects and suppliers.',
+    title: 'Customers',
+    subtitle: 'Customers, prospects and suppliers in one list.',
     filterAll: 'All types',
     new: 'New customer',
     edit: 'Edit record',
@@ -2885,7 +2886,7 @@ export const en: DictionaryShape = {
 
   matching: {
     title: 'Customers interested in this model',
-    subtitle: 'Contacts whose preferences match this bike.',
+    subtitle: 'Customers whose preferences match this bike.',
     reasonModel: 'Followed model',
     reasonUsage: 'Compatible use',
     notify: 'Notify',
@@ -2898,7 +2899,7 @@ export const en: DictionaryShape = {
     notifyAllResult: '{count} customer(s) notified by e-mail.',
     notifyAllNone: 'No customer with an e-mail to notify.',
     none: 'No customer interested in this model for now.',
-    colContact: 'Contact', colReason: 'Match', colContactInfo: 'Contact details', colActions: 'Actions',
+    colContact: 'Customer', colReason: 'Match', colContactInfo: 'Contact details', colActions: 'Actions',
   },
 
   // Documents & GED (M9)
@@ -6516,7 +6517,7 @@ export const en: DictionaryShape = {
     kind_reprise: 'Trade-in request',
     kind_interne: 'Internal fleet',
     kindClient: "Customer's bike",
-    clientBikeHint: 'Bike entrusted by a customer: it has no article and is never published on the site.',
+    clientBikeHint: 'Customer bike: it has no article and is never published on the site.',
     mgmt_V: 'New bike (V)',
     mgmt_O: 'Used, private seller (O) — margin VAT',
     mgmt_P: 'Used, professional (P) — 21% VAT',
@@ -7034,7 +7035,7 @@ export const en: DictionaryShape = {
     keptLink: 'The record stays linked to the model year chosen before.',
     fromVin: 'from the VIN: ',
     use: 'Use',
-    complete: 'Complete {n} empty field(s) from the VIN',
+    complete: 'Fill empty fields from the VIN ({n})',
     filledHint: 'Filled from the VIN',
     drawings: 'Exploded diagrams ({n})',
     noDrawings: 'Exploded diagrams not loaded yet',
@@ -7572,7 +7573,7 @@ export const en: DictionaryShape = {
     tabDocuments: 'Documents',
     tabDue: 'Due dates',
     tabDeliveries: 'Deliveries',
-    tabContacts: 'Contacts',
+    tabContacts: 'Contact persons',
     tabPricing: 'Pricing',
     creditAuthorized: 'Authorised credit',
     creditCurrent: 'Current outstanding',
@@ -9410,6 +9411,8 @@ export const en: DictionaryShape = {
   orLisible: orLisibleEn,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierEn,
+  // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
+  designFiches: designFichesEn,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60En,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

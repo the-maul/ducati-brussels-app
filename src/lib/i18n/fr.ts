@@ -11,6 +11,7 @@ import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
 import { orLisibleFr } from './or-lisible';
 import { uxAtelierFr } from './ux-atelier';
+import { designFichesFr } from './design-fiches';
 import { decisionsQ57Q60Fr } from './decisions-q57-q60';
 import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
@@ -70,7 +71,7 @@ export const fr = {
     receivables: "Encaissements",
     webOrders: 'Commandes du site',
     picking: 'Picking list',
-    clients: 'Contacts',
+    clients: 'Clients',
     crm: 'CRM',
     crmFollowups: 'Relances',
     pos: 'Caisse',
@@ -147,7 +148,7 @@ export const fr = {
     status_pret: 'Prête',
     status_erreur: 'Erreur',
     lastRefresh: 'Dernière copie : {date}',
-    counts: '{articles} articles · {contacts} contacts · {vehicles} motos · {stock} articles en stock',
+    counts: '{articles} articles · {contacts} clients · {vehicles} motos · {stock} articles en stock',
     create: 'Créer {name} depuis {source}',
     refresh: 'Rafraîchir {name} depuis {source}',
     confirmTitle: 'Rafraîchir la société de test ?',
@@ -759,8 +760,8 @@ export const fr = {
 
   // Contacts (M1)
   contacts: {
-    title: 'Contacts',
-    subtitle: 'Tous les contacts : clients, prospects et fournisseurs.',
+    title: 'Clients',
+    subtitle: 'Clients, prospects et fournisseurs sur une seule liste.',
     filterAll: 'Tous les types',
     new: 'Nouveau client',
     edit: 'Modifier la fiche',
@@ -2891,7 +2892,7 @@ export const fr = {
 
   matching: {
     title: 'Clients intéressés par ce modèle',
-    subtitle: 'Contacts dont les préférences correspondent à cette moto.',
+    subtitle: 'Clients dont les préférences correspondent à cette moto.',
     reasonModel: 'Modèle suivi',
     reasonUsage: 'Usage compatible',
     notify: 'Notifier',
@@ -2904,7 +2905,7 @@ export const fr = {
     notifyAllResult: '{count} client(s) notifié(s) par e-mail.',
     notifyAllNone: 'Aucun client avec e-mail à notifier.',
     none: 'Aucun client intéressé par ce modèle pour le moment.',
-    colContact: 'Contact', colReason: 'Correspondance', colContactInfo: 'Coordonnées', colActions: 'Actions',
+    colContact: 'Client', colReason: 'Correspondance', colContactInfo: 'Coordonnées', colActions: 'Actions',
   },
 
   // Documents & GED (M9)
@@ -6533,7 +6534,7 @@ export const fr = {
     kind_reprise: 'Demande de reprise',
     kind_interne: 'Parc interne',
     kindClient: 'Moto de client',
-    clientBikeHint: 'Moto confiée par un client : elle n’a pas d’article et n’est jamais publiée sur le site.',
+    clientBikeHint: 'Moto de client : elle n’a pas d’article et n’est jamais publiée sur le site.',
     mgmt_V: 'Moto neuve (V)',
     mgmt_O: 'Occasion particulier (O) — TVA sur marge',
     mgmt_P: 'Occasion professionnel (P) — TVA 21 %',
@@ -7051,7 +7052,7 @@ export const fr = {
     keptLink: 'La fiche reste rattachée au modèle-année choisi auparavant.',
     fromVin: 'd’après le VIN : ',
     use: 'Utiliser',
-    complete: 'Compléter {n} champ(s) vide(s) d’après le VIN',
+    complete: 'Compléter les champs vides d’après le VIN ({n})',
     filledHint: 'Rempli d’après le VIN',
     drawings: 'Vues éclatées ({n})',
     noDrawings: 'Vues éclatées pas encore chargées',
@@ -7589,7 +7590,7 @@ export const fr = {
     tabDocuments: 'Documents',
     tabDue: 'Échéances',
     tabDeliveries: 'Livraisons',
-    tabContacts: 'Contacts',
+    tabContacts: 'Interlocuteurs',
     tabPricing: 'Tarifs',
     creditAuthorized: 'Encours autorisé',
     creditCurrent: 'Encours actuel',
@@ -9430,6 +9431,8 @@ export const fr = {
   orLisible: orLisibleFr,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierFr,
+  // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
+  designFiches: designFichesFr,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60Fr,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.
