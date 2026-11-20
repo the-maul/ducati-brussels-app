@@ -22,7 +22,7 @@ const at = (iso: string) => new Date(iso);
 describe('picking list : quand est-elle due ?', () => {
   const rdvJ2 = '2026-11-21T08:00:00Z'; // 21/11 09:00 Bruxelles
   test('reglages par defaut : la veille a 16 h, urgente sous 5 jours', () => {
-    expect(DEFAULT_PARTS_SETTINGS).toEqual({ mode: 'veille', eveHour: 16, urgentDays: 5 });
+    expect(DEFAULT_PARTS_SETTINGS).toEqual({ mode: 'veille', eveHour: 16, urgentDays: 5, eveBasis: 'ouvree' });
     expect(isPickingMode('veille')).toBe(true);
     expect(isPickingMode('demain')).toBe(false);
   });

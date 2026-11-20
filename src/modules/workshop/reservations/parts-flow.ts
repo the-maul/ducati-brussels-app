@@ -12,7 +12,11 @@ const q3 = (n: number) => Math.round(n * 1000) / 1000;
 
 export type PickingAutoMode = 'veille' | 'reception' | 'manuel';
 export const PICKING_MODES: readonly PickingAutoMode[] = ['veille', 'reception', 'manuel'];
-export const DEFAULT_PARTS_SETTINGS = { mode: 'veille' as PickingAutoMode, eveHour: 16, urgentDays: 5 };
+/** Q58 (20/11/2026) : veille OUVREE (defaut, dernier jour ouvert de l'atelier) ou veille calendaire. */
+export type PickingEveBasis = 'ouvree' | 'calendaire';
+export const PICKING_EVE_BASES: readonly PickingEveBasis[] = ['ouvree', 'calendaire'];
+export const isPickingEveBasis = (v: unknown): v is PickingEveBasis => v === 'ouvree' || v === 'calendaire';
+export const DEFAULT_PARTS_SETTINGS = { mode: 'veille' as PickingAutoMode, eveHour: 16, urgentDays: 5, eveBasis: 'ouvree' as PickingEveBasis };
 
 export function isPickingMode(v: unknown): v is PickingAutoMode {
   return typeof v === 'string' && (PICKING_MODES as readonly string[]).includes(v);
@@ -33,12 +37,42 @@ const dayDiff = (a: string, b: string) => Math.round((Date.parse(`${a}T00:00:00Z
  * La picking list d'un RDV est-elle due ? Mode veille : RDV du jour (rattrapage), ou RDV du
  * lendemain a partir de l'heure reglee. Les autres modes ne creent rien a l'avance.
  */
-export function pickingDue(p: { mode: PickingAutoMode; eveHour: number; startsAt: string | Date | null; now?: Date }): boolean {
+export function pickingDue(p: {
+  mode: PickingAutoMode; eveHour: number; startsAt: string | Date | null; now?: Date;
+  /** Q58 : jour de creation de la liste (AAAA-MM-JJ) ; absent = veille calendaire. */
+  eveDate?: string | null;
+}): boolean {
   if (p.mode !== 'veille' || !p.startsAt) return false;
   const now = brusselsParts(p.now ?? new Date());
   const rdv = brusselsParts(typeof p.startsAt === 'string' ? new Date(p.startsAt) : p.startsAt);
   const d = dayDiff(rdv.date, now.date);
-  return d === 0 || (d === 1 && now.hour >= p.eveHour);
+  if (d === 0) return true;          // rattrapage : RDV du jour
+  if (d < 0) return false;
+  const eve = p.eveDate ?? addDaysYmd(rdv.date, -1);
+  const fromEve = dayDiff(now.date, eve);
+  return fromEve > 0 || (fromEve === 0 && now.hour >= p.eveHour);
+}
+
+/** AAAA-MM-JJ + n jours (calendrier, sans fuseau). */
+export function addDaysYmd(ymd: string, n: number): string {
+  const t = Date.parse(`${ymd}T00:00:00Z`) + n * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * Q58 (20/11/2026) : jour de creation de la picking list d'un RDV du jour `rdvDate`. Veille
+ * calendaire : le jour d'avant. Veille ouvree : le dernier jour OUVERT de l'atelier avant le RDV
+ * (`isOpen` = horaires des compagnons, feries belges, fermetures : workshop_day_is_open), 31 jours
+ * au plus ; aucun jour ouvert : la veille calendaire. Miroir : workshop_picking_eve_date.
+ * Exemple : RDV du mardi, atelier ferme dimanche et lundi → samedi.
+ */
+export function eveDate(rdvDate: string, basis: PickingEveBasis, isOpen: (ymd: string) => boolean): string {
+  if (basis === 'calendaire') return addDaysYmd(rdvDate, -1);
+  for (let i = 1; i <= 31; i++) {
+    const d = addDaysYmd(rdvDate, -i);
+    if (isOpen(d)) return d;
+  }
+  return addDaysYmd(rdvDate, -1);
 }
 
 export type SupplierAvailability = 'green' | 'yellow' | 'red' | null;

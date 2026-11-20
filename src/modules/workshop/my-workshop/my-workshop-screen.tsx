@@ -57,7 +57,7 @@ import { OrStatusBadge } from '../or-base/or-status-badge';
 import { PlanProgressBadge } from '../plan-ops/plan-ops-panel';
 import { OrWorkBadge, PauseDialog, startWorkWithConfirm } from '../pointage/work-controls';
 import { listPauseReasons, pauseWork, stopWorkPointage } from '../pointage/api';
-import { reasonLabel } from '../pointage/rules';
+import { stopLabel } from '../pointage/rules';
 import { ReceptionSheet } from '../reception/reception-sheet';
 import { createOrFromPlanningAppointment, type PlanningAppointment } from '../planning/api';
 import type { PlanningMechanic } from '../planning/rules';
@@ -65,6 +65,8 @@ import { StatusIcon } from '../planning/status-icon';
 import { statusTone } from '../planning/rules';
 import { contactLabel, motoLabel } from '../planning/ui-bits';
 import { getHomePref, loadMyDay, saveHomePref, type MyDay } from './api';
+import { useSharedTablet } from '../shared-tablet/shared-tablet-provider';
+import { SharedNowPanel } from '../shared-tablet/shared-now-panel';
 import {
   HOME_PREFS, MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, ageLabel, canChooseWorkshop, cardGesture, cardMotive, cardOwner,
   cardWhen, chooserMechanics, myCurrentWork, needsReceptionFirst, notLinkedHint, orAgeDays, partsTone, photosState, photosTone,
@@ -98,8 +100,11 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   onView?: (v: WorkshopView) => void;
 }) {
   const { user, profile, rolesForActiveCompany } = useAuth();
-  const canChoose = canChooseWorkshop(rolesForActiveCompany) && !!onView;
-  const viewKey = canChoose ? workshopViewParam(view) ?? 'me' : 'me';
+  // Q60 (20/11/2026) : tablette partagee → tout l'atelier, chaque geste sous « Qui etes-vous ? ».
+  const tablet = useSharedTablet();
+  const shared = tablet.shared;
+  const canChoose = !shared && canChooseWorkshop(rolesForActiveCompany) && !!onView;
+  const viewKey = shared ? 'shared' : canChoose ? workshopViewParam(view) ?? 'me' : 'me';
   const canWrite = useCanWrite();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -115,7 +120,10 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
 
   const day = useQuery({
     queryKey: ['my-workshop', companyId, userId, today, viewKey],
-    queryFn: () => loadMyDay({ companyId, userId: userId!, profileName: profile?.full_name ?? null, today, view, canChoose }),
+    queryFn: () => loadMyDay({
+      companyId, userId: userId!, profileName: profile?.full_name ?? null, today,
+      view: shared ? { kind: 'all' } : view, canChoose: shared || canChoose,
+    }),
     enabled: !!userId,
     refetchInterval: MY_WORKSHOP_REFRESH_MS,
     refetchOnWindowFocus: true,
@@ -209,7 +217,8 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
       if (!ok) return;
     }
     const owner = cardOwner(card, d.me, d.mechanics);
-    if (owner.foreign && g !== 'continue') {
+    // Tablette partagee : le pointage est au nom de la personne identifiee, rien a confirmer.
+    if (owner.foreign && g !== 'continue' && !shared) {
       const name = owner.name || t('myWorkshop.someone');
       const meName = d.me.displayName || t('myWorkshop.meUnknown');
       const ok = await confirm({
@@ -230,7 +239,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const pause = useMutation({
     mutationFn: (v: { reason: string; orStatus: string | null }) => {
       if (now.kind !== 'running') throw new Error(t('myWorkshop.nothingRunning'));
-      return pauseWork({ reason: v.reason, entryId: now.entry.id, orId: now.entry.or_id, orStatus: v.orStatus, origin: ORIGIN });
+      return pauseWork({ reason: v.reason, entryId: now.entry.id, orId: now.entry.or_id, orStatus: v.orStatus, origin: ORIGIN, companyId });
     },
     meta: { success: false },
     onSuccess: (r) => { setPauseOpen(false); toast.success(r.or_status_changed ? t('pointage.pausedStatus') : t('pointage.paused')); refresh(); },
@@ -239,7 +248,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const finish = useMutation({
     mutationFn: () => {
       if (now.kind !== 'running') throw new Error(t('myWorkshop.nothingRunning'));
-      return stopWorkPointage({ entryId: now.entry.id, orId: now.entry.or_id, origin: ORIGIN });
+      return stopWorkPointage({ entryId: now.entry.id, orId: now.entry.or_id, origin: ORIGIN, companyId });
     },
     meta: { success: false },
     onSuccess: () => { toast.success(t('pointage.finished')); refresh(); },
@@ -286,6 +295,14 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
     <div className="mx-auto w-full max-w-[1400px] space-y-5 pb-10 text-[16px]">
       {/* ------------------------------------------------------------ moi + mon pointage */}
       <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5" aria-label={t('myWorkshop.nowTitle')}>
+        {shared ? (
+          <SharedNowPanel
+            reasons={nowReasons} orNumbers={d.orNumbers} canWrite={canWrite && d.pointageReady}
+            onResume={(orId) => pointThenGo(orId, d.cards.find((c) => c.or?.id === orId) ?? null, 'resume')}
+            onChanged={refresh}
+          />
+        ) : (
+          <>
         {/* Revue UX (20/11) : en-tete compact. Sans pointage en cours, l'etat tient sur la meme ligne
             que le nom et les motos du jour remontent dans le premier ecran de la tablette. */}
         <div className="flex flex-wrap items-center gap-3">
@@ -347,7 +364,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
             {now.kind === 'paused' && (
               <>
                 <StatusBadge tone="warning" icon={Pause} className={BIG}
-                  label={fill(t('pointage.pausedReason'), { reason: now.entry.stop_kind === 'auto_stop' ? t('pointage.stop_auto_stop') : reasonLabel(now.entry.stop_reason, nowReasons, t) || t('pointage.stop_pause') })} />
+                  label={fill(t('pointage.pausedReason'), { reason: stopLabel(now.entry.stop_kind, now.entry.stop_reason, nowReasons, t) })} />
                 <p className="mt-2 text-[17px]">
                   {fill(t('myWorkshop.pausedOn'), { number: nowOrNumber ?? '', at: now.entry.ended_at ? hhmm(now.entry.ended_at) : '' })}
                   {nowCard?.or && <> · {motoLabel(nowCard.or.vehicles ?? null)}</>}
@@ -378,6 +395,8 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
             </div>
           )}
         </div>
+        )}
+          </>
         )}
         {!d.pointageReady && <p className="mt-3 text-[15px] text-warning">{t('myWorkshop.pointageMissing')}</p>}
       </section>

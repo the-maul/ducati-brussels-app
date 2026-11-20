@@ -3,6 +3,8 @@
  *   - moment de creation de la picking list : la veille du RDV (defaut) / a la reception de la moto
  *     (creation de l'OR) / a la main ;
  *   - heure de la tache de la veille (16 h par defaut) ;
+ *   - Q58 (20/11/2026) : veille OUVREE (defaut : dernier jour ouvert de l'atelier, RDV du mardi →
+ *     samedi) ou veille calendaire ;
  *   - « urgente si le RDV est a moins de N jours » (5 par defaut) : c'est LE reglage des commandes
  *     (Parametres → Tables → Seuils de commande, ligne urgente), lu et ecrit ici, pas copie.
  * Migration 20261119250000 absente : un message, rien d'autre.
@@ -16,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { Field } from '../planning/ui-bits';
-import { DEFAULT_PARTS_SETTINGS, PICKING_MODES, isPickingMode } from './parts-flow';
+import { DEFAULT_PARTS_SETTINGS, PICKING_EVE_BASES, PICKING_MODES, isPickingEveBasis, isPickingMode } from './parts-flow';
 import { getPartsSettings, savePartsSettings, type PartsSettings } from './upcoming-api';
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
@@ -47,7 +49,7 @@ export function PartsFlowSettingsSection({ companyId, readOnly = false }: { comp
       {q.data === null && <p className="rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">{t('upcomingParts.migrationMissing')}</p>}
       {q.data && (
         <>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <Field label={t('upcomingParts.setMode')}>
               <Select value={s.mode} onValueChange={(v) => isPickingMode(v) && setS({ ...s, mode: v })} disabled={readOnly}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -60,11 +62,22 @@ export function PartsFlowSettingsSection({ companyId, readOnly = false }: { comp
                 <SelectContent>{HOURS.map((h) => <SelectItem key={h} value={String(h)}>{`${String(h).padStart(2, '0')}:00`}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
+            {s.eveBasisReady !== false && (
+              <Field label={t('pickingEve.label')}>
+                <Select value={s.eveBasis} onValueChange={(v) => isPickingEveBasis(v) && setS({ ...s, eveBasis: v })} disabled={readOnly || s.mode !== 'veille'}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PICKING_EVE_BASES.map((b) => <SelectItem key={b} value={b}>{t(`pickingEve.basis_${b}`)}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+            )}
             <Field label={t('upcomingParts.setUrgentDays')}>
               <Input value={days} onChange={(e) => setDays(e.target.value)} inputMode="numeric" className="text-right tabular-nums" disabled={readOnly} />
             </Field>
           </div>
           <p className="mt-2 text-[12px] text-muted-foreground">{t(`upcomingParts.modeHint_${s.mode}`)}</p>
+          {s.mode === 'veille' && s.eveBasisReady !== false && (
+            <p className="mt-1 text-[12px] text-muted-foreground">{t(`pickingEve.hint_${s.eveBasis}`)}</p>
+          )}
           <p className="mt-1 text-[12px] text-muted-foreground">
             {t('upcomingParts.urgentHint')}{' '}
             <Link to="/parts/upcoming" className="font-medium underline">{t('upcomingParts.openScreen')}</Link>

@@ -26,7 +26,7 @@ import {
   type OrWorkStatusRow, type Who,
 } from './api';
 import {
-  orWorkState, proposedOrStatus, reasonLabel, totalWorkMinutes, workActions, workStateTone,
+  orWorkState, proposedOrStatus, stopLabel, totalWorkMinutes, workActions, workStateTone,
   type Me, type OrWorkState, type PauseReason, type StartResult,
 } from './rules';
 
@@ -49,7 +49,7 @@ export function workStateLabel(s: OrWorkState, reasons: PauseReason[]): string {
     return fill(t('pointage.runningBy'), { who: s.running.map((r) => r.name).join(', '), since: first ? hhmm(first.since) : '' });
   }
   if (s.state === 'paused' && s.last) {
-    const why = s.last.kind === 'auto_stop' ? t('pointage.stop_auto_stop') : reasonLabel(s.last.reason, reasons, t);
+    const why = stopLabel(s.last.kind, s.last.reason, reasons, t);
     return fill(t('pointage.pausedReason'), { reason: why || t('pointage.stop_pause') });
   }
   if (s.state === 'stopped') return t('pointage.stateStopped');
@@ -275,7 +275,7 @@ export function OrWorkBadge({ row, reasons = [], compact, className }: { row: Or
     ? (compact ? fill(t('pointage.runningShort'), { since: row.running_since ? hhmm(row.running_since) : '' })
       : fill(t('pointage.runningBy'), { who: row.running_by ?? '?', since: row.running_since ? hhmm(row.running_since) : '' }))
     : fill(t('pointage.pausedReason'), {
-      reason: row.last_stop_kind === 'auto_stop' ? t('pointage.stop_auto_stop') : reasonLabel(row.last_stop_reason, reasons, t) || t('pointage.stop_pause'),
+      reason: stopLabel(row.last_stop_kind, row.last_stop_reason, reasons, t),
     });
   return (
     <StatusBadge

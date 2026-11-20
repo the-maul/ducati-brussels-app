@@ -7,7 +7,7 @@
  * Les images restent chez Ducati (liens e-catalog.ducati.com) : rien n'est copié ici.
  */
 import { supabase } from '@/integrations/supabase/client';
-import type { DrawingOrder, LineHit, Location, PricedArticle, ReserveResult } from './rules';
+import type { CatalogOrLine, DrawingOrder, LineHit, Location, PricedArticle, ReserveLineResult, ReserveResult } from './rules';
 import { locateInDrawings, normalizeCatalogReference } from './rules';
 
 type Res<T> = PromiseLike<{ data: T | null; error: { message: string; code?: string } | null }>;
@@ -132,6 +132,34 @@ export async function reserveForOr(orId: string, articleId: string, qty: number)
   return {
     already: d.already === true, qtyNeeded: n(d.qty_needed), qtyReserved: n(d.qty_reserved), qtyToOrder: n(d.qty_to_order),
     basketKind: d.basket_kind == null ? null : String(d.basket_kind), orderBlocked: d.order_blocked === true,
+  };
+}
+
+/**
+ * Q59 (20/11/2026) : « Reserver » + ligne de l'OR en une transaction (migration 20261120103000).
+ * `null` = fonction absente (migration non appliquee) : l'ecran reserve seulement, comme avant.
+ */
+export async function reserveForOrWithLine(orId: string, articleId: string, qty: number, line: CatalogOrLine | null): Promise<ReserveLineResult | null> {
+  const { data, error } = await sb.rpc('workshop_reservation_add_line', {
+    _or: orId, _article: articleId, _qty: qty, _source: 'vue_eclatee',
+    _line: line ? { designation: line.designation, unit_price_ht: line.unit_price_ht, vat_rate: line.vat_rate, discount_pct: line.discount_pct } : null,
+  });
+  if (error) {
+    if (isMissingSchema(error)) return null;
+    throw new Error(error.message);
+  }
+  const d = (data ?? {}) as Record<string, unknown>;
+  const n = (v: unknown) => Number(v ?? 0) || 0;
+  const l = d.line as Record<string, unknown> | null | undefined;
+  const st = String(d.line_status ?? 'kept');
+  return {
+    already: d.already === true, qtyNeeded: n(d.qty_needed), qtyReserved: n(d.qty_reserved), qtyToOrder: n(d.qty_to_order),
+    basketKind: d.basket_kind == null ? null : String(d.basket_kind), orderBlocked: d.order_blocked === true,
+    lineStatus: st === 'created' || st === 'adjusted' ? st : 'kept', lineQty: n(d.line_qty),
+    line: l ? {
+      kind: 'piece', article_id: articleId, designation: String(l.designation ?? ''), quantity: n(l.quantity),
+      unit_price_ht: n(l.unit_price_ht), vat_rate: n(l.vat_rate), discount_pct: n(l.discount_pct), is_warranty: l.is_warranty === true,
+    } : null,
   };
 }
 

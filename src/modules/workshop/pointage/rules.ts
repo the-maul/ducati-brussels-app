@@ -162,11 +162,22 @@ export function workStateTone(state: OrWorkState['state']): 'info' | 'warning' |
 /** Cle i18n du motif (motif de la liste : son libelle ; motif systeme ou absent : libelle du DMS). */
 export function reasonLabel(code: string | null | undefined, reasons: PauseReason[], tr: (k: string) => string): string {
   if (!code) return '';
+  // Q57 (20/11/2026) : motif systeme de la pause automatique apres « Vous etes toujours la ? ».
+  if (code === 'fin_journee_auto') return tr('endOfDay.reasonAuto');
   const r = reasons.find((x) => x.code === code);
   if (r) return r.label;
   const key = `pointage.reason_${code}`;
   const v = tr(key);
   return v === key ? code : v;
+}
+
+/**
+ * Libelle de la fin d'un pointage : arret automatique (lot A) ou pause automatique de fin de
+ * journee sans reponse (Q57, « Fin de journee (automatique) »), sinon le motif de la pause.
+ */
+export function stopLabel(kind: string | null | undefined, reason: string | null | undefined, reasons: PauseReason[], tr: (k: string) => string): string {
+  if (kind === 'auto_stop') return reason === 'fin_journee_auto' ? tr('endOfDay.reasonAuto') : tr('pointage.stop_auto_stop');
+  return reasonLabel(reason, reasons, tr) || tr('pointage.stop_pause');
 }
 
 /** Libelle court d'un pointage clos (« en pause : attente piece », « arret automatique »...). */

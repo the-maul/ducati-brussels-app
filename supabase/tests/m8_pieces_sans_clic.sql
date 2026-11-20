@@ -58,6 +58,12 @@ update public.articles set stock_min = 0 where id = (select v::uuid from _ctx wh
 insert into public.workshop_planning_settings (company_id, picking_auto_mode, picking_eve_hour)
 values ('3d9f0f13-a691-4d07-ad58-34590df86e33', 'veille', 16)
 on conflict (company_id) do update set picking_auto_mode = 'veille', picking_eve_hour = 16;
+-- Q58 (20/11) : ce scenario raisonne en veille CALENDAIRE (RDV de demain) ; la veille ouvree a son essai
+-- (m8_picking_veille_ouvree.sql). Sans la migration Q58, la colonne n'existe pas : rien a faire.
+do $q58$ begin
+  update public.workshop_planning_settings set picking_eve_basis = 'calendaire' where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33';
+exception when undefined_column then null;
+end $q58$;
 update public.reference_values set extra = coalesce(extra, '{}'::jsonb) || '{"urgent_within_days": 5}'::jsonb
  where company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and table_key = 'order_threshold' and code = 'urgente';
 
@@ -88,7 +94,7 @@ set local role authenticated;
 
 insert into _t(check_name, result)
 select 'reglages : veille, 16 h, urgente sous 5 jours',
-       case when public.workshop_parts_settings('3d9f0f13-a691-4d07-ad58-34590df86e33') = '{"mode": "veille", "eve_hour": 16, "urgent_days": 5}'::jsonb
+       case when public.workshop_parts_settings('3d9f0f13-a691-4d07-ad58-34590df86e33') @> '{"mode": "veille", "eve_hour": 16, "urgent_days": 5}'::jsonb
             then 'ok' else 'KO ' || public.workshop_parts_settings('3d9f0f13-a691-4d07-ad58-34590df86e33')::text end;
 
 insert into _ctx select 'set1', public.workshop_parts_settings_set('3d9f0f13-a691-4d07-ad58-34590df86e33', 'veille', 16, 5)::text;
