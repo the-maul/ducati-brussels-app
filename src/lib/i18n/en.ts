@@ -11,6 +11,7 @@ import { receptionEn, planOpsEn } from './parcours-cd';
 import { myWorkshopEn } from './mon-atelier';
 import { orLisibleEn } from './or-lisible';
 import { uxAtelierEn } from './ux-atelier';
+import { designEcransEn } from './design-ecrans';
 import { decisionsQ57Q60En } from './decisions-q57-q60';
 import { dashboardCaEn } from './dashboard-ca';
 import { decisionsQ63Q67En } from './decisions-q63-q67';
@@ -4030,7 +4031,7 @@ export const en: DictionaryShape = {
     // export CSV
     export: 'Export',
     // réappro / back-order
-    reorderView: 'Replenishment', reorderEmpty: 'No article to watch for replenishment.',
+    reorderView: 'Order proposal', reorderEmpty: 'No article to watch for replenishment.',
     colSupplier: 'Supplier', colGap: 'Shortfall',
     // dépréciation de stock
     deprecBtn: 'Write-downs', deprecTitle: 'Stock write-downs',
@@ -9410,6 +9411,8 @@ export const en: DictionaryShape = {
   orLisible: orLisibleEn,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierEn,
+  // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
+  designEcrans: designEcransEn,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60En,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

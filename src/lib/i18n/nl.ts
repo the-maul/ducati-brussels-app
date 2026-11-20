@@ -11,6 +11,7 @@ import { receptionNl, planOpsNl } from './parcours-cd';
 import { myWorkshopNl } from './mon-atelier';
 import { orLisibleNl } from './or-lisible';
 import { uxAtelierNl } from './ux-atelier';
+import { designEcransNl } from './design-ecrans';
 import { decisionsQ57Q60Nl } from './decisions-q57-q60';
 import { dashboardCaNl } from './dashboard-ca';
 import { decisionsQ63Q67Nl } from './decisions-q63-q67';
@@ -4030,7 +4031,7 @@ export const nl: DictionaryShape = {
     // export CSV
     export: 'Exporteren',
     // réappro / back-order
-    reorderView: 'Herbevoorrading', reorderEmpty: 'Geen artikel op te volgen voor herbevoorrading.',
+    reorderView: 'Bestelvoorstel', reorderEmpty: 'Geen artikel op te volgen voor herbevoorrading.',
     colSupplier: 'Leverancier', colGap: 'Tekort',
     // dépréciation de stock
     deprecBtn: 'Waardeverminderingen', deprecTitle: 'Waardeverminderingen voorraad',
@@ -9410,6 +9411,8 @@ export const nl: DictionaryShape = {
   orLisible: orLisibleNl,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierNl,
+  // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
+  designEcrans: designEcransNl,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60Nl,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

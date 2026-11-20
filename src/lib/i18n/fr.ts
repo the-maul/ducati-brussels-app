@@ -11,6 +11,7 @@ import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
 import { orLisibleFr } from './or-lisible';
 import { uxAtelierFr } from './ux-atelier';
+import { designEcransFr } from './design-ecrans';
 import { decisionsQ57Q60Fr } from './decisions-q57-q60';
 import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
@@ -4046,7 +4047,7 @@ export const fr = {
     // export CSV
     export: 'Exporter',
     // réappro / back-order
-    reorderView: 'Réappro', reorderEmpty: 'Aucun article à surveiller pour réappro.',
+    reorderView: 'Proposition de commande', reorderEmpty: "Aucun article à commander pour l'instant.",
     colSupplier: 'Fournisseur', colGap: 'Manque',
     // dépréciation de stock
     deprecBtn: 'Dépréciations', deprecTitle: 'Dépréciations de stock',
@@ -9430,6 +9431,8 @@ export const fr = {
   orLisible: orLisibleFr,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierFr,
+  // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
+  designEcrans: designEcransFr,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60Fr,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.
