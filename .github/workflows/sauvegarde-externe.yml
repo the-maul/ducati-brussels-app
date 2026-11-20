@@ -90,7 +90,9 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
           sudo apt-get install -y -qq postgresql-client-17 age
           curl -fsSL https://rclone.org/install.sh | sudo bash >/dev/null
-          pg_dump --version; rclone version | head -1; age --version
+          # Le runner a déjà un pg_dump 16 dans le PATH : on force la version 17 (serveur Supabase en 17).
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version; rclone version | head -1; age --version
 
       - name: Base — pg_dump chiffré vers le bucket
         env:
@@ -101,7 +103,7 @@ jobs:
           D=$(date -u +%Y-%m-%d)
           # Schémas métier + comptes (auth) + métadonnées des fichiers (storage) + tâches planifiées (cron).
           # Le coffre « vault » n'est volontairement pas exporté (secrets chiffrés).
-          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges \
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges \
               --schema=public --schema=auth --schema=storage --schema=cron \
               --exclude-table-data='cron.job_run_details' \
             | age -r "$AGE_RECIPIENT" \
