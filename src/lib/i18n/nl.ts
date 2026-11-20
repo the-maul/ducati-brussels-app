@@ -11,6 +11,7 @@ import { receptionNl, planOpsNl } from './parcours-cd';
 import { myWorkshopNl } from './mon-atelier';
 import { orLisibleNl } from './or-lisible';
 import { uxAtelierNl } from './ux-atelier';
+import { designFichesNl } from './design-fiches';
 import { decisionsQ57Q60Nl } from './decisions-q57-q60';
 import { dashboardCaNl } from './dashboard-ca';
 import { decisionsQ63Q67Nl } from './decisions-q63-q67';
@@ -59,7 +60,7 @@ export const nl: DictionaryShape = {
     receivables: "Ontvangsten",
     webOrders: 'Webshopbestellingen',
     picking: 'Picking list',
-    clients: 'Contacten',
+    clients: 'Klanten',
     crm: 'CRM',
     crmFollowups: 'Herinneringen',
     pos: 'Kassa',
@@ -136,7 +137,7 @@ export const nl: DictionaryShape = {
     status_pret: 'Klaar',
     status_erreur: 'Fout',
     lastRefresh: 'Laatste kopie: {date}',
-    counts: '{articles} artikelen · {contacts} contacten · {vehicles} motoren · {stock} artikelen op voorraad',
+    counts: '{articles} artikelen · {contacts} klanten · {vehicles} motoren · {stock} artikelen op voorraad',
     create: '{name} aanmaken vanuit {source}',
     refresh: '{name} vernieuwen vanuit {source}',
     confirmTitle: 'Testvennootschap vernieuwen?',
@@ -759,8 +760,8 @@ export const nl: DictionaryShape = {
 
   // Contacts (M1)
   contacts: {
-    title: 'Contacten',
-    subtitle: 'Alle contacten: klanten, prospects en leveranciers.',
+    title: 'Klanten',
+    subtitle: 'Klanten, prospects en leveranciers in één lijst.',
     filterAll: 'Alle types',
     new: 'Nieuwe klant',
     edit: 'Fiche bewerken',
@@ -2885,7 +2886,7 @@ export const nl: DictionaryShape = {
 
   matching: {
     title: 'Klanten met interesse in dit model',
-    subtitle: 'Contacten van wie de voorkeuren overeenkomen met deze motor.',
+    subtitle: 'Klanten van wie de voorkeuren overeenkomen met deze motor.',
     reasonModel: 'Gevolgd model',
     reasonUsage: 'Passend gebruik',
     notify: 'Verwittigen',
@@ -2898,7 +2899,7 @@ export const nl: DictionaryShape = {
     notifyAllResult: '{count} klant(en) verwittigd per e-mail.',
     notifyAllNone: 'Geen klant met e-mail om te verwittigen.',
     none: 'Momenteel geen enkele klant met interesse in dit model.',
-    colContact: 'Contact', colReason: 'Overeenkomst', colContactInfo: 'Contactgegevens', colActions: 'Acties',
+    colContact: 'Klant', colReason: 'Overeenkomst', colContactInfo: 'Contactgegevens', colActions: 'Acties',
   },
 
   // Documents & GED (M9)
@@ -6516,7 +6517,7 @@ export const nl: DictionaryShape = {
     kind_reprise: 'Overnameaanvraag',
     kind_interne: 'Intern park',
     kindClient: 'Motor van klant',
-    clientBikeHint: 'Motor toevertrouwd door een klant: ze heeft geen artikel en wordt nooit op de site gepubliceerd.',
+    clientBikeHint: 'Motor van een klant: hij heeft geen artikel en wordt nooit op de site gepubliceerd.',
     mgmt_V: 'Nieuwe motor (V)',
     mgmt_O: 'Tweedehands particulier (O) — btw op de marge',
     mgmt_P: 'Tweedehands professioneel (P) — btw 21%',
@@ -7034,7 +7035,7 @@ export const nl: DictionaryShape = {
     keptLink: 'De fiche blijft gekoppeld aan het eerder gekozen model-jaar.',
     fromVin: 'volgens het VIN: ',
     use: 'Gebruiken',
-    complete: '{n} leeg/lege veld(en) aanvullen volgens het VIN',
+    complete: 'Lege velden aanvullen volgens het VIN ({n})',
     filledHint: 'Ingevuld volgens het VIN',
     drawings: 'Explosietekeningen ({n})',
     noDrawings: 'Explosietekeningen nog niet geladen',
@@ -9410,6 +9411,8 @@ export const nl: DictionaryShape = {
   orLisible: orLisibleNl,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierNl,
+  // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
+  designFiches: designFichesNl,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60Nl,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

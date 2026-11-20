@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router';
+import { useEffect, useState, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone, Link2, FileSpreadsheet, Filter, ListChecks, ShieldX, Bike } from 'lucide-react';
+import { Search, Loader2, UserPlus, ChevronLeft, ChevronRight, SlidersHorizontal, Star, AlertTriangle, Smartphone, Link2, FileSpreadsheet, Filter, ListChecks, ShieldX, Bike, Wrench, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
 import { listContactsPaged, contactDisplayName, getModelInterests, getWatchNote, type Contact, type ContactSort } from '@/modules/contacts/api';
@@ -55,6 +58,19 @@ export const Route = createFileRoute('/_app/clients/')({
 function ClientsList() {
   const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const router = useRouter();
+  // Ligne entière cliquable ; Ctrl/Cmd + clic ou clic molette : la fiche s'ouvre dans un nouvel onglet,
+  // comme sur le lien du nom (revue UX/UI : « les lignes ne sont pas des liens »).
+  const openRow = (e: ReactMouseEvent, contactId: string) => {
+    if (e.defaultPrevented) return;
+    const newTab = e.ctrlKey || e.metaKey || e.button === 1;
+    if (newTab) {
+      const href = router.buildLocation({ to: '/clients/$contactId', params: { contactId } }).href;
+      window.open(href, '_blank', 'noopener');
+      return;
+    }
+    navigate({ to: '/clients/$contactId', params: { contactId } });
+  };
   // Lecture seule : on ne propose pas une action qui serait refusée ensuite.
   const canWrite = useCanWrite();
   // Recherche, type, archives, page, taille et tri : dans l'adresse (UX011) — Retour depuis
@@ -159,21 +175,29 @@ function ClientsList() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate({ to: '/client-pricing' })}>{t('pricing.title')}</Button>
-            {/* Rattrapage G8 (18/11/2026) : extraction / mailing, cascade, purge RGPD, export Excel. */}
-            <Button variant="outline" onClick={() => navigate({ to: '/clients/extraction' })}><Filter /> {t('g8c.extract.title')}</Button>
-            {activeCompanyId && isAdmin(activeCompanyId) && (
-              <>
-                <Button variant="outline" onClick={() => navigate({ to: '/clients/cascade' })}><ListChecks /> {t('g8c.cascade.title')}</Button>
-                <Button variant="outline" onClick={() => navigate({ to: '/clients/rgpd' })}><ShieldX /> {t('g8c.purge.title')}</Button>
-              </>
-            )}
-            <Button variant="outline" disabled={exporting} onClick={() => void exportExcel()}>
-              {exporting ? <Loader2 className="animate-spin" /> : <FileSpreadsheet />} {t('g8c.list.exportExcel')}
-            </Button>
-            {/* Mission 04, carte 3 : GSM de la reprise G8 rangés dans « téléphone ». */}
-            <Button variant="outline" onClick={() => navigate({ to: '/clients/mobiles' })}>
-              <Smartphone /> {t('contacts.mobileFix.link')}
-            </Button>
+            {/* Revue UX/UI (20/11/2026) : extraction, export, GSM et les actions sur plusieurs fiches
+                (modification en cascade, purge RGPD) rangées sous « Outils », à part de « Nouveau client ». */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={exporting}>
+                  {exporting ? <Loader2 className="animate-spin" /> : <Wrench />} {t('designFiches.tools')} <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => navigate({ to: '/clients/extraction' })}><Filter className="size-4" /> {t('g8c.extract.title')}</DropdownMenuItem>
+                <DropdownMenuItem disabled={exporting} onSelect={() => void exportExcel()}><FileSpreadsheet className="size-4" /> {t('g8c.list.exportExcel')}</DropdownMenuItem>
+                {/* Mission 04, carte 3 : GSM de la reprise G8 rangés dans « téléphone ». */}
+                <DropdownMenuItem onSelect={() => navigate({ to: '/clients/mobiles' })}><Smartphone className="size-4" /> {t('contacts.mobileFix.link')}</DropdownMenuItem>
+                {activeCompanyId && isAdmin(activeCompanyId) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('designFiches.toolsBulk')}</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => navigate({ to: '/clients/cascade' })}><ListChecks className="size-4" /> {t('g8c.cascade.title')}</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => navigate({ to: '/clients/rgpd' })} className="text-danger focus:text-danger"><ShieldX className="size-4" /> {t('g8c.purge.title')}</DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {canWrite && (
               <Button onClick={() => navigate({ to: '/clients/new' })}>
                 <UserPlus /> {t('contacts.new')}
@@ -303,7 +327,8 @@ function ClientsList() {
             {rows.map((c) => (
               <tr
                 key={c.id}
-                onClick={() => navigate({ to: '/clients/$contactId', params: { contactId: c.id } })}
+                onClick={(e) => openRow(e, c.id)}
+                onAuxClick={(e) => { if (e.button === 1) openRow(e, c.id); }}
                 className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
               >
                 {/* stopPropagation : cocher une ligne ne doit pas ouvrir la fiche. */}
@@ -317,7 +342,16 @@ function ClientsList() {
                 <td className="px-3 py-2 font-mono text-muted-foreground">{c.code ?? '—'}</td>
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex items-center gap-1.5">
-                    {contactDisplayName(c)}
+                    {/* Vrai lien : Tab + Entrée au clavier, clic droit « Ouvrir dans un nouvel onglet ». */}
+                    <Link
+                      to="/clients/$contactId"
+                      params={{ contactId: c.id }}
+                      onClick={(e) => e.stopPropagation()}
+                      onAuxClick={(e) => e.stopPropagation()}
+                      className="underline-offset-2 hover:underline focus-visible:underline"
+                    >
+                      {contactDisplayName(c)}
+                    </Link>
                     {/* title sur un <span> : les icones lucide ne l'acceptent pas,
                         l'infobulle ne s'affichait donc pas. */}
                     {(linkedByContact.get(c.id)?.length ?? 0) > 0 && (

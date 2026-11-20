@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText, ExternalLink, Tags, Star, AlertTriangle, Archive, ArchiveRestore, Merge, Search, Trash2 } from 'lucide-react';
+import { Loader2, FileText, ExternalLink, Tags, Star, AlertTriangle, Archive, ArchiveRestore, Merge, Search, Trash2, ChevronDown, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
@@ -31,18 +32,30 @@ import { getDebtorsList } from '@/modules/accounting/api';
 import { useConfirm } from '@/components/confirm-provider';
 import { useAuth } from '@/lib/auth/auth-context';
 import { sendAccountInvitation } from '@/modules/settings/users-api';
-import { t, pageTitle } from '@/lib/i18n';
+import { t, pageTitle, fillVars } from '@/lib/i18n';
+import {
+  CLIENT_MAIN_TABS, CLIENT_MORE_TABS, CLIENT_TAB_LABEL, CLIENT_DEFAULT_TAB, isMoreTab, parseClientTab, type ClientTab,
+} from '@/modules/contacts/fiche-tabs';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
 const eurFormat = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
 export const Route = createFileRoute('/_app/clients/$contactId')({
   head: () => ({ meta: [{ title: pageTitle('client') }] }),
+  // Lot design des fiches (20/11/2026) : l'onglet de la fiche est gardé dans l'adresse (?tab=).
+  validateSearch: (s: Record<string, unknown>): { tab?: ClientTab } => ({ tab: parseClientTab(s.tab) }),
   component: EditClient,
 });
 
 function EditClient() {
   const { contactId } = Route.useParams();
+  const search = Route.useSearch();
+  const routeNavigate = Route.useNavigate();
+  const tab: ClientTab = search.tab ?? CLIENT_DEFAULT_TAB;
+  const setTab = (v: string) => {
+    const next = parseClientTab(v);
+    if (next) void routeNavigate({ search: (prev) => ({ ...prev, tab: next === CLIENT_DEFAULT_TAB ? undefined : next }), replace: true });
+  };
   const { activeCompanyId, isAdmin } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -232,29 +245,39 @@ function EditClient() {
             {/* Rattrapage G8 (18/11/2026) : RGPD - Edition fiche / Portabilite, Mail / SMS en essai. */}
             <RgpdMenu contactId={contactId} />
             <MessageTestMenu contact={contact} companyId={activeCompanyId} />
-            {/* Fusion reservee aux admins (decision F-9, controle aussi par contact_merge). */}
-            {isAdmin(activeCompanyId) && (
-              <Button variant="outline" onClick={() => setMergeOpen(true)}><Merge /> {t('contacts.merge')}</Button>
-            )}
-            {contact.is_active ? (
-              <Button
-                variant="outline"
-                disabled={archive.isPending}
-                onClick={() => { if (window.confirm(t('contacts.archiveConfirm'))) archive.mutate(); }}
-              >
-                <Archive /> {t('contacts.archive')}
-              </Button>
-            ) : (
-              <Button variant="outline" disabled={unarchive.isPending} onClick={() => unarchive.mutate()}>
-                <ArchiveRestore /> {t('contacts.unarchive')}
-              </Button>
-            )}
-            {/* Suppression physique reservee aux admins (policy RLS contacts_delete). */}
-            {isAdmin() && (
-              <Button variant="outline" disabled={del.isPending} onClick={() => { void askDelete(); }}>
-                <Trash2 className="text-danger" /> {t('contacts.delete')}
-              </Button>
-            )}
+            {/* Revue UX/UI : fusion, archivage et suppression rangés sous « Outils », à part. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline"><Wrench /> {t('designFiches.tools')} <ChevronDown /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/* Fusion reservee aux admins (decision F-9, controle aussi par contact_merge). */}
+                {isAdmin(activeCompanyId) && (
+                  <DropdownMenuItem onSelect={() => setMergeOpen(true)}><Merge className="size-4" /> {t('contacts.merge')}</DropdownMenuItem>
+                )}
+                {contact.is_active ? (
+                  <DropdownMenuItem
+                    disabled={archive.isPending}
+                    onSelect={() => { if (window.confirm(t('contacts.archiveConfirm'))) archive.mutate(); }}
+                  >
+                    <Archive className="size-4" /> {t('contacts.archive')}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem disabled={unarchive.isPending} onSelect={() => unarchive.mutate()}>
+                    <ArchiveRestore className="size-4" /> {t('contacts.unarchive')}
+                  </DropdownMenuItem>
+                )}
+                {/* Suppression physique reservee aux admins (policy RLS contacts_delete). */}
+                {isAdmin() && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem disabled={del.isPending} onSelect={() => { void askDelete(); }} className="text-danger focus:text-danger">
+                      <Trash2 className="size-4" /> {t('contacts.delete')}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
@@ -330,31 +353,35 @@ function EditClient() {
         </p>
       )}
       <EncoursBar contactId={contactId} />
-      <Tabs defaultValue="fiche">
+      {/* Revue UX/UI (20/11/2026) : 20 onglets ramenés à 5 + « Plus ». Rien ne disparaît, tout se range
+          (ancien onglet → nouvel onglet : LEGACY_CLIENT_TAB dans modules/contacts/fiche-tabs.ts). */}
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
-          <TabsTrigger value="fiche">{t('clientTabs.tabFiche')}</TabsTrigger>
-          <TabsTrigger value="parc">{t('clientTabs.tabParc')}</TabsTrigger>
-          <TabsTrigger value="documents">{t('clientTabs.tabDocuments')}</TabsTrigger>
-          <TabsTrigger value="echeances">{t('clientTabs.tabDue')}</TabsTrigger>
-          <TabsTrigger value="relances">{t('receivables.clientTab')}</TabsTrigger>
-          <TabsTrigger value="reportees">{t('checkup.deferredTab')}</TabsTrigger>
-          <TabsTrigger value="livraisons">{t('clientTabs.tabDeliveries')}</TabsTrigger>
-          <TabsTrigger value="contacts">{t('clientTabs.tabContacts')}</TabsTrigger>
-          <TabsTrigger value="tarifs">{t('clientTabs.tabPricing')}</TabsTrigger>
-          <TabsTrigger value="documents-ged">{t('ged.title')}</TabsTrigger>
-          <TabsTrigger value="comms">{t('crm.history')}</TabsTrigger>
-          {/* Onglets G8 ajoutés le 18/11/2026 (rattrapage G8). */}
-          <TabsTrigger value="g8-mail">{t('g8c.tabs.mailSms')}</TabsTrigger>
-          <TabsTrigger value="g8-rgpd">{t('g8c.tabs.rgpd')}</TabsTrigger>
-          <TabsTrigger value="g8-dispo">{t('g8c.tabs.dispo')}</TabsTrigger>
-          <TabsTrigger value="g8-archives">{t('g8c.tabs.archives')}</TabsTrigger>
-          <TabsTrigger value="g8-rdv">{t('g8c.tabs.appointments')}</TabsTrigger>
-          <TabsTrigger value="g8-relances">{t('g8c.tabs.followups')}</TabsTrigger>
-          <TabsTrigger value="g8-images">{t('g8c.tabs.images')}</TabsTrigger>
-          <TabsTrigger value="g8-groupes">{t('g8c.tabs.groups')}</TabsTrigger>
-          <TabsTrigger value="g8-groupement">{t('g8c.tabs.groupSales')}</TabsTrigger>
+          {CLIENT_MAIN_TABS.map((v) => (
+            <TabsTrigger key={v} value={v}>{t(CLIENT_TAB_LABEL[v])}</TabsTrigger>
+          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-state={isMoreTab(tab) ? 'active' : 'inactive'}
+                className="inline-flex cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+              >
+                {isMoreTab(tab) ? fillVars(t('designFiches.tabMoreActive'), { tab: t(CLIENT_TAB_LABEL[tab]) }) : t('designFiches.tabMore')}
+                <ChevronDown className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {CLIENT_MORE_TABS.map((v) => (
+                <DropdownMenuItem key={v} onSelect={() => setTab(v)} className={v === tab ? 'font-bold' : undefined}>
+                  {t(CLIENT_TAB_LABEL[v])}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </TabsList>
-        <TabsContent value="fiche" className="mt-4">
+        {/* forceMount : passer sur un autre onglet ne perd pas une saisie en cours (le formulaire reste monté). */}
+        <TabsContent value="essentiel" forceMount className="mt-4 data-[state=inactive]:hidden">
           <ContactForm
             key={`${contact.my_ducati_synced_at ?? contact.id}|${getModelInterests(contact).join(',')}`}
             initial={contact}
@@ -365,27 +392,43 @@ function EditClient() {
             onCancel={() => navigate({ to: '/clients' })}
           />
         </TabsContent>
-        <TabsContent value="parc" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
-        <TabsContent value="documents" className="mt-4"><DocumentsTab contactId={contactId} /></TabsContent>
-        <TabsContent value="echeances" className="mt-4"><DueItemsTab contactId={contactId} /></TabsContent>
-        <TabsContent value="relances" className="mt-4"><ClientReceivablesTab companyId={activeCompanyId} contactId={contactId} contactName={contact.company_name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')} /></TabsContent>
-        <TabsContent value="reportees" className="mt-4"><DeferredPanel contactId={contactId} /></TabsContent>
+        <TabsContent value="motos" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
+        <TabsContent value="atelier" className="mt-4 space-y-6">
+          <Block title={t('designFiches.secAppointments')}><AppointmentsTab contactId={contactId} /></Block>
+          <DeferredPanel contactId={contactId} />
+          <Block title={t('designFiches.secParts')}><DispoTab contactId={contactId} /></Block>
+        </TabsContent>
+        <TabsContent value="documents" className="mt-4 space-y-6">
+          <Block title={t('designFiches.secSalesDocs')}><DocumentsTab contactId={contactId} /></Block>
+          <Block title={t('designFiches.secAttachments')}><AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} /></Block>
+          <Block title={t('designFiches.secImages')}><ImagesTab contactId={contactId} companyId={activeCompanyId} /></Block>
+        </TabsContent>
+        <TabsContent value="relances" className="mt-4 space-y-6">
+          <Block title={t('designFiches.secDueInvoices')}><DueItemsTab contactId={contactId} /></Block>
+          <Block title={t('designFiches.secPayments')}><ClientReceivablesTab companyId={activeCompanyId} contactId={contactId} contactName={contact.company_name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')} /></Block>
+          <Block title={t('designFiches.secMaintenance')}><FollowupsTab contactId={contactId} /></Block>
+        </TabsContent>
         <TabsContent value="livraisons" className="mt-4"><DeliveryTab contactId={contactId} /></TabsContent>
-        <TabsContent value="contacts" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
+        <TabsContent value="interlocuteurs" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
-        <TabsContent value="documents-ged" className="mt-4"><AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} /></TabsContent>
-        <TabsContent value="comms" className="mt-4"><CommunicationsPanel companyId={activeCompanyId} contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-mail" className="mt-4"><CampaignHistoryTab contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-rgpd" className="mt-4"><RgpdTab contact={contact} companyId={activeCompanyId} /></TabsContent>
-        <TabsContent value="g8-dispo" className="mt-4"><DispoTab contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-archives" className="mt-4"><ArchivesTab contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-rdv" className="mt-4"><AppointmentsTab contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-relances" className="mt-4"><FollowupsTab contactId={contactId} /></TabsContent>
-        <TabsContent value="g8-images" className="mt-4"><ImagesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
-        <TabsContent value="g8-groupes" className="mt-4"><GroupsTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
-        <TabsContent value="g8-groupement" className="mt-4"><GroupSalesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="communications" className="mt-4"><CommunicationsPanel companyId={activeCompanyId} contactId={contactId} /></TabsContent>
+        <TabsContent value="emails" className="mt-4"><CampaignHistoryTab contactId={contactId} /></TabsContent>
+        <TabsContent value="rgpd" className="mt-4"><RgpdTab contact={contact} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="groupes" className="mt-4"><GroupsTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="groupement" className="mt-4"><GroupSalesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="archives" className="mt-4"><ArchivesTab contactId={contactId} /></TabsContent>
       </Tabs>
     </>
+  );
+}
+
+/** Rubrique d'un onglet qui en regroupe plusieurs (ex. Documents = devis/factures + GED + images). */
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h2 className="font-ui text-[15px] font-bold text-foreground">{title}</h2>
+      {children}
+    </section>
   );
 }
 

@@ -11,6 +11,7 @@ import { receptionIt, planOpsIt } from './parcours-cd';
 import { myWorkshopIt } from './mon-atelier';
 import { orLisibleIt } from './or-lisible';
 import { uxAtelierIt } from './ux-atelier';
+import { designFichesIt } from './design-fiches';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
@@ -59,7 +60,7 @@ export const it: DictionaryShape = {
     receivables: "Incassi",
     webOrders: 'Ordini dal sito',
     picking: 'Picking list',
-    clients: 'Contatti',
+    clients: 'Clienti',
     crm: 'CRM',
     crmFollowups: 'Solleciti',
     pos: 'Cassa',
@@ -136,7 +137,7 @@ export const it: DictionaryShape = {
     status_pret: 'Pronta',
     status_erreur: 'Errore',
     lastRefresh: 'Ultima copia: {date}',
-    counts: '{articles} articoli · {contacts} contatti · {vehicles} moto · {stock} articoli a magazzino',
+    counts: '{articles} articoli · {contacts} clienti · {vehicles} moto · {stock} articoli a magazzino',
     create: 'Crea {name} da {source}',
     refresh: 'Aggiorna {name} da {source}',
     confirmTitle: 'Aggiornare la società di test?',
@@ -759,8 +760,8 @@ export const it: DictionaryShape = {
 
   // Contacts (M1)
   contacts: {
-    title: 'Contatti',
-    subtitle: 'Tutti i contatti: clienti, potenziali clienti e fornitori.',
+    title: 'Clienti',
+    subtitle: 'Clienti, potenziali clienti e fornitori in un unico elenco.',
     filterAll: 'Tutti i tipi',
     new: 'Nuovo cliente',
     edit: 'Modifica la scheda',
@@ -2885,7 +2886,7 @@ export const it: DictionaryShape = {
 
   matching: {
     title: 'Clienti interessati a questo modello',
-    subtitle: 'Contatti le cui preferenze corrispondono a questa moto.',
+    subtitle: 'Clienti le cui preferenze corrispondono a questa moto.',
     reasonModel: 'Modello seguito',
     reasonUsage: 'Uso compatibile',
     notify: 'Avvisa',
@@ -2898,7 +2899,7 @@ export const it: DictionaryShape = {
     notifyAllResult: '{count} cliente/i avvisato/i via e-mail.',
     notifyAllNone: 'Nessun cliente con e-mail da avvisare.',
     none: 'Nessun cliente interessato a questo modello per il momento.',
-    colContact: 'Contatto', colReason: 'Corrispondenza', colContactInfo: 'Recapiti', colActions: 'Azioni',
+    colContact: 'Cliente', colReason: 'Corrispondenza', colContactInfo: 'Recapiti', colActions: 'Azioni',
   },
 
   // Documents & GED (M9)
@@ -6516,7 +6517,7 @@ export const it: DictionaryShape = {
     kind_reprise: 'Richiesta di permuta',
     kind_interne: 'Parco interno',
     kindClient: 'Moto di cliente',
-    clientBikeHint: 'Moto affidata da un cliente: non ha articolo e non viene mai pubblicata sul sito.',
+    clientBikeHint: 'Moto di un cliente: non ha articolo e non viene mai pubblicata sul sito.',
     mgmt_V: 'Moto nuova (V)',
     mgmt_O: 'Usato da privato (O) — IVA sul margine',
     mgmt_P: 'Usato da professionista (P) — IVA 21%',
@@ -7034,7 +7035,7 @@ export const it: DictionaryShape = {
     keptLink: 'La scheda resta collegata al modello-anno scelto in precedenza.',
     fromVin: 'in base al VIN: ',
     use: 'Usa',
-    complete: 'Completa {n} campo/i vuoto/i in base al VIN',
+    complete: 'Completa i campi vuoti in base al VIN ({n})',
     filledHint: 'Compilato in base al VIN',
     drawings: 'Tavole esplose ({n})',
     noDrawings: 'Tavole esplose non ancora caricate',
@@ -7572,7 +7573,7 @@ export const it: DictionaryShape = {
     tabDocuments: 'Documenti',
     tabDue: 'Scadenze',
     tabDeliveries: 'Consegne',
-    tabContacts: 'Contatti',
+    tabContacts: 'Referenti',
     tabPricing: 'Tariffe',
     creditAuthorized: 'Fido autorizzato',
     creditCurrent: 'Esposizione attuale',
@@ -9410,6 +9411,8 @@ export const it: DictionaryShape = {
   orLisible: orLisibleIt,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierIt,
+  // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
+  designFiches: designFichesIt,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60It,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

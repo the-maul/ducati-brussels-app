@@ -3,8 +3,8 @@
  */
 import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Bike, Landmark } from 'lucide-react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { Loader2, Plus, Trash2, Bike, Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,13 +20,16 @@ import { contactDisplayName } from './api';
 import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
 import { PrepareButton } from '@/modules/sales/prepare-button';
 import { documentBalance, contactBalance, isOpenForBalance } from '@/modules/sales/balance';
-import { RestToPay, FinancingBadge } from '@/modules/sales/balance-panel';
+import { FinancingBadge } from '@/modules/sales/balance-panel';
 import { listPaymentsFor, listFinancingOrgs } from '@/modules/sales/financing-api';
 import { listPaymentMethods } from '@/modules/sales/write-api';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
+import { encoursTile } from './fiche-tabs';
 
 const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)?.tone ?? 'neutral';
-const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+// Séparateur de milliers (revue UX : « 1027,00 € » illisible).
+const eurFmt = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur = (n: number) => `${eurFmt.format(Math.round(n * 100) / 100)} €`;
 
 /* ---------------- Documents + règlements du client (mission 05, carte 9) ---------------- */
 function useClientDocsWithPayments(contactId: string) {
@@ -42,31 +45,52 @@ function useClientDocsWithPayments(contactId: string) {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-/* ---------------- Encours (bandeau crédit + reste à payer en grand, en haut à droite) ---------------- */
+/* ---------------- Encours : une seule tuile « Rien à payer » / « Reste à payer X € » ---------------- */
+// Lot design des fiches (20/11/2026) : 4 tuiles (crédit autorisé, encours, disponible, reste à payer)
+// réduites à une seule. Le détail du crédit n'apparaît que s'il y a un crédit accordé ou dépassé.
 export function EncoursBar({ contactId }: { contactId: string }) {
   const { data } = useQuery({ queryKey: ['encours', contactId], queryFn: () => getContactEncours(contactId) });
   const { docsQ, paymentsQ } = useClientDocsWithPayments(contactId);
   const bal = docsQ.data && paymentsQ.data ? contactBalance(docsQ.data, paymentsQ.data, todayIso()) : null;
-  if (!data) return null;
-  const over = data.available < 0;
-  return (
-    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_1.6fr]">
-      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditAuthorized')}</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.authorized)}</div></div>
-      <div className="rounded-md border border-border bg-card p-3"><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditCurrent')}</div><div className="mt-1 font-data text-xl tabular-nums">{eur(data.current)}</div></div>
-      <div className={`rounded-md border p-3 ${over ? 'border-danger/40 bg-danger-bg' : 'border-success/30 bg-success-bg'}`}><div className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.creditAvailable')}</div><div className={`mt-1 font-data text-xl tabular-nums ${over ? 'text-danger' : 'text-success'}`}>{eur(data.available)}</div></div>
-      <div className="rounded-md border border-border bg-card p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1 font-data text-[12px] tabular-nums text-muted-foreground">
-            <div className="text-[11px] font-bold uppercase tracking-[0.04em]">{t('balance.clientHeader')}</div>
-            {bal && <div>{bal.openDocs > 0 ? t('balance.clientOpenDocs').replace('{n}', String(bal.openDocs)) : t('balance.clientNothing')}</div>}
-            {bal && bal.toReceiveFromOrg > 0.005 && (
-              <div className="flex items-center gap-1 text-foreground"><Landmark className="size-3.5" />{t('balance.toReceiveFromOrg')} : <b>{eur(bal.toReceiveFromOrg)}</b></div>
-            )}
-            {bal && bal.financingPending > 0.005 && <div>{t('balance.financingPending')} : {eur(bal.financingPending)}</div>}
-          </div>
-          {bal ? <RestToPay due={bal.clientDue} overdue={bal.overdue} /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
-        </div>
+  if (!bal) {
+    return (
+      <div className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('balance.clientHeader')}</span>
       </div>
+    );
+  }
+  const tile = encoursTile({
+    clientDue: bal.clientDue, overdue: bal.overdue, toReceiveFromOrg: bal.toReceiveFromOrg,
+    financingPending: bal.financingPending, credit: data ?? null,
+  });
+  const box = tile.tone === 'success' ? 'border-success/30 bg-success-bg' : tile.tone === 'danger' ? 'border-danger/40 bg-danger-bg' : 'border-warning/40 bg-warning-bg';
+  const ink = tile.tone === 'success' ? 'text-success' : tile.tone === 'danger' ? 'text-danger' : 'text-warning';
+  const Icon = tile.kind === 'nothing' && tile.tone === 'success' ? CheckCircle2 : AlertTriangle;
+  return (
+    <div className={`mb-4 inline-flex max-w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-md border px-3 py-2 ${box}`}>
+      <span className={`inline-flex items-center gap-2 font-data text-[15px] font-bold tabular-nums ${ink}`}>
+        <Icon className="size-4 shrink-0" />
+        {tile.kind === 'nothing' ? t('designFiches.nothingToPay') : fillVars(t('designFiches.restToPay'), { amount: eur(tile.due) })}
+      </span>
+      {tile.overdue && <StatusBadge tone="danger" icon={AlertTriangle} label={t('designFiches.overdue')} />}
+      {tile.kind === 'due' && bal.openDocs > 0 && (
+        <span className="text-[12px] text-muted-foreground">{t('balance.clientOpenDocs').replace('{n}', String(bal.openDocs))}</span>
+      )}
+      {tile.toReceiveFromOrg > 0 && (
+        <span className="inline-flex items-center gap-1 font-data text-[12px] tabular-nums text-foreground"><Landmark className="size-3.5" />{t('balance.toReceiveFromOrg')} : <b>{eur(tile.toReceiveFromOrg)}</b></span>
+      )}
+      {tile.financingPending > 0 && (
+        <span className="font-data text-[12px] tabular-nums text-muted-foreground">{t('balance.financingPending')} : {eur(tile.financingPending)}</span>
+      )}
+      {tile.showCredit && data && (
+        <span className="font-data text-[12px] tabular-nums text-muted-foreground">
+          {fillVars(t('designFiches.creditLine'), { authorized: eur(data.authorized), current: eur(data.current), available: eur(data.available) })}
+        </span>
+      )}
+      {tile.creditOver > 0 && (
+        <span className="font-data text-[12px] font-bold tabular-nums text-danger">{fillVars(t('designFiches.creditOver'), { amount: eur(tile.creditOver) })}</span>
+      )}
     </div>
   );
 }
@@ -195,7 +219,7 @@ export function ParcTab({ contactId }: { contactId: string }) {
   // Mission 04, carte 6 : « Ajouter une moto » → formulaire véhicule pré-lié à ce client.
   const addBar = (
     <div className="mb-3 flex justify-end">
-      <Button size="sm" onClick={() => navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined } })}>
+      <Button size="sm" variant="outline" onClick={() => navigate({ to: '/vehicles/new', search: { contact: contactId, declaration: undefined } })}>
         <Plus /> {t('motoClient.addForClient')}
       </Button>
     </div>
@@ -213,10 +237,15 @@ export function ParcTab({ contactId }: { contactId: string }) {
           {data.map((o) => (
             <tr key={o.ownerId} onClick={() => navigate({ to: '/vehicles/$vehicleId', params: { vehicleId: o.vehicle.id } })}
               className="cursor-pointer border-b border-border last:border-0 hover:bg-accent">
-              <td className="px-3 py-2 font-medium"><Bike className="mr-1 inline size-4" />{vehicleLabel(o.vehicle)}</td>
+              <td className="px-3 py-2 font-medium">
+                {/* Vrai lien : ouverture dans un nouvel onglet et clavier (revue UX/UI). */}
+                <Link to="/vehicles/$vehicleId" params={{ vehicleId: o.vehicle.id }} onClick={(e) => e.stopPropagation()} className="underline-offset-2 hover:underline">
+                  <Bike className="mr-1 inline size-4" />{vehicleLabel(o.vehicle)}
+                </Link>
+              </td>
               <td className="px-3 py-2 font-mono text-[12px]">{o.vehicle.vin ?? '—'}</td>
-              <td className="px-3 py-2 font-mono text-[12px]">{o.from_date}{o.to_date ? ` → ${o.to_date}` : (o.is_current ? ' · actuel' : '')}</td>
-              {hasLinked && <td className="px-3 py-2 text-[12px] text-muted-foreground">{ownerName(o.ownerContactId) ?? '— (cette fiche)'}</td>}
+              <td className="px-3 py-2 font-mono text-[12px]">{o.from_date}{o.to_date ? ` → ${o.to_date}` : (o.is_current ? ` · ${t('designFiches.parcCurrent')}` : '')}</td>
+              {hasLinked && <td className="px-3 py-2 text-[12px] text-muted-foreground">{ownerName(o.ownerContactId) ?? t('designFiches.parcThisRecord')}</td>}
               <td className="px-3 py-2"><StatusBadge tone={toneOf(o.vehicle.status)} label={t(`vehicles.status_${o.vehicle.status}`)} /></td>
             </tr>
           ))}
@@ -260,7 +289,7 @@ export function DeliveryTab({ contactId }: { contactId: string }) {
         <Input placeholder={t('clientTabs.colAddress')} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
         <Input placeholder={t('clientTabs.colZip')} value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
         <Input placeholder={t('clientTabs.colCity')} value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.address.trim()}><Plus /> {t('clientTabs.add')}</Button>
+        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || !form.address.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );
@@ -321,7 +350,7 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
         </Select>
         <Input type="number" step="0.01" placeholder={t('clientTabs.colValue')} value={form.value1} onChange={(e) => setForm((f) => ({ ...f, value1: e.target.value }))} className="text-right tabular-nums" />
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.is_promo} onCheckedChange={(v) => setForm((f) => ({ ...f, is_promo: v === true }))} /> {t('clientTabs.promo')}</label>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.value1.trim()}><Plus /> {t('clientTabs.add')}</Button>
+        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || !form.value1.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );
@@ -359,7 +388,7 @@ export function SubcontactsTab({ contactId }: { contactId: string }) {
         <Input placeholder={t('clientTabs.colRole')} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
         <Input placeholder={t('clientTabs.colPhone')} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
         <Input type="email" placeholder={t('clientTabs.colEmail')} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> {t('clientTabs.add')}</Button>
+        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> {t('clientTabs.add')}</Button>
       </div>
     </div>
   );

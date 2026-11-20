@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ExternalLink, Mail, MessageSquare, Send, Wrench, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { VehicleForm } from '@/modules/vehicles/vehicle-form';
 import { getVehicle, updateVehicle, listOwners, listVehicleDocuments, vehicleLabel, type VehicleInsert, type Vehicle } from '@/modules/vehicles/api';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
@@ -25,14 +26,26 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { t, pageTitle } from '@/lib/i18n';
 import { formatPhone } from '@/lib/phone';
 import { useSaveMutation } from '@/lib/use-save-mutation';
+import {
+  VEHICLE_TABS, VEHICLE_TAB_LABEL, VEHICLE_DEFAULT_TAB, parseVehicleTab, showCommerceBlocks, type VehicleTab,
+} from '@/modules/vehicles/fiche-tabs';
 
 export const Route = createFileRoute('/_app/vehicles/$vehicleId')({
   head: () => ({ meta: [{ title: pageTitle('vehicle') }] }),
+  // Lot design des fiches (20/11/2026) : l'onglet de la fiche est gardé dans l'adresse (?tab=).
+  validateSearch: (s: Record<string, unknown>): { tab?: VehicleTab } => ({ tab: parseVehicleTab(s.tab) }),
   component: EditVehicle,
 });
 
 function EditVehicle() {
   const { vehicleId } = Route.useParams();
+  const search = Route.useSearch();
+  const routeNavigate = Route.useNavigate();
+  const tab: VehicleTab = search.tab ?? VEHICLE_DEFAULT_TAB;
+  const setTab = (v: string) => {
+    const next = parseVehicleTab(v);
+    if (next) void routeNavigate({ search: (prev) => ({ ...prev, tab: next === VEHICLE_DEFAULT_TAB ? undefined : next }), replace: true });
+  };
   const { activeCompanyId } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -60,6 +73,9 @@ function EditVehicle() {
     return (<><PageHeader title={t('vehicles.title')} /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('vehicles.errLoad')}</p></>);
   }
 
+  const commerce = showCommerceBlocks(vehicle);
+  const currentOwnerId = owners?.find((o) => o.is_current)?.contact_id ?? null;
+
   return (
     <>
       <PageHeader
@@ -81,7 +97,7 @@ function EditVehicle() {
               variant="outline"
               onClick={() => navigate({
                 to: '/workshop/new',
-                search: { vehicleId, contactId: owners?.find((o) => o.is_current)?.contact_id ?? undefined },
+                search: { vehicleId, contactId: currentOwnerId ?? undefined },
               })}
             >
               <Wrench /> {t('workshop.newOr')}
@@ -92,140 +108,162 @@ function EditVehicle() {
         }
       />
 
-      {/* Historique propriétaires (VEH003) */}
-      <div className="mb-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicles.secOwners')}</h2>
-        {!owners || owners.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('vehicles.ownerNoHistory')}</p>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {owners.map((o) => {
-              const c = o.contact;
-              const name = c ? (c.company_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—') : '—';
-              return (
-                <li key={o.id} className="flex items-center gap-2">
-                  <span className="font-mono text-[12px] text-muted-foreground">{o.from_date}{o.to_date ? ` → ${o.to_date}` : ''}</span>
-                  <span className="text-muted-foreground">·</span>
-                  {c ? (
-                    <Link to="/clients/$contactId" params={{ contactId: c.id }} className="font-medium text-primary hover:underline">{name}</Link>
-                  ) : (
-                    <span className="font-medium">{name}</span>
-                  )}
-                  {o.is_current && <span className="rounded-[var(--radius-badge)] bg-success-bg px-1.5 py-0.5 text-[11px] text-success">{t('vehicles.ownerCurrent')}</span>}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      {/* Charte §5.7 (lot design des fiches, 20/11/2026) : 5 onglets au lieu de 17 blocs empilés. */}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="h-auto flex-wrap justify-start">
+          {VEHICLE_TABS.map((v) => (
+            <TabsTrigger key={v} value={v}>{t(VEHICLE_TAB_LABEL[v])}</TabsTrigger>
+          ))}
+        </TabsList>
 
-      {/* Rattrapage G8 : proprietaire / detenteur / utilisateur (3 tiers de l'onglet Proprietaire). */}
-      <div className="mb-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.partiesTitle')}</h2>
-        <VehiclePartiesPanel key={vehicle.id} companyId={activeCompanyId} vehicle={vehicle} currentOwnerId={owners?.find((o) => o.is_current)?.contact_id ?? null} />
-      </div>
-
-      {/* Historique : factures / OR / devis rattachés à cette moto (cliquables) */}
-      {docs && docs.length > 0 && (
-        <div className="mb-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-          <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicles.secDocuments')} ({docs.length})</h2>
-          <div className="overflow-hidden rounded-md border border-border">
-            <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted">
-                <tr>
-                  {['N°', 'Type', 'Date', 'Total TTC', 'Statut'].map((h, i) => (
-                    <th key={h} className={`px-3 py-2 font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${i === 3 ? 'text-right' : 'text-left'}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {docs.map((d) => (
-                  <tr
-                    key={d.id}
-                    onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}
-                    className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
-                  >
-                    <td className="px-3 py-2 font-mono">{d.number ?? '—'}</td>
-                    <td className="px-3 py-2">{d.doc_type}</td>
-                    <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{d.total_ttc.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €</td>
-                    <td className="px-3 py-2">{d.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* forceMount : changer d'onglet ne perd pas une saisie en cours dans la fiche. */}
+        <TabsContent value="infos" forceMount className="mt-4 space-y-6 data-[state=inactive]:hidden">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Historique propriétaires (VEH003) */}
+            <Card title={t('vehicles.secOwners')}>
+              {!owners || owners.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('vehicles.ownerNoHistory')}</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {owners.map((o) => {
+                    const c = o.contact;
+                    const name = c ? (c.company_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—') : '—';
+                    return (
+                      <li key={o.id} className="flex items-center gap-2">
+                        <span className="font-mono text-[12px] text-muted-foreground">{o.from_date}{o.to_date ? ` → ${o.to_date}` : ''}</span>
+                        <span className="text-muted-foreground">·</span>
+                        {c ? (
+                          <Link to="/clients/$contactId" params={{ contactId: c.id }} className="font-medium text-primary hover:underline">{name}</Link>
+                        ) : (
+                          <span className="font-medium">{name}</span>
+                        )}
+                        {o.is_current && <span className="rounded-[var(--radius-badge)] bg-success-bg px-1.5 py-0.5 text-[11px] text-success">{t('vehicles.ownerCurrent')}</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+            {/* Rattrapage G8 : proprietaire / detenteur / utilisateur (3 tiers de l'onglet Proprietaire). */}
+            <Card title={t('parcG8.partiesTitle')}>
+              <VehiclePartiesPanel key={vehicle.id} companyId={activeCompanyId} vehicle={vehicle} currentOwnerId={currentOwnerId} />
+            </Card>
           </div>
-        </div>
-      )}
+          <VehicleForm
+            key={vehicle.my_ducati_synced_at ?? vehicle.id}
+            initial={vehicle}
+            companyId={activeCompanyId}
+            status={m.status}
+            error={error}
+            onSubmit={(p) => { setError(null); m.mutate(p); }}
+            onCancel={() => navigate({ to: '/vehicles' })}
+          />
+        </TabsContent>
 
-      {/* Historique atelier : OR, km, entretiens (rattrapage G8 du 18/11). */}
-      <VehicleWorkshopHistoryPanel vehicleId={vehicleId} />
-      {/* Lot C (19/11) : photos de reception de ses OR (historique de la moto, B8). */}
-      <VehicleReceptionPhotos vehicleId={vehicleId} />
+        <TabsContent value="atelier" className="mt-4 space-y-6">
+          {/* Historique atelier : OR, km, entretiens (rattrapage G8 du 18/11). */}
+          <VehicleWorkshopHistoryPanel vehicleId={vehicleId} />
+          {/* Mission 07, cartes 4 et 5 : prochain entretien (date, source) et déclaration du client */}
+          <Card title={t('maintenance.dueTitle')}>
+            <VehicleNextServicePanel vehicle={vehicle as unknown as { id: string; mileage?: number | null } & Record<string, unknown>} companyId={activeCompanyId} />
+          </Card>
+          <Card title={t('maintenance.vehTitle')}>
+            <VehicleMaintenancePanel vehicle={vehicle} companyId={activeCompanyId} />
+          </Card>
+          {/* Interventions reportees par le client a la signature de la proposition (ATE009) */}
+          <DeferredPanel vehicleId={vehicleId} />
+          <Card title={t('vehicles.secDucati')}>
+            <DucatiInfoPanel vehicle={vehicle} />
+          </Card>
+        </TabsContent>
 
-      <VehicleForm
-        key={vehicle.my_ducati_synced_at ?? vehicle.id}
-        initial={vehicle}
-        companyId={activeCompanyId}
-        status={m.status}
-        error={error}
-        onSubmit={(p) => { setError(null); m.mutate(p); }}
-        onCancel={() => navigate({ to: '/vehicles' })}
-      />
+        <TabsContent value="documents" className="mt-4 space-y-6">
+          {/* Historique : factures / OR / devis rattachés à cette moto (cliquables) */}
+          <Card title={`${t('vehicles.secDocuments')}${docs && docs.length > 0 ? ` (${docs.length})` : ''}`}>
+            {!docs || docs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('clientTabs.noDocument')}</p>
+            ) : (
+              <div className="overflow-x-auto rounded-md border border-border">
+                <table className="w-full border-collapse font-data text-[13px]">
+                  <thead className="bg-muted">
+                    <tr>
+                      {[t('clientTabs.colNumber'), t('clientTabs.colType'), t('clientTabs.colDate'), t('clientTabs.colTtc'), t('clientTabs.colStatus')].map((h, i) => (
+                        <th key={h} className={`px-3 py-2 font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${i === 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {docs.map((d) => (
+                      <tr
+                        key={d.id}
+                        onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: d.id } })}
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
+                      >
+                        <td className="px-3 py-2 font-mono">
+                          <Link to="/sales/$documentId" params={{ documentId: d.id }} onClick={(e) => e.stopPropagation()} className="underline-offset-2 hover:underline">{d.number ?? '—'}</Link>
+                        </td>
+                        <td className="px-3 py-2">{d.doc_type}</td>
+                        <td className="px-3 py-2 font-mono text-[12px]">{d.issue_date}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{d.total_ttc.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €</td>
+                        <td className="px-3 py-2">{t(`sales.status_${d.status}`)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+          <Card title={t('ged.title')}>
+            <AttachmentsPanel companyId={activeCompanyId} entityType="vehicle" entityId={vehicleId} />
+          </Card>
+        </TabsContent>
 
-      {/* Rattrapage G8 : bilan economique et primes / aides de la moto. */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-          <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.ecoTitle')}</h2>
-          <VehicleEconomicsPanel vehicle={vehicle} />
-        </div>
-        <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-          <h2 className="mb-2 font-ui text-[15px] font-bold">{t('parcG8.bonusTitle')}</h2>
-          <VehicleBonusesPanel companyId={activeCompanyId} vehicleId={vehicle.id} />
-        </div>
-      </div>
+        <TabsContent value="photos" className="mt-4 space-y-3">
+          {/* Lot C (19/11) : photos de reception de ses OR (historique de la moto, B8). */}
+          <VehicleReceptionPhotos vehicleId={vehicleId} emptyText={t('designFiches.vPhotosEmpty')} />
+          <p className="text-[12px] text-muted-foreground">{t('designFiches.vPhotosHint')}</p>
+        </TabsContent>
 
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('motoParc.title')}</h2>
-        <MotoSitePanel companyId={activeCompanyId} vehicle={vehicle} />
-      </div>
-
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicles.secDucati')}</h2>
-        <DucatiInfoPanel vehicle={vehicle} />
-      </div>
-
-      {/* Mission 07, cartes 4 et 5 : prochain entretien (date, source) et déclaration du client */}
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenance.dueTitle')}</h2>
-        <VehicleNextServicePanel vehicle={vehicle as unknown as { id: string; mileage?: number | null } & Record<string, unknown>} companyId={activeCompanyId} />
-      </div>
-
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('maintenance.vehTitle')}</h2>
-        <VehicleMaintenancePanel vehicle={vehicle} companyId={activeCompanyId} />
-      </div>
-
-      {/* Interventions reportees par le client a la signature de la proposition (ATE009) */}
-      <div className="mt-6"><DeferredPanel vehicleId={vehicleId} /></div>
-
-      {/* VEH010 : registre des vehicules a moteur (AR n° 1 art. 28), entrees / sorties de cette moto */}
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('vehicleRegister.ficheTitle')}</h2>
-        <VehicleRegisterPanel companyId={activeCompanyId} vehicleId={vehicleId} />
-      </div>
-
-      <div className="mt-6 rounded-md border border-border bg-card p-4">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('ged.title')}</h2>
-        <AttachmentsPanel companyId={activeCompanyId} entityType="vehicle" entityId={vehicleId} />
-      </div>
-
-      <div className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-2 font-ui text-[15px] font-bold">{t('matching.title')}</h2>
-        <InterestedContactsPanel companyId={activeCompanyId} vehicle={vehicle} />
-      </div>
+        <TabsContent value="comptabilite" className="mt-4 space-y-6">
+          {commerce ? (
+            <>
+              <Card title={t('motoParc.title')}>
+                <MotoSitePanel companyId={activeCompanyId} vehicle={vehicle} />
+              </Card>
+              {/* Rattrapage G8 : bilan economique et primes / aides de la moto. */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Card title={t('parcG8.ecoTitle')}>
+                  <VehicleEconomicsPanel vehicle={vehicle} />
+                </Card>
+                <Card title={t('parcG8.bonusTitle')}>
+                  <VehicleBonusesPanel companyId={activeCompanyId} vehicleId={vehicle.id} />
+                </Card>
+              </div>
+              <Card title={t('matching.title')}>
+                <InterestedContactsPanel companyId={activeCompanyId} vehicle={vehicle} />
+              </Card>
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed border-border bg-card px-3 py-2 text-[13px] text-muted-foreground">{t('designFiches.vClientBikeNoCommerce')}</p>
+          )}
+          {/* VEH010 : registre des vehicules a moteur (AR n° 1 art. 28), entrees / sorties de cette moto */}
+          <Card title={t('vehicleRegister.ficheTitle')}>
+            <VehicleRegisterPanel companyId={activeCompanyId} vehicleId={vehicleId} />
+          </Card>
+        </TabsContent>
+      </Tabs>
       {posterOpen && <PosterDialog companyId={activeCompanyId} kind="vehicle" initialIds={[vehicle.id]} onClose={() => setPosterOpen(false)} />}
     </>
+  );
+}
+
+/** Bloc titré de la fiche moto (même apparence que les anciens encadrés). */
+function Card({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      <h2 className="mb-2 font-ui text-[15px] font-bold">{title}</h2>
+      {children}
+    </div>
   );
 }
 

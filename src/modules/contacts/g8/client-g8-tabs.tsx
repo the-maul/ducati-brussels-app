@@ -122,7 +122,7 @@ export function RgpdTab({ contact, companyId }: { contact: Contact; companyId: s
           );
         })}
         {contact.marketing_opt_out && <StatusBadge tone="danger" icon={Ban} label={t('g8c.rgpd.optOutFlag')} />}
-        <div className="ml-auto"><Button size="sm" onClick={() => setOpen(true)}><Plus /> {t('g8c.rgpd.newDeclaration')}</Button></div>
+        <div className="ml-auto"><Button size="sm" variant="outline" onClick={() => setOpen(true)}><Plus /> {t('g8c.rgpd.newDeclaration')}</Button></div>
       </div>
       {signup && <p className="text-[12px] text-muted-foreground">{t('g8c.rgpd.signupConsent').replace('{date}', fmtDate(signup))}</p>}
       {rows.length === 0 ? <Empty>{t('g8c.rgpd.none')}</Empty> : (
@@ -349,7 +349,7 @@ export function GroupSalesTab({ contactId, companyId }: { contactId: string; com
             </div>
           )}
           <Input className="w-28" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={t('g8c.groupSales.ratePlaceholder')} />
-          <Button size="sm" disabled={!picked || !rateOk || add.isPending} onClick={() => add.mutate()}><Plus /> {t('g8c.groupSales.addBtn')}</Button>
+          <Button size="sm" variant="outline" disabled={!picked || !rateOk || add.isPending} onClick={() => add.mutate()}><Plus /> {t('g8c.groupSales.addBtn')}</Button>
         </div>
         <p className="mt-2 text-[12px] text-muted-foreground">{t('g8c.groupSales.hint')}</p>
       </div>
@@ -482,7 +482,7 @@ export function ImagesTab({ contactId, companyId }: { contactId: string; company
       <div className="flex items-center gap-2">
         <input ref={input} type="file" accept="image/*" multiple className="hidden"
           onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ''; if (f.length) up.mutate(f); }} />
-        <Button size="sm" disabled={up.isPending} onClick={() => input.current?.click()}>{up.isPending ? <Loader2 className="animate-spin" /> : <ImagePlus />} {t('g8c.images.add')}</Button>
+        <Button size="sm" variant="outline" disabled={up.isPending} onClick={() => input.current?.click()}>{up.isPending ? <Loader2 className="animate-spin" /> : <ImagePlus />} {t('g8c.images.add')}</Button>
         <span className="text-[12px] text-muted-foreground">{t('g8c.images.hint')}</span>
       </div>
       {images.length === 0 ? <Empty>{t('g8c.images.none')}</Empty> : (
