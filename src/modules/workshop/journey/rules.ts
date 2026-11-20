@@ -338,6 +338,24 @@ export function compareTimes(spent: number, official: number | null, billed: num
 }
 
 /** Temps facturé sur l'OR (B11, étage 3) : lignes de main-d'œuvre, quantité en heures. */
+/**
+ * Lot parcours-fix (20/11) : temps Ducati d'un ENTRETIEN (code de l'OR / du RDV) dans le programme du
+ * manuel — l'échéance du même type au plus petit km, puis `officialMinutes`. Sert de temps de
+ * main-d'œuvre forfaitaire quand aucun forfait G8 ne donne d'heures (décision client du 20/11 :
+ * la MO d'entretien est un forfait, « temps du forfait G8, à défaut temps Ducati du plan »).
+ */
+export function serviceOfficialMinutes(
+  prog: Pick<MaintenanceProgram, 'services' | 'temps'> | null | undefined,
+  code: string | null | undefined,
+  kindOf: (label: string, km?: number | null, months?: number | null) => string | null,
+): number | null {
+  if (!prog || !code) return null;
+  const matches = (prog.services ?? []).filter((s) => kindOf(s.service, s.km ?? null, s.mois ?? null) === code);
+  if (!matches.length) return null;
+  const s = [...matches].sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity))[0];
+  return officialMinutes(prog.temps, s.service, s.km ?? null);
+}
+
 export function billedMinutes(lines: { kind: string; quantity: number | string | null }[] | null | undefined): number | null {
   const mo = (lines ?? []).filter((l) => l.kind === 'mo');
   if (!mo.length) return null;
@@ -388,18 +406,20 @@ export function allFigures(proc: Procedure | null | undefined): Figure[] {
   return out;
 }
 
-export type ProposedOrLine = { kind: 'piece' | 'texte'; designation: string; quantity: number };
+/** `reference` : référence de la pièce relevée (lot parcours-fix : le prix vient du tarif client). */
+export type ProposedOrLine = { kind: 'piece' | 'texte'; designation: string; quantity: number; reference?: string | null };
 
 /**
- * Récapitulatif → lignes à ajouter à l'OR. **Rien n'est facturé automatiquement** : les pièces
- * partent à prix 0, c'est le comptoir qui met le prix ; les observations deviennent des lignes texte.
+ * Récapitulatif → lignes à ajouter à l'OR ; les observations deviennent des lignes texte.
+ * Lot parcours-fix (20/11, comme G8) : une pièce dont la référence est un article prend le prix de
+ * vente du tarif client au report (`appendJourneyLines`) ; sans article connu, elle reste à 0 €.
  */
 export function findingsToOrLines(findings: Finding[] | null | undefined): ProposedOrLine[] {
   const out: ProposedOrLine[] = [];
   for (const f of findings ?? []) {
     if (f.kind === 'piece') {
       const designation = [f.reference, f.texte].filter(Boolean).join(' — ') || f.texte;
-      out.push({ kind: 'piece', designation, quantity: f.quantity && f.quantity > 0 ? f.quantity : 1 });
+      out.push({ kind: 'piece', designation, quantity: f.quantity && f.quantity > 0 ? f.quantity : 1, reference: f.reference?.trim() || null });
     } else if (f.kind === 'observation' && f.texte.trim()) {
       out.push({ kind: 'texte', designation: f.texte.trim(), quantity: 1 });
     }

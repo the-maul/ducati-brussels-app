@@ -41,7 +41,7 @@ import { openPickingForRepairOrder } from '../kits/api';
 import { OrderFromWorkshopDialog } from '../kits/order-from-workshop-dialog';
 import {
   buildOperations, dueServices, fmtMinutes, isOperationDone, journeyProgress,
-  officialMinutes, operationMinutes, resumePoint, runningOperationId, spentMinutes, startChrono,
+  officialMinutes, serviceOfficialMinutes, operationMinutes, resumePoint, runningOperationId, spentMinutes, startChrono,
   stopChrono, summarize, billedMinutes,
 } from './rules';
 import { OrWorkControls, PauseDialog, usePointage } from '../pointage/work-controls';
@@ -49,6 +49,7 @@ import { minutesByOperation } from '../pointage/rules';
 import { canStartWork } from '../checkup/rules';
 import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, OperationProgress, Procedure } from './types';
 import { t } from '@/lib/i18n';
+import { supabase } from '@/integrations/supabase/client';
 import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
 import { FinishDialog, NotDoneDialog, usePlanOps } from '../plan-ops/plan-ops-panel';
 import { reasonText, type PlanOp, type PlanOpSlotInfo } from '../plan-ops/rules';
@@ -123,6 +124,25 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
   const dbOps = po.ops;
   const dbMode = po.ready && dbOps.length > 0;
   const dbByKey = useMemo(() => new Map(dbOps.map((o) => [o.op_key, o])), [dbOps]);
+  // Lot parcours-fix (20/11) : la MO d'entretien est un forfait (decision client). Temps du forfait G8
+  // du profil moteur (workshop_service_labour, migration 20261120361000) pour le recapitulatif quand
+  // le manuel ne donne pas de temps Ducati.
+  const orServiceCode = (() => {
+    const o = ctx.data?.ro.or as unknown as { service_code?: string | null; reason_code?: string | null } | undefined;
+    if (!o) return null;
+    return isServiceCode(o.service_code) ? o.service_code : serviceCodeForReason(o.reason_code ?? null);
+  })();
+  const forfait = useQuery<number | null>({
+    queryKey: ['journey-forfait', ctx.data?.vehicle?.id, orServiceCode],
+    enabled: !!ctx.data?.vehicle?.id && !!orServiceCode,
+    queryFn: async () => {
+      const rpc = supabase.rpc.bind(supabase) as unknown as (fn: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+      const { data, error } = await rpc('workshop_service_labour', { _vehicle: ctx.data!.vehicle!.id, _service: orServiceCode });
+      if (error) return null;
+      const h = Number(((data ?? []) as { hours?: number | string | null }[])[0]?.hours);
+      return h > 0 ? Math.round(h * 60) : null;
+    },
+  });
   const [notDoneOp, setNotDoneOp] = useState<PlanOp | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const openedInitial = useRef(false);
@@ -135,7 +155,8 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
       const base = cur ?? saved.data ?? null;
       return {
         version: 1, orId,
-        modelYearId: base?.modelYearId ?? ctx.data?.vehicle?.modelYearId ?? '',
+        // `||` et non `??` : un '' posé avant l'arrivée de la moto ne doit pas rester (constat 20/11).
+        modelYearId: base?.modelYearId || ctx.data?.vehicle?.modelYearId || '',
         serviceLabel: dbOps[0].service_label ?? base?.serviceLabel ?? '',
         startedAt: base?.startedAt ?? new Date().toISOString(),
         finishedAt: base?.finishedAt ?? null,
@@ -284,6 +305,9 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
   const ro = ctx.data!.ro;
   const serviceDef = state && prog ? prog.services.find((s) => s.service === state.serviceLabel) ?? null : null;
   const official = state && prog ? officialMinutes(prog.temps, state.serviceLabel, serviceDef?.km ?? null) : null;
+  // Temps de reference : Ducati (manuel), sinon le forfait G8 de l'entretien (decision client 20/11).
+  const ducatiRef = official ?? serviceOfficialMinutes(prog, orServiceCode, serviceKindOf);
+  const referenceMinutes = ducatiRef ?? forfait.data ?? null;
   const billed = billedMinutes(ro.lines.map((l) => ({ kind: l.kind, quantity: l.quantity })));
   const progress = state ? journeyProgress(state.operations, stepCounts) : null;
   const spent = pointage ? Math.floor(pt.total) : state ? spentMinutes(state.operations) : 0;
@@ -488,7 +512,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
 
   // --- récapitulatif -------------------------------------------------------
   if (view === 'summary') {
-    const s = summarize(state, stepCounts, official, billed, Date.now(), pointage ? pt.total : null);
+    const s = summarize(state, stepCounts, referenceMinutes, billed, Date.now(), pointage ? pt.total : null);
     return (
       <div className="pb-6">
         {banners}
@@ -518,7 +542,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
             <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('journey.summaryTimes')}</p>
             <dl className="mt-2 space-y-1.5 text-[14px]">
               <Row label={t('journey.spent')} value={fmtMinutes(s.spent)} strong />
-              <Row label={t('journey.officialTime')} value={fmtMinutes(s.times.official)} />
+              <Row label={ducatiRef == null && forfait.data != null ? t('journey.forfaitTime') : t('journey.officialTime')} value={fmtMinutes(s.times.official)} />
               <Row label={t('journey.billed')} value={fmtMinutes(s.times.billed)} />
               <Row label={t('journey.vsOfficial')} value={fmtMinutes(s.times.vsOfficial)} tone={s.times.vsOfficial != null && s.times.vsOfficial > 0 ? 'warning' : 'success'} />
               <Row label={t('journey.vsBilled')} value={fmtMinutes(s.times.vsBilled)} tone={s.times.vsBilled != null && s.times.vsBilled > 0 ? 'warning' : 'success'} />

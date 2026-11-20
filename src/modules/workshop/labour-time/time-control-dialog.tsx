@@ -122,6 +122,16 @@ export function TimeControlDialog({ companyId, orId, orNumber, lines, busy, erro
             {t('labourTime.pointedDetail')} : {pointed.map((p) => `${p.mechanic_name || p.mechanic_code || p.mechanic_key} ${hrs(p.pointed_h)}`).join(' · ')}
           </p>
         )}
+        {/* Lot parcours-fix (20/11, decision client) : la MO d'entretien est un forfait. On MONTRE
+            l'ecart pointe / facture (productivite B11) ; la quantite facturee n'est pas recalculee. */}
+        {!loading && (rows.length === 0 || rec.pointed > 0) && (
+          <p className={`flex items-start gap-2 rounded-md px-3 py-2 text-[13px] ${rows.length === 0 ? 'bg-warning-bg text-warning' : 'bg-info-bg text-info'}`}>
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {(rows.length === 0 ? t('labourTime.noMoWarning') : t('labourTime.forfaitGap'))
+              .replace('{pointed}', hrs(rec.pointed)).replace('{billed}', hrs(rec.billed))
+              .replace('{gap}', hrs(Math.round((rec.pointed - rec.billed) * 100) / 100))}
+          </p>
+        )}
         {rec.gapPointed !== 0 && rec.pointed > 0 && (
           <p className="flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('labourTime.gapHint').replace('{gap}', hrs(Math.abs(rec.gapPointed)))}
@@ -131,7 +141,7 @@ export function TimeControlDialog({ companyId, orId, orNumber, lines, busy, erro
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={busy}>{t('labourTime.cancel')}</Button>
           <Button onClick={() => onConfirm(parsed.map(({ billedReset: _r, ...r }) => r))} disabled={busy || loading}>
-            {busy ? <Loader2 className="animate-spin" /> : null} {t('labourTime.controlConfirm')}
+            {busy ? <Loader2 className="animate-spin" /> : null} {rows.length === 0 ? t('labourTime.controlConfirmNoMo') : t('labourTime.controlConfirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -359,7 +359,7 @@ describe('récapitulatif de fin : rien n’est facturé automatiquement', () => 
   test('une pièce devient une ligne pièce avec sa référence, une observation une ligne texte', () => {
     const lines = findingsToOrLines(findings);
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toEqual({ kind: 'piece', designation: '61340601A — Plaquettes avant usées', quantity: 2 });
+    expect(lines[0]).toEqual({ kind: 'piece', designation: '61340601A — Plaquettes avant usées', quantity: 2, reference: '61340601A' });
     expect(lines[1]).toEqual({ kind: 'texte', designation: 'Chaîne en limite', quantity: 1 });
   });
 
