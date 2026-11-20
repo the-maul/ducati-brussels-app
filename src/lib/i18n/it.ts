@@ -7534,7 +7534,7 @@ export const it: DictionaryShape = {
     workshop: 'Officina & assistenza',
     workshopOr: 'OR',
     workshopNew: 'Nuovo OR',
-    workshopChrono: 'Cronometri officina',
+    workshopChrono: 'Timbratrice officina',
     workshopJourney: 'Percorso guidato',
     workshopMine: 'La mia officina',
     workshopKits: 'Kit di manutenzione',
@@ -7552,6 +7552,12 @@ export const it: DictionaryShape = {
     errorTitle: 'Questa pagina non si è caricata',
     errorText: 'Si è verificato un errore da parte nostra. Puoi riprovare o tornare alla home.',
     retry: 'Riprova',
+    chunkErrorTitle: 'È disponibile una nuova versione del DMS',
+    chunkErrorText: "Questa pagina non si è caricata perché l'applicazione è appena stata aggiornata. Ricarica la pagina per continuare.",
+    reload: 'Ricarica',
+    pendingLoading: 'Caricamento…',
+    pendingSlowTitle: 'Il caricamento richiede più tempo del previsto',
+    pendingSlowText: 'Se la pagina non compare, ricaricala o torna alla home.',
   },
 
   // Coque de l'application (menu mobile)

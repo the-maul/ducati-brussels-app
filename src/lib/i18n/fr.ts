@@ -7551,7 +7551,7 @@ export const fr = {
     workshop: 'Atelier & SAV',
     workshopOr: 'OR',
     workshopNew: 'Nouvel OR',
-    workshopChrono: 'Chronos atelier',
+    workshopChrono: 'Pointeuse atelier',
     workshopJourney: 'Parcours guidé',
     workshopMine: "Mon atelier",
     workshopKits: "Kits d'entretien",
@@ -7569,6 +7569,13 @@ export const fr = {
     errorTitle: "Cette page n'a pas pu se charger",
     errorText: "Une erreur est survenue de notre côté. Vous pouvez réessayer ou revenir à l'accueil.",
     retry: 'Réessayer',
+    // Nouvelle version mise en ligne pendant que l'onglet était ouvert (lot chunk-reload, 20/11/2026)
+    chunkErrorTitle: 'Une nouvelle version du DMS est disponible',
+    chunkErrorText: "Cette page n'a pas pu se charger car l'application vient d'être mise à jour. Rechargez la page pour continuer.",
+    reload: 'Recharger',
+    pendingLoading: 'Chargement…',
+    pendingSlowTitle: 'Le chargement prend plus de temps que prévu',
+    pendingSlowText: "Si la page ne s'affiche pas, rechargez-la ou revenez à l'accueil.",
   },
 
   // Coque de l'application (menu mobile)

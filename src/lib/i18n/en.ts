@@ -7534,7 +7534,7 @@ export const en: DictionaryShape = {
     workshop: 'Workshop & service',
     workshopOr: 'Repair order',
     workshopNew: 'New repair order',
-    workshopChrono: 'Workshop timers',
+    workshopChrono: 'Workshop time clock',
     workshopJourney: 'Guided work',
     workshopMine: 'My workshop',
     workshopKits: 'Maintenance kits',
@@ -7552,6 +7552,12 @@ export const en: DictionaryShape = {
     errorTitle: 'This page could not be loaded',
     errorText: 'Something went wrong on our side. You can try again or go back home.',
     retry: 'Try again',
+    chunkErrorTitle: 'A new version of the DMS is available',
+    chunkErrorText: 'This page could not be loaded because the application has just been updated. Reload the page to continue.',
+    reload: 'Reload',
+    pendingLoading: 'Loading…',
+    pendingSlowTitle: 'Loading is taking longer than expected',
+    pendingSlowText: 'If the page does not appear, reload it or go back home.',
   },
 
   // Coque de l'application (menu mobile)

@@ -7534,7 +7534,7 @@ export const nl: DictionaryShape = {
     workshop: 'Werkplaats & service',
     workshopOr: 'Werkorder',
     workshopNew: 'Nieuwe werkorder',
-    workshopChrono: "Werkplaatschrono's",
+    workshopChrono: 'Prikklok werkplaats',
     workshopJourney: 'Begeleid parcours',
     workshopMine: 'Mijn werkplaats',
     workshopKits: 'Onderhoudskits',
@@ -7552,6 +7552,12 @@ export const nl: DictionaryShape = {
     errorTitle: 'Deze pagina kon niet worden geladen',
     errorText: 'Er is bij ons iets misgegaan. U kunt het opnieuw proberen of terugkeren naar de startpagina.',
     retry: 'Opnieuw proberen',
+    chunkErrorTitle: 'Er is een nieuwe versie van het DMS beschikbaar',
+    chunkErrorText: 'Deze pagina kon niet worden geladen omdat de applicatie net is bijgewerkt. Laad de pagina opnieuw om verder te gaan.',
+    reload: 'Opnieuw laden',
+    pendingLoading: 'Laden…',
+    pendingSlowTitle: 'Het laden duurt langer dan verwacht',
+    pendingSlowText: 'Verschijnt de pagina niet, laad ze dan opnieuw of keer terug naar de startpagina.',
   },
 
   // Coque de l'application (menu mobile)
