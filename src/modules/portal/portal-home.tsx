@@ -9,6 +9,7 @@ import { AlertTriangle, ArrowRight, Bike, CalendarClock, CheckCircle2, ChevronRi
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { titleCaseName } from '@/lib/person-name';
 import { getHome, listProposals, type CompletionStep } from './api';
 import {
   AppointmentStatus, Card, ErrorBox, Loading, ProgressBar, SectionTitle, dateLongFr, progressTone, timeFr,
@@ -56,7 +57,7 @@ export function PortalHomeView() {
     <div className="space-y-4">
       <div>
         <h1 className="text-[22px] font-bold leading-7">
-          {t('portal.home.hello').replace('{name}', data.first_name ? capitalize(data.first_name) : '')}
+          {t('portal.home.hello').replace('{name}', titleCaseName(data.first_name))}
         </h1>
         <p className="text-[13px] text-muted-foreground">{t('portal.home.subtitle')}</p>
       </div>
@@ -190,6 +191,3 @@ function Shortcut({ to, icon, label, count }: { to: string; icon: ReactNode; lab
   );
 }
 
-function capitalize(s: string) {
-  return s.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
-}

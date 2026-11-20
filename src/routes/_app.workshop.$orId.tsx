@@ -43,6 +43,7 @@ import { lineCoveredByWarranty } from '@/modules/workshop/warranty/rules';
 import { DocumentMailDialog } from '@/modules/sales/document-mail-dialog';
 import { getDocumentFull, type DocumentFull } from '@/modules/sales/write-api';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { greetingName } from '@/lib/person-name';
 import { getVehicle } from '@/modules/vehicles/api';
 import { VehicleWorkshopHistoryPanel } from '@/modules/workshop/or-base/vehicle-history-panel';
 import { defaultOrTab, editorPane, parseOrTab, type OrTab } from '@/modules/workshop/or-base/or-tabs';
@@ -177,7 +178,7 @@ function OrView() {
     if (!contact) throw new Error(t('checkup.needClient'));
     const locale = contactLocale(contact);
     await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
-    const vars = { number: full.doc.number ?? '', company: companyName, client: contactDisplayName(contact), link: proposalSignUrl(token), or: data?.or.number ?? '' };
+    const vars = { number: full.doc.number ?? '', company: companyName, client: greetingName(contact), link: proposalSignUrl(token), or: data?.or.number ?? '' };
     setMail({ full, contact, preset: { subject: fillVars(tIn(locale, 'checkup.mailSubject'), vars), body: fillVars(tIn(locale, 'checkup.mailBody'), vars) } });
   };
 

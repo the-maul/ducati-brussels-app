@@ -51,6 +51,7 @@
 // deno-lint-ignore-file
 import { fillMail, mailDateTime, mailTexts, pickMailLocale, type MailLocale } from '../_shared/mail-i18n.ts';
 import { isTestCompany, TEST_COMPANY_ERROR } from '../_shared/test-company.ts';
+import { titleCaseName } from '../_shared/person-name.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -152,7 +153,7 @@ async function processReset(email: string, o: string, ipHash: string | null): Pr
     if (!ur.ok) return;
     const u = await ur.json();
     const to = String(u.email ?? '');
-    const name = String(u.user_metadata?.full_name ?? '').trim();
+    const name = titleCaseName(String(u.user_metadata?.full_name ?? '')); // VP1 : Bonjour Jean
     if (!to) return;
 
     const sender = await senderFor(target.company_id);
@@ -320,7 +321,7 @@ Deno.serve(async (req) => {
   if (!ur.ok) return J({ error: 'user_not_found' }, 404);
   const target = await ur.json();
   const email = String(target.email ?? '');
-  const name = String(target.user_metadata?.full_name ?? '').trim();
+  const name = titleCaseName(String(target.user_metadata?.full_name ?? '')); // VP1 : Bonjour Jean
   if (!email) return J({ error: 'no_email' }, 400);
 
   // 3. Expéditeur : Outlook, depuis info@ si la société l'a, sinon sa boîte principale.

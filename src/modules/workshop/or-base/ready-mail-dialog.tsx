@@ -27,7 +27,8 @@ import { clientAppUrl } from '@/lib/client-app-url';
 import { t, tIn, fillVars, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { listCompanyMailboxes } from '@/modules/crm/api';
-import { contactDisplayName, getContact } from '@/modules/contacts/api';
+import { getContact } from '@/modules/contacts/api';
+import { greetingName } from '@/lib/person-name';
 import { getVehicle, vehicleLabel } from '@/modules/vehicles/api';
 import { mailErrorLabel, plainTextToHtml } from '@/modules/sales/document-mail-api';
 import { setOrStatus } from './api';
@@ -53,7 +54,8 @@ export function ReadyMailDialog({ companyId, companyName, or, onClose, onInforme
       const locale = contactLocale(contact as { locale?: unknown } | null);
       await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)
       const vars = {
-        company: companyName, client: contact ? contactDisplayName(contact) : '',
+        // VP1 : « Bonjour Jean » (prenom en casse titre).
+        company: companyName, client: greetingName(contact),
         vehicle: vehicle ? vehicleLabel(vehicle) : tIn(locale, 'orBase.readyVehicleFallback'),
         or: or.number ? fillVars(tIn(locale, 'orBase.readyOr'), { number: or.number }) : '',
         amount: eur(or.total_ttc),

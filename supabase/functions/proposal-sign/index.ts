@@ -22,6 +22,7 @@
 import { buildGraphMessage, toGraphAttachments, attachmentsSummary } from '../_shared/mail-message.ts';
 import { mailTexts, asMailLocale, DEFAULT_MAIL_LOCALE, fillMail, type MailLocale } from '../_shared/mail-i18n.ts';
 import { isTestCompany } from '../_shared/test-company.ts';
+import { greetingName } from '../_shared/person-name.ts';
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Response | Promise<Response>): void };
 
 const URL = Deno.env.get('SUPABASE_URL');
@@ -117,7 +118,8 @@ async function loadProposal(tok: string): Promise<Proposal | null> {
 /** Corps HTML du mail « votre proposition signee », dans la langue du client. */
 function signedMailHtml(p: Proposal, locale: MailLocale): { subject: string; html: string } {
   const T = mailTexts(locale).proposal;
-  const name = [p.contact?.first_name, p.contact?.last_name].filter(Boolean).join(' ').trim();
+  // VP1 : « Bonjour Jean » (prenom en casse titre, pas en MAJUSCULES).
+  const name = greetingName(p.contact);
   // Une ligne par carte : la main-d'oeuvre porte le libelle de la carte ; une ligne isolee compte pour elle-meme.
   const heads = p.lines.filter((l) => l.line_type === 'main_oeuvre' || !l.checkup_key);
   const kept = heads.filter((l) => l.accepted !== false);
