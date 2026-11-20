@@ -564,7 +564,8 @@ export function VehicleForm({
       {(localError || error) && (
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>
       )}
-      <div className="flex justify-end gap-2">
+      {/* Barre collée en bas (revue UX/UI) : le seul bouton rouge de la fiche reste visible pendant la saisie. */}
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button type="button" variant="outline" onClick={onCancel}>{t('action.cancel')}</Button>
         <SaveButton type="submit" status={status} disabled={!dirty && !(isClient || prefill)}>
           {initial ? t('vehicles.save') : isClient ? t('motoClient.addForClient') : t('vehicles.create')}
@@ -585,14 +586,14 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, children, wide, code }: { label: string; children: ReactNode; wide?: boolean; code?: string }) {
   return (
     <div className={`space-y-1.5 ${wide ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
-      <Label className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+      {/* Revue UX/UI : le libellé d'abord, le code de la carte grise (E, D.1…) en petit à droite. */}
+      <Label className="flex items-baseline justify-between gap-2 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+        <span>{label}</span>
         {code && (
-          <span title={`${t('motoClient.cgCode')} ${code}`}
-            className="rounded-[var(--radius-badge)] border border-border bg-muted px-1 font-mono text-[11px] font-bold normal-case tracking-normal text-foreground">
+          <span title={`${t('motoClient.cgCode')} ${code}`} className="shrink-0 font-mono text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
             {code}
           </span>
         )}
-        {label}
       </Label>
       {children}
     </div>

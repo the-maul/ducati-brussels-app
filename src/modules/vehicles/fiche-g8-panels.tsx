@@ -55,7 +55,7 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
           onCopyOwner={currentOwnerId ? () => setUser(currentOwnerId) : undefined} />
       </div>
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => m.mutate()} disabled={!dirty || m.isPending}>
+        <Button size="sm" variant="outline" onClick={() => m.mutate()} disabled={!dirty || m.isPending}>
           {m.isPending && <Loader2 className="animate-spin" />} {t('action.save')}
         </Button>
       </div>
@@ -191,7 +191,7 @@ export function VehicleBonusesPanel({ companyId, vehicleId }: { companyId: strin
         <div className="space-y-1"><Label className="text-[12px]">{t('parcG8.bonusDate')}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" /></div>
         <div className="space-y-1"><Label className="text-[12px]">{t('parcG8.bonusAmount')}</Label><Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="w-32 text-right tabular-nums" /></div>
         <div className="min-w-[200px] flex-1 space-y-1"><Label className="text-[12px]">{t('parcG8.bonusComment')}</Label><Input value={comment} onChange={(e) => setComment(e.target.value)} /></div>
-        <Button onClick={() => add.mutate()} disabled={!amountOk || !date || add.isPending}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('parcG8.addBonus')}</Button>
+        <Button variant="outline" onClick={() => add.mutate()} disabled={!amountOk || !date || add.isPending}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('parcG8.addBonus')}</Button>
       </div>
     </div>
   );

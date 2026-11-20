@@ -12,11 +12,15 @@ import { PhotoThumb } from './reception-sheet';
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-BE') : '');
 
-export function VehicleReceptionPhotos({ vehicleId }: { vehicleId: string }) {
+/** `emptyText` : phrase affichée quand la moto n'a aucune photo (onglet Photos de la fiche moto) ; sinon rien. */
+export function VehicleReceptionPhotos({ vehicleId, emptyText }: { vehicleId: string; emptyText?: string }) {
   const schema = useQuery({ queryKey: ['reception-schema'], queryFn: receptionSchemaReady, staleTime: Infinity });
   const q = useQuery({ queryKey: ['vehicle-reception-photos', vehicleId], queryFn: () => listVehicleReceptionPhotos(vehicleId), enabled: schema.data === true });
   const photos = q.data ?? [];
-  if (!photos.length) return null;
+  if (!photos.length) {
+    if (!emptyText || q.isLoading) return null;
+    return <p className="rounded-md border border-dashed border-border bg-card py-10 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  }
   const groups = new Map<string, VehicleReceptionPhoto[]>();
   for (const p of photos) groups.set(p.or_id, [...(groups.get(p.or_id) ?? []), p]);
   return (

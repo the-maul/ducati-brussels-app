@@ -158,7 +158,7 @@ export function VehicleNextServicePanel({ vehicle, companyId }: { vehicle: Vehic
         {invalidKm && <p className="mt-2 text-[13px] text-danger">{t('serviceDecl.errKm')}</p>}
         {invalidDate && <p className="mt-2 text-[13px] text-danger">{t('serviceDecl.errDate')}</p>}
         <div className="mt-3 flex justify-end">
-          <Button size="sm" onClick={() => save.mutate()} disabled={!dirty || invalidKm || invalidDate || save.isPending}>
+          <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={!dirty || invalidKm || invalidDate || save.isPending}>
             {save.isPending ? <Loader2 className="animate-spin" /> : <Save />} {t('serviceDecl.save')}
           </Button>
         </div>
