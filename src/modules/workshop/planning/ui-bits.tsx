@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { listContacts, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
@@ -13,7 +13,8 @@ import { t } from '@/lib/i18n';
 export function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={`space-y-1 ${className ?? ''}`}>
-      <label className="block text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>
+      {/* Revue UX (20/11) : libelles a 12 px (charte --text-label), plus 11 px. */}
+      <label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>
       {children}
     </div>
   );
@@ -21,9 +22,13 @@ export function Field({ label, children, className }: { label: string; children:
 
 export function Picked({ label, onClear }: { label: string; onClear: () => void }) {
   return (
-    <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+    <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background pl-3 pr-1 text-sm pointer-coarse:h-11">
       <span className="truncate">{label}</span>
-      <button type="button" onClick={onClear} className="ml-auto text-muted-foreground" aria-label={t('planningG8.clear')}>×</button>
+      {/* Croix d'effacement : 28 px a la souris, 44 px en mode tactile (avant : 8 × 20 px). */}
+      <button type="button" onClick={onClear} title={t('planningG8.clear')} aria-label={t('planningG8.clear')}
+        className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:size-11">
+        <X className="size-4" aria-hidden />
+      </button>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 /**
- * M8 — « Assistant planification » (G8, 07-atelier.md §5 et §13) : creation / modification d'un RDV.
+ * M8 — « Nouveau rendez-vous » (G8 « Assistant planification », 07-atelier.md §5 et §13) : creation /
+ * modification d'un RDV. Lot design « ecrans de travail » (20/11/2026) : client → moto → motif →
+ * date et heure → compagnon → temps prevu en tete, le reste replie sous « Plus d'options » ;
+ * pieces reservees en encadre dans la fenetre (plus de seconde fenetre apres l'enregistrement).
  * Statut, type de RDV, case « Sans affectation (RDV en attente) », compagnon, date / heure,
  * temps prevu (h + min), client, moto, kilometrage (obligatoire des qu'une moto est choisie),
  * travaux, observations, moto de pret (reservation du pret sur la duree du RDV), SMS de rappel,
@@ -8,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, Package, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +25,8 @@ import { type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
 import { listWorkshopReasons } from '@/modules/workshop/checkup/api';
 import { MaintenancePartsPopup } from '@/modules/workshop/parts-popup';
 import { isMaintenanceReasonCode } from '@/modules/workshop/parts-popup-rules';
-import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-parts-dialog';
-import { serviceCodeForReason } from '@/modules/workshop/service-code';
+import { ReservedPartsBlock, fmtDateTime } from '@/modules/workshop/reservations/reserved-parts-block';
+import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
 import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 import {
@@ -76,6 +79,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const [loanerId, setLoanerId] = useState('');
   const [loanEnd, setLoanEnd] = useState(localYmd(start0));
   const [created, setCreated] = useState<{ id: string; startsAt: string } | null>(null);
+  // « Plus d'options » : ouvert d'emblee sur un RDV existant qui y a deja quelque chose.
+  const [moreOpen, setMoreOpen] = useState(() => !!a && (!!a.work_description || !!a.reception_notes || !!a.appointment_type || !!a.notify_sms || a.status !== 'prevu'));
 
   // Rechargement du client / de la moto d'un RDV existant.
   useEffect(() => {
@@ -162,11 +167,12 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   });
 
   const popupDone = useCallback(() => onSaved(), [onSaved]);
-  if (created && reservationsOn) {
-    const svc = reasonCode ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode)) : null;
-    return <ReservedPartsDialog appointmentId={created.id} startsAt={created.startsAt} serviceCode={svc} onClose={popupDone} />;
-  }
-  if (created) {
+  // Entretien du RDV (pieces reservees) : motif choisi, sinon celui deja enregistre.
+  const svc = reasonCode
+    ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode))
+    : (a && isServiceCode(a.service_code) ? a.service_code : null);
+  // Ancien popup (avant la migration des reservations) : reste l'outil de commande.
+  if (created && !reservationsOn) {
     return <MaintenancePartsPopup ctx={{ companyId, vehicleId: vehicle?.id ?? null, contactId: contact?.id ?? null, reasonCode, appointmentId: created.id, appointmentAt: created.startsAt }} onDone={popupDone} />;
   }
 
@@ -178,26 +184,36 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const endPreview = planned && !Number.isNaN(startsAt.getTime()) ? new Date(startsAt.getTime() + planned * 60000) : null;
   const statuses = a?.status === 'demande' ? ['demande', ...SELECTABLE_STATUSES] : SELECTABLE_STATUSES;
 
+  // Lot design « ecrans de travail » (20/11/2026) : apres l'enregistrement d'un RDV d'entretien, les
+  // pieces reservees s'affichent en encadre DANS la meme fenetre (plus de seconde fenetre).
+  if (created) {
+    return (
+      <Dialog open onOpenChange={(o) => { if (!o) popupDone(); }}>
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="size-5 text-success" /> {t('designEcrans.savedTitle')}</DialogTitle></DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            {[contact ? contactDisplayName(contact) : null, vehicle ? vehiclePickLabel(vehicle) : null, fmtDateTime(created.startsAt)].filter(Boolean).join(' · ')}
+          </p>
+          <p className="text-[13px]">{t('designEcrans.savedHint')}</p>
+          <ReservedPartsBlock appointmentId={created.id} serviceCode={svc} />
+          <DialogFooter><Button variant="outline" className="pointer-coarse:h-11" onClick={popupDone}>{t('designEcrans.done')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
-        <DialogHeader><DialogTitle>{a ? t('planningG8.editRdv') : t('planningG8.assistant')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle></DialogHeader>
+        {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label={t('planningG8.status')}>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{statuses.map((s) => <SelectItem key={s} value={s}>{t(`planningG8.status_${s}`)}</SelectItem>)}</SelectContent>
-            </Select>
+          <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>
+          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
+          <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
+            <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
           </Field>
-          <Field label={t('planningG8.type')}>
-            <Select value={type || NONE} onValueChange={onType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>{t('planningG8.typeNone')}</SelectItem>
-                {base.types.map((x) => <SelectItem key={x.code} value={x.code}>{x.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Field>
+
           <Field label={t('partsPopup.rdvReason')}>
             <Select value={reasonCode || NONE} onValueChange={(v) => setReasonCode(v === NONE ? '' : v)}>
               <SelectTrigger><SelectValue placeholder={t('partsPopup.rdvReasonNone')} /></SelectTrigger>
@@ -207,11 +223,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
               </SelectContent>
             </Select>
           </Field>
-
-          <label className="flex items-center gap-2 text-sm sm:col-span-3">
-            <input type="checkbox" checked={unassigned} onChange={(e) => setUnassigned(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
-            {t('planningG8.unassigned')}
-          </label>
+          <Field label={unassigned ? t('planningG8.wishedDate') : t('workshop.rdvDate')}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={t('workshop.rdvTime')}><Input type="time" step={base.settings.slot_minutes * 60} value={time} onChange={(e) => setTime(e.target.value)} /></Field>
 
           <Field label={t('planningG8.mechanic')}>
             <Select value={unassigned ? NONE : mechanicId || NONE} onValueChange={(v) => setMechanicId(v === NONE ? '' : v)} disabled={unassigned}>
@@ -222,9 +235,6 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
               </SelectContent>
             </Select>
           </Field>
-          <Field label={unassigned ? t('planningG8.wishedDate') : t('workshop.rdvDate')}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label={t('workshop.rdvTime')}><Input type="time" step={base.settings.slot_minutes * 60} value={time} onChange={(e) => setTime(e.target.value)} /></Field>
-
           <Field label={t('planningG8.plannedTime')}>
             <div className="flex items-center gap-1">
               <Input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" className="w-16 text-right tabular-nums" aria-label={t('planningG8.hoursShort')} />
@@ -236,47 +246,82 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           <Field label={t('planningG8.plannedEnd')}>
             <p className="flex h-9 items-center font-data text-sm tabular-nums text-muted-foreground">{endPreview ? endPreview.toLocaleString('fr-BE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}{planned ? ` · ${formatMinutes(planned)}` : ''}</p>
           </Field>
-          <div />
 
-          <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>
-          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
-          <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
-            <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
-          </Field>
-
-          <Field label={t('workshop.workDescription')} className="sm:col-span-3"><Textarea rows={2} value={work} onChange={(e) => setWork(e.target.value)} /></Field>
-          <Field label={t('planningG8.receptionNotes')} className="sm:col-span-3"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-
-          {loansReady.data === true && (
-            <>
-              <Field label={t('loans.loanVehicle')}>
-                <Select value={loanerId || NONE} onValueChange={(v) => setLoanerId(v === NONE ? '' : v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>{t('loans.noLoan')}</SelectItem>
-                    {(loanersQ.data ?? []).filter((l) => l.is_active).map((l) => <SelectItem key={l.id} value={l.id}>{[l.label, l.plate].filter(Boolean).join(' · ')}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {loanerId && <Field label={t('loans.plannedReturn')}><Input type="date" value={loanEnd} onChange={(e) => setLoanEnd(e.target.value)} /></Field>}
-              {(existingLoans.data ?? []).filter((l) => l.status !== 'annule').length > 0 && (
-                <p className="self-end text-[12px] text-muted-foreground sm:col-span-1">
-                  {t('loans.alreadyLinked')} {(existingLoans.data ?? []).filter((l) => l.status !== 'annule').map((l) => l.number).join(', ')}
-                </p>
-              )}
-            </>
-          )}
-
-          <label className="flex items-center gap-2 text-sm sm:col-span-3">
-            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('workshop.rdvNotify')}
+          <label className="flex items-center gap-2 text-sm sm:col-span-3 pointer-coarse:min-h-11">
+            <input type="checkbox" checked={unassigned} onChange={(e) => setUnassigned(e.target.checked)} className="size-4 accent-[var(--ducati-red)] pointer-coarse:size-5" />
+            {t('planningG8.unassigned')}
           </label>
           {warning && <p className="text-[12px] font-medium text-warning sm:col-span-3">{t(`planningG8.warn_${warning}`)}</p>}
         </div>
+
+        {/* Pieces reservees : encadre dans la fenetre (RDV existant) ou annonce (nouveau RDV d'entretien). */}
+        {a?.id && reservationsOn && svc && <ReservedPartsBlock appointmentId={a.id} serviceCode={svc} compactWhenEmpty />}
+        {!a && reservationsOn && isMaintenanceReasonCode(reasonCode) && (
+          <p className="flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-[13px] text-muted-foreground">
+            <Package className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('designEcrans.partsWillReserve')}
+          </p>
+        )}
+
+        {/* Le reste, replie : statut, type, travaux, observations, moto de pret, SMS. */}
+        <div className="rounded-md border border-border">
+          <button type="button" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-bold hover:bg-accent pointer-coarse:min-h-11">
+            {moreOpen ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
+            {moreOpen ? t('designEcrans.lessOptions') : t('designEcrans.moreOptions')}
+          </button>
+          {moreOpen && (
+            <div className="grid grid-cols-1 gap-3 border-t border-border p-3 sm:grid-cols-3">
+              <Field label={t('planningG8.status')}>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{statuses.map((s) => <SelectItem key={s} value={s}>{t(`planningG8.status_${s}`)}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('planningG8.type')}>
+                <Select value={type || NONE} onValueChange={onType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>{t('planningG8.typeNone')}</SelectItem>
+                    {base.types.map((x) => <SelectItem key={x.code} value={x.code}>{x.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div />
+
+              <Field label={t('workshop.workDescription')} className="sm:col-span-3"><Textarea rows={2} value={work} onChange={(e) => setWork(e.target.value)} /></Field>
+              <Field label={t('planningG8.receptionNotes')} className="sm:col-span-3"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+
+              {loansReady.data === true && (
+                <>
+                  <Field label={t('loans.loanVehicle')}>
+                    <Select value={loanerId || NONE} onValueChange={(v) => setLoanerId(v === NONE ? '' : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>{t('loans.noLoan')}</SelectItem>
+                        {(loanersQ.data ?? []).filter((l) => l.is_active).map((l) => <SelectItem key={l.id} value={l.id}>{[l.label, l.plate].filter(Boolean).join(' · ')}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {loanerId && <Field label={t('loans.plannedReturn')}><Input type="date" value={loanEnd} onChange={(e) => setLoanEnd(e.target.value)} /></Field>}
+                  {(existingLoans.data ?? []).filter((l) => l.status !== 'annule').length > 0 && (
+                    <p className="self-end text-[12px] text-muted-foreground sm:col-span-1">
+                      {t('loans.alreadyLinked')} {(existingLoans.data ?? []).filter((l) => l.status !== 'annule').map((l) => l.number).join(', ')}
+                    </p>
+                  )}
+                </>
+              )}
+
+              <label className="flex items-center gap-2 text-sm sm:col-span-3 pointer-coarse:min-h-11">
+                <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-[var(--ducati-red)] pointer-coarse:size-5" /> {t('workshop.rdvNotify')}
+              </label>
+            </div>
+          )}
+        </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button variant="outline" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
+          <Button variant="outline" className="pointer-coarse:h-11" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button variant="outline" className="pointer-coarse:h-11" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
           {!a?.or_id && (
-            <Button onClick={() => save.mutate(true)} disabled={save.isPending || unassigned} title={unassigned ? t('planningG8.orNeedsSlot') : undefined}>
+            <Button className="pointer-coarse:h-11" onClick={() => save.mutate(true)} disabled={save.isPending || unassigned} title={unassigned ? t('planningG8.orNeedsSlot') : undefined}>
               <FileText /> {t('planningG8.validateAndOr')}
             </Button>
           )}

@@ -184,7 +184,7 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
       <aside className="w-full shrink-0 rounded-md border border-border bg-card xl:w-72">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.04em]"><Inbox className="size-4" /> {t('planningG8.waitingList')} ({waiting.length})</p>
-          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onNewWaiting}><CalendarPlus className="size-3.5" /> {t('planningG8.newWaiting')}</Button>
+          <Button size="sm" variant="ghost" className="h-7 px-2 pointer-coarse:h-11 pointer-coarse:px-3" onClick={onNewWaiting}><CalendarPlus className="size-3.5" /> {t('planningG8.newWaiting')}</Button>
         </div>
         <p className="px-3 pt-2 text-[11px] text-muted-foreground">{t('planningG8.waitingHint')}</p>
         <div className="max-h-[70vh] space-y-2 overflow-auto p-2">

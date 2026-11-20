@@ -12,6 +12,7 @@ import { myWorkshopIt } from './mon-atelier';
 import { orLisibleIt } from './or-lisible';
 import { uxAtelierIt } from './ux-atelier';
 import { designFichesIt } from './design-fiches';
+import { designEcransIt } from './design-ecrans';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
@@ -4031,7 +4032,7 @@ export const it: DictionaryShape = {
     // export CSV
     export: 'Esporta',
     // réappro / back-order
-    reorderView: 'Riassortimento', reorderEmpty: 'Nessun articolo da monitorare per il riassortimento.',
+    reorderView: "Proposta d'ordine", reorderEmpty: 'Nessun articolo da monitorare per il riassortimento.',
     colSupplier: 'Fornitore', colGap: 'Mancante',
     // dépréciation de stock
     deprecBtn: 'Svalutazioni', deprecTitle: 'Svalutazioni di stock',
@@ -9413,6 +9414,8 @@ export const it: DictionaryShape = {
   uxAtelier: uxAtelierIt,
   // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
   designFiches: designFichesIt,
+  // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
+  designEcrans: designEcransIt,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
   ...decisionsQ57Q60It,
   // Q65 (20/11/2026) : impression des commandes fournisseur et des receptions.

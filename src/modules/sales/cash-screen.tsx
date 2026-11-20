@@ -10,7 +10,9 @@
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Lock, Wallet, AlertTriangle, FileDown, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Lock, Wallet, AlertTriangle, FileDown, CheckCircle2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useReadOnly } from '@/lib/auth/read-only-context';
+import { formatEur } from '@/lib/format-eur';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,7 +36,8 @@ import { errorMessage } from '@/lib/mutation-feedback';
 import { toast } from 'sonner';
 import { ZReportView } from './z-report-view';
 
-const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+// Revue UX (20/11) : séparateur de milliers (« 1 027,00 € »), formateur unique.
+const eur = formatEur;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 export function CashScreen({ companyId }: { companyId: string }) {
@@ -180,13 +183,15 @@ function MovementPanel({ companyId, sessionId, methods, movements, onChanged }: 
   const typeLabel = (code: string | null | undefined) => (code ? (allTypes ?? []).find((x) => x.code === code)?.label ?? code : '');
   const vat = type?.vatRate ? Math.round(num(amount) * type.vatRate / (100 + type.vatRate) * 100) / 100 : 0;
   const needType = types.length > 0 && !type;
+  // Bouton en contour : la garde « lecture seule » du bouton principal ne s'applique plus d'elle-même.
+  const readOnly = useReadOnly();
   const add = useMutation({
     mutationFn: () => addTypedMovement(companyId, sessionId, { kind, amount: num(amount), method, reason: reason.trim() || (type?.label ?? ''), typeCode: type?.code ?? null }),
     onSuccess: () => { setAmount(''); setReason(''); setAsk(false); onChanged(); },
   });
   return (
     <div className="space-y-3 rounded-md border border-border bg-card p-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.movements')}</p>
+      <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.movements')}</p>
       <div className="flex flex-wrap items-end gap-2">
         {types.length > 0 && (
           <div className="space-y-1"><Label>{t('cash.movementType')}</Label>
@@ -210,7 +215,7 @@ function MovementPanel({ companyId, sessionId, methods, movements, onChanged }: 
           </Select>
         </div>
         <div className="flex-1 space-y-1"><Label>{types.length > 0 ? t('cash.comment') : t('cash.reason')}</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} /></div>
-        <Button onClick={() => { add.reset(); setAsk(true); }} disabled={add.isPending || num(amount) <= 0 || needType}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cash.add')}</Button>
+        <Button variant="outline" onClick={() => { add.reset(); setAsk(true); }} disabled={readOnly || add.isPending || num(amount) <= 0 || needType}>{add.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t('cash.add')}</Button>
       </div>
       {vat > 0 && <p className="font-data text-[12px] tabular-nums text-muted-foreground">{fillVars(t('cash.movementVat'), { rate: type?.vatRate ?? 0, vat: eur(vat) })}</p>}
       {movements.length > 0 && (
@@ -256,11 +261,20 @@ function ZPanel({ z }: { z: ZReport }) {
   return <ZReportView z={z} />;
 }
 
-/* ---------------- Clôture + calcul monnaie ---------------- */
+/* ---------------- Clôture en 3 étapes : compter → vérifier l'écart → clôturer ---------------- */
+// Lot design « écrans de travail » (20/11/2026, revue UX/UI) : l'écart ne s'affiche qu'après le
+// comptage (avant, « Écart : − 1 027,00 € » inquiétait pour rien), et le rouge n'apparaît qu'à la
+// dernière étape. Calculs inchangés : espèces théoriques (`expectedCash`), écart (`cashVariance`),
+// motif obligatoire (`varianceReasonMissing`), clôture et Z figé comme avant.
+const CLOSE_STEPS = [1, 2, 3] as const;
+type CloseStep = (typeof CLOSE_STEPS)[number];
+
 function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { companyId: string; sessionId: string; theoreticalCash: number; onClosed: (s: CashSession) => void }) {
+  const [step, setStep] = useState<CloseStep>(1);
   const [qtys, setQtys] = useState<Record<string, string>>({});
   const { total: counted, denominations: denoms } = countTotal(qtys);
   const variance = cashVariance(counted, theoreticalCash);
+  const hasVariance = Math.abs(variance) > 0.004;
   const [reason, setReason] = useState('');
   const [ask, setAsk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -279,26 +293,82 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
     onSuccess: (closed) => { setAsk(false); setError(null); onClosed(closed); },
     onError: (e) => setError(errorMessage(e)),
   });
+  const stepLabel = (n: CloseStep) => t(`designEcrans.closeStep${n}`);
+  const varianceText = `${variance >= 0 ? '+' : '−'} ${eur(Math.abs(variance))}`;
+  const summary = (
+    <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1.5 font-data text-[14px] tabular-nums">
+      <dt className="text-muted-foreground">{t('cash.theoretical')}</dt><dd className="text-right">{eur(theoreticalCash)}</dd>
+      <dt className="text-muted-foreground">{t('cash.countedCash')}</dt><dd className="text-right font-bold">{eur(counted)}</dd>
+      <dt className="text-muted-foreground">{t('cash.variance')}</dt>
+      <dd className={`flex items-center justify-end gap-1.5 font-bold ${hasVariance ? 'text-danger' : 'text-success'}`}>
+        {hasVariance ? <AlertTriangle className="size-4" aria-hidden /> : <CheckCircle2 className="size-4" aria-hidden />} {varianceText}
+      </dd>
+    </dl>
+  );
   return (
-    <div className="space-y-3 rounded-md border border-border bg-card p-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.counting')}</p>
-      <CashCountGrid qtys={qtys} onChange={setQtys} />
-      <div className="flex flex-col items-end gap-1 font-data text-sm tabular-nums">
-        <span>{t('cash.theoretical')} : {eur(theoreticalCash)}</span>
-        <span>{t('cash.countedCash')} : <b>{eur(counted)}</b></span>
-        <span className={Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}>{t('cash.variance')} : <b>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</b></span>
+    <div className="space-y-4 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.close')}</p>
+        <span className="font-data text-[12px] text-muted-foreground">{fillVars(t('designEcrans.stepOf'), { n: step })}</span>
       </div>
-      {Math.abs(variance) > 0.004 && (
-        <div className="space-y-1">
-          <Label>{t('cash.varianceReason')}</Label>
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('cash.varianceReasonHint')} />
-          {reasonMissing && <p className="text-[12px] text-warning">{t('cash.varianceReasonNeeded')}</p>}
-        </div>
+      <ol aria-label={t('designEcrans.closeStepsLabel')} className="flex flex-wrap gap-2">
+        {CLOSE_STEPS.map((n) => (
+          <li key={n} aria-current={step === n ? 'step' : undefined}
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${step === n ? 'border-foreground bg-accent font-bold text-foreground' : step > n ? 'border-border text-success' : 'border-border text-muted-foreground'}`}>
+            {step > n ? <CheckCircle2 className="size-4" aria-hidden /> : <span className="font-data tabular-nums">{n}.</span>}
+            {stepLabel(n)}
+          </li>
+        ))}
+      </ol>
+
+      {step === 1 && (
+        <>
+          <p className="text-[13px] text-muted-foreground">{t('designEcrans.countHint')}</p>
+          <CashCountGrid qtys={qtys} onChange={setQtys} />
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <span className="font-data text-[14px] tabular-nums">{t('designEcrans.countedSoFar')} : <b>{eur(counted)}</b></span>
+            <Button variant="outline" onClick={() => setStep(2)}>{t('designEcrans.toVerify')} <ArrowRight /></Button>
+          </div>
+        </>
       )}
-      {error && !ask && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
-      <div className="flex justify-end">
-        <Button variant="destructive" onClick={() => { setError(null); setAsk(true); }} disabled={close.isPending || reasonMissing}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
-      </div>
+
+      {step === 2 && (
+        <>
+          {summary}
+          {counted === 0 && (
+            <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('designEcrans.countedZero')}</p>
+          )}
+          {hasVariance ? (
+            <div className="space-y-1">
+              <p className="flex items-start gap-2 text-[13px] text-danger"><AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('designEcrans.varianceFound')}</p>
+              <Label>{t('cash.varianceReason')}</Label>
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('cash.varianceReasonHint')} className="max-w-xl" />
+              {reasonMissing && <p className="text-[12px] text-warning">{t('cash.varianceReasonNeeded')}</p>}
+            </div>
+          ) : (
+            <p className="flex items-start gap-2 text-[13px] text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> {t('designEcrans.noVariance')}</p>
+          )}
+          <div className="flex flex-wrap justify-between gap-2">
+            <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft /> {t('designEcrans.backToCount')}</Button>
+            <Button variant="outline" onClick={() => setStep(3)} disabled={reasonMissing}>{t('designEcrans.toClose')} <ArrowRight /></Button>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <p className="text-[13px] font-bold">{t('designEcrans.closeSummary')}</p>
+          {summary}
+          {hasVariance && reason.trim() && <p className="text-[13px]"><span className="text-muted-foreground">{t('cash.varianceReason')} : </span>{reason.trim()}</p>}
+          {error && !ask && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
+          <div className="flex flex-wrap justify-between gap-2">
+            <Button variant="outline" onClick={() => setStep(2)} disabled={close.isPending}><ArrowLeft /> {t('designEcrans.backToVerify')}</Button>
+            {/* Seul bouton rouge de l'écran de clôture : la dernière étape. */}
+            <Button onClick={() => { setError(null); setAsk(true); }} disabled={close.isPending || reasonMissing}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
+          </div>
+        </>
+      )}
+
       {/* La clôture est définitive (règlements et mouvements de la session figés, Z numéroté) : on confirme. */}
       <AlertDialog open={ask} onOpenChange={(o) => { if (!close.isPending) setAsk(o); }}>
         <AlertDialogContent>
@@ -309,7 +379,7 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-data text-[13px] tabular-nums">
             <dt className="text-muted-foreground">{t('cash.theoretical')}</dt><dd className="text-right">{eur(theoreticalCash)}</dd>
             <dt className="text-muted-foreground">{t('cash.countedCash')}</dt><dd className="text-right">{eur(counted)}</dd>
-            <dt className="text-muted-foreground">{t('cash.variance')}</dt><dd className={`text-right ${Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}`}>{variance >= 0 ? '+' : '−'} {eur(Math.abs(variance))}</dd>
+            <dt className="text-muted-foreground">{t('cash.variance')}</dt><dd className={`text-right ${Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}`}>{varianceText}</dd>
             {reason.trim() && <><dt className="text-muted-foreground">{t('cash.varianceReason')}</dt><dd className="text-right">{reason.trim()}</dd></>}
           </dl>
           {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
@@ -327,7 +397,7 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
 function PastSessions({ sessions }: { sessions: CashSession[] }) {
   return (
     <div>
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.pastSessions')}</p>
+      <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.pastSessions')}</p>
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse font-data text-[13px]">
           <thead className="bg-muted"><tr><Th>{t('cash.colZ')}</Th><Th>{t('cash.colOpened')}</Th><Th>{t('cash.colClosed')}</Th><Th className="text-right">{t('cash.colFloat')}</Th><Th className="text-right">{t('cash.colCounted')}</Th><Th>{t('cash.colStatus')}</Th></tr></thead>
@@ -350,8 +420,8 @@ function PastSessions({ sessions }: { sessions: CashSession[] }) {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{children}</label>;
+  return <label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{children}</label>;
 }
 function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+  return <th className={`px-3 py-2 text-left font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
 }

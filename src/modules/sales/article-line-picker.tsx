@@ -27,11 +27,16 @@ import { moveActive } from './article-line-pick';
 
 const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
 
-export function ArticleLinePicker({ companyId, value, onText, onPick, placeholder, className = 'h-8', autoFocus }: {
+export function ArticleLinePicker({ companyId, value, onText, onPick, onEnter, placeholder, className = 'h-8', autoFocus }: {
   companyId: string;
   value: string;
   onText: (v: string) => void;
   onPick: (a: SaleArticle) => void;
+  /**
+   * Entree sans proposition choisie (vente comptoir : scan a la douchette, 20/11/2026). Absent :
+   * comportement d'avant (Entree ne fait rien tant qu'aucune ligne n'est surlignee).
+   */
+  onEnter?: (text: string) => void;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -69,6 +74,9 @@ export function ArticleLinePicker({ companyId, value, onText, onPick, placeholde
     } else if (e.key === 'Enter' && open && active >= 0 && hits[active]) {
       e.preventDefault();
       pick(hits[active]);
+    } else if (e.key === 'Enter' && onEnter) {
+      e.preventDefault();
+      onEnter(value);
     } else if (e.key === 'Escape' && open) {
       e.preventDefault();
       setDismissed(true);

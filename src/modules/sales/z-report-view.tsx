@@ -8,8 +8,10 @@ import { StatusBadge } from '@/components/status-badge';
 import { Lock, Clock } from 'lucide-react';
 import { t, fillVars } from '@/lib/i18n';
 import type { ZReport } from './z-report';
+import { formatEur } from '@/lib/format-eur';
 
-const eur = (n: number | null | undefined) => (n == null ? '—' : `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`);
+// Revue UX (20/11) : séparateur de milliers (« 1 027,00 € »).
+const eur = (n: number | null | undefined) => (n == null ? '—' : formatEur(n));
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('fr-BE') : '—');
 
 export function ZReportView({ z, showCash = false }: { z: ZReport; showCash?: boolean }) {

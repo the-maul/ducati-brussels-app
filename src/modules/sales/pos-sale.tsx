@@ -28,9 +28,9 @@
  */
 import { warnIfReservedForWorkshop } from '@/modules/workshop/reservations/sale-warning';
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useBlocker } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Search, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt, Inbox, Clock, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, ScanLine, CreditCard, Printer, RotateCcw, FileText, AlertTriangle, Mail, Wallet, X, Receipt, Inbox, Clock, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -72,15 +72,17 @@ import { initialSaleFlow, nextSaleFlow, screenModeForFlow, ticketForScreen, type
 import { effectiveSaleHt, useRoundSalePrices } from '@/lib/pricing';
 import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
-import { SupplyStateBadge } from '@/modules/articles/supply-badge';
 import { useSalesOperators } from './use-sales-operators';
 import { OperatorSelect } from './operator-select';
 import { operatorMissing } from './operators';
 import { identityMissing } from '@/modules/contacts/identity-rules';
 import { PERSON_CIVILITIES } from '@/modules/contacts/civility';
 import { identityFieldsLabel } from '@/lib/db-error-i18n';
+import { ArticleLinePicker } from './article-line-picker';
+import { formatEur } from '@/lib/format-eur';
 
-const eur = (n: number) => `${(Math.round(n * 100) / 100).toFixed(2).replace('.', ',')} €`;
+// Revue UX (20/11) : séparateur de milliers (« 1 027,00 € »).
+const eur = formatEur;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 type CartLine = {
@@ -162,6 +164,13 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
   // Facture imposée par la loi : moto, ou > 125 € TTC avec une pièce / un accessoire du véhicule.
   const mustInvoice = docKind === 'express' ? invoiceRequired(cart, rules ?? []) : null;
   const noSession = !sessionLoading && posSessionError(session) === 'noSession';
+  // Revue UX (20/11) : quitter la caisse avec un panier non encaissé le perdait sans prévenir.
+  const cartPending = !activeDoc && cart.length > 0;
+  const leave = useBlocker({
+    shouldBlockFn: ({ current, next }) => cartPending && current.pathname !== next.pathname,
+    enableBeforeUnload: () => cartPending,
+    withResolver: true,
+  });
 
   // Piece reservee pour un RDV atelier : avertissement clair (mission 10, carte 6), la vente reste possible.
   const add = (a: SaleArticle) => {
@@ -449,19 +458,19 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
         {/* Client (facture) + total + encaisser */}
         <div className="space-y-3 rounded-md border border-border bg-card p-4">
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('q63.operator')} *</label>
+            <label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('q63.operator')} *</label>
             <OperatorSelect operators={operators} value={operatorId} onChange={(v) => { setOperatorId(v); setOperatorAsk(false); }}
               invalid={operatorAsk && !operatorId} disabled={!!activeDoc} />
           </div>
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('posDetail.docType')}</label>
+            <label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('posDetail.docType')}</label>
             <Select value={docKind} onValueChange={(v) => setDocKind(v as PosDocKind)}>
               <SelectTrigger title={t('posDetail.changeHint')}><SelectValue /></SelectTrigger>
               <SelectContent>{POS_DOC_KINDS.map((k) => <SelectItem key={k} value={k}>{t(`posDetail.type_${k}`)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pos.clientForInvoice')}</label>
+            <label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('pos.clientForInvoice')}</label>
             {contact ? (
               <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
                 <span className="truncate">{contactDisplayName(contact)}</span>
@@ -500,6 +509,20 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
           </Button>
         </div>
       </div>
+      {leave.status === 'blocked' && (
+        <AlertDialog open onOpenChange={(o) => { if (!o) leave.reset(); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="size-5 text-warning" /> {t('designEcrans.leaveCartTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('designEcrans.leaveCartBody')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => leave.reset()}>{t('designEcrans.leaveCartStay')}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => leave.proceed()}>{t('designEcrans.leaveCartLeave')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       {labourOpen && <LabourDialog companyId={companyId} onClose={() => setLabourOpen(false)} onPick={(a) => { addToCart(a, true); setLabourOpen(false); }} />}
       {quickOpen && <QuickClientDialog companyId={companyId} onClose={() => setQuickOpen(false)} onCreated={(c) => { setContact(c); setQuickOpen(false); }} />}
     </div>
@@ -507,7 +530,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
 }
 
 function PosField({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1"><label className="block text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;
+  return <div className="space-y-1"><label className="block text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</label>{children}</div>;
 }
 
 /** Ligne de main-d'oeuvre au comptoir : articles de type T (taux horaire, heures décimales). */
@@ -591,41 +614,38 @@ function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: strin
   );
 }
 
+/**
+ * Recherche / scan du comptoir. Lot design « écrans de travail » (20/11/2026) : même liste de
+ * résultats que les lignes de l'OR (`ArticleLinePicker` : large, stock et casier, flèches / Entrée,
+ * fermée après l'ajout). Règle du scan inchangée (PDV000) : Entrée sans ligne choisie n'ajoute
+ * l'article que s'il est seul à correspondre ; plusieurs → on choisit avec les flèches.
+ */
 function ScanBar({ companyId, onAdd }: { companyId: string; onAdd: (a: SaleArticle) => void }) {
-  const roundUp = useRoundSalePrices(companyId);
+  const qc = useQueryClient();
   const [term, setTerm] = useState('');
-  const [deb, setDeb] = useState('');
   const [hint, setHint] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 200); return () => clearTimeout(id); }, [term]);
-  const { data } = useQuery({ queryKey: ['pos-art', companyId, deb], queryFn: () => searchSaleArticles(companyId, deb), enabled: deb.length >= 2 });
-
-  // Scan : Entrée → si une seule correspondance, l'ajoute et vide le champ ; plusieurs → on choisit.
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter') return;
-    const one = scanAutoPick(data);
-    if (one) { onAdd(one); setTerm(''); setHint(null); }
-    else if (data && data.length > 1) setHint(t('pos.scanMany'));
-    else if (deb.length >= 2 && data && data.length === 0) setHint(t('pos.scanNone'));
+  const added = (a: SaleArticle) => { onAdd(a); setTerm(''); setHint(null); };
+  const onEnter = async (raw: string) => {
+    const q = raw.trim();
+    if (q.length < 2) return;
+    try {
+      // Douchette : le texte complet est cherché tout de suite (sans attendre la fin de la saisie).
+      const res = await qc.fetchQuery({ queryKey: ['line-article', companyId, q], queryFn: () => searchSaleArticles(companyId, q), staleTime: 30_000 });
+      const one = scanAutoPick(res);
+      if (one) added(one);
+      else setHint(res.length > 1 ? t('designEcrans.scanUseArrows') : t('pos.scanNone'));
+    } catch (e) { setHint(errorMessage(e)); }
   };
   return (
     <div className="relative">
-      <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input ref={inputRef} value={term} onChange={(e) => { setTerm(e.target.value); setHint(null); }} onKeyDown={onKey} placeholder={t('pos.scan')} className="h-11 pl-9 text-base" autoFocus />
+      <ScanLine className="pointer-events-none absolute left-3 top-[22px] z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+      <ArticleLinePicker companyId={companyId} value={term} onText={(v) => { setTerm(v); setHint(null); }} onPick={added}
+        onEnter={(v) => { void onEnter(v); }} placeholder={t('pos.scan')} className="h-11 pl-9 text-base" autoFocus />
       {hint && <p className="mt-1 text-[12px] text-warning">{hint}</p>}
-      {data && data.length > 0 && deb.length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {data.map((a) => (
-            <button key={a.id} type="button" onClick={() => { onAdd(a); setTerm(''); setHint(null); inputRef.current?.focus(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent">
-              <Search className="size-4 text-muted-foreground" /><span className="font-mono text-[12px]">{a.reference}</span><span className="truncate">{a.designation}</span><SupplyStateBadge availability={a.supplier_availability} className="shrink-0" /><span className="ml-auto tabular-nums text-muted-foreground">{eur(effectiveSaleHt(a.sale_price_ht, a.vat_rate, roundUp))}</span><Plus className="size-4 text-success" />
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+  return <th className={`px-3 py-2 text-left font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
 }
