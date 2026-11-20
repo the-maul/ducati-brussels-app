@@ -14,6 +14,8 @@ export type PosCartLine = {
   discount_pct?: number; line_type?: 'article' | 'main_oeuvre';
   /** G8 « Hors remise pied de page » (lot G8 articles du 18/11) : la remise globale ne s'applique pas. */
   no_footer_discount?: boolean;
+  /** Référence article : imprimée sur le ticket (colonne RÉFÉRENCE, vide avant le 20/11/2026). */
+  reference?: string | null;
 };
 
 /** Lignes du panier qui partent sur le ticket (quantite strictement positive ; remise ligne bornee 0-100). */
@@ -25,6 +27,7 @@ export function posTicketLines(cart: PosCartLine[]): LineInput[] {
       unit_price_ht: Number(l.unit_price_ht), vat_rate: Number(l.vat_rate),
       discount_pct: Number.isFinite(d) ? Math.min(Math.max(d, 0), 100) : 0, line_type: l.line_type ?? 'article',
       ...(l.no_footer_discount ? { no_footer_discount: true } : {}),
+      ...(l.reference ? { reference: l.reference } : {}),
     };
   });
 }

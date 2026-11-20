@@ -51,7 +51,7 @@ function AccountingPage() {
   const setCut = useMutation({ mutationFn: (d: string) => setAccountingCutover(activeCompanyId!, d), onSuccess: () => { cutover.refetch(); vat.refetch(); entries.refetch(); } });
 
   // Acomptes déjà facturés (FAA) déduits de la facture finale : la vente n est comptée qu une fois.
-  const { ht: totalHt, ttc: totalTtc } = journalTotals(journal.data ?? []);
+  const { ht: totalHt, vat: totalVat, ttc: totalTtc } = journalTotals(journal.data ?? []);
 
   return (
     <>
@@ -102,7 +102,7 @@ function AccountingPage() {
                   </tr>
                 ))}
                 {journal.data && journal.data.length > 0 && (
-                  <tr className="bg-muted font-bold"><td className="px-3 py-2" colSpan={2}>{t('accounting.total')}</td><td className="px-3 py-2 text-right tabular-nums">{eur(totalHt)}</td><td /><td className="px-3 py-2 text-right tabular-nums">{eur(totalTtc)}</td></tr>
+                  <tr className="bg-muted font-bold"><td className="px-3 py-2" colSpan={2}>{t('accounting.total')}</td><td className="px-3 py-2 text-right tabular-nums">{eur(totalHt)}</td><td className="px-3 py-2 text-right tabular-nums">{eur(totalVat)}</td><td className="px-3 py-2 text-right tabular-nums">{eur(totalTtc)}</td></tr>
                 )}
               </tbody>
             </table>

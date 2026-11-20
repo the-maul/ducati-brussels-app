@@ -3739,7 +3739,7 @@ export const it: DictionaryShape = {
     invoiceTo: 'da fatturare a',
     vWishedPrice: 'Prezzo desiderato dal cliente',
     vWishedPriceOnPdf: 'Visibile sul PDF',
-    valOpen: 'Conferma la permuta', valEdit: 'Modifica la permuta', valCancel: 'Annulla la permuta',
+    valOpen: 'Conferma la permuta', valEdit: 'Modifica prezzi e classificazione', valCancel: 'Annulla la permuta',
     cancelConfirm: 'Annullare questa permuta? Se era confermata, il veicolo uscirà dallo stock usato.',
     valTitle: 'Conferma della permuta',
     valStep1Title: "L'acquirente conferma di aver ricevuto",

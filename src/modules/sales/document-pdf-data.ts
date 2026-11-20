@@ -97,6 +97,24 @@ export async function loadLegalMentions(
   });
 }
 
+/**
+ * Kilométrage relevé sur l'OR facturé par ce document (G8 : la facture d'atelier imprime le km de
+ * l'OR, pas celui de la fiche moto, qui n'est pas mis à jour par l'OR). null si le document ne
+ * vient pas d'un OR ou si l'OR n'a pas de km.
+ */
+export async function repairOrderMileage(documentId: string): Promise<number | null> {
+  const { data } = await supabase.from('repair_orders').select('mileage').eq('invoice_document_id', documentId).limit(1).maybeSingle();
+  const km = (data as { mileage: number | null } | null)?.mileage;
+  return km == null ? null : Number(km);
+}
+
+/** Fiche moto du document, km remplacé par celui de l'OR quand le document facture un OR. */
+export function withOrMileage(vehicle: unknown, orKm: number | null): Record<string, unknown> | null {
+  if (!vehicle) return null;
+  const v = vehicle as Record<string, unknown>;
+  return orKm == null ? v : { ...v, mileage: orKm };
+}
+
 export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<PrintOptions> | null): Promise<SalesPdfInput> {
   const { doc, lines } = full;
   // Options d'edition G8 (lot du 18/11/2026) : titre choisi, sans references, sans prix...
@@ -109,9 +127,10 @@ export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<Pr
     doc.vehicle_id ? supabase.from('vehicles').select('*').eq('id', doc.vehicle_id).maybeSingle() : Promise.resolve({ data: null }),
     loadValidityRules(doc.company_id),
   ]);
+  const orKm = doc.vehicle_id ? await repairOrderMileage(doc.id).catch(() => null) : null;
   const co = (company ?? {}) as Record<string, unknown>;
   const c = (contact ?? null) as Record<string, unknown> | null;
-  const v = (vehicle ?? null) as Record<string, unknown> | null;
+  const v = withOrMileage(vehicle, orKm);
   const s = (x: unknown) => (x == null ? '' : String(x));
   // Langue du client (I18N004) : celle de sa fiche, FR sans client ou sans langue. Tous les
   // libellés fixes du PDF et la désignation des lignes la suivent ; l'écran de l'utilisateur, non.
@@ -180,7 +199,7 @@ export async function loadSalesPdfInput(full: DocumentFull, options?: Partial<Pr
     dueDate: doc.due_date,
     condition: doc.condition_reglement,
     operator: doc.operator,
-    clientCode: s(c?.legacy_code) || (c?.id ? s(c.id).slice(0, 8) : doc.code_client_legacy),
+    clientCode: s(c?.legacy_code) || s(c?.code) || (c?.id ? s(c.id).slice(0, 8) : doc.code_client_legacy),
     company: {
       name: s(co.name) || s(co.legal_name),
       legalName: s(co.legal_name) && s(co.legal_name) !== s(co.name) ? s(co.legal_name) : null,

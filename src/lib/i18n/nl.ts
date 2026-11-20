@@ -3739,7 +3739,7 @@ export const nl: DictionaryShape = {
     invoiceTo: 'te factureren aan',
     vWishedPrice: 'Door de klant gewenste prijs',
     vWishedPriceOnPdf: 'Zichtbaar op de PDF',
-    valOpen: 'Overname bevestigen', valEdit: 'Overname wijzigen', valCancel: 'Overname annuleren',
+    valOpen: 'Overname bevestigen', valEdit: 'Prijzen en indeling wijzigen', valCancel: 'Overname annuleren',
     cancelConfirm: 'Deze overname annuleren? Als ze bevestigd was, verlaat het voertuig de tweedehandsvoorraad.',
     valTitle: 'Bevestiging van de overname',
     valStep1Title: 'De koper bevestigt ontvangen te hebben',

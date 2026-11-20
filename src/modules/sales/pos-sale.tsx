@@ -83,6 +83,8 @@ type CartLine = {
   category_path: string | null; mgmt_type: string | null;
   /** Remise ligne (%), type de ligne ; `_auto` : prix du tarif (recalculé), `_base` : PV HT catalogue. */
   discount_pct: number; line_type: 'article' | 'main_oeuvre'; _auto: boolean; _base: number;
+  /** Référence article, reprise sur la ligne du ticket (impression). */
+  reference?: string | null;
 };
 let ck = 0;
 
@@ -161,7 +163,7 @@ export function PosSale({ companyId, companyName, onOpenCash, screenCode }: { co
     if (existing) { setQty(existing._key, existing.quantity + 1); return; }
     const key = `c${ck++}`;
     setCart((c) => [...c, {
-      _key: key, article_id: a.id, designation: a.designation, quantity: 1,
+      _key: key, article_id: a.id, designation: a.designation, reference: a.reference ?? null, quantity: 1,
       unit_price_ht: base, vat_rate: a.vat_rate, discount_pct: 0,
       line_type: labour || a.mgmt_type === 'T' ? 'main_oeuvre' : 'article', _auto: true, _base: base,
       category_path: a.category_path ?? null, mgmt_type: a.mgmt_type ?? null,

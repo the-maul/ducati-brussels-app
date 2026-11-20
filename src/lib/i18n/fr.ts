@@ -2914,7 +2914,7 @@ export const fr = {
 
   // Check-up a l'accueil, proposition d'intervention, accord client, interventions reportees (M8/M9, ATE008 ATE009)
   checkup: {
-    reason: 'Motif d\'entree', reasonPlaceholder: 'Pourquoi la moto entre-t-elle ?', reasonNone: 'Non precise',
+    reason: 'Motif d\'entrée', reasonPlaceholder: 'Pourquoi la moto entre-t-elle ?', reasonNone: 'Non précisé',
     tabFiche: 'Fiche et lignes', tabCheckup: 'Check-up', linesFromCheckup: '{n} action(s) du check-up sont comptees dans le total (onglet Check-up).',
     intro: 'Une carte par action : son etat, une photo, le temps, les pieces. Les actions « a faire » et « a prevoir » partent dans la proposition envoyee au client.',
     nextDue: 'Prochain entretien :', prefillFromPlan: 'Pre-remplir depuis le plan d\'entretien',
@@ -3754,7 +3754,7 @@ export const fr = {
     invoiceTo: 'à facturer à',
     vWishedPrice: 'Prix souhaité par le client',
     vWishedPriceOnPdf: 'Visible sur le PDF',
-    valOpen: 'Valider la reprise', valEdit: 'Modifier la reprise', valCancel: 'Annuler la reprise',
+    valOpen: 'Valider la reprise', valEdit: 'Modifier prix et classement', valCancel: 'Annuler la reprise',
     cancelConfirm: 'Annuler cette reprise ? Si elle était validée, le véhicule sortira du stock occasion.',
     valTitle: 'Validation de la reprise',
     valStep1Title: "L'acheteur confirme avoir reçu",
@@ -5356,7 +5356,7 @@ export const fr = {
     // Propositions d'intervention de l'atelier (ATE009)
     proposals: {
       title: 'Une proposition de notre atelier attend votre signature',
-      line: 'Proposition {number} — ordre de reparation {or}',
+      line: 'Proposition {number} — ordre de réparation {or}',
       total: 'Total propose :', sign: 'Lire et signer', signedTitle: 'Propositions signees', view: 'Voir',
     },
     nav: {
