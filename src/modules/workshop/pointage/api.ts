@@ -9,6 +9,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { toPauseReason, type PauseReason, type StartResult, type WorkEntry } from './rules';
+import { sharedModeActive, withIdentity } from '../shared-tablet/store';
 
 export const PAUSE_REASON_TABLE_KEY = 'workshop_pause_reason';
 
@@ -47,14 +48,26 @@ export function __setPointageProbe(value: boolean | null): void {
 
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await rpc(fn, args);
-  if (error) throw new Error(error.message);
+  // Le SQLSTATE suit l'erreur (28000 = tablette partagee : « Qui etes-vous ? » a redemander, Q60).
+  if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return data as T;
 }
+
+/**
+ * Q60 (20/11/2026) : tablette partagee sans code mecano saisi → le geste passe sous l'identite
+ * choisie (« Qui etes-vous ? ») et pointe au nom du compagnon. Mode personnel : inchange.
+ */
+const viaSharedIdentity = (who?: Who | null) => !who?.code && sharedModeActive();
 
 export type Who = { code?: string | null; name?: string | null };
 
 /** « Demarrer » / « Reprendre » : pointage du mecanicien sur l'OR (et l'operation du parcours). */
 export function startWorkOnOr(orId: string, opts: { operation?: string | null; confirmSwitch?: boolean; who?: Who | null; origin?: string } = {}): Promise<StartResult> {
+  if (viaSharedIdentity(opts.who)) {
+    return withIdentity((id) => call<StartResult>('workshop_shared_work_start', {
+      _session: id.session, _or: orId, _operation: opts.operation ?? null, _confirm_switch: !!opts.confirmSwitch, _origin: opts.origin ?? 'tablet',
+    }));
+  }
   return call<StartResult>('workshop_work_start', {
     _or: orId,
     _operation: opts.operation ?? null,
@@ -68,18 +81,31 @@ export function startWorkOnOr(orId: string, opts: { operation?: string | null; c
 export type PauseResult = { status: 'paused' | 'none'; entry_id?: string; minutes?: number; or_status_changed?: boolean };
 
 /** « Pause » avec motif ; `orStatus` = statut d'OR propose et accepte (attente pieces / accord). */
-export function pauseWork(p: { reason: string; orId?: string | null; entryId?: string | null; orStatus?: string | null; who?: Who | null; origin?: string }): Promise<PauseResult> {
+export function pauseWork(p: { reason: string; orId?: string | null; entryId?: string | null; orStatus?: string | null; who?: Who | null; origin?: string; companyId?: string | null }): Promise<PauseResult> {
+  if (viaSharedIdentity(p.who)) {
+    return withIdentity((id) => call<PauseResult>('workshop_shared_work_pause', {
+      _session: id.session, _reason: p.reason, _or: p.orId ?? null, _entry: p.entryId ?? null, _or_status: p.orStatus ?? null, _origin: p.origin ?? 'tablet',
+    }));
+  }
   return call<PauseResult>('workshop_work_pause', {
     _reason: p.reason, _or: p.orId ?? null, _entry: p.entryId ?? null, _or_status: p.orStatus ?? null,
     _mechanic_code: p.who?.code ?? null, _origin: p.origin ?? 'screen',
+    // Un seul pointage actif PAR SOCIETE (20/11) : la societe de l'ecran borne la recherche.
+    ...(p.companyId ? { _company: p.companyId } : {}),
   });
 }
 
 /** « Terminer » (ou « Depart » : `kind = 'departure'`, compte comme une pause de fin de journee). */
-export function stopWorkPointage(p: { orId?: string | null; entryId?: string | null; who?: Who | null; kind?: 'stop' | 'departure'; origin?: string } = {}): Promise<{ status: string }> {
+export function stopWorkPointage(p: { orId?: string | null; entryId?: string | null; who?: Who | null; kind?: 'stop' | 'departure'; origin?: string; companyId?: string | null } = {}): Promise<{ status: string }> {
+  if (viaSharedIdentity(p.who) && (p.kind ?? 'stop') === 'stop') {
+    return withIdentity((id) => call<{ status: string }>('workshop_shared_work_stop', {
+      _session: id.session, _or: p.orId ?? null, _entry: p.entryId ?? null, _origin: p.origin ?? 'tablet',
+    }));
+  }
   return call('workshop_work_stop', {
     _or: p.orId ?? null, _entry: p.entryId ?? null, _mechanic_code: p.who?.code ?? null,
     _kind: p.kind ?? 'stop', _origin: p.origin ?? 'screen',
+    ...(p.companyId ? { _company: p.companyId } : {}),
   });
 }
 
@@ -138,4 +164,4 @@ export async function getOrWorkStatuses(orIds: string[]): Promise<Map<string, Or
 }
 
 /** Reglage atelier de l'arret automatique (Parametres atelier → Reglages du planning). */
-export type AutoStopMode = 'off' | 'end_of_schedule';
+export type AutoStopMode = 'off' | 'end_of_schedule' | 'ask';

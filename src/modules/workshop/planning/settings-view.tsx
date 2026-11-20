@@ -34,6 +34,7 @@ import type { usePlanningBase } from './planning-data';
 import { Field, fmtDateTime } from './ui-bits';
 import { PartsFlowSettingsSection } from '../reservations/parts-settings-section';
 import { ReceptionSettingsSection } from '../reception/reception-settings-section';
+import { TabletSettingsSection } from '../shared-tablet/tablet-settings-section';
 
 const NONE = '__none__';
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -59,6 +60,7 @@ export function PlanningSettingsView({ companyId, base, onChanged }: { companyId
       <SettingsSection settings={base.settings} onChanged={onChanged} />
       <PartsFlowSettingsSection companyId={companyId} />
       <ReceptionSettingsSection companyId={companyId} />
+      <TabletSettingsSection companyId={companyId} mechanics={base.mechanics ?? []} />
       <CalendarSection companyId={companyId} base={base} onChanged={onChanged} />
       <Section title={t('planningG8.typesTitle')}>
         <p className="text-sm text-muted-foreground">{t('planningG8.typesHint')}</p>
@@ -278,15 +280,30 @@ function SettingsSection({ settings, onChanged }: { settings: PlanningSettings; 
       {s.auto_stop_mode !== undefined && (
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
           <Field label={t('pointage.autoStopLabel')} className="md:col-span-2">
-            <Select value={s.auto_stop_mode} onValueChange={(v) => setS({ ...s, auto_stop_mode: v as 'off' | 'end_of_schedule' })}>
+            <Select value={s.auto_stop_mode} onValueChange={(v) => setS({ ...s, auto_stop_mode: v as 'off' | 'end_of_schedule' | 'ask' })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="off">{t('pointage.autoStop_off')}</SelectItem>
                 <SelectItem value="end_of_schedule">{t('pointage.autoStop_end_of_schedule')}</SelectItem>
+                {/* Q57 (20/11) : « Vous etes toujours la ? » puis pause automatique sans reponse. */}
+                {s.end_of_day_prompt_minutes !== undefined && <SelectItem value="ask">{t('endOfDay.mode_ask')}</SelectItem>}
               </SelectContent>
             </Select>
           </Field>
-          <p className="self-end pb-2 text-[12px] text-muted-foreground md:col-span-3">{t('pointage.autoStopHint')}</p>
+          <p className="self-end pb-2 text-[12px] text-muted-foreground md:col-span-3">{s.auto_stop_mode === 'ask' ? t('endOfDay.modeHint') : t('pointage.autoStopHint')}</p>
+        </div>
+      )}
+      {s.auto_stop_mode === 'ask' && s.end_of_day_prompt_minutes !== undefined && (
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Field label={t('endOfDay.promptMinutes')}>
+            <Input type="number" min={1} max={60} step={1} inputMode="numeric" value={String(s.end_of_day_prompt_minutes ?? '')}
+              onChange={(e) => setS({ ...s, end_of_day_prompt_minutes: e.target.value === '' ? '' : Number(e.target.value) })} className="text-right tabular-nums" />
+          </Field>
+          <Field label={t('endOfDay.snoozeMinutes')}>
+            <Input type="number" min={5} max={240} step={5} inputMode="numeric" value={String(s.end_of_day_snooze_minutes ?? '')}
+              onChange={(e) => setS({ ...s, end_of_day_snooze_minutes: e.target.value === '' ? '' : Number(e.target.value) })} className="text-right tabular-nums" />
+          </Field>
+          <p className="col-span-2 self-end pb-2 text-[12px] text-muted-foreground md:col-span-3">{t('endOfDay.minutesHint')}</p>
         </div>
       )}
       {/* « Mon atelier » (19/11) : seuil des OR anciens a verifier (migration 20261119320000). */}

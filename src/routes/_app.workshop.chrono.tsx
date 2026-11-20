@@ -100,7 +100,7 @@ function ChronoPage() {
   const pres = useMutation({
     mutationFn: async () => {
       // « Depart » (fin de session) : le travail en cours est mis en PAUSE (fin de journee), puis la presence se clot.
-      if (ptOn && presence.data) await stopWorkPointage({ who: ptWho, kind: 'departure', origin: 'chrono' });
+      if (ptOn && presence.data) await stopWorkPointage({ who: ptWho, kind: 'departure', origin: 'chrono', companyId: activeCompanyId });
       await togglePresence(activeCompanyId!, who);
     },
     onSuccess: refresh, onError: onErr,
@@ -122,11 +122,11 @@ function ChronoPage() {
   });
   const task = useMutation({ mutationFn: () => startTask(activeCompanyId!, taskCode, who), onSuccess: refresh, onError: onErr });
   const stop = useMutation({
-    mutationFn: () => (ptOn ? stopWorkPointage({ who: ptWho, origin: 'chrono' }).then(() => undefined) : stopWork(activeCompanyId!, who)),
+    mutationFn: () => (ptOn ? stopWorkPointage({ who: ptWho, origin: 'chrono', companyId: activeCompanyId }).then(() => undefined) : stopWork(activeCompanyId!, who)),
     onSuccess: refresh, onError: onErr,
   });
   const pause = useMutation({
-    mutationFn: (v: { reason: string; orStatus: string | null }) => pauseWork({ reason: v.reason, orStatus: v.orStatus, who: ptWho, origin: 'chrono' }),
+    mutationFn: (v: { reason: string; orStatus: string | null }) => pauseWork({ reason: v.reason, orStatus: v.orStatus, who: ptWho, origin: 'chrono', companyId: activeCompanyId }),
     onSuccess: () => { setPauseOpen(false); refresh(); }, onError: onErr,
   });
   const correct = useMutation({

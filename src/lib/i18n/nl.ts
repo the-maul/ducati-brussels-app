@@ -10,6 +10,7 @@ import { smsNl } from './sms';
 import { receptionNl, planOpsNl } from './parcours-cd';
 import { myWorkshopNl } from './mon-atelier';
 import { orLisibleNl } from './or-lisible';
+import { decisionsQ57Q60Nl } from './decisions-q57-q60';
 import { productionNl } from './production';
 
 export const nl: DictionaryShape = {
@@ -9402,6 +9403,8 @@ export const nl: DictionaryShape = {
   myWorkshop: myWorkshopNl,
   // Lot « OR lisible » (19/11/2026) : bandeau d'avancement de l'OR, menu « Plus d'actions ».
   orLisible: orLisibleNl,
+  // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.
+  ...decisionsQ57Q60Nl,
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,

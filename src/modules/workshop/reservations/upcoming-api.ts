@@ -6,7 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isMissingSchema } from './api';
 import {
-  DEFAULT_PARTS_SETTINGS, isPickingMode, type PickingAutoMode, type UpcomingPartRow, type UpcomingPartState,
+  DEFAULT_PARTS_SETTINGS, isPickingEveBasis, isPickingMode, type PickingAutoMode, type PickingEveBasis, type UpcomingPartRow, type UpcomingPartState,
 } from './parts-flow';
 
 const sb = supabase as unknown as {
@@ -62,7 +62,11 @@ export async function openPickingForRepairOrder(orId: string): Promise<string> {
   return String(data);
 }
 
-export type PartsSettings = { mode: PickingAutoMode; eveHour: number; urgentDays: number };
+export type PartsSettings = {
+  mode: PickingAutoMode; eveHour: number; urgentDays: number;
+  /** Q58 : veille ouvree / calendaire ; `eveBasisReady` faux = migration 20261120102000 absente. */
+  eveBasis: PickingEveBasis; eveBasisReady?: boolean;
+};
 
 /** Reglages du lot ; `null` = migration absente. */
 export async function getPartsSettings(companyId: string): Promise<PartsSettings | null> {
@@ -76,12 +80,16 @@ export async function getPartsSettings(companyId: string): Promise<PartsSettings
     mode: isPickingMode(d.mode) ? d.mode : DEFAULT_PARTS_SETTINGS.mode,
     eveHour: d.eve_hour == null ? DEFAULT_PARTS_SETTINGS.eveHour : n(d.eve_hour),
     urgentDays: d.urgent_days == null ? DEFAULT_PARTS_SETTINGS.urgentDays : n(d.urgent_days),
+    // Q58 : absent (migration 20261120102000 non appliquee) = veille calendaire, le comportement d'avant.
+    eveBasis: isPickingEveBasis(d.eve_basis) ? d.eve_basis : 'calendaire',
+    eveBasisReady: d.eve_basis !== undefined,
   };
 }
 
 export async function savePartsSettings(companyId: string, p: PartsSettings): Promise<void> {
   const { error } = await sb.rpc('workshop_parts_settings_set', {
     _company: companyId, _mode: p.mode, _eve_hour: p.eveHour, _urgent_days: p.urgentDays,
+    ...(p.eveBasisReady === false ? {} : { _eve_basis: p.eveBasis }),
   });
   if (error) throw new Error(error.message);
 }
