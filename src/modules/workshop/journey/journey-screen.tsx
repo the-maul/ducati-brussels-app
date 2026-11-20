@@ -421,6 +421,8 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
       />
     </>
   ) : null;
+  // Aucune operation n'a de mode operatoire : on le dit une fois au-dessus de la liste (revue UX 20/11).
+  const anyProcedure = (state?.operations ?? []).some((o) => !!o.parcoursId);
   const finishButton = dbMode && po.canFinish ? (
     <Button className="h-12 text-[15px]" disabled={po.finish.isPending} onClick={() => setFinishOpen(true)}>
       {po.finish.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('planOps.finish')}
@@ -626,7 +628,9 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-12 text-[15px]" onClick={onBackToOr}><ArrowLeft /> {t('journey.back')}</Button>
-          <Button className="h-12 text-[15px]" variant={finishButton ? 'outline' : 'default'} onClick={() => setView('summary')}><ClipboardCheck /> {t('journey.finish')}</Button>
+          {/* Revue UX (20/11) : « Terminer le parcours » n'est l'action principale (rouge) que quand tout
+              est coche ; avant, le rouge va a « Démarrer » / a l'operation en cours. */}
+          <Button className="h-12 text-[15px]" variant={finishButton || (progress?.percent ?? 0) < 100 ? 'outline' : 'default'} onClick={() => setView('summary')}><ClipboardCheck /> {t('journey.finish')}</Button>
           {finishButton}
         </div>
       </div>
@@ -636,6 +640,9 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
         <OrWorkControls orId={orId} companyId={companyId} orStatus={ro.or.status} workAllowed={workAllowed} />
       )}
 
+      {!anyProcedure && state.operations.length > 0 && (
+        <p className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"><NotebookPen className="size-4" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</p>
+      )}
       <ul className="space-y-2">
         {state.operations.map((op, i) => {
           const n = op.parcoursId ? stepCounts[op.parcoursId] ?? 0 : 0;
@@ -668,7 +675,7 @@ export function JourneyScreen({ orId, companyId, onBackToOr, initialOp = null, o
                   <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
                     {op.parcoursId
                       ? <span className="inline-flex items-center gap-1"><ChevronRight className="size-3.5" aria-hidden />{n ? fill(t('journey.steps'), { n }) : t('journey.openProcedure')}</span>
-                      : <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</span>}
+                      : anyProcedure && <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</span>}
                     {notDone && dbOp && <StatusBadge tone="warning" icon={Ban} label={`${t('planOps.journeyNotDone')} : ${reasonText(dbOp.not_done_reason, po.reasons, t)}`} />}
                     {dbOp && dbOp.status === 'fait' && dbOp.done_by_name && <span>{dbOp.done_by_name}</span>}
                     {n > 0 && <span className="tabular-nums">{fill(t('journey.stepsProgress'), { done: Math.min(n, Object.keys(op.steps).length), total: n })}</span>}

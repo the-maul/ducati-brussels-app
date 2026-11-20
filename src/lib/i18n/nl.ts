@@ -3108,7 +3108,7 @@ export const nl: DictionaryShape = {
     save: 'Opslaan', errSave: 'Fout', toInvoice: 'Omzetten in factuur', viewInvoice: 'Factuur bekijken',
     print: 'Afdrukken', quoteParts: 'Offerte onderdelen',
     // chronos (B11)
-    chrono: 'Prikklok', chronoTitle: 'Werkplaatschrono\'s', chronoSubtitle: 'Aanwezigheid en werktijd per werkorder (productiviteit B11).',
+    chrono: 'Prikklok', chronoTitle: 'Prikklok werkplaats', chronoSubtitle: 'Aankomst, vertrek en werktijd per werkorder.',
     mechanicName: 'Mecanicien', presenceIn: 'Aankomst prikken', presenceOut: 'Vertrek prikken', presentSince: 'Aanwezig sinds',
     pickOr: 'Werken aan een werkorder', working: 'Werk bezig', stopWork: 'Stoppen', startWork: 'Starten',
     today: 'Vandaag', entryKind_presence: 'Aanwezigheid', entryKind_travail: 'Werk', minutes: 'min', ongoing: 'bezig',
@@ -3365,7 +3365,7 @@ export const nl: DictionaryShape = {
   orPage: {
     none: 'Geen',
     you: '(u)',
-    legacyValue: '{value} (oude invoer)',
+    legacyValue: '{value} (met de hand ingevoerd)',
     operatorPlaceholder: 'Teamlid…',
     repairTypePlaceholder: 'Kies het type…',
     accidentTitle: 'Ongevallendossier',
@@ -3997,7 +3997,7 @@ export const nl: DictionaryShape = {
 
   stock: {
     title: 'Voorraad & inventaris',
-    subtitle: 'Drievoudige voorraad (werkelijk / gereserveerd / beschikbaar), PAMP-waarde en bewegingen.',
+    subtitle: 'Werkelijke, gereserveerde en beschikbare voorraad per artikel, PAMP-waarde en bewegingen.',
     search: 'Zoeken (referentie, omschrijving, locatie…)',
     empty: 'Geen artikel in voorraad.',
     totalValue: 'Voorraadwaarde',

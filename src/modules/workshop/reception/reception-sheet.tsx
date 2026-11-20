@@ -148,7 +148,7 @@ export function ReceptionSheet({ open, orId, orNumber, companyId, startMode, onC
       <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
-            <Camera className="size-5" aria-hidden /> {fill(t('reception.sheetTitle'), { number: orNumber ?? '' })}
+            <Camera className="size-5" aria-hidden /> {orNumber ? fill(t('reception.sheetTitle'), { number: orNumber }) : t('reception.sheetTitleShort')}
           </DialogTitle>
           <DialogDescription>{t('reception.sheetHint')}</DialogDescription>
         </DialogHeader>
@@ -277,7 +277,9 @@ function SlotTile({ slot, photo, busy, onShoot, onRemove, onComment }: {
           </div>
         </>
       ) : (
-        <Button className="h-20 w-full text-[16px]" variant={slot.required ? 'default' : 'outline'} disabled={busy} onClick={onShoot}>
+        // Revue UX (20/11) : bouton secondaire. Le badge « Obligatoire » dit deja l'importance ; le rouge Ducati
+        // reste reserve a l'action principale de la fenetre (« Terminer et démarrer »), charte §5.1.
+        <Button className="h-20 w-full text-[16px]" variant="outline" disabled={busy} onClick={onShoot}>
           {busy ? <Loader2 className="animate-spin" /> : <Camera className="size-6" />} {t('reception.shoot')}
         </Button>
       )}

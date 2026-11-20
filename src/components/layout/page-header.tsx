@@ -28,8 +28,11 @@ export function PageHeader({
   breadcrumbs?: PageHeaderBreadcrumb[];
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <div className="min-w-0 flex-1">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      {/* Revue UX (20/11) : le titre garde au moins 18rem. Quand les actions ne tiennent pas
+          a cote, elles passent sous le titre (au lieu d'ecraser le titre en colonne d'une lettre,
+          vu sur Achats, Stock, fiche client a 1024 et 1280 px). */}
+      <div className="min-w-[min(100%,18rem)] flex-1">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <Breadcrumb className="mb-1.5">
             <BreadcrumbList>
@@ -60,7 +63,7 @@ export function PageHeader({
       {/* Pas de shrink-0 : avec 6 boutons (facture), le bloc d'actions prenait
           toute la largeur et le titre se retrouvait a 60px, une lettre par ligne.
           Les boutons passent maintenant a la ligne. */}
-      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
+      {actions && <div className="flex max-w-full flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
     </div>
   );
 }
