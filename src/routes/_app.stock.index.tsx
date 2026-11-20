@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo, useEffect, type ReactNode } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown, Scale, FileSpreadsheet, Tags, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, ClipboardList, History, Gift, SlidersHorizontal, X, Download, AlertTriangle, TrendingDown, Scale, FileSpreadsheet, Tags, ChevronLeft, ChevronRight, Search, PackageX } from 'lucide-react';
+import { StatusBadge } from '@/components/status-badge';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listStockHistory, stockScreenPage, listStockScreenAll, STOCK_SCREEN_PAGE, type StockRow, type StockScreenFilters } from '@/modules/stock/stock-api';
+import { listStockHistory, stockScreenPage, listStockScreenAll, type StockRow, type StockScreenFilters } from '@/modules/stock/stock-api';
+import { stockAlert } from '@/modules/stock/stock-alert';
+import { formatEur } from '@/lib/format-eur';
 import { downloadStockCsv } from '@/modules/stock/stock-export';
 import { listSuppliers, supplierName } from '@/modules/purchases/api';
 import { RAYONS_SORTED } from '@/modules/articles/product-families';
@@ -22,7 +25,14 @@ export const Route = createFileRoute('/_app/stock/')({
 });
 
 // Revue UX (20/11) : separateur de milliers (801 519,71 € et non 801519,71 €), comme le reste de l'ecran.
-const eur = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const eur = formatEur;
+
+/**
+ * Lot design « ecrans de travail » (20/11/2026) : 50 ou 100 lignes par page (comme la liste des
+ * contacts), recherche en premier avec le focus a l'ouverture, badge Rupture / Stock negatif,
+ * « Inventaire » en bouton secondaire (le geste du quotidien est la recherche, pas l'inventaire).
+ */
+const PAGE_SIZES = [50, 100] as const;
 
 /** Filtres multicritères de l'écran (état). */
 type FiltersState = { supplierId: string; rayon: string; dateFrom: string; dateTo: string };
@@ -54,6 +64,7 @@ function StockList() {
   const [deb, setDeb] = useState('');
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
   const [exporting, setExporting] = useState(false);
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-filter', activeCompanyId],
@@ -71,10 +82,10 @@ function StockList() {
     supplier_id: f.supplierId || undefined, rayon_code: rayon?.code, rayon_label: rayon?.label,
   }), [deb, onlyStocked, belowMin, reorderView, f.supplierId, rayon]);
   const filtersKey = JSON.stringify(filters);
-  useEffect(() => { setPage(0); }, [filtersKey]);
+  useEffect(() => { setPage(0); }, [filtersKey, pageSize]);
   const { data, isLoading } = useQuery({
-    queryKey: ['stock', activeCompanyId, 'screen', filtersKey, page],
-    queryFn: () => stockScreenPage(activeCompanyId!, filters, STOCK_SCREEN_PAGE, page * STOCK_SCREEN_PAGE),
+    queryKey: ['stock', activeCompanyId, 'screen', filtersKey, page, pageSize],
+    queryFn: () => stockScreenPage(activeCompanyId!, filters, pageSize, page * pageSize),
     enabled: !!activeCompanyId,
     placeholderData: keepPreviousData,
   });
@@ -83,7 +94,7 @@ function StockList() {
   const reorderRows = displayed;
   const total = data?.total ?? 0;
   const totalValue = data?.value ?? 0;
-  const lastPage = Math.max(0, Math.ceil(total / STOCK_SCREEN_PAGE) - 1);
+  const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
 
   // Export COMPLET du stock filtre (toutes les pages), pas seulement la page affichee.
   const exportAll = async () => {
@@ -105,19 +116,23 @@ function StockList() {
             <Button variant="outline" onClick={() => navigate({ to: '/stock/labels' })}><Tags /> {t('stockG8.nav.labels')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/stock/cessions' })}><Gift /> {t('stock.cessions')}</Button>
             <Button variant="outline" onClick={() => navigate({ to: '/stock/depreciation' })}><TrendingDown /> {t('stock.deprecBtn')}</Button>
-            <Button onClick={() => navigate({ to: '/stock/inventory' })}><ClipboardList /> {t('stock.inventory')}</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/stock/inventory' })}><ClipboardList /> {t('stock.inventory')}</Button>
           </div>
         }
       />
 
       <div className="mb-2 flex flex-wrap items-center gap-3">
-        <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('stock.search')} className="max-w-sm" />
+        <div className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input autoFocus type="search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('stock.search')} aria-label={t('designEcrans.stockSearchLabel')} className="h-10 pl-9 text-[15px]" />
+        </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={onlyStocked} onChange={(e) => setOnlyStocked(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('stock.onlyStocked')}</label>
         <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={belowMin} onChange={(e) => setBelowMin(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" /> {t('stock.belowMin')}</label>
-        <Button variant={active > 0 ? 'default' : 'outline'} onClick={() => setFiltersOpen((o) => !o)}>
+        {/* Bouton bascule : etat « enfonce » en contour accentue, jamais en rouge (le rouge = action principale). */}
+        <Button variant="outline" aria-pressed={filtersOpen || active > 0} className={active > 0 || filtersOpen ? 'border-foreground bg-accent font-bold' : undefined} onClick={() => setFiltersOpen((o) => !o)}>
           <SlidersHorizontal /> {t('stock.filters')}{active > 0 ? ` (${active})` : ''}
         </Button>
-        <Button variant={reorderView ? 'default' : 'outline'} onClick={() => setReorderView((o) => !o)}>
+        <Button variant="outline" aria-pressed={reorderView} className={reorderView ? 'border-foreground bg-accent font-bold' : undefined} onClick={() => setReorderView((o) => !o)}>
           <AlertTriangle /> {t('stock.reorderView')}
         </Button>
         <Button variant="outline" onClick={() => { void exportAll(); }} disabled={total === 0 || exporting || !activeCompanyId}>
@@ -179,7 +194,7 @@ function StockList() {
                     <td className="px-3 py-2 font-mono text-[12px]">{r.reference}</td>
                     <td className="px-3 py-2">{r.designation}</td>
                     <td className="px-3 py-2 font-mono text-[12px]">{r.bin_location ?? '—'}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${backOrder ? 'font-bold text-danger' : ''}`}>{r.available_qty}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${backOrder ? 'font-bold text-danger' : ''}`}><AvailableCell row={r} /></td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.stock_min}</td>
                     <td className={`px-3 py-2 text-right tabular-nums ${backOrder ? 'font-bold text-danger' : ''}`}>{gap}</td>
                     <td className="px-3 py-2">{r.supplier_id ? (supplierById.get(r.supplier_id) ?? '—') : '—'}</td>
@@ -207,7 +222,7 @@ function StockList() {
                     <td className="px-3 py-2 font-mono text-[12px]">{r.bin_location ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.real_qty}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{r.reserved_qty || ''}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${low ? 'font-bold text-danger' : ''}`}>{r.available_qty}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${low ? 'font-bold text-danger' : ''}`}><AvailableCell row={r} /></td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.pamp)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{eur(r.stock_value)}</td>
                     <td className="px-2 py-1 text-center"><Button size="sm" variant="ghost" title={t('stock.history')} onClick={() => setHisto(r)}><History className="size-4 text-muted-foreground" /></Button></td>
@@ -219,9 +234,13 @@ function StockList() {
         </div>
       )}
 
-      {total > STOCK_SCREEN_PAGE && (
-        <div className="mt-3 flex items-center justify-end gap-2 font-data text-[13px] tabular-nums text-muted-foreground">
-          <span>{fillVars(t('stock.pageOf'), { from: page * STOCK_SCREEN_PAGE + 1, to: Math.min(total, (page + 1) * STOCK_SCREEN_PAGE), total })}</span>
+      {total > PAGE_SIZES[0] && (
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2 font-data text-[13px] tabular-nums text-muted-foreground">
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="h-8 w-32" aria-label={fillVars(t('designEcrans.stockPageSize'), { n: pageSize })}><SelectValue /></SelectTrigger>
+            <SelectContent>{PAGE_SIZES.map((n) => <SelectItem key={n} value={String(n)}>{fillVars(t('designEcrans.stockPageSize'), { n })}</SelectItem>)}</SelectContent>
+          </Select>
+          <span>{fillVars(t('stock.pageOf'), { from: page * pageSize + 1, to: Math.min(total, (page + 1) * pageSize), total })}</span>
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}><ChevronLeft /> {t('stock.pagePrev')}</Button>
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page >= lastPage}>{t('stock.pageNext')} <ChevronRight /></Button>
         </div>
@@ -262,6 +281,18 @@ function HistoryDialog({ row, onClose }: { row: StockRow; onClose: () => void })
   );
 }
 
+/** Disponible + badge « Stock negatif » / « Rupture » (danger : couleur + icone + libelle). */
+function AvailableCell({ row }: { row: StockRow }) {
+  const alert = stockAlert(row);
+  if (!alert) return <>{row.available_qty}</>;
+  return (
+    <span className="inline-flex items-center justify-end gap-2" title={t(alert === 'negative' ? 'designEcrans.stockNegativeHint' : 'designEcrans.stockOutHint')}>
+      <StatusBadge tone="danger" icon={alert === 'negative' ? AlertTriangle : PackageX} label={t(alert === 'negative' ? 'designEcrans.stockNegative' : 'designEcrans.stockOut')} />
+      <span className="font-bold text-danger">{row.available_qty}</span>
+    </span>
+  );
+}
+
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -293,5 +324,5 @@ function FilterSelect({ value, onChange, options, disabled }: {
 }
 
 function Th({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-ui text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
+  return <th className={`px-3 py-2 text-left font-ui text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${className}`}>{children}</th>;
 }
