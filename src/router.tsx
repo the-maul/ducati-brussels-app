@@ -2,11 +2,17 @@ import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { createMutationCache } from "./lib/mutation-feedback";
+import { installChunkReloadHandlers } from "./lib/chunk-reload";
+import { RoutePending } from "./components/layout/app-recovery";
 
 /** Duree pendant laquelle une donnee lue est reutilisee sans nouvel appel (navigation, remontage). */
 export const QUERY_STALE_MS = 30_000;
 
 export const getRouter = () => {
+  // Apres une mise en ligne, un onglet reste sur l'ancienne version : un fichier de page
+  // introuvable recharge la page une fois (garde anti-boucle), cote navigateur uniquement.
+  installChunkReloadHandlers();
+
   // mutationCache : toute écriture produit un toast, sans instrumenter chaque écran.
   // Perf (lot perf 2, 20/11/2026) : valeurs par defaut raisonnables. Avant : donnees perimees
   // tout de suite (staleTime 0), toute la page relue a chaque retour sur l'onglet (59 requetes
@@ -28,6 +34,9 @@ export const getRouter = () => {
     // heritait du defilement de la precedente, et Retour ne retrouvait pas la position (UX011).
     scrollToTopSelectors: ['#app-main'],
     defaultPreloadStaleTime: 0,
+    // Page en attente (fichier de page ou loader) : roue, puis apres 20 s un message
+    // « Recharger / accueil » au lieu d'une roue sans fin.
+    defaultPendingComponent: RoutePending,
   });
 
   return router;

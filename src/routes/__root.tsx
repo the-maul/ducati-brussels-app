@@ -18,6 +18,8 @@ import { LocaleProvider, t, useLocale } from "@/lib/i18n";
 import { ConfirmProvider } from "@/components/confirm-provider";
 import { BackHistoryTracker } from "@/components/layout/page-back";
 import { Toaster } from "@/components/ui/sonner";
+import { RecoveryScreen } from "@/components/layout/app-recovery";
+import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunk-reload";
 
 function NotFoundComponent() {
   return (
@@ -47,9 +49,17 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  // Fichier de page introuvable apres une mise en ligne : un seul rechargement automatique
+  // (garde anti-boucle dans chunk-reload.ts), sinon message clair « Recharger / accueil ».
+  const chunkError = isChunkLoadError(error);
   useEffect(() => {
+    if (chunkError && reloadOnceForChunkError(error)) return;
     reportError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+  }, [error, chunkError]);
+
+  if (chunkError) {
+    return <RecoveryScreen title={t('rootPage.chunkErrorTitle')} text={t('rootPage.chunkErrorText')} />;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
