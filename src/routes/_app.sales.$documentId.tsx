@@ -212,7 +212,7 @@ function DocumentView() {
         description={`${doc.issue_date}${doc.due_date ? ` · ${t('sales.dueDate')} ${doc.due_date}` : ''}${doc.operator ? ` · ${t('sales.operator')} ${operatorPrintName(doc.operator)}` : ''}`}
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {(doc as { repair_order_id?: string | null }).repair_order_id && <Button onClick={() => navigate({ to: '/workshop/dossier/$id', params: { id: (doc as { repair_order_id?: string | null }).repair_order_id! } })}><ArrowLeft /> {t('dossier.openDossier')}</Button>}
             <PrepareButton doc={doc} withLabel />
             {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
