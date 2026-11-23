@@ -116,8 +116,10 @@ export type Finding = {
   /** Pièce à remplacer : référence et quantité (alimentent les lignes de l'OR). */
   reference?: string | null;
   quantity?: number | null;
-  /** Photo : nom du fichier et image (base64) tant que la GED n'est pas branchée. */
+  /** Photo : nom du fichier et chemin dans les documents de l'OR (GED, chantier C1). */
   photoName?: string | null;
+  photoPath?: string | null;
+  /** Image (base64) gardée SUR LA TABLETTE tant que l'envoi vers la GED n'a pas réussi ; jamais en base. */
   photoData?: string | null;
   at: string;
 };

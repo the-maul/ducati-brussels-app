@@ -54,6 +54,10 @@ import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-c
 import { FinishDialog, NotDoneDialog, usePlanOps } from '../plan-ops/plan-ops-panel';
 import { reasonText, type PlanOp, type PlanOpSlotInfo } from '../plan-ops/rules';
 import { serviceLabelDisplay } from '../service-label-fr';
+import { toast } from 'sonner';
+import { storeFindingPhoto, flushPendingPhotos, journeyStarted } from './finding-photos';
+import { FindingPhoto } from '../dossier/dossier-parts';
+import { OR_WORKABLE_STATUSES } from '../or-base/rules';
 
 /** Demarre une fois l'entretien de l'OR, puis laisse l'ecran des operations prendre la main. */
 function AutoStart({ onStart }: { onStart: () => void }) {
@@ -176,12 +180,12 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
   // chrono du parcours resté ouvert est arrêté à l'ouverture : il ne compte plus.
   useEffect(() => {
     if (!ctx.isSuccess || !po.settled || dbMode) return;
-    if (saved.data && !state) {
+    if (journeyStarted(saved.data) && !state) {
       const legacyRunning = pointage && runningOperationId(saved.data.operations);
       setState(legacyRunning ? { ...saved.data, operations: stopChrono(saved.data.operations) } : saved.data);
       setView('ops');
     }
-    else if (saved.isSuccess && !saved.data && !state) setView('choose');
+    else if (saved.isSuccess && !journeyStarted(saved.data) && !state) setView('choose');
   }, [saved.data, saved.isSuccess, state, pointage, ctx.isSuccess, po.settled, dbMode]);
 
   // Lot D : lien « Mode operatoire » de la fiche OR → l'operation s'ouvre directement.
@@ -251,9 +255,33 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     });
   }, [companyId, orId, qc]);
 
+  // Chantier C1 : une photo restée sur la tablette (réseau coupé) repart vers les documents de l'OR.
+  const flushed = useRef(false);
+  useEffect(() => {
+    if (flushed.current || !state?.findings.some((f) => f.photoData && !f.photoPath)) return;
+    flushed.current = true;
+    void flushPendingPhotos(companyId, state).then((next) => {
+      if (next === state) return;
+      const paths = new Map(next.findings.filter((f) => f.photoPath).map((f) => [f.id, f.photoPath]));
+      patch((s) => ({ ...s, findings: s.findings.map((f) => (paths.has(f.id) ? { ...f, photoPath: paths.get(f.id), photoData: null } : f)) }));
+    });
+  }, [state, companyId, patch]);
+
   // --- chargement ----------------------------------------------------------
   if (ctx.isLoading || source.isLoading || saved.isLoading || !po.settled || (dbMode && !state)) {
     return <div className="grid place-items-center py-24"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div>;
+  }
+
+  // ATE-04 (chantier C1) : l'adresse du parcours respecte le blocage de l'accord client.
+  const orNow = ctx.data?.ro.or as { status?: string; customer_approval?: string | null } | undefined;
+  if (orNow && (OR_WORKABLE_STATUSES as readonly string[]).includes(orNow.status ?? '') && !canStartWork(orNow)) {
+    return (
+      <div className="rounded-md border border-warning bg-warning-bg p-4">
+        <p className="flex items-center gap-2 text-[17px] font-bold text-warning"><AlertTriangle className="size-5 shrink-0" aria-hidden /> {t('dossier.journeyBlockedTitle')}</p>
+        <p className="mt-1 text-[15px]">{t('dossier.journeyBlockedBody')}</p>
+        <Button className="mt-3 h-12 text-[15px]" onClick={() => navigate({ to: '/workshop/dossier/$id', params: { id: orId } })}>{t('dossier.journeyBackDossier')}</Button>
+      </div>
+    );
   }
 
   const vehicle = ctx.data?.vehicle ?? null;
@@ -322,7 +350,8 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     persist({
       version: 1, orId, modelYearId: prog.modelYearId, serviceLabel: label,
       startedAt: now, finishedAt: null, reportedToOr: false,
-      operations: buildOperations(prog, label), findings: [],
+      // Chantier C1 : les commentaires et photos déjà notés dans le dossier sont gardés.
+      operations: buildOperations(prog, label), findings: saved.data?.findings ?? [],
     });
     setView('ops');
   };
@@ -338,7 +367,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     // (premiere ouverture seulement ; « Choisir un autre entretien » reste possible ensuite).
     const orx = ro.or as unknown as { service_code?: string | null; reason_code?: string | null };
     const orService = isServiceCode(orx.service_code) ? orx.service_code : serviceCodeForReason(orx.reason_code ?? null);
-    const auto = !state && saved.isSuccess && !saved.data && orService
+    const auto = !state && saved.isSuccess && !journeyStarted(saved.data) && orService
       ? due.find((d) => serviceKindOf(d.service.service, d.service.km ?? null, d.service.mois ?? null) === orService) ?? null
       : null;
     if (auto) return <AutoStart onStart={() => startService(auto.service.service)} />;
@@ -473,9 +502,17 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     />
   ) : null;
 
-  const addFinding = (f: NewFinding) => patch((s) => ({
-    ...s, findings: [...s.findings, { ...f, id: uid(), at: new Date().toISOString() }],
-  }));
+  // Chantier C1 : la photo part dans les documents de l'OR ; réseau coupé, elle attend sur la tablette.
+  const addFinding = (f: NewFinding) => {
+    const finding: Finding = { ...f, id: uid(), at: new Date().toISOString() };
+    patch((s) => ({ ...s, findings: [...s.findings, finding] }));
+    if (!finding.photoData) return;
+    void storeFindingPhoto(companyId, orId, finding).then((stored) => {
+      if (!stored.photoPath) { toast.warning(t('dossier.notePending')); return; }
+      patch((s) => ({ ...s, findings: s.findings.map((x) => (x.id === stored.id ? stored : x)) }));
+      void qc.invalidateQueries({ queryKey: ['attachments', 'repair_order', orId] });
+    });
+  };
 
   const removeFinding = (id: string) => patch((s) => ({ ...s, findings: s.findings.filter((f) => f.id !== id) }));
 
@@ -572,7 +609,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
                 <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('journey.summaryPhotos')}</p>
                 <div className="mt-1 flex flex-wrap gap-2">
                   {s.photos.map((p) => (
-                    <img key={p.id} src={p.photoData ?? ''} alt={p.texte} className="size-24 rounded border border-border object-cover" />
+                    <FindingPhoto key={p.id} f={p} className="size-24" />
                   ))}
                 </div>
               </>
@@ -795,7 +832,7 @@ function FindingRow({ f, onRemove }: { f: Finding; onRemove: () => void }) {
   return (
     <li className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[14px]">
       <span className="text-muted-foreground">{icon}</span>
-      {f.photoData && <img src={f.photoData} alt="" className="size-10 shrink-0 rounded object-cover" />}
+      {f.kind === 'photo' && <FindingPhoto f={f} className="size-10 shrink-0" />}
       <span className="min-w-0 flex-1 truncate">
         {f.reference && <span className="mr-1 font-mono">{f.reference}</span>}
         {f.texte}

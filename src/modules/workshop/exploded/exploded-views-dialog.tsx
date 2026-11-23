@@ -122,6 +122,7 @@ export function ExplodedViewsDialog(p: ExplodedViewsProps) {
               {drawing ? (
                 <DrawingView
                   drawingId={drawing.id} companyId={companyId} highlightRef={drawing.ref} highlightPos={drawing.pos}
+                  focusOnOpen={!!drawing.ref}
                   backLabel={t('exploded.allViews')}
                   onBack={() => setDrawing(null)}
                   renderSelected={(sel) => <PositionPanel sel={sel} {...p} />}

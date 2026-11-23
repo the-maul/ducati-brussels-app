@@ -11,6 +11,7 @@ import { receptionNl, planOpsNl } from './parcours-cd';
 import { myWorkshopNl } from './mon-atelier';
 import { orLisibleNl } from './or-lisible';
 import { uxAtelierNl } from './ux-atelier';
+import { dossierNl } from './dossier-atelier';
 import { designFichesNl } from './design-fiches';
 import { designEcransNl } from './design-ecrans';
 import { decisionsQ57Q60Nl } from './decisions-q57-q60';
@@ -7536,6 +7537,7 @@ export const nl: DictionaryShape = {
     workshopNew: 'Nieuwe werkorder',
     workshopChrono: 'Prikklok werkplaats',
     workshopJourney: 'Begeleid parcours',
+    workshopDossier: 'Motordossier',
     workshopMine: 'Mijn werkplaats',
     workshopKits: 'Onderhoudskits',
     workshopAccidents: 'Ongevaldossiers', workshopAccident: 'Ongevaldossier',
@@ -9428,6 +9430,8 @@ export const nl: DictionaryShape = {
   orLisible: orLisibleNl,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierNl,
+  // Chantier C1 (23/11/2026) : dossier moto en 4 etapes.
+  dossier: dossierNl,
   // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
   designFiches: designFichesNl,
   // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
