@@ -228,7 +228,7 @@ function RdvDossier({ appointment: a, companyId, wanted, onStep }: StepProps & {
     receptionReady: true, receptionStatus: 'none', photosMissing: 0,
     pointageReady: true, workState: 'none', mineRunning: false, minePaused: false,
     planTotal: 0, planResolved: 0, planMandatoryOpen: 0,
-    partsTotal: parts.data?.total ?? 0, partsMissing: parts.data?.missing ?? 0,
+    partsTotal: parts.data?.total ?? 0, partsMissing: parts.data?.missing ?? 0, partsToReserve: parts.data?.toReserve ?? 0,
     invoice: null, handedOver: false,
   };
   const flow = dossierFlow(facts);
@@ -477,7 +477,7 @@ function OrDossier({ orId, appointment, companyId, wanted, onStep }: StepProps &
     receptionReady: rec.ready, receptionStatus: rec.status, photosMissing: rec.summary.missing.length,
     pointageReady: pt.ready, workState: pt.state.state, mineRunning: !!pt.state.mineOpen, minePaused: !!pt.state.mineLastPaused,
     planTotal: row?.total ?? 0, planResolved: (row?.done ?? 0) + (row?.not_done ?? 0), planMandatoryOpen: row?.mandatory_open ?? 0,
-    partsTotal: parts.data?.total ?? 0, partsMissing: parts.data?.missing ?? 0,
+    partsTotal: parts.data?.total ?? 0, partsMissing: parts.data?.missing ?? 0, partsToReserve: parts.data?.toReserve ?? 0,
     invoice: inv ? { status: inv.status, totalTtc: inv.totalTtc, paidAmount: inv.paidAmount } : null,
     handedOver,
   };

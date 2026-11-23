@@ -92,7 +92,7 @@ export const orLisibleFr = {
   depositUnavailable: "Acompte : lecture impossible pour le moment.",
   retry: "Réessayer",
   reservedNone: "Pièces réservées : aucune.",
-  reservedNoneHint: "Pas de kit trouvé pour cette moto et cet entretien. Ajoutez les pièces dans les lignes de l'OR.",
+  reservedNoneHint: "Pas de kit trouvé pour cette moto et cet entretien. Ajoutez les pièces dans les lignes de l'OR, puis cliquez sur Réserver.",
   planNoneHint: "Pas de liste d'opérations pour cette moto. Le travail se suit dans les lignes de l'OR.",
 } as const;
 
@@ -181,7 +181,7 @@ export const orLisibleNl: Shape<typeof orLisibleFr> = {
   depositUnavailable: "Voorschot: momenteel niet leesbaar.",
   retry: "Opnieuw proberen",
   reservedNone: "Gereserveerde onderdelen: geen.",
-  reservedNoneHint: "Geen kit gevonden voor deze motor en dit onderhoud. Voeg de onderdelen toe in de lijnen van de werkorder.",
+  reservedNoneHint: "Geen kit gevonden voor deze motor en dit onderhoud. Voeg de onderdelen toe in de lijnen van de werkorder en klik dan op Reserveren.",
   planNoneHint: "Geen lijst met bewerkingen voor deze motor. Het werk wordt gevolgd in de lijnen van de werkorder.",
 };
 
@@ -270,7 +270,7 @@ export const orLisibleEn: Shape<typeof orLisibleFr> = {
   depositUnavailable: "Deposit: cannot be read right now.",
   retry: "Retry",
   reservedNone: "Reserved parts: none.",
-  reservedNoneHint: "No kit found for this bike and this service. Add the parts in the repair order lines.",
+  reservedNoneHint: "No kit found for this bike and this service. Add the parts in the repair order lines, then click Reserve.",
   planNoneHint: "No operations list for this bike. The work is followed in the repair order lines.",
 };
 
@@ -359,6 +359,6 @@ export const orLisibleIt: Shape<typeof orLisibleFr> = {
   depositUnavailable: "Acconto: lettura impossibile al momento.",
   retry: "Riprova",
   reservedNone: "Ricambi riservati: nessuno.",
-  reservedNoneHint: "Nessun kit trovato per questa moto e questo tagliando. Aggiungere i ricambi nelle righe dell'ordine.",
+  reservedNoneHint: "Nessun kit trovato per questa moto e questo tagliando. Aggiungere i ricambi nelle righe dell'ordine, poi cliccare su Riserva.",
   planNoneHint: "Nessun elenco di operazioni per questa moto. Il lavoro si segue nelle righe dell'ordine.",
 };

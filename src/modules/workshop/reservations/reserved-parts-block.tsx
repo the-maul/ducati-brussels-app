@@ -59,6 +59,8 @@ export function ReservedPartsBlock({ appointmentId = null, orId = null, serviceC
       toast.success(fillVars(t('reservation.synced'), { moves: r.moves, basket: r.basketLines, minimax: r.minimax }));
       qc.invalidateQueries({ queryKey: key });
       qc.invalidateQueries({ queryKey: ['ro-order-needs'] });
+      qc.invalidateQueries({ queryKey: ['dossier-parts'] });
+      qc.invalidateQueries({ queryKey: ['part-paths'] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
   });

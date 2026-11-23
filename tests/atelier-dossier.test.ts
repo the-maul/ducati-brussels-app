@@ -3,6 +3,7 @@
  * Travailler → Payer et sortir), variantes comprises. Exécution : `bun test`.
  */
 import { describe, expect, test } from 'bun:test';
+import { linesToReserve, type DossierLineLite } from '../src/modules/workshop/dossier/rules';
 import { focusTransform } from '../src/modules/catalog/format';
 import { cardDossierStep } from '../src/modules/workshop/my-workshop/card-view';
 import { withoutPhotoData } from '../src/modules/workshop/journey/store';
@@ -68,6 +69,28 @@ describe('Réserver', () => {
     const f = entered({ appointment: null });
     expect(states(f)[0]).toBe('na');
     expect(dossierFlow(f).current).toBe('travailler');
+  });
+});
+
+describe('Pièces tapées sur l\'OR', () => {
+  const line = (article_id: string, quantity: number, over: Partial<DossierLineLite> = {}): DossierLineLite =>
+    ({ article_id, quantity, checkup_state: null, mgmt_type: 'A', is_active: true, ...over });
+  test('une pièce sans réservation est à réserver', () => {
+    expect(linesToReserve([line('a', 2)], [])).toBe(1);
+  });
+  test('couverte, ou déjà dans le kit : rien à faire', () => {
+    expect(linesToReserve([line('a', 2)], [{ article_id: 'a', origin: 'manuel', qty_needed: 2 }])).toBe(0);
+    expect(linesToReserve([line('a', 5)], [{ article_id: 'a', origin: 'atelier', qty_needed: 2 }])).toBe(0);
+  });
+  test('quantité augmentée sur une réservation manuelle : à réserver', () => {
+    expect(linesToReserve([line('a', 1), line('a', 2)], [{ article_id: 'a', origin: 'manuel', qty_needed: 2 }])).toBe(1);
+  });
+  test('constats et articles non stockés ignorés', () => {
+    expect(linesToReserve([
+      line('a', 1, { checkup_state: 'ok' }), line('b', 1, { checkup_state: 'a_prevoir' }), line('c', 1, { checkup_state: 'reporte' }),
+      line('d', 1, { mgmt_type: 'M' }), line('e', 1, { is_active: false }), line('f', 0),
+    ], [])).toBe(0);
+    expect(linesToReserve([line('a', 1, { checkup_state: 'a_faire' })], [])).toBe(1);
   });
 });
 

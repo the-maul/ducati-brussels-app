@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { PlanningAppointment } from '../planning/api';
 import { partsSummary, type ReservationLite } from '../my-workshop/rules';
+import { linesToReserve, type DossierLineLite, type DossierReservationLite } from './rules';
 
 type LooseResult = { data: unknown; error: { message: string; code?: string; hint?: string; details?: string } | null };
 type LooseQuery = PromiseLike<LooseResult> & {
@@ -44,17 +45,30 @@ export async function resolveDossier(id: string, companyId: string): Promise<Dos
   return { orId: appointment.or_id ?? null, appointment };
 }
 
-export type DossierParts = { total: number; missing: number };
+export type DossierParts = { total: number; missing: number; toReserve: number };
 
 /** Pièces du dossier : réservations de l'OR, sinon du RDV (mêmes règles que « Mon atelier »). */
 export async function loadDossierParts(p: { companyId: string; orId: string | null; appointmentId: string | null }): Promise<DossierParts> {
   const filter = p.orId ? `repair_order_id.eq.${p.orId}` : p.appointmentId ? `appointment_id.eq.${p.appointmentId}` : null;
-  if (!filter) return { total: 0, missing: 0 };
-  const r = await loose.from('stock_reservations').select('qty_needed, qty_reserved, qty_consumed, status')
+  if (!filter) return { total: 0, missing: 0, toReserve: 0 };
+  const r = await loose.from('stock_reservations').select('article_id, origin, qty_needed, qty_reserved, qty_consumed, status')
     .eq('company_id', p.companyId).eq('status', 'active').or(filter).limit(500);
-  if (r.error) return { total: 0, missing: 0 };
+  if (r.error) return { total: 0, missing: 0, toReserve: 0 };
   const s = partsSummary((r.data as ReservationLite[] | null) ?? [], null);
-  return { total: s.total, missing: s.missing };
+  return { total: s.total, missing: s.missing, toReserve: p.orId ? await countLinesToReserve(p.orId, (r.data as DossierReservationLite[] | null) ?? []) : 0 };
+}
+
+/** Une lecture en échec ne bloque pas le dossier : le bouton reste disponible. */
+async function countLinesToReserve(orId: string, reservations: DossierReservationLite[]): Promise<number> {
+  const or = await loose.from('repair_orders').select('status').eq('id', orId).maybeSingle();
+  const status = (or.data as { status: string } | null)?.status;
+  if (or.error || !status || status === 'facture' || status === 'annule') return 0;
+  const l = await loose.from('repair_order_lines').select('article_id, quantity, checkup_state, articles(mgmt_type, is_active)')
+    .eq('or_id', orId).eq('kind', 'piece').limit(500);
+  if (l.error) return 0;
+  type Row = Omit<DossierLineLite, 'mgmt_type' | 'is_active'> & { articles: { mgmt_type: string | null; is_active: boolean | null } | null };
+  const lines = ((l.data as Row[] | null) ?? []).map((x) => ({ ...x, mgmt_type: x.articles?.mgmt_type ?? null, is_active: x.articles?.is_active ?? null }));
+  return linesToReserve(lines, reservations);
 }
 
 export type DossierInvoice = { id: string; number: string | null; status: string; totalTtc: number; paidAmount: number };

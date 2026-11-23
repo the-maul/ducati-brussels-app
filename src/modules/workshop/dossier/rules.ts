@@ -68,6 +68,8 @@ export type DossierFacts = {
   planMandatoryOpen: number;
   partsTotal: number;
   partsMissing: number;
+  /** Pièces tapées sur l'OR, pas encore réservées. */
+  partsToReserve?: number;
   invoice: { status: string; totalTtc: number; paidAmount: number } | null;
   handedOver: boolean;
 };
@@ -124,6 +126,26 @@ const paymentSettled = (inv: DossierFacts['invoice']) => paymentNotNeeded(inv) |
 const isScheduled = (a: NonNullable<DossierFacts['appointment']>) =>
   a.status !== 'demande' && !a.unassigned && a.hasMechanic;
 
+export type DossierLineLite = { article_id: string | null; quantity: number | string | null; checkup_state: string | null; mgmt_type: string | null; is_active: boolean | null };
+export type DossierReservationLite = { article_id: string | null; origin: string | null; qty_needed: number | string | null };
+
+/** Pièces de l'OR que « Réserver / mettre à jour » prendrait (miroir de _workshop_reservations_from_lines). */
+export function linesToReserve(lines: readonly DossierLineLite[], reservations: readonly DossierReservationLite[]): number {
+  const wanted = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.article_id || l.mgmt_type !== 'A' || l.is_active === false) continue;
+    if ((l.checkup_state ?? 'a_faire') !== 'a_faire') continue;
+    wanted.set(l.article_id, (wanted.get(l.article_id) ?? 0) + (Number(l.quantity) || 0));
+  }
+  let n = 0;
+  for (const [article, qty] of wanted) {
+    if (qty <= 0) continue;
+    const r = reservations.find((x) => x.article_id === article);
+    if (!r || (r.origin === 'manuel' && (Number(r.qty_needed) || 0) < qty)) n += 1;
+  }
+  return n;
+}
+
 /** Réservation finie : RDV placé, et pièces couvertes (le jour J, un manque n'empêche plus d'entrer). */
 function reservationDone(f: DossierFacts): boolean {
   const a = f.appointment;
@@ -177,7 +199,7 @@ function buildTasks(f: DossierFacts): Record<DossierStepKey, DossierTask[]> {
     reserver: [
       { key: 'date', state: !a ? 'na' : isScheduled(a) ? 'done' : 'todo' },
       { key: 'work', state: !a ? 'na' : a.hasWork ? 'done' : 'todo' },
-      { key: 'parts', state: f.partsTotal === 0 ? 'na' : f.partsMissing > 0 ? 'warning' : 'done' },
+      { key: 'parts', state: (f.partsToReserve ?? 0) > 0 ? 'warning' : f.partsTotal === 0 ? 'na' : f.partsMissing > 0 ? 'warning' : 'done' },
     ],
     rentrer: [
       { key: 'or', state: f.or ? 'done' : 'todo' },
