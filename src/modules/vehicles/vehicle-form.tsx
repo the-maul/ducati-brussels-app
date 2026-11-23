@@ -16,6 +16,7 @@
  * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
  * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
+import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -30,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { SaveButton, type SaveStatus } from '@/components/ui/save-button';
 import { useIsDirty, useLeaveGuard } from '@/lib/use-dirty';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { t } from '@/lib/i18n';
+import { fillVars, t } from '@/lib/i18n';
 import {
   VEHICLE_STATUSES, findVehiclesByVin, vehicleLabel,
   type Vehicle, type VehicleInsert, type VehicleStatus, type MileageQualif,
@@ -115,6 +116,7 @@ function fromVehicle(v: Vehicle | null, client: boolean, prefill?: Partial<Recor
   if (!v && prefill) {
     for (const [k, val] of Object.entries(prefill)) if (val != null && val !== '') f[k] = val;
   }
+  f.plate_custom = (v as { plate_custom?: boolean } | null)?.plate_custom === true;
   return f;
 }
 
@@ -129,6 +131,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
   for (const k of DATE_FIELDS) out[k] = nn(f[k]);
   out.is_restricted = f.is_restricted === true;
   out.papers_100hp = f.papers_100hp === true;
+  out.plate_custom = f.plate_custom === true;
   out.status = f.status as VehicleStatus;
   out.mileage_qualif = f.mileage_qualif as MileageQualif;
   out.notes = nn(f.notes);
@@ -349,7 +352,16 @@ export function VehicleForm({
     if (String(f.vin ?? '').includes('*')) { setLocalError(t('motoClient.vinFinish')); return; }
     // Jamais de 2e fiche pour un VIN déjà connu : on rattache (ou on ouvre) l'existante.
     if (duplicates.length > 0) { setLocalError(t('motoClient.vinExistsBlock')); return; }
-    const payload = buildPayload(f, companyId);
+    // Plaque : contrôlée à la création ou quand on la change ; une ancienne plaque intacte ne bloque rien.
+    const plateCustom = f.plate_custom === true;
+    const plateChanged = !initial || String(f.plate ?? '') !== String(initial.plate ?? '')
+      || plateCustom !== ((initial as { plate_custom?: boolean }).plate_custom === true);
+    const plate = cleanPlate(f.plate as string, plateCustom);
+    if (plateChanged && !plateIsValid(plate, plateCustom)) {
+      setLocalError(fillVars(t('dossier.plateInvalid'), { n: PLATE_MIN }));
+      return;
+    }
+    const payload = buildPayload(plateChanged ? { ...f, plate } : f, companyId);
     // Carte grise déjà déposée sous l'identifiant fixé d'avance : la moto le reprend.
     onSubmit(!initial && scan ? { ...payload, id: pendingId } : payload, { ownerFrom, scan: initial ? null : scan });
   };
@@ -482,7 +494,13 @@ export function VehicleForm({
         {!initial && duplicates.length === 0 && (
           <VinSuggestions companyId={companyId} term={f.vin as string} client={client} ownerFrom={ownerFrom} onAttach={onAttachExisting} attaching={attaching} />
         )}
-        {T('plate', t('vehicles.plate'), true)}
+        <Field label={t('vehicles.plate')} code={CARTE_GRISE_CODES.plate}>
+          <Input value={f.plate as string} onChange={(e) => set('plate', plateInput(e.target.value, f.plate_custom === true))}
+            className={`font-mono ${hl('plate')}`} autoCapitalize="characters" spellCheck={false} />
+          {cgHint('plate')}
+          <Check label={t('dossier.plateCustom')} checked={f.plate_custom === true}
+            onChange={(v) => { set('plate_custom', v); if (!v) set('plate', normalizePlate(f.plate as string)); }} />
+        </Field>
         {T('brand', t('vehicles.brand'))}
         {duplicates.length > 0 && (
           <div className="col-span-full rounded-md border border-warning/40 bg-warning-bg p-3">

@@ -6,7 +6,7 @@
  * ils ne comptent pas comme « à compléter ».
  */
 export const VEHICLE_SHEET_COLUMNS = [
-  'id', 'ducati_model_year_id', 'vin', 'reference', 'brand', 'model', 'plate', 'engine_number', 'origin', 'key_number', 'gps_tracker_id', 'pin_tracker',
+  'id', 'ducati_model_year_id', 'vin', 'reference', 'brand', 'model', 'plate', 'plate_custom', 'engine_number', 'origin', 'key_number', 'gps_tracker_id', 'pin_tracker',
   'displacement', 'power_cv', 'is_restricted', 'energy', 'antipollution', 'color', 'category', 'cylinders',
   'first_registration_date', 'mileage', 'last_service_km', 'tpms_av', 'tpms_ar', 'warranty_end', 'warranty_type', 'model_year', 'exposition_code',
 ].join(', ');

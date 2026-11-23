@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { fillVars, t } from '@/lib/i18n';
+import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
 import { updateVehicle } from '@/modules/vehicles/api';
 import {
   ANTIPOLLUTION_OPTIONS, COLOR_OPTIONS, CYLINDER_OPTIONS, ENERGY_OPTIONS, VEHICLE_FAMILIES, loadSpecOptions, loadVehicleFill,
@@ -76,6 +77,13 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
     if (next === saved) return;
     save.mutate({ [field.key]: next });
   };
+  // Plaque : enregistrée seulement si elle respecte la règle (ou si elle est personnalisée).
+  const commitPlate = (value: string, custom: boolean) => {
+    const plate = cleanPlate(value, custom);
+    if (!plateIsValid(plate, custom)) { toast.error(fillVars(t('dossier.plateInvalid'), { n: PLATE_MIN })); return; }
+    if ((plate || null) === (raw.plate ?? null) && custom === (raw.plate_custom === true)) return;
+    save.mutate({ plate: plate || null, plate_custom: custom });
+  };
   const optionsFor = (field: SheetField): readonly string[] => {
     switch (field.optionsKey) {
       case 'displacement': return optionsQ.data?.displacement ?? [];
@@ -103,6 +111,27 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
     const value = sheetInputValue(field, row);
     const empty = !field.optional && !value.trim();
     const warn = empty ? 'border-warning' : '';
+    if (field.key === 'plate') {
+      const custom = row.plate_custom === true;
+      return (
+        <div className="space-y-0.5">
+          <Input value={value} aria-label={t(field.labelKey)} placeholder={empty ? t('dossier.sheetEmpty') : undefined} autoCapitalize="characters" spellCheck={false}
+            onChange={(e) => { const v = plateInput(e.target.value, custom); setDraft((d) => ({ ...d, plate: v })); }}
+            onBlur={(e) => { if (draft.plate !== undefined) commitPlate(e.target.value, custom); }}
+            className={`${FIELD_CLASS} ${warn}`} />
+          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <input type="checkbox" checked={custom} className="size-3.5 accent-[var(--ducati-red)] pointer-coarse:size-5"
+              onChange={(e) => {
+                const next = e.target.checked;
+                const v = next ? value : normalizePlate(value);
+                setDraft((d) => ({ ...d, plate: v, plate_custom: next }));
+                commitPlate(v, next);
+              }} />
+            {t('dossier.plateCustom')}
+          </label>
+        </div>
+      );
+    }
     if (field.input === 'spec' || field.input === 'specNumber') {
       return (
         <SpecSelect value={value} options={optionsFor(field)} numeric={field.input === 'specNumber'} className={`${FIELD_CLASS} ${warn}`}
