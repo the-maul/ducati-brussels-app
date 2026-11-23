@@ -54,8 +54,9 @@ export async function listBonusesForPeriod(companyId: string, from: string, to: 
   return ((data ?? []) as BonusWithVehicle[]).map((b) => ({ ...b, amount: Number(b.amount) }));
 }
 
-/** Detenteur et utilisateur (le proprietaire reste l'historique `vehicle_owners`). */
-export async function setVehicleParties(vehicleId: string, p: { holderId: string | null; userId: string | null }): Promise<void> {
-  const { error }: Res = await db.from('vehicles').update({ holder_contact_id: p.holderId, user_contact_id: p.userId }).eq('id', vehicleId);
+/** Banque ou leasing qui finance la moto, et son contrat (le propriétaire reste `vehicle_owners`). */
+export async function setVehicleFinancing(vehicleId: string, p: { contactId: string | null; contract: string }): Promise<void> {
+  const { error }: Res = await db.from('vehicles')
+    .update({ financing_contact_id: p.contactId, financing_contract: p.contract.trim() || null }).eq('id', vehicleId);
   if (error) fail(error);
 }

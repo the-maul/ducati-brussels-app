@@ -8358,7 +8358,7 @@ export const fr = {
     chassisVinMissing: "Ligne {line} : numéro de châssis (VIN) illisible.",
     chassisVinExists: "Le châssis {vin} existe déjà dans le parc : réception refusée, rien n'a été enregistré.",
     migrationMissing: "Fonction pas encore active : la mise à jour de la base (migration du 18/11) doit être appliquée.",
-    partiesTitle: "Propriétaire, détenteur, utilisateur",
+    partiesTitle: "Propriétaire et financement",
     owner: "Propriétaire",
     ownerHint: "Le propriétaire suit l'historique daté (vente, reprise, fiche client).",
     holder: "Détenteur",

@@ -8337,7 +8337,7 @@ export const nl: DictionaryShape = {
     chassisVinMissing: "Regel {line}: chassisnummer (VIN) onleesbaar.",
     chassisVinExists: "Chassis {vin} bestaat al in het wagenpark: ontvangst geweigerd, er is niets opgeslagen.",
     migrationMissing: "Functie nog niet actief: de database-update (migratie van 18/11) moet worden toegepast.",
-    partiesTitle: "Eigenaar, houder, gebruiker",
+    partiesTitle: "Eigenaar en financiering",
     owner: "Eigenaar",
     ownerHint: "De eigenaar volgt de gedateerde historiek (verkoop, overname, klantfiche).",
     holder: "Houder",

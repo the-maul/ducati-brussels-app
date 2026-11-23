@@ -16,12 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { t, fillVars } from '@/lib/i18n';
 import { ContactPicker } from '@/modules/sales/document-editor';
-import { contactDisplayName, getContact, type Contact } from '@/modules/contacts/api';
+import { listContacts, contactDisplayName, getContact, type Contact } from '@/modules/contacts/api';
 import { getArticle } from '@/modules/articles/api';
 import type { Vehicle } from './api';
 import { vehicleEconomics, bonusesInPeriod, daysInStockOf } from './economics';
 import {
-  addVehicleBonus, deleteVehicleBonus, listBonusesForPeriod, listVehicleBonuses, setVehicleParties,
+  addVehicleBonus, deleteVehicleBonus, listBonusesForPeriod, listVehicleBonuses, setVehicleFinancing,
 } from './fiche-g8-api';
 
 const eur = (n: number | null | undefined) =>
@@ -29,19 +29,19 @@ const eur = (n: number | null | undefined) =>
 const today = () => new Date().toISOString().slice(0, 10);
 
 type VehicleG8 = Vehicle & {
-  holder_contact_id?: string | null; user_contact_id?: string | null; market_value?: number | null; warranty_months?: number | null;
+  financing_contact_id?: string | null; financing_contract?: string | null; market_value?: number | null; warranty_months?: number | null;
 };
 
-/* ------------------------------------------------------------------ Proprietaire / detenteur / utilisateur */
+/* ------------------------------------------------------------------ Proprietaire et financement */
 export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { companyId: string; vehicle: Vehicle; currentOwnerId: string | null }) {
   const v = vehicle as VehicleG8;
   const qc = useQueryClient();
-  const [holder, setHolder] = useState<string | null>(v.holder_contact_id ?? null);
-  const [user, setUser] = useState<string | null>(v.user_contact_id ?? null);
-  const dirty = holder !== (v.holder_contact_id ?? null) || user !== (v.user_contact_id ?? null);
+  const [bank, setBank] = useState<string | null>(v.financing_contact_id ?? null);
+  const [contract, setContract] = useState(v.financing_contract ?? '');
+  const dirty = bank !== (v.financing_contact_id ?? null) || contract.trim() !== (v.financing_contract ?? '');
   const m = useMutation({
     meta: { success: false, error: false },
-    mutationFn: () => setVehicleParties(vehicle.id, { holderId: holder, userId: user }),
+    mutationFn: () => setVehicleFinancing(vehicle.id, { contactId: bank, contract }),
     onSuccess: () => { toast.success(t('feedback.saved')); qc.invalidateQueries({ queryKey: ['vehicle', vehicle.id] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
   });
@@ -49,10 +49,11 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <PartyField companyId={companyId} label={t('parcG8.owner')} contactId={currentOwnerId} readOnly hint={t('parcG8.ownerHint')} />
-        <PartyField companyId={companyId} label={t('parcG8.holder')} contactId={holder} onChange={setHolder}
-          onCopyOwner={currentOwnerId ? () => setHolder(currentOwnerId) : undefined} />
-        <PartyField companyId={companyId} label={t('parcG8.user')} contactId={user} onChange={setUser}
-          onCopyOwner={currentOwnerId ? () => setUser(currentOwnerId) : undefined} />
+        <PartyField companyId={companyId} label={t('dossier.financingOrg')} contactId={bank} onChange={setBank} bankPicker />
+        <div className="space-y-1.5">
+          <Label className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('dossier.financingContract')}</Label>
+          <Input value={contract} onChange={(e) => setContract(e.target.value)} className="font-mono" spellCheck={false} />
+        </div>
       </div>
       <div className="flex justify-end">
         <Button size="sm" variant="outline" onClick={() => m.mutate()} disabled={!dirty || m.isPending}>
@@ -63,9 +64,35 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
   );
 }
 
-function PartyField({ companyId, label, contactId, onChange, onCopyOwner, readOnly, hint }: {
+/** Les banques et leasings d'abord ; en tapant, toutes les fiches (un organisme pas encore classé reste trouvable). */
+function BankPicker({ companyId, onPick }: { companyId: string; onPick: (c: Contact) => void }) {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const q = term.trim();
+  const list = useQuery({
+    queryKey: ['financing-orgs', companyId, q],
+    queryFn: () => (q.length >= 2 ? listContacts(companyId, q, undefined, 12) : listContacts(companyId, undefined, 'banque_leasing', 30)),
+    enabled: open, staleTime: 60_000,
+  });
+  return (
+    <div className="relative">
+      <Input value={term} onChange={(e) => setTerm(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={t('dossier.financingSearch')} />
+      {open && (list.data?.length ?? 0) > 0 && (
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
+          {list.data!.map((c) => (
+            <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(c); setTerm(''); setOpen(false); }}
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PartyField({ companyId, label, contactId, onChange, onCopyOwner, readOnly, hint, bankPicker = false }: {
   companyId: string; label: string; contactId: string | null; onChange?: (id: string | null) => void;
-  onCopyOwner?: () => void; readOnly?: boolean; hint?: string;
+  onCopyOwner?: () => void; readOnly?: boolean; hint?: string; bankPicker?: boolean;
 }) {
   const q = useQuery({ queryKey: ['contact-lite', contactId], queryFn: () => getContact(contactId!), enabled: !!contactId, staleTime: 300_000 });
   const c = q.data as Contact | null | undefined;
@@ -90,7 +117,9 @@ function PartyField({ companyId, label, contactId, onChange, onCopyOwner, readOn
       ) : readOnly ? (
         <p className="flex h-9 items-center text-sm text-muted-foreground">{t('motoClient.noOwner')}</p>
       ) : (
-        <ContactPicker companyId={companyId} onPick={(x) => onChange?.(x.id)} />
+        bankPicker
+          ? <BankPicker companyId={companyId} onPick={(x) => onChange?.(x.id)} />
+          : <ContactPicker companyId={companyId} onPick={(x) => onChange?.(x.id)} />
       )}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>

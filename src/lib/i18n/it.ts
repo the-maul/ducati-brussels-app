@@ -8337,7 +8337,7 @@ export const it: DictionaryShape = {
     chassisVinMissing: "Riga {line}: numero di telaio (VIN) illeggibile.",
     chassisVinExists: "Il telaio {vin} esiste già nel parco: ricevimento rifiutato, nulla è stato registrato.",
     migrationMissing: "Funzione non ancora attiva: l'aggiornamento del database (migrazione del 18/11) deve essere applicato.",
-    partiesTitle: "Proprietario, detentore, utilizzatore",
+    partiesTitle: "Proprietario e finanziamento",
     owner: "Proprietario",
     ownerHint: "Il proprietario segue lo storico datato (vendita, permuta, scheda cliente).",
     holder: "Detentore",

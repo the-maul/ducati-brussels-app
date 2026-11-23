@@ -8337,7 +8337,7 @@ export const en: DictionaryShape = {
     chassisVinMissing: "Line {line}: chassis number (VIN) unreadable.",
     chassisVinExists: "Chassis {vin} already exists in the fleet: receipt refused, nothing was saved.",
     migrationMissing: "Feature not active yet: the database update (18/11 migration) must be applied.",
-    partiesTitle: "Owner, holder, user",
+    partiesTitle: "Owner and financing",
     owner: "Owner",
     ownerHint: "The owner follows the dated history (sale, trade-in, customer record).",
     holder: "Holder",
