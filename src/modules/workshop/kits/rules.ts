@@ -51,6 +51,8 @@ export type CatalogRule = {
 /** Une ligne d'une vue éclatée du catalogue Ducati. */
 export type CatalogLine = {
   drawingId: string;
+  /** Code du dessin au catalogue : deux dessins de même code et de même nom sont un doublon. */
+  drawingCode?: string | null;
   drawingDescription: string;
   position?: string | null;
   reference: string;
@@ -136,14 +138,19 @@ export function resolveFamily(
   }];
   if (!rule) return none();
   const matched = lines.filter((l) => catalogLineMatches(l, rule));
-  // une même référence peut revenir sur plusieurs vues (culasse verticale + horizontale)
+  // une même référence peut revenir sur plusieurs vues (culasse verticale + horizontale) ;
+  // un dessin présent deux fois au catalogue (même code, même nom) ne compte qu'une fois
   const byRef = new Map<string, number>();
   const seen = new Set<string>();
   for (const l of matched) {
-    const key = `${l.drawingId}|${l.position ?? ''}|${l.reference}`;
+    const qty = Math.max(num(l.quantity) || 1, 1);
+    const drawing = l.drawingCode
+      ? `${l.drawingCode}|${(l.drawingDescription ?? '').trim().toUpperCase()}`
+      : l.drawingId;
+    const key = `${drawing}|${l.position ?? ''}|${l.reference}|${qty}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    byRef.set(l.reference, (byRef.get(l.reference) ?? 0) + Math.max(num(l.quantity) || 1, 1));
+    byRef.set(l.reference, (byRef.get(l.reference) ?? 0) + qty);
   }
   const refs = [...byRef.keys()].sort();
   if (refs.length === 0) return none();
@@ -161,6 +168,19 @@ export function resolveFamily(
     reference: ref, references: refs, quantity: byRef.get(ref) ?? 1,
     confidence: refs.length > 1 ? 'a_confirmer' : 'sur',
   }));
+}
+
+/**
+ * Une opération « (uniquement XDiavel) » d'un manuel commun ne vaut que pour les modèles cités
+ * (miroir de `_maintenance_label_applies`). Une restriction illisible ne retire aucun besoin.
+ */
+export function labelAppliesToModel(label: string, model: string): boolean {
+  const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ');
+  const scope = /uniquement\s+([^)]*)/.exec(String(label ?? '').toLowerCase())?.[1];
+  if (scope === undefined || /(version|ducati|service|model)/.test(scope)) return true;
+  const have = new Set(words(String(model ?? '')));
+  return scope.split(/\s*,\s*|\s+et\s+/).filter((t) => t.trim())
+    .some((t) => words(t).every((w) => have.has(w)));
 }
 
 /**

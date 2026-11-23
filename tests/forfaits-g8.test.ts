@@ -8,7 +8,7 @@ import {
   G8_SERVICE_ARTICLES, G8_FORFAITS, G8_PRICES, G8_FORMATION_FOOTER_TTC, G8_FORMATION_UNIT_TTC,
   G8_REAL_FOOTER_TTC, G8_REAL_UNIT_TTC, DEFAULT_KIT_LINES, DEFAULT_FLUID_ARTICLES, DEFAULT_ENGINE_PROFILES,
 } from '../src/modules/workshop/forfaits/g8-catalog';
-import { convertFluidQuantity, linkFluidLine, matchEngineProfile, literFactor } from '../src/modules/workshop/kits/fluid-rules';
+import { convertFluidQuantity, linkFluidLine, matchEngineProfile, literFactor, pickServiceVolume } from '../src/modules/workshop/kits/fluid-rules';
 import { kitInsertLines, type PricedArticle } from '../src/modules/workshop/kits/insert-rules';
 import { kitLineFlag, kitLineSource, kitToDesignateCount, kitQtyToCheckCount } from '../src/modules/workshop/kits/rules';
 
@@ -228,5 +228,29 @@ describe('ecran et insertion', () => {
     withOwn.set('mo', { ...arts.get('mo')!, sale_price_ht: 95 });
     expect(kitInsertLines({ title: '', components: comps.slice(0, 1), articles: withOwn, labourRateHt: 109.74 })[0].unit_price_ht).toBe(95);
     expect(kitInsertLines({ title: '', components: comps.slice(0, 1), articles: arts })[0].unit_price_ht).toBe(0);
+  });
+});
+
+describe('huile moteur : volume de révision, jamais moteur à sec (ATE014)', () => {
+  const v = (valeur: number, condition: string | null) => ({ type: 'volume', valeur, unite: 'l', condition });
+
+  test('Multistrada V4 : 4,4 l à la révision, pas 4,9 l à sec, quel que soit l’ordre', () => {
+    expect(pickServiceVolume([v(4.9, 'si moteur à sec'), v(4.4, 'lors de la révision avec remplacement filtre')], 'huile_moteur')?.valeur).toBe(4.4);
+    expect(pickServiceVolume([v(4.4, 'lors de la révision avec remplacement du filtre'), v(4.9, 'à moteur sec -')], 'huile_moteur')?.valeur).toBe(4.4);
+  });
+
+  test('un seul volume sans condition est repris tel quel', () => {
+    expect(pickServiceVolume([v(3.7, null)], 'huile_moteur')?.valeur).toBe(3.7);
+    expect(pickServiceVolume([v(3.4, 'litres')], 'huile_moteur')?.valeur).toBe(3.4);
+  });
+
+  test('seulement le volume à sec : rien, la quantité reste à compléter', () => {
+    expect(pickServiceVolume([v(4.9, 'si moteur à sec')], 'huile_moteur')).toBeNull();
+    expect(pickServiceVolume([], 'huile_moteur')).toBeNull();
+    expect(pickServiceVolume(null, 'huile_moteur')).toBeNull();
+  });
+
+  test('les autres liquides gardent leur lecture', () => {
+    expect(pickServiceVolume([v(521, 'par tube')], 'huile_fourche')?.valeur).toBe(521);
   });
 });

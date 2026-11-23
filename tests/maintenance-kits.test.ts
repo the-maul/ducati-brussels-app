@@ -13,7 +13,7 @@
  */
 import { test, expect } from 'bun:test';
 import {
-  deduceFamilies, catalogLineMatches, resolveFamily, engineFamilyKey, kitSignature,
+  deduceFamilies, labelAppliesToModel, catalogLineMatches, resolveFamily, engineFamilyKey, kitSignature,
   buildPickingDraft, workshopMissingQty, dcsKindOfWorkshopOrder, kitToConfirmCount, kitIsReady,
   kitLineFlag, kitMultiRefCount, kitAbsentCount, generationPercent,
   serviceKindOf, kitLineSource, addGenerationTotals, EMPTY_GENERATION_TOTALS,
@@ -359,4 +359,74 @@ test("les compteurs des lots s'additionnent, les valeurs manquantes valent zéro
   const a = addGenerationTotals(EMPTY_GENERATION_TOTALS, { modelYears: 15, created: 4, linked: 30, itemsMultiRef: 2 });
   const b = addGenerationTotals(a, { modelYears: 15, created: 1, reused: 9, itemsAbsent: 1 });
   expect(b).toEqual({ modelYears: 30, created: 5, reused: 9, linked: 30, skipped: 0, itemsMultiRef: 2, itemsAbsent: 1 });
+});
+
+// --- ATE014 : recherche par désignation -------------------------------------
+
+const BELT_RULE: CatalogRule = { ...RULE.courroie_distribution, drawingRe: 'DISTRIBUTION' };
+const PUMP_SEAL_RULE: CatalogRule = {
+  familyCode: 'joint_pompe_eau', includeRe: '(^JOINT|BAGUE|ETANCH)', excludeRe: '(OUTIL|BAGUE ELASTIQUE|ARRET)',
+  drawingRe: 'POMPE (A|À) EAU', takeAll: true,
+};
+
+test.each([
+  ['sangle de batterie', 'COURROIE', 'SUPPORT BATTERIE'],
+  ['sangle de selle', 'COURROIE', 'SELLE'],
+  ['sangle de coffret', 'COURROIE', 'COUVETTE PORTE-OBJETS'],
+  ['courroie de roue arrière', 'COURROIE A DENTS', 'MOYEU ROUE ARRIERE'],
+  ['courroie de pompe', 'COURROIE', 'POMPE À EAU'],
+  ['calibre de tension', 'CALIBRE TENSION COURROIE', "OUTILS D'ASSISTANCE MOTEUR"],
+])('une %s n’est pas une courroie de distribution', (_n, description, drawingDescription) => {
+  expect(catalogLineMatches(line({ reference: 'X', description, drawingDescription }), BELT_RULE)).toBe(false);
+});
+
+test.each([
+  ['COURROIE DENTEE COMMANDE DISTRIBUTION', 'DISTRIBUTION'],
+  ['COURROIE DISTRIBUTION', 'DISTRIBUTION'],
+  ['COURROIE A DENTS', 'COURROIE DISTRIBUTION'],
+  ['COURROIE DENTEE COMMANDE DISTRIBUTION 93', 'COURROIE DISTRIBUTION'],
+])('« %s » sur le dessin « %s » reste une courroie de distribution', (description, drawingDescription) => {
+  expect(catalogLineMatches(line({ reference: 'X', description, drawingDescription }), BELT_RULE)).toBe(true);
+});
+
+test('un circlip de pompe à eau n’est pas un joint, un vrai joint le reste', () => {
+  const on = (description: string) => catalogLineMatches(line({ reference: 'X', description, drawingDescription: 'POMPE À EAU' }), PUMP_SEAL_RULE);
+  expect(on('BAGUE ELASTIQUE ARRET')).toBe(false);
+  expect(on("BAGUE D'ETANCHEITE")).toBe(true);
+  expect(on('JOINT CORPS POMPE EAU')).toBe(true);
+});
+
+test('un dessin en double au catalogue ne double pas la quantité', () => {
+  const twice = [
+    line({ reference: '44440312B', description: 'FILTRE A HUILE', drawingId: '26615', drawingCode: '009', drawingDescription: 'FILTRES ET POMPE A HUILE', position: '5' }),
+    line({ reference: '44440312B', description: 'FILTRE A HUILE', drawingId: '26616', drawingCode: '009', drawingDescription: 'FILTRES ET POMPE A HUILE', position: '5' }),
+  ];
+  expect(resolveFamily(fam('filtre_huile'), RULE.filtre_huile, twice)[0].quantity).toBe(1);
+});
+
+test('deux vues différentes (culasse verticale + horizontale) continuent de s’additionner', () => {
+  const views = [
+    line({ reference: '67040451A', description: 'BOUGIE', drawingId: '112323', drawingCode: '11A', drawingDescription: 'CULASSE VERTICALE - DISTRIBUTION', position: '29' }),
+    line({ reference: '67040451A', description: 'BOUGIE', drawingId: '49988', drawingCode: '11B', drawingDescription: 'CULASSE HORIZONTALE - DISTRIBUTION', position: '29' }),
+  ];
+  expect(resolveFamily(fam('bougie'), RULE.bougie, views)[0].quantity).toBe(2);
+});
+
+test('une opération « uniquement » ne vaut que pour les modèles cités', () => {
+  const plugs = 'remplacement des bougies (uniquement xdiavel)';
+  expect(labelAppliesToModel(plugs, 'XDIAVEL DARK')).toBe(true);
+  expect(labelAppliesToModel(plugs, 'DIAVEL 1260 S')).toBe(false);
+  const pump = 'remplacement courroie pompe à eau (uniquement xdiavel et diavel 1260)';
+  expect(labelAppliesToModel(pump, 'DIAVEL 1260 S')).toBe(true);
+  expect(labelAppliesToModel(pump, 'XDIAVEL')).toBe(true);
+  const belts = 'remplacement courroies de la distribution (uniquement 848, 1098 et 1198)';
+  expect(labelAppliesToModel(belts, 'PANIGALE V2 955')).toBe(false);
+  expect(labelAppliesToModel(belts, '1198 S')).toBe(true);
+  expect(labelAppliesToModel('remplacement des bougies (uniquement streetfighter 848 et streetfighter 1098)', 'STREETFIGHTER V2 955')).toBe(false);
+});
+
+test('sans restriction, ou restriction illisible, le besoin reste', () => {
+  expect(labelAppliesToModel('remplacement des bougies', 'DIAVEL 1260')).toBe(true);
+  expect(labelAppliesToModel('vidange du liquide de refroidissement (si présent)', 'MONSTER')).toBe(true);
+  expect(labelAppliesToModel('remplacement du filtre (uniquement versions usa)', 'MONSTER')).toBe(true);
 });

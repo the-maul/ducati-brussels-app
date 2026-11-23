@@ -166,6 +166,97 @@ export function procedureImages(j) {
 // Manuels (entretien\<famille>\<modele>-<annee>.json)
 // ---------------------------------------------------------------------
 /**
+ * Clé de comparaison d'un nom d'échéance : sans précision entre parenthèses, sans « Service » en
+ * tête, nombres recollés (« Service Kilométrique 1 000 » -> « KILOMETRIQUE 1000 »).
+ */
+export function serviceNameKey(name) {
+  return norm(String(name ?? '').replace(/\([^)]*\)/g, ' '))
+    .replace(/(\d) (?=\d{3}\b)/g, '$1')
+    .replace(/^SERVICE /, '');
+}
+
+/** Les trois noms que Ducati donne à l'entretien calendaire (tous les 12 mois). */
+const CALENDAR_KEYS = new Set(['TEMPOREL', 'ANNUAL SERVICE', 'CHECK']);
+const POSITIONAL_COLUMN = /^colonne (\d+)$/;
+
+/**
+ * Colonnes sans titre (« colonne 5 ») : rattachées aux échéances dans l'ordre, seulement si leur
+ * nombre est égal et si la seule colonne portant des mois (« 12 ») est bien l'échéance calendaire.
+ * Dans le doute, rien n'est rattaché.
+ */
+function positionalColumns(services, ops) {
+  const cols = [...new Set(ops.flatMap((o) => arr(o.echeances)).filter((c) => POSITIONAL_COLUMN.test(c)))]
+    .sort((a, b) => Number(POSITIONAL_COLUMN.exec(a)[1]) - Number(POSITIONAL_COLUMN.exec(b)[1]));
+  if (!cols.length || cols.length !== services.length) return new Map();
+  const calendar = services.findIndex((s) => CALENDAR_KEYS.has(serviceNameKey(s.name)));
+  if (calendar < 0) return new Map();
+  const withMonths = cols.map((c) => ops.some((o) => /^\d+$/.test(String(o.valeurs?.[c] ?? '').trim())));
+  if (!withMonths[calendar] || withMonths.some((v, i) => v && i !== calendar)) return new Map();
+  return new Map(cols.map((c, i) => [c, services[i].code]));
+}
+
+/**
+ * Rapproche les colonnes de la grille des échéances du programme, de la preuve la plus forte à la
+ * plus faible : même code, même nom normalisé, entretien calendaire unique, première révision à
+ * 1 000 km, position. Une échéance de la grille absente de la liste est ajoutée telle quelle
+ * (type « service » uniquement). Une colonne qui ne correspond à rien reste sans échéance.
+ */
+export function resolveServiceColumns(baseServices, programme, canExtend) {
+  const p = programme || {};
+  const services = [...baseServices];
+  const ops = arr(p.operationsConcessionnaire).filter((o) => o && typeof o !== 'string');
+  const gridNames = new Set(ops.flatMap((o) => arr(o.echeances)));
+
+  const uniqueBy = (test) => {
+    const hit = services.filter(test);
+    return hit.length === 1 ? hit[0].code : null;
+  };
+  const match = (name) => {
+    const code = serviceCode(name);
+    if (services.some((s) => s.code === code)) return code;
+    // « Annual Service (24) » -> « annual_service » quand le suffixe n'est qu'une périodicité.
+    const base = serviceCode(String(name).replace(/\s*\(\d+\)\s*$/, ''));
+    if (services.some((s) => s.code === base)) return base;
+    const key = serviceNameKey(name);
+    if (!key) return null;
+    const byName = uniqueBy((s) => serviceNameKey(s.name) === key);
+    if (byName) return byName;
+    if (CALENDAR_KEYS.has(key)) {
+      const calendar = uniqueBy((s) => CALENDAR_KEYS.has(serviceNameKey(s.name)));
+      if (calendar) return calendar;
+    }
+    if (key === '1000' || key.endsWith(' 1000')) {
+      const first = uniqueBy((s) => s.km === 1000);
+      if (first) return first;
+    }
+    return null;
+  };
+
+  if (canExtend) {
+    for (const e of arr(p.echeances)) {
+      if (e.type !== 'service' || !e.echeance || !gridNames.has(e.echeance) || match(e.echeance)) continue;
+      const name = String(e.echeance).replace(/\s*\([^)]*\)\s*$/, '').trim();
+      services.push({
+        code: serviceCode(name),
+        name,
+        km: int(e.km),
+        mi: int(e.mi),
+        months: int(e.mois),
+        first_service: false,
+        definition: e.definition ?? null,
+        text: null,
+        first_reached: true,
+        sort: services.length,
+      });
+    }
+  }
+
+  const positional = positionalColumns(services, ops);
+  const codeOf = (name) => positional.get(name) ?? match(name) ?? serviceCode(name);
+  return { services: dedupeByKey(services, 'code'), codeOf };
+}
+
+/**
  * Un modèle-année : identité, programme officiel (échéances + opérations), usages de procédures,
  * procédures par échéance, annexes et temps en UT.
  * @param j       contenu du fichier d'entretien
@@ -209,15 +300,13 @@ export function buildManual(j, opts = {}) {
       first_reached: true,
       sort: i,
     }));
-  const services = dedupeByKey(fromServices.length ? fromServices : fromGrid, 'code');
+  // La grille du concessionnaire nomme souvent ses colonnes autrement que la liste des échéances
+  // (« Service Kilométrique DESMO A » / « Kilométrique DESMO A ») : sans rapprochement, les
+  // opérations restent sans échéance et le manuel ne produit aucun besoin de pièce.
+  const { services, codeOf } = resolveServiceColumns(
+    dedupeByKey(fromServices.length ? fromServices : fromGrid, 'code'), p, fromServices.length > 0,
+  );
   const knownCodes = new Set(services.map((s) => s.code));
-  const codeOf = (name) => {
-    const c = serviceCode(name);
-    if (knownCodes.has(c)) return c;
-    // « Annual Service (24) » -> « annual_service » quand le suffixe n'est qu'une périodicité.
-    const base = serviceCode(String(name).replace(/\s*\(\d+\)\s*$/, ''));
-    return knownCodes.has(base) ? base : c;
-  };
 
   const operations = [];
   // Opération du programme -> procédures d'atelier : c'est le lien le plus riche du manuel.

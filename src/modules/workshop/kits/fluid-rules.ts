@@ -49,6 +49,26 @@ export function convertFluidQuantity(
   return { liters: Math.round(liters * 1e6) / 1e6, quantity, plausible: liters >= 0.05 && liters <= 10, corrected };
 }
 
+export type FluidVolume = { valeur: number; unite?: string | null; type?: string; condition?: string | null };
+
+/**
+ * Volume a retenir sur une ligne de ravitaillement du manuel (miroir de la fonction SQL
+ * `_maintenance_fluid_service_volume`, migration 20261123133000). Huile moteur : le volume de
+ * revision avec filtre, jamais « moteur a sec » ; s'il n'y a que celui-la, rien (a completer).
+ */
+export function pickServiceVolume(quantities: ReadonlyArray<FluidVolume> | null | undefined, family: string): FluidVolume | null {
+  const isOil = family === 'huile_moteur';
+  const cond = (q: FluidVolume) => String(q.condition ?? '').toLowerCase();
+  const rank = (q: FluidVolume) => {
+    if (isOil && /(r[ée]vision|remplacement|vidange|filtre)/.test(cond(q))) return 0;
+    return q.condition == null ? 1 : 2;
+  };
+  const usable = (quantities ?? [])
+    .filter((q) => (q.type ?? 'volume') === 'volume')
+    .filter((q) => !isOil || !/(^|[^\p{L}])sec($|[^\p{L}])/u.test(cond(q)));
+  return usable.reduce<FluidVolume | null>((best, q) => (best === null || rank(q) < rank(best) ? q : best), null);
+}
+
 /** Ligne de kit apres rattachement : quantite, niveau, provenance de la quantite. */
 export type FluidLinkResult = {
   quantity: number;

@@ -9,7 +9,7 @@ import { test, expect, describe } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 // @ts-expect-error — module .mjs sans déclaration de types (outil de chargement, hors src/)
-import { buildManual, buildProcedure, procedureImages, contentHash, parseDmDate, serviceCode, norm, rowKey, chunk, dollarQuote } from '../tools/wsm-loader/transform.mjs';
+import { buildManual, buildProcedure, procedureImages, contentHash, parseDmDate, serviceCode, serviceNameKey, norm, rowKey, chunk, dollarQuote } from '../tools/wsm-loader/transform.mjs';
 
 const FIX = join(import.meta.dir, 'fixtures', 'manuels-atelier');
 const read = (f: string) => JSON.parse(readFileSync(join(FIX, f), 'utf8'));
@@ -241,5 +241,60 @@ describe('manuel ancien, en grille kilométrique (Diavel 1260 2019)', () => {
     const codes = new Set(m.services.map((s: { code: string }) => s.code));
     for (const sp of m.service_procedures) expect(codes.has(sp.service_code)).toBe(true);
     expect(m.service_procedures.some((sp: { service_code: string }) => sp.service_code === 'temps_mois')).toBe(false);
+  });
+});
+
+describe('colonnes de la grille et échéances du programme (ATE014)', () => {
+  const svc = (service: string, km: number | null, mois: number | null = null) => ({ service, km, mi: null, mois });
+  const op = (libelle: string, echeances: string[], valeurs: Record<string, string> = {}) => ({ libelle, echeances, valeurs, proceduresLiees: [] });
+  const manual = (services: unknown[], echeances: unknown[], ops: unknown[]) => buildManual({
+    modele: { myId: 1, famille: 'TEST', modele: 'TEST', annee: 2024 },
+    programme: { services, echeances, operationsConcessionnaire: ops },
+  });
+  const codes = (m: { operations: { label: string; service_codes: string[] }[] }, label: string) =>
+    m.operations.find((o) => o.label === label)?.service_codes;
+
+  test('la clé ignore « Service » en tête, les parenthèses et l’espace des milliers', () => {
+    expect(serviceNameKey('Service Kilométrique 1000')).toBe(serviceNameKey('Kilométrique 1 000'));
+    expect(serviceNameKey('Oil Service (tous les 15 000 km/9 000 mi ou bien tous les 24 mois)')).toBe('OIL SERVICE');
+    expect(serviceNameKey('Valve check (tous les 45 000km/28 000mi)')).toBe(serviceNameKey('Valve Check'));
+  });
+
+  test('« Service Kilométrique DESMO A » retrouve « Kilométrique DESMO A »', () => {
+    const m = manual([svc('Kilométrique 1 000', 1000), svc('Kilométrique DESMO A', 12000), svc('Temporel', null, 12)], [],
+      [op('Remplacement des bougies', ['Service Kilométrique DESMO A']), op('Vidange', ['Service Kilométrique 1000', 'Service Temporel'])]);
+    expect(codes(m, 'Remplacement des bougies')).toEqual(['kilometrique_desmo_a']);
+    expect(codes(m, 'Vidange')).toEqual(['kilometrique_1_000', 'temporel']);
+    expect(m.services.length).toBe(3);
+  });
+
+  test('l’entretien calendaire porte trois noms, mais une seule échéance', () => {
+    const m = manual([svc('Oil Service', 15000), svc('Temporel', null, 12)], [], [op('Contrôle', ['Annual Service'])]);
+    expect(codes(m, 'Contrôle')).toEqual(['temporel']);
+  });
+
+  test('une échéance de la grille absente de la liste est ajoutée, sans inventer de kilométrage', () => {
+    const m = manual([svc('1000', 1000), svc('Kilométrique DESMO A', 12000)],
+      [{ echeance: 'Oil Service 1000', type: 'service', km: 1000 }, { echeance: 'Oil Service', type: 'service', km: null }],
+      [op('Vidange', ['Oil Service 1000', 'Oil Service'])]);
+    expect(codes(m, 'Vidange')).toEqual(['1000', 'oil_service']);
+    expect(m.services.find((s: { code: string }) => s.code === 'oil_service').km).toBeNull();
+  });
+
+  test('colonnes sans titre : rattachées dans l’ordre seulement si la colonne des mois est la bonne', () => {
+    const list = [svc('Kilométrique 1000', 1000), svc('Kilométrique DESMO A', 12000), svc('Temporel', null, 12)];
+    const good = manual(list, [], [op('A', ['colonne 5', 'colonne 7'], { 'colonne 5': '•', 'colonne 7': '12' }), op('B', ['colonne 6'], { 'colonne 6': '•' })]);
+    expect(codes(good, 'A')).toEqual(['kilometrique_1000', 'temporel']);
+    expect(codes(good, 'B')).toEqual(['kilometrique_desmo_a']);
+    const wrong = manual(list, [], [op('A', ['colonne 5', 'colonne 7'], { 'colonne 5': '12', 'colonne 7': '•' }), op('B', ['colonne 6'], { 'colonne 6': '•' })]);
+    expect(codes(wrong, 'A')).toEqual([]);
+    expect(codes(wrong, 'B')).toEqual([]);
+  });
+
+  test('une colonne qui n’est pas une échéance reste sans échéance', () => {
+    const m = manual([svc('Oil Service', 12000)], [{ echeance: '12000 km', type: 'echeance', km: 12000 }],
+      [op('Chaîne', ['Chaîne de transmission finale', '12000 km'])]);
+    expect(codes(m, 'Chaîne')).toEqual([]);
+    expect(m.services.length).toBe(1);
   });
 });
