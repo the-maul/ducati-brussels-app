@@ -304,6 +304,28 @@ export function dayLoad(day: Date, mechanics: PlanningMechanic[], appts: LoadApp
   return { capacity, planned, pct: occupancyPct(planned, capacity), closed: closedDayReason(day, ctx) };
 }
 
+/** Remplissage cumule (semaine d'un compagnon). */
+export function sumLoads(loads: readonly DayLoad[]): DayLoad {
+  const capacity = loads.reduce((n, l) => n + l.capacity, 0);
+  const planned = loads.reduce((n, l) => n + l.planned, 0);
+  return { capacity, planned, pct: occupancyPct(planned, capacity), closed: null };
+}
+
+/** Premier moment libre dans les heures de presence, apres les RDV deja places ; null si tout est pris. */
+export function nextFreeStart(intervals: ReadonlyArray<readonly [number, number]>, busy: ReadonlyArray<readonly [number, number]>): number | null {
+  const taken = [...busy].sort((a, b) => a[0] - b[0]);
+  for (const [from, to] of [...intervals].sort((a, b) => a[0] - b[0])) {
+    let at = from;
+    for (const [s, e] of taken) {
+      if (e <= at) continue;
+      if (s > at) break;
+      at = e;
+    }
+    if (at < to) return at;
+  }
+  return null;
+}
+
 /** Taux d'occupation arrondi a 2 decimales ; null sans capacite. */
 export function occupancyPct(planned: number, capacity: number): number | null {
   if (capacity <= 0) return null;

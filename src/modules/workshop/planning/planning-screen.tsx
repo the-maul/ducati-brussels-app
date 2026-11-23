@@ -35,6 +35,7 @@ import { dayContext, usePlanningBase, usePlanningPeriod, usePlanningRefresh } fr
 import { AppointmentDialog, type AppointmentDefaults } from './appointment-dialog';
 import { ReceptionView } from './reception-view';
 import { ActivityView } from './activity-view';
+import { ActivityWeekView } from './activity-week-view';
 import { AppointmentSearchDialog } from './search-dialog';
 import { PlanningSettingsView } from './settings-view';
 import { StatusIcon } from './status-icon';
@@ -66,6 +67,14 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
   const refresh = usePlanningRefresh(companyId);
   const [ref, setRef] = useState(() => startOfDay(new Date()));
   const [mechanicFilter, setMechanicFilter] = useState<string | null>(null);
+  // Activité : à la journée ou à la semaine (choix gardé sur ce poste).
+  const [activityScope, setActivityScopeState] = useState<'day' | 'week'>(() => {
+    try { return localStorage.getItem('planning-activity-scope') === 'week' ? 'week' : 'day'; } catch { return 'day'; }
+  });
+  const setActivityScope = (v: 'day' | 'week') => {
+    setActivityScopeState(v);
+    try { localStorage.setItem('planning-activity-scope', v); } catch { /* préférence facultative */ }
+  };
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(APPOINTMENT_STATUSES.filter((s) => s !== 'annule')));
   const [dialog, setDialog] = useState<{ appt: PlanningAppointment | null; defaults?: AppointmentDefaults } | null>(null);
   const [searching, setSearching] = useState(false);
@@ -79,12 +88,13 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
   const s = base.settings;
   const weekStart = weekStartFor(ref, s.first_weekday, s.days_shown);
   const days = weekDays(weekStart, s.days_shown);
-  const from = view === 'activite' ? ref : weekStart;
-  const to = view === 'activite' ? addDays(ref, 1) : addDays(weekStart, 7);
+  const dayView = view === 'activite' && activityScope === 'day';
+  const from = dayView ? ref : weekStart;
+  const to = dayView ? addDays(ref, 1) : addDays(weekStart, 7);
   const period = usePlanningPeriod(companyId, from, to);
   const ctx = useMemo(() => dayContext(base, period.blocks), [base, period.blocks]);
 
-  const step = view === 'activite' ? 1 : 7;
+  const step = dayView ? 1 : 7;
   const go = (n: number) => setRef((d) => addDays(d, n * step));
 
   const assign = async (a: PlanningAppointment, mechanicId: string, startsAt: Date) => {
@@ -157,15 +167,23 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
             <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setRef(startOfDay(new Date()))}>{t('planningG8.today')}</Button>
             <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => go(1)} aria-label={t('planningG8.next')}><ChevronRight className="size-4" /></Button>
             <Input type="date" value={localYmd(ref)} onChange={(e) => e.target.value && setRef(startOfDay(new Date(`${e.target.value}T00:00`)))} className="h-8 w-40 pointer-coarse:h-11" />
-            {view === 'reception' && (
-              <Select value={mechanicFilter ?? ALL} onValueChange={(v) => setMechanicFilter(v === ALL ? null : v)}>
-                <SelectTrigger className="h-8 w-44 pointer-coarse:h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>{t('planningG8.allMechanics')}</SelectItem>
-                  {planningMechanics(base.mechanics).map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            {view === 'activite' && (
+              <div className="inline-flex rounded-md border border-border bg-card p-0.5" role="group" aria-label={t('dossier.planScope')}>
+                {(['day', 'week'] as const).map((v) => (
+                  <button key={v} type="button" aria-pressed={activityScope === v} onClick={() => setActivityScope(v)}
+                    className={`rounded-[var(--radius-badge)] px-3 py-1 text-[12px] font-bold pointer-coarse:min-h-11 ${activityScope === v ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {t(v === 'day' ? 'dossier.planDay' : 'dossier.planWeek')}
+                  </button>
+                ))}
+              </div>
             )}
+            <Select value={mechanicFilter ?? ALL} onValueChange={(v) => setMechanicFilter(v === ALL ? null : v)}>
+              <SelectTrigger className="h-8 w-44 pointer-coarse:h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t('planningG8.allMechanics')}</SelectItem>
+                {planningMechanics(base.mechanics).map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <div className="ml-auto flex flex-wrap gap-2">
               <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setSearching(true)}><Search className="size-4" /> {t('planningG8.search')}</Button>
               {/* G8 « SMS programmes » (lot SMS Brevo) : liste, annulation, programmation de rappels. */}
@@ -203,8 +221,14 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
             onParts={reservationSchema.data === true ? setPartsFor : null} canParts={(a) => !!apptService(a)} />
         </>
       )}
-      {view === 'activite' && (
-        <ActivityView base={base} ctx={ctx} day={ref} appts={period.appts} waiting={period.waiting}
+      {view === 'activite' && activityScope === 'week' && (
+        <ActivityWeekView base={base} ctx={ctx} days={days} appts={period.appts} waitingCount={period.waiting.length} mechanicFilter={mechanicFilter}
+          onOpen={(a) => setDialog({ appt: a })}
+          onNew={(m, at) => setDialog({ appt: null, defaults: { startsAt: at, mechanicId: m } })}
+          onDay={(d) => { setRef(startOfDay(d)); setActivityScope('day'); }} />
+      )}
+      {dayView && (
+        <ActivityView base={base} ctx={ctx} day={ref} appts={period.appts} waiting={period.waiting} mechanicFilter={mechanicFilter}
           onOpen={(a) => setDialog({ appt: a })} onAssign={(a, m, at) => void assign(a, m, at)}
           onNew={(m, at) => setDialog({ appt: null, defaults: { startsAt: at, mechanicId: m } })}
           onNewWaiting={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })} />

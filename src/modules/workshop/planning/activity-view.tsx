@@ -14,8 +14,9 @@ import { t } from '@/lib/i18n';
 import {
   availableIntervals, blockOnDay, checkDrop, closedDayReason, formatMinutes, localYmd, minutesOfDay,
   minutesToTime, plannedOrSlot, planningMechanics, slotsOfDay, snapMinutes, statusTone, timeToMinutes,
-  atMinutes, type DayContext,
+  atMinutes, dayLoad, type DayContext,
 } from './rules';
+import { LoadChip } from './occupancy-gauge';
 import type { PlanningAppointment } from './api';
 import type { usePlanningBase } from './planning-data';
 import { contactLabel, fmtDate, fmtTime, motoLabel } from './ui-bits';
@@ -30,12 +31,14 @@ const NO_MECHANIC = '__none__';
 
 type Hover = { mechanicId: string; minutes: number; ok: boolean } | null;
 
-export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign, onNew, onNewWaiting }: {
+export function ActivityView({ base, ctx, day, appts, waiting, mechanicFilter = null, onOpen, onAssign, onNew, onNewWaiting }: {
   base: ReturnType<typeof usePlanningBase>;
   ctx: DayContext;
   day: Date;
   appts: PlanningAppointment[];
   waiting: PlanningAppointment[];
+  /** Un seul compagnon affiché ; null : toute l'équipe. */
+  mechanicFilter?: string | null;
   onOpen: (a: PlanningAppointment) => void;
   onAssign: (a: PlanningAppointment, mechanicId: string, startsAt: Date) => void;
   onNew: (mechanicId: string, startsAt: Date) => void;
@@ -46,13 +49,14 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
   const dayEnd = timeToMinutes(s.day_end) ?? 1080;
   const slots = slotsOfDay(s.day_start, s.day_end, s.slot_minutes);
   const height = (dayEnd - dayStart) * PX_PER_MIN;
-  const mechanics = planningMechanics(base.mechanics);
+  const allMechanics = planningMechanics(base.mechanics);
+  const mechanics = allMechanics.filter((m) => !mechanicFilter || m.id === mechanicFilter);
   const [hover, setHover] = useState<Hover>(null);
   const key = localYmd(day);
   const closed = closedDayReason(day, ctx);
 
   const ofDay = useMemo(() => appts.filter((a) => !a.unassigned && a.status !== 'annule' && localYmd(new Date(a.starts_at)) === key), [appts, key]);
-  const orphans = ofDay.filter((a) => !a.mechanic_id || !mechanics.some((m) => m.id === a.mechanic_id));
+  const orphans = mechanicFilter ? [] : ofDay.filter((a) => !a.mechanic_id || !allMechanics.some((m) => m.id === a.mechanic_id));
   const all = useMemo(() => [...appts, ...waiting], [appts, waiting]);
   const labelEvery = s.slot_minutes >= 30 ? s.slot_minutes : 60;
   // Lot A (19/11) : sur la case, l'OR « en cours (par qui, depuis quand) » ou « en pause (motif) ».
@@ -124,7 +128,10 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
       .map((b) => ({ b, iv: blockOnDay(b, day) })).filter((x) => x.iv) as { b: (typeof ctx.blocks)[number]; iv: [number, number] }[];
     return (
       <div key={mechanicId} className="min-w-[150px] flex-1 border-l border-border">
-        <div className="sticky top-0 z-20 h-8 truncate border-b border-border bg-card px-2 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em]">{name}</div>
+        <div className="sticky top-0 z-20 h-14 border-b border-border bg-card px-2 py-1">
+          <p className="truncate text-[12px] font-bold uppercase tracking-[0.04em]">{name}</p>
+          {droppable && <LoadChip load={dayLoad(day, base.mechanics, appts, ctx, s.slot_minutes, mechanicId)} />}
+        </div>
         <div className="relative bg-muted" style={{ height }}
           onDragOver={droppable ? onDragOver(mechanicId) : undefined} onDragLeave={() => setHover(null)} onDrop={droppable ? onDrop(mechanicId) : undefined}
           onDoubleClick={droppable ? (e) => {
@@ -168,7 +175,7 @@ export function ActivityView({ base, ctx, day, appts, waiting, onOpen, onAssign,
         ) : (
           <div className="flex max-h-[75vh] overflow-auto">
             <div className="w-14 shrink-0">
-              <div className="sticky top-0 z-20 h-8 border-b border-border bg-card" />
+              <div className="sticky top-0 z-20 h-14 border-b border-border bg-card" />
               <div className="relative" style={{ height }}>
                 {slots.filter((m) => (m - dayStart) % labelEvery === 0).map((m) => (
                   <span key={m} className="absolute right-1 -translate-y-1/2 font-data text-[11px] tabular-nums text-muted-foreground" style={{ top: (m - dayStart) * PX_PER_MIN }}>{minutesToTime(m)}</span>

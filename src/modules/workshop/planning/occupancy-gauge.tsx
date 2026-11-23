@@ -5,7 +5,7 @@
  */
 import { AlertTriangle, CheckCircle2, CircleAlert, Circle, type LucideIcon } from 'lucide-react';
 import { fillVars, t } from '@/lib/i18n';
-import { occupancyTone, type LoadTone } from './rules';
+import { formatMinutes, occupancyTone, type DayLoad, type LoadTone } from './rules';
 
 const META: Record<LoadTone, { icon: LucideIcon; key: string; text: string; bar: string }> = {
   success: { icon: CheckCircle2, key: 'designEcrans.occFree', text: 'text-success', bar: 'bg-success' },
@@ -28,6 +28,29 @@ export function OccupancyGauge({ pct }: { pct: number }) {
       </span>
       <span className="mt-0.5 block h-1 w-full overflow-hidden rounded-[var(--radius-badge)] bg-muted" aria-hidden>
         <span className={`block h-full ${meta.bar}`} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+      </span>
+    </span>
+  );
+}
+
+/** Remplissage compact d'un compagnon : pourcentage, temps prévu / disponible et barre. */
+export function LoadChip({ load, prefix }: { load: DayLoad; prefix?: string }) {
+  if (load.capacity <= 0 || load.pct === null) {
+    return <span className="mt-0.5 block text-[11px] text-muted-foreground">{prefix ? `${prefix} : ` : ''}{t('dossier.planNoPresence')}</span>;
+  }
+  const meta = META[occupancyTone(load.pct)] ?? META.neutral;
+  const Icon = meta.icon;
+  const pct = Math.round(load.pct);
+  return (
+    <span className="mt-0.5 block" title={fillVars(t('designEcrans.occLabel'), { pct: String(pct), state: t(meta.key) })}>
+      <span className="flex items-center gap-1 font-data text-[11px] tabular-nums">
+        <Icon className={`size-3 shrink-0 ${meta.text}`} aria-hidden />
+        {prefix && <span className="text-muted-foreground">{prefix}</span>}
+        <span className={`font-bold ${meta.text}`}>{pct} %</span>
+        <span className="truncate text-muted-foreground">{formatMinutes(load.planned)} / {formatMinutes(load.capacity)}</span>
+      </span>
+      <span className="mt-0.5 block h-1 w-full overflow-hidden rounded-[var(--radius-badge)] bg-muted" aria-hidden>
+        <span className={`block h-full ${meta.bar}`} style={{ width: `${Math.min(100, Math.max(0, load.pct))}%` }} />
       </span>
     </span>
   );
