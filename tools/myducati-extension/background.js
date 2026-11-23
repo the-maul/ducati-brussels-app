@@ -12,6 +12,16 @@ const DETAIL_URL = (id) => `https://bulletins.ducati.com/Bulletins/Details/${enc
 const jobs = {};          // scrapeTabId -> { dmsTabId }
 const bulletinTabs = {};  // bulletinTabId -> { resolve }
 
+/* Nightly fleet certification (dcs-night.js). Listeners are registered on the first turn, as MV3 requires. */
+importScripts('dcs-night-core.js', 'dcs-night.js');
+const dcsNight = DcsNightRuntime.create(chrome, { core: DcsNightCore, dmsMatch: DMS_MATCH, vinUrl: VIN_URL });
+chrome.alarms.onAlarm.addListener((alarm) => { dcsNight.onAlarm(alarm).catch(() => {}); });
+chrome.tabs.onRemoved.addListener((id) => { dcsNight.onTabRemoved(id).catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { dcsNight.restoreAfterRestart().catch(() => {}); });
+chrome.runtime.onInstalled.addListener(() => { dcsNight.restoreAfterRestart().catch(() => {}); });
+const isDmsSender = (sender) => !!(sender && sender.id === chrome.runtime.id && sender.tab && sender.tab.url
+  && /^(https:\/\/dms\.ducatibruxelles\.be\/|https:\/\/[^/]+\.ducati-bruxelles\.workers\.dev\/|http:\/\/localhost:8080\/)/.test(sender.tab.url));
+
 function broadcastToDms(type, payload, sendResponse) {
   chrome.tabs.query({ url: DMS_MATCH }, (tabs) => {
     (tabs || []).forEach((t) => chrome.tabs.sendMessage(t.id, { type, payload }));
@@ -81,11 +91,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 
+  if (msg.type === 'dcs-night-cmd') {
+    if (!isDmsSender(sender)) { sendResponse(null); return; }
+    dcsNight.handleCommand(msg).then(sendResponse, () => sendResponse(null));
+    return true;
+  }
+
   if (msg.type === 'myducati-data') {
     const scrapeTabId = sender.tab && sender.tab.id;
-    const dmsTabId = (jobs[scrapeTabId] && jobs[scrapeTabId].dmsTabId) || null;
-    relayMyDucati(msg.payload, sender, sendResponse);                 // 1) données tout de suite
-    if (!msg.payload || !msg.payload.read_error) setTimeout(() => { autoFetchBulletins(msg.payload, dmsTabId).catch(() => {}); }, 1500); // 2) PDF en fond
+    // A night-run tab goes through its own checked path, never through the active-company import.
+    dcsNight.handleScrape(scrapeTabId, msg.payload).catch(() => false).then((handled) => {
+      if (handled) { sendResponse({ delivered: true }); return; }
+      const dmsTabId = (jobs[scrapeTabId] && jobs[scrapeTabId].dmsTabId) || null;
+      relayMyDucati(msg.payload, sender, sendResponse);                 // 1) données tout de suite
+      // 2) PDF en fond, seulement si la lecture est bonne.
+      if (!msg.payload || !msg.payload.read_error) setTimeout(() => { autoFetchBulletins(msg.payload, dmsTabId).catch(() => {}); }, 1500);
+    });
     return true;
   }
 

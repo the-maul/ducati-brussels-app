@@ -3,6 +3,7 @@ import { ArrowLeft, Download, Chrome, MousePointerClick, ListChecks, BookOpen } 
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { t, pageTitle } from '@/lib/i18n';
+import { DcsNightPanel } from '@/modules/vehicles/dcs-night-panel';
 
 export const Route = createFileRoute('/_app/settings/extension')({
   head: () => ({ meta: [{ title: pageTitle('settingsExtension') }] }),
@@ -65,6 +66,9 @@ function ExtensionPage() {
             <span>{t('settings.extNote')}</span>
           </div>
         </div>
+
+        {/* Nightly fleet certification through the DCS */}
+        <DcsNightPanel />
 
         {/* Import du catalogue Ducati (mission 06) */}
         <div className="rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)] lg:col-span-3">

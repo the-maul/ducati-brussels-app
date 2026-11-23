@@ -43,3 +43,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }, msg.fn === 'hello' ? 4000 : 120000);
   return true;
 });
+
+/* Nightly DCS certification.
+ *  - page -> extension: { source:'dms-ducati', action:'dcs-night-cmd', id, cmd, companyId }
+ *  - extension -> page -> extension: 'dcs-night-call' / 'dcs-night-reply' (closed list on the DMS side). */
+window.addEventListener('message', (ev) => {
+  if (ev.origin !== location.origin || ev.source !== window) return;
+  const d = ev.data;
+  if (!d || d.source !== 'dms-ducati' || d.action !== 'dcs-night-cmd' || typeof d.id !== 'string') return;
+  chrome.runtime.sendMessage({ type: 'dcs-night-cmd', cmd: d.cmd, companyId: d.companyId }, (resp) => {
+    const failed = !!chrome.runtime.lastError || !resp;
+    window.postMessage({ source: 'dms-ducati-ext', action: 'dcs-night-cmd-reply', id: d.id, ok: !failed, data: failed ? null : resp }, location.origin);
+  });
+});
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.type !== 'dcs-night-call') return;
+  const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  let done = false;
+  const onReply = (ev) => {
+    const d = ev.data;
+    if (ev.origin !== location.origin || !d || d.source !== 'dms-ducati' || d.action !== 'dcs-night-reply' || d.id !== id) return;
+    done = true;
+    window.removeEventListener('message', onReply);
+    sendResponse(d);
+  };
+  window.addEventListener('message', onReply);
+  window.postMessage({ source: 'dms-ducati-ext', action: 'dcs-night-call', id, fn: msg.fn, args: msg.args || {} }, location.origin);
+  setTimeout(() => {
+    if (done) return;
+    window.removeEventListener('message', onReply);
+    sendResponse(null);
+  }, msg.fn === 'hello' ? 4000 : 60000);
+  return true;
+});

@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
+import { DcsNightListener } from '@/components/dcs-night-listener';
 import { applyMyDucatiData, saveBulletinPdf, setDcsActiveCompany, takeDcsRequest, type MyDucatiPayload, type BulletinPdfPayload } from '@/lib/myducati';
 import { checkDcsPayload, dcsCompanyCheck, type DcsRefusal } from '@/lib/dcs-rules';
 
@@ -83,5 +84,5 @@ export function MyDucatiListener() {
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [activeCompanyId, activeCompany, qc]);
-  return null;
+  return <DcsNightListener />;
 }

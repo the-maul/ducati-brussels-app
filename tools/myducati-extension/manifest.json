@@ -6,7 +6,9 @@
   "permissions": [
     "tabs",
     "storage",
-    "notifications"
+    "notifications",
+    "alarms",
+    "power"
   ],
   "host_permissions": [
     "https://*.ducati.com/*",
