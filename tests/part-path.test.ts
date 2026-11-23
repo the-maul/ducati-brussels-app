@@ -120,8 +120,14 @@ describe('chemin : pour qui', () => {
     const p = partPath(row({ demandKind: 'reservation', repairOrderId: 'or1', qtyReserved: 2 }), TODAY);
     expect(p.steps.order).toBe('na');
     expect(p.steps.received).toBe('na');
-    expect(p.status).toBe('preparee');
+    expect(p.steps.prepared).toBe('todo');
+    expect(p.status).toBe('reservee');
     expect(p.informTarget).toEqual({ kind: 'repair_order', id: 'or1' });
+  });
+  test('réservée puis sortie du casier : la pièce devient préparée', () => {
+    const p = partPath(row({ demandKind: 'reservation', repairOrderId: 'or1', qtyReserved: 2, qtyPrepared: 2 }), TODAY);
+    expect(p.steps.prepared).toBe('done');
+    expect(p.status).toBe('preparee');
   });
   test('sans client : pas de « client prévenu »', () => {
     const p = partPath(row({ contactId: null, supplies: [sup({ status: 'recue', received: 2 })] }), TODAY);

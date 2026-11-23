@@ -31,7 +31,7 @@ const dateFr = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00
 
 const STATUS_ICON: Record<PartStatus, LucideIcon> = {
   a_commander: AlertTriangle, au_panier: ShoppingBasket, commandee: Truck, reliquat: PackageOpen,
-  recue: PackageCheck, preparee: PackageCheck, client_prevenu: PhoneCall, remise: CheckCircle2,
+  recue: PackageCheck, reservee: PackageCheck, preparee: PackageCheck, client_prevenu: PhoneCall, remise: CheckCircle2,
 };
 const STEP_ICON: Record<StepState, LucideIcon> = { done: Check, partial: CircleDashed, todo: Circle, na: Minus };
 const STEP_CLASS: Record<StepState, string> = {

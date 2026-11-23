@@ -27,7 +27,7 @@ export const PATH_STEPS = ['demand', 'order', 'received', 'prepared', 'informed'
 export type PathStep = (typeof PATH_STEPS)[number];
 export type StepState = 'done' | 'partial' | 'todo' | 'na';
 
-export const PART_STATUSES = ['a_commander', 'au_panier', 'commandee', 'reliquat', 'recue', 'preparee', 'client_prevenu', 'remise'] as const;
+export const PART_STATUSES = ['a_commander', 'au_panier', 'commandee', 'reliquat', 'recue', 'reservee', 'preparee', 'client_prevenu', 'remise'] as const;
 export type PartStatus = (typeof PART_STATUSES)[number];
 
 export type PartPath = {
@@ -71,9 +71,10 @@ export function partPath(r: PartPathRow, today: string): PartPath {
   const qtyInBasket = round(Math.min(Math.max(need - qtyOrdered, 0),
     r.supplies.reduce((t, s) => t + (IN_BASKET[s.kind].includes(s.status) ? s.qty : 0), 0)));
   // Une pièce déjà réservée sur le stock n'a pas besoin d'être reçue.
-  const covered = Math.min(need, Math.max(qtyReceived, r.qtyReserved));
+  const covered = Math.min(need, Math.max(qtyReceived, r.qtyReserved, r.qtyPrepared));
   const fromStock = r.supplies.length === 0 && r.qtyReserved >= need;
-  const prepared = Math.min(need, Math.max(r.qtyPrepared, r.qtyReserved));
+  // « Préparée » = sortie du casier (liste de préparation). Une réservation seule ne l'est pas encore.
+  const prepared = Math.min(need, r.qtyPrepared);
   const delivered = Math.min(need, r.qtyDelivered);
   const hasClient = !isStock && !!r.contactId;
   const informed = !!r.informedAt;
@@ -91,6 +92,7 @@ export function partPath(r: PartPathRow, today: string): PartPath {
   if (!isStock && delivered >= need) status = 'remise';
   else if (covered >= need && hasClient && informed) status = 'client_prevenu';
   else if (!isStock && covered >= need && prepared >= need) status = 'preparee';
+  else if (!isStock && r.qtyReserved >= need) status = 'reservee';
   else if (covered >= need) status = 'recue';
   else if (qtyReceived > 0) status = 'reliquat';
   else if (qtyOrdered > 0) status = 'commandee';
@@ -124,7 +126,7 @@ export function partPath(r: PartPathRow, today: string): PartPath {
 /** Couleur du statut (jamais le rouge de la marque). */
 export function partStatusTone(s: PartStatus): 'success' | 'warning' | 'info' | 'neutral' {
   if (s === 'remise' || s === 'client_prevenu') return 'success';
-  if (s === 'recue' || s === 'preparee') return 'info';
+  if (s === 'recue' || s === 'reservee' || s === 'preparee') return 'info';
   if (s === 'reliquat' || s === 'a_commander') return 'warning';
   return 'neutral';
 }
