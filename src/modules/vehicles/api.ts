@@ -71,10 +71,34 @@ export type VehicleWithRep = Vehicle & { oro?: { id: string; number: string | nu
  * annonce du site sans VIN, ou prix d'achat manquant) — elles ne peuvent pas être facturées.
  */
 export async function listVehicles(companyId: string, search?: string, status?: VehicleStatus | 'all', toComplete?: boolean): Promise<VehicleWithRep[]> {
+  return (await fetchVehicleList(companyId, search, status, toComplete, 0, 499, false)).rows;
+}
+
+export const VEHICLES_PAGE_SIZE = 50;
+
+/** Une page de la liste des motos, avec le nombre total pour la navigation. */
+export async function listVehiclesPage(
+  companyId: string, search: string | undefined, status: VehicleStatus | 'all' | undefined, toComplete: boolean | undefined, page: number,
+): Promise<{ rows: VehicleWithRep[]; total: number }> {
+  const from = Math.max(0, Math.floor(page)) * VEHICLES_PAGE_SIZE;
+  try {
+    return await fetchVehicleList(companyId, search, status, toComplete, from, from + VEHICLES_PAGE_SIZE - 1, true);
+  } catch (e) {
+    // Page devenue trop loin (filtre, moto retirée) : on repart de la première.
+    if (from > 0 && (e as { code?: string }).code === 'PGRST103') return listVehiclesPage(companyId, search, status, toComplete, 0);
+    throw e;
+  }
+}
+
+async function fetchVehicleList(
+  companyId: string, search: string | undefined, status: VehicleStatus | 'all' | undefined, toComplete: boolean | undefined,
+  from: number, to: number, withCount: boolean,
+): Promise<{ rows: VehicleWithRep[]; total: number }> {
   // Jointure oro(id, number) : affiche la référence REP des demandes de reprise.
   // Repli sans jointure si elle échoue (la liste ne doit jamais casser).
   const build = (select: string) => {
-    let q = supabase.from('vehicles').select(select as '*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(500);
+    let q = supabase.from('vehicles').select(select as '*', withCount ? { count: 'exact' } : undefined).eq('company_id', companyId)
+      .order('created_at', { ascending: false }).order('id').range(from, to);
     if (status && status !== 'all') q = q.eq('status', status);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (toComplete) q = (q as any).eq('to_complete', true);
@@ -91,14 +115,15 @@ export async function listVehicles(companyId: string, search?: string, status?: 
   }
   let q = build('*, oro(id, number)');
   if (ownerOr) q = q.or(ownerOr);
-  let { data, error } = await q;
+  let { data, error, count } = await q;
   if (error) {
     let q2 = build('*');
     if (ownerOr) q2 = q2.or(ownerOr);
-    ({ data, error } = await q2);
+    ({ data, error, count } = await q2);
     if (error) throw error;
   }
-  return (data ?? []) as unknown as VehicleWithRep[];
+  const rows = (data ?? []) as unknown as VehicleWithRep[];
+  return { rows, total: count ?? rows.length };
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {

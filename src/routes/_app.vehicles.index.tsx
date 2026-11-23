@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useSearchText } from '@/lib/use-list-search';
-import { Search, Loader2, Plus, Bike, AlertTriangle, ClipboardList, ListChecks, Gift, FileImage } from 'lucide-react';
+import { Search, Loader2, Plus, Bike, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, ListChecks, Gift, FileImage } from 'lucide-react';
 import { OptionsCatalogDialog } from '@/modules/vehicles/options-catalog-dialog';
 import { BonusesPeriodDialog } from '@/modules/vehicles/fiche-g8-panels';
 import { PosterDialog } from '@/modules/vehicles/poster-dialog';
@@ -13,13 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth/auth-context';
-import { listVehicles, vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
+import { listVehiclesPage, vehicleLabel, VEHICLES_PAGE_SIZE, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
 import { listPendingDeclarations } from '@/modules/vehicles/declarations-api';
 import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 /** Etat de la liste garde dans l'adresse (UX011). */
-const VEHICLES_LIST = { q: '', status: 'all', toComplete: false };
+const VEHICLES_LIST = { q: '', status: 'all', toComplete: false, page: 0 };
 const VEHICLES_CHOICES = { status: ['all', ...VEHICLE_STATUSES.map((s) => s.value as string)] };
 
 export const Route = createFileRoute('/_app/vehicles/')({
@@ -47,18 +47,28 @@ function VehiclesList() {
   // retrouve la meme liste.
   const [ls, setLs] = useListSearch(VEHICLES_LIST, VEHICLES_CHOICES);
   const debounced = ls.q;
-  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q }));
+  const [search, setSearch] = useSearchText(ls.q, (q) => setLs({ q, page: 0 }));
   const status = ls.status as VehicleStatus | 'all';
-  const setStatus = (v: VehicleStatus | 'all') => setLs({ status: v });
+  const setStatus = (v: VehicleStatus | 'all') => setLs({ status: v, page: 0 });
   // Mission 03, M-40 : motos « à compléter » (VIN ou prix d'achat manquant) — non facturables.
   const toComplete = ls.toComplete;
-  const setToComplete = (v: boolean | ((p: boolean) => boolean)) => setLs((cur) => ({ toComplete: typeof v === 'function' ? v(cur.toComplete) : v }));
+  const setToComplete = (v: boolean | ((p: boolean) => boolean)) => setLs((cur) => ({ toComplete: typeof v === 'function' ? v(cur.toComplete) : v, page: 0 }));
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete],
-    queryFn: () => listVehicles(activeCompanyId!, debounced, status, toComplete),
+  const page = Math.max(0, Math.floor(ls.page));
+  const { data: result, isLoading, isFetching, error } = useQuery({
+    queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete, page],
+    queryFn: () => listVehiclesPage(activeCompanyId!, debounced, status, toComplete, page),
     enabled: !!activeCompanyId,
+    placeholderData: (previous) => previous,
   });
+  const data = result?.rows;
+  const total = result?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / VEHICLES_PAGE_SIZE));
+  const goToPage = (p: number) => { setLs({ page: Math.min(pages - 1, Math.max(0, p)) }); window.scrollTo({ top: 0 }); };
+  // Adresse gardée alors que la liste a raccourci : on revient sur la dernière page.
+  useEffect(() => {
+    if (result && !isFetching && page >= pages) setLs({ page: pages - 1 });
+  }, [result, isFetching, page, pages, setLs]);
 
   // Mission 04, carte 8 : motos déclarées par les clients, en attente de validation.
   const declQ = useQuery({
@@ -178,6 +188,20 @@ function VehiclesList() {
           </tbody>
         </table>
       </div>
+
+      {total > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">
+          <span className="tabular-nums">
+            {t('docList.range').replace('{from}', String(page * VEHICLES_PAGE_SIZE + 1)).replace('{to}', String(Math.min(total, (page + 1) * VEHICLES_PAGE_SIZE))).replace('{n}', String(total))}
+            {isFetching && <Loader2 className="ml-2 inline size-3 animate-spin" />}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => goToPage(page - 1)} disabled={page === 0}><ChevronLeft /> {t('docList.prev')}</Button>
+            <span className="px-2 tabular-nums">{page + 1} / {pages}</span>
+            <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => goToPage(page + 1)} disabled={page + 1 >= pages}>{t('docList.next')} <ChevronRight /></Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
