@@ -8,6 +8,7 @@ import { useState, type ReactNode } from 'react';
 import { Loader2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/phone-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t, fillVars } from '@/lib/i18n';
@@ -45,7 +46,7 @@ export function QuickClientDialog({ companyId, initialTerm = '', onClose, onCrea
     const c = await createContact({
       company_id: companyId, type: 'particulier', status: 'client', civility: f.civility,
       last_name: f.last.trim().toUpperCase(), first_name: f.first.trim().toUpperCase(),
-      mobile: f.mobile.trim() ? normalizeMobile(f.mobile) : null, email: f.email.trim() ? normalizeEmail(f.email) : null,
+      mobile: normalizeMobile(f.mobile) || null, email: f.email.trim() ? normalizeEmail(f.email) : null,
     });
     onCreated(c);
   };
@@ -61,7 +62,7 @@ export function QuickClientDialog({ companyId, initialTerm = '', onClose, onCrea
     } catch (e) { setErr(errorMessage(e)); }
     setBusy(false);
   };
-  const field = (k: 'last' | 'first' | 'mobile' | 'email', label: string, type = 'text') => (
+  const field = (k: 'last' | 'first' | 'email', label: string, type = 'text') => (
     <QuickField label={label}>
       <Input type={type} value={f[k]} onChange={(e) => { setDupes(null); setF((x) => ({ ...x, [k]: e.target.value })); }} />
     </QuickField>
@@ -84,7 +85,9 @@ export function QuickClientDialog({ companyId, initialTerm = '', onClose, onCrea
           <div />
           {field('last', t('posDetail.lastName'))}
           {field('first', t('posDetail.firstName'))}
-          {field('mobile', t('posDetail.mobile'), 'tel')}
+          <QuickField label={t('posDetail.mobile')}>
+            <PhoneInput value={f.mobile} onChange={(v) => { setDupes(null); setF((x) => ({ ...x, mobile: v })); }} />
+          </QuickField>
           {field('email', t('posDetail.email'), 'email')}
         </div>
         {dupes && (
