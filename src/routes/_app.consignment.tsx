@@ -41,7 +41,8 @@ function ConsignmentPage() {
   const list = useQuery({
     queryKey: ['consignments-full', activeCompanyId],
     queryFn: () => listConsignmentsFull(activeCompanyId!),
-    enabled: !!activeCompanyId, retry: false,
+    // Relue au retour sur la page : l'étape du fil dépend du paiement de la facture, saisi sur un autre écran.
+    enabled: !!activeCompanyId, retry: false, staleTime: 0,
   });
   const settingsQ = useQuery({
     queryKey: ['consignment-settings', activeCompanyId],

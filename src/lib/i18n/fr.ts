@@ -18,6 +18,7 @@ import { dashboardCaFr } from './dashboard-ca';
 import { decisionsQ63Q67Fr } from './decisions-q63-q67';
 import { vpG8Fr } from './vp-g8';
 import { clotureCaisseFr } from './cloture-caisse';
+import { depotFilFr } from './depot-fil';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
 import { designTransverseFr } from './design-transverse';
@@ -9463,6 +9464,7 @@ export const fr = {
   // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
   vpG8: vpG8Fr,
   clotureCaisse: clotureCaisseFr,
+  depotFil: depotFilFr,
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,

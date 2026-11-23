@@ -6,8 +6,8 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export type TrailItem = { key: string; label: string; state: 'done' | 'todo' | 'warning'; current?: boolean };
 
-export function StepTrail({ items, selected, onSelect, ariaLabel }: {
-  items: TrailItem[]; selected: string; onSelect: (key: string) => void; ariaLabel: string;
+export function StepTrail({ items, selected, onSelect, ariaLabel, numbered = true }: {
+  items: TrailItem[]; selected: string; onSelect: (key: string) => void; ariaLabel: string; numbered?: boolean;
 }) {
   return (
     <ol aria-label={ariaLabel} className="flex flex-wrap gap-2">
@@ -19,7 +19,7 @@ export function StepTrail({ items, selected, onSelect, ariaLabel }: {
               className={`flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${selected === s.key ? 'border-foreground bg-accent' : 'border-border hover:bg-accent'} ${s.current ? 'font-bold text-foreground' : tone}`}>
               {s.state === 'done' ? <CheckCircle2 className="size-4 text-success" aria-hidden />
                 : s.state === 'warning' ? <AlertTriangle className="size-4 text-warning" aria-hidden />
-                  : <span className="font-data tabular-nums">{i + 1}.</span>}
+                  : numbered && <span className="font-data tabular-nums">{i + 1}.</span>}
               {s.label}
             </button>
           </li>

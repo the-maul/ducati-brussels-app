@@ -8,6 +8,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isMissingSchema } from '@/modules/articles/api';
 import type { CommissionMode, DepositorKind, ConsignmentStatus } from './consignment-rules';
+import type { DepotCessionRow } from './consignment-steps';
 
 // Fonctions et colonnes récentes, absentes du type généré : appels non typés (liés au client).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,4 +167,16 @@ export async function getDepotCosts(consignmentId: string): Promise<DepotCosts |
     throw error;
   }
   return data as DepotCosts;
+}
+
+/** C8 (23/11/2026) : cessions rattachées au dépôt, avec leurs lignes (fil d'étapes, frais engagés au retour). */
+export async function listDepotCessions(consignmentId: string): Promise<DepotCessionRow[]> {
+  const { data, error } = await db.from('internal_cessions')
+    .select('id, number, status, validated_at, lines:internal_cession_lines!internal_cession_lines_cession_id_fkey(kind, line_cost, line_sale_ht)')
+    .eq('consignment_id', consignmentId).order('created_at');
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw error;
+  }
+  return ((data ?? []) as DepotCessionRow[]).map((r) => ({ ...r, lines: r.lines ?? [] }));
 }

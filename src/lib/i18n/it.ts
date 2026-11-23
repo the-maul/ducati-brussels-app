@@ -18,6 +18,7 @@ import { dashboardCaIt } from './dashboard-ca';
 import { decisionsQ63Q67It } from './decisions-q63-q67';
 import { vpG8It } from './vp-g8';
 import { clotureCaisseIt } from './cloture-caisse';
+import { depotFilIt } from './depot-fil';
 import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
 import { designTransverseIt } from './design-transverse';
@@ -9442,6 +9443,7 @@ export const it: DictionaryShape = {
   // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
   vpG8: vpG8It,
   clotureCaisse: clotureCaisseIt,
+  depotFil: depotFilIt,
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,
