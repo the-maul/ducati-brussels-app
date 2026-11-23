@@ -42,6 +42,7 @@ import {
 } from './carte-grise';
 import { applyCgReading } from './carte-grise-apply';
 import { VinIdentifyPanel, type VinValues } from './vin-identify-panel';
+import { VinSuggestions } from './vin-suggestions';
 import { isDucatiFullVin, type VinSuggestKey } from '@/lib/vin-identify';
 
 /** Champs de la fiche remplis par la reconnaissance du VIN (clé métier → champ). */
@@ -322,6 +323,8 @@ export function VehicleForm({
     e.preventDefault();
     setLocalError(null);
     if (!f.vin && !f.plate && !f.model) { setLocalError(t('motoClient.identityRequired')); return; }
+    // Une recherche avec * n'est pas un n° de châssis à enregistrer.
+    if (String(f.vin ?? '').includes('*')) { setLocalError(t('motoClient.vinFinish')); return; }
     // Jamais de 2e fiche pour un VIN déjà connu : on rattache (ou on ouvre) l'existante.
     if (duplicates.length > 0) { setLocalError(t('motoClient.vinExistsBlock')); return; }
     const payload = buildPayload(f, companyId);
@@ -416,7 +419,7 @@ export function VehicleForm({
         </div>
         <Field label={t('vehicles.vin')} code={CARTE_GRISE_CODES.vin}>
           <Input value={f.vin as string} onChange={(e) => set('vin', e.target.value.toUpperCase())}
-            onBlur={() => { if (f.vin) set('vin', normalizeVin(f.vin as string)); }}
+            onBlur={() => { if (f.vin && !String(f.vin).includes('*')) set('vin', normalizeVin(f.vin as string)); }}
             className={`font-mono ${hl('vin')}`} autoCapitalize="characters" spellCheck={false} maxLength={30} />
           {cgHint('vin')}
           {vin.warnings.includes('length') && (
@@ -441,6 +444,9 @@ export function VehicleForm({
             onAutoFilled={(keys) => markVinFilled(keys.map((k) => VIN_FIELD[k]))}
           />
         </div>
+        {!initial && duplicates.length === 0 && (
+          <VinSuggestions companyId={companyId} term={f.vin as string} client={client} ownerFrom={ownerFrom} onAttach={onAttachExisting} attaching={attaching} />
+        )}
         {T('plate', t('vehicles.plate'), true)}
         {T('brand', t('vehicles.brand'))}
         {duplicates.length > 0 && (

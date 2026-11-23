@@ -1,6 +1,7 @@
 /**
  * M3 — Accès données Véhicules (RLS : filtré par société).
  */
+import { parseVinQuery, vinLikePattern, vinMatchesQuery } from '@/lib/vin-search';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
 
@@ -246,7 +247,39 @@ export async function listContactCurrentVehicles(contactId: string): Promise<Veh
 }
 
 /** Recherche d'une moto du parc par VIN, plaque, modèle ou marque (moto à vendre ou de passage). */
+/** Motos du parc par n° de châssis : `1234` commence par, `*1234` 6 derniers, `*1234*` contient. */
+export async function searchVehiclesByVinPattern(companyId: string, raw: string, limit = 8): Promise<VinMatch[]> {
+  const q = parseVinQuery(raw);
+  if (!q) return [];
+  const { data, error } = await supabase.from('vehicles')
+    .select('id, brand, model, plate, vin, status, vehicle_owners(contact_id, is_current, from_date, contacts(first_name, last_name, company_name))')
+    .eq('company_id', companyId).ilike('vin', vinLikePattern(q)).order('vin').limit(300);
+  if (error) throw error;
+  type OwnerRow = { contact_id: string | null; is_current: boolean; from_date: string | null;
+    contacts: { first_name: string | null; last_name: string | null; company_name: string | null } | null };
+  type Row = Omit<VinMatch, 'owner_id' | 'owner_name'> & { vehicle_owners: OwnerRow[] | null };
+  return ((data ?? []) as unknown as Row[])
+    .filter((v) => vinMatchesQuery(v.vin, q))
+    .slice(0, limit)
+    .map(({ vehicle_owners, ...v }) => {
+      const o = (vehicle_owners ?? []).filter((x) => x.is_current)
+        .sort((a, b) => String(b.from_date ?? '').localeCompare(String(a.from_date ?? '')))[0];
+      const c = o?.contacts;
+      const name = c ? (c.company_name?.trim() || [c.first_name, c.last_name].filter(Boolean).join(' ').trim()) : '';
+      return { ...v, owner_id: o?.contact_id ?? null, owner_name: name || null };
+    });
+}
+
 export async function searchVehiclesForSale(companyId: string, term: string, limit = 8): Promise<Vehicle[]> {
+  // Avec une étoile : mêmes règles de n° de châssis que la fiche moto.
+  if (term.includes('*')) {
+    const q = parseVinQuery(term);
+    if (!q) return [];
+    const { data, error } = await supabase.from('vehicles').select('*').eq('company_id', companyId)
+      .ilike('vin', vinLikePattern(q)).order('vin').limit(300);
+    if (error) throw error;
+    return ((data ?? []) as Vehicle[]).filter((v) => vinMatchesQuery(v.vin, q)).slice(0, limit);
+  }
   const s = sanitize(term);
   if (s.length < 2) return [];
   const { data, error } = await supabase
