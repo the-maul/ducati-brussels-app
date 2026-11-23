@@ -4,6 +4,7 @@
  * mention légale, frais de dépôt, n° livre de police, pro / particulier, documents remis.
  * Le n° DEP est donné par la base (séquence DEP) à l'enregistrement.
  */
+import { PlateInput } from '@/components/plate-input';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2, Save } from 'lucide-react';
@@ -151,7 +152,7 @@ export function ConsignmentEntryDialog({ open, onOpenChange, companyId, settings
               <Field label={t('consign.brand')}><Input value={f.brand} onChange={(e) => set('brand', e.target.value)} className="h-9" /></Field>
               <Field label={t('consign.model')}><Input value={f.model} onChange={(e) => set('model', e.target.value)} className="h-9" /></Field>
               <Field label={t('consign.year')}><Input inputMode="numeric" value={f.year} onChange={(e) => set('year', e.target.value)} className="h-9" /></Field>
-              <Field label={t('consign.plate')}><Input value={f.plate} onChange={(e) => set('plate', e.target.value.toUpperCase())} className="h-9" /></Field>
+              <Field label={t('consign.plate')}><PlateInput value={f.plate} onChange={(v) => set('plate', v)} /></Field>
               <Field label={t('consign.mileage')}><Input inputMode="numeric" value={f.mileage} onChange={(e) => set('mileage', e.target.value)} className="h-9" /></Field>
               <Field label={t('consign.color')}><Input value={f.color} onChange={(e) => set('color', e.target.value)} className="h-9" /></Field>
               <Field label={t('consign.firstReg')}><Input type="date" value={f.firstReg} onChange={(e) => set('firstReg', e.target.value)} className="h-9" /></Field>

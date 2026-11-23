@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { fillVars, t } from '@/lib/i18n';
-import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
+import { cleanPlate, normalizePlate, PLATE_LENGTH, plateInput, plateIsValid } from '@/lib/plate';
 import { updateVehicle } from '@/modules/vehicles/api';
 import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
 import { CARGARANTIE_PLANS, isCarGarantie, warrantyTypesFor } from '@/modules/vehicles/warranty-types';
@@ -82,7 +82,7 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
   // Plaque : enregistrée seulement si elle respecte la règle (ou si elle est personnalisée).
   const commitPlate = (value: string, custom: boolean) => {
     const plate = cleanPlate(value, custom);
-    if (!plateIsValid(plate, custom)) { toast.error(fillVars(t('dossier.plateInvalid'), { n: PLATE_MIN })); return; }
+    if (!plateIsValid(plate, custom)) { toast.error(fillVars(t('dossier.plateInvalid'), { n: PLATE_LENGTH })); return; }
     if ((plate || null) === (raw.plate ?? null) && custom === (raw.plate_custom === true)) return;
     save.mutate({ plate: plate || null, plate_custom: custom });
   };

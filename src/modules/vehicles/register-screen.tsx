@@ -4,6 +4,7 @@
  * inscription d'une sortie, ligne manuelle et rectification (administrateur), reprise d'historique.
  * Le registre est append-only : rien ne s'efface, une erreur se rectifie (B7).
  */
+import { PlateInput } from '@/components/plate-input';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, FileDown, FileText, Plus, LogOut, PenLine, History, AlertTriangle } from 'lucide-react';
@@ -298,7 +299,7 @@ function ManualDialog({ companyId, natures, onClose, onDone }: { companyId: stri
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.enteredAt')}</FieldLabel><Input type="date" value={enteredAt} onChange={(e) => setEnteredAt(e.target.value)} /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.nature')}</FieldLabel><NatureSelect value={nature} onChange={setNature} natures={natures} /></div>
-          <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.plate')}</FieldLabel><Input value={plate} onChange={(e) => setPlate(e.target.value)} maxLength={20} /></div>
+          <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.plate')}</FieldLabel><PlateInput value={plate} onChange={setPlate} /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.vin')}</FieldLabel><Input value={vin} onChange={(e) => setVin(e.target.value)} maxLength={17} className="font-mono" /></div>
           <div className="space-y-1.5 sm:col-span-2"><FieldLabel>{t('vehicleRegister.note')}</FieldLabel><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} /></div>
         </div>
@@ -377,7 +378,7 @@ function RectifyDialog({ row, natures, onClose, onDone }: { row: RegisterRow; na
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.enteredAt')}</FieldLabel><Input type="date" value={enteredAt} onChange={(e) => setEnteredAt(e.target.value)} /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.nature')}</FieldLabel><NatureSelect value={nature} onChange={setNature} natures={natures} allowEmpty /></div>
-          <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.plate')}</FieldLabel><Input value={plate} onChange={(e) => setPlate(e.target.value)} maxLength={20} /></div>
+          <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.plate')}</FieldLabel><PlateInput value={plate} onChange={setPlate} /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.vin')}</FieldLabel><Input value={vin} onChange={(e) => setVin(e.target.value)} maxLength={17} className="font-mono" /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.leftAt')}</FieldLabel><Input type="date" value={leftAt} onChange={(e) => setLeftAt(e.target.value)} /></div>
           <div className="space-y-1.5"><FieldLabel>{t('vehicleRegister.invoiceRef')}</FieldLabel><Input value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} maxLength={60} className="font-mono" /></div>

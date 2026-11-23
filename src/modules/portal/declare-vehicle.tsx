@@ -9,6 +9,7 @@
  * marques (`vehicle_brands` / `vehicle_models`) ; la saisie libre reste possible et alimente
  * la file « marques à valider » (déclencheur en base, rien à appeler ici).
  */
+import { PlateInput } from '@/components/plate-input';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bike, Clock, FileText, Loader2, Plus, XCircle } from 'lucide-react';
@@ -173,7 +174,7 @@ export function DeclareVehicleForm({ onDone }: { onDone: () => void }) {
           </div>
           <div className="space-y-1.5">
             <Label className={field}>{t('motoClient.portalPlate')}</Label>
-            <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} maxLength={15} className="font-mono" />
+            <PlateInput value={plate} onChange={setPlate} />
           </div>
           <div className="sm:col-span-2">
             <ServiceDeclarationFields value={service} onChange={setService} idPrefix="decl-sd" errors={serviceErrors} />

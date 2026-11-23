@@ -22,7 +22,7 @@ import { ChevronDown } from 'lucide-react';
 import { getModelYearContext, listCatalogModelYears } from '@/modules/catalog/api';
 import { ModelChooserDialog, type ChosenModel } from './model-chooser';
 import { isDucatiBrand, VEHICLE_BRANDS, yearOptions } from './model-pick';
-import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
+import { cleanPlate, normalizePlate, PLATE_LENGTH, plateInput, plateIsValid } from '@/lib/plate';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -393,7 +393,7 @@ export function VehicleForm({
       || plateCustom !== ((initial as { plate_custom?: boolean }).plate_custom === true);
     const plate = cleanPlate(f.plate as string, plateCustom);
     if (plateChanged && !plateIsValid(plate, plateCustom)) {
-      setLocalError(fillVars(t('dossier.plateInvalid'), { n: PLATE_MIN }));
+      setLocalError(fillVars(t('dossier.plateInvalid'), { n: PLATE_LENGTH }));
       return;
     }
     const payload = buildPayload(plateChanged ? { ...f, plate } : f, companyId);
