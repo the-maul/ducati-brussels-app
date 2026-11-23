@@ -5804,6 +5804,7 @@ export const fr = {
     readDone: 'Carte grise lue : {n} champ(s) pré-rempli(s). Vérifiez chaque champ surligné avant d’enregistrer.',
     readNothing: 'Aucune case n’a pu être lue. Réessayez avec une photo plus nette, ou saisissez à la main.',
     readNotCg: 'Ce document ne ressemble pas à une carte grise.',
+    readNoCredit: "Lecture automatique indisponible : le crédit du service IA est épuisé. Votre photo n'est pas en cause. Prévenez l'administrateur ou saisissez à la main.",
     readErr: 'Lecture impossible. Réessayez avec une photo plus nette, ou saisissez à la main.',
     readNotConfigured: 'Lecture automatique non disponible (fonction serveur ou clé Claude absente).',
     confHigh: 'Lu sur la carte grise',

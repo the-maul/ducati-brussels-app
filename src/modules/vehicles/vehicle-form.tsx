@@ -200,7 +200,7 @@ export function VehicleForm({
     setCgMsg({
       tone: code === 'not_registration' ? 'warning' : 'danger',
       text: code === 'not_configured' ? t('motoClient.readNotConfigured')
-        : code === 'not_registration' ? t('motoClient.readNotCg') : t('motoClient.readErr'),
+        : code === 'not_registration' ? t('motoClient.readNotCg') : code === 'no_credit' ? t('motoClient.readNoCredit') : t('motoClient.readErr'),
     });
   };
 

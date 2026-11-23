@@ -163,6 +163,8 @@ Deno.serve(async (req) => {
     return json({ data: JSON.parse(text.text) });
   } catch (e) {
     console.error("read-id-doc:", e);
+    // Crédit de la clé épuisé : ce n'est pas la photo, l'écran doit le dire.
+    if (/credit balance/i.test(String(e))) return json({ error: "no_credit" });
     return json({ error: "read_failed", detail: String(e) }, 500);
   }
 });

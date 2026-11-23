@@ -24,7 +24,7 @@ export const CG_FOLDER = 'Carte grise';
 const BUCKET = 'ged';
 
 export class CgReadError extends Error {
-  constructor(public code: 'not_configured' | 'read_failed' | 'not_registration') { super(code); }
+  constructor(public code: 'not_configured' | 'read_failed' | 'not_registration' | 'no_credit') { super(code); }
 }
 
 /** Dépose la photo dans le stockage de la moto (sans l'indexer : voir attachCarteGrise). */
@@ -47,6 +47,7 @@ export async function readCarteGrise(paths: string[]): Promise<CgReading> {
   }
   const body = data as { data?: CgReading; error?: string } | null;
   if (body?.error === 'not_configured') throw new CgReadError('not_configured');
+  if (body?.error === 'no_credit') throw new CgReadError('no_credit');
   if (body?.error || !body?.data) throw new CgReadError('read_failed');
   if (!body.data.is_registration_certificate) throw new CgReadError('not_registration');
   return body.data;

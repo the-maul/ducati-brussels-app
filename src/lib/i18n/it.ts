@@ -5786,6 +5786,7 @@ export const it: DictionaryShape = {
     readDone: 'Libretto letto: {n} campo/i precompilato/i. Verifichi ogni campo evidenziato prima di salvare.',
     readNothing: 'Nessuna casella è stata letta. Riprovi con una foto più nitida, oppure inserisca a mano.',
     readNotCg: 'Questo documento non sembra un libretto di circolazione.',
+    readNoCredit: "Lettura automatica non disponibile: il credito del servizio IA è esaurito. La foto non è il problema. Avvisare l'amministratore o inserire a mano.",
     readErr: 'Lettura impossibile. Riprovi con una foto più nitida, oppure inserisca a mano.',
     readNotConfigured: 'Lettura automatica non disponibile (funzione server o chiave Claude assente).',
     confHigh: 'Letto sul libretto',

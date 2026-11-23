@@ -5786,6 +5786,7 @@ export const nl: DictionaryShape = {
     readDone: 'Inschrijvingsbewijs gelezen: {n} veld(en) vooraf ingevuld. Controleer elk gemarkeerd veld voor het opslaan.',
     readNothing: 'Geen enkel vak kon gelezen worden. Probeer opnieuw met een scherpere foto, of vul handmatig in.',
     readNotCg: 'Dit document lijkt niet op een inschrijvingsbewijs.',
+    readNoCredit: "Automatisch lezen niet beschikbaar: het AI-tegoed is op. Uw foto is niet de oorzaak. Verwittig de beheerder of vul handmatig in.",
     readErr: 'Lezen onmogelijk. Probeer opnieuw met een scherpere foto, of vul handmatig in.',
     readNotConfigured: 'Automatisch lezen niet beschikbaar (serverfunctie of Claude-sleutel ontbreekt).',
     confHigh: 'Gelezen op het inschrijvingsbewijs',

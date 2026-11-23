@@ -5786,6 +5786,7 @@ export const en: DictionaryShape = {
     readDone: 'Registration certificate read: {n} field(s) pre-filled. Check each highlighted field before saving.',
     readNothing: 'No field could be read. Try again with a sharper photo, or enter the details by hand.',
     readNotCg: 'This document does not look like a registration certificate.',
+    readNoCredit: "Automatic reading unavailable: the AI service credit has run out. Your photo is not the problem. Tell the administrator or enter the details by hand.",
     readErr: 'Reading failed. Try again with a sharper photo, or enter the details by hand.',
     readNotConfigured: 'Automatic reading not available (server function or Claude key missing).',
     confHigh: 'Read from the registration certificate',
