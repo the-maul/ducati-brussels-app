@@ -353,7 +353,7 @@ function OrView() {
   };
   const contact = identContact.data ?? null;
   const vehicle = identVehicle.data ?? null;
-  const motoName = vehicle ? motoName(vehicle) : '';
+  const motoLabel = vehicle ? motoName(vehicle) : '';
 
   // Ligne d'identite (lot UX atelier) : n° d'OR, client, moto + plaque, km — toujours visibles.
   const identity = (
@@ -361,7 +361,7 @@ function OrView() {
       <h1 className="font-mono text-[20px] font-bold leading-tight tabular-nums">{or.number ?? t('uxAtelier.orNoNumber')}</h1>
       <span className="min-w-0 truncate text-[17px] font-bold leading-tight">{contact ? contactDisplayName(contact) : or.contact_id ? '' : t('myWorkshop.noClient')}</span>
       <span className="min-w-0 truncate text-[16px] leading-tight">
-        {motoName || (or.vehicle_id ? '' : t('myWorkshop.noVehicle'))}
+        {motoLabel || (or.vehicle_id ? '' : t('myWorkshop.noVehicle'))}
         {vehicle?.plate && <> · <span className="font-mono">{vehicle.plate}</span></>}
       </span>
       <span className="font-data text-[16px] leading-tight tabular-nums text-muted-foreground">
