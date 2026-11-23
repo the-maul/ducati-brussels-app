@@ -16,6 +16,7 @@
  * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
  * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
+import { RefreshCw } from 'lucide-react';
 import { CARGARANTIE_PLANS, isCarGarantie, warrantyPlanFor, warrantyTypesFor } from './warranty-types';
 import { ChevronDown } from 'lucide-react';
 import { getModelYearContext, listCatalogModelYears } from '@/modules/catalog/api';
@@ -541,6 +542,9 @@ export function VehicleForm({
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
               {t('motoClient.vinWarnLetters').replace('{l}', vin.forbidden.join(', '))}
             </p>
+          )}
+          {!initial && vin.normalized.length === 17 && (
+            <p className="flex items-center gap-1 text-[12px] font-medium text-info"><RefreshCw className="size-3.5 shrink-0" aria-hidden />{t('dossier.dcsOnSave')}</p>
           )}
         </Field>
         {/* Utiles en permanence : en tête de l'identification, à côté du VIN. */}
