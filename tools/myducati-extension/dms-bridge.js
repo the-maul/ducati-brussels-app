@@ -4,6 +4,8 @@
  *  - extension → app : retransmet les données scrapées via window.postMessage pour que
  *    l'app les enregistre (par VIN). */
 window.addEventListener('message', (ev) => {
+  // Seule la page du DMS elle-même peut demander une moto (jamais un cadre d'un autre site).
+  if (ev.origin !== location.origin) return;
   const d = ev.data;
   if (d && d.source === 'dms-ducati' && d.action === 'fetch-myducati' && d.vin) {
     chrome.runtime.sendMessage({ type: 'fetch-vin', vin: d.vin });

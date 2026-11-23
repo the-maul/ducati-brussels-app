@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
+import { t } from '@/lib/i18n';
 import { applyMyDucatiData, saveBulletinPdf, type MyDucatiPayload, type BulletinPdfPayload } from '@/lib/myducati';
 
 export function MyDucatiListener() {
@@ -13,6 +14,8 @@ export function MyDucatiListener() {
   const qc = useQueryClient();
   useEffect(() => {
     const handler = async (ev: MessageEvent) => {
+      // Un cadre d'un autre site ne peut pas injecter de données dans le DMS.
+      if (ev.origin !== window.location.origin) return;
       const d = ev.data as { source?: string; action?: string; payload?: MyDucatiPayload & BulletinPdfPayload } | null;
       if (!d || d.source !== 'dms-ducati-ext' || !d.payload) return;
       if (!activeCompanyId) { toast.error('Société non sélectionnée — impossible d’importer.'); return; }
@@ -33,6 +36,7 @@ export function MyDucatiListener() {
         const r = await applyMyDucatiData(activeCompanyId, d.payload);
         if (!r.matched) { toast.error(`Moto introuvable dans le DMS (VIN ${d.payload.vin}).`); return; }
         toast.success(`Infos DCS importées${r.bulletins ? ` · ${r.bulletins} bulletin(s)` : ''}.`);
+        if (r.ownerMismatch) toast.warning(t('dossier.dcsOwnerMismatch'));
         qc.invalidateQueries();
       } catch {
         toast.error('Import DCS échoué.');

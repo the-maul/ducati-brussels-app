@@ -9,7 +9,7 @@ DMS, **par VIN**, sans stocker d'identifiant Ducati côté serveur.
 3. **Charger l'extension non empaquetée** → choisir le dossier `tools/myducati-extension`.
 4. (Optionnel) Épingler l'extension.
 
-> Si le DMS tourne sur un **domaine personnalisé** (pas `*.netlify.app`), ajoutez-le dans
+> L'extension ne répond qu'aux adresses du DMS. Pour une nouvelle adresse, ajoutez-la dans
 > `manifest.json` (`host_permissions` + `content_scripts[1].matches`) puis rechargez l'extension.
 
 ## Utilisation

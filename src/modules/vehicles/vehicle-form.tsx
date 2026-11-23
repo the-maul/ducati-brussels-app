@@ -143,7 +143,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
 }
 
 export function VehicleForm({
-  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching, clientScanPath, catalogFilled,
+  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching, clientScanPath, catalogFilled, dirtyRef,
 }: {
   initial: Vehicle | null;
   companyId: string;
@@ -162,12 +162,33 @@ export function VehicleForm({
   clientScanPath?: string | null;
   /** Champs complétés à l'ouverture depuis le catalogue ou nos factures (surlignés). */
   catalogFilled?: string[];
+  /** La fiche sait ainsi si une saisie est en cours quand un import DCS arrive. */
+  dirtyRef?: { current: boolean };
 }) {
   const isClient = !!client;
   const [f, setF] = useState<F>(() => fromVehicle(initial, isClient, prefill));
   const [ownerFrom, setOwnerFrom] = useState(() => new Date().toISOString().slice(0, 10));
   // Rien de modifié = rien à enregistrer : le bouton reste grisé (sauf pré-remplissage à créer).
   const dirty = useIsDirty(f);
+  useEffect(() => { if (dirtyRef) dirtyRef.current = dirty; }, [dirty, dirtyRef]);
+  // Import DCS reçu pendant une saisie : seuls les champs auxquels on n'a pas touché sont mis à jour.
+  const baseF = useRef(f);
+  const seenSync = useRef((initial as { my_ducati_synced_at?: string | null } | null)?.my_ducati_synced_at ?? null);
+  useEffect(() => {
+    if (!initial) return;
+    const synced = (initial as { my_ducati_synced_at?: string | null }).my_ducati_synced_at ?? null;
+    if (synced === seenSync.current) return;
+    seenSync.current = synced;
+    const next = fromVehicle(initial, isClient, prefill);
+    const base = baseF.current;
+    baseF.current = next;
+    setF((cur) => {
+      const merged = { ...cur };
+      for (const k of Object.keys(next)) if (cur[k] === base[k]) merged[k] = next[k];
+      return merged;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
   // Bouton Retour : confirmation avant de quitter si quelque chose a change (UX010).
   useLeaveGuard(dirty);
   const [localError, setLocalError] = useState<string | null>(null);

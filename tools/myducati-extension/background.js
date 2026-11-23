@@ -6,7 +6,7 @@
  *    est refermé. Le bulletin_id capté sur My Ducati EST l'id de la page de détail.
  *  - { type:'bulletin-pdf' | 'bulletin-done' } → range le PDF côté DMS et referme l'onglet auto.
  * Aucune page à garder ouverte : l'extension ouvre/ferme les onglets elle-même. */
-const DMS_MATCH = ['https://dms.ducatibruxelles.be/*', 'https://*.ducati-bruxelles.workers.dev/*', 'https://*.netlify.app/*', 'http://localhost:8080/*'];
+const DMS_MATCH = ['https://dms.ducatibruxelles.be/*', 'https://*.ducati-bruxelles.workers.dev/*', 'http://localhost:8080/*'];
 const VIN_URL = (vin) => `https://ducati.my.site.com/dealer/s/vinhistory?vin=${encodeURIComponent(vin)}`;
 const DETAIL_URL = (id) => `https://bulletins.ducati.com/Bulletins/Details/${encodeURIComponent(id)}`;
 const jobs = {};          // scrapeTabId -> { dmsTabId }

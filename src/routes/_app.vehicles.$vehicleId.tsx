@@ -1,7 +1,7 @@
 import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
 import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ExternalLink, Mail, MessageSquare, Send, Wrench, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
@@ -57,10 +57,24 @@ function EditVehicle() {
   const { data: vehicle, isLoading } = useQuery({ queryKey: ['vehicle', vehicleId], queryFn: () => getVehicle(vehicleId) });
   // Champs vides complétés depuis nos factures et le catalogue (enregistrés à la prochaine sauvegarde).
   const fillQ = useQuery({
-    queryKey: ['vehicle-fill', vehicleId],
+    queryKey: ['vehicle-fill', vehicleId, vehicle?.my_ducati_synced_at ?? null],
     queryFn: () => loadVehicleFill(vehicle as NonNullable<typeof vehicle>),
     enabled: !!vehicle, staleTime: Infinity, gcTime: 0,
+    placeholderData: (previous) => previous,
   });
+  // Import DCS : le formulaire repart des nouvelles données seulement s'il n'y a pas de saisie en cours.
+  const formDirty = useRef(false);
+  const shownSync = useRef<string | null | undefined>(undefined);
+  const [formVersion, setFormVersion] = useState(0);
+  const freshFill = fillQ.isPlaceholderData ? null : fillQ.data?.vehicle ?? null;
+  useEffect(() => {
+    if (!freshFill) return;
+    const synced = freshFill.my_ducati_synced_at ?? null;
+    if (shownSync.current === undefined) { shownSync.current = synced; return; }
+    if (synced === shownSync.current) return;
+    shownSync.current = synced;
+    if (!formDirty.current) setFormVersion((v) => v + 1);
+  }, [freshFill]);
   const { data: owners } = useQuery({ queryKey: ['vehicle-owners', vehicleId], queryFn: () => listOwners(vehicleId) });
   const { data: docs } = useQuery({ queryKey: ['vehicle-docs', vehicleId], queryFn: () => listVehicleDocuments(vehicleId) });
 
@@ -158,9 +172,10 @@ function EditVehicle() {
               <VehiclePartiesPanel key={vehicle.id} companyId={activeCompanyId} vehicle={vehicle} currentOwnerId={currentOwnerId} />
             </Card>
           </div>
-          {fillQ.isFetched && (
+          {(fillQ.isFetched || !!fillQ.data) && (
             <VehicleForm
-              key={vehicle.my_ducati_synced_at ?? vehicle.id}
+              key={`${vehicle.id}:${formVersion}`}
+              dirtyRef={formDirty}
               initial={fillQ.data?.vehicle ?? vehicle}
               catalogFilled={fillQ.data?.filled}
               companyId={activeCompanyId}

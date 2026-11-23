@@ -43,6 +43,18 @@ export function dcsOrigin(activatedBy: unknown, invoicedTo: unknown): string | u
   return undefined;
 }
 
+const nameTokens = (s: unknown): string[] => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+
+/** Le nom lu au DCS est-il bien celui du propriétaire de la fiche ? Dans le doute : non. */
+export function dcsOwnerMatches(dcsName: unknown, owner: { last_name?: string | null; company_name?: string | null }): boolean {
+  const dcs = new Set(nameTokens(dcsName));
+  if (dcs.size === 0) return false;
+  const last = nameTokens(owner.last_name);
+  if (last.length > 0 && last.every((x) => dcs.has(x))) return true;
+  return nameTokens(owner.company_name).some((x) => x.length >= 4 && dcs.has(x));
+}
+
 /** base64 → Uint8Array (pour uploader un PDF rapatrié par l'extension). */
 const base64ToBytes = (b64: string): Uint8Array => {
   const bin = atob(b64);
@@ -62,7 +74,7 @@ export function requestMyDucati(vin: string): Promise<boolean> {
     let done = false;
     const onMsg = (ev: MessageEvent) => {
       const d = ev.data as { source?: string; action?: string } | null;
-      if (d && d.source === 'dms-ducati-ext' && d.action === 'fetch-ack') {
+      if (ev.origin === window.location.origin && d && d.source === 'dms-ducati-ext' && d.action === 'fetch-ack') {
         done = true; window.removeEventListener('message', onMsg); resolve(true);
       }
     };
@@ -72,7 +84,7 @@ export function requestMyDucati(vin: string): Promise<boolean> {
   });
 }
 
-export type ApplyResult = { matched: boolean; vehicleId?: string; bulletins?: number };
+export type ApplyResult = { matched: boolean; vehicleId?: string; bulletins?: number; ownerMismatch?: boolean };
 
 export type BulletinPdfPayload = { number?: string; pdf_base64?: string; pdf_name?: string };
 
@@ -177,6 +189,7 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   }
 
   // Compte client Ducati → propriétaire courant de la moto.
+  let ownerMismatch = false;
   const c = p.contact || {};
   // Prénom / Nom : champs séparés si l'extension les fournit, sinon découpage du
   // champ combiné « Nom » du portail (« SÉBASTIEN NUNES » → prénom puis nom).
@@ -198,8 +211,14 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   if (Object.keys(contactPatch).length) {
     const { data: owner } = await supabase.from('vehicle_owners').select('contact_id')
       .eq('vehicle_id', vehicleId).eq('is_current', true).order('from_date', { ascending: false }).limit(1).maybeSingle();
-    if (owner?.contact_id) await supabase.from('contacts').update(contactPatch).eq('id', owner.contact_id);
+    if (owner?.contact_id) {
+      // Le propriétaire peut avoir changé : les coordonnées du DCS ne vont jamais sur un autre client.
+      const { data: fiche } = await supabase.from('contacts').select('last_name, company_name').eq('id', owner.contact_id).maybeSingle();
+      const dcsName = [firstName, lastName].filter(Boolean).join(' ');
+      if (fiche && dcsOwnerMatches(dcsName, fiche)) await supabase.from('contacts').update(contactPatch).eq('id', owner.contact_id);
+      else if (dcsName) ownerMismatch = true;
+    }
   }
 
-  return { matched: true, vehicleId, bulletins: bulletins.length };
+  return { matched: true, vehicleId, bulletins: bulletins.length, ownerMismatch };
 }
