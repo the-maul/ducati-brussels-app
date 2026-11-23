@@ -30,7 +30,7 @@ function detect(raw: string): { kind: 'vin' | 'vat'; value: string } | null {
 
 async function runSearch(companyId: string, q: string) {
   const [contacts, vehicles, articles] = await Promise.all([
-    listContacts(companyId, q, undefined, 8).catch(() => []),
+    listContacts(companyId, q, undefined, 12).catch(() => []),
     listVehicles(companyId, q).then((r) => r.slice(0, 6)).catch(() => []),
     listArticles(companyId, q).then((r) => r.slice(0, 6)).catch(() => []),
   ]);

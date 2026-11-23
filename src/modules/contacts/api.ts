@@ -49,7 +49,7 @@ export function getWatchNote(c: Contact): string | null {
  * `limit` : 500 par defaut (listes). Les selecteurs qui n'affichent que 8 lignes passent
  * `PICKER_LIMIT` (perf 19/11/2026 : 500 fiches = 1,3 Mo par frappe pour un terme de 2 lettres).
  */
-export const PICKER_LIMIT = 8;
+export const PICKER_LIMIT = 30;
 
 const rpcLoose = supabase as unknown as {
   rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;

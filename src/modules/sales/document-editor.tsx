@@ -737,7 +737,7 @@ export function ContactPicker({ companyId, onPick }: { companyId: string; onPick
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
   const { data } = useQuery({ queryKey: ['contact-pick', companyId, deb], queryFn: () => listContacts(companyId, deb, undefined, PICKER_LIMIT), enabled: deb.length >= 2 });
   // Fiches liees des resultats affiches, en un appel (retour du 05/10).
-  const linkedByContact = useLinkedBrief((data ?? []).slice(0, 8).map((c) => c.id));
+  const linkedByContact = useLinkedBrief((data ?? []).map((c) => c.id));
 
   return (
     <div className="relative">
@@ -745,7 +745,7 @@ export function ContactPicker({ companyId, onPick }: { companyId: string; onPick
       <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('sales.clientPlaceholder')} className="h-9 pl-9" />
       {data && data.length > 0 && deb.length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
-          {data.slice(0, 8).map((c) => (
+          {data.map((c) => (
             <div key={c.id} className="border-b border-border last:border-0">
               <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
               {/* Fiche liee sous la ligne, en plus clair (retour du 05/10). */}
