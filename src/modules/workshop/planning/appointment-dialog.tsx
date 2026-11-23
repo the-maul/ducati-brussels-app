@@ -41,6 +41,7 @@ import {
 } from './rules';
 import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
+import { VehicleRdvSheet } from './vehicle-rdv-sheet';
 import { listLoanerVehicles, createLoan, listLoansForAppointment, loansSchemaReady } from '../loans/api';
 import { checkPeriod } from '../loans/rules';
 
@@ -206,7 +207,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+      <DialogContent className={`max-h-[92vh] overflow-y-auto ${vehicle ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <DialogHeader>
           <DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle>
           {a && (
@@ -217,11 +218,12 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
         </DialogHeader>
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>
+          <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
           <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
           <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
             <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
           </Field>
+          {vehicle?.id && <VehicleRdvSheet vehicleId={vehicle.id} />}
 
           <Field label={t('partsPopup.rdvReason')}>
             <Select value={reasonCode || NONE} onValueChange={(v) => setReasonCode(v === NONE ? '' : v)}>

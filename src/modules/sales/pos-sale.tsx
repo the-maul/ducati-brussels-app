@@ -34,9 +34,8 @@ import { Loader2, Trash2, ScanLine, CreditCard, Printer, RotateCcw, FileText, Al
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { createContact } from '@/modules/contacts/api';
-import { normalizeEmail, normalizeMobile } from '@/lib/contact-normalize';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { QuickClientDialog } from '@/modules/contacts/quick-client-dialog';
 import { useCustomerPricer, contactOpenBalance, type PricingContact } from './customer-pricing-api';
 import { isBlockedSale, creditCheck, creditRefuses, dueDateFromTerms, receiptCopies, type SaleClientFlags } from './customer-pricing';
 import { ClientSaleBanners } from './client-sale-banners';
@@ -75,9 +74,6 @@ import { errorMessage } from '@/lib/mutation-feedback';
 import { useSalesOperators } from './use-sales-operators';
 import { OperatorSelect } from './operator-select';
 import { operatorMissing } from './operators';
-import { identityMissing } from '@/modules/contacts/identity-rules';
-import { PERSON_CIVILITIES } from '@/modules/contacts/civility';
-import { identityFieldsLabel } from '@/lib/db-error-i18n';
 import { ArticleLinePicker } from './article-line-picker';
 import { formatEur } from '@/lib/format-eur';
 
@@ -554,61 +550,6 @@ function LabourDialog({ companyId, onClose, onPick }: { companyId: string; onClo
             </button>
           ))}
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * Client rapide (G8 : « Nouveau client » depuis la saisie) : civilité, nom et prénom obligatoires
- * (décision Q67, comme G8), en MAJUSCULES ; la fiche se complète plus tard.
- */
-function QuickClientDialog({ companyId, onClose, onCreated }: { companyId: string; onClose: () => void; onCreated: (c: Contact) => void }) {
-  const [f, setF] = useState({ civility: '', last: '', first: '', mobile: '', email: '' });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const missing = identityMissing({ type: 'particulier', civility: f.civility, first_name: f.first, last_name: f.last });
-  const create = async () => {
-    if (missing.length) { setErr(fillVars(t('q67.errRequired'), { fields: identityFieldsLabel(missing) })); return; }
-    setBusy(true); setErr(null);
-    try {
-      const c = await createContact({
-        company_id: companyId, type: 'particulier', status: 'client', civility: f.civility,
-        last_name: f.last.trim().toUpperCase(), first_name: f.first.trim().toUpperCase(),
-        mobile: f.mobile.trim() ? normalizeMobile(f.mobile) : null, email: f.email.trim() ? normalizeEmail(f.email) : null,
-      });
-      onCreated(c);
-    } catch (e) { setErr(errorMessage(e)); }
-    setBusy(false);
-  };
-  const field = (k: keyof typeof f, label: string, type = 'text') => (
-    <PosField label={label}><Input type={type} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></PosField>
-  );
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><UserPlus className="size-5" /> {t('posDetail.quickClientTitle')}</DialogTitle>
-          <DialogDescription>{t('posDetail.quickClientHint')}</DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <PosField label={`${t('q67.civility')} *`}>
-            <Select value={f.civility} onValueChange={(v) => setF((x) => ({ ...x, civility: v }))}>
-              <SelectTrigger><SelectValue placeholder={t('q67.civility')} /></SelectTrigger>
-              <SelectContent>{PERSON_CIVILITIES.map((c) => <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>)}</SelectContent>
-            </Select>
-          </PosField>
-          <div />
-          {field('last', t('posDetail.lastName'))}
-          {field('first', t('posDetail.firstName'))}
-          {field('mobile', t('posDetail.mobile'), 'tel')}
-          {field('email', t('posDetail.email'), 'email')}
-        </div>
-        {err && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</p>}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('action.cancel')}</Button>
-          <Button onClick={create} disabled={busy || missing.length > 0}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} {t('posDetail.create')}</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
