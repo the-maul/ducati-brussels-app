@@ -3,7 +3,7 @@
  * d'une moto et par un bouton sur chaque fiche. Rien n'est lancé sans VIN complet.
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, CircleDashed, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { t } from '@/lib/i18n';
@@ -23,15 +23,29 @@ export async function launchDcsUpdate(vin: string | null | undefined, auto = fal
   return ok;
 }
 
-export function DcsUpdateButton({ vin, size = 'default' }: { vin: string | null | undefined; size?: 'default' | 'sm' }) {
+export function DcsUpdateButton({ vin, syncedAt = null, size = 'default' }: {
+  vin: string | null | undefined;
+  /** Dernière lecture DCS enregistrée sur la fiche. */
+  syncedAt?: string | null;
+  size?: 'default' | 'sm';
+}) {
   const [asking, setAsking] = useState(false);
   const running = useDcsRunning();
   const busy = asking || running.includes(normalizeVin(vin ?? ''));
   if (!canAskDcs(vin)) return null;
   return (
-    <Button type="button" variant="outline" size={size} disabled={busy} title={t('vehicles.ducatiUpdateHint')}
-      onClick={() => { setAsking(true); void launchDcsUpdate(vin).finally(() => setAsking(false)); }}>
-      {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('vehicles.ducatiUpdate')}
-    </Button>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button type="button" variant="outline" size={size} disabled={busy} title={t('vehicles.ducatiUpdateHint')}
+        onClick={() => { setAsking(true); void launchDcsUpdate(vin).finally(() => setAsking(false)); }}>
+        {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('vehicles.ducatiUpdate')}
+      </Button>
+      <span role="status" className={`inline-flex items-center gap-1 text-[12px] font-medium ${busy ? 'text-info' : syncedAt ? 'text-success' : 'text-muted-foreground'}`}>
+        {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          : syncedAt ? <CheckCircle2 className="size-3.5" aria-hidden /> : <CircleDashed className="size-3.5" aria-hidden />}
+        {busy ? t('dossier.dcsLoading')
+          : syncedAt ? t('dossier.dcsReadOn').replace('{date}', new Date(syncedAt).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }))
+            : t('dossier.dcsNeverRead')}
+      </span>
+    </span>
   );
 }

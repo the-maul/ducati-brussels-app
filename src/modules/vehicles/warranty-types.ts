@@ -9,6 +9,27 @@ export const WARRANTY_TYPES = [
   'CarGarantie',
 ] as const;
 
+export const FOUR_EVER_WARRANTY = '4Ever Ducati (48 mois)';
+
+const compact = (v: unknown) => String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/** 4Ever Ducati : famille Multistrada à partir de 2020, et DesertX quelle que soit l'année (Simon, 23/11/2026). */
+export function isFourEverEligible(v: { category?: unknown; model?: unknown; model_year?: unknown }): boolean {
+  const family = compact(v.category);
+  const model = compact(v.model);
+  if (family.startsWith('DESERTX') || model.startsWith('DESERTX')) return true;
+  if (family !== 'MULTISTRADA' && !model.startsWith('MULTISTRADA')) return false;
+  const year = Number(v.model_year);
+  return Number.isFinite(year) && year >= 2020;
+}
+
+/** Choix proposés pour cette moto. Une valeur déjà sur la fiche reste affichée par la liste. */
+export function warrantyTypesFor(v: { category?: unknown; model?: unknown; model_year?: unknown }): readonly string[] {
+  if (!isFourEverEligible(v)) return WARRANTY_TYPES;
+  const last = WARRANTY_TYPES.length - 1;
+  return [...WARRANTY_TYPES.slice(0, last), FOUR_EVER_WARRANTY, WARRANTY_TYPES[last]];
+}
+
 export const CARGARANTIE_PLANS = [
   'EverRed (12 mois)',
   'EverRed (24 mois)',

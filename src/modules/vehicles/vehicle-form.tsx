@@ -16,7 +16,7 @@
  * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
  * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
-import { CARGARANTIE_PLANS, isCarGarantie, WARRANTY_TYPES, warrantyPlanFor } from './warranty-types';
+import { CARGARANTIE_PLANS, isCarGarantie, warrantyPlanFor, warrantyTypesFor } from './warranty-types';
 import { ChevronDown } from 'lucide-react';
 import { getModelYearContext, listCatalogModelYears } from '@/modules/catalog/api';
 import { ModelChooserDialog, type ChosenModel } from './model-chooser';
@@ -548,7 +548,7 @@ export function VehicleForm({
         {N('mileage', t('vehicles.mileage'))}
         {D('warranty_end', t('vehicles.warrantyEnd'))}
         <Field label={t('vehicles.warrantyType')}>
-          <SpecSelect value={String(f.warranty_type ?? '')} options={WARRANTY_TYPES} allowOther={false} clearable className={hl('warranty_type')}
+          <SpecSelect value={String(f.warranty_type ?? '')} options={warrantyTypesFor(f)} allowOther={false} clearable className={hl('warranty_type')}
             onChange={(v) => { set('warranty_type', v); if (!isCarGarantie(v)) set('warranty_plan', ''); }} />
           {cgHint('warranty_type')}
           {isCarGarantie(f.warranty_type) && (

@@ -114,7 +114,7 @@ function EditVehicle() {
                 <ExternalLink /> {t('vehicles.ducatiHistory')}
               </Button>
             ) : null}
-            <DcsUpdateButton vin={vehicle.vin} />
+            <DcsUpdateButton vin={vehicle.vin} syncedAt={vehicle.my_ducati_synced_at ?? null} />
             {/* Nouvel OR depuis la fiche moto : moto et proprietaire courant pre-remplis (ATE001). */}
             <Button
               variant="outline"
