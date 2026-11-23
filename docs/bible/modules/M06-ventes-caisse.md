@@ -440,3 +440,19 @@ essai à blanc `supabase/tests/m6_operateur_comptoir_g8.sql` (8/8). Règles pure
 - **Statistiques par opérateur** : inchangées (`_stats_facts` lit `documents.operator`, désormais le nom choisi).
 - Limite : le filtre « Opérateur » de la liste des factures reste par compte DMS (`operator_user_id`) ; une vente de
   JOHN (sans compte) y apparaît sous le compte qui l'a saisie. Statistiques et journaux, eux, sont par nom.
+
+## Ajouté le 23/11 — ordre de clôture de la caisse (chantier C6, CAI-06)
+
+**Décision Q31 : remise en banque ET Z, sans blocage.** L'onglet « Caisse & clôture Z » montre maintenant un fil
+cliquable : **Comptage → Remise en banque → Clôture Z**.
+
+- **Remise en banque dans le fil** : l'écran de remise existant s'ouvre dans l'étape (l'onglet « Remises en banque »
+  reste disponible). L'étape indique ce qui reste à remettre, mode par mode.
+- **Sans blocage** : si la remise n'est pas faite, le fil prévient et demande une confirmation dans la page ; le Z
+  reste possible et la remise peut se faire après.
+- **Comptage avant remise** : une remise faite caisse ouverte sort les espèces du théorique. Si elle arrive après
+  le comptage, l'étape Z fait corriger la grille (« il doit rester X ») au lieu d'afficher un faux écart sur le Z.
+- **Aucun calcul modifié** : fond, espèces théoriques, écart, motif obligatoire et contrôles de la remise sont les
+  mêmes. Règles du fil : `src/modules/sales/cash-close-order.ts`, testées dans `tests/caisse-ordre-cloture.test.ts`.
+- **Manque connu, non corrigé ici** (CAI-06, manque #7) : une remise annulée après son transfert au comptable
+  n'envoie pas de contre-passation.

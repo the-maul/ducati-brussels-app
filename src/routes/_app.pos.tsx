@@ -48,7 +48,7 @@ function PosPage() {
         {/* Revue UX (20/11) : la vente reste montee quand on passe sur un autre onglet de la caisse
             (le panier n'est plus perdu en allant voir la session). */}
         <TabsContent value="sale" forceMount className="mt-4 data-[state=inactive]:hidden"><PosSale companyId={activeCompanyId} companyName={companyName} onOpenCash={() => setTab('session')} screenCode={ecran ?? null} /></TabsContent>
-        <TabsContent value="session" className="mt-4"><CashScreen companyId={activeCompanyId} /></TabsContent>
+        <TabsContent value="session" className="mt-4"><CashScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
         <TabsContent value="closures" className="mt-4"><ClosuresScreen companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="deposits" className="mt-4"><CashDepositsScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>
         <TabsContent value="journals" className="mt-4"><CashJournalsScreen companyId={activeCompanyId} companyName={companyName} /></TabsContent>

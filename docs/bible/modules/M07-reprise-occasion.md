@@ -250,3 +250,20 @@ comptables des cessions (compte / journal saisis, aucun export).
 | 2026-11-18 | **Dépôt-vente complet** (rattrapage G8, VEN007 / VEN008, bloquant #10) : écran unique au menu, n° DEP auto, document de dépôt, vente en une transaction (facture acheteur, facture au déposant, avoir option, décompte), versement tracé, retour client, garde-fou « D jamais valorisé », écritures prévues pour l'export ; 21 tests `tests/depot-vente.test.ts`, essai à blanc `supabase/tests/m7_depot_vente_complet.sql` | branche `lot-g8-depot-vente` ; `20261118270000_m7_depot_vente_complet.sql` **non appliquée** |
 | 2026-11-03 | **TVA sur la marge à la vente** (B2, M-89) : vente d'une O sans TVA, prix de reprise seul figé sur la facture, registre par véhicule (ventes et avoirs) et TVA due globale par période (M12) ; rentabilité B3 inchangée | branche `lot-tva-marge` ; `20261103160000_m6_tva_marge_a_la_vente.sql` **non appliquée** |
 | 2026-11-18 | **Cessions internes / O.R.O en document** (rattrapage G8) : document multi-lignes sur une moto, pièces au PAMP (défaut) ou au dernier PA, MO en heures internes reliée à la pointeuse, fenêtre prix de revient, coût de revient append-only, cession VO ouverte à la reprise, archivage à la vente, listes par rayon / détaillées / archives, impression PAMP / PV / PA | branche `lot-g8-cessions`, `20261118240000_m7_cessions_internes.sql` **non appliquée** |
+
+## Ajouté le 23/11 — fil d'étapes du dépôt-vente (chantier C8, REP-03, REP-04, REP-05)
+
+La fiche d'un dépôt-vente montre un **fil cliquable** : Entrée de la moto → Frais / remise en état → En vente →
+Vendue → Reversement au déposant → Clôturé, ou la branche **Retour au propriétaire**. Chaque étape donne l'action à
+faire, les montants utiles et les documents. Toutes les fonctions d'avant restent, rangées dans leur étape.
+
+- **Étape courante** : calculée par `depotCurrentStep` (`src/modules/tradein/consignment-steps.ts`, testée dans
+  `tests/depot-vente-fil.test.ts`) à partir du statut, de la facture acheteur, du versement et des cessions. Aucun
+  nouveau statut, aucune migration.
+- **Cession encore ouverte** : alerte avant la vente. Après la vente, une cession non validée est archivée d'office
+  sans entrer dans le décompte : la fiche le signale avant le reversement.
+- **Décisions VP4 inchangées** : cession ouverte d'office, frais payés par le déposant et déduits du reversement,
+  hors coût de revient.
+- **Retour au propriétaire** : la fiche affiche les frais engagés (frais de dépôt, cessions validées, estimation des
+  cessions non validées, OR non facturés). Le montant facturé reste **saisi à la main**. **Question ouverte au client** :
+  faut-il facturer ces frais d'office au retour ?
