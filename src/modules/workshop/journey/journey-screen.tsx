@@ -115,8 +115,10 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     enabled: !!source.data,
   });
   const program = useQuery<MaintenanceProgram | null>({
-    queryKey: ['journey-program', source.data?.kind, modelYearId],
-    queryFn: () => source.data!.getProgram(modelYearId!),
+    queryKey: ['journey-program', source.data?.kind, modelYearId, !demoBikeId && !!ctx.data?.vehicle?.modelYearId],
+    queryFn: () => (!demoBikeId && ctx.data?.vehicle?.modelYearId
+      ? source.data!.getProgram(modelYearId!)
+      : source.data!.getManualProgram(modelYearId!)),
     enabled: !!source.data && !!modelYearId,
   });
 

@@ -38,6 +38,8 @@ export type JourneySource = {
   listPrograms(): Promise<MaintenanceProgram[]>;
   /** Programme d'entretien d'un modèle-année, ou null s'il n'est pas couvert. */
   getProgram(modelYearId: string): Promise<MaintenanceProgram | null>;
+  /** Programme choisi directement dans la liste des manuels (numéro du manuel, pas du catalogue). */
+  getManualProgram(programId: string): Promise<MaintenanceProgram | null>;
   /** Une procédure pas à pas. */
   getProcedure(parcoursId: string): Promise<Procedure | null>;
 };
@@ -73,6 +75,10 @@ const demoSource: JourneySource = {
   async getProgram(modelYearId) {
     const d = await loadDemo();
     return d.bikes.find((b) => String(b.modelYearId) === String(modelYearId)) ?? null;
+  },
+  async getManualProgram(programId) {
+    const d = await loadDemo();
+    return d.bikes.find((b) => String(b.modelYearId) === String(programId)) ?? null;
   },
   async getProcedure(parcoursId) { return (await loadDemo()).procedures[parcoursId] ?? null; },
 };
@@ -111,8 +117,19 @@ const baseSource: JourneySource = {
       services: [], echeances: [], proceduresParService: {}, temps: [], ...p,
     })) as MaintenanceProgram[];
   },
+  // Les numéros du catalogue et des manuels sont deux séries différentes : seul un rattachement
+  // validé relie une moto à son manuel. Sans rattachement : pas de manuel, jamais celui d'une autre.
   async getProgram(modelYearId) {
-    const { data, error } = await loose.from(MANUAL_TABLES.program).select('*').eq('model_year_id', modelYearId).maybeSingle();
+    const link = await loose.from('wsm_manual_catalog_links').select('manual_id').eq('model_year_id', modelYearId).eq('status', 'lie').limit(1);
+    if (link.error) throw new Error(link.error.message);
+    const manualId = (link.data as Array<{ manual_id: string }> | null)?.[0]?.manual_id;
+    if (!manualId) return null;
+    const { data, error } = await loose.from(MANUAL_TABLES.program).select('*').eq('manual_id', manualId).limit(1);
+    if (error) throw new Error(error.message);
+    return (data as MaintenanceProgram[] | null)?.[0] ?? null;
+  },
+  async getManualProgram(programId) {
+    const { data, error } = await loose.from(MANUAL_TABLES.program).select('*').eq('model_year_id', programId).maybeSingle();
     if (error) throw new Error(error.message);
     return (data as MaintenanceProgram | null) ?? null;
   },
