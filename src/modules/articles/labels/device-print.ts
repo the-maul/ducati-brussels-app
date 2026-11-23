@@ -13,9 +13,12 @@ import type { LabelData, LabelTemplateConfig } from './template-types';
 /** Donnees d'etiquette → etiquette ZPL (prix promo s'il existe, sinon TTC, puis HT). */
 export function zplFromLabelData(d: LabelData, qty: number): ZplLabel {
   const price = d.price_promo ?? d.price_ttc ?? d.price_ht;
+  // Étiquette de destination (C2) : « n° — client ». Une étiquette ordinaire reste strictement identique.
+  const destination = [d.docNumber, d.customerName].filter(Boolean).join(' — ');
   return {
     reference: d.reference, designation: d.designation, barcode: d.barcode_value || d.reference,
     price: price != null ? `${receiptAmount(price)} EUR` : null, qty,
+    ...(destination ? { destination } : {}),
   };
 }
 

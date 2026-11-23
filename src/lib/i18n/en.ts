@@ -22,6 +22,7 @@ import { clotureCaisseEn } from './cloture-caisse';
 import { depotFilEn } from './depot-fil';
 import { purchasePrintEn } from './purchase-print';
 import { productionEn } from './production';
+import { partPathEn, partsFlowEn } from './chemin-pieces';
 import { designTransverseEn } from './design-transverse';
 
 export const en: DictionaryShape = {
@@ -75,7 +76,7 @@ export const en: DictionaryShape = {
     settings: 'Settings',
     demo: 'Style guide (demo)',
     more: 'Menu',
-    supplierBaskets: 'Supplier orders',
+    supplierBaskets: 'Ducati baskets',
   },
 
   // Actions courantes
@@ -4545,13 +4546,13 @@ export const en: DictionaryShape = {
     receivedInfo: 'Goods receipt confirmed → stock entries and WAC recalculated.',
     exportDcs: 'DCS export', dcsStandard: 'DCS Standard', dcsUrgent: 'DCS Urgent',
     // réapprovisionnement
-    reorderTitle: 'Order proposal', reorderSubtitle: 'Articles below minimum stock — quantities to order, per supplier.',
+    reorderTitle: 'Stock replenishment (below minimum)', reorderSubtitle: 'Articles below minimum stock — quantities to order, per supplier.',
     reorderAvail: 'Avail.', reorderMin: 'Min.', reorderQty: 'To order', reorderEmpty: 'No article below minimum stock.',
     createOrders: 'Create the orders', ordersCreated: '{n} order(s) created.',
     reorderHighlightNotEligible: 'This article is not currently below its minimum stock — add it manually to an order if needed.',
     customerLabelHint: 'Choose the received line, then enter the customer name — the document number is pre-filled from this receipt.',
     // proposition des commandes de pièces (mission 02, carte 4)
-    proposalBtn: 'Parts orders to place',
+    proposalBtn: 'Customer parts to order',
     dcsKindBadge: 'DCS file {kind}',
     destTitle: 'For whom? Parts ordered for customers',
     destHint: 'Each line of this order comes from parts orders: on receipt, put them aside for the customer indicated (customer label).',
@@ -4756,7 +4757,7 @@ export const en: DictionaryShape = {
 
   // Proposition de commande — commandes de pièces regroupées par fournisseur (M4, mission 02 carte 4)
   proposal: {
-    title: 'Order proposal — customer parts',
+    title: 'Customer parts to order',
     subtitle: 'Parts from confirmed parts orders, not yet ordered from a supplier, grouped by supplier (as in G8).',
     hint: 'Amounts at purchase price excl. VAT (purchase price of the article record, otherwise WAC). Minimum order and free shipping threshold are set on the supplier record. Parts ticked by default are those of paid orders; an Excel order goes through the Ducati workbook.',
     empty: 'No part to order: all confirmed orders have already been placed with a supplier.',
@@ -7243,7 +7244,7 @@ export const en: DictionaryShape = {
   // « — Ducati Bruxelles » est ajoute par pageTitle() (src/lib/i18n/index.ts).
   // Mission 09 - Ducati order basket (standard / urgent), ExportDucati file, DCS number
   basket: {
-    title: 'Supplier orders',
+    title: 'Ducati baskets',
     subtitle: 'All our Ducati orders: standard and urgent baskets, from filling to receipt (G8 "Rappel proposition commande").',
     back: 'All our orders',
     opened: 'Basket opened.',
@@ -7490,8 +7491,8 @@ export const en: DictionaryShape = {
     purchases: 'Purchases & receipts',
     purchase: 'Purchase document',
     purchaseNew: 'New purchase document',
-    purchasesProposal: 'Order proposal',
-    purchasesReorder: 'Order proposal',
+    purchasesProposal: 'Customer parts to order',
+    purchasesReorder: 'Stock replenishment',
     purchasesBaskets: 'Supplier orders',
     purchasesBasket: 'Order basket',
     suppliers: 'Suppliers',
@@ -9451,6 +9452,9 @@ export const en: DictionaryShape = {
   g8a: g8aEn,
   sms: smsEn,
   production: productionEn,
+  // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
+  partPath: partPathEn,
+  partsFlow: partsFlowEn,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseEn,
 };

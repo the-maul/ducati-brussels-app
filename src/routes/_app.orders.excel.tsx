@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, FileSpreadsheet, CheckCircle2, Loader2, Search, History, UserRound, Mail, Plus, Archive, Send, Hash } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -45,6 +46,7 @@ function ExcelOrderScreen() {
   const companyName = companies.find((c) => c.id === activeCompanyId)?.name ?? '';
   return (
     <>
+      <PartsFlowNav current="excel" />
       <PageHeader
         title={t('demoOrder.title')}
         description={t('demoOrder.subtitle')}

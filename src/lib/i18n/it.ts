@@ -22,6 +22,7 @@ import { clotureCaisseIt } from './cloture-caisse';
 import { depotFilIt } from './depot-fil';
 import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
+import { partPathIt, partsFlowIt } from './chemin-pieces';
 import { designTransverseIt } from './design-transverse';
 
 export const it: DictionaryShape = {
@@ -75,7 +76,7 @@ export const it: DictionaryShape = {
     settings: 'Impostazioni',
     demo: 'Linea grafica (demo)',
     more: 'Menu',
-    supplierBaskets: 'Ordini fornitore',
+    supplierBaskets: 'Carrelli Ducati',
   },
 
   // Actions courantes
@@ -4545,13 +4546,13 @@ export const it: DictionaryShape = {
     receivedInfo: 'Ricezione confermata → carichi a stock e PAMP ricalcolato.',
     exportDcs: 'Esportazione DCS', dcsStandard: 'DCS Standard', dcsUrgent: 'DCS Urgente',
     // réapprovisionnement
-    reorderTitle: "Proposta d'ordine", reorderSubtitle: 'Articoli sotto lo stock minimo — quantità da ordinare, per fornitore.',
+    reorderTitle: 'Riassortimento (sotto il minimo)', reorderSubtitle: 'Articoli sotto lo stock minimo — quantità da ordinare, per fornitore.',
     reorderAvail: 'Disp.', reorderMin: 'Min.', reorderQty: 'Da ordinare', reorderEmpty: 'Nessun articolo sotto lo stock minimo.',
     createOrders: 'Crea gli ordini', ordersCreated: '{n} ordine/i creato/i.',
     reorderHighlightNotEligible: 'Questo articolo non è attualmente sotto il suo stock minimo — aggiungetelo manualmente a un ordine se necessario.',
     customerLabelHint: 'Scegliete la riga ricevuta e inserite il nome del cliente — il numero di documento è precompilato da questa ricezione.',
     // proposition des commandes de pièces (mission 02, carte 4)
-    proposalBtn: 'Ordini di ricambi da effettuare',
+    proposalBtn: 'Ricambi clienti da ordinare',
     dcsKindBadge: 'File DCS {kind}',
     destTitle: 'Per chi? Ricambi ordinati per dei clienti',
     destHint: 'Ogni riga di questo ordine riprende ricambi di ordini di ricambi: alla ricezione, riponeteli per il cliente indicato (etichetta cliente).',
@@ -4756,7 +4757,7 @@ export const it: DictionaryShape = {
 
   // Proposition de commande — commandes de pièces regroupées par fournisseur (M4, mission 02 carte 4)
   proposal: {
-    title: "Proposta d'ordine — ricambi clienti",
+    title: 'Ricambi clienti da ordinare',
     subtitle: 'Ricambi degli ordini di ricambi confermati, non ancora ordinati presso un fornitore, raggruppati per fornitore (come in G8).',
     hint: "Importi al prezzo d'acquisto IVA escl. (PA della scheda articolo, altrimenti PAMP). Minimo d'ordine e porto franco si impostano sulla scheda del fornitore. I ricambi spuntati per impostazione predefinita sono quelli degli ordini pagati; un ordine Excel passa dalla cartella Ducati.",
     empty: 'Nessun ricambio da ordinare: tutti gli ordini confermati sono già stati effettuati presso un fornitore.',
@@ -7243,7 +7244,7 @@ export const it: DictionaryShape = {
   // « — Ducati Bruxelles » est ajoute par pageTitle() (src/lib/i18n/index.ts).
   // Missione 09 - carrello d'ordine Ducati (standard / urgente), file ExportDucati, numero DCS
   basket: {
-    title: 'Ordini fornitore',
+    title: 'Carrelli Ducati',
     subtitle: 'Tutti i nostri ordini Ducati: carrelli standard e urgenti, dal riempimento alla ricezione (G8 "Rappel proposition commande").',
     back: 'Tutti i nostri ordini',
     opened: 'Carrello aperto.',
@@ -7490,8 +7491,8 @@ export const it: DictionaryShape = {
     purchases: 'Acquisti & ricezioni',
     purchase: 'Documento di acquisto',
     purchaseNew: 'Nuovo documento di acquisto',
-    purchasesProposal: "Proposta d'ordine",
-    purchasesReorder: "Proposta d'ordine",
+    purchasesProposal: 'Ricambi clienti da ordinare',
+    purchasesReorder: 'Riassortimento',
     purchasesBaskets: 'Ordini fornitore',
     purchasesBasket: "Carrello d'ordine",
     suppliers: 'Fornitori',
@@ -9451,6 +9452,9 @@ export const it: DictionaryShape = {
   g8a: g8aIt,
   sms: smsIt,
   production: productionIt,
+  // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
+  partPath: partPathIt,
+  partsFlow: partsFlowIt,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseIt,
 };

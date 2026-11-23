@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, Plus, Truck, Users, ShoppingCart, ShoppingBasket, PackageCheck, ClipboardList, Undo2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -21,6 +22,7 @@ function PurchasesList() {
 
   return (
     <>
+      <PartsFlowNav current="purchases" />
       <PageHeader
         title={t('purchases.title')}
         description={t('purchases.subtitle')}

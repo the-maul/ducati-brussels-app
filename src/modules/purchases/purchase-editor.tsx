@@ -28,6 +28,7 @@ import {
   type PurchaseDocType, type PurchaseOrderType, type VatRegimeCode,
 } from './g8-rules';
 import { RecallDialog } from './recall-dialog';
+import { effectiveLabels } from './part-path';
 import { receptionChassisErrors } from '@/modules/vehicles/chassis-rules';
 import { t, fillVars } from '@/lib/i18n';
 import { MicroficheImportButton, type MicroficheItem } from '@/modules/articles/g8/microfiche-import';
@@ -40,6 +41,8 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 type EditLine = DocLinePayload & {
   _key: string; mgmt_type?: string | null; pack_qty?: number | null; reference?: string | null;
   ordered?: number | null; received?: number | null; remaining?: number | null; source_number?: string | null;
+  /** Nombre d'étiquettes saisi à la main : il reste prioritaire sur « Étiquettes = quantités reçues ». */
+  labelsManual?: boolean;
 };
 let counter = 0;
 const blankLine = (discount = 0): EditLine => ({
@@ -83,6 +86,8 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
   const [lines, setLines] = useState<EditLine[]>(() => (initial?.lines?.length ? (initial.lines as LineRow[]).map(fromRow) : [blankLine()]));
   const [chassisFor, setChassisFor] = useState<string | null>(null);
   const [recallOpen, setRecallOpen] = useState(false);
+  // PIE-04 : case « Étiquettes = quantités reçues » : la colonne suit la quantité, y compris sur les lignes ajoutées ensuite.
+  const [labelsFollow, setLabelsFollow] = useState(false);
   const [schedules, setSchedules] = useState<{ _key: string; due_date: string; amount: string }[]>(
     () => (initial?.schedules ?? []).map((s) => ({ _key: `s${counter++}`, due_date: s.due_date ?? '', amount: String(s.amount ?? '') })));
   const [busy, setBusy] = useState(false);
@@ -115,7 +120,7 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
   const setLine = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l._key === key ? { ...l, ...patch } : l)));
   const removeLine = (key: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l._key !== key) : [blankLine(defaultLineDiscount(orderType || null, rushDiscount))]));
 
-  const plain = lines.map(({ _key, mgmt_type, pack_qty, reference, ordered, received, remaining, source_number, ...l }) => l);
+  const plain = lines.map(({ _key, mgmt_type, pack_qty, reference, ordered, received, remaining, source_number, labelsManual, ...l }) => l);
   const totals = computePurchaseTotals(plain.map((l) => ({ ...l, chassis: null })), {
     vatRegime, globalDiscountPct: num(discountPct), shippingHt: num(shippingHt), shippingTaxed,
     shippingVatRate: cond?.supplier_shipping_vat_rate ?? 21,
@@ -173,7 +178,11 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recallData]);
 
-  const labelsAll = () => setLines((ls) => ls.map((l) => (l.article_id ? { ...l, labels: Math.max(0, Math.round(l.quantity)) } : l)));
+  const toggleLabels = (on: boolean) => {
+    // À la désactivation, chaque ligne garde le nombre affiché.
+    setLines((ls) => ls.map((l) => (on ? { ...l, labelsManual: false } : { ...l, labels: effectiveLabels(l, labelsFollow), labelsManual: false })));
+    setLabelsFollow(on);
+  };
 
   const save = async (validate: boolean) => {
     setBusy(true); setError(null);
@@ -197,8 +206,8 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
           shipping_ht: num(shippingHt), shipping_taxed: shippingTaxed, shipping_vat_rate: cond?.supplier_shipping_vat_rate ?? 21,
           global_discount_pct: num(discountPct), spread_costs: spreadCosts, notes: notes || null,
         },
-        lines: payload.map(({ _key, mgmt_type, pack_qty, reference, ordered, received, remaining, source_number, ...l }) => ({
-          ...l, chassis: l.chassis?.vin?.trim() ? l.chassis : null,
+        lines: payload.map(({ _key, mgmt_type, pack_qty, reference, ordered, received, remaining, source_number, labelsManual, ...l }) => ({
+          ...l, labels: effectiveLabels({ ...l, labelsManual }, labelsFollow), chassis: l.chassis?.vin?.trim() ? l.chassis : null,
         })),
         schedules: schedules.filter((s) => num(s.amount) > 0 || s.due_date).map((s, i) => ({ seq_no: i + 1, due_date: s.due_date || null, amount: num(s.amount) })),
       });
@@ -303,7 +312,12 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
           <Button variant="outline" disabled={!supplier} onClick={() => setRecallOpen(true)} title={!supplier ? t('purchasesG8.needSupplier') : undefined}>
             <Undo2 /> {isRec ? t('purchasesG8.recallOrder') : t('purchasesG8.recallProposal')}
           </Button>
-          {isRec && <Button variant="outline" onClick={labelsAll}><Tags /> {t('purchasesG8.labelsAll')}</Button>}
+          {isRec && (
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-[13px]">
+              <input type="checkbox" checked={labelsFollow} onChange={(e) => toggleLabels(e.target.checked)} className="size-4 accent-[var(--ducati-red)]" />
+              <Tags className="size-4" /> {t('purchasesG8.labelsAll')}
+            </label>
+          )}
           {recalled && isRec && (partialCount > 0 || missingCount > 0) && (
             <span className="rounded-md bg-warning-bg px-2 py-1 text-[12px] text-warning">
               {fillVars(t('purchasesG8.partialHint'), { n: partialCount + missingCount })}
@@ -370,7 +384,7 @@ export function PurchaseEditor({ companyId, initialDocType = 'REC', initial, rec
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.discount_pct)} onChange={(e) => setLine(l._key, { discount_pct: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input type="number" step="0.1" value={String(l.vat_rate)} onChange={(e) => setLine(l._key, { vat_rate: num(e.target.value) })} className="h-8 text-right tabular-nums" /></td>
                   <td className="px-2 py-1"><Input value={l.bin_location ?? ''} onChange={(e) => setLine(l._key, { bin_location: e.target.value })} className="h-8" maxLength={12} /></td>
-                  {isRec && <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(l.labels ?? 0)} onChange={(e) => setLine(l._key, { labels: Math.max(0, Math.round(num(e.target.value))) })} className="h-8 text-right tabular-nums" /></td>}
+                  {isRec && <td className="px-2 py-1"><Input type="number" step="1" min="0" value={String(effectiveLabels(l, labelsFollow))} onChange={(e) => setLine(l._key, { labels: Math.max(0, Math.round(num(e.target.value))), labelsManual: true })} className="h-8 text-right tabular-nums" /></td>}
                   <td className="px-3 py-1 text-right tabular-nums">{eur(ht)}</td>
                   {isRec && <td className="px-3 py-1 text-right tabular-nums text-muted-foreground">{landed[i] == null ? '—' : eur(landed[i]!)}</td>}
                   <td className="whitespace-nowrap px-2 py-1 text-center">

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -121,6 +122,7 @@ function ProposalPage() {
 
   return (
     <>
+      <PartsFlowNav current="toOrder" />
       <PageHeader
         title={t('proposal.title')}
         description={t('proposal.subtitle')}

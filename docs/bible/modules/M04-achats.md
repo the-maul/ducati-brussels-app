@@ -309,3 +309,26 @@ en-tête société, fournisseur, n°, dates, facture / BL fournisseur, opérateu
 désignation, qté commandée / reçue / reliquat, PA HT, remise, total HT), totaux enregistrés (HT, TVA, TTC, port, remise),
 bloc **Reliquats** pour une réception partielle (« Commande entièrement reçue » sinon). Langue de l'utilisateur.
 Limites : brouillons non imprimables ; reliquat = reste à recevoir aujourd'hui ; TVA non ventilée par taux.
+
+## Ajouté le 23/11 — C2 : le chemin de chaque pièce commandée (PIE-01 à PIE-06)
+
+Décision du client : **tous les types restent** (standard, urgente, accident, Excel) et **les 3 documents aussi** (commande de pièces client, panier Ducati, commande fournisseur + réception). Rien n'est fusionné. Le n° DCS reste saisi à la main.
+
+| Quoi | Où |
+|---|---|
+| **Pièces en cours** : toutes les pièces demandées et pas encore remises ; filtres type, statut, en retard, client / OR / n° DCS / référence | `/parts/upcoming?view=encours` (sans paramètre : l'écran des RDV, inchangé) |
+| **Chemin d'une pièce** : pour qui → panier ou commande (type, n° DCS) → reçue (quantité, reliquat, date, BL) → réservée / préparée → client prévenu → remise | Commande de pièces, panier, commande fournisseur, réception. Pour l'OR : `<PartPathPanel scope="repair_order" scopeId={orId} companyId={...} />` |
+| **Navigation** entre les écrans de commande | Barre `PartsFlowNav`. Nouveaux noms : « Réassort du stock » (`/purchases/reorder`), « Pièces clients à commander » (`/purchases/proposal`), « Paniers Ducati » (`/purchases/baskets`). Aucune route ne change |
+| **Étiquettes de destination** (client, n° d'OR ou de commande, date du RDV, référence, désignation, casier, sans prix) | Réception, préparation, commande de pièces ; en attente par poste sur `/stock/labels`. Pour l'atelier : `<DestinationLabelsButton kind="repair_order" id={orId} companyId={...} />` ou `/stock/labels?destKind=repair_order&destId=…` |
+| **Client prévenu à réception complète** (INV003) | Interrupteur « Pièces arrivées : mail au client » dans Mise en production, **arrêté par défaut** |
+
+**Règles**
+- `part_receipt_allocations` (append-only) note quelle réception a servi quelle ligne de panier ou de classeur Excel, au même fournisseur : urgente d'abord, puis la plus ancienne commande. **Aucun mouvement de stock, PAMP ni prix.** Une erreur de ce suivi ne bloque jamais la réception (trace `part_path_error` dans `events`).
+- Une ligne de commande fournisseur partagée par plusieurs clients sert le plus ancien d'abord.
+- « En retard » = date prévue ou date de RDV dépassée sans la pièce. Un panier n'a pas de date prévue : on n'invente pas de délai.
+- Notification : préparée une seule fois, quand **toutes** les pièces de la commande sont reçues. Rien en file si l'interrupteur est arrêté, pour une société de test, sans e-mail, ou si le client a refusé le mail : l'écran propose « Client prévenu ». Un mail parti à l'adresse de test ne compte pas comme client prévenu.
+- « Étiquettes = quantités reçues » est une vraie case : la colonne « Étiq. » suit la quantité, y compris sur les lignes rappelées ou modifiées ensuite ; un nombre saisi à la main reste prioritaire.
+
+**Technique** : `src/modules/purchases/part-path.ts` (règles pures), `part-path-api.ts`, `part-path-ui.tsx`, `parts-in-progress.tsx`, `parts-flow-nav.tsx`, `destination-labels.tsx` ; libellés `src/lib/i18n/chemin-pieces.ts` ; migrations `20261123110000_m4_chemin_des_pieces`, `20261123111000_m4_client_prevenu_reception_complete`, `20261123112000_m5_etiquettes_destination` ; tests `tests/part-path.test.ts`, `supabase/tests/c2_chemin_pieces.sql`.
+
+**Limites** : une réception saisie sans rappel est rapprochée d'un panier par article et fournisseur : si deux paniers attendent la même pièce, le choix suit la règle ci-dessus et ne se corrige pas à l'écran. Les réceptions validées avant cette migration n'ont pas de lien avec les paniers.

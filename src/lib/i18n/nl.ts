@@ -22,6 +22,7 @@ import { clotureCaisseNl } from './cloture-caisse';
 import { depotFilNl } from './depot-fil';
 import { purchasePrintNl } from './purchase-print';
 import { productionNl } from './production';
+import { partPathNl, partsFlowNl } from './chemin-pieces';
 import { designTransverseNl } from './design-transverse';
 
 export const nl: DictionaryShape = {
@@ -75,7 +76,7 @@ export const nl: DictionaryShape = {
     settings: 'Instellingen',
     demo: 'Huisstijl (demo)',
     more: 'Menu',
-    supplierBaskets: 'Leveranciersbestellingen',
+    supplierBaskets: 'Ducati-manden',
   },
 
   // Actions courantes
@@ -4545,13 +4546,13 @@ export const nl: DictionaryShape = {
     receivedInfo: 'Ontvangst bevestigd → voorraadingangen en PAMP herberekend.',
     exportDcs: 'DCS-export', dcsStandard: 'DCS Standaard', dcsUrgent: 'DCS Dringend',
     // réapprovisionnement
-    reorderTitle: 'Bestelvoorstel', reorderSubtitle: 'Artikelen onder de minimumvoorraad — te bestellen hoeveelheden, per leverancier.',
+    reorderTitle: 'Voorraad aanvullen (onder minimum)', reorderSubtitle: 'Artikelen onder de minimumvoorraad — te bestellen hoeveelheden, per leverancier.',
     reorderAvail: 'Besch.', reorderMin: 'Min.', reorderQty: 'Te bestellen', reorderEmpty: 'Geen artikel onder de minimumvoorraad.',
     createOrders: 'Bestellingen aanmaken', ordersCreated: '{n} bestelling(en) aangemaakt.',
     reorderHighlightNotEligible: 'Dit artikel zit momenteel niet onder zijn minimumvoorraad — voeg het indien nodig handmatig aan een bestelling toe.',
     customerLabelHint: 'Kies de ontvangen lijn en vul de naam van de klant in — het documentnummer wordt vooraf ingevuld vanuit deze ontvangst.',
     // proposition des commandes de pièces (mission 02, carte 4)
-    proposalBtn: 'Te plaatsen onderdelenbestellingen',
+    proposalBtn: 'Klantonderdelen te bestellen',
     dcsKindBadge: 'DCS-bestand {kind}',
     destTitle: 'Voor wie? Onderdelen besteld voor klanten',
     destHint: 'Elke lijn van deze bestelling komt uit onderdelenbestellingen: leg ze bij ontvangst weg voor de aangegeven klant (klantetiket).',
@@ -4756,7 +4757,7 @@ export const nl: DictionaryShape = {
 
   // Proposition de commande — commandes de pièces regroupées par fournisseur (M4, mission 02 carte 4)
   proposal: {
-    title: 'Bestelvoorstel — onderdelen klanten',
+    title: 'Klantonderdelen te bestellen',
     subtitle: 'Onderdelen van bevestigde onderdelenbestellingen, nog niet besteld bij een leverancier, gegroepeerd per leverancier (zoals in G8).',
     hint: 'Bedragen aan inkoopprijs excl. btw (IP van de artikelfiche, anders PAMP). Minimumbestelling en franco worden ingesteld op de leveranciersfiche. Standaard aangevinkte onderdelen zijn die van betaalde bestellingen; een Excel-bestelling verloopt via de Ducati-werkmap.',
     empty: 'Geen onderdeel te bestellen: alle bevestigde bestellingen zijn al bij een leverancier geplaatst.',
@@ -7243,7 +7244,7 @@ export const nl: DictionaryShape = {
   // « — Ducati Bruxelles » est ajoute par pageTitle() (src/lib/i18n/index.ts).
   // Missie 09 - Ducati-bestelmandje (standaard / dringend), ExportDucati-bestand, DCS-nummer
   basket: {
-    title: 'Leveranciersbestellingen',
+    title: 'Ducati-manden',
     subtitle: 'Al onze Ducati-bestellingen: standaard- en dringende mandjes, van het vullen tot de ontvangst (G8 "Rappel proposition commande").',
     back: 'Al onze bestellingen',
     opened: 'Mandje geopend.',
@@ -7490,8 +7491,8 @@ export const nl: DictionaryShape = {
     purchases: 'Aankopen & ontvangsten',
     purchase: 'Aankoopdocument',
     purchaseNew: 'Nieuw aankoopdocument',
-    purchasesProposal: 'Bestelvoorstel',
-    purchasesReorder: 'Bestelvoorstel',
+    purchasesProposal: 'Klantonderdelen te bestellen',
+    purchasesReorder: 'Voorraad aanvullen',
     purchasesBaskets: 'Leveranciersbestellingen',
     purchasesBasket: 'Bestelmandje',
     suppliers: 'Leveranciers',
@@ -9451,6 +9452,9 @@ export const nl: DictionaryShape = {
   g8a: g8aNl,
   sms: smsNl,
   production: productionNl,
+  // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
+  partPath: partPathNl,
+  partsFlow: partsFlowNl,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseNl,
 };
