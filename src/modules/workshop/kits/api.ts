@@ -188,6 +188,25 @@ export async function getKitForModelYear(
   return id ?? null;
 }
 
+// Corrections sourcées (ATE014) : administrateur ou chef d'atelier, contrôlé côté base.
+export const KIT_PROPOSAL_BATCH = 'ATE014-20261123';
+export type KitProposalStats = { safePending: number; safeApplied: number; toReview: number; reviewGroups: number; total: number };
+
+export async function getKitProposalStats(companyId: string): Promise<KitProposalStats> {
+  const r = await rpc<Record<string, unknown>>('maintenance_kit_proposals_stats', { _company: companyId, _batch: KIT_PROPOSAL_BATCH });
+  return {
+    safePending: num(r?.safe_pending), safeApplied: num(r?.safe_applied), toReview: num(r?.to_review),
+    reviewGroups: num(r?.review_groups), total: num(r?.total),
+  };
+}
+
+export async function applySafeKitProposals(companyId: string): Promise<{ done: boolean; applied: number }> {
+  const r = await rpc<{ done?: boolean; results?: { applique?: number; deja_present?: number } }>('maintenance_kit_proposals_apply_safe', {
+    _company: companyId, _batch: KIT_PROPOSAL_BATCH, _max_kits: 40,
+  });
+  return { done: r?.done === true, applied: num(r?.results?.applique) + num(r?.results?.deja_present) };
+}
+
 export type PartsCoverage = {
   modelYears: number; modelYearsWithParts: number; services: number;
   needs: number; needsFirm: number; resolvedFirm: number; toConfirm: number;

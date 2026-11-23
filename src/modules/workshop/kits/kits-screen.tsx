@@ -14,6 +14,7 @@
  *
  * Aucun mouvement de stock : un kit décrit ce qu'il faut, il ne sort rien.
  */
+import { KitSafeCorrections } from './safe-corrections';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search, Replace, Settings2 } from 'lucide-react';
@@ -83,6 +84,7 @@ export function KitsScreen({ companyId }: { companyId: string }) {
 
   return (
     <div className="space-y-4">
+      <KitSafeCorrections companyId={companyId} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative max-w-xs flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
