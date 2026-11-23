@@ -5,6 +5,7 @@
  *  - Primes et aides (date, montant, commentaire) + liste des primes du parc par periode.
  * Migration 20261118141000 ; sans elle, message clair et rien n'est perdu en silence.
  */
+import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -55,6 +56,11 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
           <Input value={contract} onChange={(e) => setContract(e.target.value)} className="font-mono" spellCheck={false} />
         </div>
       </div>
+      {!!currentOwnerId && bank === currentOwnerId && (
+        <p className="flex items-start gap-1.5 rounded-md bg-warning-bg px-3 py-2 text-[12px] font-medium text-warning">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {t('dossier.financingOwnerIsBank')}
+        </p>
+      )}
       <div className="flex justify-end">
         <Button size="sm" variant="outline" onClick={() => m.mutate()} disabled={!dirty || m.isPending}>
           {m.isPending && <Loader2 className="animate-spin" />} {t('action.save')}
