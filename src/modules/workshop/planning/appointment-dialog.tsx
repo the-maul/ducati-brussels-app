@@ -43,6 +43,7 @@ import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
 import { appointmentDraftKey, type AppointmentDraft } from './appointment-draft';
+import { KitRefsToComplete } from './kit-refs-to-complete';
 import { removeDraft, writeDraft } from '@/lib/form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { lowerMileageMessage } from '../or-base/lower-mileage';
@@ -366,6 +367,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
             <Package className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('designEcrans.partsWillReserve')}
           </p>
         )}
+
+        {vehicle?.id && isMaintenanceReasonCode(reasonCode) && <KitRefsToComplete companyId={companyId} vehicleId={vehicle.id} reasonCode={reasonCode} />}
 
         {/* Le reste, replie : statut, type, travaux, observations, moto de pret, SMS. */}
         <div className="rounded-md border border-border">

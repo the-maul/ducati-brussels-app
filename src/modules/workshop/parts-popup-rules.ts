@@ -80,6 +80,11 @@ export function missingKitParts(kit: KitStockLine[], asked: Iterable<string> = [
   return out.sort((a, b) => a.reference.localeCompare(b.reference));
 }
 
+/** Pièces du kit sans référence fiable : à compléter, jamais devinées. */
+export function kitPartsToComplete(kit: KitStockLine[]): string[] {
+  return [...new Set(kit.filter((k) => k.confidence === 'absent').map((k) => k.designation))];
+}
+
 /** Pas de popup si rien ne manque. */
 export function popupNeeded(missing: MissingPart[]): boolean {
   return missing.length > 0;
