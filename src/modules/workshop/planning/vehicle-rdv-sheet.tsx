@@ -14,6 +14,7 @@ import { fillVars, t } from '@/lib/i18n';
 import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
 import { updateVehicle } from '@/modules/vehicles/api';
 import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
+import { CARGARANTIE_PLANS, isCarGarantie, WARRANTY_TYPES } from '@/modules/vehicles/warranty-types';
 import {
   ANTIPOLLUTION_OPTIONS, COLOR_OPTIONS, CYLINDER_OPTIONS, ENERGY_OPTIONS, VEHICLE_FAMILIES, loadSpecOptions, loadVehicleFill,
 } from '@/modules/vehicles/catalog-specs';
@@ -112,6 +113,24 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
     const value = sheetInputValue(field, row);
     const empty = !field.optional && !value.trim();
     const warn = empty ? 'border-warning' : '';
+    if (field.key === 'warranty_type') {
+      const plan = String(row.warranty_plan ?? '');
+      return (
+        <div className="space-y-1">
+          <SpecSelect value={value} options={WARRANTY_TYPES} allowOther={false} clearable className={FIELD_CLASS}
+            onChange={(v) => {
+              const keep = isCarGarantie(v) ? plan : '';
+              setDraft((d) => ({ ...d, warranty_type: v, warranty_plan: keep }));
+              save.mutate({ warranty_type: v || null, warranty_plan: keep || null });
+            }} />
+          {isCarGarantie(value) && (
+            <SpecSelect value={plan} options={CARGARANTIE_PLANS} allowOther={false} placeholder={t('dossier.warrantyPlan')}
+              className={`${FIELD_CLASS} ${plan ? '' : 'border-warning'}`}
+              onChange={(v) => { setDraft((d) => ({ ...d, warranty_plan: v })); save.mutate({ warranty_plan: v || null }); }} />
+          )}
+        </div>
+      );
+    }
     if (field.key === 'plate') {
       const custom = row.plate_custom === true;
       return (

@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { t } from '@/lib/i18n';
 
 const OTHER = '__autre__';
+const NONE = '__aucune__';
 
-export function SpecSelect({ value, options, onChange, className, numeric = false, allowOther = true }: {
+export function SpecSelect({ value, options, onChange, className, numeric = false, allowOther = true, clearable = false, placeholder = '—' }: {
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
@@ -17,6 +18,9 @@ export function SpecSelect({ value, options, onChange, className, numeric = fals
   numeric?: boolean;
   /** Faux : seules les valeurs de la liste (années d'une version du catalogue). */
   allowOther?: boolean;
+  /** Propose de vider le champ. */
+  clearable?: boolean;
+  placeholder?: string;
 }) {
   const [typing, setTyping] = useState(false);
   const raw = (value ?? '').trim();
@@ -30,9 +34,10 @@ export function SpecSelect({ value, options, onChange, className, numeric = fals
   }
   const all = [...new Set([...(shown ? [shown] : []), ...options])];
   return (
-    <Select value={shown || undefined} onValueChange={(v) => { if (v === OTHER) setTyping(true); else onChange(v); }}>
-      <SelectTrigger className={className}><SelectValue placeholder="—" /></SelectTrigger>
+    <Select value={shown || undefined} onValueChange={(v) => { if (v === OTHER) setTyping(true); else onChange(v === NONE ? '' : v); }}>
+      <SelectTrigger className={className}><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
+        {clearable && shown && <SelectItem value={NONE}>—</SelectItem>}
         {all.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         {allowOther && <SelectItem value={OTHER}>{t('motoClient.otherValue')}</SelectItem>}
       </SelectContent>

@@ -16,6 +16,7 @@
  * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
  * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
+import { CARGARANTIE_PLANS, isCarGarantie, WARRANTY_TYPES, warrantyPlanFor } from './warranty-types';
 import { ChevronDown } from 'lucide-react';
 import { getModelYearContext, listCatalogModelYears } from '@/modules/catalog/api';
 import { ModelChooserDialog, type ChosenModel } from './model-chooser';
@@ -121,6 +122,7 @@ function fromVehicle(v: Vehicle | null, client: boolean, prefill?: Partial<Recor
     for (const [k, val] of Object.entries(prefill)) if (val != null && val !== '') f[k] = val;
   }
   f.plate_custom = (v as { plate_custom?: boolean } | null)?.plate_custom === true;
+  f.warranty_plan = (v as { warranty_plan?: string | null } | null)?.warranty_plan ?? '';
   return f;
 }
 
@@ -136,6 +138,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
   out.is_restricted = f.is_restricted === true;
   out.papers_100hp = f.papers_100hp === true;
   out.plate_custom = f.plate_custom === true;
+  out.warranty_plan = warrantyPlanFor(f.warranty_type, f.warranty_plan);
   out.status = f.status as VehicleStatus;
   out.mileage_qualif = f.mileage_qualif as MileageQualif;
   out.notes = nn(f.notes);
@@ -538,7 +541,15 @@ export function VehicleForm({
         {D('first_registration_date', t('vehicles.firstRegistration'))}
         {N('mileage', t('vehicles.mileage'))}
         {D('warranty_end', t('vehicles.warrantyEnd'))}
-        {T('warranty_type', t('vehicles.warrantyType'))}
+        <Field label={t('vehicles.warrantyType')}>
+          <SpecSelect value={String(f.warranty_type ?? '')} options={WARRANTY_TYPES} allowOther={false} clearable className={hl('warranty_type')}
+            onChange={(v) => { set('warranty_type', v); if (!isCarGarantie(v)) set('warranty_plan', ''); }} />
+          {cgHint('warranty_type')}
+          {isCarGarantie(f.warranty_type) && (
+            <SpecSelect value={String(f.warranty_plan ?? '')} options={CARGARANTIE_PLANS} allowOther={false} placeholder={t('dossier.warrantyPlan')}
+              className={f.warranty_plan ? '' : 'border-warning'} onChange={(v) => set('warranty_plan', v)} />
+          )}
+        </Field>
         <Field label={t('vehicles.modelYear')} code={CARTE_GRISE_CODES.model_year}>
           <SpecSelect value={String(f.model_year ?? '')} numeric allowOther={!modelYearId} onChange={onYear} className={hl('model_year')}
             options={modelYearId && siblingYears.data?.length

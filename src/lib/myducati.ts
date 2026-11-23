@@ -4,6 +4,7 @@
  * et le compte client Ducati sur le propriétaire courant de la moto.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { dcsWarrantyType } from '@/modules/vehicles/warranty-types';
 
 export type MyDucatiPayload = {
   vin: string;
@@ -108,7 +109,7 @@ export async function saveBulletinPdf(companyId: string, b: BulletinPdfPayload):
 
 export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): Promise<ApplyResult> {
   if (!p?.vin) return { matched: false };
-  const { data: veh } = await supabase.from('vehicles').select('id').eq('company_id', companyId).eq('vin', p.vin).maybeSingle();
+  const { data: veh } = await supabase.from('vehicles').select('id, warranty_type').eq('company_id', companyId).eq('vin', p.vin).maybeSingle();
   if (!veh) return { matched: false };
   const vehicleId = veh.id as string;
 
@@ -117,7 +118,7 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   const ducatiPatch = clean({
     ducati_state: v.ducati_state, ducati_usage: v.ducati_usage,
     production_date: isoDate(v.production_date), ship_date: isoDate(v.ship_date), invoiced_to: v.invoiced_to,
-    warranty_start: isoDate(v.warranty_start), warranty_end: isoDate(v.warranty_end), warranty_type: v.warranty_type,
+    warranty_start: isoDate(v.warranty_start), warranty_end: isoDate(v.warranty_end), warranty_type: dcsWarrantyType(v.warranty_type, veh.warranty_type),
     warranty_state: v.warranty_state, warranty_activated_by: v.warranty_activated_by,
     my_ducati_data: p as unknown as Record<string, unknown>, my_ducati_synced_at: new Date().toISOString(),
   });
