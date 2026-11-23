@@ -9,6 +9,7 @@
  * migration 20261119180000 est appliquee. Impression : recto contrat, verso conditions generales,
  * dans la langue de la fiche client (modifiable), en double exemplaire par defaut.
  */
+import { motoName } from '@/lib/moto-name';
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, Printer } from 'lucide-react';
@@ -173,7 +174,7 @@ function ContractForm(p: Props & {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE}>{t('loans.noCustomerVehicle')}</SelectItem>
-              {vehicleChoices.map((v) => <SelectItem key={v.id} value={v.id}>{[[v.brand, v.model].filter(Boolean).join(' '), v.plate].filter(Boolean).join(' · ') || v.id}</SelectItem>)}
+              {vehicleChoices.map((v) => <SelectItem key={v.id} value={v.id}>{[motoName(v), v.plate].filter(Boolean).join(' · ') || v.id}</SelectItem>)}
             </SelectContent>
           </Select>
         </Field>

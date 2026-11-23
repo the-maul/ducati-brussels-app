@@ -5,6 +5,7 @@
  * moto » (formulaire de la carte 6 pré-rempli + lien propriétaire), « Ignorer ».
  * Tout est tracé dans events ; la moto n'entre jamais dans le parc sans ce choix.
  */
+import { motoName } from '@/lib/moto-name';
 import { useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -81,7 +82,7 @@ export function DeclaredVehiclesView({ companyId }: { companyId: string }) {
             <Bike className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
             <div className="min-w-0 flex-1 space-y-0.5">
               <p className="text-[15px] font-bold">
-                {[d.brand, d.model].filter(Boolean).join(' ') || '—'}
+                {motoName(d) || '—'}
                 {d.model_year ? <span className="font-normal text-muted-foreground"> · {t('motoClient.declYear')}{d.model_year}</span> : null}
               </p>
               <p className="flex flex-wrap items-center gap-1 text-[13px]">
@@ -192,7 +193,7 @@ function PendingBrandsCard({ companyId }: { companyId: string }) {
       <ul className="divide-y divide-border">
         {data.map((b) => (
           <li key={b.id} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
-            <span className="font-medium">{[b.brand, b.model].filter(Boolean).join(' ')}</span>
+            <span className="font-medium">{motoName(b)}</span>
             {b.model_year ? <span className="tabular-nums text-muted-foreground">· {b.model_year}</span> : null}
             <span className="ml-auto text-[12px] text-muted-foreground">
               {t(`motoClient.brandQueueOrigin_${b.origin}`)} · {fmtDate(b.created_at)}

@@ -3,6 +3,7 @@
  * Colonnes G8 : RDV (statut) · Date · Heure · Temps · Travaux · Compagnon · Marque · Modele.
  * Choisir une ligne ouvre la semaine du RDV et le RDV.
  */
+import { motoName } from '@/lib/moto-name';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Search } from 'lucide-react';
@@ -55,7 +56,7 @@ export function AppointmentSearchDialog({ companyId, onClose, onPick }: { compan
                     <TableCell>{r.client_name ?? '—'}</TableCell>
                     <TableCell className="max-w-[180px] truncate">{r.work_description ?? ''}</TableCell>
                     <TableCell>{r.unassigned ? t('planningG8.waitingShort') : r.mechanic_name ?? '—'}</TableCell>
-                    <TableCell>{[r.brand, r.model].filter(Boolean).join(' ')}{r.plate ? ` · ${r.plate}` : ''}</TableCell>
+                    <TableCell>{motoName(r)}{r.plate ? ` · ${r.plate}` : ''}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

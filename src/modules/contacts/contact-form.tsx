@@ -3,6 +3,7 @@
  * Sections : identité, adresse, permis & ID, B2B, catégorisation.
  * État contrôlé simple ; mappé vers ContactInsert à la soumission.
  */
+import { motoName } from '@/lib/moto-name';
 import { useState, useRef, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Bike, ExternalLink, ShieldCheck, ShieldX, ChevronDown, Link2, AlertTriangle } from 'lucide-react';
@@ -1315,7 +1316,7 @@ function MyDucatiSection({ contactId, f, set }: {
   });
   const vinOptions = (vehQ.data ?? [])
     .filter((v) => v.vehicle.vin)
-    .map((v) => ({ vin: v.vehicle.vin as string, label: [v.vehicle.brand, v.vehicle.model].filter(Boolean).join(' ') || '—' }));
+    .map((v) => ({ vin: v.vehicle.vin as string, label: motoName(v.vehicle) || '—' }));
   // Défaut = châssis le plus récent ; choix manuel possible
   const [pickedVin, setPickedVin] = useState<string | null>(null);
   const vin = pickedVin ?? vinOptions[0]?.vin ?? null;

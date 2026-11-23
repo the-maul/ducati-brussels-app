@@ -4,6 +4,7 @@
  * (quantite, HT au PAMP, HT a la vente) et detaillees (reference, moto / client, chassis, n°),
  * ancien journal des mouvements de cession, reglages de la societe.
  */
+import { motoName } from '@/lib/moto-name';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Loader2, Plus } from 'lucide-react';
@@ -133,7 +134,7 @@ function DocumentsList({ companyId, onOpen }: { companyId: string; onOpen: (id: 
                 <td className="px-3 py-2"><CessionStatusBadge status={r.status} /></td>
                 <td className="px-3 py-2">{r.cession_type} · {r.type_label}</td>
                 <td className="px-3 py-2">{day(r.validated_at ?? r.created_at)}</td>
-                <td className="px-3 py-2">{r.vehicle ? [r.vehicle.brand, r.vehicle.model].filter(Boolean).join(' ') : ''}</td>
+                <td className="px-3 py-2">{r.vehicle ? motoName(r.vehicle) : ''}</td>
                 <td className="px-3 py-2 font-mono text-[12px]">{r.vehicle?.vin ?? ''}</td>
                 <td className="px-3 py-2">{r.vehicle?.plate ?? ''}</td>
                 <td className="px-3 py-2">{contactLabel(r)}</td>

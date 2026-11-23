@@ -2,6 +2,7 @@
  * M8 — Petits composants du planning (champ libelle, choix du client), partages par
  * l'assistant de planification, les motos de pret et l'ancien planning.
  */
+import { motoName } from '@/lib/moto-name';
 import { contactNameLastFirst } from '@/modules/contacts/search-order';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -84,7 +85,7 @@ export function contactLabel(c: ContactBits): string {
 }
 export function motoLabel(v: { brand: string | null; model: string | null; plate: string | null } | null | undefined): string {
   if (!v) return '';
-  return [[v.brand, v.model].filter(Boolean).join(' '), v.plate].filter(Boolean).join(' · ');
+  return [motoName(v), v.plate].filter(Boolean).join(' · ');
 }
 export const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
 export const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString('fr-BE', { weekday: 'short', day: '2-digit', month: '2-digit' });

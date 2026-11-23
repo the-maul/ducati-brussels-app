@@ -24,6 +24,7 @@
  * une colonne en portrait, deux quand la zone de travail depasse 1100 px (container query). Charte : tokens, statut = couleur + icone + libelle.
  * Rafraichissement : relecture toutes les 45 s (et au retour sur l'onglet), sans recharger la page.
  */
+import { motoName } from '@/lib/moto-name';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -368,7 +369,7 @@ function WorkingOnBanner({ entry, orNumber, card, day, nowMs, canAct, busy, fini
 }) {
   const task = entry.kind !== 'travail';
   const v = card?.or?.vehicles ?? card?.appointment?.vehicles ?? null;
-  const moto = v ? [v.brand, v.model].filter(Boolean).join(' ') : '';
+  const moto = v ? motoName(v) : '';
   const progress = entry.or_id ? day.progress.get(entry.or_id) : undefined;
   const motive = card ? t(`myWorkshop.motive_${cardMotive(card).label}`) : '';
   const target = entry.or_id ? afterStartTarget({
@@ -476,7 +477,7 @@ function BikeCard({ card, day, today, showOwner, doNow, reasons, onOpen }: {
   const vehicle = or?.vehicles ?? a?.vehicles ?? null;
   const contact = or?.contacts ?? a?.contacts ?? null;
   const work = or?.work_description || a?.work_description || '';
-  const moto = vehicle ? [vehicle.brand, vehicle.model].filter(Boolean).join(' ') : '';
+  const moto = vehicle ? motoName(vehicle) : '';
   const when = cardWhen(card, today);
   const motive = cardMotive(card);
   const MotiveIcon = MOTIVE_ICON[motive.kind];

@@ -1,6 +1,7 @@
 /**
  * M3 — Accès données Véhicules (RLS : filtré par société).
  */
+import { motoName } from '@/lib/moto-name';
 import { vinHitsFirst } from './vehicle-pick';
 import { parseVinQuery, vinLikePattern, vinMatchesQuery } from '@/lib/vin-search';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +37,11 @@ export const VEHICLE_STATUSES: { value: VehicleStatus; tone: 'success' | 'warnin
 ];
 
 export function vehicleLabel(v: Pick<Vehicle, 'brand' | 'model' | 'vin'>): string {
+  return motoName(v) || v.vin || '—';
+}
+
+/** Marque et modèle : pour ce qui part chez le client (e-mail, message). */
+export function vehicleFullLabel(v: Pick<Vehicle, 'brand' | 'model' | 'vin'>): string {
   return [v.brand, v.model].filter(Boolean).join(' ') || v.vin || '—';
 }
 

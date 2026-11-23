@@ -7,7 +7,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listContacts, contactDisplayName, getModelInterests, type Contact } from '@/modules/contacts/api';
 import { addCommunication, sendEmailViaOutlook } from '@/modules/crm/api';
-import { vehicleLabel, type Vehicle } from '@/modules/vehicles/api';
+import { vehicleFullLabel, type Vehicle } from '@/modules/vehicles/api';
 import { tIn, fillVars, ensureLocale } from '@/lib/i18n';
 import { contactLocale } from '@/lib/i18n/client-locale';
 import { greetingName } from '@/lib/person-name';
@@ -114,7 +114,7 @@ export async function notifyInterestedContact(p: {
   const toAddress = channel === 'email' ? contact.email : contact.mobile;
   if (!toAddress) throw new Error('Coordonnée manquante pour ce canal.');
 
-  const label = vehicleLabel(vehicle);
+  const label = vehicleFullLabel(vehicle);
   // Message dans la LANGUE DU CLIENT (fiche contact, I18N004), pas celle de l'écran.
   const locale = contactLocale(contact);
   await ensureLocale(locale); // dictionnaire de la langue du client (charge a la demande, lot perf 2)

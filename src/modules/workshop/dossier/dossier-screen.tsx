@@ -7,6 +7,7 @@
  * existants (pointage, photos de réception, opérations, accord client, contrôle du temps, facture).
  * La fiche OR reste accessible (« Fiche complète ») : aucune fonction ne disparaît.
  */
+import { motoName } from '@/lib/moto-name';
 import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -127,7 +128,7 @@ function DossierHeader({ orNumber, orId, orStatus, contactId, vehicleId, mileage
   const contact = useQuery({ queryKey: ['ro-contact', contactId], enabled: !!contactId, staleTime: Infinity, queryFn: () => getContact(contactId!) });
   const vehicle = useQuery({ queryKey: ['ro-vehicle', vehicleId], enabled: !!vehicleId, staleTime: Infinity, queryFn: () => getVehicle(vehicleId!) });
   const v = vehicle.data ?? null;
-  const moto = v ? [v.brand, v.model].filter(Boolean).join(' ') : '';
+  const moto = v ? motoName(v) : '';
   return (
     <section className="rounded-md border border-border bg-card px-3 py-2.5 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
