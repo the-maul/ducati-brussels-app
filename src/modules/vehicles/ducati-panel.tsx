@@ -13,6 +13,18 @@ import type { Vehicle } from './api';
 
 const fdate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('fr-BE') : '—');
 
+type DcsEvent = {
+  id: string; kind: string | null; event_category?: string | null; service_type: string | null; reference?: string | null;
+  state: string | null; symptom?: string | null; cause?: string | null; km: number | null;
+  event_date: string | null; due_date: string | null; dealer: string | null;
+};
+// Les trois tableaux du DCS, chacun avec sa propre date.
+const EVENT_GROUPS = [
+  { kind: 'upcoming', title: 'dossier.dcsEventsUpcoming', dateLabel: 'dossier.dcsColDue' },
+  { kind: 'current', title: 'dossier.dcsEventsCurrent', dateLabel: 'dossier.dcsColCreated' },
+  { kind: 'past', title: 'dossier.dcsEventsPast', dateLabel: 'dossier.dcsColDate' },
+] as const;
+
 export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   const v = vehicle as unknown as Record<string, unknown>;
   const maint = useQuery({ queryKey: ['veh-maint', vehicle.id], queryFn: async () => (await supabase.from('vehicle_maintenance').select('*').eq('vehicle_id', vehicle.id).order('event_date', { ascending: false })).data ?? [] });
@@ -62,22 +74,34 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
       )}
 
       {(maint.data?.length ?? 0) > 0 && (
-        <div>
-          <h3 className="mb-1 text-[13px] font-bold">{t('vehicles.ducatiMaintenance')}</h3>
-          <div className="overflow-hidden rounded-md border border-border">
-            <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted"><tr>{['Type', 'État', 'Km', 'Date', 'Concession.'].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
-              <tbody>
-                {maint.data!.map((m) => (
-                  <tr key={m.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-1.5">{m.service_type ?? '—'}</td><td className="px-3 py-1.5">{m.state ?? '—'}</td>
-                    <td className="px-3 py-1.5 tabular-nums">{m.km ?? '—'}</td><td className="px-3 py-1.5 font-mono text-[12px]">{m.event_date ?? m.due_date ?? '—'}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{m.dealer ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-3">
+          <h3 className="text-[13px] font-bold">{t('vehicles.ducatiMaintenance')}</h3>
+          {EVENT_GROUPS.map((g) => {
+            const rows = (maint.data as unknown as DcsEvent[]).filter((m) => (m.kind ?? 'past') === g.kind);
+            if (!rows.length) return null;
+            return (
+              <div key={g.kind}>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t(g.title)} ({rows.length})</p>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <table className="w-full border-collapse font-data text-[13px]">
+                    <thead className="bg-muted"><tr>{[t('dossier.dcsColEvent'), t('dossier.dcsColType'), t('dossier.dcsColReference'), t('dossier.dcsColState'), t('dossier.dcsColSymptom'), t('dossier.dcsColCause'), t('dossier.dcsColKm'), t(g.dateLabel), t('dossier.dcsColDealer')].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
+                    <tbody>
+                      {rows.map((m) => (
+                        <tr key={m.id} className="border-b border-border last:border-0">
+                          <td className="px-3 py-1.5">{m.event_category ?? '—'}</td><td className="px-3 py-1.5">{m.service_type ?? '—'}</td>
+                          <td className="px-3 py-1.5 font-mono text-[12px]">{m.reference ?? '—'}</td><td className="px-3 py-1.5">{m.state ?? '—'}</td>
+                          <td className="px-3 py-1.5">{m.symptom ?? '—'}</td><td className="px-3 py-1.5">{m.cause ?? '—'}</td>
+                          <td className="px-3 py-1.5 tabular-nums">{m.km ?? '—'}</td>
+                          <td className="px-3 py-1.5 font-mono text-[12px]">{fdate(g.kind === 'upcoming' ? m.due_date : m.event_date)}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground">{m.dealer ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

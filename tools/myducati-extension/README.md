@@ -26,8 +26,8 @@ DMS, **par VIN**, sans stocker d'identifiant Ducati côté serveur.
 
 ## Limites / maintenance
 - Le portail Ducati est un Salesforce **sans API** : le scrape se fait par **libellés FR**.
-  Si Ducati renomme un libellé, l'ajuster dans `ducati.js` (un champ non trouvé est ignoré,
-  jamais bloquant).
+  Si Ducati renomme un libellé, l'ajuster dans `dcs-core.js` (lecture testée par `bun test`).
+  Un champ non trouvé reste vide ; un VIN absent ou différent de celui demandé bloque l'import.
 - La moto doit déjà exister dans le DMS (matching par VIN).
 
 ## Import du catalogue Ducati (e-catalog) — mission 06

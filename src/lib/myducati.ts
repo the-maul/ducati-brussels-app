@@ -4,25 +4,38 @@
  * et le compte client Ducati sur le propriétaire courant de la moto.
  */
 import { supabase } from '@/integrations/supabase/client';
-import { dcsWarrantyType } from '@/modules/vehicles/warranty-types';
+import {
+  buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
+  type DcsCounts, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal,
+} from '@/lib/dcs-rules';
 
-export type MyDucatiPayload = {
+export type MyDucatiPayload = DcsPayloadV2 & {
   vin: string;
   contact: Record<string, unknown>;
   vehicle: Record<string, unknown>;
   bulletins?: { bulletin_id?: string; title?: string; number?: string; published_at?: string; url?: string; pdf_base64?: string; pdf_name?: string }[];
-  maintenance_raw?: unknown;
   scraped_at?: string;
   source_url?: string;
 };
 
-/** « 6/07/2022 » → « 2022-07-06 » (ISO) ; sinon null. */
-const isoDate = (s: unknown): string | null => {
-  const m = String(s ?? '').trim().match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
-  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+// Function and columns created by migration 20261123130000: outside the generated types.
+const looseRpc = supabase as unknown as {
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
 };
-const clean = <T extends Record<string, unknown>>(o: T): Partial<T> =>
-  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== '')) as Partial<T>;
+
+/** Société active au moment de la demande : l'import n'est appliqué que sur celle-ci. */
+const DCS_REQUEST_TTL_MS = 10 * 60 * 1000;
+const dcsRequests = new Map<string, { companyId: string | null; at: number }>();
+let dcsActiveCompany: string | null = null;
+export const setDcsActiveCompany = (id: string | null) => { dcsActiveCompany = id; };
+
+/** Société de la demande en cours pour ce VIN (consommée) ; null = pas de demande connue. */
+export function takeDcsRequest(vin: string): string | null {
+  const key = vin.toUpperCase();
+  const r = dcsRequests.get(key);
+  dcsRequests.delete(key);
+  return r && Date.now() - r.at <= DCS_REQUEST_TTL_MS ? r.companyId : null;
+}
 
 /**
  * Découpe le nom combiné du portail DCS (« SÉBASTIEN NUNES ») selon la règle
@@ -72,6 +85,8 @@ const base64ToBytes = (b64: string): Uint8Array => {
 export function requestMyDucati(vin: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!vin) { resolve(false); return; }
+    const requestKey = vin.toUpperCase();
+    dcsRequests.set(requestKey, { companyId: dcsActiveCompany, at: Date.now() });
     let done = false;
     const onMsg = (ev: MessageEvent) => {
       const d = ev.data as { source?: string; action?: string } | null;
@@ -81,11 +96,14 @@ export function requestMyDucati(vin: string): Promise<boolean> {
     };
     window.addEventListener('message', onMsg);
     window.postMessage({ source: 'dms-ducati', action: 'fetch-myducati', vin }, window.location.origin);
-    setTimeout(() => { if (!done) { window.removeEventListener('message', onMsg); resolve(false); } }, 2000);
+    setTimeout(() => { if (!done) { window.removeEventListener('message', onMsg); dcsRequests.delete(requestKey); resolve(false); } }, 2000);
   });
 }
 
-export type ApplyResult = { matched: boolean; vehicleId?: string; bulletins?: number; ownerMismatch?: boolean };
+export type ApplyResult = {
+  matched: boolean; refused?: DcsRefusal; vehicleId?: string; bulletins?: number; events?: number;
+  counts?: DcsCounts; invalid?: string[]; ownerMismatch?: boolean;
+};
 
 export type BulletinPdfPayload = { number?: string; pdf_base64?: string; pdf_name?: string };
 
@@ -107,93 +125,33 @@ export async function saveBulletinPdf(companyId: string, b: BulletinPdfPayload):
   return { updated: rows.length };
 }
 
+const VEHICLE_COLUMNS = 'id, vin, model, ducati_model_year_id, engine_number, plate, color, origin, mileage, production_date, ship_date, warranty_start, warranty_end, warranty_type, warranty_state, warranty_activated_by, invoiced_to, ducati_state, ducati_usage';
+
+/**
+ * Applique un import DCS : contrôles, décision champ par champ (dcs-rules), puis écriture en une
+ * seule transaction (dcs_import_commit). Toute erreur remonte : pas de message de succès trompeur.
+ */
 export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): Promise<ApplyResult> {
-  if (!p?.vin) return { matched: false };
-  const { data: veh } = await supabase.from('vehicles').select('id, warranty_type').eq('company_id', companyId).eq('vin', p.vin).maybeSingle();
-  if (!veh) return { matched: false };
-  const vehicleId = veh.id as string;
+  const refused = checkDcsPayload(p);
+  if (refused) return { matched: false, refused };
+  const vin = String(p.read_vin).toUpperCase();
 
-  const v = p.vehicle || {};
-  // 1) Données PROPRES À DUCATI (source de vérité) → toujours mises à jour.
-  const ducatiPatch = clean({
-    ducati_state: v.ducati_state, ducati_usage: v.ducati_usage,
-    production_date: isoDate(v.production_date), ship_date: isoDate(v.ship_date), invoiced_to: v.invoiced_to,
-    warranty_start: isoDate(v.warranty_start), warranty_end: isoDate(v.warranty_end), warranty_type: dcsWarrantyType(v.warranty_type, veh.warranty_type),
-    warranty_state: v.warranty_state, warranty_activated_by: v.warranty_activated_by,
-    my_ducati_data: p as unknown as Record<string, unknown>, my_ducati_synced_at: new Date().toISOString(),
-  });
-  // 2) Champs PARTAGÉS avec d'autres sources (factures, parc) → remplis SEULEMENT si vides
-  //    côté DMS (on ne réécrit jamais une donnée déjà saisie).
-  const shared = clean({
-    engine_number: v.engine_number,
-    mileage: v.last_km ? Number(v.last_km) : undefined,
-    model: v.model, color: v.color, plate: v.plate,
-    origin: dcsOrigin(v.warranty_activated_by, v.invoiced_to),
-    first_registration_date: isoDate(v.first_registration_date),
-  }) as Record<string, unknown>;
-  const emptyOnly: Record<string, unknown> = {};
-  if (Object.keys(shared).length) {
-    const { data: cur } = await supabase.from('vehicles')
-      .select('engine_number, mileage, model, color, plate, origin, first_registration_date')
-      .eq('id', vehicleId).maybeSingle();
-    const row = (cur ?? {}) as Record<string, unknown>;
-    for (const k of Object.keys(shared)) {
-      const e = row[k];
-      if (e === null || e === undefined || e === '') emptyOnly[k] = shared[k];
-    }
-  }
-  await supabase.from('vehicles').update({ ...ducatiPatch, ...emptyOnly }).eq('id', vehicleId);
+  const { data: found, error: findError } = await supabase.from('vehicles').select(VEHICLE_COLUMNS)
+    .eq('company_id', companyId).eq('vin', vin).limit(2);
+  if (findError) throw findError;
+  if (!found?.length) return { matched: false };
+  if (found.length > 1) return { matched: false, refused: 'duplicate_vin' };
+  const current = found[0] as unknown as Record<string, unknown>;
+  const vehicleId = current.id as string;
 
-  // Bulletins : remplace l'ensemble pour cette moto, MAIS préserve les PDF déjà rapatriés
-  // (le PDF est téléchargé séparément par l'extension via saveBulletinPdf ; on ne le perd jamais
-  // au re-scrape). On reporte storage_path/url des lignes existantes (par bulletin_id/numéro).
-  const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id || b.number || b.title);
-  if (bulletins.length) {
-    const { data: prev } = await supabase.from('vehicle_bulletins')
-      .select('number, bulletin_id, storage_path, url').eq('vehicle_id', vehicleId);
-    const keep = new Map<string, { storage_path: string | null; url: string | null }>();
-    for (const r of (prev ?? []) as Array<{ number: string | null; bulletin_id: string | null; storage_path: string | null; url: string | null }>) {
-      const k = r.bulletin_id || r.number;
-      if (k) keep.set(String(k), { storage_path: r.storage_path ?? null, url: r.url ?? null });
-    }
-    await supabase.from('vehicle_bulletins').delete().eq('vehicle_id', vehicleId);
-    await supabase.from('vehicle_bulletins').insert(bulletins.map((b) => {
-      const old = keep.get(String(b.bulletin_id || b.number || ''));
-      return {
-        company_id: companyId, vehicle_id: vehicleId,
-        bulletin_id: b.bulletin_id || null, title: b.title || null, number: b.number || null,
-        published_at: isoDate(b.published_at), url: b.url || old?.url || null,
-        storage_path: old?.storage_path ?? null,        // <- PDF préservé
-      };
-    }));
-  }
+  // Versions possibles de ce VIN : le titre DCS départage, jamais de choix au hasard.
+  const { data: identity, error: identityError } = await looseRpc.rpc('vin_identify', { _vin: vin });
+  if (identityError) throw identityError;
+  const candidates = (identity as { candidates?: DcsModelCandidate[] } | null)?.candidates ?? [];
+  const model = matchDcsModel(p.header?.descriptor, p.header?.year, candidates);
 
-  // Maintenance (événements) : lignes objet { libellé colonne → valeur } → table dédiée.
-  const maint = Array.isArray(p.maintenance_raw) ? (p.maintenance_raw as Record<string, string>[]) : [];
-  if (maint.length) {
-    const pick = (r: Record<string, string>, needles: string[]) => {
-      for (const k of Object.keys(r)) { const kl = k.toLowerCase(); if (needles.some((n) => kl.includes(n)) && r[k] && r[k] !== '-') return r[k]; }
-      return null;
-    };
-    const rows = maint.map((r) => {
-      const kmRaw = pick(r, ['km/mi', 'km', 'mi/h']) || '';
-      return {
-        company_id: companyId, vehicle_id: vehicleId,
-        service_type: pick(r, ['type']), state: pick(r, ['état', 'etat']),
-        km: kmRaw ? (Number(String(kmRaw).replace(/[^\d]/g, '')) || null) : null,
-        event_date: isoDate(pick(r, ['date de', 'date'])), due_date: isoDate(pick(r, ['éché', 'eche'])),
-        dealer: pick(r, ['concess']), ducati_event_id: pick(r, ['id']),
-      };
-    }).filter((r) => r.service_type || r.km || r.dealer || r.ducati_event_id);
-    await supabase.from('vehicle_maintenance').delete().eq('vehicle_id', vehicleId);
-    if (rows.length) await supabase.from('vehicle_maintenance').insert(rows);
-  }
-
-  // Compte client Ducati → propriétaire courant de la moto.
-  let ownerMismatch = false;
+  // Propriétaire : le nom lu au DCS est comparé, jamais écrit sur une autre personne.
   const c = p.contact || {};
-  // Prénom / Nom : champs séparés si l'extension les fournit, sinon découpage du
-  // champ combiné « Nom » du portail (« SÉBASTIEN NUNES » → prénom puis nom).
   let firstName = String(c.my_ducati_first_name ?? '').trim();
   let lastName = String(c.my_ducati_last_name ?? '').trim();
   if (!firstName && !lastName) {
@@ -201,25 +159,46 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     firstName = s.first;
     lastName = s.last;
   }
-  const contactPatch = clean({
-    ducati_code: c.ducati_code, my_ducati_email: c.my_ducati_email, my_ducati_phone: c.my_ducati_phone,
-    my_ducati_first_name: firstName, my_ducati_last_name: lastName,
-    my_ducati_city: c.my_ducati_city, my_ducati_country: c.my_ducati_country,
-    my_ducati_marketing: c.my_ducati_marketing as boolean | undefined, my_ducati_profiling: c.my_ducati_profiling as boolean | undefined,
-    my_ducati_is_current_owner: c.my_ducati_is_current_owner as boolean | undefined,
-    my_ducati_synced_at: new Date().toISOString(),
-  });
-  if (Object.keys(contactPatch).length) {
-    const { data: owner } = await supabase.from('vehicle_owners').select('contact_id')
-      .eq('vehicle_id', vehicleId).eq('is_current', true).order('from_date', { ascending: false }).limit(1).maybeSingle();
-    if (owner?.contact_id) {
-      // Le propriétaire peut avoir changé : les coordonnées du DCS ne vont jamais sur un autre client.
-      const { data: fiche } = await supabase.from('contacts').select('last_name, company_name').eq('id', owner.contact_id).maybeSingle();
-      const dcsName = [firstName, lastName].filter(Boolean).join(' ');
-      if (fiche && dcsOwnerMatches(dcsName, fiche)) await supabase.from('contacts').update(contactPatch).eq('id', owner.contact_id);
-      else if (dcsName) ownerMismatch = true;
+  const dcsName = [firstName, lastName].filter(Boolean).join(' ');
+  const { data: ownerRow, error: ownerError } = await supabase.from('vehicle_owners').select('contact_id')
+    .eq('vehicle_id', vehicleId).eq('is_current', true).order('from_date', { ascending: false }).limit(1).maybeSingle();
+  if (ownerError) throw ownerError;
+  let owner: DcsOwnerCheck | null = dcsName ? { name: dcsName, currentName: null, matches: false } : null;
+  let contactId: string | null = null;
+  if (ownerRow?.contact_id && owner) {
+    const { data: fiche, error: ficheError } = await supabase.from('contacts')
+      .select('first_name, last_name, company_name').eq('id', ownerRow.contact_id).maybeSingle();
+    if (ficheError) throw ficheError;
+    if (fiche) {
+      owner = {
+        name: dcsName,
+        currentName: [fiche.first_name, fiche.last_name].filter(Boolean).join(' ') || fiche.company_name || null,
+        matches: dcsOwnerMatches(dcsName, fiche),
+      };
+      if (owner.matches) contactId = ownerRow.contact_id;
     }
   }
 
-  return { matched: true, vehicleId, bulletins: bulletins.length, ownerMismatch };
+  const plan = planDcsImport({ current, payload: p, model, owner });
+  const events = cleanDcsEvents(p.maintenance);
+  const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id).map((b) => ({
+    bulletin_id: b.bulletin_id, title: b.title || null, number: b.number || null,
+    published_at: parseDcsDate(b.published_at), url: b.url || null,
+  }));
+  // La preuve brute reste sur la moto, sans les coordonnées du client.
+  const raw: Record<string, unknown> = { ...p };
+  delete raw.contact;
+
+  const { data, error } = await looseRpc.rpc('dcs_import_commit', {
+    _company: companyId, _vehicle: vehicleId, _vin: vin,
+    _changes: plan.changes, _statuses: plan.statuses, _raw: raw,
+    _maintenance: events, _maintenance_tables: p.maintenance_tables ?? [], _bulletins: bulletins,
+    _contact: contactId, _contact_patch: contactId ? buildDcsContactPatch(c, firstName, lastName) : null,
+  });
+  if (error) throw error;
+  const saved = (data ?? {}) as { events?: number; bulletins?: number };
+  return {
+    matched: true, vehicleId, bulletins: saved.bulletins ?? 0, events: saved.events ?? 0,
+    counts: plan.counts, invalid: plan.invalid, ownerMismatch: Boolean(owner && !owner.matches),
+  };
 }

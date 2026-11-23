@@ -45,16 +45,26 @@ async function autoFetchBulletins(payload, dmsTabId) {
   if (dmsTabId) { try { chrome.tabs.update(dmsTabId, { active: true }); } catch (_) {} }
 }
 
+function withRequestedVin(payload, vin) {
+  const wanted = String(vin).toUpperCase();
+  const read = payload.read_vin ? String(payload.read_vin).toUpperCase() : null;
+  const mismatch = read && read !== wanted;
+  return { ...payload, requested_vin: wanted, read_error: mismatch ? 'vin_mismatch' : payload.read_error };
+}
+
 function relayMyDucati(payload, sender, sendResponse) {
   const tabId = sender.tab && sender.tab.id;
   const job = jobs[tabId];
   if (job) {
     delete jobs[tabId];
+    // Le VIN demandé par le DMS fait foi, pas celui que la page prétend afficher.
+    const checked = job.vin ? withRequestedVin(payload, job.vin) : payload;
     if (job.dmsTabId) {
-      chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload });
+      chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload: checked });
       chrome.tabs.update(job.dmsTabId, { active: true });
     }
-    setTimeout(() => { try { chrome.tabs.remove(tabId); } catch (_) {} }, 500);
+    // Lecture en échec (connexion à refaire, VIN inconnu) : l'onglet reste ouvert pour que l'on voie pourquoi.
+    if (!checked.read_error) setTimeout(() => { try { chrome.tabs.remove(tabId); } catch (_) {} }, 500);
     sendResponse({ delivered: true });
     return;
   }
@@ -66,7 +76,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'fetch-vin' && msg.vin) {
     const dmsTabId = sender.tab && sender.tab.id;
-    chrome.tabs.create({ url: VIN_URL(msg.vin), active: true }, (tab) => { jobs[tab.id] = { dmsTabId }; });
+    chrome.tabs.create({ url: VIN_URL(msg.vin), active: true }, (tab) => { jobs[tab.id] = { dmsTabId, vin: msg.vin }; });
     sendResponse({ started: true });
     return;
   }
@@ -75,7 +85,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const scrapeTabId = sender.tab && sender.tab.id;
     const dmsTabId = (jobs[scrapeTabId] && jobs[scrapeTabId].dmsTabId) || null;
     relayMyDucati(msg.payload, sender, sendResponse);                 // 1) données tout de suite
-    setTimeout(() => { autoFetchBulletins(msg.payload, dmsTabId).catch(() => {}); }, 1500); // 2) PDF en fond
+    if (!msg.payload || !msg.payload.read_error) setTimeout(() => { autoFetchBulletins(msg.payload, dmsTabId).catch(() => {}); }, 1500); // 2) PDF en fond
     return true;
   }
 
