@@ -67,6 +67,7 @@ import {
 } from './api';
 import { DossierActionBar, DossierNotes, DossierTasks, DossierTrail, InfoCell, NoteButtons, fmtMinutes, plannedText } from './dossier-parts';
 import { DossierLabelsLink } from './labels-link';
+import { PartPathPanel } from '@/modules/purchases/part-path-ui';
 import {
   DOSSIER_STEPS, dossierFlow, dossierPrimary, viewedStep,
   type DossierAction, type DossierFacts, type DossierFlow, type DossierSkip, type DossierStepKey,
@@ -165,8 +166,8 @@ function FlowNotice({ flow }: { flow: DossierFlow }) {
 }
 
 /** Étape « Réserver » : le RDV, le devis, les pièces et la liste de préparation. */
-function ReservePanel({ a, orId, orNumber, contactId, vehicleId, serviceCode, readOnly }: {
-  a: PlanningAppointment | null; orId: string | null; orNumber: string | null; contactId: string | null; vehicleId: string | null;
+function ReservePanel({ companyId, a, orId, orNumber, contactId, vehicleId, serviceCode, readOnly }: {
+  companyId: string; a: PlanningAppointment | null; orId: string | null; orNumber: string | null; contactId: string | null; vehicleId: string | null;
   serviceCode: string | null; readOnly: boolean;
 }) {
   const navigate = useNavigate();
@@ -199,11 +200,11 @@ function ReservePanel({ a, orId, orNumber, contactId, vehicleId, serviceCode, re
               {picking.isPending ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {t('dossier.picking')}
             </Button>
           )}
-          {/* Emplacement des étiquettes de destination (chantier C2). */}
-          <DossierLabelsLink appointmentId={a?.id ?? null} orId={orId} />
+          <DossierLabelsLink companyId={companyId} orId={orId} />
         </div>
       )}
       {(orId || a) && <ReservedPartsBlock appointmentId={orId ? null : a!.id} orId={orId} serviceCode={serviceCode} readOnly={readOnly} compactWhenEmpty />}
+      {(orId || a) && <PartPathPanel companyId={companyId} scope={orId ? 'repair_order' : 'appointment'} scopeId={orId ?? a!.id} />}
     </div>
   );
 }
@@ -281,7 +282,7 @@ function RdvDossier({ appointment: a, companyId, wanted, onStep }: StepProps & {
       <FlowNotice flow={flow} />
       <p className="text-[14px] text-muted-foreground">{t(`dossier.intro_${viewed}`)}</p>
       <DossierTasks tasks={flow.tasks[viewed]} />
-      {viewed === 'reserver' && <ReservePanel a={a} orId={null} orNumber={null} contactId={a.contact_id} vehicleId={a.vehicle_id} serviceCode={svc} readOnly={!canWrite} />}
+      {viewed === 'reserver' && <ReservePanel companyId={companyId} a={a} orId={null} orNumber={null} contactId={a.contact_id} vehicleId={a.vehicle_id} serviceCode={svc} readOnly={!canWrite} />}
       <DossierActionBar
         primary={primary} busy={busy} canWrite={canWrite} onAction={onAction} onSkip={onSkip}
         onBack={back ? () => onStep(back) : undefined}
@@ -579,7 +580,7 @@ function OrDossier({ orId, appointment, companyId, wanted, onStep }: StepProps &
       <DossierTasks tasks={flow.tasks[viewed]} />
 
       {viewed === 'reserver' && (
-        <ReservePanel a={appointment} orId={orId} orNumber={or.number} contactId={or.contact_id} vehicleId={or.vehicle_id} serviceCode={serviceCode} readOnly={closedOr || !canWrite} />
+        <ReservePanel companyId={companyId} a={appointment} orId={orId} orNumber={or.number} contactId={or.contact_id} vehicleId={or.vehicle_id} serviceCode={serviceCode} readOnly={closedOr || !canWrite} />
       )}
 
       {viewed === 'rentrer' && (

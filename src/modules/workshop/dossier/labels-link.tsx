@@ -1,8 +1,10 @@
+import { DestinationLabelsButton } from '@/modules/purchases/destination-labels';
+
 /**
- * M8 — Emplacement du lien « Étiquettes de destination » dans l'étape Réserver du dossier.
- * Les étiquettes appartiennent au chantier C2 (chemin des pièces) : il branche son lien ici.
- * Tant qu'il n'est pas livré, rien ne s'affiche.
+ * M8 / C2 — Étiquettes « pour qui » depuis l'étape Réserver du dossier.
+ * Elles portent le numéro de l'OR : avant l'entrée de la moto, on les imprime depuis la liste de préparation.
  */
-export function DossierLabelsLink(_props: { appointmentId: string | null; orId: string | null }) {
-  return null;
+export function DossierLabelsLink({ companyId, orId }: { companyId: string; orId: string | null }) {
+  if (!orId) return null;
+  return <DestinationLabelsButton companyId={companyId} kind="repair_order" id={orId} className="h-11" />;
 }
