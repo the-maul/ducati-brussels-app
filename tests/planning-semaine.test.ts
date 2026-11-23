@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { nextFreeStart, sumLoads, type DayLoad } from '../src/modules/workshop/planning/rules';
+import { withReturnedVehicle, type AppointmentDraft } from '../src/modules/workshop/planning/appointment-draft';
 
 const load = (planned: number, capacity: number): DayLoad => ({
   planned, capacity, pct: capacity > 0 ? Math.round((planned / capacity) * 10000) / 100 : null, closed: null,
@@ -34,5 +35,15 @@ describe('Premier créneau libre d\'un compagnon', () => {
   test('journée pleine ou absent : rien', () => {
     expect(nextFreeStart(day, [[540, 720], [780, 1020]])).toBeNull();
     expect(nextFreeStart([], [])).toBeNull();
+  });
+});
+
+describe('RDV retrouvé après un aller-retour', () => {
+  const draft = { contactId: 'c1', vehicleId: null, date: '2026-12-02' } as unknown as AppointmentDraft;
+  test('la moto créée prend place, le client reste', () => {
+    expect(withReturnedVehicle(draft, 'v1')).toMatchObject({ contactId: 'c1', vehicleId: 'v1', date: '2026-12-02' });
+  });
+  test('retour sans moto : la saisie ne change pas', () => {
+    expect(withReturnedVehicle(draft, null)).toBe(draft);
   });
 });

@@ -36,6 +36,7 @@ import { AppointmentDialog, type AppointmentDefaults } from './appointment-dialo
 import { ReceptionView } from './reception-view';
 import { ActivityView } from './activity-view';
 import { ActivityWeekView } from './activity-week-view';
+import { restoreAppointmentDraft, type AppointmentDraft } from './appointment-draft';
 import { AppointmentSearchDialog } from './search-dialog';
 import { PlanningSettingsView } from './settings-view';
 import { StatusIcon } from './status-icon';
@@ -53,10 +54,12 @@ const ALL = '__all__';
 const apptService = (a: PlanningAppointment): string | null =>
   (isServiceCode(a.service_code) ? a.service_code : serviceCodeForReason(a.reason_code ?? null)) ?? null;
 
-export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointmentId = null, onAppointmentOpened }: {
+export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointmentId = null, returnVehicleId = null, onAppointmentOpened }: {
   companyId: string; view: PlanningView; onView: (v: PlanningView) => void; onOpenOr: (orId: string) => void;
   /** Chantier C1 : RDV à ouvrir à l'arrivée (« Modifier le RDV » depuis le dossier moto). */
   openAppointmentId?: string | null;
+  /** Moto créée depuis la fenêtre du RDV : elle revient dans la saisie. */
+  returnVehicleId?: string | null;
   onAppointmentOpened?: () => void;
 }) {
   const { activeCompany, isAdmin, hasRole } = useAuth();
@@ -76,7 +79,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
     try { localStorage.setItem('planning-activity-scope', v); } catch { /* préférence facultative */ }
   };
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(APPOINTMENT_STATUSES.filter((s) => s !== 'annule')));
-  const [dialog, setDialog] = useState<{ appt: PlanningAppointment | null; defaults?: AppointmentDefaults } | null>(null);
+  const [dialog, setDialog] = useState<{ appt: PlanningAppointment | null; defaults?: AppointmentDefaults; draft?: AppointmentDraft | null } | null>(null);
   const [searching, setSearching] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [askTime, setAskTime] = useState<PlanningAppointment | null>(null);
@@ -146,6 +149,22 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
       onAppointmentOpened?.();
     }).catch(() => onAppointmentOpened?.());
   }, [openAppointmentId, onAppointmentOpened]);
+
+  // Retour d'un autre écran : le RDV en cours de saisie se rouvre là où on l'a laissé.
+  const draftChecked = useRef(false);
+  useEffect(() => {
+    if (draftChecked.current || openAppointmentId) return;
+    draftChecked.current = true;
+    const d = restoreAppointmentDraft(companyId, returnVehicleId);
+    if (returnVehicleId) onAppointmentOpened?.();
+    if (!d) return;
+    if (d.date) setRef(startOfDay(new Date(`${d.date}T00:00`)));
+    if (d.appointmentId) {
+      void getPlanningAppointment(d.appointmentId).then((a) => { if (a) setDialog({ appt: a, draft: d }); }).catch(() => undefined);
+      return;
+    }
+    setDialog({ appt: null, draft: d });
+  }, [companyId, returnVehicleId, openAppointmentId, onAppointmentOpened]);
 
   const toggleStatus = (st: string) => setStatusFilter((x) => { const n = new Set(x); if (n.has(st)) n.delete(st); else n.add(st); return n; });
   const views: PlanningView[] = PLANNING_VIEWS.filter((v) => (v === 'reglages' ? canSettings : v === 'prets' ? loansReady.data === true : true));
@@ -237,7 +256,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
       {view === 'reglages' && canSettings && <PlanningSettingsView companyId={companyId} base={base} onChanged={refresh} />}
 
       {dialog && (
-        <AppointmentDialog companyId={companyId} base={base} ctx={ctx} appts={period.appts} appointment={dialog.appt} defaults={dialog.defaults}
+        <AppointmentDialog companyId={companyId} base={base} ctx={ctx} appts={period.appts} appointment={dialog.appt} defaults={dialog.defaults} draft={dialog.draft ?? null}
           reservationsOn={reservationSchema.data === true} onClose={() => setDialog(null)}
           onSaved={() => { setDialog(null); refresh(); }} onOrCreated={(orId) => { setDialog(null); refresh(); onOpenOr(orId); }} />
       )}

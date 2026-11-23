@@ -35,7 +35,9 @@ import { t, pageTitle } from '@/lib/i18n';
 export const Route = createFileRoute('/_app/workshop/planning')({
   head: () => ({ meta: [{ title: pageTitle('workshopPlanning') }] }),
   // `rdv` (chantier C1) : ouvre la fenêtre de ce RDV (« Modifier le RDV » du dossier moto).
-  validateSearch: (s: Record<string, unknown>): { week?: string; view?: PlanningView; rdv?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { week?: string; view?: PlanningView; rdv?: string; vehicleId?: string } => ({
+    // Moto créée depuis la fenêtre du RDV (`retour`).
+    vehicleId: typeof s.vehicleId === 'string' && s.vehicleId ? s.vehicleId : undefined,
     week: typeof s.week === 'string' ? s.week : undefined,
     rdv: typeof s.rdv === 'string' && s.rdv ? s.rdv : undefined,
     view: typeof s.view === 'string' && (PLANNING_VIEWS as readonly string[]).includes(s.view) ? (s.view as PlanningView) : undefined,
@@ -67,6 +69,7 @@ function PlanningPage() {
         onView={(v) => navigate({ to: '/workshop/planning', search: { view: v } })}
         onOpenOr={(orId) => navigate({ to: '/workshop/dossier/$id', params: { id: orId } })}
         openAppointmentId={search.rdv ?? null}
+        returnVehicleId={search.vehicleId ?? null}
         onAppointmentOpened={() => navigate({ to: '/workshop/planning', search: { view: search.view }, replace: true })}
       />
     </>

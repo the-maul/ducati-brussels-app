@@ -42,6 +42,9 @@ import {
 import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
+import { appointmentDraftKey, type AppointmentDraft } from './appointment-draft';
+import { removeDraft, writeDraft } from '@/lib/form-draft';
+import { FormDraftBanner } from '@/components/form-draft-banner';
 import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useConfirm } from '@/components/confirm-provider';
 import { CheckPointsPanel } from '../or-base/check-points-panel';
@@ -61,13 +64,15 @@ async function currentOwner(vehicleId: string): Promise<Contact | null> {
   return id ? getContact(id).catch(() => null) : null;
 }
 
-export function AppointmentDialog({ companyId, base, ctx, appts, appointment, defaults, reservationsOn, onClose, onSaved, onOrCreated }: {
+export function AppointmentDialog({ companyId, base, ctx, appts, appointment, defaults, draft = null, reservationsOn, onClose, onSaved, onOrCreated }: {
   companyId: string;
   base: ReturnType<typeof usePlanningBase>;
   ctx: DayContext;
   appts: LoadAppointment[];
   appointment: PlanningAppointment | null;
   defaults?: AppointmentDefaults;
+  /** Saisie retrouvée après un aller-retour vers un autre écran. */
+  draft?: AppointmentDraft | null;
   reservationsOn: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -75,33 +80,33 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
 }) {
   const a = appointment;
   const start0 = a ? new Date(a.starts_at) : defaults?.startsAt ?? atMinutes(new Date(), timeToMinutes(base.settings.day_start) ?? 540);
-  const [status, setStatus] = useState(a?.status ?? 'prevu');
-  const [unassigned, setUnassigned] = useState(a ? a.unassigned : !!defaults?.unassigned);
-  const [mechanicId, setMechanicId] = useState<string>(a?.mechanic_id ?? defaults?.mechanicId ?? '');
-  const [type, setType] = useState<string>(a?.appointment_type ?? '');
-  const [date, setDate] = useState(localYmd(start0));
-  const [time, setTime] = useState(`${String(start0.getHours()).padStart(2, '0')}:${String(start0.getMinutes()).padStart(2, '0')}`);
+  const [status, setStatus] = useState(draft?.status ?? a?.status ?? 'prevu');
+  const [unassigned, setUnassigned] = useState(draft ? draft.unassigned : a ? a.unassigned : !!defaults?.unassigned);
+  const [mechanicId, setMechanicId] = useState<string>(draft?.mechanicId ?? a?.mechanic_id ?? defaults?.mechanicId ?? '');
+  const [type, setType] = useState<string>(draft?.type ?? a?.appointment_type ?? '');
+  const [date, setDate] = useState(draft?.date ?? localYmd(start0));
+  const [time, setTime] = useState(draft?.time ?? `${String(start0.getHours()).padStart(2, '0')}:${String(start0.getMinutes()).padStart(2, '0')}`);
   const pm = a?.planned_minutes ?? null;
-  const [hours, setHours] = useState(pm ? String(Math.floor(pm / 60)) : '');
-  const [mins, setMins] = useState(pm ? String(pm % 60) : '');
+  const [hours, setHours] = useState(draft?.hours ?? (pm ? String(Math.floor(pm / 60)) : ''));
+  const [mins, setMins] = useState(draft?.mins ?? (pm ? String(pm % 60) : ''));
   const [contact, setContact] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<VehiclePickRow | null>(null);
   const confirm = useConfirm();
   // Un nouvel essai après une erreur reprend le même RDV : jamais de doublon, ni de 2e moto de prêt.
-  const savedId = useRef<string | null>(a?.id ?? null);
+  const savedId = useRef<string | null>(draft?.appointmentId ?? a?.id ?? null);
   const loanSaved = useRef(false);
   // La moto choisie amène son propriétaire actuel si le client n'est pas encore renseigné.
   const pickVehicle = (v: VehiclePickRow) => {
     setVehicle(v);
     if (!contact) void currentOwner(v.id).then((owner) => { if (owner) setContact((cur) => cur ?? owner); });
   };
-  const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(a?.check_points));
+  const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(draft?.checkPoints ?? a?.check_points));
   const hadCheckPoints = Object.keys(normalizeCheckPoints(a?.check_points)).length > 0;
-  const [mileage, setMileage] = useState(a?.mileage != null ? String(a.mileage) : '');
-  const [work, setWork] = useState(a?.work_description ?? '');
-  const [notes, setNotes] = useState(a?.reception_notes ?? '');
-  const [notify, setNotify] = useState(a?.notify_sms ?? false);
-  const [reasonCode, setReasonCode] = useState(a?.reason_code ?? '');
+  const [mileage, setMileage] = useState(draft?.mileage ?? (a?.mileage != null ? String(a.mileage) : ''));
+  const [work, setWork] = useState(draft?.work ?? a?.work_description ?? '');
+  const [notes, setNotes] = useState(draft?.notes ?? a?.reception_notes ?? '');
+  const [notify, setNotify] = useState(draft?.notify ?? a?.notify_sms ?? false);
+  const [reasonCode, setReasonCode] = useState(draft?.reasonCode ?? a?.reason_code ?? '');
   const [loanerId, setLoanerId] = useState('');
   const [loanEnd, setLoanEnd] = useState(localYmd(start0));
   const [created, setCreated] = useState<{ id: string; startsAt: string } | null>(null);
@@ -109,15 +114,36 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const [moreOpen, setMoreOpen] = useState(() => !!a && (!!a.work_description || !!a.reception_notes || !!a.appointment_type || !!a.notify_sms || a.status !== 'prevu'));
 
   // Rechargement du client / de la moto d'un RDV existant.
+  const contactToLoad = draft ? draft.contactId : a?.contact_id ?? null;
+  const vehicleToLoad = draft ? draft.vehicleId : a?.vehicle_id ?? null;
   useEffect(() => {
-    if (a?.contact_id) void getContact(a.contact_id).then((c) => c && setContact(c));
+    if (contactToLoad) void getContact(contactToLoad).then((c) => c && setContact(c));
     // RDV enregistré sans client : on propose le propriétaire actuel de la moto.
-    else if (a?.vehicle_id) void currentOwner(a.vehicle_id).then((owner) => { if (owner) setContact((cur) => cur ?? owner); });
-    if (a?.vehicle_id) {
-      void supabase.from('vehicles').select('id, vin, plate, brand, model, model_year').eq('id', a.vehicle_id).maybeSingle()
+    else if (vehicleToLoad) void currentOwner(vehicleToLoad).then((owner) => { if (owner) setContact((cur) => cur ?? owner); });
+    if (vehicleToLoad) {
+      void supabase.from('vehicles').select('id, vin, plate, brand, model, model_year').eq('id', vehicleToLoad).maybeSingle()
         .then(({ data }) => data && setVehicle(data as VehiclePickRow));
     }
-  }, [a?.contact_id, a?.vehicle_id]);
+  }, [contactToLoad, vehicleToLoad]);
+
+  // Saisie gardée dans l'onglet : un aller-retour vers un autre écran ne perd plus le RDV.
+  const draftKey = appointmentDraftKey(companyId);
+  const draftStopped = useRef(false);
+  const draftBaseline = useRef<string | null>(null);
+  const snapshot: AppointmentDraft = {
+    appointmentId: savedId.current, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, status, unassigned,
+    mechanicId, type, date, time, hours, mins, mileage, work, notes, notify, reasonCode, checkPoints,
+  };
+  const snapshotJson = JSON.stringify(snapshot);
+  const draftReady = (!contactToLoad || !!contact) && (!vehicleToLoad || !!vehicle);
+  useEffect(() => {
+    if (!draftReady || draftStopped.current) return;
+    if (draftBaseline.current === null) draftBaseline.current = draft ? '' : snapshotJson;
+    if (snapshotJson !== draftBaseline.current) writeDraft(draftKey, JSON.parse(snapshotJson));
+    else removeDraft(draftKey);
+  }, [snapshotJson, draftReady, draftKey, draft]);
+  const discardDraft = () => { draftStopped.current = true; removeDraft(draftKey); };
+  const closeDialog = () => { discardDraft(); onClose(); };
 
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
   const loansReady = useQuery({ queryKey: ['loans-schema'], queryFn: loansSchemaReady, staleTime: Infinity });
@@ -203,6 +229,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
     },
     onSuccess: ({ id, orId, fixKm }) => {
       if (fixKm) { toast.info(t('dossier.rdvFixKm')); return; }
+      discardDraft();
       toast.success(t('feedback.saved'));
       if (orId) { onOrCreated(orId); return; }
       if (!a && vehicle?.id && isMaintenanceReasonCode(reasonCode)) { setCreated({ id, startsAt: startsAt.toISOString() }); return; }
@@ -225,7 +252,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
       return true;
     },
     meta: { success: false },
-    onSuccess: (done) => { if (done) { toast.success(t('dossier.rdvCancelled')); onSaved(); } },
+    onSuccess: (done) => { if (done) { discardDraft(); toast.success(t('dossier.rdvCancelled')); onSaved(); } },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
   });
   // Entretien du RDV (pieces reservees) : motif choisi, sinon celui deja enregistre.
@@ -264,7 +291,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog open onOpenChange={(o) => { if (!o) closeDialog(); }}>
       <DialogContent className={`max-h-[92vh] overflow-y-auto ${vehicle ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <DialogHeader>
           <DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle>
@@ -274,6 +301,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
             </Link>
           )}
         </DialogHeader>
+        {draft && <FormDraftBanner onDiscard={closeDialog} />}
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
@@ -396,7 +424,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
               {cancelRdv.isPending ? <Loader2 className="animate-spin" /> : <CalendarX />} {t('dossier.rdvCancel')}
             </Button>
           )}
-          <Button variant="outline" className="pointer-coarse:h-11" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button variant="outline" className="pointer-coarse:h-11" onClick={closeDialog}>{t('action.cancel')}</Button>
           <Button variant="outline" className="pointer-coarse:h-11" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
           {!a?.or_id && a?.status !== 'annule' && (
             <Button className="pointer-coarse:h-11" onClick={() => save.mutate(true)} disabled={save.isPending || unassigned} title={unassigned ? t('planningG8.orNeedsSlot') : undefined}>
