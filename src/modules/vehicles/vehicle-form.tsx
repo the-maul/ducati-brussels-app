@@ -398,17 +398,6 @@ export function VehicleForm({
     </Field>
   );
 
-  // Les données utiles en permanence, en haut de la fiche.
-  const essentials = (
-    <Section title={t('motoClient.secEssential')}>
-      {D('first_registration_date', t('vehicles.firstRegistration'))}
-      {D('warranty_end', t('vehicles.warrantyEnd'))}
-      {T('warranty_type', t('vehicles.warrantyType'))}
-      {N('mileage', t('vehicles.mileage'))}
-      {N('model_year', t('vehicles.modelYear'))}
-    </Section>
-  );
-
   return (
     <form onSubmit={submit} className="space-y-6">
       {client && (
@@ -424,8 +413,6 @@ export function VehicleForm({
           <p className="mt-2 text-[12px] text-muted-foreground">{t('motoClient.clientModeHint')}</p>
         </div>
       )}
-
-      {initial && essentials}
 
       <Section title={t('vehicles.secId')}>
         <div className="col-span-full space-y-2 rounded-md border border-dashed border-border p-3">
@@ -477,6 +464,12 @@ export function VehicleForm({
             </p>
           )}
         </Field>
+        {/* Utiles en permanence : en tête de l'identification, à côté du VIN. */}
+        {D('first_registration_date', t('vehicles.firstRegistration'))}
+        {N('mileage', t('vehicles.mileage'))}
+        {D('warranty_end', t('vehicles.warrantyEnd'))}
+        {T('warranty_type', t('vehicles.warrantyType'))}
+        {N('model_year', t('vehicles.modelYear'))}
         <div className="col-span-full">
           <VinIdentifyPanel
             vin={vin.normalized} values={vinValues} onApply={applyVin}
@@ -536,8 +529,6 @@ export function VehicleForm({
           <Check label={t('vehicles.papers100hp')} checked={f.papers_100hp === true} onChange={(v) => set('papers_100hp', v)} />
         </div>
       </Section>
-
-      {!initial && essentials}
 
       <Section title={t('vehicles.secInfo')}>
         {T('gps_tracker_id', t('vehicles.gpsTracker'))}
