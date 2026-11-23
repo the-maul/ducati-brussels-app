@@ -1,3 +1,4 @@
+import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,6 +54,12 @@ function EditVehicle() {
   const [posterOpen, setPosterOpen] = useState(false);
 
   const { data: vehicle, isLoading } = useQuery({ queryKey: ['vehicle', vehicleId], queryFn: () => getVehicle(vehicleId) });
+  // Champs vides complétés depuis nos factures et le catalogue (enregistrés à la prochaine sauvegarde).
+  const fillQ = useQuery({
+    queryKey: ['vehicle-fill', vehicleId],
+    queryFn: () => loadVehicleFill(vehicle as NonNullable<typeof vehicle>),
+    enabled: !!vehicle, staleTime: Infinity, gcTime: 0,
+  });
   const { data: owners } = useQuery({ queryKey: ['vehicle-owners', vehicleId], queryFn: () => listOwners(vehicleId) });
   const { data: docs } = useQuery({ queryKey: ['vehicle-docs', vehicleId], queryFn: () => listVehicleDocuments(vehicleId) });
 
@@ -149,15 +156,18 @@ function EditVehicle() {
               <VehiclePartiesPanel key={vehicle.id} companyId={activeCompanyId} vehicle={vehicle} currentOwnerId={currentOwnerId} />
             </Card>
           </div>
-          <VehicleForm
-            key={vehicle.my_ducati_synced_at ?? vehicle.id}
-            initial={vehicle}
-            companyId={activeCompanyId}
-            status={m.status}
-            error={error}
-            onSubmit={(p) => { setError(null); m.mutate(p); }}
-            onCancel={() => navigate({ to: '/vehicles' })}
-          />
+          {fillQ.isFetched && (
+            <VehicleForm
+              key={vehicle.my_ducati_synced_at ?? vehicle.id}
+              initial={fillQ.data?.vehicle ?? vehicle}
+              catalogFilled={fillQ.data?.filled}
+              companyId={activeCompanyId}
+              status={m.status}
+              error={error}
+              onSubmit={(p) => { setError(null); m.mutate(p); }}
+              onCancel={() => navigate({ to: '/vehicles' })}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="atelier" className="mt-4 space-y-6">

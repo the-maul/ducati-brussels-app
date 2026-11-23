@@ -256,7 +256,7 @@ export const fr = {
     // sections
     secId: 'Identification',
     secCarac: 'Caractéristiques',
-    secInfo: 'Informations complémentaires',
+    secInfo: 'Informations spécifiques',
     secCommercial: 'Suivi commercial',
     secOwners: 'Propriétaires',
     secDocuments: 'Factures & documents',
@@ -5814,6 +5814,9 @@ export const fr = {
     vinAttachFromStock: "Elle vient du parc ({status}). Elle sera liée au client, mais reste en stock tant qu'aucune vente n'est facturée.",
     vinAttachNoOwner: "Elle n'a pas de propriétaire actuel.",
     vinFinish: "Choisissez une moto dans la liste ou saisissez le n° de châssis complet, sans *.",
+    secEssential: "L'essentiel",
+    caracHint: "Standard pour ce modèle : préremplies depuis le catalogue et nos factures, à vérifier.",
+    otherValue: "Autre valeur…",
     readNoCredit: "Lecture automatique indisponible : le crédit du service IA est épuisé. Votre photo n'est pas en cause. Prévenez l'administrateur ou saisissez à la main.",
     readErr: 'Lecture impossible. Réessayez avec une photo plus nette, ou saisissez à la main.',
     readNotConfigured: 'Lecture automatique non disponible (fonction serveur ou clé Claude absente).',

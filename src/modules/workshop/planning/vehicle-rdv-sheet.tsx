@@ -8,6 +8,7 @@ import { Link } from '@tanstack/react-router';
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fillVars, t } from '@/lib/i18n';
+import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { sheetMissingCount, vehicleSheetGroups, VEHICLE_SHEET_COLUMNS, type VehicleSheetRow } from './vehicle-sheet';
 
 const loose = supabase as unknown as {
@@ -20,7 +21,9 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
     queryFn: async () => {
       const { data, error } = await loose.from('vehicles').select(VEHICLE_SHEET_COLUMNS).eq('id', vehicleId).maybeSingle();
       if (error) throw new Error(error.message);
-      return (data as VehicleSheetRow | null) ?? null;
+      if (!data) return null;
+      // Comme la fiche moto : les champs vides viennent de nos factures et du catalogue.
+      return (await loadVehicleFill(data as VehicleSheetRow)).vehicle;
     },
     staleTime: 0,
     refetchOnWindowFocus: true,

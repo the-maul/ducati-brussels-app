@@ -245,7 +245,7 @@ export const en: DictionaryShape = {
     // sections
     secId: 'Identification',
     secCarac: 'Specifications',
-    secInfo: 'Additional information',
+    secInfo: 'Specific information',
     secCommercial: 'Sales follow-up',
     secOwners: 'Owners',
     secDocuments: 'Invoices & documents',
@@ -5796,6 +5796,9 @@ export const en: DictionaryShape = {
     vinAttachFromStock: "It comes from the fleet ({status}). It will be linked to the customer but stays in stock until a sale is invoiced.",
     vinAttachNoOwner: "It has no current owner.",
     vinFinish: "Choose a bike from the list or enter the full VIN, without *.",
+    secEssential: "Key details",
+    caracHint: "Standard for this model: prefilled from the catalogue and our invoices, please check.",
+    otherValue: "Other value…",
     readNoCredit: "Automatic reading unavailable: the AI service credit has run out. Your photo is not the problem. Tell the administrator or enter the details by hand.",
     readErr: 'Reading failed. Try again with a sharper photo, or enter the details by hand.',
     readNotConfigured: 'Automatic reading not available (server function or Claude key missing).',

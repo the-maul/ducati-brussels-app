@@ -245,7 +245,7 @@ export const nl: DictionaryShape = {
     // sections
     secId: 'Identificatie',
     secCarac: 'Kenmerken',
-    secInfo: 'Aanvullende informatie',
+    secInfo: 'Specifieke informatie',
     secCommercial: 'Commerciële opvolging',
     secOwners: 'Eigenaars',
     secDocuments: 'Facturen & documenten',
@@ -5796,6 +5796,9 @@ export const nl: DictionaryShape = {
     vinAttachFromStock: "Hij komt uit het park ({status}). Hij wordt aan de klant gekoppeld, maar blijft in stock tot een verkoop is gefactureerd.",
     vinAttachNoOwner: "Hij heeft geen huidige eigenaar.",
     vinFinish: "Kies een motor in de lijst of vul het volledige chassisnummer in, zonder *.",
+    secEssential: "Belangrijkste gegevens",
+    caracHint: "Standaard voor dit model: vooraf ingevuld uit de catalogus en onze facturen, na te kijken.",
+    otherValue: "Andere waarde…",
     readNoCredit: "Automatisch lezen niet beschikbaar: het AI-tegoed is op. Uw foto is niet de oorzaak. Verwittig de beheerder of vul handmatig in.",
     readErr: 'Lezen onmogelijk. Probeer opnieuw met een scherpere foto, of vul handmatig in.',
     readNotConfigured: 'Automatisch lezen niet beschikbaar (serverfunctie of Claude-sleutel ontbreekt).',

@@ -245,7 +245,7 @@ export const it: DictionaryShape = {
     // sections
     secId: 'Identificazione',
     secCarac: 'Caratteristiche',
-    secInfo: 'Informazioni aggiuntive',
+    secInfo: 'Informazioni specifiche',
     secCommercial: 'Seguito commerciale',
     secOwners: 'Proprietari',
     secDocuments: 'Fatture & documenti',
@@ -5796,6 +5796,9 @@ export const it: DictionaryShape = {
     vinAttachFromStock: "Viene dal parco ({status}). Sarà collegata al cliente, ma resta a magazzino finché una vendita non è fatturata.",
     vinAttachNoOwner: "Non ha un proprietario attuale.",
     vinFinish: "Scegliere una moto dall'elenco o inserire il telaio completo, senza *.",
+    secEssential: "Dati essenziali",
+    caracHint: "Standard per questo modello: precompilate da catalogo e fatture, da verificare.",
+    otherValue: "Altro valore…",
     readNoCredit: "Lettura automatica non disponibile: il credito del servizio IA è esaurito. La foto non è il problema. Avvisare l'amministratore o inserire a mano.",
     readErr: 'Lettura impossibile. Riprovi con una foto più nitida, oppure inserisca a mano.',
     readNotConfigured: 'Lettura automatica non disponibile (funzione server o chiave Claude assente).',

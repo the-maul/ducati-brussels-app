@@ -5,7 +5,7 @@
  * pas comme « à compléter ».
  */
 export const VEHICLE_SHEET_COLUMNS = [
-  'id', 'vin', 'reference', 'brand', 'model', 'plate', 'engine_number', 'origin', 'key_number', 'gps_tracker_id', 'pin_tracker',
+  'id', 'ducati_model_year_id', 'vin', 'reference', 'brand', 'model', 'plate', 'engine_number', 'origin', 'key_number', 'gps_tracker_id', 'pin_tracker',
   'displacement', 'power_cv', 'is_restricted', 'energy', 'antipollution', 'color', 'category', 'cylinders',
   'first_registration_date', 'mileage', 'last_service_km', 'tpms_av', 'tpms_ar', 'warranty_end', 'model_year', 'exposition_code',
 ].join(', ');
@@ -50,8 +50,6 @@ export function vehicleSheetGroups(v: VehicleSheetRow, words: { yes: string; no:
         f('engine_number', 'vehicles.engineNumber', text(v.engine_number)),
         f('origin', 'vehicles.origin', text(v.origin)),
         f('key_number', 'vehicles.keyNumber', text(v.key_number)),
-        f('gps_tracker_id', 'vehicles.gpsTracker', text(v.gps_tracker_id), true),
-        f('pin_tracker', 'vehicles.pinTracker', text(v.pin_tracker), true),
       ],
     },
     {
@@ -77,6 +75,8 @@ export function vehicleSheetGroups(v: VehicleSheetRow, words: { yes: string; no:
         f('tpms_ar', 'vehicles.tpmsAr', text(v.tpms_ar)),
         f('warranty_end', 'vehicles.warrantyEnd', day(v.warranty_end)),
         f('model_year', 'vehicles.modelYear', text(v.model_year)),
+        f('gps_tracker_id', 'vehicles.gpsTracker', text(v.gps_tracker_id), true),
+        f('pin_tracker', 'vehicles.pinTracker', text(v.pin_tracker), true),
         f('exposition_code', 'vehicles.expositionCode', text(v.exposition_code), true),
       ],
     },

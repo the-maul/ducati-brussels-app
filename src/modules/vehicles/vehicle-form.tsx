@@ -43,6 +43,8 @@ import {
 import { applyCgReading } from './carte-grise-apply';
 import { VinIdentifyPanel, type VinValues } from './vin-identify-panel';
 import { VinSuggestions } from './vin-suggestions';
+import { SpecSelect } from './spec-select';
+import { COLOR_OPTIONS, ENERGY_OPTIONS, fillEmptyVehicleFields, loadCatalogSpec, loadSpecOptions } from './catalog-specs';
 import { isDucatiFullVin, type VinSuggestKey } from '@/lib/vin-identify';
 
 /** Champs de la fiche remplis par la reconnaissance du VIN (clé métier → champ). */
@@ -136,7 +138,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
 }
 
 export function VehicleForm({
-  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching, clientScanPath,
+  initial, companyId, status, error, onSubmit, onCancel, client, prefill, onAttachExisting, attaching, clientScanPath, catalogFilled,
 }: {
   initial: Vehicle | null;
   companyId: string;
@@ -153,6 +155,8 @@ export function VehicleForm({
   attaching?: boolean;
   /** Carte 8 : carte grise déposée par le client dans son espace (chemin GED), lisible d'un clic. */
   clientScanPath?: string | null;
+  /** Champs complétés à l'ouverture depuis le catalogue ou nos factures (surlignés). */
+  catalogFilled?: string[];
 }) {
   const isClient = !!client;
   const [f, setF] = useState<F>(() => fromVehicle(initial, isClient, prefill));
@@ -175,7 +179,7 @@ export function VehicleForm({
   const cgInput = useRef<HTMLInputElement>(null);
 
   // Mission 06 carte 4 : champs remplis d'après le VIN (surlignés tant qu'on n'y touche pas).
-  const [vinFilled, setVinFilled] = useState<Set<string>>(() => new Set());
+  const [vinFilled, setVinFilled] = useState<Set<string>>(() => new Set(catalogFilled ?? []));
   const set = (k: string, v: string | boolean) => {
     setF((p) => ({ ...p, [k]: v }));
     setVinFilled((s) => { if (!s.has(k)) return s; const n = new Set(s); n.delete(k); return n; });
@@ -319,6 +323,26 @@ export function VehicleForm({
     }).catch(() => { /* infos de factures facultatives */ });
   }, [vin.normalized, vinChanged]);
 
+  // Modèle choisi ou reconnu : ses caractéristiques remplissent les champs encore vides.
+  const specOptions = useQuery({ queryKey: ['vehicle-spec-options'], queryFn: loadSpecOptions, staleTime: 3_600_000 });
+  const modelYearId = String(f.ducati_model_year_id ?? '');
+  useEffect(() => {
+    if (!modelYearId || modelYearId === String(initial?.ducati_model_year_id ?? '')) return;
+    let stop = false;
+    loadCatalogSpec(modelYearId).then((spec) => {
+      if (stop || !spec) return;
+      const r = fillEmptyVehicleFields(fRef.current as Record<string, unknown>, null, spec);
+      if (!r.filled.length) return;
+      setF((p) => {
+        const n = { ...p };
+        for (const k of r.filled) if (!String(p[k] ?? '').trim()) n[k] = String(r.vehicle[k]);
+        return n;
+      });
+      markVinFilled(r.filled);
+    }).catch(() => { /* catalogue facultatif */ });
+    return () => { stop = true; };
+  }, [modelYearId]);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
@@ -362,11 +386,29 @@ export function VehicleForm({
     </Field>
   );
 
+  const C = (k: string, label: string, options: readonly string[], numeric = false) => (
+    <Field label={label} code={CARTE_GRISE_CODES[k]}>
+      <SpecSelect value={String(f[k] ?? '')} options={options} onChange={(v) => set(k, v)} className={hl(k)} numeric={numeric} />
+      {cgHint(k)}
+    </Field>
+  );
+
   const stockDays = daysInStock(f.entry_date as string, f.sold_date as string);
   const notesField = (
     <Field label={t('vehicles.notes')} wide>
       <Textarea value={f.notes as string} onChange={(e) => set('notes', e.target.value)} rows={2} />
     </Field>
+  );
+
+  // Les données utiles en permanence, en haut de la fiche.
+  const essentials = (
+    <Section title={t('motoClient.secEssential')}>
+      {D('first_registration_date', t('vehicles.firstRegistration'))}
+      {D('warranty_end', t('vehicles.warrantyEnd'))}
+      {T('warranty_type', t('vehicles.warrantyType'))}
+      {N('mileage', t('vehicles.mileage'))}
+      {N('model_year', t('vehicles.modelYear'))}
+    </Section>
   );
 
   return (
@@ -384,6 +426,8 @@ export function VehicleForm({
           <p className="mt-2 text-[12px] text-muted-foreground">{t('motoClient.clientModeHint')}</p>
         </div>
       )}
+
+      {initial && essentials}
 
       <Section title={t('vehicles.secId')}>
         <div className="col-span-full space-y-2 rounded-md border border-dashed border-border p-3">
@@ -495,47 +539,23 @@ export function VehicleForm({
         </div>
       </Section>
 
-      <Section title={t('vehicles.secCarac')}>
-        {N('displacement', t('vehicles.displacement'), '0.1')}
-        {N('power_kw', t('vehicles.powerKw'), '0.01')}
-        {N('power_cv', t('vehicles.powerCv'), '0.01')}
-        {T('energy', t('vehicles.energy'))}
-        {S('antipollution', t('vehicles.antipollution'), ANTIPOLLUTION_OPTIONS)}
-        {T('color', t('vehicles.color'))}
-        {S('category', t('vehicles.category'), VEHICLE_FAMILIES)}
-        {S('cylinders', t('vehicles.cylinders'), CYLINDER_OPTIONS)}
+      {!initial && essentials}
+
+      <Section title={t('vehicles.secInfo')}>
         {T('gps_tracker_id', t('vehicles.gpsTracker'))}
         {T('pin_tracker', t('vehicles.pinTracker'))}
         {T('tpms_av', t('vehicles.tpmsAv'))}
         {T('tpms_ar', t('vehicles.tpmsAr'))}
-        <div className="col-span-full">
-          <Check label={t('vehicles.restricted')} checked={f.is_restricted === true} onChange={(v) => set('is_restricted', v)} />
-        </div>
-      </Section>
-
-      <Section title={t('vehicles.secInfo')}>
-        {D('first_registration_date', t('vehicles.firstRegistration'))}
         {D('next_inspection_date', t('vehicles.nextInspection'))}
-        {N('mileage', t('vehicles.mileage'))}
-        <Field label={t('vehicles.mileageQualif')}>
-          <Select value={f.mileage_qualif as string} onValueChange={(v) => set('mileage_qualif', v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="reel">{t('vehicles.mileage_reel')}</SelectItem>
-              <SelectItem value="nc">{t('vehicles.mileage_nc')}</SelectItem>
-              <SelectItem value="ng">{t('vehicles.mileage_ng')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        {N('model_year', t('vehicles.modelYear'))}
         {T('key_number', t('vehicles.keyNumber'))}
         {T('key_number2', t('vehicles.keyNumber2'))}
         {T('antitheft_code', t('vehicles.antitheftCode'))}
         {T('police_book_number', t('vehicles.policeBook'))}
-        {T('warranty_type', t('vehicles.warrantyType'))}
         {N('warranty_months', t('parcG8.warrantyMonths'))}
-        {D('warranty_end', t('vehicles.warrantyEnd'))}
         {T('exposition_code', t('vehicles.expositionCode'))}
+        <div className="col-span-full">
+          <Check label={t('vehicles.restricted')} checked={f.is_restricted === true} onChange={(v) => set('is_restricted', v)} />
+        </div>
         {isClient && notesField}
       </Section>
 
@@ -566,6 +586,18 @@ export function VehicleForm({
           {notesField}
         </Section>
       )}
+
+      <Section title={t('vehicles.secCarac')}>
+        <p className="col-span-full text-[12px] text-muted-foreground">{t('motoClient.caracHint')}</p>
+        {C('displacement', t('vehicles.displacement'), specOptions.data?.displacement ?? [], true)}
+        {C('power_kw', t('vehicles.powerKw'), specOptions.data?.power_kw ?? [], true)}
+        {C('power_cv', t('vehicles.powerCv'), specOptions.data?.power_cv ?? [], true)}
+        {C('energy', t('vehicles.energy'), ENERGY_OPTIONS)}
+        {C('antipollution', t('vehicles.antipollution'), ANTIPOLLUTION_OPTIONS)}
+        {C('color', t('vehicles.color'), COLOR_OPTIONS)}
+        {C('category', t('vehicles.category'), VEHICLE_FAMILIES)}
+        {C('cylinders', t('vehicles.cylinders'), CYLINDER_OPTIONS, true)}
+      </Section>
 
       {(localError || error) && (
         <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{localError || error}</p>
