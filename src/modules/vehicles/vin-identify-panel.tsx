@@ -6,6 +6,7 @@
  * de confiance (couleur + icône + libellé), champs VIDES remplis automatiquement (jamais une saisie
  * écrasée : « D'après le VIN : … — Utiliser »), liste des versions possibles à choisir, lien vers
  * les vues éclatées et le plan d'entretien du modèle-année (côté équipe).
+ * Only a certain match fills the model on its own: otherwise the user clicks a candidate.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -16,8 +17,8 @@ import { t } from '@/lib/i18n';
 import { fill } from '@/modules/catalog/format';
 import { normalizeVin } from '@/lib/vin';
 import {
-  isFullVin, vinCandidateLabel, vinNeedsChoice, vinSuggestedFields, ducatiCommercialName,
-  type VinConfidence, type VinIdentifyResult, type VinSuggestKey,
+  isFullVin, vinCandidateLabel, vinIsCertain, vinNeedsChoice, vinPreselect, vinSuggestedFields, ducatiCommercialName,
+  type VinConfidence, type VinIdentifyResult, type VinPreselectHints, type VinSuggestKey,
 } from '@/lib/vin-identify';
 import { useVinIdentify } from './vin-identify-api';
 
@@ -35,7 +36,7 @@ const same = (a: string, b: string) => {
 };
 
 export function VinIdentifyPanel({
-  vin, values, onApply, modelYearId, onModelYearChange, autoApply = true, variant = 'staff', onAutoFilled,
+  vin, values, onApply, modelYearId, onModelYearChange, autoApply = true, variant = 'staff', onAutoFilled, hints,
 }: {
   vin: string;
   /** Valeurs actuelles des champs du formulaire (clés métier). */
@@ -50,6 +51,8 @@ export function VinIdentifyPanel({
   variant?: 'staff' | 'portal';
   /** Champs remplis automatiquement (pour les surligner). */
   onAutoFilled?: (keys: VinSuggestKey[]) => void;
+  /** Registration certificate / DCS title: highlights a candidate, never validates it. */
+  hints?: VinPreselectHints;
 }) {
   const v = normalizeVin(vin);
   const q = useVinIdentify(v);
@@ -79,10 +82,16 @@ export function VinIdentifyPanel({
       if (c === '' || (ours != null && c === ours && !same(c, val))) patch[k] = val;
     }
     const keys = Object.keys(patch) as VinSuggestKey[];
-    if (!keys.length) return;
-    auto.current = { ...auto.current, ...patch };
+    // Candidate unticked: what we wrote for it goes away, a manual entry stays.
+    const stale = (Object.entries(auto.current) as [VinSuggestKey, string][])
+      .filter(([k, ours]) => !(k in sug) && (cur[k] ?? '').trim() === ours.trim())
+      .map(([k]) => k);
+    if (!keys.length && !stale.length) return;
+    const nextAuto = { ...auto.current, ...patch };
+    for (const k of stale) { delete nextAuto[k]; patch[k] = ''; }
+    auto.current = nextAuto;
     onApply(patch);
-    onAutoFilled?.(keys);
+    if (keys.length) onAutoFilled?.(keys);
   };
 
   // Remplissage automatique quand le résultat (ou la version choisie) change.
@@ -131,11 +140,16 @@ export function VinIdentifyPanel({
   const missing = (Object.entries(sug) as [VinSuggestKey, string][]).filter(([k]) => !(values[k] ?? '').trim()).length;
 
   const chosen = chosenInList ? r.candidates.find((c) => c.model_year_id === chosenId)! : null;
-  const shownId = chosen?.model_year_id ?? (r.confidence === 'unique' || r.confidence === 'probable' ? r.model_year_id : null);
+  const shownId = chosen?.model_year_id ?? (vinIsCertain(r) ? r.model_year_id : null);
   const shown = chosen ?? (shownId ? r : null);
+  // Not confirmed yet: the heading only states what every candidate shares.
+  const sharedSupermodel = r.candidates.length > 0 && new Set(r.candidates.map((c) => c.supermodel)).size === 1
+    ? r.candidates[0].supermodel : null;
+  const sharedFamily = r.candidates.length > 0 ? sug.family ?? null : r.family ?? null;
   const title = shown
     ? [ducatiCommercialName(shown.family ?? null, shown.supermodel ?? null, shown.model ?? null), shown.year].filter(Boolean).join(' ')
-    : [r.family, r.supermodel && r.supermodel !== r.family ? r.supermodel : null, r.vin_year].filter(Boolean).join(' ');
+    : [sharedFamily, sharedSupermodel && sharedSupermodel.toUpperCase() !== sharedFamily?.toUpperCase() ? sharedSupermodel : null,
+        r.candidates.length > 0 ? null : r.vin_year].filter(Boolean).join(' ');
   const specs = [
     sug.displacement ? `${sug.displacement} cm³` : null,
     sug.power_cv ? `${sug.power_cv} CV` : null,
@@ -147,8 +161,13 @@ export function VinIdentifyPanel({
   // Plans d'entretien : connus pour le modèle-année reconnu (les autres versions : fiche moto).
   const plans = shownId && shownId === r.model_year_id ? r.maintenance_plans : null;
   const showChoice = vinNeedsChoice(r);
-  const confLabel = chosen && chosen.model_year_id !== r.model_year_id ? t('vinId.chosen') : t(`vinId.conf_${r.confidence}`);
-  const confTone: StatusTone = chosen && chosen.model_year_id !== r.model_year_id ? 'info' : TONE[r.confidence];
+  const userChose = !!chosen && (r.confidence !== 'unique' || chosen.model_year_id !== r.model_year_id);
+  const confLabel = userChose ? t('vinId.chosen') : t(`vinId.conf_${r.confidence}`);
+  const confTone: StatusTone = userChose ? 'info' : TONE[r.confidence];
+  const preselected = !chosen ? vinPreselect(r, hints) : null;
+  const choices = preselected
+    ? [...r.candidates].sort((a, b) => Number(b.model_year_id === preselected.id) - Number(a.model_year_id === preselected.id))
+    : r.candidates;
 
   const choose = (id: string | null) => {
     if (onModelYearChange) onModelYearChange(id); else setPicked(id);
@@ -165,23 +184,31 @@ export function VinIdentifyPanel({
       {specs && <p className="text-[12px] text-muted-foreground tabular-nums">{specs}</p>}
       {staff && <p className="text-[12px] text-muted-foreground">
         {r.confidence === 'unique' ? t('vinId.hintUnique')
-          : r.confidence === 'probable' && !chosen ? t('vinId.hintProbable')
           : r.confidence === 'famille' ? t('vinId.hintFamily')
           : r.confidence === 'inconnu' ? t('vinId.hintUnknown') : null}
       </p>}
 
       {showChoice && (
         <div className="space-y-1.5">
-          <p className="text-[12px] font-medium">{staff ? t('vinId.hintChoose') : t('vinId.portalChoose')}</p>
+          <p className="text-[12px] font-medium">
+            {!staff ? t('vinId.portalChoose') : r.confidence === 'probable' ? t('vinId.hintProbable') : t('vinId.hintChoose')}
+          </p>
+          {!chosen && <p className="text-[11px] text-muted-foreground">{t('dossier.vinCheckNotFilled')}</p>}
           <ul className="flex flex-col gap-1">
-            {r.candidates.map((c) => {
+            {choices.map((c) => {
               const active = c.model_year_id === chosenId;
+              const proposed = preselected?.id === c.model_year_id;
               return (
                 <li key={c.model_year_id}>
                   <button type="button" onClick={() => choose(active ? null : c.model_year_id)}
-                    className={`flex w-full flex-wrap items-center gap-2 rounded-md border px-2.5 py-1.5 text-left ${active ? 'border-info bg-info-bg' : 'border-border hover:bg-muted/50'}`}>
-                    {active ? <Check className="size-4 text-info" /> : <span className="size-4" />}
+                    className={`flex w-full flex-wrap items-center gap-2 rounded-md border px-2.5 py-1.5 text-left ${active ? 'border-info bg-info-bg' : proposed ? 'border-dashed border-info hover:bg-muted/50' : 'border-border hover:bg-muted/50'}`}>
+                    {active ? <Check className="size-4 text-info" /> : proposed ? <Wand2 className="size-4 text-info" /> : <span className="size-4" />}
                     <span className="font-medium">{vinCandidateLabel(c)}</span>
+                    {proposed && (
+                      <span className="text-[11px] font-medium text-info">
+                        {t(preselected.source === 'carte_grise' ? 'dossier.vinCheckFromCard' : 'dossier.vinCheckFromDcs')}
+                      </span>
+                    )}
                     {staff && c.samples > 0 && (
                       <span className="text-[11px] text-muted-foreground tabular-nums">{fill(t('vinId.seen'), { n: c.samples })}</span>
                     )}
@@ -195,12 +222,6 @@ export function VinIdentifyPanel({
             <p className="text-[11px] text-muted-foreground">{fill(t('vinId.more'), { n: (r.candidates_total ?? 0) - r.candidates.length })}</p>
           )}
         </div>
-      )}
-
-      {onModelYearChange && r.confidence === 'probable' && !showChoice && r.model_year_id && modelYearId !== r.model_year_id && (
-        <Button type="button" size="sm" variant="outline" onClick={() => choose(r.model_year_id)}>
-          <Check /> {t('vinId.confirm')}
-        </Button>
       )}
 
       {conflicts.length > 0 && (

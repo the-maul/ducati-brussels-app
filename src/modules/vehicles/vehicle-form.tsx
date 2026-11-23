@@ -202,6 +202,7 @@ export function VehicleForm({
   const [cgConf, setCgConf] = useState<Partial<Record<CgField, CgConfidence>>>({});
   const [cgConflicts, setCgConflicts] = useState<Partial<Record<CgField, string>>>({});
   const [cgInfo, setCgInfo] = useState<Pick<CgReading, 'holder' | 'unmapped'> | null>(null);
+  const [cgModel, setCgModel] = useState<string | null>(null);
   const [cgMsg, setCgMsg] = useState<{ tone: 'info' | 'warning' | 'danger'; text: string } | null>(null);
   const [cgBusy, setCgBusy] = useState(false);
   const [scan, setScan] = useState<CgScan | null>(null);
@@ -223,6 +224,7 @@ export function VehicleForm({
     setCgConf(Object.fromEntries([...filled, ...Object.keys(conflicts)].map((k) => [k, r.confidence[k as CgField] ?? 'low'])));
     setCgConflicts(conflicts);
     setCgInfo({ holder: r.holder, unmapped: r.unmapped });
+    setCgModel(r.values.model ?? null);
     const n = filled.length;
     setCgMsg(n + Object.keys(conflicts).length === 0
       ? { tone: 'warning', text: t('motoClient.readNothing') }
@@ -321,6 +323,10 @@ export function VehicleForm({
     });
   };
   const markVinFilled = (keys: string[]) => setVinFilled((s) => new Set([...s, ...keys]));
+  // Sources that can point at the right candidate (highlight only, the user still clicks).
+  const dcsVehicle = (initial as { my_ducati_data?: { vehicle?: { title?: unknown; model?: unknown } } | null } | null)?.my_ducati_data?.vehicle;
+  const dcsTitle = dcsVehicle?.title ?? dcsVehicle?.model;
+  const vinHints = { carteGrise: cgModel, dcsTitle: typeof dcsTitle === 'string' ? dcsTitle : null };
 
   // VIN Ducati saisi maintenant : infos de nos factures pour ce VIN exact (couleur, n° moteur…).
   const factsFor = useRef<string | null>(null);
@@ -564,6 +570,7 @@ export function VehicleForm({
             onModelYearChange={(id) => set('ducati_model_year_id', id ?? '')}
             autoApply={!initial || vinChanged}
             onAutoFilled={(keys) => markVinFilled(keys.map((k) => VIN_FIELD[k]))}
+            hints={vinHints}
           />
         </div>
         {!initial && duplicates.length === 0 && (

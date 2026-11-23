@@ -5,8 +5,8 @@
 import { describe, expect, test } from 'bun:test';
 import {
   buildVinPatterns, ducatiCommercialName, identifyVin, isDucatiFullVin, isFullVin, mergeVinSuggestions,
-  normalizeEuro, rankPatternCandidates, vinBrand, vinCandidateLabel, vinNeedsChoice, vinPatternKey,
-  vinSerial, vinSuggestedFields, vinYear, UNIQUE_MIN_SAMPLES,
+  normalizeEuro, rankPatternCandidates, vinBrand, vinCandidateLabel, vinIsCertain, vinNeedsChoice, vinPatternKey,
+  vinPreselect, vinSerial, vinSuggestedFields, vinYear, UNIQUE_MIN_SAMPLES,
   type CatalogYear, type VinIdentifyResult,
 } from '../src/lib/vin-identify';
 
@@ -26,7 +26,7 @@ describe('décodage', () => {
   test('année du 10e caractère, cycle de 30 ans', () => {
     expect(vinYear('G', 2026)).toBe(2016);
     expect(vinYear('T', 2026)).toBe(2026);
-    expect(vinYear('V', 2026)).toBe(2027); // millésime suivant vendu dès l'automne
+    expect(vinYear('V', 2026)).toBe(1997); // sans indice ni mois : pas d'année future
     expect(vinYear('1', 2026)).toBe(2001); // pas 2031
     expect(vinYear('9', 2026)).toBe(2009);
     expect(vinYear('Y', 2026)).toBe(2000);
@@ -34,6 +34,28 @@ describe('décodage', () => {
     expect(vinYear('A', 2040)).toBe(2040);
     expect(vinYear('I', 2026)).toBeNull();
     expect(vinYear('', 2026)).toBeNull();
+  });
+
+  test('année : le catalogue connu du motif choisit le cycle (1997 ou 2027)', () => {
+    const autumn = new Date('2026-11-23T12:00:00Z');
+    expect(vinYear('V', autumn, [1998, 1999])).toBe(1997);
+    expect(vinYear('V', autumn, [2026, 2027])).toBe(2027);
+    expect(vinYear('W', new Date('2027-01-01T12:00:00Z'), [1998])).toBe(1998);
+    expect(vinYear('W', new Date('2027-09-01T12:00:00Z'), [2027])).toBe(2028);
+  });
+
+  test('année sans indice : borne sur la date du jour, passage à 2027', () => {
+    // Avant juillet, le code de l'année suivante ne peut pas être une moto neuve.
+    expect(vinYear('V', new Date('2026-06-30T12:00:00Z'))).toBe(1997);
+    // À partir de juillet, 1997 et 2027 sont possibles : on ne devine pas.
+    expect(vinYear('V', new Date('2026-07-01T12:00:00Z'))).toBeNull();
+    // Dès 2027, V est l'année en cours, W reste 1998 jusqu'en juillet.
+    expect(vinYear('V', new Date('2027-01-01T12:00:00Z'))).toBe(2027);
+    expect(vinYear('W', new Date('2027-01-01T12:00:00Z'))).toBe(1998);
+    expect(vinYear('W', new Date('2027-07-01T12:00:00Z'))).toBeNull();
+    // Minuit à Bruxelles, encore le 31/12 en UTC.
+    expect(vinYear('V', new Date('2026-12-31T23:30:00Z'))).toBe(2027);
+    expect(vinYear('T', new Date('2026-11-23T12:00:00Z'))).toBe(2026);
   });
 
   test('clé de motif = caractères 1 à 9 + année ; n° de série', () => {
@@ -79,6 +101,11 @@ describe('choix du candidat', () => {
 
   test('probable : un seul modèle-année peu vu', () => {
     expect(rankPatternCandidates(vin('K100AA', 'G', 1), [row('a', 2)]).confidence).toBe('probable');
+  });
+
+  test('probable : un seul modèle-année, vu souvent, mais n° de série hors de sa plage', () => {
+    const r = rankPatternCandidates(vin('K100AA', 'G', 5000), [row('a', 20, 100, 199)]);
+    expect(r.confidence).toBe('probable');
   });
 
   test('probable : le n° de série ne tombe que dans la plage d\'un candidat, qui passe en tête', () => {
@@ -193,11 +220,48 @@ describe('écran : nom commercial et remplissage', () => {
 
   test('plusieurs versions : seulement ce qui est commun, pas de version devinée', () => {
     const s = vinSuggestedFields(result({}));
-    expect(s).toEqual({
-      brand: 'Ducati', family: 'SCRAMBLER', model: 'SCRAMBLER 800', model_year: '2016',
-      displacement: '803', power_cv: '75', cylinders: '2', antipollution: 'EURO 4',
-    });
+    expect(s).toEqual({ brand: 'Ducati', family: 'SCRAMBLER', displacement: '803' });
     expect(vinNeedsChoice(result({}))).toBe(true);
+  });
+
+  test('probable : rien du modèle sans clic, même avec un seul candidat', () => {
+    const one = result({}).candidates.slice(0, 1);
+    const r = result({ confidence: 'probable', model_year_id: 'icon16', model: 'ICON', candidates: one, candidates_total: 1 });
+    expect(vinIsCertain(r)).toBe(false);
+    expect(vinNeedsChoice(r)).toBe(true);
+    expect(vinSuggestedFields(r)).toEqual({ brand: 'Ducati', family: 'SCRAMBLER', displacement: '803' });
+    expect(vinSuggestedFields(r, 'icon16').model).toBe('SCRAMBLER 800 ICON');
+  });
+
+  test('commun aux candidats : une valeur différente, absente ou une liste coupée ne remplit rien', () => {
+    const [a, b] = result({}).candidates;
+    expect(vinSuggestedFields(result({ candidates: [a, { ...b, displacement_cc: 937 }] })).displacement).toBeUndefined();
+    expect(vinSuggestedFields(result({ candidates: [a, { ...b, displacement_cc: null }] })).displacement).toBeUndefined();
+    expect(vinSuggestedFields(result({ candidates: [a, { ...b, family: 'MONSTER' }] })).family).toBeUndefined();
+    expect(vinSuggestedFields(result({ candidates: [a, b], candidates_total: 14 })).displacement).toBeUndefined();
+  });
+
+  test('présélection : la carte grise désigne une version, sans la valider', () => {
+    const r = result({});
+    expect(vinPreselect(r, { carteGrise: 'Scrambler Full Throttle' })).toEqual({ id: 'ft16', source: 'carte_grise' });
+    // Le titre DCS sert quand la carte grise ne tranche pas.
+    expect(vinPreselect(r, { carteGrise: 'SCRAMBLER', dcsTitle: 'SCRAMBLER ICON' })).toEqual({ id: 'icon16', source: 'dcs' });
+    expect(vinPreselect(r, { carteGrise: 'SCRAMBLER' })).toBeNull();
+    expect(vinPreselect(r, {})).toBeNull();
+    // Présélectionner ne remplit rien.
+    expect(vinSuggestedFields(r).model).toBeUndefined();
+  });
+
+  test('présélection : deux candidats désignés à égalité, pas de choix', () => {
+    const [a, b] = result({}).candidates;
+    const r = result({ candidates: [a, { ...b, model_year_id: 'icon17', model: 'ICON', year: 2017 }] });
+    expect(vinPreselect(r, { carteGrise: 'SCRAMBLER ICON' })).toBeNull();
+  });
+
+  test('présélection : la version la plus précise l\'emporte', () => {
+    const [a, b] = result({}).candidates;
+    const r = result({ candidates: [{ ...a, model: 'ICON' }, { ...b, model: 'ICON DARK' }] });
+    expect(vinPreselect(r, { carteGrise: 'SCRAMBLER ICON DARK' })?.id).toBe('ft16');
   });
 
   test('version choisie : son nom et ses caractéristiques', () => {
