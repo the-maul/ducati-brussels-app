@@ -23,6 +23,7 @@ import { depotFilFr } from './depot-fil';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
 import { partPathFr, partsFlowFr } from './chemin-pieces';
+import { pointsVrFr } from './points-vr';
 import { designTransverseFr } from './design-transverse';
 
 export const fr = {
@@ -9475,6 +9476,7 @@ export const fr = {
   production: productionFr,
   // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
   partPath: partPathFr,
+  pointsVr: pointsVrFr,
   partsFlow: partsFlowFr,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseFr,

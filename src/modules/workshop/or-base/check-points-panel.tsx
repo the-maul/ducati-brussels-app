@@ -1,5 +1,5 @@
 /**
- * M8 — Les 30 points G8 « Elements a verifier (V) ou a remplacer (R) » sur l'OR (18/11/2026).
+ * M8 — Les points G8 « Elements a verifier (V) ou a remplacer (R) » sur l'OR (18/11/2026).
  * Un clic sur V ou R coche le point ; recliquer sur la meme marque la retire. Imprime sur l'OR
  * (points coches) et sur la fiche de travail (grille complete).
  */
@@ -10,9 +10,9 @@ import { cn } from '@/lib/utils';
 import { t, fillVars } from '@/lib/i18n';
 import { CHECK_POINTS, countCheckPoints, toggleCheckPoint, type CheckMark, type CheckPoints } from './rules';
 
-export function CheckPointsPanel({ value, onChange, disabled = false }: { value: CheckPoints; onChange: (v: CheckPoints) => void; disabled?: boolean }) {
+export function CheckPointsPanel({ value, onChange, disabled = false, defaultOpen = false }: { value: CheckPoints; onChange: (v: CheckPoints) => void; disabled?: boolean; defaultOpen?: boolean }) {
   const counts = countCheckPoints(value);
-  const [open, setOpen] = useState(counts.v + counts.r > 0);
+  const [open, setOpen] = useState(defaultOpen || counts.v + counts.r > 0);
   const mark = (code: (typeof CHECK_POINTS)[number], m: CheckMark) => onChange(toggleCheckPoint(value, code, m));
   return (
     <div className="rounded-md border border-border bg-card">
@@ -31,7 +31,7 @@ export function CheckPointsPanel({ value, onChange, disabled = false }: { value:
                 <div key={code} className="flex items-center gap-2 py-0.5">
                   <MarkButton active={cur === 'V'} disabled={disabled} onClick={() => mark(code, 'V')} title={t('orBase.checkVHint')}>{t('orBase.checkV')}</MarkButton>
                   <MarkButton active={cur === 'R'} disabled={disabled} onClick={() => mark(code, 'R')} title={t('orBase.checkRHint')}>{t('orBase.checkR')}</MarkButton>
-                  <span className={cn('text-[13px]', cur ? 'font-medium text-foreground' : 'text-muted-foreground')}>{t(`orBase.check.${code}`)}</span>
+                  <span className={cn('text-[13px]', cur ? 'font-medium text-foreground' : 'text-muted-foreground')}>{t(`pointsVr.${code}`)}</span>
                 </div>
               );
             })}

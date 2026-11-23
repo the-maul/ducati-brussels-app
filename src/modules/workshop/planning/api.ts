@@ -9,6 +9,7 @@
  * planning (mecanicien en texte libre).
  * Regles pures : `rules.ts`.
  */
+import { normalizeCheckPoints, type CheckPoints } from '../or-base/rules';
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
 import { createRepairOrder } from '../write-api';
@@ -215,7 +216,7 @@ export type PlanningAppointment = {
   mileage: number | null; workshop: string | null; starts_at: string; planned_minutes: number | null;
   work_description: string | null; reception_notes: string | null; loaner_vehicle: string | null;
   status: string; notify_sms: boolean; source: string | null; requested_slot: string | null;
-  reason_code?: string | null; service_code?: string | null;
+  reason_code?: string | null; service_code?: string | null; check_points?: unknown;
   contacts?: { first_name: string | null; last_name: string | null; company_name: string | null; type?: string | null } | null;
   vehicles?: { brand: string | null; model: string | null; plate: string | null; vin: string | null } | null;
 };
@@ -245,6 +246,8 @@ export type AppointmentInput = {
   appointmentType: string | null; startsAt: string; plannedMinutes: number | null; contactId: string | null;
   vehicleId: string | null; mileage: number | null; workDescription: string | null; receptionNotes: string | null;
   notifySms: boolean; reasonCode: string | null;
+  /** Demandes V / R. Absent : la colonne n'est pas écrite. */
+  checkPoints?: CheckPoints;
 };
 function apptRow(p: AppointmentInput): Record<string, unknown> {
   return {
@@ -253,6 +256,7 @@ function apptRow(p: AppointmentInput): Record<string, unknown> {
     planned_minutes: p.plannedMinutes, contact_id: p.contactId, vehicle_id: p.vehicleId, mileage: p.mileage,
     work_description: p.workDescription, reception_notes: p.receptionNotes, notify_sms: p.notifySms,
     ...(p.reasonCode ? { reason_code: p.reasonCode } : {}),
+    ...(p.checkPoints ? { check_points: p.checkPoints } : {}),
   };
 }
 export async function createPlanningAppointment(p: AppointmentInput): Promise<string> {
@@ -304,11 +308,14 @@ export async function createOrFromPlanningAppointment(a: PlanningAppointment, me
   const kitLines = svc && a.vehicle_id
     ? await serviceKitOrLines({ companyId: a.company_id, vehicleId: a.vehicle_id, serviceCode: svc, contactId: a.contact_id }).catch(() => [])
     : [];
+  // Les demandes V / R cochées au rendez-vous arrivent sur l'OR.
+  const checkPoints = normalizeCheckPoints(a.check_points);
   const orId = await createRepairOrder({
     companyId: a.company_id, contactId: a.contact_id, vehicleId: a.vehicle_id, mileage: a.mileage ?? null,
     operator: m?.name ?? a.mechanic_name ?? null, repairType: null, workDescription: a.work_description ?? null,
     receptionNotes: a.reception_notes ?? null, status: OR_STATUS_FROM_APPOINTMENT, warrantyStatus: 'aucune',
     reasonCode: a.reason_code ?? undefined, lines: kitLines, ...withOperatorId,
+    ...(Object.keys(checkPoints).length ? { checkPoints } : {}),
     ...(mileageAckPrevious != null ? { mileageAckPrevious } : {}),
   });
   unwrap(await loose.from('workshop_appointments').update({ or_id: orId, status: APPOINTMENT_STATUS_WITH_OR }).eq('id', a.id));

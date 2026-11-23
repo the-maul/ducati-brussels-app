@@ -23,6 +23,7 @@ import { depotFilNl } from './depot-fil';
 import { purchasePrintNl } from './purchase-print';
 import { productionNl } from './production';
 import { partPathNl, partsFlowNl } from './chemin-pieces';
+import { pointsVrNl } from './points-vr';
 import { designTransverseNl } from './design-transverse';
 
 export const nl: DictionaryShape = {
@@ -9454,6 +9455,7 @@ export const nl: DictionaryShape = {
   production: productionNl,
   // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
   partPath: partPathNl,
+  pointsVr: pointsVrNl,
   partsFlow: partsFlowNl,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseNl,

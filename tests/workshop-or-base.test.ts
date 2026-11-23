@@ -48,10 +48,12 @@ describe('statuts G8', () => {
   });
 });
 
-describe('30 points a verifier (V) / a remplacer (R)', () => {
-  test('30 points, sans doublon', () => {
-    expect(CHECK_POINTS.length).toBe(30);
-    expect(new Set(CHECK_POINTS).size).toBe(30);
+describe('Points G8 a verifier (V) / a remplacer (R)', () => {
+  test('les 26 points de G8, sans doublon', () => {
+    expect(CHECK_POINTS.length).toBe(26);
+    expect(new Set(CHECK_POINTS).size).toBe(26);
+    expect(CHECK_POINTS[0]).toBe('tension_chaine');
+    expect(CHECK_POINTS[25]).toBe('lavage_complet');
   });
   test('relecture : codes connus et marques V / R seulement', () => {
     expect(normalizeCheckPoints({ huile_moteur: 'V', liquide_frein: 'R', bidon: 'V', bougie: 'X' })).toEqual({ huile_moteur: 'V', liquide_frein: 'R' });

@@ -175,7 +175,7 @@ export async function buildOrPdf(data: OrPdfData, opts: OrPrintOptions, L: OrPdf
     y += 7 + rows * LH + 2;
   };
 
-  /** Fiche : la grille complete des 30 points, cases V / R (pre-cochees), deux colonnes. */
+  /** Fiche : la grille complete des points, cases V / R (pre-cochees), deux colonnes. */
   const checkGrid = () => {
     const rows = Math.ceil(CHECK_POINTS.length / 2);
     const rh = 5;

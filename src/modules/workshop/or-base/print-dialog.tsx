@@ -39,7 +39,7 @@ import { CHECK_POINTS, OR_PRINT_FORMATS, OR_PRINT_MODES, normalizeCheckPoints, p
 function labelsFor(locale: Locale): OrPdfLabels {
   const k = (key: string) => tIn(locale, `orBase.pdf.${key}`);
   const checkLabels: Record<string, string> = {};
-  for (const c of CHECK_POINTS) checkLabels[c] = tIn(locale, `orBase.check.${c}`);
+  for (const c of CHECK_POINTS) checkLabels[c] = tIn(locale, `pointsVr.${c}`);
   return {
     orTitle: k('orTitle'), ficheTitle: k('ficheTitle'), number: k('number'), receivedAt: k('receivedAt'), promisedAt: k('promisedAt'),
     operator: k('operator'), client: k('client'), vehicle: k('vehicle'), brandModel: k('brandModel'), reference: k('reference'),

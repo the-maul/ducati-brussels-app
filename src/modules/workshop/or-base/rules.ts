@@ -64,12 +64,13 @@ export function canNotifyReady(p: { status: string | null | undefined; hasContac
 // Les 30 points G8 « Elements a verifier (V) ou a remplacer (R) »
 // ---------------------------------------------------------------------------------------------
 
+// Liste et ordre de G8, transmis par Domenico le 23/11/2026 (aucun OR n'avait encore de marque).
 export const CHECK_POINTS = [
-  'bougie', 'jeu_soupapes', 'filtre_air', 'jeu_poignee_gaz', 'vitesse_ralenti', 'synchro_carbu',
-  'circuit_alimentation', 'huile_moteur', 'pompe_huile', 'filtre_huile', 'huile_bv', 'liquide_refroidissement',
-  'filtre_carburant', 'liquide_embrayage', 'usure_chaine', 'chaine_transmission', 'tension_chaine', 'ecrous_fixations',
-  'durites_frein', 'plaquettes_av', 'plaquettes_ar', 'liquide_frein', 'direction', 'huile_fourche',
-  'usure_pneus', 'pivot_bras', 'graissage', 'decalaminage_pot', 'eclairage', 'lavage',
+  'tension_chaine', 'chaine_transmission', 'usure_pneus', 'eclairage', 'graissage', 'huile_moteur',
+  'liquide_frein', 'liquide_embrayage', 'huile_fourche', 'liquide_refroidissement', 'cable_embrayage',
+  'filtre_carburant', 'filtre_air', 'bougie', 'jeu_soupapes', 'courroies_distribution', 'plaquettes_av',
+  'plaquettes_ar', 'durites_frein', 'ecrous_fixations', 'direction', 'pivot_bras', 'embrayage', 'serrages',
+  'lavage_doux', 'lavage_complet',
 ] as const;
 export type CheckPointCode = (typeof CHECK_POINTS)[number];
 export type CheckMark = 'V' | 'R';

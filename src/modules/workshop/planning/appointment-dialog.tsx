@@ -42,6 +42,8 @@ import {
 import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
+import { CheckPointsPanel } from '../or-base/check-points-panel';
+import { normalizeCheckPoints, type CheckPoints } from '../or-base/rules';
 import { listLoanerVehicles, createLoan, listLoansForAppointment, loansSchemaReady } from '../loans/api';
 import { checkPeriod } from '../loans/rules';
 
@@ -74,6 +76,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const [mins, setMins] = useState(pm ? String(pm % 60) : '');
   const [contact, setContact] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<VehiclePickRow | null>(null);
+  const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(a?.check_points));
+  const hadCheckPoints = Object.keys(normalizeCheckPoints(a?.check_points)).length > 0;
   const [mileage, setMileage] = useState(a?.mileage != null ? String(a.mileage) : '');
   const [work, setWork] = useState(a?.work_description ?? '');
   const [notes, setNotes] = useState(a?.reception_notes ?? '');
@@ -129,6 +133,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
       appointmentType: type || null, startsAt: startsAt.toISOString(), plannedMinutes: planned, contactId: contact?.id ?? null,
       vehicleId: vehicle?.id ?? null, mileage: km === null || Number.isNaN(km) ? null : km, workDescription: work || null,
       receptionNotes: notes || null, notifySms: notify, reasonCode: reasonCode || null,
+      checkPoints: !a?.or_id && (hadCheckPoints || Object.keys(checkPoints).length > 0) ? checkPoints : undefined,
     };
   };
 
@@ -154,7 +159,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           ...(a ?? ({} as PlanningAppointment)), id, company_id: companyId, contact_id: p.contactId, vehicle_id: p.vehicleId,
           or_id: null, mechanic_id: p.mechanicId, mechanic_name: p.mechanicName, unassigned: p.unassigned, appointment_type: p.appointmentType,
           mileage: p.mileage, starts_at: p.startsAt, planned_minutes: p.plannedMinutes, work_description: p.workDescription,
-          reception_notes: p.receptionNotes, status: p.status, notify_sms: p.notifySms, reason_code: p.reasonCode,
+          reception_notes: p.receptionNotes, status: p.status, notify_sms: p.notifySms, reason_code: p.reasonCode, check_points: checkPoints,
         } as PlanningAppointment;
         orId = await createOrFromPlanningAppointment(full, base.mechanics);
       }
@@ -236,6 +241,10 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           </Field>
           <Field label={unassigned ? t('planningG8.wishedDate') : t('workshop.rdvDate')}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label={t('workshop.rdvTime')}><Input type="time" step={base.settings.slot_minutes * 60} value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+
+          {!a?.or_id && (reasonCode || Object.keys(checkPoints).length > 0) && (
+            <div className="sm:col-span-3"><CheckPointsPanel value={checkPoints} onChange={setCheckPoints} defaultOpen /></div>
+          )}
 
           <Field label={t('planningG8.mechanic')}>
             <Select value={unassigned ? NONE : mechanicId || NONE} onValueChange={(v) => setMechanicId(v === NONE ? '' : v)} disabled={unassigned}>
