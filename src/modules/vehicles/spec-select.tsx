@@ -34,7 +34,11 @@ export function SpecSelect({ value, options, onChange, className, numeric = fals
   }
   const all = [...new Set([...(shown ? [shown] : []), ...options])];
   return (
-    <Select value={shown || undefined} onValueChange={(v) => { if (v === OTHER) setTyping(true); else onChange(v === NONE ? '' : v); }}>
+    <Select value={shown || undefined} onValueChange={(v) => {
+      // Valeur remplie à l'instant (VIN, carte grise) pas encore dans la liste : la liste renvoie '' et l'effacerait.
+      if (v === '') return;
+      if (v === OTHER) setTyping(true); else onChange(v === NONE ? '' : v);
+    }}>
       <SelectTrigger className={className}><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
         {clearable && shown && <SelectItem value={NONE}>—</SelectItem>}

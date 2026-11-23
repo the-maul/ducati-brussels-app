@@ -318,7 +318,7 @@ export function VehicleForm({
   const applyVin = (patch: VinValues) => {
     setF((p) => {
       const n = { ...p };
-      for (const [k, val] of Object.entries(patch) as [VinSuggestKey, string][]) n[VIN_FIELD[k]] = val;
+      for (const [k, val] of Object.entries(patch) as [VinSuggestKey, string][]) n[VIN_FIELD[k]] = k === 'brand' ? val.toUpperCase() : val;
       return n;
     });
   };
