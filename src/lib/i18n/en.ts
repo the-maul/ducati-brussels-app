@@ -17,6 +17,7 @@ import { decisionsQ57Q60En } from './decisions-q57-q60';
 import { dashboardCaEn } from './dashboard-ca';
 import { decisionsQ63Q67En } from './decisions-q63-q67';
 import { vpG8En } from './vp-g8';
+import { clotureCaisseEn } from './cloture-caisse';
 import { purchasePrintEn } from './purchase-print';
 import { productionEn } from './production';
 import { designTransverseEn } from './design-transverse';
@@ -9440,6 +9441,7 @@ export const en: DictionaryShape = {
   ...decisionsQ63Q67En,
   // Decisions client VP1 a VP14 (20/11/2026, tout comme G8).
   vpG8: vpG8En,
+  clotureCaisse: clotureCaisseEn,
   g8a: g8aEn,
   sms: smsEn,
   production: productionEn,

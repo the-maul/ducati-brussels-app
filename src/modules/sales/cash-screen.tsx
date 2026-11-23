@@ -26,9 +26,12 @@ import {
   frozenZ, archiveZPdf, type CashSession,
 } from './cash-api';
 import { listPaymentMethods } from './write-api';
-import { getDrawerBalance, listMovementTypes, addTypedMovement } from './cash-deposit-api';
+import { getDrawerBalance, listMovementTypes, addTypedMovement, listDepositCandidates } from './cash-deposit-api';
 import { CashCountGrid, countTotal } from './cash-count';
 import { expectedCash, cashVariance, varianceReasonMissing } from './cash-rules';
+import { closeOrderTrail, depositCashOut, depositProgress, drawerChangeSinceCount, methodsToCheck, type CloseOrderStep } from './cash-close-order';
+import { CashDepositsScreen } from './cash-deposits-screen';
+import { StepTrail } from './step-trail';
 import type { ZReport } from './z-report';
 import { buildZPdf, openPdfBytes } from './z-report-pdf';
 import { t, fillVars } from '@/lib/i18n';
@@ -40,7 +43,7 @@ import { ZReportView } from './z-report-view';
 const eur = formatEur;
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
-export function CashScreen({ companyId }: { companyId: string }) {
+export function CashScreen({ companyId, companyName }: { companyId: string; companyName: string }) {
   const { data: session, isLoading } = useQuery({ queryKey: ['cash-session', companyId], queryFn: () => getOpenSession(companyId) });
   const { data: sessions } = useQuery({ queryKey: ['cash-sessions', companyId], queryFn: () => listSessions(companyId) });
 
@@ -48,7 +51,7 @@ export function CashScreen({ companyId }: { companyId: string }) {
 
   return (
     <div className="space-y-6">
-      {session ? <OpenSession companyId={companyId} session={session} /> : <OpenForm companyId={companyId} />}
+      {session ? <OpenSession companyId={companyId} companyName={companyName} session={session} /> : <OpenForm companyId={companyId} />}
       {sessions && sessions.length > 0 && <PastSessions sessions={sessions} />}
     </div>
   );
@@ -90,7 +93,7 @@ function OpenForm({ companyId }: { companyId: string }) {
 }
 
 /* ---------------- Session ouverte ---------------- */
-function OpenSession({ companyId, session }: { companyId: string; session: CashSession }) {
+function OpenSession({ companyId, companyName, session }: { companyId: string; companyName: string; session: CashSession }) {
   const qc = useQueryClient();
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
   // Borne haute recalculée à chaque lecture : figée au montage, un mouvement saisi ensuite (sortie
@@ -128,7 +131,7 @@ function OpenSession({ companyId, session }: { companyId: string; session: CashS
 
       {z && <ZPanel z={z} />}
 
-      <ClosePanel companyId={companyId} sessionId={session.id} theoreticalCash={theoreticalCash} onClosed={setClosed} />
+      <ClosePanel companyId={companyId} companyName={companyName} session={session} theoreticalCash={theoreticalCash} z={z} movements={movements as MovementRow[] | undefined} methods={methods ?? []} onClosed={setClosed} />
       {closed && <ClosedDialog session={closed} onDone={() => { setClosed(null); qc.invalidateQueries({ queryKey: ['cash-session', companyId] }); qc.invalidateQueries({ queryKey: ['cash-sessions', companyId] }); qc.invalidateQueries({ queryKey: ['cash-closures', companyId] }); }} />}
     </div>
   );
@@ -261,17 +264,22 @@ function ZPanel({ z }: { z: ZReport }) {
   return <ZReportView z={z} />;
 }
 
-/* ---------------- Clôture en 3 étapes : compter → vérifier l'écart → clôturer ---------------- */
-// Lot design « écrans de travail » (20/11/2026, revue UX/UI) : l'écart ne s'affiche qu'après le
-// comptage (avant, « Écart : − 1 027,00 € » inquiétait pour rien), et le rouge n'apparaît qu'à la
-// dernière étape. Calculs inchangés : espèces théoriques (`expectedCash`), écart (`cashVariance`),
-// motif obligatoire (`varianceReasonMissing`), clôture et Z figé comme avant.
-const CLOSE_STEPS = [1, 2, 3] as const;
-type CloseStep = (typeof CLOSE_STEPS)[number];
-
-function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { companyId: string; sessionId: string; theoreticalCash: number; onClosed: (s: CashSession) => void }) {
-  const [step, setStep] = useState<CloseStep>(1);
+/* ---------------- Clôture dans l'ordre : comptage → remise en banque → clôture Z ---------------- */
+// Chantier C6 (CAI-06, 23/11/2026). Décision Q31 : « les deux, sans blocage » : le fil guide et prévient,
+// toutes ses étapes restent cliquables, et le Z reste possible sans remise après confirmation.
+// Calculs inchangés : espèces théoriques (`expectedCash`), écart (`cashVariance`), motif obligatoire
+// (`varianceReasonMissing`), clôture et Z figé. L'écart se lit après la remise, car une remise caisse
+// ouverte fait baisser le théorique : la grille est alors corrigée avant de clôturer.
+function ClosePanel({ companyId, companyName, session, theoreticalCash, z, movements, methods, onClosed }: {
+  companyId: string; companyName: string; session: CashSession; theoreticalCash: number; z: ZReport | undefined;
+  movements: MovementRow[] | undefined; methods: { code: string; label: string }[]; onClosed: (s: CashSession) => void;
+}) {
+  const sessionId = session.id;
+  const [step, setStep] = useState<CloseOrderStep>('count');
   const [qtys, setQtys] = useState<Record<string, string>>({});
+  const [outAtCount, setOutAtCount] = useState<number | null>(null);
+  const [skipAsk, setSkipAsk] = useState(false);
+  const [showForm, setShowForm] = useState<boolean | null>(null);
   const { total: counted, denominations: denoms } = countTotal(qtys);
   const variance = cashVariance(counted, theoreticalCash);
   const hasVariance = Math.abs(variance) > 0.004;
@@ -280,20 +288,48 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
   const [error, setError] = useState<string | null>(null);
   // Un écart (compté ≠ théorique) se motive avant la clôture (PDV010) ; la base le refuse aussi.
   const reasonMissing = varianceReasonMissing(variance, reason);
+
+  // État de la remise pour cette caisse. La clé commence par « cash-deposit-candidates » : créer, modifier
+  // ou annuler une remise la rafraîchit. Si le contrôle échoue, on ne prévient pas à tort et rien ne bloque.
+  const codes = methodsToCheck((z?.payments_by_method ?? []).map((p) => p.method), (movements ?? []).map((m) => m.method));
+  const linesQ = useQuery({
+    queryKey: ['cash-deposit-candidates', 'close-order', companyId, sessionId, codes.join(',')],
+    queryFn: async () => (await Promise.all(codes.map(async (method) => {
+      const rows = await listDepositCandidates(companyId, method, session.opened_at, new Date(Date.now() + 60_000).toISOString(), true);
+      return rows.map((r) => ({ method, source_type: r.source_type, amount: r.amount, deposit_id: r.deposit_id }));
+    }))).flat(),
+    enabled: step !== 'count' && !!z && !!movements,
+    retry: false,
+  });
+  const progress = linesQ.data ? depositProgress(linesQ.data) : null;
+  const depositPending = progress?.state === 'pending';
+  const methodLabel = (code: string) => methods.find((m) => m.code === code)?.label ?? code;
+
+  const drawerChange = drawerChangeSinceCount(outAtCount, movements ?? []);
+  const needsRecount = drawerChange !== 0;
+  const goTo = (next: CloseOrderStep) => {
+    // Quitter le comptage fixe sa référence : une remise faite ensuite sera détectée.
+    if (step === 'count' && next !== 'count') setOutAtCount(depositCashOut(movements ?? []));
+    setSkipAsk(false);
+    setStep(next);
+  };
+  const trail = closeOrderTrail(step, { counted: outAtCount != null, deposit: progress?.state ?? null })
+    .map((s) => ({ ...s, label: t(`clotureCaisse.step${s.key === 'count' ? 'Count' : s.key === 'deposit' ? 'Deposit' : 'Z'}`) }));
+  const stepNumber = step === 'count' ? 1 : step === 'deposit' ? 2 : 3;
+
   const close = useMutation({
     mutationFn: async () => {
       const closed = await closeSession(sessionId, Math.round(counted * 100) / 100, denoms, reason);
       // Journal Z figé → PDF rangé dans la GED de la session (l'échec de l'archive ne défait pas la clôture).
-      const z = frozenZ(closed);
-      if (z) {
-        try { await archiveZPdf(companyId, z, await buildZPdf(z)); } catch { toast.warning(t('cash.zArchiveFailed')); }
+      const frozen = frozenZ(closed);
+      if (frozen) {
+        try { await archiveZPdf(companyId, frozen, await buildZPdf(frozen)); } catch { toast.warning(t('cash.zArchiveFailed')); }
       }
       return closed;
     },
     onSuccess: (closed) => { setAsk(false); setError(null); onClosed(closed); },
     onError: (e) => setError(errorMessage(e)),
   });
-  const stepLabel = (n: CloseStep) => t(`designEcrans.closeStep${n}`);
   const varianceText = `${variance >= 0 ? '+' : '−'} ${eur(Math.abs(variance))}`;
   const summary = (
     <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1.5 font-data text-[14px] tabular-nums">
@@ -305,36 +341,91 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
       </dd>
     </dl>
   );
+  const pendingList = progress && progress.byMethod.length > 0 && (
+    <ul className="mt-1 space-y-0.5 font-data text-[12px] tabular-nums">
+      {progress.byMethod.map((m) => <li key={m.method}>{fillVars(t('clotureCaisse.lineByMethod'), { method: methodLabel(m.method), amount: eur(m.amount), n: m.count })}</li>)}
+    </ul>
+  );
+  const formOpen = showForm ?? depositPending;
   return (
     <div className="space-y-4 rounded-md border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('cash.close')}</p>
-        <span className="font-data text-[12px] text-muted-foreground">{fillVars(t('designEcrans.stepOf'), { n: step })}</span>
+        <span className="font-data text-[12px] text-muted-foreground">{fillVars(t('designEcrans.stepOf'), { n: stepNumber })}</span>
       </div>
-      <ol aria-label={t('designEcrans.closeStepsLabel')} className="flex flex-wrap gap-2">
-        {CLOSE_STEPS.map((n) => (
-          <li key={n} aria-current={step === n ? 'step' : undefined}
-            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${step === n ? 'border-foreground bg-accent font-bold text-foreground' : step > n ? 'border-border text-success' : 'border-border text-muted-foreground'}`}>
-            {step > n ? <CheckCircle2 className="size-4" aria-hidden /> : <span className="font-data tabular-nums">{n}.</span>}
-            {stepLabel(n)}
-          </li>
-        ))}
-      </ol>
+      <StepTrail items={trail} selected={step} onSelect={(k) => goTo(k as CloseOrderStep)} ariaLabel={t('designEcrans.closeStepsLabel')} />
 
-      {step === 1 && (
+      {step === 'count' && (
         <>
           <p className="text-[13px] text-muted-foreground">{t('designEcrans.countHint')}</p>
           <CashCountGrid qtys={qtys} onChange={setQtys} />
           <div className="flex flex-wrap items-center justify-end gap-3">
             <span className="font-data text-[14px] tabular-nums">{t('designEcrans.countedSoFar')} : <b>{eur(counted)}</b></span>
-            <Button variant="outline" onClick={() => setStep(2)}>{t('designEcrans.toVerify')} <ArrowRight /></Button>
+            <Button variant="outline" onClick={() => goTo('deposit')} disabled={!movements}>{t('clotureCaisse.toDeposit')} <ArrowRight /></Button>
           </div>
         </>
       )}
 
-      {step === 2 && (
+      {step === 'deposit' && (
         <>
+          <p className="text-[13px] text-muted-foreground">{t('clotureCaisse.depositHint')}</p>
+          {linesQ.isLoading && <p className="flex items-center gap-2 text-[13px] text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t('clotureCaisse.depositChecking')}</p>}
+          {depositPending && (
+            <div className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <div>{fillVars(t('clotureCaisse.depositPending'), { n: progress?.pendingCount ?? 0 })}{pendingList}</div>
+            </div>
+          )}
+          {progress?.state === 'done' && <p className="flex items-start gap-2 text-[13px] text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('clotureCaisse.depositDone')}</p>}
+          {progress?.state === 'nothing' && <p className="flex items-start gap-2 text-[13px] text-muted-foreground"><CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('clotureCaisse.depositNothing')}</p>}
+          <Button variant="outline" size="sm" onClick={() => setShowForm(!formOpen)}>{t(formOpen ? 'clotureCaisse.hideForm' : 'clotureCaisse.showForm')}</Button>
+          {formOpen && <div className="rounded-md border border-border p-3"><CashDepositsScreen companyId={companyId} companyName={companyName} /></div>}
+          {skipAsk ? (
+            <div className="space-y-2 rounded-md border border-warning p-3" role="alert">
+              <p className="flex items-center gap-2 text-[13px] font-bold text-warning"><AlertTriangle className="size-4" aria-hidden /> {t('clotureCaisse.skipTitle')}</p>
+              <p className="text-[13px]">{t('clotureCaisse.skipBody')}</p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => setSkipAsk(false)}>{t('clotureCaisse.skipBack')}</Button>
+                <Button variant="outline" onClick={() => goTo('z')}>{t('clotureCaisse.skipDo')} <ArrowRight /></Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-between gap-2">
+              <Button variant="outline" onClick={() => goTo('count')}><ArrowLeft /> {t('designEcrans.backToCount')}</Button>
+              <Button variant="outline" onClick={() => (depositPending ? setSkipAsk(true) : goTo('z'))}>{t('clotureCaisse.toZ')} <ArrowRight /></Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {step === 'z' && needsRecount && (
+        <>
+          <div className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div>
+              <p className="font-bold">{t('clotureCaisse.recountTitle')}</p>
+              <p>{fillVars(t('clotureCaisse.recountBody'), { delta: `${drawerChange > 0 ? '−' : '+'} ${eur(Math.abs(drawerChange))}`, expected: eur(theoreticalCash) })}</p>
+            </div>
+          </div>
+          <CashCountGrid qtys={qtys} onChange={setQtys} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button variant="outline" onClick={() => goTo('deposit')}><ArrowLeft /> {t('clotureCaisse.backToDeposit')}</Button>
+            <span className="font-data text-[14px] tabular-nums">{t('designEcrans.countedSoFar')} : <b>{eur(counted)}</b></span>
+            <Button variant="outline" onClick={() => setOutAtCount(depositCashOut(movements ?? []))}><CheckCircle2 /> {t('clotureCaisse.recountDo')}</Button>
+          </div>
+        </>
+      )}
+
+      {step === 'z' && !needsRecount && (
+        <>
+          <p className="text-[13px] font-bold">{t('designEcrans.closeSummary')}</p>
           {summary}
+          {depositPending && (
+            <div className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <div>{t('clotureCaisse.zPendingWarning')}{pendingList}</div>
+            </div>
+          )}
           {counted === 0 && (
             <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" /> {t('designEcrans.countedZero')}</p>
           )}
@@ -348,22 +439,10 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
           ) : (
             <p className="flex items-start gap-2 text-[13px] text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> {t('designEcrans.noVariance')}</p>
           )}
-          <div className="flex flex-wrap justify-between gap-2">
-            <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft /> {t('designEcrans.backToCount')}</Button>
-            <Button variant="outline" onClick={() => setStep(3)} disabled={reasonMissing}>{t('designEcrans.toClose')} <ArrowRight /></Button>
-          </div>
-        </>
-      )}
-
-      {step === 3 && (
-        <>
-          <p className="text-[13px] font-bold">{t('designEcrans.closeSummary')}</p>
-          {summary}
-          {hasVariance && reason.trim() && <p className="text-[13px]"><span className="text-muted-foreground">{t('cash.varianceReason')} : </span>{reason.trim()}</p>}
           {error && !ask && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
           <div className="flex flex-wrap justify-between gap-2">
-            <Button variant="outline" onClick={() => setStep(2)} disabled={close.isPending}><ArrowLeft /> {t('designEcrans.backToVerify')}</Button>
-            {/* Seul bouton rouge de l'écran de clôture : la dernière étape. */}
+            <Button variant="outline" onClick={() => goTo('deposit')} disabled={close.isPending}><ArrowLeft /> {t('clotureCaisse.backToDeposit')}</Button>
+            {/* Seul bouton rouge de la clôture : la dernière étape. */}
             <Button onClick={() => { setError(null); setAsk(true); }} disabled={close.isPending || reasonMissing}>{close.isPending ? <Loader2 className="animate-spin" /> : <Lock />} {t('cash.closeConfirm')}</Button>
           </div>
         </>
@@ -382,6 +461,7 @@ function ClosePanel({ companyId, sessionId, theoreticalCash, onClosed }: { compa
             <dt className="text-muted-foreground">{t('cash.variance')}</dt><dd className={`text-right ${Math.abs(variance) > 0.005 ? 'text-danger' : 'text-success'}`}>{varianceText}</dd>
             {reason.trim() && <><dt className="text-muted-foreground">{t('cash.varianceReason')}</dt><dd className="text-right">{reason.trim()}</dd></>}
           </dl>
+          {depositPending && <p className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('clotureCaisse.zPendingWarning')}</p>}
           {error && <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={close.isPending}>{t('action.cancel')}</AlertDialogCancel>

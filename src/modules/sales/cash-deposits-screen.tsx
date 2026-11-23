@@ -41,6 +41,7 @@ import { localDay, frDay } from './cash-journals';
 import { openPdfBytes } from './z-report-pdf';
 import { CashCountGrid, countTotal } from './cash-count';
 import { CASH_METHOD } from './cash-rounding';
+import { NOT_DEPOSITABLE_METHODS } from './cash-close-order';
 
 const eur = (n: number | null | undefined) => (n == null ? '—' : `${formatCell(n, 'money')} €`);
 const num = (s: string) => { const n = Number(String(s).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -49,8 +50,6 @@ const keyOf = (c: Pick<DepositCandidate, 'source_type' | 'source_id'>) => `${c.s
 /** Début de journée locale (Bruxelles) d'un AAAA-MM-JJ, en ISO ; fin = jour suivant exclu → 23:59:59. */
 const dayStartIso = (day: string) => new Date(`${day}T00:00:00`).toISOString();
 const dayEndIso = (day: string) => new Date(`${day}T23:59:59.999`).toISOString();
-/** Modes qui ne se remettent jamais en banque (lettrage d'avoir, arrondi, reprise moto). */
-const NOT_DEPOSITABLE = new Set(['AVO', 'ARR', 'REP']);
 
 export function CashDepositsScreen({ companyId, companyName }: { companyId: string; companyName: string }) {
   const { data: methods } = useQuery({ queryKey: ['pay-methods', companyId], queryFn: () => listPaymentMethods(companyId) });
@@ -66,7 +65,7 @@ export function CashDepositsScreen({ companyId, companyName }: { companyId: stri
         <TabsTrigger value="archive">{t('cashDeposits.archiveTab')}</TabsTrigger>
       </TabsList>
       <TabsContent value="new" className="mt-4">
-        <NewDeposit companyId={companyId} companyName={companyName} methods={(methods ?? []).filter((m) => !NOT_DEPOSITABLE.has(m.code))} methodLabel={methodLabel} />
+        <NewDeposit companyId={companyId} companyName={companyName} methods={(methods ?? []).filter((m) => !NOT_DEPOSITABLE_METHODS.has(m.code))} methodLabel={methodLabel} />
       </TabsContent>
       <TabsContent value="archive" className="mt-4">
         <ArchivedDeposits companyId={companyId} companyName={companyName} deposits={deposits ?? []} methodLabel={methodLabel} />
