@@ -44,7 +44,10 @@ import { applyCgReading } from './carte-grise-apply';
 import { VinIdentifyPanel, type VinValues } from './vin-identify-panel';
 import { VinSuggestions } from './vin-suggestions';
 import { SpecSelect } from './spec-select';
-import { COLOR_OPTIONS, ENERGY_OPTIONS, fillEmptyVehicleFields, loadCatalogSpec, loadSpecOptions } from './catalog-specs';
+import {
+  ANTIPOLLUTION_OPTIONS, COLOR_OPTIONS, CYLINDER_OPTIONS, ENERGY_OPTIONS, VEHICLE_FAMILIES,
+  fillEmptyVehicleFields, loadCatalogSpec, loadSpecOptions,
+} from './catalog-specs';
 import { isDucatiFullVin, type VinSuggestKey } from '@/lib/vin-identify';
 
 /** Champs de la fiche remplis par la reconnaissance du VIN (clé métier → champ). */
@@ -81,12 +84,7 @@ function daysInStock(entry: string, sold: string): number | null {
 
 // Listes à choix fixes. Valeurs identiques FR/NL (gamme constructeur, normes, nb de cylindres)
 // donc constantes plutôt que dictionnaire i18n.
-export const VEHICLE_FAMILIES = [
-  'SCRAMBLER','HERITAGE','SUPERSPORT','MULTISTRADA','DIAVEL','XDIAVEL','MONSTER','SUPERBIKE',
-  'STREETFIGHTER','HYPERMOTARD','DESERT X','OFF-ROAD','SPORTCLASSIC','DESMOSEDICI RR','SPORT TOURING',
-] as const;
-const CYLINDER_OPTIONS = ['1','2','4'] as const;
-const ANTIPOLLUTION_OPTIONS = ['NA','EURO 3','EURO 4','EURO 5','EURO 5+'] as const;
+export { VEHICLE_FAMILIES };
 
 /**
  * Codes officiels des cases du certificat d'immatriculation (directive 1999/37/CE,

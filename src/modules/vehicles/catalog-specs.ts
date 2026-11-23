@@ -14,6 +14,12 @@ export type ModelSpecRow = {
 };
 export type VinFactsRow = Record<string, Cell>;
 
+export const VEHICLE_FAMILIES = [
+  'SCRAMBLER','HERITAGE','SUPERSPORT','MULTISTRADA','DIAVEL','XDIAVEL','MONSTER','SUPERBIKE',
+  'STREETFIGHTER','HYPERMOTARD','DESERT X','OFF-ROAD','SPORTCLASSIC','DESMOSEDICI RR','SPORT TOURING',
+] as const;
+export const CYLINDER_OPTIONS = ['1','2','4'] as const;
+export const ANTIPOLLUTION_OPTIONS = ['NA','EURO 3','EURO 4','EURO 5','EURO 5+'] as const;
 export const ENERGY_OPTIONS = ['Essence', 'Électrique'] as const;
 export const COLOR_OPTIONS = [
   'ROUGE', 'NOIR', 'NOIR MAT', 'BLANC', 'GRIS', 'JAUNE', 'ARGENT', 'VERT', 'BLEU', 'ORANGE',

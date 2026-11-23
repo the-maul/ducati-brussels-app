@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { quickClientNames, vehiclesFirst } from '../src/modules/contacts/search-order';
 import { lowerReadingSource } from '../src/modules/workshop/or-base/lower-mileage';
 import type { MileageReading } from '../src/modules/workshop/or-base/rules';
-import { sheetMissingCount, vehicleSheetGroups } from '../src/modules/workshop/planning/vehicle-sheet';
+import { sheetInputValue, sheetMissingCount, sheetParseValue, vehicleSheetGroups } from '../src/modules/workshop/planning/vehicle-sheet';
 
 describe('Recherche globale : ordre des groupes', () => {
   test('un nom cherche d\'abord un client', () => {
@@ -56,5 +56,24 @@ describe('Kilométrage inférieur : source du relevé', () => {
   });
   test('source introuvable : rien', () => {
     expect(lowerReadingSource([r(1100, '2026-11-19T09:00:00Z', 'OR-A')], 250000)).toBeNull();
+  });
+});
+
+describe('Fiche de la moto modifiable dans le rendez-vous', () => {
+  const words = { yes: 'Oui', no: 'Non' };
+  const field = (key: string) => vehicleSheetGroups({}, words).flatMap((g) => g.fields).find((f) => f.key === key)!;
+  test('le VIN et le dernier km restent en lecture', () => {
+    expect(field('vin').input).toBe('read');
+    expect(field('last_visit').input).toBe('read');
+  });
+  test('un nombre, une date et un champ vidé', () => {
+    expect(sheetParseValue(field('displacement'), '1100')).toBe(1100);
+    expect(sheetParseValue(field('model_year'), '2009')).toBe(2009);
+    expect(sheetParseValue(field('first_registration_date'), '2020-03-15')).toBe('2020-03-15');
+    expect(sheetParseValue(field('engine_number'), '  ')).toBeNull();
+  });
+  test('valeur affichée dans la zone de saisie', () => {
+    expect(sheetInputValue(field('displacement'), { displacement: '1100.0' })).toBe('1100');
+    expect(sheetInputValue(field('warranty_end'), { warranty_end: '2027-01-02T00:00:00Z' })).toBe('2027-01-02');
   });
 });
