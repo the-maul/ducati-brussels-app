@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Link } from '@tanstack/react-router';
-import { FolderOpen } from 'lucide-react';
+import { CalendarX, FolderOpen } from 'lucide-react';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
@@ -32,7 +32,7 @@ import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-
 import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 import {
-  createPlanningAppointment, updatePlanningAppointment, createOrFromPlanningAppointment,
+  createPlanningAppointment, updatePlanningAppointment, setAppointmentStatus, createOrFromPlanningAppointment,
   type PlanningAppointment, type AppointmentInput,
 } from './api';
 import {
@@ -212,6 +212,22 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   });
 
   const popupDone = useCallback(() => onSaved(), [onSaved]);
+  // Bouton visible : avant, il fallait passer par Plus d'options › Statut. Un RDV déjà entré en OR se gère sur l'OR.
+  const canCancel = !!a && !a.or_id && a.status !== 'annule';
+  const cancelRdv = useMutation({
+    mutationFn: async () => {
+      const ok = await confirm({
+        title: t('dossier.rdvCancelTitle'), message: t('dossier.rdvCancelBody'),
+        confirmLabel: t('dossier.rdvCancel'), cancelLabel: t('dossier.rdvCancelKeep'),
+      });
+      if (!ok) return false;
+      await setAppointmentStatus(a!.id, 'annule');
+      return true;
+    },
+    meta: { success: false },
+    onSuccess: (done) => { if (done) { toast.success(t('dossier.rdvCancelled')); onSaved(); } },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('workshop.errSave')),
+  });
   // Entretien du RDV (pieces reservees) : motif choisi, sinon celui deja enregistre.
   const svc = reasonCode
     ? ((reasonsQ.data ?? []).find((r) => r.code === reasonCode)?.serviceCode ?? serviceCodeForReason(reasonCode))
@@ -375,6 +391,11 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           )}
         </div>
         <DialogFooter className="gap-2">
+          {canCancel && (
+            <Button variant="outline" className="text-danger hover:text-danger sm:mr-auto pointer-coarse:h-11" onClick={() => cancelRdv.mutate()} disabled={cancelRdv.isPending || save.isPending}>
+              {cancelRdv.isPending ? <Loader2 className="animate-spin" /> : <CalendarX />} {t('dossier.rdvCancel')}
+            </Button>
+          )}
           <Button variant="outline" className="pointer-coarse:h-11" onClick={onClose}>{t('action.cancel')}</Button>
           <Button variant="outline" className="pointer-coarse:h-11" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
           {!a?.or_id && (
