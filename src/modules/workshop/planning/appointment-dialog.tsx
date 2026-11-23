@@ -37,8 +37,7 @@ import {
 } from './api';
 import {
   SELECTABLE_STATUSES, atMinutes, checkDrop, formatMinutes, localYmd, minutesOfDay, parseMileage,
-  plannedMinutesFrom, planningMechanics, timeToMinutes, type DayContext, type LoadAppointment,
-} from './rules';
+  plannedMinutesFrom, planningMechanics, timeToMinutes, type DayContext, type LoadAppointment, appointmentTypeForReason } from './rules';
 import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
@@ -111,7 +110,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const [loanEnd, setLoanEnd] = useState(localYmd(start0));
   const [created, setCreated] = useState<{ id: string; startsAt: string } | null>(null);
   // « Plus d'options » : ouvert d'emblee sur un RDV existant qui y a deja quelque chose.
-  const [moreOpen, setMoreOpen] = useState(() => !!a && (!!a.work_description || !!a.reception_notes || !!a.appointment_type || !!a.notify_sms || a.status !== 'prevu'));
+  const [moreOpen, setMoreOpen] = useState(() => !!a && (!!a.work_description || !!a.reception_notes || !!a.notify_sms || a.status !== 'prevu'));
 
   // Rechargement du client / de la moto d'un RDV existant.
   const contactToLoad = draft ? draft.contactId : a?.contact_id ?? null;
@@ -264,9 +263,13 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
     return <MaintenancePartsPopup ctx={{ companyId, vehicleId: vehicle?.id ?? null, contactId: contact?.id ?? null, reasonCode, appointmentId: created.id, appointmentAt: created.startsAt }} onDone={popupDone} />;
   }
 
-  const onType = (code: string) => {
-    setType(code === NONE ? '' : code);
-    const def = base.types.find((x) => x.code === code)?.defaultMinutes;
+  // Un seul choix pour l'accueil : le motif. Le type s'en déduit.
+  const onReason = (value: string) => {
+    const code = value === NONE ? '' : value;
+    setReasonCode(code);
+    const nextType = appointmentTypeForReason(code);
+    setType(nextType ?? '');
+    const def = base.types.find((x) => x.code === nextType)?.defaultMinutes;
     if (def && !planned) { setHours(String(Math.floor(def / 60))); setMins(String(def % 60)); }
   };
   const endPreview = planned && !Number.isNaN(startsAt.getTime()) ? new Date(startsAt.getTime() + planned * 60000) : null;
@@ -312,7 +315,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           {vehicle?.id && <VehicleRdvSheet vehicleId={vehicle.id} />}
 
           <Field label={t('partsPopup.rdvReason')}>
-            <Select value={reasonCode || NONE} onValueChange={(v) => setReasonCode(v === NONE ? '' : v)}>
+            <Select value={reasonCode || NONE} onValueChange={onReason}>
               <SelectTrigger><SelectValue placeholder={t('partsPopup.rdvReasonNone')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>{t('partsPopup.rdvReasonNone')}</SelectItem>
@@ -378,16 +381,6 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
                   <SelectContent>{statuses.map((s) => <SelectItem key={s} value={s}>{t(`planningG8.status_${s}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <Field label={t('planningG8.type')}>
-                <Select value={type || NONE} onValueChange={onType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>{t('planningG8.typeNone')}</SelectItem>
-                    {base.types.map((x) => <SelectItem key={x.code} value={x.code}>{x.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div />
 
               <Field label={t('workshop.workDescription')} className="sm:col-span-3"><Textarea rows={2} value={work} onChange={(e) => setWork(e.target.value)} /></Field>
               <Field label={t('planningG8.receptionNotes')} className="sm:col-span-3"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>

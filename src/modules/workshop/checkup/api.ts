@@ -74,6 +74,8 @@ export const DEFAULT_WORKSHOP_REASONS: WorkshopReason[] = [
   { code: 'accident', label: 'Accident', serviceCode: null },
   { code: 'garantie', label: 'Garantie', serviceCode: null },
   { code: 'diagnostic', label: 'Diagnostic', serviceCode: null },
+  { code: 'preparation', label: 'Préparation / livraison moto', serviceCode: null },
+  { code: 'carrosserie', label: 'Carrosserie / accessoires', serviceCode: null },
   { code: 'autre', label: 'Autre', serviceCode: null },
 ];
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { nextFreeStart, sumLoads, type DayLoad } from '../src/modules/workshop/planning/rules';
+import { appointmentTypeForReason, nextFreeStart, sumLoads, type DayLoad } from '../src/modules/workshop/planning/rules';
 import { withReturnedVehicle, type AppointmentDraft } from '../src/modules/workshop/planning/appointment-draft';
 
 const load = (planned: number, capacity: number): DayLoad => ({
@@ -45,5 +45,24 @@ describe('RDV retrouvé après un aller-retour', () => {
   });
   test('retour sans moto : la saisie ne change pas', () => {
     expect(withReturnedVehicle(draft, null)).toBe(draft);
+  });
+});
+
+describe('Le motif du RDV donne son type', () => {
+  test('entretiens et vidange', () => {
+    for (const r of ['entretien_annuel', 'entretien_annuel_huile', 'entretien_1000', 'vidange']) {
+      expect(appointmentTypeForReason(r)).toBe('entretien');
+    }
+  });
+  test('réparation', () => {
+    for (const r of ['freins', 'diagnostic', 'accident']) expect(appointmentTypeForReason(r)).toBe('reparation');
+  });
+  test('motifs qui portent le même nom que le type', () => {
+    for (const r of ['pneus', 'garantie', 'preparation', 'carrosserie']) expect(appointmentTypeForReason(r)).toBe(r);
+  });
+  test('autre ou sans motif : pas de type', () => {
+    expect(appointmentTypeForReason('autre')).toBeNull();
+    expect(appointmentTypeForReason('')).toBeNull();
+    expect(appointmentTypeForReason(null)).toBeNull();
   });
 });

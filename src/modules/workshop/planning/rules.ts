@@ -100,6 +100,14 @@ export const appointmentBlockClass = (color: unknown): string => (isJobColor(col
 export type AppointmentType = { code: string; label: string; color: JobColor | null; defaultMinutes: number | null };
 
 /** Types par defaut quand la table de parametres est vide ou la migration absente. */
+/** Le motif choisi donne le type du RDV (couleur du planning, durée par défaut, filtre SMS). */
+export function appointmentTypeForReason(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  if (reason.startsWith('entretien') || reason === 'vidange') return 'entretien';
+  if (reason === 'freins' || reason === 'diagnostic' || reason === 'accident') return 'reparation';
+  return ['pneus', 'garantie', 'preparation', 'carrosserie'].includes(reason) ? reason : null;
+}
+
 export const DEFAULT_APPOINTMENT_TYPES: AppointmentType[] = [
   { code: 'entretien', label: 'Entretien', color: 'entretien', defaultMinutes: 120 },
   { code: 'reparation', label: 'Réparation / diagnostic', color: 'reparation', defaultMinutes: 60 },

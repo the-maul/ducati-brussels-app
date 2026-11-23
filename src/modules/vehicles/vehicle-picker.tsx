@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/confirm-provider';
 import { errorMessage } from '@/lib/mutation-feedback';
-import { attachVehicleOwner, listContactCurrentVehicles, searchVehiclesForPick, vehiclePickLabel, type Vehicle, type VehiclePickResult } from './api';
+import { attachVehicleOwner, listContactCurrentVehicles, searchVehiclesForPick, vehicleLabel, vehiclePickLabel, type Vehicle, type VehiclePickResult } from './api';
 import { vinAttachMessage } from './vin-suggestions';
 import { buildVehicleChoices, vehiclePickEmptyState } from './vehicle-pick';
 import { fillVars, t } from '@/lib/i18n';
@@ -100,9 +100,10 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
   const parkRow = (v: VehiclePickResult) => (!attachTo ? row(v) : (
     <div key={v.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent">
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v)} className="min-w-0 flex-1 text-left">
-        <span className="flex items-center gap-2 text-sm"><Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{vehiclePickLabel(v)}</span></span>
-        <span className="block truncate pl-5 text-[11px] text-muted-foreground">
-          {v.owner_id ? `${t('motoClient.currentOwner')}${v.owner_name ?? t('motoClient.noOwner')}` : t(`vehicles.status_${v.status}`)}
+        <span className="flex items-center gap-2 text-sm"><Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{[vehicleLabel(v), v.model_year, v.plate].filter(Boolean).join(' · ')}</span></span>
+        <span className="flex min-w-0 gap-2 pl-5 text-[11px] text-muted-foreground">
+          <span className="shrink-0 font-data">{v.vin}</span>
+          <span className="truncate">{v.owner_id ? `${t('motoClient.currentOwner')}${v.owner_name ?? t('motoClient.noOwner')}` : t(`vehicles.status_${v.status}`)}</span>
         </span>
       </button>
       <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={!!attaching}
@@ -121,7 +122,7 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
       <Input value={term} onChange={(e) => setTerm(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder ?? t('vehiclePick.placeholder')} className="h-9 pl-9" />
       {open && (
-        <div className={`absolute z-20 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)] ${attachTo ? 'w-[min(32rem,calc(100vw-3rem))]' : 'w-full'}`}>
+        <div className={`absolute z-20 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)] ${attachTo ? 'left-1/2 w-[min(38rem,calc(100vw-3rem))] -translate-x-1/2' : 'w-full'}`}>
           {choices.own.length > 0 && section(t('vehiclePick.ofClient'))}
           {choices.own.map(row)}
           {choices.park.length > 0 && section(t('vehiclePick.park'))}
