@@ -320,7 +320,7 @@ export const it: DictionaryShape = {
     ducatiUpdate: 'Aggiorna da DCS',
     ducatiUpdating: 'Ricerca su DCS… (la scheda Ducati si aprirà e poi si chiuderà)',
     ducatiUpdateHint: 'Richiede l\'estensione installata e una sessione DCS aperta.',
-    ducatiExtMissing: 'Estensione non rilevata. Installi/ricarichi l\'estensione (Impostazioni → Estensione DCS).',
+    ducatiExtMissing: 'Estensione non rilevata. Ricarichi questa pagina (F5). Se il messaggio ritorna: in chrome://extensions attivi la modalità sviluppatore e l\'estensione.',
     expositionCode: 'Codice di esposizione',
     // commercial
     purchasePrice: 'Prezzo d\'acquisto / permuta',
@@ -1083,7 +1083,7 @@ export const it: DictionaryShape = {
     myDucatiExtHint: "Import tramite l'estensione: apri la scheda moto su DCS e clicca su \"Importa nel DMS\".",
     myDucatiFetching: 'Lettura di My Ducati…',
     myDucatiDone: 'Dati recuperati.',
-    myDucatiNoExt: 'Estensione DCS non rilevata — installala per la compilazione automatica.',
+    myDucatiNoExt: 'Estensione DCS non rilevata. Ricarichi questa pagina (F5). Se il messaggio ritorna: in chrome://extensions attivi la modalità sviluppatore e l\'estensione.',
     myDucatiSaveFirst: 'Salva il contatto e poi collega una moto per recuperare i dati My Ducati.',
     myDucatiNoBike: 'Aggiungi prima una moto collegata a questo contatto (con il suo VIN) per recuperare i dati My Ducati.',
     myDucatiSyncedAt: 'Sincronizzato il',

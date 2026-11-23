@@ -320,7 +320,7 @@ export const nl: DictionaryShape = {
     ducatiUpdate: 'Bijwerken vanuit DCS',
     ducatiUpdating: 'Zoeken op DCS… (het Ducati-tabblad opent en sluit vanzelf)',
     ducatiUpdateHint: 'Vereist de geïnstalleerde extensie en een open DCS-sessie.',
-    ducatiExtMissing: 'Extensie niet gedetecteerd. Installeer/herlaad de extensie (Instellingen → Extensie DCS).',
+    ducatiExtMissing: 'Extensie niet gedetecteerd. Herlaad deze pagina (F5). Komt de melding terug: zet in chrome://extensions de ontwikkelaarsmodus en de extensie aan.',
     expositionCode: 'Tentoonstellingscode',
     // commercial
     purchasePrice: 'Aankoop-/overnameprijs',
@@ -1083,7 +1083,7 @@ export const nl: DictionaryShape = {
     myDucatiExtHint: 'Import via de extensie: open de motofiche op DCS en klik op "Importeren in het DMS".',
     myDucatiFetching: 'My Ducati wordt gelezen…',
     myDucatiDone: 'Gegevens opgehaald.',
-    myDucatiNoExt: 'DCS-extensie niet gedetecteerd — installeer ze voor het automatisch invullen.',
+    myDucatiNoExt: 'DCS-extensie niet gedetecteerd. Herlaad deze pagina (F5). Komt de melding terug: zet in chrome://extensions de ontwikkelaarsmodus en de extensie aan.',
     myDucatiSaveFirst: 'Sla het contact op en koppel dan een moto om de My Ducati-gegevens op te halen.',
     myDucatiNoBike: 'Voeg eerst een moto (met VIN) toe aan dit contact om de My Ducati-gegevens op te halen.',
     myDucatiSyncedAt: 'Gesynchroniseerd op',

@@ -320,7 +320,7 @@ export const en: DictionaryShape = {
     ducatiUpdate: 'Update from DCS',
     ducatiUpdating: 'Searching DCS… (the Ducati tab will open and then close)',
     ducatiUpdateHint: 'Requires the extension installed and an open DCS session.',
-    ducatiExtMissing: 'Extension not detected. Install/reload the extension (Settings → DCS extension).',
+    ducatiExtMissing: 'Extension not detected. Reload this page (F5). If the message comes back: in chrome://extensions, turn on developer mode and the extension.',
     expositionCode: 'Display code',
     // commercial
     purchasePrice: 'Purchase / trade-in price',
@@ -1083,7 +1083,7 @@ export const en: DictionaryShape = {
     myDucatiExtHint: 'Import via the extension: open the bike record on DCS and click "Import into the DMS".',
     myDucatiFetching: 'Reading My Ducati…',
     myDucatiDone: 'Details retrieved.',
-    myDucatiNoExt: 'DCS extension not detected — install it for automatic filling.',
+    myDucatiNoExt: 'DCS extension not detected. Reload this page (F5). If the message comes back: in chrome://extensions, turn on developer mode and the extension.',
     myDucatiSaveFirst: 'Save the contact then link a bike to retrieve the My Ducati details.',
     myDucatiNoBike: 'First add a bike (with its VIN) linked to this contact to retrieve the My Ducati details.',
     myDucatiSyncedAt: 'Synchronised on',

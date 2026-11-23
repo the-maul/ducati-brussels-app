@@ -331,7 +331,7 @@ export const fr = {
     ducatiUpdate: 'Mettre à jour depuis DCS',
     ducatiUpdating: 'Recherche sur DCS… (l’onglet Ducati va s’ouvrir puis se fermer)',
     ducatiUpdateHint: 'Nécessite l’extension installée et une session DCS ouverte.',
-    ducatiExtMissing: 'Extension non détectée. Installez/rechargez l’extension (Paramètres → Extension DCS).',
+    ducatiExtMissing: 'Extension non détectée. Rechargez cette page (F5). Si le message revient : dans chrome://extensions, activez le mode développeur et l’extension.',
     expositionCode: "Code d'exposition",
     // commercial
     purchasePrice: 'Prix d\'achat / reprise',
@@ -1083,7 +1083,7 @@ export const fr = {
     myDucatiExtHint: 'Import via l’extension : ouvrez la fiche moto sur DCS et cliquez « Importer dans le DMS ».',
     myDucatiFetching: 'Lecture de My Ducati…',
     myDucatiDone: 'Infos récupérées.',
-    myDucatiNoExt: 'Extension DCS non détectée — installez-la pour le remplissage automatique.',
+    myDucatiNoExt: 'Extension DCS non détectée. Rechargez cette page (F5). Si le message revient : dans chrome://extensions, activez le mode développeur et l’extension.',
     myDucatiSaveFirst: 'Enregistrez le contact puis liez une moto pour récupérer les infos My Ducati.',
     myDucatiNoBike: 'Ajoutez d’abord une moto liée à ce contact (avec son VIN) pour récupérer les infos My Ducati.',
     myDucatiSyncedAt: 'Synchronisé le',
