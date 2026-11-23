@@ -9,7 +9,7 @@
  * motif (entretien → reservation des pieces). Boutons « Enregistrer » et « Valider RDV et saisie OR »
  * (temps prevu obligatoire, G8 « Veuillez saisir le temps prevu »).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, FileText, CheckCircle2, Package, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -42,6 +42,8 @@ import {
 import type { usePlanningBase } from './planning-data';
 import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
+import { lowerMileageMessage } from '../or-base/lower-mileage';
+import { useConfirm } from '@/components/confirm-provider';
 import { CheckPointsPanel } from '../or-base/check-points-panel';
 import { normalizeCheckPoints, type CheckPoints } from '../or-base/rules';
 import { listLoanerVehicles, createLoan, listLoansForAppointment, loansSchemaReady } from '../loans/api';
@@ -76,6 +78,23 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const [mins, setMins] = useState(pm ? String(pm % 60) : '');
   const [contact, setContact] = useState<Contact | null>(null);
   const [vehicle, setVehicle] = useState<VehiclePickRow | null>(null);
+  const confirm = useConfirm();
+  // Un nouvel essai après une erreur reprend le même RDV : jamais de doublon, ni de 2e moto de prêt.
+  const savedId = useRef<string | null>(a?.id ?? null);
+  const loanSaved = useRef(false);
+  // La moto choisie amène son propriétaire actuel si le client n'est pas encore renseigné.
+  const pickVehicle = (v: VehiclePickRow) => {
+    setVehicle(v);
+    if (contact) return;
+    void supabase.from('vehicle_owners').select('contact_id').eq('vehicle_id', v.id).eq('is_current', true)
+      .not('contact_id', 'is', null).order('from_date', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+      .then(async ({ data }) => {
+        const id = (data as { contact_id: string | null } | null)?.contact_id;
+        if (!id) return;
+        const owner = await getContact(id).catch(() => null);
+        if (owner) setContact((cur) => cur ?? owner);
+      });
+  };
   const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(a?.check_points));
   const hadCheckPoints = Object.keys(normalizeCheckPoints(a?.check_points)).length > 0;
   const [mileage, setMileage] = useState(a?.mileage != null ? String(a.mileage) : '');
@@ -142,16 +161,17 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
       const err = validate(forOr);
       if (err) throw new Error(err);
       const p = input();
-      let id = a?.id ?? null;
+      let id = savedId.current;
       if (id) await updatePlanningAppointment(id, p);
-      else id = await createPlanningAppointment(p);
+      else { id = await createPlanningAppointment(p); savedId.current = id; }
       // Moto de pret : reservee du debut du RDV a la fin de la journee « fin prevue ».
-      if (loanerId && id) {
+      if (loanerId && id && !loanSaved.current) {
         const end = atMinutes(new Date(`${loanEnd}T00:00`), timeToMinutes(base.settings.day_end) ?? 18 * 60);
         const period = { loaner_id: loanerId, status: 'reserve', planned_start: startsAt.toISOString(), planned_end: end.toISOString() };
         const pErr = checkPeriod([], period);
         if (pErr) throw new Error(t(`loans.err_${pErr}`));
         await createLoan({ companyId, loanerId, contactId: contact?.id ?? null, appointmentId: id, plannedStart: period.planned_start, plannedEnd: period.planned_end });
+        loanSaved.current = true;
       }
       let orId: string | null = null;
       if (forOr) {
@@ -161,11 +181,26 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           mileage: p.mileage, starts_at: p.startsAt, planned_minutes: p.plannedMinutes, work_description: p.workDescription,
           reception_notes: p.receptionNotes, status: p.status, notify_sms: p.notifySms, reason_code: p.reasonCode, check_points: checkPoints,
         } as PlanningAppointment;
-        orId = await createOrFromPlanningAppointment(full, base.mechanics);
+        try {
+          orId = await createOrFromPlanningAppointment(full, base.mechanics);
+        } catch (e) {
+          // Km plus bas que le dernier relevé : comme G8, on corrige ou on force (Q64).
+          const hint = (e as { hint?: string } | null)?.hint;
+          const last = Number((e as { details?: string } | null)?.details ?? 0);
+          if (hint !== 'mileage_lower' || last <= 0) throw e;
+          const force = await confirm({
+            title: t('orBase.lowerTitle'),
+            message: await lowerMileageMessage({ vehicleId: p.vehicleId }, p.mileage ?? 0, last),
+            confirmLabel: t('q64.forceLabel'), cancelLabel: t('orBase.lowerFix'),
+          });
+          if (!force) return { id: id!, orId: null, fixKm: true };
+          orId = await createOrFromPlanningAppointment(full, base.mechanics, last);
+        }
       }
-      return { id: id!, orId };
+      return { id: id!, orId, fixKm: false };
     },
-    onSuccess: ({ id, orId }) => {
+    onSuccess: ({ id, orId, fixKm }) => {
+      if (fixKm) { toast.info(t('dossier.rdvFixKm')); return; }
       toast.success(t('feedback.saved'));
       if (orId) { onOrCreated(orId); return; }
       if (!a && vehicle?.id && isMaintenanceReasonCode(reasonCode)) { setCreated({ id, startsAt: startsAt.toISOString() }); return; }
@@ -224,7 +259,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
-          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={setVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
+          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={pickVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
           <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
             <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
           </Field>

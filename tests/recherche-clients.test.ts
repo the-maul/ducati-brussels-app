@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { quickClientNames, vehiclesFirst } from '../src/modules/contacts/search-order';
+import { lowerReadingSource } from '../src/modules/workshop/or-base/lower-mileage';
+import type { MileageReading } from '../src/modules/workshop/or-base/rules';
 import { sheetMissingCount, vehicleSheetGroups } from '../src/modules/workshop/planning/vehicle-sheet';
 
 describe('Recherche globale : ordre des groupes', () => {
@@ -39,5 +41,20 @@ describe('Fiche de la moto dans le rendez-vous', () => {
     const withOptional = sheetMissingCount(vehicleSheetGroups({ gps_tracker_id: 'X', pin_tracker: '1', exposition_code: 'E' }, words));
     expect(empty).toBe(withOptional);
     expect(sheetMissingCount(vehicleSheetGroups({ vin: 'ZDM' }, words))).toBe(empty - 1);
+  });
+});
+
+describe('Kilométrage inférieur : source du relevé', () => {
+  const r = (km: number, at: string, ref: string) => ({ km, at, ref }) as unknown as MileageReading;
+  test('retrouve l\'OR qui porte le relevé', () => {
+    const src = lowerReadingSource([r(1100, '2026-11-19T09:00:00Z', 'OR-2026-00004'), r(250000, '2026-11-19T10:00:00Z', 'OR-2026-00005')], 250000);
+    expect(src?.ref).toBe('OR-2026-00005');
+  });
+  test('même km sur deux OR : le plus récent', () => {
+    const src = lowerReadingSource([r(9000, '2026-01-01T09:00:00Z', 'OR-A'), r(9000, '2026-03-01T09:00:00Z', 'OR-B')], 9000);
+    expect(src?.ref).toBe('OR-B');
+  });
+  test('source introuvable : rien', () => {
+    expect(lowerReadingSource([r(1100, '2026-11-19T09:00:00Z', 'OR-A')], 250000)).toBeNull();
   });
 });

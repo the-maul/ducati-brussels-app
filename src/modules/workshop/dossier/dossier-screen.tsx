@@ -7,6 +7,7 @@
  * existants (pointage, photos de réception, opérations, accord client, contrôle du temps, facture).
  * La fiche OR reste accessible (« Fiche complète ») : aucune fonction ne disparaît.
  */
+import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -252,7 +253,7 @@ function RdvDossier({ appointment: a, companyId, wanted, onStep }: StepProps & {
       if (hint === 'mileage_lower' && last > 0 && forceAck == null) {
         const ok = await confirm({
           title: t('orBase.lowerTitle'),
-          message: fillVars(t('q64.errLower'), { km: (x.mileage ?? 0).toLocaleString('fr-BE'), last: last.toLocaleString('fr-BE') }),
+          message: await lowerMileageMessage({ vehicleId: x.vehicle_id }, x.mileage ?? 0, last),
           confirmLabel: t('q64.forceLabel'), cancelLabel: t('orBase.lowerFix'),
         });
         if (ok) void createOr(x, true, last); else setIntake(x);
@@ -319,7 +320,7 @@ function MileageEditor({ orId, mileage, onSaved }: { orId: string; mileage: numb
       if (hint === 'mileage_lower' && last > 0 && ack == null) {
         const ok = await confirm({
           title: t('orBase.lowerTitle'),
-          message: fillVars(t('q64.errLower'), { km: parsed.toLocaleString('fr-BE'), last: last.toLocaleString('fr-BE') }),
+          message: await lowerMileageMessage({ orId }, parsed, last),
           confirmLabel: t('q64.forceLabel'), cancelLabel: t('orBase.lowerFix'),
         });
         if (ok) await save(last);

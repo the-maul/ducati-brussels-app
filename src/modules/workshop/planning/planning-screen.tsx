@@ -8,6 +8,7 @@
  * Barre commune : semaine / jour precedent-suivant, aujourd'hui, filtre compagnon, legende des
  * statuts cochable, Rechercher RDV, Nouveau RDV, Nouveau RDV en attente.
  */
+import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, ChevronLeft, ChevronRight, Inbox, MessageSquareText, Plus, Search } from 'lucide-react';
@@ -111,7 +112,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
       if (hint === 'mileage_lower' && last > 0 && forceAck == null) {
         const ok = await confirm({
           title: t('orBase.lowerTitle'),
-          message: fillVars(t('q64.errLower'), { km: (a.mileage ?? 0).toLocaleString('fr-BE'), last: last.toLocaleString('fr-BE') }),
+          message: await lowerMileageMessage({ vehicleId: a.vehicle_id }, a.mileage ?? 0, last),
           confirmLabel: t('q64.forceLabel'), cancelLabel: t('orBase.lowerFix'),
         });
         if (ok) void createOr(a, true, last);
