@@ -248,6 +248,8 @@ function workAction(f: DossierFacts): DossierAction {
 /** Le seul bouton principal de l'étape affichée, et ce que « Passer » ferait. */
 export function dossierPrimary(f: DossierFacts, flow: DossierFlow, viewed: DossierStepKey): DossierPrimary {
   if (flow.cancelled || flow.closed || !flow.current) return { action: 'none', skip: null };
+  // Le client arrive avant le jour J ou une pièce manque encore : la moto peut quand même rentrer.
+  if (viewed === 'rentrer' && !f.or && f.appointment && isScheduled(f.appointment)) return { action: 'create_or', skip: null };
   if (viewed !== flow.current) return { action: 'go_current', skip: null };
   switch (flow.current) {
     case 'reserver': {

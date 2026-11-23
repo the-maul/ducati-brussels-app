@@ -76,7 +76,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
   const loansReady = useQuery({ queryKey: ['loans-schema'], queryFn: loansSchemaReady, staleTime: Infinity });
 
   const s = base.settings;
-  const weekStart = weekStartFor(ref, s.first_weekday);
+  const weekStart = weekStartFor(ref, s.first_weekday, s.days_shown);
   const days = weekDays(weekStart, s.days_shown);
   const from = view === 'activite' ? ref : weekStart;
   const to = view === 'activite' ? addDays(ref, 1) : addDays(weekStart, 7);

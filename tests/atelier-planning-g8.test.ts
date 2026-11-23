@@ -102,6 +102,8 @@ describe('vues reception et activite', () => {
   test('semaine G8 commencant le mardi', () => {
     expect(localYmd(weekStartFor(at(2026, 11, 18), 2))).toBe('2026-11-17');
     expect(localYmd(weekStartFor(at(2026, 11, 16), 2))).toBe('2026-11-10');
+    expect(localYmd(weekStartFor(at(2026, 11, 23), 2, 5))).toBe('2026-11-24'); // lundi de fermeture : la semaine qui vient
+    expect(localYmd(weekStartFor(at(2026, 11, 21), 2, 5))).toBe('2026-11-17');
   });
   test('creneaux de 10 min de 09:00 a 18:00 = 54 lignes ; arrondi a la granularite', () => {
     const s = slotsOfDay('09:00', '18:00', 10);

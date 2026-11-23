@@ -136,10 +136,15 @@ export function atMinutes(day: Date, minutes: number): Date {
   const x = startOfDay(day); x.setMinutes(minutes); return x;
 }
 
-/** Premier jour de la semaine affichee (reglage « 1er jour », 2 = mardi chez G8) contenant `ref`. */
-export function weekStartFor(ref: Date, firstWeekday: number): Date {
+/**
+ * Premier jour de la semaine affichee (reglage « 1er jour », 2 = mardi chez G8) contenant `ref`.
+ * Avec `daysShown` : un jour hors de la grille (le lundi de fermeture) ouvre la semaine qui vient,
+ * pas celle qui vient de se terminer.
+ */
+export function weekStartFor(ref: Date, firstWeekday: number, daysShown?: number): Date {
   const d = startOfDay(ref);
   const diff = (isoWeekday(d) - firstWeekday + 7) % 7;
+  if (daysShown != null && diff >= Math.min(Math.max(daysShown, 1), 7)) return addDays(d, 7 - diff);
   return addDays(d, -diff);
 }
 export function weekDays(start: Date, daysShown: number): Date[] {

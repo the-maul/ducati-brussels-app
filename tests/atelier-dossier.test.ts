@@ -53,6 +53,12 @@ describe('Réserver', () => {
     expect(dossierFlow(f).current).toBe('reserver');
     expect(primary(f).action).toBe('next_step');
     expect(task(f, 'reserver', 'parts')).toBe('warning');
+    // « Étape suivante » mène à Rentrer, qui doit proposer d'entrer la moto (pas de retour en boucle).
+    expect(primary(f, 'rentrer').action).toBe('create_or');
+  });
+  test('demande pas encore placée : Rentrer renvoie à l\'étape en cours', () => {
+    const f = facts({ appointment: appt({ status: 'demande', hasMechanic: false }) });
+    expect(primary(f, 'rentrer').action).toBe('go_current');
   });
   test('pièce manquante le jour J : la moto rentre quand même', () => {
     const f = facts({ today: '2026-11-25', partsTotal: 2, partsMissing: 1 });
