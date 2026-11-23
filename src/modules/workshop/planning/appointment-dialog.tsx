@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Link } from '@tanstack/react-router';
 import { CalendarX, FolderOpen } from 'lucide-react';
 import { getContact, type Contact } from '@/modules/contacts/api';
@@ -44,7 +44,7 @@ import { ContactPicker, Field, Picked } from './ui-bits';
 import { VehicleRdvSheet } from './vehicle-rdv-sheet';
 import { appointmentDraftKey, type AppointmentDraft } from './appointment-draft';
 import { KitRefsToComplete } from './kit-refs-to-complete';
-import { removeDraft, writeDraft } from '@/lib/form-draft';
+import { readDraft, removeDraft, writeDraft } from '@/lib/form-draft';
 import { FormDraftBanner } from '@/components/form-draft-banner';
 import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useConfirm } from '@/components/confirm-provider';
@@ -131,6 +131,9 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   const draftKey = appointmentDraftKey(companyId);
   const draftStopped = useRef(false);
   const draftBaseline = useRef<string | null>(null);
+  // Un brouillon d'un autre RDV attend déjà : on ne l'écrase jamais.
+  const slotBusy = useRef(!draft && !!readDraft(draftKey));
+  const [askClose, setAskClose] = useState(false);
   const snapshot: AppointmentDraft = {
     appointmentId: savedId.current, contactId: contact?.id ?? null, vehicleId: vehicle?.id ?? null, status, unassigned,
     mechanicId, type, date, time, hours, mins, mileage, work, notes, notify, reasonCode, checkPoints,
@@ -140,11 +143,22 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   useEffect(() => {
     if (!draftReady || draftStopped.current) return;
     if (draftBaseline.current === null) draftBaseline.current = draft ? '' : snapshotJson;
+    if (slotBusy.current) return;
     if (snapshotJson !== draftBaseline.current) writeDraft(draftKey, JSON.parse(snapshotJson));
     else removeDraft(draftKey);
   }, [snapshotJson, draftReady, draftKey, draft]);
-  const discardDraft = () => { draftStopped.current = true; removeDraft(draftKey); };
+  const discardDraft = () => { draftStopped.current = true; if (!slotBusy.current) removeDraft(draftKey); };
   const closeDialog = () => { discardDraft(); onClose(); };
+  // Fermer avec une saisie en cours : abandonner, garder en brouillon ou continuer.
+  const requestClose = () => {
+    const changed = draftBaseline.current !== null && snapshotJson !== draftBaseline.current;
+    if (changed) setAskClose(true); else closeDialog();
+  };
+  const keepAsDraft = () => {
+    writeDraft(draftKey, { ...(JSON.parse(snapshotJson) as AppointmentDraft), kept: true });
+    draftStopped.current = true;
+    onClose();
+  };
 
   const reasonsQ = useQuery({ queryKey: ['workshop-reasons', companyId], queryFn: () => listWorkshopReasons(companyId), staleTime: 300_000 });
   const loansReady = useQuery({ queryKey: ['loans-schema'], queryFn: loansSchemaReady, staleTime: Infinity });
@@ -296,7 +310,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) closeDialog(); }}>
+    <Dialog open onOpenChange={(o) => { if (!o) requestClose(); }}>
       <DialogContent className={`max-h-[92vh] overflow-y-auto ${vehicle ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <DialogHeader>
           <DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle>
@@ -421,7 +435,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
               {cancelRdv.isPending ? <Loader2 className="animate-spin" /> : <CalendarX />} {t('dossier.rdvCancel')}
             </Button>
           )}
-          <Button variant="outline" className="pointer-coarse:h-11" onClick={closeDialog}>{t('action.cancel')}</Button>
+          <Button variant="outline" className="pointer-coarse:h-11" onClick={requestClose}>{t('action.cancel')}</Button>
           <Button variant="outline" className="pointer-coarse:h-11" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
           {!a?.or_id && a?.status !== 'annule' && (
             <Button className="pointer-coarse:h-11" onClick={() => save.mutate(true)} disabled={save.isPending || unassigned} title={unassigned ? t('planningG8.orNeedsSlot') : undefined}>
@@ -434,6 +448,23 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
             </Button>
           )}
         </DialogFooter>
+        {askClose && (
+          <Dialog open onOpenChange={(o) => { if (!o) setAskClose(false); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t('dossier.closeRdvTitle')}</DialogTitle>
+                <DialogDescription>{t(savedId.current ? 'dossier.closeRdvTextEdit' : 'dossier.closeRdvText')}</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2">
+                <Button type="button" variant="outline" className="pointer-coarse:h-11" autoFocus onClick={() => setAskClose(false)}>{t('dossier.closeRdvBack')}</Button>
+                {!slotBusy.current && <Button type="button" className="pointer-coarse:h-11" onClick={keepAsDraft}>{t('dossier.closeRdvDraft')}</Button>}
+                <Button type="button" variant="outline" className="text-danger hover:text-danger pointer-coarse:h-11" onClick={closeDialog}>
+                  {t(savedId.current ? 'dossier.closeRdvAbandonEdit' : 'dossier.closeRdvAbandon')}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );

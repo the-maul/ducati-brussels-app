@@ -24,6 +24,8 @@ export type AppointmentDraft = {
   notify: boolean;
   reasonCode: string;
   checkPoints: CheckPoints;
+  /** Gardé volontairement : il attend sur le bouton « Reprendre le brouillon », sans se rouvrir seul. */
+  kept?: boolean;
 };
 
 export const appointmentDraftKey = (companyId: string) => formDraftKey('/workshop/planning/rdv', companyId);

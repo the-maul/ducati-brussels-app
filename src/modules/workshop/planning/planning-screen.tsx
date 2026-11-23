@@ -11,7 +11,7 @@
 import { lowerMileageMessage } from '../or-base/lower-mileage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarClock, ChevronLeft, ChevronRight, Inbox, MessageSquareText, Plus, Search } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, History, Inbox, MessageSquareText, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -135,8 +135,24 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
       toast.error(e instanceof Error ? (e.message === 'planned_time_required' ? t('planningG8.errPlannedTime') : e.message === 'mileage_required' ? t('planningG8.errMileageOr') : e.message) : errorMessage(e));
     }
   };
-  const newAt = (day: Date, mechanicId?: string | null) => setDialog({
-    appt: null, defaults: { startsAt: atMinutes(day, timeToMinutes(s.day_start) ?? 540), mechanicId: mechanicId ?? mechanicFilter },
+  // Un brouillon de nouveau RDV attend : on le rouvre plutôt que de risquer de le perdre.
+  const openDraft = (d: AppointmentDraft) => {
+    if (d.date) setRef(startOfDay(new Date(`${d.date}T00:00`)));
+    if (d.appointmentId) {
+      void getPlanningAppointment(d.appointmentId).then((a) => { if (a) setDialog({ appt: a, draft: d }); }).catch(() => undefined);
+      return;
+    }
+    setDialog({ appt: null, draft: d });
+  };
+  const startNew = (defaults: AppointmentDefaults) => {
+    const d = restoreAppointmentDraft(companyId);
+    if (d && !d.appointmentId) openDraft(d);
+    else setDialog({ appt: null, defaults });
+  };
+  const [pendingDraft, setPendingDraft] = useState<AppointmentDraft | null>(null);
+  useEffect(() => { if (!dialog) setPendingDraft(restoreAppointmentDraft(companyId)); }, [dialog, companyId]);
+  const newAt = (day: Date, mechanicId?: string | null) => startNew({
+    startsAt: atMinutes(day, timeToMinutes(s.day_start) ?? 540), mechanicId: mechanicId ?? mechanicFilter,
   });
 
   // Chantier C1 : le dossier moto ouvre ici la fenêtre de son RDV, sur la bonne semaine.
@@ -157,13 +173,10 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
     draftChecked.current = true;
     const d = restoreAppointmentDraft(companyId, returnVehicleId);
     if (returnVehicleId) onAppointmentOpened?.();
-    if (!d) return;
-    if (d.date) setRef(startOfDay(new Date(`${d.date}T00:00`)));
-    if (d.appointmentId) {
-      void getPlanningAppointment(d.appointmentId).then((a) => { if (a) setDialog({ appt: a, draft: d }); }).catch(() => undefined);
-      return;
-    }
-    setDialog({ appt: null, draft: d });
+    // Brouillon gardé volontairement : il attend sur son bouton, sauf si on revient avec sa moto.
+    if (!d || (d.kept && !returnVehicleId)) return;
+    openDraft(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, returnVehicleId, openAppointmentId, onAppointmentOpened]);
 
   const toggleStatus = (st: string) => setStatusFilter((x) => { const n = new Set(x); if (n.has(st)) n.delete(st); else n.add(st); return n; });
@@ -207,9 +220,14 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
               <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setSearching(true)}><Search className="size-4" /> {t('planningG8.search')}</Button>
               {/* G8 « SMS programmes » (lot SMS Brevo) : liste, annulation, programmation de rappels. */}
               <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setSmsOpen(true)}><MessageSquareText className="size-4" /> {t('sms.planningButton')}</Button>
-              <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })}>
+              <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => startNew({ startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true })}>
                 <Inbox className="size-4" /> {t('planningG8.newWaiting')}{period.waiting.length ? ` (${period.waiting.length})` : ''}
               </Button>
+              {pendingDraft && (
+                <Button variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => openDraft(pendingDraft)}>
+                  <History className="size-4" /> {t('dossier.resumeDraft')}
+                </Button>
+              )}
               <Button size="sm" className="pointer-coarse:h-11" onClick={() => newAt(ref)}><Plus className="size-4" /> {t('workshop.newRdv')}</Button>
             </div>
           </>
@@ -243,14 +261,14 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointm
       {view === 'activite' && activityScope === 'week' && (
         <ActivityWeekView base={base} ctx={ctx} days={days} appts={period.appts} waitingCount={period.waiting.length} mechanicFilter={mechanicFilter}
           onOpen={(a) => setDialog({ appt: a })}
-          onNew={(m, at) => setDialog({ appt: null, defaults: { startsAt: at, mechanicId: m } })}
+          onNew={(m, at) => startNew({ startsAt: at, mechanicId: m })}
           onDay={(d) => { setRef(startOfDay(d)); setActivityScope('day'); }} />
       )}
       {dayView && (
         <ActivityView base={base} ctx={ctx} day={ref} appts={period.appts} waiting={period.waiting} mechanicFilter={mechanicFilter}
           onOpen={(a) => setDialog({ appt: a })} onAssign={(a, m, at) => void assign(a, m, at)}
-          onNew={(m, at) => setDialog({ appt: null, defaults: { startsAt: at, mechanicId: m } })}
-          onNewWaiting={() => setDialog({ appt: null, defaults: { startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true } })} />
+          onNew={(m, at) => startNew({ startsAt: at, mechanicId: m })}
+          onNewWaiting={() => startNew({ startsAt: atMinutes(ref, timeToMinutes(s.day_start) ?? 540), unassigned: true })} />
       )}
       {view === 'prets' && <LoansView companyId={companyId} companyName={activeCompany?.name ?? ''} settings={s} />}
       {view === 'reglages' && canSettings && <PlanningSettingsView companyId={companyId} base={base} onChanged={refresh} />}
