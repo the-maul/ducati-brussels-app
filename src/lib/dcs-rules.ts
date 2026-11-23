@@ -200,7 +200,9 @@ export function dcsCompanyCheck(requested: string | null | undefined, active: st
 // Field-by-field plan
 // ---------------------------------------------------------------------------------------
 export type DcsChange = { field: string; old: string | null; new: string | number; action: 'filled' | 'replaced' };
-export type DcsStatusRow = { field: string; status: DcsFieldStatus; dcs_value: string | null; previous_value: string | null; source: 'dcs' };
+export type DcsStatusRow = { field: string; status: DcsFieldStatus; dcs_value: string | null; previous_value: string | null; source: 'dcs' | 'decision' };
+/** DCS values already settled by a user (field -> value read at that time): not asked again. */
+export type DcsDecisions = Record<string, string | null | undefined>;
 export type DcsCounts = { confirmed: number; replaced: number; filled: number; conflicts: number };
 export type DcsPlan = { changes: DcsChange[]; statuses: DcsStatusRow[]; invalid: string[]; counts: DcsCounts };
 export type DcsOwnerCheck = { name: string | null; currentName: string | null; matches: boolean };
@@ -235,13 +237,18 @@ export function planDcsImport(input: {
   payload: DcsPayloadV2;
   model: DcsModelMatch;
   owner?: DcsOwnerCheck | null;
+  decisions?: DcsDecisions;
 }): DcsPlan {
-  const { current, payload, model, owner } = input;
+  const { current, payload, model, owner, decisions } = input;
   const v = payload.vehicle ?? {};
   const plan: DcsPlan = { changes: [], statuses: [], invalid: [], counts: { confirmed: 0, replaced: 0, filled: 0, conflicts: 0 } };
 
-  const status = (field: string, s: DcsFieldStatus, dcs: unknown, previous: unknown) =>
-    plan.statuses.push({ field, status: s, dcs_value: asText(dcs), previous_value: asText(previous), source: 'dcs' });
+  const status = (field: string, s: DcsFieldStatus, dcs: unknown, previous: unknown, source: DcsStatusRow['source'] = 'dcs') =>
+    plan.statuses.push({ field, status: s, dcs_value: asText(dcs), previous_value: asText(previous), source });
+  const settled = (field: string, dcs: unknown, same: (a: unknown, b: unknown) => boolean) => {
+    const value = decisions?.[field];
+    return value !== null && value !== undefined && same(value, dcs);
+  };
 
   const decide = (field: string, rule: Rule, dcs: string | number, same: (a: unknown, b: unknown) => boolean) => {
     const cur = current[field];
@@ -256,6 +263,8 @@ export function planDcsImport(input: {
       plan.changes.push({ field, old: asText(cur), new: dcs, action: 'replaced' });
       plan.counts.replaced++;
       status(field, 'certifie', dcs, cur);
+    } else if (settled(field, dcs, same)) {
+      status(field, 'saisi', dcs, cur, 'decision');
     } else {
       plan.counts.conflicts++;
       status(field, 'conflit', dcs, cur);
@@ -291,6 +300,9 @@ export function planDcsImport(input: {
   if (model.status === 'certified' && model.modelYearId && model.modelText) {
     decide('model', 'factory', model.modelText, sameText);
     decide('ducati_model_year_id', 'factory', model.modelYearId, (a, b) => String(a) === String(b));
+  } else if (model.modelText && settled('model', model.modelText, sameText)) {
+    status('model', 'saisi', model.modelText, current.model, 'decision');
+    status('ducati_model_year_id', 'saisi', current.ducati_model_year_id, current.ducati_model_year_id, 'decision');
   } else if (model.modelText) {
     plan.counts.conflicts++;
     status('model', 'conflit', model.modelText, current.model);
@@ -315,6 +327,7 @@ export function planDcsImport(input: {
   // Owner: variable data, never written from the DCS.
   if (owner?.name) {
     if (owner.matches) { plan.counts.confirmed++; status('owner', 'certifie', owner.name, owner.currentName); }
+    else if (settled('owner', owner.name, sameText)) status('owner', 'saisi', owner.name, owner.currentName, 'decision');
     else { plan.counts.conflicts++; status('owner', 'conflit', owner.name, owner.currentName); }
   }
   return plan;
@@ -346,6 +359,54 @@ export function buildDcsContactPatch(c: Record<string, unknown>, first: string, 
   }
   if (Object.keys(extra).length) patch.my_ducati_data = extra;
   return patch;
+}
+
+// ---------------------------------------------------------------------------------------
+// Customer read at the DCS, kept for the bike
+// ---------------------------------------------------------------------------------------
+export type DcsClientSnapshot = {
+  full_name: string | null; first_name: string | null; last_name: string | null; email: string | null;
+  mobile: string | null; address: string | null; postal_code: string | null; city: string | null;
+  region: string | null; country: string | null; country_code: string | null; birth_date: string | null;
+  ducati_code: string | null;
+};
+
+const COUNTRY_CODES: Record<string, string> = {
+  BE: 'BE', BELGIUM: 'BE', BELGIQUE: 'BE', BELGIE: 'BE', BELGIO: 'BE', FR: 'FR', FRANCE: 'FR', FRANKRIJK: 'FR', FRANCIA: 'FR',
+  LU: 'LU', LUXEMBOURG: 'LU', LUXEMBURG: 'LU', LUSSEMBURGO: 'LU', NL: 'NL', NETHERLANDS: 'NL', 'THE NETHERLANDS': 'NL',
+  'PAYS BAS': 'NL', NEDERLAND: 'NL', 'PAESI BASSI': 'NL', DE: 'DE', GERMANY: 'DE', ALLEMAGNE: 'DE', DUITSLAND: 'DE',
+  DEUTSCHLAND: 'DE', GERMANIA: 'DE', IT: 'IT', ITALY: 'IT', ITALIE: 'IT', ITALIA: 'IT', ES: 'ES', SPAIN: 'ES',
+  ESPAGNE: 'ES', SPANJE: 'ES', SPAGNA: 'ES', PT: 'PT', PORTUGAL: 'PT', PORTOGALLO: 'PT', CH: 'CH', SWITZERLAND: 'CH',
+  SUISSE: 'CH', ZWITSERLAND: 'CH', SVIZZERA: 'CH', GB: 'GB', UK: 'GB', 'UNITED KINGDOM': 'GB', 'ROYAUME UNI': 'GB',
+  AT: 'AT', AUSTRIA: 'AT', AUTRICHE: 'AT', OOSTENRIJK: 'AT',
+};
+
+/** ISO code of a country read at the DCS; an unknown name stays empty rather than being guessed. */
+export function dcsCountryCode(v: unknown): string | null {
+  const key = words(v).join(' ');
+  return key ? COUNTRY_CODES[key] ?? null : null;
+}
+
+/**
+ * The customer block kept for the bike. Marketing and profiling flags are left out on purpose:
+ * DCS consents are never carried over to the DMS.
+ */
+export function buildDcsClientSnapshot(c: Record<string, unknown> | null | undefined, first: string, last: string): DcsClientSnapshot | null {
+  if (!c) return null;
+  const firstName = dcsText(first);
+  const lastName = dcsText(last);
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || null;
+  const code = dcsText(c.ducati_code);
+  if (!fullName && !code) return null;
+  const email = dcsText(c.my_ducati_email);
+  const country = dcsText(c.my_ducati_country);
+  return {
+    full_name: fullName, first_name: firstName, last_name: lastName,
+    email: email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : null,
+    mobile: dcsText(c.my_ducati_phone), address: dcsText(c.address), postal_code: dcsText(c.postal_code),
+    city: dcsText(c.my_ducati_city), region: dcsText(c.region), country, country_code: dcsCountryCode(country),
+    birth_date: parseDcsDate(c.birth_date), ducati_code: code,
+  };
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;

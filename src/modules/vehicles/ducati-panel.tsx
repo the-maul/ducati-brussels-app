@@ -3,13 +3,15 @@
  * synchronisés depuis My Ducati par l'extension navigateur (par VIN).
  */
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, ExternalLink, FileText } from 'lucide-react';
+import { RefreshCw, ExternalLink, FileText, ListChecks, ShieldCheck, Tag, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/status-badge';
 import { supabase } from '@/integrations/supabase/client';
 import { requestMyDucati } from '@/lib/myducati';
 import { t } from '@/lib/i18n';
 import type { Vehicle } from './api';
+import { dcsEventFamily, groupDcsEvents, type DcsEventKind } from './dcs-block-rules';
 
 const fdate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('fr-BE') : '—');
 
@@ -19,11 +21,12 @@ type DcsEvent = {
   event_date: string | null; due_date: string | null; dealer: string | null;
 };
 // Les trois tableaux du DCS, chacun avec sa propre date.
-const EVENT_GROUPS = [
-  { kind: 'upcoming', title: 'dossier.dcsEventsUpcoming', dateLabel: 'dossier.dcsColDue' },
-  { kind: 'current', title: 'dossier.dcsEventsCurrent', dateLabel: 'dossier.dcsColCreated' },
-  { kind: 'past', title: 'dossier.dcsEventsPast', dateLabel: 'dossier.dcsColDate' },
-] as const;
+const EVENT_GROUP: Record<DcsEventKind, { title: string; dateLabel: string }> = {
+  upcoming: { title: 'dossier.dcsEventsUpcoming', dateLabel: 'dossier.dcsColDue' },
+  current: { title: 'dossier.dcsEventsCurrent', dateLabel: 'dossier.dcsColCreated' },
+  past: { title: 'dossier.dcsEventsPast', dateLabel: 'dossier.dcsColDate' },
+};
+const FAMILY_ICON = { maintenance: Wrench, warranty: ShieldCheck, checklist: ListChecks, other: Tag } as const;
 
 export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   const v = vehicle as unknown as Record<string, unknown>;
@@ -75,9 +78,8 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
       {(maint.data?.length ?? 0) > 0 && (
         <div className="space-y-3">
           <h3 className="text-[13px] font-bold">{t('vehicles.ducatiMaintenance')}</h3>
-          {EVENT_GROUPS.map((g) => {
-            const rows = (maint.data as unknown as DcsEvent[]).filter((m) => (m.kind ?? 'past') === g.kind);
-            if (!rows.length) return null;
+          {groupDcsEvents(maint.data as unknown as DcsEvent[]).map(({ kind, rows }) => {
+            const g = { kind, ...EVENT_GROUP[kind] };
             return (
               <div key={g.kind}>
                 <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t(g.title)} ({rows.length})</p>
@@ -85,16 +87,19 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
                   <table className="w-full border-collapse font-data text-[13px]">
                     <thead className="bg-muted"><tr>{[t('dossier.dcsColEvent'), t('dossier.dcsColType'), t('dossier.dcsColReference'), t('dossier.dcsColState'), t('dossier.dcsColSymptom'), t('dossier.dcsColCause'), t('dossier.dcsColKm'), t(g.dateLabel), t('dossier.dcsColDealer')].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
                     <tbody>
-                      {rows.map((m) => (
+                      {rows.map((m) => {
+                        const family = dcsEventFamily(m.event_category);
+                        return (
                         <tr key={m.id} className="border-b border-border last:border-0">
-                          <td className="px-3 py-1.5">{m.event_category ?? '—'}</td><td className="px-3 py-1.5">{m.service_type ?? '—'}</td>
+                          <td className="px-3 py-1.5">{m.event_category ? <StatusBadge tone={family.tone} icon={FAMILY_ICON[family.family]} label={m.event_category} /> : '—'}</td><td className="px-3 py-1.5">{m.service_type ?? '—'}</td>
                           <td className="px-3 py-1.5 font-mono text-[12px]">{m.reference ?? '—'}</td><td className="px-3 py-1.5">{m.state ?? '—'}</td>
                           <td className="px-3 py-1.5">{m.symptom ?? '—'}</td><td className="px-3 py-1.5">{m.cause ?? '—'}</td>
-                          <td className="px-3 py-1.5 tabular-nums">{m.km ?? '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{m.km != null ? m.km.toLocaleString('fr-BE') : '—'}</td>
                           <td className="px-3 py-1.5 font-mono text-[12px]">{fdate(g.kind === 'upcoming' ? m.due_date : m.event_date)}</td>
                           <td className="px-3 py-1.5 text-muted-foreground">{m.dealer ?? '—'}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -109,7 +114,7 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
           <h3 className="mb-1 text-[13px] font-bold">{t('vehicles.ducatiBulletins')}</h3>
           <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full border-collapse font-data text-[13px]">
-              <thead className="bg-muted"><tr>{['N°', 'Titre', 'Date'].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
+              <thead className="bg-muted"><tr>{[t('dossier.dcsBlockBullNumber'), t('dossier.dcsBlockBullTitle'), t('dossier.dcsBlockBullDate')].map((h) => <th key={h} className="px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{h}</th>)}</tr></thead>
               <tbody>
                 {bull.data!.map((b) => {
                   const bb = b as { url?: string | null; storage_path?: string | null };
@@ -124,7 +129,7 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
                             ? <a href={bb.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{title}<ExternalLink className="size-3" /></a>
                             : (b.title ?? '—')}
                       </td>
-                      <td className="px-3 py-1.5 font-mono text-[12px]">{b.published_at ?? '—'}</td>
+                      <td className="px-3 py-1.5 font-mono text-[12px]">{fdate(b.published_at)}</td>
                     </tr>
                   );
                 })}

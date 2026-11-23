@@ -1,4 +1,5 @@
 import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
+import { DcsBlock } from '@/modules/vehicles/dcs-block';
 import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -56,8 +57,9 @@ function EditVehicle() {
 
   const { data: vehicle, isLoading } = useQuery({ queryKey: ['vehicle', vehicleId], queryFn: () => getVehicle(vehicleId) });
   // Champs vides complétés depuis nos factures et le catalogue (enregistrés à la prochaine sauvegarde).
+  // Repart de chaque changement de la fiche : lecture DCS, écart tranché, catalogue complété.
   const fillQ = useQuery({
-    queryKey: ['vehicle-fill', vehicleId, vehicle?.my_ducati_synced_at ?? null],
+    queryKey: ['vehicle-fill', vehicleId, vehicle?.updated_at ?? null],
     queryFn: () => loadVehicleFill(vehicle as NonNullable<typeof vehicle>),
     enabled: !!vehicle, staleTime: Infinity, gcTime: 0,
     placeholderData: (previous) => previous,
@@ -69,7 +71,7 @@ function EditVehicle() {
   const freshFill = fillQ.isPlaceholderData ? null : fillQ.data?.vehicle ?? null;
   useEffect(() => {
     if (!freshFill) return;
-    const synced = freshFill.my_ducati_synced_at ?? null;
+    const synced = freshFill.updated_at ?? null;
     if (shownSync.current === undefined) { shownSync.current = synced; return; }
     if (synced === shownSync.current) return;
     shownSync.current = synced;
@@ -141,6 +143,7 @@ function EditVehicle() {
 
         {/* forceMount : changer d'onglet ne perd pas une saisie en cours dans la fiche. */}
         <TabsContent value="infos" forceMount className="mt-4 space-y-6 data-[state=inactive]:hidden">
+          <DcsBlock vehicle={vehicle} companyId={activeCompanyId} owners={owners} onOpenHistory={() => setTab('atelier')} />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Historique propriétaires (VEH003) */}
             <Card title={t('vehicles.secOwners')}>
@@ -188,6 +191,10 @@ function EditVehicle() {
         </TabsContent>
 
         <TabsContent value="atelier" className="mt-4 space-y-6">
+          {/* Événements et bulletins DCS d'abord : les liens du bloc « Données DCS » arrivent ici. */}
+          <Card title={t('vehicles.secDucati')}>
+            <DucatiInfoPanel vehicle={vehicle} />
+          </Card>
           {/* Historique atelier : OR, km, entretiens (rattrapage G8 du 18/11). */}
           <VehicleWorkshopHistoryPanel vehicleId={vehicleId} />
           {/* Mission 07, cartes 4 et 5 : prochain entretien (date, source) et déclaration du client */}
@@ -199,9 +206,6 @@ function EditVehicle() {
           </Card>
           {/* Interventions reportees par le client a la signature de la proposition (ATE009) */}
           <DeferredPanel vehicleId={vehicleId} />
-          <Card title={t('vehicles.secDucati')}>
-            <DucatiInfoPanel vehicle={vehicle} />
-          </Card>
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4 space-y-6">

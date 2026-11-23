@@ -175,12 +175,12 @@ export function VehicleForm({
   // Rien de modifié = rien à enregistrer : le bouton reste grisé (sauf pré-remplissage à créer).
   const dirty = useIsDirty(f);
   useEffect(() => { if (dirtyRef) dirtyRef.current = dirty; }, [dirty, dirtyRef]);
-  // Import DCS reçu pendant une saisie : seuls les champs auxquels on n'a pas touché sont mis à jour.
+  // Lecture DCS ou écart tranché pendant une saisie : seuls les champs auxquels on n'a pas touché sont mis à jour.
   const baseF = useRef(f);
-  const seenSync = useRef((initial as { my_ducati_synced_at?: string | null } | null)?.my_ducati_synced_at ?? null);
+  const seenSync = useRef((initial as { updated_at?: string | null } | null)?.updated_at ?? null);
   useEffect(() => {
     if (!initial) return;
-    const synced = (initial as { my_ducati_synced_at?: string | null }).my_ducati_synced_at ?? null;
+    const synced = (initial as { updated_at?: string | null }).updated_at ?? null;
     if (synced === seenSync.current) return;
     seenSync.current = synced;
     const next = fromVehicle(initial, isClient, prefill);

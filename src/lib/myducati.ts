@@ -6,8 +6,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { dcsStart } from '@/lib/dcs-progress';
 import {
-  buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
-  type DcsCounts, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal,
+  buildDcsClientSnapshot, buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
+  type DcsCounts, type DcsDecisions, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal,
 } from '@/lib/dcs-rules';
 
 export type MyDucatiPayload = DcsPayloadV2 & {
@@ -23,6 +23,20 @@ export type MyDucatiPayload = DcsPayloadV2 & {
 const looseRpc = supabase as unknown as {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
 };
+const looseFrom = supabase as unknown as {
+  from: (t: string) => { select: (c: string) => { eq: (c: string, v: string) => PromiseLike<{ data: unknown; error: unknown }> } };
+};
+
+/** Values a user already settled on this bike: the next read does not ask again. */
+async function loadDcsDecisions(vehicleId: string): Promise<DcsDecisions> {
+  const { data, error } = await looseFrom.from('vehicle_field_status').select('field, dcs_value, source').eq('vehicle_id', vehicleId);
+  if (error) throw error;
+  const out: DcsDecisions = {};
+  for (const r of (data ?? []) as Array<{ field: string; dcs_value: string | null; source: string | null }>) {
+    if (r.source === 'decision') out[r.field] = r.dcs_value;
+  }
+  return out;
+}
 
 /** Société active au moment de la demande : l'import n'est appliqué que sur celle-ci. */
 const DCS_REQUEST_TTL_MS = 10 * 60 * 1000;
@@ -104,6 +118,8 @@ export function requestMyDucati(vin: string): Promise<boolean> {
 export type ApplyResult = {
   matched: boolean; refused?: DcsRefusal; vehicleId?: string; bulletins?: number; events?: number;
   counts?: DcsCounts; invalid?: string[]; ownerMismatch?: boolean;
+  /** false: the bike is saved, but the customer or the catalogue fields could not be completed. */
+  completed?: boolean; catalogFilled?: string[];
 };
 
 export type BulletinPdfPayload = { number?: string; pdf_base64?: string; pdf_name?: string };
@@ -180,7 +196,8 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     }
   }
 
-  const plan = planDcsImport({ current, payload: p, model, owner });
+  const decisions = await loadDcsDecisions(vehicleId);
+  const plan = planDcsImport({ current, payload: p, model, owner, decisions });
   const events = cleanDcsEvents(p.maintenance);
   const bulletins = (p.bulletins || []).filter((b) => b.bulletin_id).map((b) => ({
     bulletin_id: b.bulletin_id, title: b.title || null, number: b.number || null,
@@ -198,8 +215,29 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
   });
   if (error) throw error;
   const saved = (data ?? {}) as { events?: number; bulletins?: number };
+
+  // Second step, kept apart so that the import itself never depends on it (manual and nightly).
+  let completed: boolean | undefined;
+  let catalogFilled: string[] = [];
+  let done: Awaited<ReturnType<typeof looseRpc.rpc>>;
+  try {
+    done = await looseRpc.rpc('dcs_import_complete', {
+      _company: companyId, _vehicle: vehicleId, _vin: vin, _client: buildDcsClientSnapshot(c, firstName, lastName),
+    });
+  } catch {
+    done = { data: null, error: { message: 'dcs_complete_failed' } };
+  }
+  if (done.error) {
+    // Migration not applied yet: the import works as before, nothing to report.
+    if (done.error.code !== 'PGRST202') completed = false;
+  } else {
+    completed = true;
+    catalogFilled = ((done.data ?? {}) as { filled?: string[] }).filled ?? [];
+  }
   return {
     matched: true, vehicleId, bulletins: saved.bulletins ?? 0, events: saved.events ?? 0,
-    counts: plan.counts, invalid: plan.invalid, ownerMismatch: Boolean(owner && !owner.matches),
+    counts: plan.counts, invalid: plan.invalid,
+    ownerMismatch: plan.statuses.some((s) => s.field === 'owner' && s.status === 'conflit'),
+    completed, catalogFilled,
   };
 }

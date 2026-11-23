@@ -41,6 +41,7 @@ export function MyDucatiListener() {
         if (n.conflicts > 0 || (r.invalid?.length ?? 0) > 0) toast.warning(summary);
         else toast.success(summary);
         if (r.ownerMismatch) toast.warning(t('dossier.dcsOwnerMismatch'));
+        if (r.completed === false) toast.warning(t('dossier.dcsBlockCompleteFailed'));
         qc.invalidateQueries();
       } catch (e) {
         const message = (e as { message?: string } | null)?.message ?? '';
