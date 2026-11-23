@@ -76,15 +76,16 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, highlig
   useEffect(() => {
     if (highlightPos && lines.data) {
       const n = lines.data.find((x) => x.position === highlightPos)?.line_no;
-      if (n != null) setTimeout(() => rowRefs.current[String(n)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      // Ouverture zoomée (atelier) : la planche reste à l'écran, on ne descend pas à la liste.
+      if (n != null && !focusOnOpen) setTimeout(() => rowRefs.current[String(n)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
     if (!target || !lines.data) return;
     const l = lines.data.find((x) => x.reference_norm === target);
     if (!l) return;
     if (l.position) setSelected(l.position);
-    setTimeout(() => rowRefs.current[String(l.line_no)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-  }, [target, lines.data, highlightPos]);
+    if (!focusOnOpen) setTimeout(() => rowRefs.current[String(l.line_no)]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }, [target, lines.data, highlightPos, focusOnOpen]);
 
   const pick = (pos: string) => {
     setSelected(pos);
