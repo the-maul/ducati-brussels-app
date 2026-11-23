@@ -53,6 +53,14 @@ const NONE = '__none__';
 
 export type AppointmentDefaults = { startsAt?: Date; mechanicId?: string | null; unassigned?: boolean };
 
+/** Propriétaire actuel de la moto, s'il est connu. */
+async function currentOwner(vehicleId: string): Promise<Contact | null> {
+  const { data } = await supabase.from('vehicle_owners').select('contact_id').eq('vehicle_id', vehicleId).eq('is_current', true)
+    .not('contact_id', 'is', null).order('from_date', { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
+  const id = (data as { contact_id: string | null } | null)?.contact_id;
+  return id ? getContact(id).catch(() => null) : null;
+}
+
 export function AppointmentDialog({ companyId, base, ctx, appts, appointment, defaults, reservationsOn, onClose, onSaved, onOrCreated }: {
   companyId: string;
   base: ReturnType<typeof usePlanningBase>;
@@ -85,15 +93,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   // La moto choisie amène son propriétaire actuel si le client n'est pas encore renseigné.
   const pickVehicle = (v: VehiclePickRow) => {
     setVehicle(v);
-    if (contact) return;
-    void supabase.from('vehicle_owners').select('contact_id').eq('vehicle_id', v.id).eq('is_current', true)
-      .not('contact_id', 'is', null).order('from_date', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
-      .then(async ({ data }) => {
-        const id = (data as { contact_id: string | null } | null)?.contact_id;
-        if (!id) return;
-        const owner = await getContact(id).catch(() => null);
-        if (owner) setContact((cur) => cur ?? owner);
-      });
+    if (!contact) void currentOwner(v.id).then((owner) => { if (owner) setContact((cur) => cur ?? owner); });
   };
   const [checkPoints, setCheckPoints] = useState<CheckPoints>(() => normalizeCheckPoints(a?.check_points));
   const hadCheckPoints = Object.keys(normalizeCheckPoints(a?.check_points)).length > 0;
@@ -111,6 +111,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   // Rechargement du client / de la moto d'un RDV existant.
   useEffect(() => {
     if (a?.contact_id) void getContact(a.contact_id).then((c) => c && setContact(c));
+    // RDV enregistré sans client : on propose le propriétaire actuel de la moto.
+    else if (a?.vehicle_id) void currentOwner(a.vehicle_id).then((owner) => { if (owner) setContact((cur) => cur ?? owner); });
     if (a?.vehicle_id) {
       void supabase.from('vehicles').select('id, vin, plate, brand, model, model_year').eq('id', a.vehicle_id).maybeSingle()
         .then(({ data }) => data && setVehicle(data as VehiclePickRow));
