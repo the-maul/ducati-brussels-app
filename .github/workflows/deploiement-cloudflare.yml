@@ -76,7 +76,7 @@ jobs:
 
       - name: Envoyer une version (sans mise en ligne)
         if: ${{ inputs.mode == 'version' }}
-        run: npx -y wrangler@4.157.0 versions upload --message "${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
+        run: npx -y wrangler@4.157.0 versions upload --preview-alias essai --message "${GITHUB_SHA::7} (${GITHUB_REF_NAME})"
 
       - name: Mettre en ligne
         if: ${{ inputs.mode == 'production' }}
