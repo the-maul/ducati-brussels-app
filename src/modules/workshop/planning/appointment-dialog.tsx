@@ -398,9 +398,14 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           )}
           <Button variant="outline" className="pointer-coarse:h-11" onClick={onClose}>{t('action.cancel')}</Button>
           <Button variant="outline" className="pointer-coarse:h-11" onClick={() => save.mutate(false)} disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin" /> : null} {t('action.save')}</Button>
-          {!a?.or_id && (
+          {!a?.or_id && a?.status !== 'annule' && (
             <Button className="pointer-coarse:h-11" onClick={() => save.mutate(true)} disabled={save.isPending || unassigned} title={unassigned ? t('planningG8.orNeedsSlot') : undefined}>
-              <FileText /> {t('planningG8.validateAndOr')}
+              <FileText /> {a ? t('dossier.rdvStartReception') : t('planningG8.validateAndOr')}
+            </Button>
+          )}
+          {a?.or_id && (
+            <Button className="pointer-coarse:h-11" onClick={() => onOrCreated(a.or_id!)}>
+              <FolderOpen /> {t('dossier.openDossier')}
             </Button>
           )}
         </DialogFooter>
