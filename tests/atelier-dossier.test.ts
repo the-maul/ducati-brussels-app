@@ -245,7 +245,7 @@ describe('Mon atelier : la carte ouvre la bonne étape', () => {
 describe('Vue éclatée : zoom sur la pièce', () => {
   test('centrée sur le repère', () => {
     const z = focusTransform({ left: 48, top: 48, width: 4, height: 4 });
-    expect(z.scale).toBe(4);
+    expect(z.scale).toBe(2.2); // assez large pour voir la pièce au bout du trait
     expect(z.x + 50 * z.scale).toBeCloseTo(50);
     expect(z.y + 50 * z.scale).toBeCloseTo(50);
   });

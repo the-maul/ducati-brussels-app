@@ -21,6 +21,8 @@ export function fmtDateTime(iso: string | null | undefined): string {
  * Position d'un repère (coordonnées Ducati en pixels de l'image d'origine) en pourcentage de
  * l'image affichée. Renvoie null si l'image n'a pas encore de taille connue.
  */
+const FOCUS_MAX_SCALE = 2.2;
+
 /**
  * Chantier C1 (23/11/2026) : zoom centré sur un repère. `box` en % de l'image ; le résultat s'applique
  * en `translate(x%, y%) scale(scale)` depuis le coin haut gauche. La pièce occupe environ un quart de
@@ -28,7 +30,8 @@ export function fmtDateTime(iso: string | null | undefined): string {
  */
 export function focusTransform(box: { left: number; top: number; width: number; height: number }): { scale: number; x: number; y: number } {
   const span = Math.max(box.width, box.height, 0.5) * 4;
-  const scale = Math.min(4, Math.max(1, 100 / span));
+  // Le repère est un petit numéro relié à la pièce par un trait : on garde assez de planche pour voir la pièce.
+  const scale = Math.min(FOCUS_MAX_SCALE, Math.max(1, 100 / span));
   const at = (center: number) => Math.min(0, Math.max(100 - 100 * scale, 50 - center * scale));
   return { scale, x: at(box.left + box.width / 2), y: at(box.top + box.height / 2) };
 }
