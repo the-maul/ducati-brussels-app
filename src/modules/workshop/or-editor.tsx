@@ -530,7 +530,7 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
         <Field label={t('workshop.vehicle')}>
           {vehicle
             ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
-            : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
+            : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactDisplayName(contact) } : null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
         <Field label={`${t('workshop.mileage')}${kmRequired ? ' *' : ''}`}>
           <Input

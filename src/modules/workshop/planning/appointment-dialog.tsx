@@ -305,7 +305,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
-          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} onPick={pickVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
+          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactDisplayName(contact) } : null} onPick={pickVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
           <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
             <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
           </Field>

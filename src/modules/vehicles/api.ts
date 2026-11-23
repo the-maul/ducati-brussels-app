@@ -1,6 +1,7 @@
 /**
  * M3 — Accès données Véhicules (RLS : filtré par société).
  */
+import { vinHitsFirst } from './vehicle-pick';
 import { parseVinQuery, vinLikePattern, vinMatchesQuery } from '@/lib/vin-search';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
@@ -264,10 +265,48 @@ export async function searchVehiclesByVinPattern(companyId: string, raw: string,
     .map(({ vehicle_owners, ...v }) => {
       const o = (vehicle_owners ?? []).filter((x) => x.is_current)
         .sort((a, b) => String(b.from_date ?? '').localeCompare(String(a.from_date ?? '')))[0];
-      const c = o?.contacts;
-      const name = c ? (c.company_name?.trim() || [c.first_name, c.last_name].filter(Boolean).join(' ').trim()) : '';
-      return { ...v, owner_id: o?.contact_id ?? null, owner_name: name || null };
+      return { ...v, owner_id: o?.contact_id ?? null, owner_name: ownerDisplayName(o?.contacts) };
     });
+}
+
+type OwnerContact = { first_name: string | null; last_name: string | null; company_name: string | null };
+function ownerDisplayName(c: OwnerContact | null | undefined): string | null {
+  if (!c) return null;
+  return c.company_name?.trim() || [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || null;
+}
+
+/** Moto proposée dans un sélecteur, avec son propriétaire actuel quand on le connaît. */
+export type VehiclePickResult = Vehicle & { owner_id?: string | null; owner_name?: string | null };
+
+/**
+ * Recherche du sélecteur de moto : tout le parc (stock et motos des clients). Un VIN qui commence
+ * par ce qui est tapé passe devant ; chaque moto arrive avec son propriétaire actuel.
+ */
+export async function searchVehiclesForPick(companyId: string, term: string, limit = 20): Promise<VehiclePickResult[]> {
+  const q = term.includes('*') ? null : parseVinQuery(term);
+  const [vinHits, others] = await Promise.all([
+    q
+      ? supabase.from('vehicles').select('*').eq('company_id', companyId).ilike('vin', vinLikePattern(q)).order('vin').limit(limit)
+        .then(({ data, error }) => { if (error) throw error; return (data ?? []) as Vehicle[]; })
+      : Promise.resolve([] as Vehicle[]),
+    searchVehiclesForSale(companyId, term, limit),
+  ]);
+  const found = vinHitsFirst(vinHits, others, limit);
+  if (found.length === 0) return [];
+  const { data, error } = await supabase.from('vehicle_owners')
+    .select('vehicle_id, contact_id, from_date, contacts(first_name, last_name, company_name)')
+    .in('vehicle_id', found.map((v) => v.id)).eq('is_current', true);
+  if (error) throw error;
+  type Row = { vehicle_id: string; contact_id: string | null; from_date: string | null; contacts: OwnerContact | null };
+  const owners = new Map<string, Row>();
+  for (const r of (data ?? []) as unknown as Row[]) {
+    const cur = owners.get(r.vehicle_id);
+    if (!cur || String(r.from_date ?? '') > String(cur.from_date ?? '')) owners.set(r.vehicle_id, r);
+  }
+  return found.map((v) => {
+    const o = owners.get(v.id);
+    return { ...v, owner_id: o?.contact_id ?? null, owner_name: ownerDisplayName(o?.contacts) };
+  });
 }
 
 export async function searchVehiclesForSale(companyId: string, term: string, limit = 8): Promise<Vehicle[]> {

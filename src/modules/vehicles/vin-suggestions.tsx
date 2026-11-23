@@ -16,6 +16,14 @@ import { searchVehiclesByVinPattern, vehicleLabel, type VinMatch } from './api';
 
 const STOCK_STATUSES = ['stock_vn', 'stock_vo', 'repris', 'reserve', 'depot_vente', 'courtoisie'];
 
+/** Ce que l'attribution change, dit avant de confirmer. */
+export function vinAttachMessage(m: { owner_id?: string | null; owner_name?: string | null; status: string }): string {
+  if (m.owner_id) return fillVars(t('motoClient.vinAttachFromClient'), { owner: m.owner_name ?? t('motoClient.noOwner') });
+  return STOCK_STATUSES.includes(m.status)
+    ? fillVars(t('motoClient.vinAttachFromStock'), { status: t(`vehicles.status_${m.status}`) })
+    : t('motoClient.vinAttachNoOwner');
+}
+
 export function VinSuggestions({ companyId, term, client, ownerFrom, onAttach, attaching }: {
   companyId: string;
   term: string;
@@ -40,14 +48,9 @@ export function VinSuggestions({ companyId, term, client, ownerFrom, onAttach, a
 
   const attach = async (m: VinMatch) => {
     if (!client || !onAttach) return;
-    const message = m.owner_id
-      ? fillVars(t('motoClient.vinAttachFromClient'), { owner: m.owner_name ?? t('motoClient.noOwner') })
-      : STOCK_STATUSES.includes(m.status)
-        ? fillVars(t('motoClient.vinAttachFromStock'), { status: t(`vehicles.status_${m.status}`) })
-        : t('motoClient.vinAttachNoOwner');
     const ok = await confirm({
       title: fillVars(t('motoClient.vinAttachTitle'), { client: client.name }),
-      message, confirmLabel: t('motoClient.vinAttach'), cancelLabel: t('action.cancel'),
+      message: vinAttachMessage(m), confirmLabel: t('motoClient.vinAttach'), cancelLabel: t('action.cancel'),
     });
     if (ok) onAttach(m.id, ownerFrom);
   };

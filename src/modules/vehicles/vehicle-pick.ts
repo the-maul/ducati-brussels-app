@@ -62,6 +62,16 @@ export function buildVehicleChoices<V extends VehiclePickRow>(input: { own: V[];
   return { own, park, searching };
 }
 
+/** Les motos dont le VIN correspond passent devant les autres resultats, sans doublon. */
+export function vinHitsFirst<V extends { id: string }>(vinHits: V[], others: V[], limit: number): V[] {
+  const seen = new Set<string>();
+  return [...vinHits, ...others].filter((v) => {
+    if (seen.has(v.id)) return false;
+    seen.add(v.id);
+    return true;
+  }).slice(0, limit);
+}
+
 /** Ce que le menu doit dire quand il n'y a rien a lister. */
 export type VehiclePickEmpty = 'none' | 'noClient' | 'noneForClient' | 'noneFound';
 

@@ -7,25 +7,33 @@
  * Logique pure dans `vehicle-pick.ts`.
  */
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from '@tanstack/react-router';
-import { Bike, Plus, Search } from 'lucide-react';
+import { Bike, Link2, Loader2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { listContactCurrentVehicles, searchVehiclesForSale, vehiclePickLabel, type Vehicle } from './api';
+import { useConfirm } from '@/components/confirm-provider';
+import { errorMessage } from '@/lib/mutation-feedback';
+import { attachVehicleOwner, listContactCurrentVehicles, searchVehiclesForPick, vehiclePickLabel, type Vehicle, type VehiclePickResult } from './api';
+import { vinAttachMessage } from './vin-suggestions';
 import { buildVehicleChoices, vehiclePickEmptyState } from './vehicle-pick';
-import { t } from '@/lib/i18n';
+import { fillVars, t } from '@/lib/i18n';
 
-export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
+export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, placeholder }: {
   companyId: string;
   /** Client deja choisi : ses motos passent en tete. `null` : recherche dans le parc seulement. */
   contactId: string | null;
+  /** Atelier : une moto du stock ou d'un autre client peut être attribuée à ce client. */
+  attachTo?: { id: string; name: string } | null;
   /** Ne recoit que la moto : le client de l'ecran appelant n'est jamais touche. */
   onPick: (v: Vehicle) => void;
   placeholder?: string;
 }) {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const qc = useQueryClient();
+  const [attaching, setAttaching] = useState<string | null>(null);
   const location = useLocation();
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState(false);
@@ -39,20 +47,43 @@ export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
   });
   const searchQ = useQuery({
     queryKey: ['vehicle-pick', companyId, deb],
-    queryFn: () => searchVehiclesForSale(companyId, deb),
+    queryFn: () => searchVehiclesForPick(companyId, deb),
     enabled: deb.length >= 2, staleTime: 60_000,
   });
   // Une erreur de chargement se dit (toast) et ne vide rien : le client reste choisi.
   useEffect(() => { if (ownQ.error) toast.error(t('vehiclePick.loadError')); }, [ownQ.error]);
   useEffect(() => { if (searchQ.error) toast.error(t('vehiclePick.loadError')); }, [searchQ.error]);
 
-  const choices = buildVehicleChoices<Vehicle>({ own: ownQ.data ?? [], found: searchQ.data ?? [], term: deb });
+  const choices = buildVehicleChoices<VehiclePickResult>({ own: ownQ.data ?? [], found: searchQ.data ?? [], term: deb });
   const empty = vehiclePickEmptyState({
     contactId, ownLoaded: !contactId || ownQ.isFetched, searchLoaded: searchQ.isFetched, choices,
   });
   const loading = (!!contactId && ownQ.isLoading) || (choices.searching && searchQ.isLoading);
 
   const pick = (v: Vehicle) => { onPick(v); setTerm(''); setOpen(false); };
+  const attach = async (v: VehiclePickResult) => {
+    if (!attachTo) return;
+    setOpen(false);
+    const ok = await confirm({
+      title: fillVars(t('motoClient.vinAttachTitle'), { client: attachTo.name }),
+      message: vinAttachMessage(v), confirmLabel: t('motoClient.vinAttach'), cancelLabel: t('action.cancel'),
+    });
+    if (!ok) return;
+    setAttaching(v.id);
+    try {
+      await attachVehicleOwner(v.id, attachTo.id);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['contact-vehicles'] }),
+        qc.invalidateQueries({ queryKey: ['vehicle-pick', companyId] }),
+      ]);
+      toast.success(fillVars(t('dossier.pickAttached'), { client: attachTo.name }));
+      pick(v);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setAttaching(null);
+    }
+  };
   const addForClient = () => {
     if (!contactId) return;
     // `retour` (UX011) : une fois la moto creee, on revient sur cet ecran (OR, document)
@@ -65,6 +96,21 @@ export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
       <Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{vehiclePickLabel(v)}</span>
     </button>
   );
+  // Moto du parc : la prendre telle quelle, ou l'attribuer à ce client.
+  const parkRow = (v: VehiclePickResult) => (!attachTo ? row(v) : (
+    <div key={v.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent">
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v)} className="min-w-0 flex-1 text-left">
+        <span className="flex items-center gap-2 text-sm"><Bike className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{vehiclePickLabel(v)}</span></span>
+        <span className="block truncate pl-5 text-[11px] text-muted-foreground">
+          {v.owner_id ? `${t('motoClient.currentOwner')}${v.owner_name ?? t('motoClient.noOwner')}` : t(`vehicles.status_${v.status}`)}
+        </span>
+      </button>
+      <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={!!attaching}
+        onMouseDown={(e) => e.preventDefault()} onClick={() => { void attach(v); }}>
+        {attaching === v.id ? <Loader2 className="animate-spin" /> : <Link2 />} {t('motoClient.vinAttach')}
+      </Button>
+    </div>
+  ));
   const section = (label: string) => (
     <p className="px-3 pt-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{label}</p>
   );
@@ -75,24 +121,31 @@ export function VehiclePicker({ companyId, contactId, onPick, placeholder }: {
       <Input value={term} onChange={(e) => setTerm(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder ?? t('vehiclePick.placeholder')} className="h-9 pl-9" />
       {open && (
-        <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
+        <div className={`absolute z-20 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)] ${attachTo ? 'w-[min(32rem,calc(100vw-3rem))]' : 'w-full'}`}>
           {choices.own.length > 0 && section(t('vehiclePick.ofClient'))}
           {choices.own.map(row)}
           {choices.park.length > 0 && section(t('vehiclePick.park'))}
-          {choices.park.map(row)}
+          {attachTo && choices.park.length > 0 && <p className="px-3 pb-1 text-[11px] text-muted-foreground">{t('dossier.pickUseHint')}</p>}
+          {choices.park.map(parkRow)}
           {loading && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('vehiclePick.loading')}</p>}
           {!loading && empty === 'noClient' && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('vehiclePick.noClient')}</p>}
           {!loading && empty === 'noneFound' && <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('vehiclePick.noneFound')}</p>}
           {!loading && empty === 'noneForClient' && (
             <div className="space-y-2 px-3 py-2">
               <p className="text-[12px] text-muted-foreground">{t('vehiclePick.noneForClient')}</p>
-              <Button type="button" size="sm" variant="outline" onMouseDown={(e) => e.preventDefault()} onClick={addForClient}>
-                <Plus /> {t('vehiclePick.addForClient')}
-              </Button>
+              {attachTo && <p className="text-[12px] text-muted-foreground">{t('dossier.pickSearchPark')}</p>}
+              {attachTo && <p className="font-data text-[11px] text-muted-foreground">{t('motoClient.vinHelp')}</p>}
             </div>
           )}
           {!loading && empty === 'none' && !choices.searching && choices.own.length > 0 && (
             <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('vehiclePick.searchHint')}</p>
+          )}
+          {!!contactId && !loading && (!!attachTo || empty === 'noneForClient') && (
+            <div className="border-t border-border px-3 py-2">
+              <Button type="button" size="sm" variant="outline" onMouseDown={(e) => e.preventDefault()} onClick={addForClient}>
+                <Plus /> {t('vehiclePick.addForClient')}
+              </Button>
+            </div>
           )}
         </div>
       )}

@@ -128,3 +128,15 @@ describe('un seul composant VehiclePicker pour l OR, le RDV et les documents de 
     expect(src).not.toMatch(/listContacts\(companyId, ''\)\)\.find/);
   });
 });
+
+describe('Moto du parc : le VIN tapé passe devant', () => {
+  const m = (id: string) => ({ id });
+  it('les motos au VIN correspondant arrivent en premier, sans doublon', async () => {
+    const { vinHitsFirst } = await import('../src/modules/vehicles/vehicle-pick');
+    expect(vinHitsFirst([m('a'), m('b')], [m('c'), m('a')], 20).map((v) => v.id)).toEqual(['a', 'b', 'c']);
+  });
+  it('la limite est respectée', async () => {
+    const { vinHitsFirst } = await import('../src/modules/vehicles/vehicle-pick');
+    expect(vinHitsFirst([m('a'), m('b')], [m('c')], 2).map((v) => v.id)).toEqual(['a', 'b']);
+  });
+});
