@@ -50,7 +50,28 @@ export function getWatchNote(c: Contact): string | null {
  * `PICKER_LIMIT` (perf 19/11/2026 : 500 fiches = 1,3 Mo par frappe pour un terme de 2 lettres).
  */
 export const PICKER_LIMIT = 8;
+
+const rpcLoose = supabase as unknown as {
+  rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+};
+
+/**
+ * Mêmes fiches que `contacts_search`, le meilleur résultat d'abord (migration 20261123114000).
+ * `null` si la fonction n'est pas encore en base : l'appelant garde alors l'ordre alphabétique.
+ */
+async function searchBestContacts(companyId: string, q: string, type: string, limit: number, offset: number): Promise<Contact[] | null> {
+  const { data, error } = await rpcLoose.rpc('contacts_search_best', { _company: companyId, _q: q, _type: type, _limit: limit, _offset: offset });
+  if (!error) return (data as Contact[]) ?? [];
+  if (error.code === 'PGRST202' || error.code === '42883') return null;
+  throw error;
+}
+
 export async function listContacts(companyId: string, search?: string, type?: string, limit = 500): Promise<Contact[]> {
+  const q = search?.trim();
+  if (q) {
+    const best = await searchBestContacts(companyId, q, type ?? '', limit, 0);
+    if (best) return best;
+  }
   const { data, error } = await supabase.rpc('contacts_search', {
     // `_type` vide plutôt que null : la fonction SQL traite les deux pareil
     // (`_type is null or _type = '' or ...`) et la signature générée attend une chaîne.
@@ -72,6 +93,17 @@ export async function listContactsPaged(
   const page = opts.page ?? 0;
   const pageSize = opts.pageSize ?? 50;
   const args = { _company: companyId, _q: opts.search ?? '', _type: opts.type ?? '' };
+  const q = opts.search?.trim();
+  if (q && (opts.sort ?? 'name') === 'name') {
+    const [best, count] = await Promise.all([
+      searchBestContacts(companyId, q, opts.type ?? '', pageSize, page * pageSize),
+      supabase.rpc('contacts_search_count', args),
+    ]);
+    if (best) {
+      if (count.error) throw count.error;
+      return { rows: best, total: Number(count.data ?? 0) };
+    }
+  }
   const [{ data, error }, { data: total, error: ce }] = await Promise.all([
     // `_sort` n'existe que sur la recherche : le comptage ne dépend pas de l'ordre.
     supabase.rpc('contacts_search', { ...args, _limit: pageSize, _offset: page * pageSize, _sort: opts.sort ?? 'name' }),
