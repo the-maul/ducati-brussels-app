@@ -89,6 +89,15 @@ export async function listCatalogModelYears(modelId: string): Promise<CatalogMod
   return data ?? [];
 }
 
+/** Années de plusieurs versions en un appel, la plus récente d'abord. */
+export async function listCatalogYearsForModels(modelIds: string[]): Promise<Array<Pick<CatalogModelYear, 'id' | 'model_id' | 'code' | 'year'>>> {
+  if (modelIds.length === 0) return [];
+  const { data, error } = await supabase.from('ducati_catalog_model_years')
+    .select('id, model_id, code, year').in('model_id', modelIds).order('year', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function listModelYearDrawings(modelYearId: string): Promise<CatalogDrawingRef[]> {
   const { data, error } = await supabase.from('ducati_catalog_model_year_drawings')
     .select('drawing_id, group_id, group_sort, sort, group:ducati_catalog_groups(code, description), drawing:ducati_catalog_drawings(code, description, thumbnail_url, parts_loaded_at)')

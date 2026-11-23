@@ -9,12 +9,14 @@ import { t } from '@/lib/i18n';
 
 const OTHER = '__autre__';
 
-export function SpecSelect({ value, options, onChange, className, numeric = false }: {
+export function SpecSelect({ value, options, onChange, className, numeric = false, allowOther = true }: {
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
   className?: string;
   numeric?: boolean;
+  /** Faux : seules les valeurs de la liste (années d'une version du catalogue). */
+  allowOther?: boolean;
 }) {
   const [typing, setTyping] = useState(false);
   const raw = (value ?? '').trim();
@@ -32,7 +34,7 @@ export function SpecSelect({ value, options, onChange, className, numeric = fals
       <SelectTrigger className={className}><SelectValue placeholder="—" /></SelectTrigger>
       <SelectContent>
         {all.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-        <SelectItem value={OTHER}>{t('motoClient.otherValue')}</SelectItem>
+        {allowOther && <SelectItem value={OTHER}>{t('motoClient.otherValue')}</SelectItem>}
       </SelectContent>
     </Select>
   );

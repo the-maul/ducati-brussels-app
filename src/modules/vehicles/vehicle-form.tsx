@@ -16,6 +16,10 @@
  * version, année, cylindrée, puissance, norme, modèle-année du catalogue) et reprise des infos de
  * nos factures pour ce VIN ; seuls les champs vides sont remplis (surlignés « d'après le VIN »).
  */
+import { ChevronDown } from 'lucide-react';
+import { getModelYearContext, listCatalogModelYears } from '@/modules/catalog/api';
+import { ModelChooserDialog, type ChosenModel } from './model-chooser';
+import { isDucatiBrand, VEHICLE_BRANDS, yearOptions } from './model-pick';
 import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -366,6 +370,39 @@ export function VehicleForm({
     onSubmit(!initial && scan ? { ...payload, id: pendingId } : payload, { ownerFrom, scan: initial ? null : scan });
   };
 
+  // Marque, modèle, année : au choix dans les listes, ou à la main pour un cas hors catalogue.
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [modelManual, setModelManual] = useState(false);
+  const siblingYears = useQuery({
+    queryKey: ['catalog-sibling-years', modelYearId],
+    queryFn: async () => {
+      const c = await getModelYearContext(modelYearId);
+      return c ? listCatalogModelYears(c.model_id) : [];
+    },
+    enabled: !!modelYearId, staleTime: 3_600_000,
+  });
+  const pickCatalogModel = (c: ChosenModel) => {
+    // Les caractéristiques remplies pour l'ancien choix repartent du nouveau modèle ; une saisie reste.
+    const auto = ['displacement', 'power_cv', 'power_kw', 'cylinders', 'antipollution', 'energy', 'category'];
+    setF((p) => {
+      const n: F = { ...p, brand: c.brand, model: c.model, model_year: c.year != null ? String(c.year) : '', ducati_model_year_id: c.modelYearId };
+      for (const k of auto) if (vinFilled.has(k)) n[k] = '';
+      return n;
+    });
+    setVinFilled((s) => { const n = new Set(s); for (const k of [...auto, 'brand', 'model', 'model_year']) n.delete(k); return n; });
+    setModelManual(false);
+    setChooserOpen(false);
+  };
+  const onBrand = (v: string) => {
+    set('brand', v);
+    if (!isDucatiBrand(v) && modelYearId) set('ducati_model_year_id', '');
+  };
+  const onYear = (v: string) => {
+    const y = (siblingYears.data ?? []).find((x) => String(x.year) === v);
+    if (y && y.id !== modelYearId) pickCatalogModel({ brand: String(f.brand || 'DUCATI'), model: String(f.model ?? ''), year: y.year, modelYearId: y.id });
+    else if (!y) set('model_year', v);
+  };
+
   const T = (k: string, label: string, mono = false) => (
     <Field label={label} code={CARTE_GRISE_CODES[k]}>
       <Input value={f[k] as string} onChange={(e) => set(k, e.target.value)} className={`${mono ? 'font-mono' : ''} ${hl(k)}`} />
@@ -481,7 +518,13 @@ export function VehicleForm({
         {N('mileage', t('vehicles.mileage'))}
         {D('warranty_end', t('vehicles.warrantyEnd'))}
         {T('warranty_type', t('vehicles.warrantyType'))}
-        {N('model_year', t('vehicles.modelYear'))}
+        <Field label={t('vehicles.modelYear')} code={CARTE_GRISE_CODES.model_year}>
+          <SpecSelect value={String(f.model_year ?? '')} numeric allowOther={!modelYearId} onChange={onYear} className={hl('model_year')}
+            options={modelYearId && siblingYears.data?.length
+              ? siblingYears.data.map((y) => String(y.year)).filter((y) => y !== 'null')
+              : yearOptions(new Date().getFullYear())} />
+          {cgHint('model_year')}
+        </Field>
         <div className="col-span-full">
           <VinIdentifyPanel
             vin={vin.normalized} values={vinValues} onApply={applyVin}
@@ -501,7 +544,10 @@ export function VehicleForm({
           <Check label={t('dossier.plateCustom')} checked={f.plate_custom === true}
             onChange={(v) => { set('plate_custom', v); if (!v) set('plate', normalizePlate(f.plate as string)); }} />
         </Field>
-        {T('brand', t('vehicles.brand'))}
+        <Field label={t('vehicles.brand')} code={CARTE_GRISE_CODES.brand}>
+          <SpecSelect value={String(f.brand ?? '')} options={VEHICLE_BRANDS} onChange={onBrand} className={hl('brand')} />
+          {cgHint('brand')}
+        </Field>
         {duplicates.length > 0 && (
           <div className="col-span-full rounded-md border border-warning/40 bg-warning-bg p-3">
             <p className="flex items-center gap-1.5 text-[13px] font-bold text-warning">
@@ -538,7 +584,19 @@ export function VehicleForm({
             </ul>
           </div>
         )}
-        {T('model', t('vehicles.model'))}
+        {isDucatiBrand(f.brand) && !modelManual ? (
+          <Field label={t('vehicles.model')} code={CARTE_GRISE_CODES.model}>
+            <Button type="button" variant="outline" onClick={() => setChooserOpen(true)} className={`w-full justify-between font-normal ${hl('model')}`}>
+              <span className="truncate">{String(f.model ?? '') || t('dossier.modelPick')}</span>
+              <ChevronDown className="size-4 shrink-0 opacity-60" />
+            </Button>
+            {cgHint('model')}
+          </Field>
+        ) : T('model', t('vehicles.model'))}
+        {chooserOpen && (
+          <ModelChooserDialog currentModelYearId={modelYearId || null} onPick={pickCatalogModel} onClose={() => setChooserOpen(false)}
+            onManual={() => { setModelManual(true); setChooserOpen(false); if (modelYearId) set('ducati_model_year_id', ''); }} />
+        )}
         {T('engine_number', t('vehicles.engineNumber'), true)}
         {T('reference', t('vehicles.reference'), true)}
         {T('origin', t('vehicles.origin'))}
