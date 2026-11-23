@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { quickClientNames, vehiclesFirst } from '../src/modules/contacts/search-order';
+import { contactNameLastFirst, quickClientNames, vehiclesFirst } from '../src/modules/contacts/search-order';
 import { lowerReadingSource } from '../src/modules/workshop/or-base/lower-mileage';
 import type { MileageReading } from '../src/modules/workshop/or-base/rules';
 import { sheetInputValue, sheetMissingCount, sheetParseValue, vehicleSheetGroups } from '../src/modules/workshop/planning/vehicle-sheet';
@@ -75,5 +75,17 @@ describe('Fiche de la moto modifiable dans le rendez-vous', () => {
   test('valeur affichée dans la zone de saisie', () => {
     expect(sheetInputValue(field('displacement'), { displacement: '1100.0' })).toBe('1100');
     expect(sheetInputValue(field('warranty_end'), { warranty_end: '2027-01-02T00:00:00Z' })).toBe('2027-01-02');
+  });
+});
+
+describe('Nom du client dans les listes de choix', () => {
+  test('particulier : nom puis prénom', () => {
+    expect(contactNameLastFirst({ type: 'particulier', first_name: 'VITTORIO', last_name: 'MORELLATO', company_name: 'MORELLATO' })).toBe('MORELLATO VITTORIO');
+  });
+  test('société : raison sociale', () => {
+    expect(contactNameLastFirst({ type: 'societe', company_name: 'TURISMO SA', first_name: 'A', last_name: 'B' })).toBe('TURISMO SA');
+  });
+  test('sans nom : tiret', () => {
+    expect(contactNameLastFirst({})).toBe('—');
   });
 });

@@ -9,6 +9,7 @@
  * motif (entretien → reservation des pieces). Boutons « Enregistrer » et « Valider RDV et saisie OR »
  * (temps prevu obligatoire, G8 « Veuillez saisir le temps prevu »).
  */
+import { contactNameLastFirst } from '@/modules/contacts/search-order';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, FileText, CheckCircle2, Package, ChevronDown, ChevronUp } from 'lucide-react';
@@ -20,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Link } from '@tanstack/react-router';
 import { CalendarX, FolderOpen } from 'lucide-react';
-import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
+import { getContact, type Contact } from '@/modules/contacts/api';
 import { vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import { type VehiclePickRow } from '@/modules/vehicles/vehicle-pick';
@@ -283,7 +284,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="size-5 text-success" /> {t('designEcrans.savedTitle')}</DialogTitle></DialogHeader>
           <p className="text-[13px] text-muted-foreground">
-            {[contact ? contactDisplayName(contact) : null, vehicle ? vehiclePickLabel(vehicle) : null, fmtDateTime(created.startsAt)].filter(Boolean).join(' · ')}
+            {[contact ? contactNameLastFirst(contact) : null, vehicle ? vehiclePickLabel(vehicle) : null, fmtDateTime(created.startsAt)].filter(Boolean).join(' · ')}
           </p>
           <p className="text-[13px]">{t('designEcrans.savedHint')}</p>
           <ReservedPartsBlock appointmentId={created.id} serviceCode={svc} />
@@ -307,8 +308,8 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
         {draft && <FormDraftBanner onDiscard={closeDialog} />}
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
-          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactDisplayName(contact) } : null} onPick={pickVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
+          <Field label={t('workshop.client')}>{contact ? <Picked label={contactNameLastFirst(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} allowCreate />}</Field>
+          <Field label={t('workshop.vehicle')}>{vehicle ? <Picked label={vehiclePickLabel(vehicle)} onClear={() => setVehicle(null)} /> : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactNameLastFirst(contact) } : null} onPick={pickVehicle} placeholder={t('workshop.vehiclePlaceholder')} />}</Field>
           <Field label={vehicle ? `${t('planningG8.mileage')} *` : t('planningG8.mileage')}>
             <Input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" className="text-right tabular-nums" />
           </Field>

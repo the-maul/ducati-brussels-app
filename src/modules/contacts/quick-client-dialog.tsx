@@ -15,10 +15,10 @@ import { t, fillVars } from '@/lib/i18n';
 import { errorMessage } from '@/lib/mutation-feedback';
 import { identityFieldsLabel } from '@/lib/db-error-i18n';
 import { normalizeEmail, normalizeMobile } from '@/lib/contact-normalize';
-import { createContact, contactDisplayName, listContacts, type Contact } from './api';
+import { createContact, listContacts, type Contact } from './api';
 import { identityMissing } from './identity-rules';
 import { PERSON_CIVILITIES } from './civility';
-import { quickClientNames } from './search-order';
+import { contactNameLastFirst, quickClientNames } from './search-order';
 
 function QuickField({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -96,7 +96,7 @@ export function QuickClientDialog({ companyId, initialTerm = '', onClose, onCrea
             <ul className="mt-1 space-y-1">
               {dupes.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate">{contactDisplayName(c)}{c.city ? ` · ${c.city}` : ''}</span>
+                  <span className="min-w-0 truncate">{contactNameLastFirst(c)}{c.city ? ` · ${c.city}` : ''}</span>
                   <Button type="button" size="sm" variant="outline" onClick={() => onCreated(c)}>{t('dossier.quickDupUse')}</Button>
                 </li>
               ))}

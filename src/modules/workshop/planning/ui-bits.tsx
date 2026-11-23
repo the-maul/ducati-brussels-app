@@ -2,11 +2,12 @@
  * M8 — Petits composants du planning (champ libelle, choix du client), partages par
  * l'assistant de planification, les motos de pret et l'ancien planning.
  */
+import { contactNameLastFirst } from '@/modules/contacts/search-order';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, UserPlus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { listContacts, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
+import { listContacts, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { QuickClientDialog } from '@/modules/contacts/quick-client-dialog';
 import { t } from '@/lib/i18n';
@@ -55,7 +56,7 @@ export function ContactPicker({ companyId, onPick, allowCreate = false }: { comp
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((c) => (
             <div key={c.id} className="border-b border-border last:border-0">
-              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
+              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactNameLastFirst(c)}</button>
               {/* Fiche liee sous la ligne, en plus clair (retour du 05/10). */}
               <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
             </div>
@@ -79,7 +80,7 @@ export function ContactPicker({ companyId, onPick, allowCreate = false }: { comp
 type ContactBits = { first_name: string | null; last_name: string | null; company_name: string | null; type?: string | null } | null | undefined;
 export function contactLabel(c: ContactBits): string {
   if (!c) return '';
-  return contactDisplayName({ first_name: c.first_name, last_name: c.last_name, company_name: c.company_name, type: c.type ?? null });
+  return contactNameLastFirst({ first_name: c.first_name, last_name: c.last_name, company_name: c.company_name, type: c.type ?? null });
 }
 export function motoLabel(v: { brand: string | null; model: string | null; plate: string | null } | null | undefined): string {
   if (!v) return '';

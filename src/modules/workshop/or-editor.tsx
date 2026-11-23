@@ -24,6 +24,7 @@
  * informations complémentaires non imprimées, modèles de commentaires (Mémoriser / Rappeler /
  * Supprimer), popup « Commentaire client » au chargement du client.
  */
+import { contactNameLastFirst } from '@/modules/contacts/search-order';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Search, X, Save, ClipboardCheck, FileText, Package, Clock, Tag, Undo2 } from 'lucide-react';
@@ -52,7 +53,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { listContacts, getContact, contactDisplayName, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
+import { listContacts, getContact, PICKER_LIMIT, type Contact } from '@/modules/contacts/api';
 import { LinkedLines, useLinkedBrief } from '@/modules/contacts/linked-line';
 import { type SaleArticle } from '@/modules/sales/write-api';
 import { getVehicle, vehiclePickLabel } from '@/modules/vehicles/api';
@@ -524,13 +525,13 @@ export function OrEditor({ companyId, initial, defaultContactId = null, defaultV
       <div className="grid grid-cols-1 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('workshop.client')}>
           {contact
-            ? <Picked label={contactDisplayName(contact)} onClear={() => setSel((s) => clearContact(s))} />
+            ? <Picked label={contactNameLastFirst(contact)} onClear={() => setSel((s) => clearContact(s))} />
             : <ContactPicker companyId={companyId} onPick={(c) => setSel((s) => pickContact(s, c))} />}
         </Field>
         <Field label={t('workshop.vehicle')}>
           {vehicle
             ? <Picked label={vehiclePickLabel(vehicle) !== '—' ? vehiclePickLabel(vehicle) : vehicle.id.slice(0, 8)} onClear={() => setSel((s) => clearVehicle(s))} />
-            : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactDisplayName(contact) } : null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
+            : <VehiclePicker companyId={companyId} contactId={contact?.id ?? null} attachTo={contact ? { id: contact.id, name: contactNameLastFirst(contact) } : null} onPick={(v) => setSel((s) => pickVehicle(s, v))} placeholder={t('workshop.vehiclePlaceholder')} />}
         </Field>
         <Field label={`${t('workshop.mileage')}${kmRequired ? ' *' : ''}`}>
           <Input
@@ -977,7 +978,7 @@ function ContactPicker({ companyId, onPick }: { companyId: string; onPick: (c: C
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)]">
           {data.map((c) => (
             <div key={c.id} className="border-b border-border last:border-0">
-              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactDisplayName(c)}</button>
+              <button type="button" onClick={() => onPick(c)} className="block w-full px-3 pt-2 text-left text-sm hover:bg-accent">{contactNameLastFirst(c)}</button>
               {/* Fiche liee sous la ligne, en plus clair (retour du 05/10). */}
               <div className="px-3 pb-1.5"><LinkedLines links={linkedByContact.get(c.id)} clickable={false} /></div>
             </div>
