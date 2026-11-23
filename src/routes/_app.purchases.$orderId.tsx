@@ -14,6 +14,8 @@ import { downloadDcs } from '@/modules/purchases/dcs-export';
 import { CustomerLabelDialog } from '@/modules/purchases/customer-label-dialog';
 import { PurchaseDestinations } from '@/modules/purchases/purchase-destinations';
 import { PurchaseEditor } from '@/modules/purchases/purchase-editor';
+import { PartPathPanel } from '@/modules/purchases/part-path-ui';
+import { DestinationLabelsButton } from '@/modules/purchases/destination-labels';
 import { CustomerInfosDialog, useReceiptCustomerInfos } from '@/modules/purchases/customer-infos-dialog';
 import { getOrderFollow, logOrderSend, closeOrderRemainder, proposalToOrder } from '@/modules/purchases/g8-api';
 import { purchaseStatusTone, SEND_CHANNELS, type SendChannel } from '@/modules/purchases/g8-rules';
@@ -126,6 +128,7 @@ function PurchaseView() {
             {order.doc_type === 'REC' && lines.length > 0 && (
               <Button variant="outline" onClick={() => setLabelsOpen(true)}><Tag /> {t('labels.customerLabel')}</Button>
             )}
+            {isRec && <DestinationLabelsButton companyId={activeCompanyId} kind="receipt" id={order.id} />}
             <Button variant="outline" onClick={() => navigate({ to: '/purchases' })}><ArrowLeft /> {t('purchases.backToList')}</Button>
           </div>
         }
@@ -224,6 +227,7 @@ function PurchaseView() {
       )}
 
       {(order.doc_type === 'CMD' || order.doc_type === 'REC') && <PurchaseDestinations orderId={order.id} lines={lines} icon={Users} />}
+      {(order.doc_type === 'CMD' || order.doc_type === 'REC') && <PartPathPanel companyId={activeCompanyId} scope="purchase" scopeId={order.id} />}
 
       {schedules.length > 0 && (
         <div className="mt-6">

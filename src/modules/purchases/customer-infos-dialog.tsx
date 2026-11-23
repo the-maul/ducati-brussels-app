@@ -84,6 +84,7 @@ export function CustomerInfosDialog({ receiptId, open, onOpenChange }: { receipt
                         <span className="block text-[11px] text-muted-foreground">{t(`purchasesG8.source_${r.source_kind}`)}{r.source_date ? ` · ${r.source_date}` : ''}</span>
                         {link(r)}
                         {r.ordered_for && <span className="ml-1"><StatusBadge tone="info" label={t('purchasesG8.orderedFor')} /></span>}
+                        {r.via_kind && <span className="block text-[11px] text-muted-foreground">{t(`partPath.kind_${r.via_kind}`)}{r.via_number ? ` · ${r.via_number}` : ''}</span>}
                       </td>
                       <td className="px-2 py-1.5">
                         {r.contact_id ? <Link to="/clients/$contactId" params={{ contactId: r.contact_id }} className="text-info underline">{r.contact_name ?? '—'}</Link>

@@ -111,7 +111,7 @@ describe('mails automatiques : expediteur autorise (regle commune graph-mail)', 
 describe('mise en production : libelles', () => {
   test('chaque element et chaque manque a un libelle dans les quatre langues', () => {
     const keys = ['shopify_stock', 'shopify_orders', 'followups', 'dunning', 'invoice_reminder_auto', 'appointment_reminder_mail',
-      'order_confirm_mail', 'portal_invite', 'sms', 'sms_ready', 'sms_reminder', 'accounting_auto_transfer', 'outlook_poll',
+      'order_confirm_mail', 'parts_received_mail', 'portal_invite', 'sms', 'sms_ready', 'sms_reminder', 'accounting_auto_transfer', 'outlook_poll',
       'prospect_classify', 'exchange_summary', 'client_app', 'stripe'];
     for (const d of [productionFr, productionNl, productionEn, productionIt]) {
       for (const k of keys) {

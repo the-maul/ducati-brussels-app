@@ -21,6 +21,7 @@ import { clotureCaisseFr } from './cloture-caisse';
 import { depotFilFr } from './depot-fil';
 import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
+import { partPathFr, partsFlowFr } from './chemin-pieces';
 import { designTransverseFr } from './design-transverse';
 
 export const fr = {
@@ -85,7 +86,7 @@ export const fr = {
     settings: 'Paramètres',
     demo: 'Charte (démo)',
     more: 'Menu',
-    supplierBaskets: 'Commandes fournisseur',
+    supplierBaskets: 'Paniers Ducati',
   },
 
   // Actions courantes
@@ -4560,13 +4561,13 @@ export const fr = {
     receivedInfo: 'Réception validée → entrées de stock et PAMP recalculé.',
     exportDcs: 'Export DCS', dcsStandard: 'DCS Standard', dcsUrgent: 'DCS Urgente',
     // réapprovisionnement
-    reorderTitle: 'Proposition de commande', reorderSubtitle: 'Articles sous le stock mini — quantités à commander, par fournisseur.',
+    reorderTitle: 'Réassort du stock (sous le mini)', reorderSubtitle: 'Articles sous le stock mini — quantités à commander, par fournisseur.',
     reorderAvail: 'Dispo', reorderMin: 'Mini', reorderQty: 'À commander', reorderEmpty: 'Aucun article sous le stock mini.',
     createOrders: 'Créer les commandes', ordersCreated: '{n} commande(s) créée(s).',
     reorderHighlightNotEligible: "Cet article n'est actuellement pas sous son stock mini — ajoutez-le manuellement à une commande si besoin.",
     customerLabelHint: 'Choisissez la ligne réceptionnée puis renseignez le nom du client — le n° de document est préempli depuis cette réception.',
     // proposition des commandes de pièces (mission 02, carte 4)
-    proposalBtn: 'Commandes de pièces à passer',
+    proposalBtn: 'Pièces clients à commander',
     dcsKindBadge: 'Fichier DCS {kind}',
     destTitle: 'Pour qui ? Pièces commandées pour des clients',
     destHint: 'Chaque ligne de cette commande reprend des pièces de commandes de pièces : à la réception, rangez-les pour le client indiqué (étiquette client).',
@@ -4771,7 +4772,7 @@ export const fr = {
 
   // Proposition de commande — commandes de pièces regroupées par fournisseur (M4, mission 02 carte 4)
   proposal: {
-    title: 'Proposition de commande — pièces clients',
+    title: 'Pièces clients à commander',
     subtitle: 'Pièces des commandes de pièces validées, pas encore commandées chez un fournisseur, regroupées par fournisseur (rappel G8).',
     hint: 'Montants au prix d’achat HTVA (PA de la fiche article, sinon PAMP). Minimum de commande et franco se règlent sur la fiche du fournisseur. Les pièces cochées par défaut sont celles des commandes payées ; une commande Excel passe par le classeur Ducati.',
     empty: 'Aucune pièce à commander : toutes les commandes validées sont déjà passées chez un fournisseur.',
@@ -7259,7 +7260,7 @@ export const fr = {
   // « — Ducati Bruxelles » est ajoute par pageTitle() (src/lib/i18n/index.ts).
   // Mission 09 — panier de commande Ducati (standard / urgente), fichier ExportDucati, numéro DCS
   basket: {
-    title: 'Commandes fournisseur',
+    title: 'Paniers Ducati',
     subtitle: 'Toutes nos commandes Ducati : paniers standard et urgente, du remplissage à la réception (rappel G8 « Rappel proposition commande »).',
     back: 'Toutes nos commandes',
     opened: 'Panier ouvert.',
@@ -7506,8 +7507,8 @@ export const fr = {
     purchases: 'Achats & réceptions',
     purchase: 'Document achat',
     purchaseNew: 'Nouveau document achat',
-    purchasesProposal: 'Proposition de commande',
-    purchasesReorder: 'Proposition de commande',
+    purchasesProposal: 'Pièces clients à commander',
+    purchasesReorder: 'Réassort du stock',
     purchasesBaskets: 'Commandes fournisseur',
     purchasesBasket: 'Panier de commande',
     suppliers: 'Fournisseurs',
@@ -9468,6 +9469,9 @@ export const fr = {
   g8a: g8aFr,
   sms: smsFr,
   production: productionFr,
+  // Chantier C2 (23/11/2026) : chemin de chaque piece, etiquettes de destination, navigation des commandes.
+  partPath: partPathFr,
+  partsFlow: partsFlowFr,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseFr,
 } as const;

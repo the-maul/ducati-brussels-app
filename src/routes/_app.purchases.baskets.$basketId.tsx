@@ -27,6 +27,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useCanWrite } from '@/lib/auth/use-access';
 import { t, fillVars, pageTitle } from '@/lib/i18n';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
+import { PartPathPanel } from '@/modules/purchases/part-path-ui';
 import { getOrderRules, type OrderArticleHit } from '@/modules/orders/api';
 import {
   basketTotals, canEditLines, canSetDcsNumber, clientSalePriceHt, lineAmountHt, lineUnitCost, type BasketLine,
@@ -314,6 +315,8 @@ function BasketPage() {
         {totals.noPa > 0 && <span className="flex items-center gap-1 text-warning"><AlertTriangle className="size-3.5" /> {fillVars(t('basket.noPa'), { n: totals.noPa })}</span>}
         {!editable && basket.status !== 'ouvert' && <span className="text-muted-foreground">{t('basket.linesLocked')}</span>}
       </div>
+
+      {activeCompanyId && <PartPathPanel companyId={activeCompanyId} scope="basket" scopeId={basketId} />}
 
       <div className="mt-6">
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('ged.title')}</p>

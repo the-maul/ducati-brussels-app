@@ -21,6 +21,7 @@ import {
   pickingActions, PREP_STEPS, type PrepStep, type PickingLine, type PrepDisplayState,
 } from '@/modules/sales/picking-api';
 import { PickingActions, PickingStatusBadge } from '@/modules/sales/picking-actions';
+import { DestinationLabelsButton } from '@/modules/purchases/destination-labels';
 import { SALE_STOCK_META } from '@/modules/sales/availability';
 import { PickingExplodedButton } from '@/modules/workshop/exploded/or-exploded-views';
 import { t, pageTitle } from '@/lib/i18n';
@@ -101,6 +102,7 @@ function PreparationTablet() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" className="h-12 px-4 text-base" onClick={backToList}><ArrowLeft /> {t('picking.tabletBack')}</Button>
+            <DestinationLabelsButton companyId={header.company_id} kind="picking" id={pickingId} className="h-12 px-4 text-base" />
             {header.document_id && (
               <Button variant="outline" className="h-12 px-4 text-base" onClick={() => navigate({ to: '/sales/$documentId', params: { documentId: header.document_id! } })}>
                 <FileText /> {docLabel}

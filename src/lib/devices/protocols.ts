@@ -118,7 +118,7 @@ export function zebraUrl(cfg: DeviceConfig): string {
 }
 
 /** Une etiquette article en ZPL (mise en page simple : designation, reference, prix, code-barres). */
-export type ZplLabel = { reference: string; designation: string; price: string | null; barcode: string; qty: number };
+export type ZplLabel = { reference: string; designation: string; price: string | null; barcode: string; qty: number; /** Étiquette de destination : « n° — client ». */ destination?: string | null };
 
 /** Texte sur dans un champ ^FD (^ et ~ sont des caracteres de commande ZPL). */
 const zplText = (s: string) => plainText(s).replace(/[\^~]/g, ' ').replace(/\n/g, ' ').trim();
@@ -140,6 +140,7 @@ export function zplLabels(labels: ZplLabel[], cfg: DeviceConfig): string {
       `^FO${m},${m}^A0N,${small},${small}^FB${w - 2 * m},2,0,L^FD${zplText(l.designation)}^FS`,
       `^FO${m},${m + 2 * small + dpmm}^A0N,${small},${small}^FD${zplText(l.reference)}^FS`,
       l.price ? `^FO${m},${m + 2 * small + dpmm}^A0N,${big},${big}^FB${w - 2 * m},1,0,R^FD${zplText(l.price)}^FS` : '',
+      l.destination ? `^FO${m},${m + 3 * small + 2 * dpmm}^A0N,${small},${small}^FB${w - 2 * m},1,0,L^FD${zplText(l.destination)}^FS` : '',
       code ? `^FO${m},${h - barH - m}^BY2^BCN,${barH - small},Y,N,N^FD${code}^FS` : '',
       `^PQ${qty}`, '^XZ',
     ].filter(Boolean).join('\n'));

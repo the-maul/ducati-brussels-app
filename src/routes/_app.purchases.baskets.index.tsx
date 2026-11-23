@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, FileDown, Loader2, Plus, RefreshCw, Zap } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -61,6 +62,7 @@ function BasketsPage() {
 
   return (
     <>
+      <PartsFlowNav current="baskets" />
       <PageHeader
         title={t('basket.title')}
         description={t('basket.subtitle')}

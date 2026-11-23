@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -46,6 +47,7 @@ function ReorderPage() {
 
   return (
     <>
+      <PartsFlowNav current="restock" />
       <PageHeader
         title={t('purchases.reorderTitle')}
         description={t('purchases.reorderSubtitle')}

@@ -104,6 +104,8 @@ export type CustomerInfoRow = {
   source_number: string | null; source_type: string | null; source_status: string | null; source_date: string | null;
   contact_id: string | null; contact_name: string | null; contact_phone: string | null; qty_needed: number;
   ordered_for: boolean; informed_at: string | null; informed_channel: string | null;
+  /** PIE-05 : par quoi la pièce est arrivée (commande fournisseur, panier Ducati, classeur Excel). */
+  via_kind?: 'cmd' | 'basket' | 'excel' | null; via_number?: string | null;
 };
 export async function getReceiptCustomerInfos(receiptId: string): Promise<CustomerInfoRow[]> {
   const rows = await rpc<Record<string, unknown>[]>('receipt_customer_infos', { _receipt: receiptId });

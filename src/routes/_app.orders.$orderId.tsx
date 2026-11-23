@@ -17,6 +17,8 @@ import { DispatchBadge, dispatchIcon, eur, kindIcon, kindLabel, ruleSentences } 
 import { listRef } from '@/modules/settings/reference-api';
 import { OrderLinesEditor } from '@/modules/orders/order-lines';
 import { OrderOrigin } from '@/modules/orders/order-origin';
+import { PartPathPanel } from '@/modules/purchases/part-path-ui';
+import { DestinationLabelsButton } from '@/modules/purchases/destination-labels';
 import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/orders/$orderId')({
@@ -243,6 +245,13 @@ function OrderDetail() {
             <span className="text-muted-foreground">{t('orders.surchargeApplied')} <b className="tabular-nums">+{String(Number(order.surcharge_pct)).replace('.', ',')} %</b></span>
           )}
           <span>{t('orders.totalTtcClient')} <b className="tabular-nums">{eur(Number(order.total_ttc))}</b></span>
+        </div>
+      )}
+
+      {!isDraft && (
+        <div className="mb-6">
+          <div className="flex justify-end"><DestinationLabelsButton companyId={order.company_id} kind="part_order" id={order.id} /></div>
+          <PartPathPanel companyId={order.company_id} scope="part_order" scopeId={order.id} />
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, FileSpreadsheet, PackageCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { PartsFlowNav } from '@/modules/purchases/parts-flow-nav';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -65,6 +66,7 @@ function OrdersList() {
 
   return (
     <>
+      <PartsFlowNav current="orders" />
       <PageHeader
         title={t('orders.title')}
         description={t('orders.subtitle')}

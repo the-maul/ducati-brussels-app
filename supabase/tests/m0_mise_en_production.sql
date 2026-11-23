@@ -185,9 +185,9 @@ set local role authenticated;
 
 insert into _ctx select 'ov', public.production_overview((select v::uuid from _ctx where k = 'company'))::text;
 insert into _t(check_name, result)
-select 'liste complete : les 17 elements, dans l''ordre',
+select 'liste complete : les 18 elements, dans l''ordre',
        case when (select string_agg(x.v ->> 'key', ',' order by x.o) from jsonb_array_elements((select v from _ctx where k = 'ov')::jsonb -> 'items') with ordinality as x(v, o))
-                 = 'shopify_stock,shopify_orders,followups,dunning,invoice_reminder_auto,appointment_reminder_mail,order_confirm_mail,portal_invite,'
+                 = 'shopify_stock,shopify_orders,followups,dunning,invoice_reminder_auto,appointment_reminder_mail,order_confirm_mail,parts_received_mail,portal_invite,'
                    'sms,sms_ready,sms_reminder,accounting_auto_transfer,outlook_poll,prospect_classify,exchange_summary,client_app,stripe'
             then 'ok' else 'KO ' || (select string_agg(x.v ->> 'key', ',') from jsonb_array_elements((select v from _ctx where k = 'ov')::jsonb -> 'items') as x(v)) end;
 insert into _t(check_name, result)
