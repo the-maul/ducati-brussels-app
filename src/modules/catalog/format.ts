@@ -26,7 +26,7 @@ const FOCUS_MAX_SCALE = 2.2;
 /**
  * Chantier C1 (23/11/2026) : zoom centré sur un repère. `box` en % de l'image ; le résultat s'applique
  * en `translate(x%, y%) scale(scale)` depuis le coin haut gauche. La pièce occupe environ un quart de
- * la vue, le zoom reste entre 1 et 4, et l'image ne laisse jamais de bord vide.
+ * la vue, le zoom reste entre 1 et 2,2, et l'image ne laisse jamais de bord vide.
  */
 export function focusTransform(box: { left: number; top: number; width: number; height: number }): { scale: number; x: number; y: number } {
   const span = Math.max(box.width, box.height, 0.5) * 4;

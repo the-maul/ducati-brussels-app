@@ -28,10 +28,10 @@ function JourneyRoute() {
         title={t('journey.title')}
         description={t('journey.subtitle')}
         // Revue UX/UI (20/11/2026) : un seul « Retour » par ecran, celui de l'ossature. La fiche OR
-        // reste a un clic par le fil d'Ariane (Atelier › Fiche OR › Parcours guide).
+        // reste accessible depuis le dossier moto (Atelier › Dossier moto › Parcours guide).
         breadcrumbs={[
           { label: t('nav.workshop'), to: '/workshop' },
-          { label: t('designTransverse.journey.orSheet'), to: `/workshop/${orId}` },
+          { label: t('dossier.title'), to: `/workshop/dossier/${orId}` },
           { label: t('journey.title') },
         ]}
       />

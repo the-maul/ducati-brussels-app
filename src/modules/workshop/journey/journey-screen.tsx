@@ -468,6 +468,8 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
             setFinishOpen(false);
             patch((st) => ({ ...st, finishedAt: st.finishedAt ?? new Date().toISOString() }));
             qc.invalidateQueries({ queryKey: ['journey-ctx', orId] });
+            // Moto prête : on revient au dossier, à l'étape Payer et sortir.
+            setTimeout(() => navigate({ to: '/workshop/dossier/$id', params: { id: orId } }), 150);
           },
         })}
       />

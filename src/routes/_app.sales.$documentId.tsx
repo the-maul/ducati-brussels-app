@@ -213,6 +213,7 @@ function DocumentView() {
         breadcrumbs={[{ label: t('nav.sales'), to: '/sales' }, { label: doc.number ?? t('sales.draftSuffix') }]}
         actions={
           <div className="flex items-center gap-2">
+            {(doc as { repair_order_id?: string | null }).repair_order_id && <Button onClick={() => navigate({ to: '/workshop/dossier/$id', params: { id: (doc as { repair_order_id?: string | null }).repair_order_id! } })}><ArrowLeft /> {t('dossier.openDossier')}</Button>}
             <PrepareButton doc={doc} withLabel />
             {/* G8 « Prop. commande » (Stock / Dépannage / Garantie), rattrapage du 18/11/2026 */}
             {doc.number && <ProposalAddButton companyId={activeCompanyId} kind="document" sourceId={documentId} />}
