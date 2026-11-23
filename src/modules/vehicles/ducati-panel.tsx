@@ -46,8 +46,7 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   const requestUpdate = async () => {
     if (!vehicle.vin) return;
     const ok = await requestMyDucati(vehicle.vin);
-    if (ok) toast.info(t('vehicles.ducatiUpdating'));
-    else toast.error(t('vehicles.ducatiExtMissing'));
+    if (!ok) toast.error(t('vehicles.ducatiExtMissing'));
   };
 
   const Cell = ({ label, value }: { label: string; value: unknown }) => (

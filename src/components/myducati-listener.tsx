@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { t } from '@/lib/i18n';
 import { DcsNightListener } from '@/components/dcs-night-listener';
+import { DcsProgressIndicator } from '@/components/dcs-progress-indicator';
+import { dcsFinish } from '@/lib/dcs-progress';
 import { applyMyDucatiData, saveBulletinPdf, setDcsActiveCompany, takeDcsRequest, type MyDucatiPayload, type BulletinPdfPayload } from '@/lib/myducati';
 import { checkDcsPayload, dcsCompanyCheck, type DcsRefusal } from '@/lib/dcs-rules';
 
@@ -68,21 +70,23 @@ export function MyDucatiListener() {
       const refusal = checkDcsPayload(payload);
       const vin = String(payload.requested_vin ?? payload.read_vin ?? payload.vin ?? '');
       const requestedCompany = takeDcsRequest(vin);
-      if (refusal) { toast.error(t(REFUSAL_KEY[refusal])); return; }
+      if (refusal) { dcsFinish(vin); toast.error(t(REFUSAL_KEY[refusal])); return; }
       const company = dcsCompanyCheck(requestedCompany, activeCompanyId);
-      if (company === 'mismatch') { toast.error(t(REFUSAL_KEY.company_mismatch)); return; }
+      if (company === 'mismatch') { dcsFinish(vin); toast.error(t(REFUSAL_KEY.company_mismatch)); return; }
       if (company === 'confirm') {
         // Import lancé depuis le portail : c'est l'utilisateur qui confirme la société.
         toast(t('dossier.dcsConfirmCompany').replace('{vin}', vin).replace('{company}', activeCompany?.name ?? ''), {
           duration: 30000,
           action: { label: t('dossier.dcsConfirmAction'), onClick: () => { void runImport(activeCompanyId, payload); } },
         });
+        dcsFinish(vin);
         return;
       }
-      await runImport(activeCompanyId, payload);
+      // Le chargement reste affiché jusqu'à ce que la fiche soit réellement enregistrée.
+      try { await runImport(activeCompanyId, payload); } finally { dcsFinish(vin); }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [activeCompanyId, activeCompany, qc]);
-  return <DcsNightListener />;
+  return <><DcsNightListener /><DcsProgressIndicator /></>;
 }

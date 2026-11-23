@@ -52,7 +52,6 @@ async function autoFetchBulletins(payload, dmsTabId) {
     });
     miss = got ? 0 : miss + 1;
   }
-  if (dmsTabId) { try { chrome.tabs.update(dmsTabId, { active: true }); } catch (_) {} }
 }
 
 function withRequestedVin(payload, vin) {
@@ -71,10 +70,10 @@ function relayMyDucati(payload, sender, sendResponse) {
     const checked = job.vin ? withRequestedVin(payload, job.vin) : payload;
     if (job.dmsTabId) {
       chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload: checked });
-      chrome.tabs.update(job.dmsTabId, { active: true });
     }
-    // Lecture en échec (connexion à refaire, VIN inconnu) : l'onglet reste ouvert pour que l'on voie pourquoi.
-    if (!checked.read_error) setTimeout(() => { try { chrome.tabs.remove(tabId); } catch (_) {} }, 500);
+    // Lecture en échec (connexion à refaire, VIN inconnu) : l'onglet passe devant pour que l'on voie pourquoi.
+    if (checked.read_error) { try { chrome.tabs.update(tabId, { active: true }); } catch (_) {} }
+    else setTimeout(() => { try { chrome.tabs.remove(tabId); } catch (_) {} }, 500);
     sendResponse({ delivered: true });
     return;
   }
@@ -86,7 +85,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'fetch-vin' && msg.vin) {
     const dmsTabId = sender.tab && sender.tab.id;
-    chrome.tabs.create({ url: VIN_URL(msg.vin), active: true }, (tab) => { jobs[tab.id] = { dmsTabId, vin: msg.vin }; });
+    chrome.tabs.create({ url: VIN_URL(msg.vin), active: false }, (tab) => { jobs[tab.id] = { dmsTabId, vin: msg.vin }; });
     sendResponse({ started: true });
     return;
   }

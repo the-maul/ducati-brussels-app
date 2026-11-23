@@ -4,6 +4,7 @@
  * et le compte client Ducati sur le propriétaire courant de la moto.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { dcsStart } from '@/lib/dcs-progress';
 import {
   buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
   type DcsCounts, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal,
@@ -91,7 +92,7 @@ export function requestMyDucati(vin: string): Promise<boolean> {
     const onMsg = (ev: MessageEvent) => {
       const d = ev.data as { source?: string; action?: string } | null;
       if (ev.origin === window.location.origin && d && d.source === 'dms-ducati-ext' && d.action === 'fetch-ack') {
-        done = true; window.removeEventListener('message', onMsg); resolve(true);
+        done = true; window.removeEventListener('message', onMsg); dcsStart(requestKey); resolve(true);
       }
     };
     window.addEventListener('message', onMsg);
