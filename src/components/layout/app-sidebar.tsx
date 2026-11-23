@@ -78,7 +78,7 @@ export function AppSidebar({
           return (
             <Link
               key={item.to}
-              to={item.to}
+              to={item.opensAt ?? item.to}
               onClick={() => onNavigate?.()}
               title={collapsed ? t(item.labelKey) : undefined}
               className={cn(

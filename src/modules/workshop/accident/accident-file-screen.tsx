@@ -158,7 +158,7 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
   if (fileQ.isLoading) return <div className="grid place-items-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!file) return (
     <>
-      <PageHeader title={t('accidentFile.title')} breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('accidentFile.title'), to: '/workshop/accidents' }]} />
+      <PageHeader title={t('accidentFile.title')} breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('accidentFile.title'), to: '/workshop/accidents' }]} />
       <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('accidentFile.notFound')}</p>
     </>
   );
@@ -179,7 +179,7 @@ export function AccidentFileScreen({ fileId }: { fileId: string }) {
       <PageHeader
         title={title}
         description={names.clientName ? `${t('accidentFile.client')} : ${names.clientName}` : undefined}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('accidentFile.title'), to: '/workshop/accidents' }, { label: title }]}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('accidentFile.title'), to: '/workshop/accidents' }, { label: title }]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setSendOpen(true)} disabled={!checklist.complete || closed} title={!checklist.complete ? t('accidentFile.sendBlocked') : undefined}>

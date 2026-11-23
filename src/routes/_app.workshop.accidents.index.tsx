@@ -25,7 +25,7 @@ function AccidentsPage() {
       <PageHeader
         title={t('accidentFile.title')}
         description={t('accidentFile.subtitle')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('accidentFile.title') }]}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('accidentFile.title') }]}
         actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>}
       />
       {activeCompanyId && (

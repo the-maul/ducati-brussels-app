@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Plus, ChevronLeft, ChevronRight, FileText, Package } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Loader2, Plus, ChevronLeft, ChevronRight, FileText, Package } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,7 @@ function PlanningPage() {
       <PageHeader
         title={t('workshop.planningTitle')}
         description={t('workshop.planningSubtitle')}
-        actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ArrowLeft /> {t('workshop.back')}</Button>}
+        actions={<Button variant="outline" onClick={() => navigate({ to: '/workshop' })}><ClipboardList /> {t('dossier.orBoard')}</Button>}
       />
       <PlanningScreen
         companyId={activeCompanyId}

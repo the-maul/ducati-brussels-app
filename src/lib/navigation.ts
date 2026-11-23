@@ -42,6 +42,8 @@ export type NavItem = {
   dev?: boolean;
   /** sous-entrée (affichée en retrait sous l'entrée qui la précède, mêmes droits) */
   child?: boolean;
+  /** page ouverte au clic, si ce n'est pas `to` (`to` reste la clé des droits et de l'entrée active) */
+  opensAt?: string;
 };
 
 export const mainNav: NavItem[] = [
@@ -50,7 +52,7 @@ export const mainNav: NavItem[] = [
   { labelKey: 'nav.tradein', to: '/tradein', icon: Recycle },
   // Dépôt-vente (rattrapage G8 du 18/11/2026) : écran unique, sous Reprises, mêmes droits (alias /tradein).
   { labelKey: 'nav.consignment', to: '/consignment', icon: HandCoins, child: true },
-  { labelKey: 'nav.workshop', to: '/workshop', icon: Wrench },
+  { labelKey: 'nav.workshop', to: '/workshop', opensAt: '/workshop/planning', icon: Wrench },
   // Ecran tablette « Mon atelier » (lot F du parcours mecanicien, 19/11/2026) : memes droits que l'atelier.
   { labelKey: 'nav.myWorkshop', to: '/workshop/my-workshop', icon: Tablet, child: true },
   { labelKey: 'nav.parts', to: '/parts', icon: Package },

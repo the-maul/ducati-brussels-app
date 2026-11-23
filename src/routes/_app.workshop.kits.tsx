@@ -20,7 +20,7 @@ function KitsPage() {
       <PageHeader
         title={t('kits.title')}
         description={t('kits.subtitle')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('kits.title') }]}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('kits.title') }]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate({ to: '/workshop/maintenance-plans' })}>

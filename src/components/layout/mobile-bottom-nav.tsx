@@ -10,11 +10,11 @@ import { canSee } from '@/lib/auth/permissions';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-type Item = { to: string; labelKey: string; icon: LucideIcon };
+type Item = { to: string; opensAt?: string; labelKey: string; icon: LucideIcon };
 
 const items: Item[] = [
   { to: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-  { to: '/workshop', labelKey: 'nav.workshop', icon: Wrench },
+  { to: '/workshop', opensAt: '/workshop/planning', labelKey: 'nav.workshop', icon: Wrench },
   { to: '/pos', labelKey: 'nav.pos', icon: CreditCard },
   { to: '/clients', labelKey: 'nav.clients', icon: Users },
 ];
@@ -40,7 +40,7 @@ export function MobileBottomNav({ onMore }: { onMore: () => void }) {
         return (
           <Link
             key={it.to}
-            to={it.to}
+            to={it.opensAt ?? it.to}
             className={cn(
               'flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium',
               active ? 'text-primary' : 'text-muted-foreground',

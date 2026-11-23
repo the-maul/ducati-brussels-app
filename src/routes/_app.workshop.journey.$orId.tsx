@@ -30,7 +30,7 @@ function JourneyRoute() {
         // Revue UX/UI (20/11/2026) : un seul « Retour » par ecran, celui de l'ossature. La fiche OR
         // reste accessible depuis le dossier moto (Atelier › Dossier moto › Parcours guide).
         breadcrumbs={[
-          { label: t('nav.workshop'), to: '/workshop' },
+          { label: t('nav.workshop'), to: '/workshop/planning' },
           { label: t('dossier.title'), to: `/workshop/dossier/${orId}` },
           { label: t('journey.title') },
         ]}

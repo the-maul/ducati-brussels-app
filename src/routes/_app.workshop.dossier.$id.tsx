@@ -26,7 +26,7 @@ function DossierRoute() {
       <PageHeader
         title={t('dossier.title')}
         breadcrumbs={[
-          { label: t('nav.workshop'), to: '/workshop' },
+          { label: t('nav.workshop'), to: '/workshop/planning' },
           { label: t('pageTitles.workshopMine'), to: '/workshop/my-workshop' },
           { label: t('dossier.title') },
         ]}

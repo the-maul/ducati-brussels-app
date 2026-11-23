@@ -84,7 +84,7 @@ function OrRoute() {
     <>
       <PageHeader
         title={t('nav.workshop')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('nav.workshop') }]}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('nav.workshop') }]}
       />
       <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p>
     </>
@@ -303,7 +303,7 @@ function OrView() {
     <>
       <PageHeader
         title={t('nav.workshop')}
-        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop' }, { label: t('nav.workshop') }]}
+        breadcrumbs={[{ label: t('nav.workshop'), to: '/workshop/planning' }, { label: t('nav.workshop') }]}
       />
       <p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('workshop.notFound')}</p>
     </>
