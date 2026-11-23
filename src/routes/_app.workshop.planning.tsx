@@ -34,8 +34,10 @@ import { t, pageTitle } from '@/lib/i18n';
 
 export const Route = createFileRoute('/_app/workshop/planning')({
   head: () => ({ meta: [{ title: pageTitle('workshopPlanning') }] }),
-  validateSearch: (s: Record<string, unknown>): { week?: string; view?: PlanningView } => ({
+  // `rdv` (chantier C1) : ouvre la fenêtre de ce RDV (« Modifier le RDV » du dossier moto).
+  validateSearch: (s: Record<string, unknown>): { week?: string; view?: PlanningView; rdv?: string } => ({
     week: typeof s.week === 'string' ? s.week : undefined,
+    rdv: typeof s.rdv === 'string' && s.rdv ? s.rdv : undefined,
     view: typeof s.view === 'string' && (PLANNING_VIEWS as readonly string[]).includes(s.view) ? (s.view as PlanningView) : undefined,
   }),
   component: PlanningPage,
@@ -63,7 +65,9 @@ function PlanningPage() {
         companyId={activeCompanyId}
         view={search.view ?? 'reception'}
         onView={(v) => navigate({ to: '/workshop/planning', search: { view: v } })}
-        onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
+        onOpenOr={(orId) => navigate({ to: '/workshop/dossier/$id', params: { id: orId } })}
+        openAppointmentId={search.rdv ?? null}
+        onAppointmentOpened={() => navigate({ to: '/workshop/planning', search: { view: search.view }, replace: true })}
       />
     </>
   );

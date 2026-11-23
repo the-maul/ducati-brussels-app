@@ -11,6 +11,8 @@
 import { orProgress, type OrProgressInput, type Step } from '../or-base/progress-rules';
 import { approvalState, canStartWork } from '../checkup/rules';
 import type { ReceptionStatus } from '../reception/rules';
+import { brusselsParts } from '../reservations/parts-flow';
+import { dossierFlow, type DossierFacts, type DossierStepKey } from '../dossier/rules';
 import type { DayCard, Gesture, PartsSummary } from './rules';
 
 type ProgressLite = { total: number; done: number; not_done: number; mandatory_open: number };
@@ -50,6 +52,31 @@ export function cardProgressInput(card: Pick<DayCard, 'or' | 'appointment' | 'wo
 
 export function cardSteps(card: Pick<DayCard, 'or' | 'appointment' | 'work'>, p: Parameters<typeof cardProgressInput>[1]): Step[] {
   return orProgress(cardProgressInput(card, p)).steps;
+}
+
+/** Chantier C1 : l'étape du dossier de cette carte (même règle que le dossier). */
+export function cardDossierStep(card: Pick<DayCard, 'or' | 'appointment' | 'work'>, p: Parameters<typeof cardProgressInput>[1] & {
+  today: string; parts?: PartsSummary | null;
+}): DossierStepKey | null {
+  const i = cardProgressInput(card, p);
+  const a = card.appointment;
+  const or = card.or;
+  const facts: DossierFacts = {
+    today: p.today,
+    appointment: a ? {
+      status: a.status, unassigned: !!a.unassigned, hasMechanic: !!(a.mechanic_id || a.mechanic_name),
+      day: brusselsParts(new Date(a.starts_at)).date, hasWork: !!(a.work_description?.trim() || a.reason_code || a.service_code), reasonCode: a.reason_code ?? null,
+    } : null,
+    or: or ? {
+      status: or.status, customerApproval: or.customer_approval ?? null, warrantyStatus: null, reasonCode: or.reason_code ?? null,
+      repairType: or.repair_type ?? null, serviceCode: or.service_code ?? null, hasVehicle: !!or.vehicle_id, hasContact: true, mileage: null,
+    } : null,
+    receptionReady: i.receptionOn, receptionStatus: i.receptionStatus, photosMissing: i.photosMissing,
+    pointageReady: i.pointageOn, workState: i.workState, mineRunning: i.mineRunning, minePaused: i.minePaused,
+    planTotal: i.planTotal, planResolved: i.planResolved, planMandatoryOpen: i.planMandatoryOpen,
+    partsTotal: p.parts?.total ?? 0, partsMissing: p.parts?.missing ?? 0, invoice: null, handedOver: false,
+  };
+  return dossierFlow(facts).current;
 }
 
 /** Les seules alertes en badge (le reste est dans la frise). */

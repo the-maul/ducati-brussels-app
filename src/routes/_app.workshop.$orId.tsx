@@ -56,6 +56,8 @@ import { OrDepositPanel } from '@/modules/workshop/or-base/deposit-panel';
 import { ReadyMailDialog } from '@/modules/workshop/or-base/ready-mail-dialog';
 import { canNotifyReady } from '@/modules/workshop/or-base/rules';
 import { loadJourney } from '@/modules/workshop/journey/store';
+import { journeyStarted } from '@/modules/workshop/journey/finding-photos';
+import { plannedText } from '@/modules/workshop/dossier/dossier-parts';
 import { ReceptionPanel, ReceptionSheet } from '@/modules/workshop/reception/reception-sheet';
 import { PlanOpsPanel } from '@/modules/workshop/plan-ops/plan-ops-panel';
 import { OperationExplodedButton } from '@/modules/workshop/exploded/operation-exploded-button';
@@ -364,12 +366,19 @@ function OrView() {
       <span className="font-data text-[16px] leading-tight tabular-nums text-muted-foreground">
         {or.mileage != null ? fillVars(t('uxAtelier.kmValue'), { km: Number(or.mileage).toLocaleString('fr-BE') }) : t('uxAtelier.kmNone')}
       </span>
+      {plannedText((or as unknown as { planned_minutes?: number | null }).planned_minutes) && (
+        <span className="font-data text-[14px] leading-tight tabular-nums text-muted-foreground">{plannedText((or as unknown as { planned_minutes?: number | null }).planned_minutes)}</span>
+      )}
     </div>
   );
 
   // Imprimer + « Plus d'actions » (lot « OR lisible ») : dans la barre d'identite. Aucune fonction retiree.
   const actions = (
     <>
+      {/* Chantier C1 : la fiche complète reste, le dossier en 4 étapes est à un clic. */}
+      <Button variant="outline" className="h-11" onClick={() => navigate({ to: '/workshop/dossier/$id', params: { id: orId } })}>
+        <FolderOpen /> {t('dossier.openDossier')}
+      </Button>
       <Button variant="outline" className="h-11" onClick={() => setPrintOpen(true)} aria-label={t('orBase.print')}>
         <Printer /> <span className="hidden xl:inline">{t('orBase.print')}</span>
       </Button>
@@ -409,7 +418,7 @@ function OrView() {
           <DropdownMenuGroup>
             {!invoiced && (
               <MenuItem icon={<ListChecks />} disabled={!workAllowed} onSelect={() => navigate({ to: '/workshop/journey/$orId', params: { orId } })}>
-                {savedJourney.data ? t('workshop.resumeJourney') : t('workshop.startJourney')}
+                {journeyStarted(savedJourney.data) ? t('workshop.resumeJourney') : t('workshop.startJourney')}
               </MenuItem>
             )}
             {canNotify && <MenuItem icon={<BellRing />} onSelect={() => setReadyOpen(true)}>{t('orBase.notifyReady')}</MenuItem>}

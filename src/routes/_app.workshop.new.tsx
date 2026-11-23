@@ -58,7 +58,7 @@ function NewOr() {
         qc.invalidateQueries({ queryKey: ['accident-files'] });
         toast.success(t('orPage.accidentFileCreated'));
       }
-      navigate({ to: '/workshop/$orId', params: { orId: id } });
+      navigate({ to: '/workshop/dossier/$id', params: { id } }); // Chantier C1 : passage sans RDV → dossier, étape Rentrer
     },
     onError: (e) => setError(e instanceof Error ? e.message : errorMessage(e) || t('workshop.errSave')),
   });

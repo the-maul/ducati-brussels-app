@@ -227,6 +227,11 @@ export async function listPlanningAppointments(companyId: string, fromISO: strin
     .gte('starts_at', fromISO).lt('starts_at', toISO).order('starts_at');
   return unwrap<PlanningAppointment[]>(r) ?? [];
 }
+/** Un RDV par son id (ouverture depuis le dossier moto, chantier C1). */
+export async function getPlanningAppointment(id: string): Promise<PlanningAppointment | null> {
+  const r = await loose.from('workshop_appointments').select(APPT_COLS).eq('id', id).maybeSingle();
+  return unwrap<PlanningAppointment | null>(r) ?? null;
+}
 /** Liste d'attente : RDV sans affectation + demandes de l'espace client, sans OR. */
 export async function listWaitingAppointments(companyId: string): Promise<PlanningAppointment[]> {
   const r = await loose.from('workshop_appointments').select(APPT_COLS).eq('company_id', companyId)

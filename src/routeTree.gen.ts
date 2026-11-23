@@ -144,6 +144,7 @@ import { Route as AppSettingsTablesTableKeyRouteImport } from './routes/_app.set
 import { Route as AppWorkshopAccidentsIndexRouteImport } from './routes/_app.workshop.accidents.index'
 import { Route as AppWorkshopAccidentsFileIdRouteImport } from './routes/_app.workshop.accidents.$fileId'
 import { Route as AppWorkshopJourneyOrIdRouteImport } from './routes/_app.workshop.journey.$orId'
+import { Route as AppWorkshopDossierIdRouteImport } from './routes/_app.workshop.dossier.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -830,6 +831,11 @@ const AppWorkshopJourneyOrIdRoute = AppWorkshopJourneyOrIdRouteImport.update({
   path: '/journey/$orId',
   getParentRoute: () => AppWorkshopRoute,
 } as any)
+const AppWorkshopDossierIdRoute = AppWorkshopDossierIdRouteImport.update({
+  id: '/dossier/$id',
+  path: '/dossier/$id',
+  getParentRoute: () => AppWorkshopRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -962,6 +968,7 @@ export interface FileRoutesByFullPath {
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/workshop/dossier/$id': typeof AppWorkshopDossierIdRoute
   '/purchases/baskets/': typeof AppPurchasesBasketsIndexRoute
   '/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables/': typeof AppSettingsTablesIndexRoute
@@ -1083,6 +1090,7 @@ export interface FileRoutesByTo {
   '/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/workshop/dossier/$id': typeof AppWorkshopDossierIdRoute
   '/purchases/baskets': typeof AppPurchasesBasketsIndexRoute
   '/purchases/suppliers': typeof AppPurchasesSuppliersIndexRoute
   '/settings/tables': typeof AppSettingsTablesIndexRoute
@@ -1221,6 +1229,7 @@ export interface FileRoutesById {
   '/_app/settings/tables/$tableKey': typeof AppSettingsTablesTableKeyRoute
   '/_app/workshop/accidents/$fileId': typeof AppWorkshopAccidentsFileIdRoute
   '/_app/workshop/journey/$orId': typeof AppWorkshopJourneyOrIdRoute
+  '/_app/workshop/dossier/$id': typeof AppWorkshopDossierIdRoute
   '/_app/purchases/baskets/': typeof AppPurchasesBasketsIndexRoute
   '/_app/purchases/suppliers/': typeof AppPurchasesSuppliersIndexRoute
   '/_app/settings/tables/': typeof AppSettingsTablesIndexRoute
@@ -1359,6 +1368,7 @@ export interface FileRouteTypes {
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
+    | '/workshop/dossier/$id'
     | '/purchases/baskets/'
     | '/purchases/suppliers/'
     | '/settings/tables/'
@@ -1480,6 +1490,7 @@ export interface FileRouteTypes {
     | '/settings/tables/$tableKey'
     | '/workshop/accidents/$fileId'
     | '/workshop/journey/$orId'
+    | '/workshop/dossier/$id'
     | '/purchases/baskets'
     | '/purchases/suppliers'
     | '/settings/tables'
@@ -1617,6 +1628,7 @@ export interface FileRouteTypes {
     | '/_app/settings/tables/$tableKey'
     | '/_app/workshop/accidents/$fileId'
     | '/_app/workshop/journey/$orId'
+    | '/_app/workshop/dossier/$id'
     | '/_app/purchases/baskets/'
     | '/_app/purchases/suppliers/'
     | '/_app/settings/tables/'
@@ -2584,6 +2596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkshopJourneyOrIdRouteImport
       parentRoute: typeof AppWorkshopRoute
     }
+    '/_app/workshop/dossier/$id': {
+      id: '/_app/workshop/dossier/$id'
+      path: '/dossier/$id'
+      fullPath: '/workshop/dossier/$id'
+      preLoaderRoute: typeof AppWorkshopDossierIdRouteImport
+      parentRoute: typeof AppWorkshopRoute
+    }
   }
 }
 
@@ -2890,6 +2909,7 @@ interface AppWorkshopRouteChildren {
   AppWorkshopIndexRoute: typeof AppWorkshopIndexRoute
   AppWorkshopAccidentsFileIdRoute: typeof AppWorkshopAccidentsFileIdRoute
   AppWorkshopJourneyOrIdRoute: typeof AppWorkshopJourneyOrIdRoute
+  AppWorkshopDossierIdRoute: typeof AppWorkshopDossierIdRoute
   AppWorkshopAccidentsIndexRoute: typeof AppWorkshopAccidentsIndexRoute
 }
 
@@ -2904,6 +2924,7 @@ const AppWorkshopRouteChildren: AppWorkshopRouteChildren = {
   AppWorkshopIndexRoute: AppWorkshopIndexRoute,
   AppWorkshopAccidentsFileIdRoute: AppWorkshopAccidentsFileIdRoute,
   AppWorkshopJourneyOrIdRoute: AppWorkshopJourneyOrIdRoute,
+  AppWorkshopDossierIdRoute: AppWorkshopDossierIdRoute,
   AppWorkshopAccidentsIndexRoute: AppWorkshopAccidentsIndexRoute,
 }
 

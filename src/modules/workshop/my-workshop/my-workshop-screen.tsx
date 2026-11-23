@@ -15,6 +15,8 @@
  *  - une seule confirmation au plus avant de travailler (ancien OR + moto d'un autre + autre
  *    travail en cours, en un message) ;
  *  - « A prendre » et « OR anciens » replies ; la page d'accueil se regle dans le menu du compte.
+ * Chantier C1 (23/11/2026) : l'ecran ne fait plus que LISTER les dossiers du jour. Chaque carte ouvre
+ * le dossier moto a la bonne etape ; Demarrer, photos et parcours sont dans le dossier.
  * Aucune regle metier ne change : memes fonctions (`buildDayCards`, `sortCards`, `cardGesture`,
  * `startWorkWithConfirm`, photos de reception, parcours guide).
  *
@@ -27,7 +29,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  CalendarClock, ChevronDown, CircleHelp, ClipboardList, FileText, History, Inbox, ListChecks, Loader2,
+  CalendarClock, ChevronDown, CircleHelp, ClipboardList, FileText, FolderOpen, History, Inbox, ListChecks, Loader2,
   Package, PackageX, PenLine, Pause, Play, Link2, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, Square, Tag, Timer,
   TriangleAlert, User, UserX, Users, Wrench,
 } from 'lucide-react';
@@ -46,20 +48,17 @@ import { OrStepsTrail } from '../or-base/or-steps-trail';
 import { PauseDialog, startWorkWithConfirm } from '../pointage/work-controls';
 import { listPauseReasons, pauseWork, stopWorkPointage } from '../pointage/api';
 import { stopLabel, type PauseReason } from '../pointage/rules';
-import { ReceptionSheet } from '../reception/reception-sheet';
-import { createOrFromPlanningAppointment, type PlanningAppointment } from '../planning/api';
-import type { PlanningMechanic } from '../planning/rules';
 import { contactLabel } from '../planning/ui-bits';
 import { loadMyDay, type MyDay } from './api';
 import { useSharedTablet } from '../shared-tablet/shared-tablet-provider';
 import { SharedNowPanel } from '../shared-tablet/shared-now-panel';
 import {
   MY_WORKSHOP_REFRESH_MS, VIEW_ALL, afterStartTarget, ageLabel, canChooseWorkshop, cardGesture, cardMotive, cardOwner,
-  cardWhen, chooserMechanics, myCurrentWork, needsReceptionFirst, notLinkedHint, orAgeDays,
+  cardWhen, chooserMechanics, myCurrentWork, notLinkedHint, orAgeDays,
   workshopViewParam,
   type DayCard, type Gesture, type MotiveKind, type MyEntry, type MyNow, type WorkshopView,
 } from './rules';
-import { cardAlerts, cardSteps, doNowKey, durationParts, startReasons, type CardAlert, type StartReason } from './card-view';
+import { cardAlerts, cardDossierStep, cardSteps, doNowKey, durationParts, type CardAlert } from './card-view';
 
 const ORIGIN = 'tablet';
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(`${getLocale()}-BE`, { hour: '2-digit', minute: '2-digit' });
@@ -127,9 +126,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   });
   const d = day.data;
 
-  const [reception, setReception] = useState<{ orId: string; orNumber: string | null; go: () => void } | null>(null);
   const [pauseOpen, setPauseOpen] = useState(false);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [staleOpen, setStaleOpen] = useState(false);
   const [freeOpen, setFreeOpen] = useState<boolean | null>(null);
@@ -152,7 +149,7 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
       operation,
     });
     if (target.to === 'journey') navigate({ to: '/workshop/journey/$orId', params: { orId }, search: target.op ? { op: target.op } : {} });
-    else navigate({ to: '/workshop/$orId', params: { orId } });
+    else navigate({ to: '/workshop/dossier/$id', params: { id: orId } });
   };
 
   /** Pointage (lot A, un seul pointage actif) puis le travail. `expectSwitch` : deja annonce dans la confirmation. */
@@ -164,83 +161,9 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
     goToWork(orId, card, gesture === 'start' ? null : res.operation ?? null);
   };
 
-  /** Le geste de la moto : (ouvrir l'OR) → photos si besoin (lot C) → pointage (lot A) → parcours (lot D). */
-  const gesture = useMutation({
-    mutationFn: async ({ card, g, expectSwitch }: { card: DayCard; g: Gesture; expectSwitch: string | null }) => {
-      if (!d) return;
-      if (g === 'continue' && card.or) { goToWork(card.or.id, card, card.work?.mineOpen?.journey_operation ?? null); return; }
-      let orId = card.or?.id ?? null;
-      let orNumber = card.or?.number ?? null;
-      let orStatus = card.or?.status ?? null;
-      if (g === 'create_or' && card.appointment) {
-        // Meme fonction que « Valider RDV et saisie OR » du planning (km, temps prevu, kit Q49).
-        orId = await createOrFromPlanningAppointment(card.appointment as unknown as PlanningAppointment, d.mechanics as unknown as PlanningMechanic[]);
-        orNumber = null; orStatus = 'a_faire';
-        refresh();
-      }
-      if (!orId) return;
-      const id = orId;
-      const recStatus = d.reception.get(id)?.status ?? 'none';
-      if (needsReceptionFirst(g, recStatus, orStatus, d.receptionReady)) {
-        setReception({ orId: id, orNumber, go: () => { void pointThenGo(id, card, g, expectSwitch).catch(onErr).finally(() => setBusyKey(null)); } });
-        return 'reception';
-      }
-      await pointThenGo(id, card, g, expectSwitch);
-    },
-    meta: { success: false },
-    onMutate: ({ card }) => setBusyKey(card.key),
-    onSettled: (r) => { if (r !== 'reception') setBusyKey(null); },
-    onError: onErr,
-  });
-
   // ------------------------------------------------------------------ mon pointage du moment
   const now: MyNow = useMemo(() => (d ? myCurrentWork(d.myEntries, userId, d.closedOrs) : { kind: 'idle' }), [d, userId]);
   const nowCard = now.kind !== 'idle' && now.entry.or_id ? d?.cards.find((c) => c.or?.id === now.entry.or_id) ?? null : null;
-
-  /** Une seule confirmation (lot UX atelier) : ancien OR, moto d'un autre et autre travail, en un message. */
-  const onCardGesture = async (card: DayCard, g: Gesture) => {
-    if (!d) return;
-    const grp = d.vehicleGroups.get(card.key);
-    const reasonsToSay: StartReason[] = startReasons({
-      gesture: g, shared,
-      oldWithTodayRdv: grp?.role === 'old' && !!grp.primaryToday,
-      owner: cardOwner(card, d.me, d.mechanics),
-      meLinked: d.me.mechanicIds.length > 0,
-      running: now.kind === 'running' ? { entryId: now.entry.id, orId: now.entry.or_id, kind: now.entry.kind } : null,
-      cardOrId: card.or?.id ?? null,
-    });
-    let expectSwitch: string | null = null;
-    if (reasonsToSay.length) {
-      const meName = d.me.displayName || t('myWorkshop.meUnknown');
-      const number = card.or?.number ?? '';
-      const lines: string[] = [card.or ? fill(t('uxAtelier.confirmIntro'), { me: meName, number }) : fill(t('uxAtelier.confirmIntroNoOr'), { me: meName })];
-      for (const r of reasonsToSay) {
-        if (r.kind === 'old_or' && card.or) {
-          const motive = t(`myWorkshop.motive_${cardMotive(card).label}`);
-          const hint = grp?.primary?.kind === 'or' ? fill(t('myWorkshop.oldOrConfirmPrimary'), { number: grp.primary.number ?? '' })
-            : grp?.primary?.kind === 'rdv' ? t('myWorkshop.oldOrConfirmRdv') : '';
-          lines.push(`${fill(t('myWorkshop.oldOrConfirm'), { date: shortDate(card.or.created_at), motive })} ${hint}`.trim());
-        }
-        if (r.kind === 'foreign') {
-          const name = r.name || t('myWorkshop.someone');
-          lines.push(fill(t('uxAtelier.confirmForeign'), { name }) + (r.notLinked ? ` ${fill(t('myWorkshop.foreignNotLinked'), { name })}` : ''));
-        }
-        if (r.kind === 'switch' && now.kind === 'running') {
-          const current = r.orId ? d.orNumbers.get(r.orId) ?? '' : '';
-          lines.push(r.task ? fill(t('uxAtelier.confirmSwitchTask'), { since: hhmm(now.entry.started_at) })
-            : fill(t('uxAtelier.confirmSwitch'), { current, since: hhmm(now.entry.started_at) }));
-          expectSwitch = r.entryId;
-        }
-      }
-      const ok = await confirm({
-        title: card.or ? fill(t(g === 'resume' ? 'uxAtelier.confirmTitleResume' : 'uxAtelier.confirmTitle'), { number }) : t('uxAtelier.confirmTitleNoOr'),
-        message: lines.join('\n'),
-        confirmLabel: g === 'resume' ? t('pointage.resume') : t('pointage.start'),
-      });
-      if (!ok) return;
-    }
-    gesture.mutate({ card, g, expectSwitch });
-  };
 
   const pause = useMutation({
     mutationFn: (v: { reason: string; orStatus: string | null }) => {
@@ -306,10 +229,9 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
   const dateText = new Date().toLocaleDateString(`${getLocale()}-BE`, { weekday: 'long', day: '2-digit', month: '2-digit' });
 
   const card = (c: DayCard, opts: { showOwner: boolean }) => (
-    <BikeCard key={c.key} card={c} day={d} today={today} gesture={gestureOf(c)} busy={busyKey === c.key}
+    <BikeCard key={c.key} card={c} day={d} today={today}
       showOwner={opts.showOwner} doNow={doNow === c.key} reasons={nowReasons}
-      onGesture={(g) => { void onCardGesture(c, g); }}
-      onOpenOr={(orId) => navigate({ to: '/workshop/$orId', params: { orId } })}
+      onOpen={(id) => navigate({ to: '/workshop/dossier/$id', params: { id } })}
     />
   );
 
@@ -432,13 +354,6 @@ export function MyWorkshopScreen({ companyId, view = { kind: 'me' }, onView }: {
         open={pauseOpen} reasons={nowReasons} orStatus={nowCard?.or?.status ?? null} busy={pause.isPending}
         onCancel={() => setPauseOpen(false)} onConfirm={(v) => pause.mutate(v)}
       />
-      {reception && (
-        <ReceptionSheet
-          open orId={reception.orId} orNumber={reception.orNumber} companyId={companyId} startMode
-          onClose={() => { setReception(null); setBusyKey(null); refresh(); }}
-          onDone={() => { const go = reception.go; setReception(null); go(); }}
-        />
-      )}
     </div>
   );
 }
@@ -545,19 +460,15 @@ function FoldSection({ id, icon: Icon, tone, open, onOpenChange, title, count, h
 // ---------------------------------------------------------------------------------------------
 // Une moto
 // ---------------------------------------------------------------------------------------------
-const GESTURE_LABEL: Record<Exclude<Gesture, 'none' | 'blocked'>, string> = {
-  start: 'pointage.start', resume: 'pointage.resume', continue: 'myWorkshop.continue', create_or: 'pointage.start',
-};
-const GESTURE_ICON = { start: Play, resume: RotateCcw, continue: ListChecks, create_or: Play } as const;
-
-function BikeCard({ card, day, today, gesture: g, busy, showOwner, doNow, reasons, onGesture, onOpenOr }: {
-  card: DayCard; day: MyDay; today: string; gesture: Gesture; busy: boolean;
+function BikeCard({ card, day, today, showOwner, doNow, reasons, onOpen }: {
+  card: DayCard; day: MyDay; today: string;
   /** Atelier d'un autre ou de tous : a qui est la moto. */
   showOwner: boolean;
-  /** LA moto a faire maintenant : son geste est le seul bouton rouge de l'ecran. */
+  /** LA moto a faire maintenant : son bouton est le seul bouton rouge de l'ecran. */
   doNow: boolean;
   reasons: PauseReason[];
-  onGesture: (g: Gesture) => void; onOpenOr: (orId: string) => void;
+  /** Chantier C1 : la carte ouvre le dossier (id de l'OR, sinon du RDV), a la bonne etape. */
+  onOpen: (id: string) => void;
 }) {
   const owner = cardOwner(card, day.me, day.mechanics);
   const or = card.or;
@@ -600,8 +511,12 @@ function BikeCard({ card, day, today, gesture: g, busy, showOwner, doNow, reason
           ? { tone: 'warning', icon: Pause, text: fill(t('pointage.pausedReason'), { reason: stopLabel(ws.last_stop_kind, ws.last_stop_reason, reasons, t) }) }
           : null;
 
-  const showGesture = g !== 'none' && g !== 'blocked';
-  const GIcon = showGesture ? GESTURE_ICON[g] : Play;
+  const dossierId = or?.id ?? a?.id ?? null;
+  const dossierStep = cardDossierStep(card, {
+    receptionReady: day.receptionReady, reception: or ? day.reception.get(or.id) : null,
+    pointageReady: day.pointageReady, workStatus: or ? day.workStatus.get(or.id) : null,
+    progress: or ? day.progress.get(or.id) : null, today, parts: day.parts.get(card.key),
+  });
 
   return (
     <article className={cn('flex flex-col rounded-md border bg-card p-4 shadow-[var(--shadow-card)]',
@@ -669,15 +584,10 @@ function BikeCard({ card, day, today, gesture: g, busy, showOwner, doNow, reason
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {showGesture && (
-          <Button variant={doNow ? 'default' : 'outline'} className="h-14 min-w-[180px] flex-1 text-[18px]" disabled={busy} onClick={() => onGesture(g)}>
-            {busy ? <Loader2 className="size-6 animate-spin" /> : <GIcon className="size-6" />} {t(GESTURE_LABEL[g])}
-          </Button>
-        )}
-        {g === 'blocked' && <p className="flex-1 self-center text-[15px] text-warning">{t('checkup.workBlocked')}</p>}
-        {or && (
-          <Button variant="outline" className="h-14 min-w-[140px] text-[17px]" onClick={() => onOpenOr(or.id)}>
-            <FileText className="size-5" /> {t('myWorkshop.openOr')}
+        {dossierId && (
+          <Button variant={doNow ? 'default' : 'outline'} className="h-14 min-w-[180px] flex-1 text-[18px]" onClick={() => onOpen(dossierId)}>
+            <FolderOpen className="size-6" />
+            {dossierStep ? fill(t('dossier.openDossierStep'), { step: t(`dossier.step_${dossierStep}`) }) : t('dossier.openDossier')}
           </Button>
         )}
       </div>

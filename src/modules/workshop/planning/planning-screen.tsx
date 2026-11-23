@@ -8,7 +8,7 @@
  * Barre commune : semaine / jour precedent-suivant, aujourd'hui, filtre compagnon, legende des
  * statuts cochable, Rechercher RDV, Nouveau RDV, Nouveau RDV en attente.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, ChevronLeft, ChevronRight, Inbox, MessageSquareText, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,7 +24,7 @@ import { ReservedPartsDialog } from '@/modules/workshop/reservations/reserved-pa
 import { reservationSchemaReady } from '@/modules/workshop/reservations/api';
 import { isServiceCode, serviceCodeForReason } from '@/modules/workshop/service-code';
 import {
-  assignAppointment, createOrFromPlanningAppointment, setPlannedMinutes, type PlanningAppointment,
+  assignAppointment, createOrFromPlanningAppointment, getPlanningAppointment, setPlannedMinutes, type PlanningAppointment,
 } from './api';
 import {
   APPOINTMENT_STATUSES, addDays, atMinutes, localYmd, plannedMinutesFrom, planningMechanics, startOfDay,
@@ -51,8 +51,11 @@ const ALL = '__all__';
 const apptService = (a: PlanningAppointment): string | null =>
   (isServiceCode(a.service_code) ? a.service_code : serviceCodeForReason(a.reason_code ?? null)) ?? null;
 
-export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
+export function PlanningScreen({ companyId, view, onView, onOpenOr, openAppointmentId = null, onAppointmentOpened }: {
   companyId: string; view: PlanningView; onView: (v: PlanningView) => void; onOpenOr: (orId: string) => void;
+  /** Chantier C1 : RDV à ouvrir à l'arrivée (« Modifier le RDV » depuis le dossier moto). */
+  openAppointmentId?: string | null;
+  onAppointmentOpened?: () => void;
 }) {
   const { activeCompany, isAdmin, hasRole } = useAuth();
   const canSettings = isAdmin() || hasRole('chef_atelier');
@@ -121,6 +124,17 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
   const newAt = (day: Date, mechanicId?: string | null) => setDialog({
     appt: null, defaults: { startsAt: atMinutes(day, timeToMinutes(s.day_start) ?? 540), mechanicId: mechanicId ?? mechanicFilter },
   });
+
+  // Chantier C1 : le dossier moto ouvre ici la fenêtre de son RDV, sur la bonne semaine.
+  const openedRdv = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openAppointmentId || openedRdv.current === openAppointmentId) return;
+    openedRdv.current = openAppointmentId;
+    void getPlanningAppointment(openAppointmentId).then((a) => {
+      if (a) { setRef(startOfDay(new Date(a.starts_at))); setDialog({ appt: a }); }
+      onAppointmentOpened?.();
+    }).catch(() => onAppointmentOpened?.());
+  }, [openAppointmentId, onAppointmentOpened]);
 
   const toggleStatus = (st: string) => setStatusFilter((x) => { const n = new Set(x); if (n.has(st)) n.delete(st); else n.add(st); return n; });
   const views: PlanningView[] = PLANNING_VIEWS.filter((v) => (v === 'reglages' ? canSettings : v === 'prets' ? loansReady.data === true : true));
@@ -219,7 +233,7 @@ export function PlanningScreen({ companyId, view, onView, onOpenOr }: {
 }
 
 /** G8 : « Veuillez saisir le temps prevu » avant de valider le RDV et d'ouvrir l'OR. */
-function PlannedTimeDialog({ appt, onClose, onDone }: { appt: PlanningAppointment; onClose: () => void; onDone: (a: PlanningAppointment) => void }) {
+export function PlannedTimeDialog({ appt, onClose, onDone }: { appt: PlanningAppointment; onClose: () => void; onDone: (a: PlanningAppointment) => void }) {
   const [h, setH] = useState(''); const [m, setM] = useState('');
   const [busy, setBusy] = useState(false);
   const minutes = plannedMinutesFrom(h, m);
@@ -262,7 +276,7 @@ function PlannedTimeDialog({ appt, onClose, onDone }: { appt: PlanningAppointmen
  * obligatoire) ou d'ouvrir l'OR sans moto (le km sera demande quand une moto y sera rattachee).
  * Le RDV est mis a jour (audit trg_appt_audit) avant l'ouverture de l'OR.
  */
-function OrIntakeDialog({ companyId, appt, onClose, onDone }: {
+export function OrIntakeDialog({ companyId, appt, onClose, onDone }: {
   companyId: string; appt: PlanningAppointment; onClose: () => void; onDone: (a: PlanningAppointment) => void;
 }) {
   const [vehicle, setVehicle] = useState<{ id: string; label: string } | null>(

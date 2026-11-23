@@ -10,25 +10,27 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ExternalLink, ImageOff, Loader2, Timer, Replace } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ImageOff, Info, Loader2, Maximize2, Replace, Timer, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SaleStockBadge } from '@/modules/sales/availability-badge';
 import { saleStockStatus } from '@/modules/sales/availability';
 import { cn } from '@/lib/utils';
-import { t } from '@/lib/i18n';
+import { fillVars, t } from '@/lib/i18n';
 import { getCatalogDrawing, listDrawingLines, type CatalogLine } from './api';
-import { fill, fmtMoney, hotspotBox } from './format';
+import { fill, fmtMoney, focusTransform, hotspotBox } from './format';
 import { normalizeCatalogReference } from './reference';
 import { CreateArticleButton } from './create-article-button';
 import { positionsOf } from './positions';
 
 export type SelectedPosition = { position: string; lines: CatalogLine[] };
 
-export function DrawingView({ drawingId, companyId, highlightRef = null, highlightPos = null, onBack, renderSelected, backLabel }: {
+export function DrawingView({ drawingId, companyId, highlightRef = null, highlightPos = null, focusOnOpen = false, onBack, renderSelected, backLabel }: {
   drawingId: string; companyId: string | null; highlightRef?: string | null; onBack: () => void;
   /** Repère mis en évidence à l'ouverture (lien depuis l'OR / la picking list). */
   highlightPos?: string | null;
+  /** Chantier C1 : la planche s'ouvre zoomée et centrée sur la pièce, entourée. */
+  focusOnOpen?: boolean;
   /** Panneau du repère choisi (au-dessus de la liste des pièces). */
   renderSelected?: (sel: SelectedPosition) => ReactNode;
   backLabel?: string;
@@ -50,6 +52,18 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, highlig
   const positions = useMemo(() => positionsOf(d?.hotspots, lines.data), [d?.hotspots, lines.data]);
   const selectedLines = useMemo(() => (selected ? (lines.data ?? []).filter((l) => l.position === selected) : []), [selected, lines.data]);
   const ducatiUrl = d?.original_image_url || d?.image_url || null;
+
+  // Chantier C1 : zoom sur la zone du repère (un repère peut avoir plusieurs zones sur la planche).
+  const [zoomed, setZoomed] = useState(focusOnOpen);
+  const [spotIdx, setSpotIdx] = useState(0);
+  useEffect(() => { setZoomed(focusOnOpen); }, [drawingId, highlightPos, focusOnOpen]);
+  useEffect(() => { setSpotIdx(0); }, [drawingId, selected]);
+  const spots = useMemo(() => (selected ? (d?.hotspots ?? []).filter((h) => String(h.pos) === selected) : []), [d?.hotspots, selected]);
+  const spot = spots[Math.min(spotIdx, Math.max(0, spots.length - 1))] ?? null;
+  const spotBox = spot ? hotspotBox(spot, natural) : null;
+  const focus = zoomed && spotBox ? focusTransform(spotBox) : null;
+  const zoomScale = focus?.scale ?? 1;
+  const noZone = focusOnOpen && !!d && !!natural && lines.isSuccess && spots.length === 0;
 
   const firstRowByPos = useMemo(() => {
     const m: Record<string, number> = {};
@@ -116,7 +130,16 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, highlig
             </div>
           ) : (
             <>
-              <div className="relative w-full">
+              {noZone && (
+                <p className="mb-2 flex items-start gap-2 rounded-md bg-info-bg px-3 py-2 text-[13px] text-info">
+                  <Info className="mt-0.5 size-4 shrink-0" aria-hidden /> {t('dossier.explodedNoZone')}
+                </p>
+              )}
+              <div className="w-full overflow-hidden">
+              <div
+                className="relative w-full origin-top-left transition-transform duration-300"
+                style={focus ? { transform: `translate(${focus.x}%, ${focus.y}%) scale(${focus.scale})` } : undefined}
+              >
                 <img
                   src={img}
                   alt={d?.description ?? ''}
@@ -129,6 +152,8 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, highlig
                   const box = hotspotBox(h, natural);
                   if (!box) return null;
                   const on = selected === String(h.pos);
+                  // Le trait garde son épaisseur à l'écran quel que soit le zoom ; la pièce est entourée.
+                  const ring = on ? { outlineWidth: `${3 / zoomScale}px`, outlineOffset: `${2 / zoomScale}px` } : {};
                   return (
                     <button
                       key={`${h.pos}-${i}`}
@@ -138,13 +163,26 @@ export function DrawingView({ drawingId, companyId, highlightRef = null, highlig
                       onClick={() => pick(String(h.pos))}
                       className={cn(
                         'absolute rounded-[2px] border-2 transition-colors',
-                        on ? 'border-primary bg-primary/25' : 'border-info/70 bg-info/10 hover:bg-info/25',
+                        on ? 'border-primary bg-primary/25 outline outline-primary' : 'border-info/70 bg-info/10 hover:bg-info/25',
                       )}
-                      style={{ left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%` }}
+                      style={{ left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`, borderWidth: `${2 / zoomScale}px`, ...ring }}
                     />
                   );
                 })}
               </div>
+              </div>
+              {spotBox && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" className="h-11" onClick={() => setZoomed((z) => !z)}>
+                    {zoomed ? <Maximize2 /> : <ZoomIn />} {zoomed ? t('dossier.explodedFull') : t('dossier.explodedZoomIn')}
+                  </Button>
+                  {zoomed && spots.length > 1 && (
+                    <Button type="button" variant="outline" className="h-11" onClick={() => setSpotIdx((i) => (i + 1) % spots.length)}>
+                      {fillVars(t('dossier.explodedNextSpot'), { i: spotIdx + 1, n: spots.length })}
+                    </Button>
+                  )}
+                </div>
+              )}
               <p className="mt-2 text-[12px] text-muted-foreground">{t('catalog.hotspotHint')}</p>
             </>
           )}

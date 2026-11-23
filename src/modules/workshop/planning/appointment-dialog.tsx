@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Link } from '@tanstack/react-router';
+import { FolderOpen } from 'lucide-react';
 import { getContact, contactDisplayName, type Contact } from '@/modules/contacts/api';
 import { vehiclePickLabel } from '@/modules/vehicles/api';
 import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
@@ -205,7 +207,14 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
-        <DialogHeader><DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{a ? t('planningG8.editRdv') : t('designEcrans.newRdvTitle')}</DialogTitle>
+          {a && (
+            <Link to="/workshop/dossier/$id" params={{ id: a.or_id ?? a.id }} className="inline-flex min-h-11 items-center gap-1 text-[14px] font-medium text-info underline-offset-2 hover:underline">
+              <FolderOpen className="size-4" aria-hidden /> {t('dossier.openDossier')}
+            </Link>
+          )}
+        </DialogHeader>
         {/* Ordre du receptionnaire : client → moto (km) → motif → date et heure → compagnon → temps prevu. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label={t('workshop.client')}>{contact ? <Picked label={contactDisplayName(contact)} onClear={() => setContact(null)} /> : <ContactPicker companyId={companyId} onPick={setContact} />}</Field>

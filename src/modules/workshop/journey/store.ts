@@ -83,8 +83,14 @@ async function readBase(orId: string): Promise<JourneyState | null> {
   }
 }
 
-async function writeBase(companyId: string | null, state: JourneyState): Promise<boolean> {
+/** Chantier C1 : l'image reste sur la tablette ou dans la GED, jamais en base64 dans l'état. */
+export function withoutPhotoData(state: JourneyState): JourneyState {
+  return { ...state, findings: state.findings.map((f) => (f.photoData ? { ...f, photoData: null } : f)) };
+}
+
+async function writeBase(companyId: string | null, full: JourneyState): Promise<boolean> {
   if (!(await probeJourneyTable())) return false;
+  const state = withoutPhotoData(full);
   try {
     const { error } = await loose.from(TABLE).upsert({
       or_id: state.orId,
@@ -112,7 +118,10 @@ export async function loadJourney(orId: string): Promise<JourneyState | null> {
   const [local, base] = await Promise.all([Promise.resolve(readLocal(orId)), readBase(orId)]);
   if (!base) return local;
   if (!local) return base;
-  return stamp(local) >= stamp(base) ? local : base;
+  if (stamp(local) >= stamp(base)) return local;
+  // La base est plus récente : une photo pas encore envoyée reste celle de la tablette.
+  const pending = new Map(local.findings.filter((f) => f.photoData && !f.photoPath).map((f) => [f.id, f]));
+  return pending.size ? { ...base, findings: base.findings.map((f) => (f.photoPath ? f : pending.get(f.id) ?? f)) } : base;
 }
 
 /** Enregistre tout de suite dans la tablette, puis en base sans bloquer l'écran. */

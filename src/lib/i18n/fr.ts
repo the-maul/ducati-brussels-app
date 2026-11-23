@@ -11,6 +11,7 @@ import { receptionFr, planOpsFr } from './parcours-cd';
 import { myWorkshopFr } from './mon-atelier';
 import { orLisibleFr } from './or-lisible';
 import { uxAtelierFr } from './ux-atelier';
+import { dossierFr } from './dossier-atelier';
 import { designFichesFr } from './design-fiches';
 import { designEcransFr } from './design-ecrans';
 import { decisionsQ57Q60Fr } from './decisions-q57-q60';
@@ -7555,6 +7556,7 @@ export const fr = {
     workshopNew: 'Nouvel OR',
     workshopChrono: 'Pointeuse atelier',
     workshopJourney: 'Parcours guidé',
+    workshopDossier: 'Dossier moto',
     workshopMine: "Mon atelier",
     workshopKits: "Kits d'entretien",
     workshopAccidents: 'Dossiers accident', workshopAccident: 'Dossier accident',
@@ -9451,6 +9453,8 @@ export const fr = {
   orLisible: orLisibleFr,
   // Lot UX atelier (20/11/2026) : « Mon atelier » selon la maquette, fiche OR en 3 onglets.
   uxAtelier: uxAtelierFr,
+  // Chantier C1 (23/11/2026) : dossier moto en 4 etapes.
+  dossier: dossierFr,
   // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
   designFiches: designFichesFr,
   // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.

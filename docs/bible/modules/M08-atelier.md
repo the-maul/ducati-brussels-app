@@ -662,6 +662,36 @@ Retour du client : « Mon atelier, c'est brouillon, je ne comprends jamais où j
 - **Cibles 44 px** : classe `.touch-44` (styles.css) sur « Mon atelier » et la fiche OR (boutons, onglets, listes, champs, cases de garantie dans une zone de 44 px) ; entrées du menu « Plus d'actions » 44 px.
 - **Pièges** : (1) la confirmation unique suppose que le pointage annoncé est celui que la base trouve ; sinon la question d'origine revient (pas de pause silencieuse) ; (2) `sendSecondary` du Check-up : bouton « Envoyer la proposition » en contour dans la fiche en onglets ; (3) le bouton Retour de l'ossature reste à 32 px sur tablette (hors de ce lot).
 
+### Ajouté le 23/11 — chantier C1 : le dossier moto en 4 étapes (ATE-01 à ATE-06, B8, B11)
+
+Demande du client : « une moto, elle se réserve, elle rentre, elle se paie et elle sort », avec un fil d'Ariane, sans
+chercher dans Mon atelier. Branche `lot-c1-dossier-atelier`, migration **`20261123100000_m8_dossier_atelier.sql`**,
+essai à blanc `supabase/tests/m8_dossier_atelier.sql`, règle testée dans `tests/atelier-dossier.test.ts`.
+- **Écran** : `/workshop/dossier/$id` (`$id` = un OR ou un RDV, `?etape=` garde l'étape regardée), code dans
+  `src/modules/workshop/dossier/`. La fiche OR reste entière (« Fiche complète ») et ses liens ne changent pas.
+- **L'étape se calcule** (`dossier/rules.ts`, règle pure) depuis les statuts réels : RDV, OR, photos, pointage,
+  opérations, facture, paiement, remise. **Aucun nouveau statut.** Un seul bouton principal par étape, « Passer »
+  seulement pour ce qui ne bloque pas (photos, prévenir le client, remise à crédit). Travailler ne se passe pas.
+- **Pas d'OR à la prise de RDV** : le dossier existe dès le RDV ; l'OR naît « À faire » à l'entrée, le RDV passe
+  « Réceptionné » (Q43, comme G8).
+- **Variantes** : client, garantie, accident (`VARIANT_STEPS`). Moto neuve, occasion et interne sont décrites mais pas
+  détectées : le chantier C4 les branche dans `dossierVariant`.
+- **Temps prévu** (ATE-03) : `repair_orders.planned_minutes`, recopié du RDV par la base.
+- **Attente pièces** (ATE-02) : une fois l'entrée finie (photos faites ou « plus tard »), un OR « À faire » jamais pointé
+  passe « Attente pièces » si une pièce manque, et revient « À faire » quand tout est couvert, **seulement si c'est ce
+  mécanisme qui l'y avait mis** (`parts_wait_auto`). Un statut posé à la main ou un OR commencé n'est jamais touché.
+- **Sortie visible** (ATE-06) : `repair_order_handovers`, une ligne par OR, tracée dans `events`, annulable. Les OR déjà
+  facturés sont repris comme sortis (origine `reprise`). Remise possible avant paiement (client en compte), après confirmation.
+- **Accord client** (ATE-04) : l'adresse du parcours guidé respecte le blocage (garde à l'écran ; le pointage était déjà
+  gardé en base).
+- **Photos du parcours** : dans les documents de l'OR (dossier « Parcours »), plus en base64 dans `workshop_journeys`.
+  Réseau coupé : la photo attend sur la tablette et repart à la prochaine ouverture.
+- **Vue éclatée** : s'ouvre zoomée et centrée sur la pièce, entourée (`focusTransform`, zones `hotspots`) ; « Voir toute
+  la planche » ; sans zone connue, la planche entière et une phrase qui le dit.
+- **Mon atelier** ne fait plus que lister : chaque carte ouvre le dossier à la bonne étape (Démarrer, photos et parcours
+  sont dans le dossier). Le planning, la liste des OR et le nouvel OR mènent au dossier.
+- **Emplacement C2** : `dossier/labels-link.tsx` (lien des étiquettes de destination, vide tant que C2 n'est pas livré).
+
 ## 5. État en production
 Vérifié le 18/09/2026 (code + base).
 - **Tous les objets utilisés par le code existent** : `repair_orders`, `repair_order_lines`, `workshop_time_entries`, `workshop_appointments` avec toutes les colonnes écrites (y compris `price_mode` lu à la facturation), fonctions `or_worked_minutes`, `next_document_number`. RLS active et triggers d'audit (`trg_ro_audit`, `trg_rolines_audit`, `trg_appt_audit`, `trg_wte_audit`) présents.
