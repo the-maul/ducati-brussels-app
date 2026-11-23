@@ -6,16 +6,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 import { t } from '@/lib/i18n';
-import { maintenanceKitStock } from '../parts-popup-api';
+import { getServiceKit } from '@/modules/workshop/reservations/api';
+import type { ServiceCode } from '../service-code';
 import { kitPartsToComplete } from '../parts-popup-rules';
 
-export function KitRefsToComplete({ companyId, vehicleId, reasonCode }: { companyId: string; vehicleId: string; reasonCode: string }) {
+export function KitRefsToComplete({ vehicleId, serviceCode }: { vehicleId: string; serviceCode: ServiceCode }) {
   const q = useQuery({
-    queryKey: ['kit-refs-to-complete', companyId, vehicleId, reasonCode],
-    queryFn: () => maintenanceKitStock(companyId, vehicleId, reasonCode),
+    queryKey: ['kit-refs-to-complete', vehicleId, serviceCode],
+    queryFn: () => getServiceKit(vehicleId, serviceCode),
     staleTime: 30_000,
   });
-  const names = kitPartsToComplete(q.data?.lines ?? []);
+  const names = kitPartsToComplete(q.data ?? []);
   if (names.length === 0) return null;
   return (
     <div className="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-[13px]">

@@ -368,7 +368,7 @@ export function AppointmentDialog({ companyId, base, ctx, appts, appointment, de
           </p>
         )}
 
-        {vehicle?.id && isMaintenanceReasonCode(reasonCode) && <KitRefsToComplete companyId={companyId} vehicleId={vehicle.id} reasonCode={reasonCode} />}
+        {vehicle?.id && svc && <KitRefsToComplete vehicleId={vehicle.id} serviceCode={svc} />}
 
         {/* Le reste, replie : statut, type, travaux, observations, moto de pret, SMS. */}
         <div className="rounded-md border border-border">

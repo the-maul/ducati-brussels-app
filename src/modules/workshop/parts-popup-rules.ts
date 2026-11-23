@@ -81,7 +81,7 @@ export function missingKitParts(kit: KitStockLine[], asked: Iterable<string> = [
 }
 
 /** Pièces du kit sans référence fiable : à compléter, jamais devinées. */
-export function kitPartsToComplete(kit: KitStockLine[]): string[] {
+export function kitPartsToComplete(kit: ReadonlyArray<{ designation: string; confidence?: string | null }>): string[] {
   return [...new Set(kit.filter((k) => k.confidence === 'absent').map((k) => k.designation))];
 }
 
