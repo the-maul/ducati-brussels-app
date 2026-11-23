@@ -32,10 +32,10 @@ export function MyDucatiListener() {
       try {
         const r = await applyMyDucatiData(activeCompanyId, d.payload);
         if (!r.matched) { toast.error(`Moto introuvable dans le DMS (VIN ${d.payload.vin}).`); return; }
-        toast.success(`Infos My Ducati importées${r.bulletins ? ` · ${r.bulletins} bulletin(s)` : ''}.`);
+        toast.success(`Infos DCS importées${r.bulletins ? ` · ${r.bulletins} bulletin(s)` : ''}.`);
         qc.invalidateQueries();
       } catch {
-        toast.error('Import My Ducati échoué.');
+        toast.error('Import DCS échoué.');
       }
     };
     window.addEventListener('message', handler);

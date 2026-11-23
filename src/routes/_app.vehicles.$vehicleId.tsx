@@ -1,3 +1,4 @@
+import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
 import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
@@ -99,6 +100,7 @@ function EditVehicle() {
                 <ExternalLink /> {t('vehicles.ducatiHistory')}
               </Button>
             ) : null}
+            <DcsUpdateButton vin={vehicle.vin} />
             {/* Nouvel OR depuis la fiche moto : moto et proprietaire courant pre-remplis (ATE001). */}
             <Button
               variant="outline"

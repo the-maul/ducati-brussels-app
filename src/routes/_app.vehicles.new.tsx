@@ -1,3 +1,4 @@
+import { launchDcsUpdate } from '@/modules/vehicles/dcs-update';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,6 +88,8 @@ function NewVehicle() {
           : (await createVehicle(p)).id;
       // Carte 7 : la carte grise lue avant l'enregistrement rejoint les documents de la moto.
       if (meta.scan) await attachCarteGrise(activeCompanyId!, id, meta.scan).catch(() => undefined);
+      // Moto créée : l'extension va chercher ce que le DCS connaît d'elle.
+      void launchDcsUpdate(p.vin, true);
       return { id };
     },
     success: contactId ? t('motoClient.created') : t('feedback.created'),

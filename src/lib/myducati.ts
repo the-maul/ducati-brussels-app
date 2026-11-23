@@ -34,6 +34,15 @@ export function splitFullName(full: unknown): { first: string; last: string } {
   return { first: tokens[0], last: tokens.slice(1).join(' ') };
 }
 
+/** Origine de la moto : « Garantie activée par », sinon « Moto facturée à » (Simon, 23/11/2026). */
+export function dcsOrigin(activatedBy: unknown, invoicedTo: unknown): string | undefined {
+  for (const v of [activatedBy, invoicedTo]) {
+    const s = String(v ?? '').trim();
+    if (s && s !== '-') return s;
+  }
+  return undefined;
+}
+
 /** base64 → Uint8Array (pour uploader un PDF rapatrié par l'extension). */
 const base64ToBytes = (b64: string): Uint8Array => {
   const bin = atob(b64);
@@ -106,12 +115,13 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): 
     engine_number: v.engine_number,
     mileage: v.last_km ? Number(v.last_km) : undefined,
     model: v.model, color: v.color, plate: v.plate,
+    origin: dcsOrigin(v.warranty_activated_by, v.invoiced_to),
     first_registration_date: isoDate(v.first_registration_date),
   }) as Record<string, unknown>;
   const emptyOnly: Record<string, unknown> = {};
   if (Object.keys(shared).length) {
     const { data: cur } = await supabase.from('vehicles')
-      .select('engine_number, mileage, model, color, plate, first_registration_date')
+      .select('engine_number, mileage, model, color, plate, origin, first_registration_date')
       .eq('id', vehicleId).maybeSingle();
     const row = (cur ?? {}) as Record<string, unknown>;
     for (const k of Object.keys(shared)) {

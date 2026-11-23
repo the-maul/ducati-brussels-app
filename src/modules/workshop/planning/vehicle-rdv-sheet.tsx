@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fillVars, t } from '@/lib/i18n';
 import { cleanPlate, normalizePlate, PLATE_MIN, plateInput, plateIsValid } from '@/lib/plate';
 import { updateVehicle } from '@/modules/vehicles/api';
+import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
 import {
   ANTIPOLLUTION_OPTIONS, COLOR_OPTIONS, CYLINDER_OPTIONS, ENERGY_OPTIONS, VEHICLE_FAMILIES, loadSpecOptions, loadVehicleFill,
 } from '@/modules/vehicles/catalog-specs';
@@ -163,8 +164,9 @@ export function VehicleRdvSheet({ vehicleId }: { vehicleId: string }) {
         <span className="text-[12px] text-muted-foreground" role="status">
           {save.isPending ? t('dossier.sheetSaving') : save.isSuccess ? t('dossier.sheetSaved') : ''}
         </span>
+        <span className="ml-auto"><DcsUpdateButton vin={typeof raw.vin === 'string' ? raw.vin : null} size="sm" /></span>
         <Link to="/vehicles/$vehicleId" params={{ vehicleId }} target="_blank" rel="noopener"
-          className="ml-auto inline-flex min-h-9 items-center gap-1 text-[13px] font-medium text-info underline-offset-2 hover:underline">
+          className="inline-flex min-h-9 items-center gap-1 text-[13px] font-medium text-info underline-offset-2 hover:underline">
           <ExternalLink className="size-3.5" aria-hidden /> {t('dossier.sheetOpen')}
         </Link>
       </div>
