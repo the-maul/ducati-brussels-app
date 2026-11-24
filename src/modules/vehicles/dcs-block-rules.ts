@@ -175,3 +175,43 @@ export function dcsEventFamily(category: string | null | undefined): { family: '
   if (c === 'checklist') return { family: 'checklist', tone: 'success' };
   return { family: 'other', tone: 'neutral' };
 }
+
+export type DcsValidateStep =
+  | { kind: 'take'; field: string; seen: string | null }
+  | { kind: 'attach'; contactId: string }
+  | { kind: 'create' };
+export type DcsValidatePlan = { steps: DcsValidateStep[]; left: string[] };
+
+/**
+ * Bouton « Valider » (Simon, 24/11/2026) : chaque écart prend la valeur DCS ; une moto sans
+ * propriétaire reçoit le client DCS (fiche existante s'il n'y en a qu'une, sinon création).
+ * Ce qui demande un vrai choix reste ouvert : version de modèle, plusieurs clients possibles,
+ * autre propriétaire sur la fiche, client non gardé.
+ */
+export function dcsValidatePlan(rows: DcsBlockRow[], o: {
+  needsModelChoice: boolean; situation: DcsClientSituation; matches: Array<{ id: string; is_owner: boolean }> | null;
+}): DcsValidatePlan {
+  const steps: DcsValidateStep[] = [];
+  const left: string[] = [];
+  for (const r of rows) {
+    if (r.key === 'owner' || r.status !== 'conflit') continue;
+    if (!isDcsResolvable(r.key) || (r.key === 'model' && o.needsModelChoice)) left.push(r.key);
+    else steps.push({ kind: 'take', field: r.key, seen: r.sheet });
+  }
+  const ownerOpen = rows.some((r) => r.key === 'owner' && r.status === 'conflit');
+  if (o.situation === 'no_owner') {
+    const others = (o.matches ?? []).filter((m) => !m.is_owner);
+    if (o.matches === null || others.length > 1) left.push('owner');
+    else if (others.length === 1) steps.push({ kind: 'attach', contactId: others[0].id });
+    else steps.push({ kind: 'create' });
+  } else if (ownerOpen) {
+    left.push('owner');
+  }
+  return { steps, left };
+}
+
+/** Bloc replié : validé après la dernière lecture et plus aucun écart. */
+export function dcsBlockFolded(validatedAt: string | null, syncedAt: string | null, conflicts: number): boolean {
+  if (!validatedAt || conflicts > 0) return false;
+  return !syncedAt || new Date(validatedAt).getTime() >= new Date(syncedAt).getTime();
+}

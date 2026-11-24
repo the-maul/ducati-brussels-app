@@ -3,9 +3,9 @@
  * qui a été lu, en trois colonnes comme le portail, avec son statut. Chaque écart se tranche en un
  * clic, le client lu peut être attribué ou créé. Rien n'est écrit sans clic.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, BookOpen, CheckCircle2, FileCheck2, History, Loader2, ShieldCheck, UserCheck, UserPlus } from 'lucide-react';
+import { AlertTriangle, BookOpen, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, FileCheck2, History, Loader2, ShieldCheck, UserCheck, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { StatusBadge, type StatusTone } from '@/components/status-badge';
@@ -14,11 +14,11 @@ import { translateDbError } from '@/lib/db-error-i18n';
 import type { DcsFieldStatus } from '@/lib/dcs-rules';
 import { canAskDcs, DcsUpdateButton } from './dcs-update';
 import {
-  attachDcsClient, createDcsClient, loadDcsBlock, loadDcsMatches, loadDcsModelCandidates, resolveDcsField,
+  attachDcsClient, createDcsClient, loadDcsBlock, loadDcsMatches, loadDcsModelCandidates, resolveDcsField, validateDcsBlock,
   type DcsMatch, type DcsResolveInput,
 } from './dcs-block-api';
 import {
-  dcsBlockColumns, dcsCatalogFields, dcsClientSituation, dcsModelChoices, dcsOpenConflicts, isDcsResolvable,
+  dcsBlockColumns, dcsBlockFolded, dcsCatalogFields, dcsClientSituation, dcsModelChoices, dcsOpenConflicts, dcsValidatePlan, isDcsResolvable,
   type DcsBlockRow, type DcsFieldRow,
 } from './dcs-block-rules';
 import type { Vehicle } from './api';
@@ -59,6 +59,7 @@ function dcsActionError(e: unknown): string {
   const message = err?.message ?? '';
   if (err?.code === 'PGRST202') return t('dossier.dcsBlockUnavailable');
   if (message.includes('dcs_stale')) return t('dossier.dcsBlockStale');
+  if (message.includes('dcs_conflicts_left')) return fillVars(t('dossier.dcsBlockValidateLeft'), { n: message.split(':')[1]?.split(',').length ?? 1 });
   if (err?.hint === 'dcs_plate_length') return t('dossier.dcsBlockPlateErr');
   return translateDbError(e) ?? t('dossier.dcsBlockErr');
 }
@@ -74,6 +75,8 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
   const q = useQuery({ queryKey: ['vehicle-dcs', vehicle.id], queryFn: () => loadDcsBlock(vehicle.id) });
   const [busy, setBusy] = useState<string | null>(null);
   const [lowerKm, setLowerKm] = useState<string | null>(null);
+  /** null : le bloc suit la validation enregistrée ; sinon le choix fait à l'écran. */
+  const [open, setOpen] = useState<boolean | null>(null);
 
   const syncedAt = (v.my_ducati_synced_at as string | null) ?? null;
   const statuses = q.data?.statuses ?? [];
@@ -96,6 +99,11 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
     enabled: needsCandidates && !!vehicle.vin, staleTime: 300_000,
   });
   const choices = dcsModelChoices(yearStatus, candidatesQ.data ?? []);
+  const validatedAt = (v.dcs_validated_at as string | null) ?? null;
+  const folded = dcsBlockFolded(validatedAt, syncedAt, conflicts);
+  const showFolded = open === null ? folded : !open;
+  // Une nouvelle lecture DCS rouvre le bloc.
+  useEffect(() => { setOpen(null); }, [syncedAt]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['vehicle-dcs', vehicle.id] });
@@ -117,6 +125,39 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
       else toast.error(dcsActionError(e));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const validate = async () => {
+    setBusy('validate');
+    try {
+      const situation = dcsClientSituation(client, byField.get('owner'), currentOwnerId);
+      const matches = situation === 'no_owner'
+        ? await qc.fetchQuery({ queryKey: ['vehicle-dcs-matches', vehicle.id], queryFn: () => loadDcsMatches(companyId, vehicle.id) })
+        : [];
+      const rows = [...columns.moto, ...columns.warranty, ...columns.client];
+      const plan = dcsValidatePlan(rows, { needsModelChoice: needsCandidates, situation, matches });
+      for (const s of plan.steps) {
+        if (s.kind === 'take') await resolveDcsField({ companyId, vehicleId: vehicle.id, field: s.field, choice: 'dcs', seen: s.seen });
+        else if (s.kind === 'attach') await attachDcsClient(companyId, vehicle.id, s.contactId);
+        else await createDcsClient(companyId, vehicle.id, false);
+      }
+      if (plan.left.length > 0) {
+        toast.warning(fillVars(t('dossier.dcsBlockValidateLeft'), { n: plan.left.length }));
+        return;
+      }
+      await validateDcsBlock(companyId, vehicle.id);
+      setLowerKm(null);
+      setOpen(false);
+      toast.success(t('dossier.dcsBlockValidatedToast'));
+    } catch (e) {
+      const hint = (e as { hint?: string } | null)?.hint;
+      if (hint === 'mileage_lower') setLowerKm(translateDbError(e) ?? t('dossier.dcsBlockErr'));
+      else if (hint === 'dcs_possible_duplicate') toast.warning(t('dossier.dcsBlockValidateDup'));
+      else toast.error(dcsActionError(e));
+    } finally {
+      setBusy(null);
+      refresh();
     }
   };
 
@@ -185,15 +226,46 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
     );
   };
 
+  const readAt = syncedAt
+    ? fillVars(t('dossier.dcsBlockReadAt'), { date: new Date(syncedAt).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) })
+    : null;
+
+  if (showFolded) {
+    return (
+      <section aria-label={t('dossier.dcsBlockTitle')} className="rounded-md border border-border bg-card shadow-[var(--shadow-card)]">
+        <button type="button" aria-expanded={false} onClick={() => setOpen(true)}
+          className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-md px-4 py-3 text-left hover:bg-accent">
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="font-ui text-[15px] font-bold">{t('dossier.dcsBlockTitle')}</span>
+          {validatedAt && (
+            <StatusBadge tone="success" icon={CheckCircle2}
+              label={fillVars(t('dossier.dcsBlockValidated'), { date: new Date(validatedAt).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) })} />
+          )}
+          {readAt && <span className="text-[12px] text-muted-foreground">{readAt}</span>}
+          <span className="ml-auto text-[12px] font-medium text-muted-foreground">{t('dossier.dcsBlockOpen')}</span>
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section aria-label={t('dossier.dcsBlockTitle')} className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="font-ui text-[15px] font-bold">{t('dossier.dcsBlockTitle')}</h2>
-        {syncedAt && <span className="text-[12px] text-muted-foreground">{fillVars(t('dossier.dcsBlockReadAt'), { date: new Date(syncedAt).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) })}</span>}
+        {readAt && <span className="text-[12px] text-muted-foreground">{readAt}</span>}
         {conflicts > 0
           ? <StatusBadge tone="warning" icon={AlertTriangle} label={fillVars(t('dossier.dcsBlockConflicts'), { n: conflicts })} />
           : <StatusBadge tone="success" icon={CheckCircle2} label={t('dossier.dcsBlockNoConflict')} />}
         <span className="ml-auto flex flex-wrap gap-2">
+          {folded ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              <ChevronDown /> {t('dossier.dcsBlockFold')}
+            </Button>
+          ) : (
+            <Button type="button" size="sm" disabled={!!busy} title={t('dossier.dcsBlockValidateHint')} onClick={() => void validate()}>
+              {busy === 'validate' ? <Loader2 className="animate-spin" /> : <CheckCheck />} {t('dossier.dcsBlockValidate')}
+            </Button>
+          )}
           <Button type="button" size="sm" variant="outline" onClick={onOpenHistory}>
             <History /> {fillVars(t('dossier.dcsBlockEvents'), { n: q.data?.events ?? 0 })}
           </Button>
@@ -209,7 +281,7 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
         <Column title={t('dossier.dcsBlockColClient')}>
           {columns.client.map(renderRow)}
           <ClientActions
-            companyId={companyId} vehicleId={vehicle.id} hasClient={!!client} ownerName={ownerName}
+            companyId={companyId} vehicleId={vehicle.id} vin={vehicle.vin} syncedAt={syncedAt} hasClient={!!client} ownerName={ownerName}
             situation={dcsClientSituation(client, byField.get('owner'), currentOwnerId)}
             ownerStatus={byField.get('owner')} onChanged={refresh}
             onKeep={() => void resolve({ field: 'owner', choice: 'keep' }, 'owner:keep')} busy={busy === 'owner:keep'}
@@ -256,8 +328,8 @@ function ConflictBox({ row, children }: { row: DcsBlockRow; children?: ReactNode
   );
 }
 
-function ClientActions({ companyId, vehicleId, hasClient, ownerName, situation, ownerStatus, onChanged, onKeep, busy }: {
-  companyId: string; vehicleId: string; hasClient: boolean; ownerName: string | null;
+function ClientActions({ companyId, vehicleId, vin, syncedAt, hasClient, ownerName, situation, ownerStatus, onChanged, onKeep, busy }: {
+  companyId: string; vehicleId: string; vin: string | null | undefined; syncedAt: string | null; hasClient: boolean; ownerName: string | null;
   situation: ReturnType<typeof dcsClientSituation>; ownerStatus: DcsFieldRow | undefined;
   onChanged: () => void; onKeep: () => void; busy: boolean;
 }) {
@@ -296,6 +368,7 @@ function ClientActions({ companyId, vehicleId, hasClient, ownerName, situation, 
     return (
       <div className="space-y-2 py-1.5">
         <p className="text-[12px] text-muted-foreground">{t('dossier.dcsBlockClientNone')}</p>
+        <DcsUpdateButton vin={vin} syncedAt={syncedAt} size="sm" />
         {ownerStatus?.status === 'conflit' && (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onKeep}>
             {busy ? <Loader2 className="animate-spin" /> : null} {t('dossier.dcsBlockKeep')}

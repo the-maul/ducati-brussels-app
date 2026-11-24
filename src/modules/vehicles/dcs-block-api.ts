@@ -73,3 +73,7 @@ export const createDcsClient = (companyId: string, vehicleId: string, confirmDup
   call<{ contact_id: string }>('dcs_client_create_attach', {
     _company: companyId, _vehicle: vehicleId, _confirm_duplicate: confirmDuplicate,
   });
+
+/** Valide le bloc : refusé tant qu'un écart attend un choix. */
+export const validateDcsBlock = (companyId: string, vehicleId: string) =>
+  call<string>('dcs_block_validate', { _company: companyId, _vehicle: vehicleId });

@@ -7,7 +7,7 @@ import {
 } from '../src/lib/dcs-rules';
 import {
   dcsBlockColumns, dcsCatalogFields, dcsClientSituation, dcsEventFamily, dcsModelChoices, dcsOpenConflicts,
-  groupDcsEvents, isDcsResolvable, type DcsClientRow, type DcsFieldRow,
+  dcsBlockFolded, dcsValidatePlan, groupDcsEvents, isDcsResolvable, type DcsBlockRow, type DcsClientRow, type DcsFieldRow,
 } from '../src/modules/vehicles/dcs-block-rules';
 
 const VIN = 'ZDM00000000000001';
@@ -217,5 +217,47 @@ describe('historique DCS', () => {
     expect(dcsEventFamily('Garantie').family).toBe('warranty');
     expect(dcsEventFamily('Checklist').family).toBe('checklist');
     expect(dcsEventFamily(null).family).toBe('other');
+  });
+});
+
+describe('bouton Valider du bloc DCS', () => {
+  const r = (key: string, status: DcsBlockRow['status'], sheet: string | null = 'A'): DcsBlockRow =>
+    ({ key, labelKey: key, value: 'B', kind: 'text', status, sheet });
+
+  test('chaque écart prend la valeur DCS, le reste ne bouge pas', () => {
+    const p = dcsValidatePlan([r('plate', 'conflit', 'AB12345'), r('color', 'certifie'), r('mileage', 'conflit', '100')],
+      { needsModelChoice: false, situation: 'same', matches: [] });
+    expect(p.steps).toEqual([{ kind: 'take', field: 'plate', seen: 'AB12345' }, { kind: 'take', field: 'mileage', seen: '100' }]);
+    expect(p.left).toEqual([]);
+  });
+
+  test('plusieurs versions possibles du modèle : reste à choisir', () => {
+    const p = dcsValidatePlan([r('model', 'conflit')], { needsModelChoice: true, situation: 'same', matches: [] });
+    expect(p.steps).toEqual([]);
+    expect(p.left).toEqual(['model']);
+  });
+
+  test('moto sans propriétaire : une seule fiche trouvée est attribuée, aucune = création', () => {
+    const one = dcsValidatePlan([r('owner', 'conflit', null)], { needsModelChoice: false, situation: 'no_owner', matches: [{ id: 'c1', is_owner: false }] });
+    expect(one.steps).toEqual([{ kind: 'attach', contactId: 'c1' }]);
+    const none = dcsValidatePlan([], { needsModelChoice: false, situation: 'no_owner', matches: [] });
+    expect(none.steps).toEqual([{ kind: 'create' }]);
+  });
+
+  test('plusieurs clients possibles ou autre propriétaire : jamais de choix automatique', () => {
+    const many = dcsValidatePlan([], { needsModelChoice: false, situation: 'no_owner', matches: [{ id: 'a', is_owner: false }, { id: 'b', is_owner: false }] });
+    expect(many.steps).toEqual([]);
+    expect(many.left).toEqual(['owner']);
+    const other = dcsValidatePlan([r('owner', 'conflit')], { needsModelChoice: false, situation: 'other', matches: [] });
+    expect(other.left).toEqual(['owner']);
+    const lost = dcsValidatePlan([r('owner', 'conflit', null)], { needsModelChoice: false, situation: 'none', matches: [] });
+    expect(lost.left).toEqual(['owner']);
+  });
+
+  test('replié seulement après validation de la dernière lecture et sans écart', () => {
+    expect(dcsBlockFolded(null, '2026-11-24T08:00:00Z', 0)).toBe(false);
+    expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T08:00:00Z', 0)).toBe(true);
+    expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T10:00:00Z', 0)).toBe(false);
+    expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T08:00:00Z', 1)).toBe(false);
   });
 });
