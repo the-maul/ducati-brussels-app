@@ -119,11 +119,20 @@ export function dcsOpenConflicts(statuses: DcsFieldRow[]): number {
 export const dcsCatalogFields = (statuses: DcsFieldRow[]): string[] =>
   statuses.filter((s) => s.status === 'catalogue').map((s) => s.field);
 
-export type DcsClientSituation = 'none' | 'same' | 'no_owner' | 'other' | 'settled';
+/**
+ * Client d'un autre concessionnaire : le DCS masque son nom et affiche le lien « Aide » à la place
+ * (Simon, 26/11/2026). Ce n'est pas un nom : la moto a un autre propriétaire, rien à relier.
+ */
+export function isDcsMaskedName(v: unknown): boolean {
+  return /^(aide|help|aiuto|hulp|hilfe|ayuda)$/i.test(String(v ?? '').trim());
+}
+
+export type DcsClientSituation = 'none' | 'masked' | 'same' | 'no_owner' | 'other' | 'settled';
 
 /** What the Client column has to offer. */
 export function dcsClientSituation(client: DcsClientRow | null, ownerStatus: DcsFieldRow | undefined, currentOwnerId: string | null): DcsClientSituation {
   if (!client) return 'none';
+  if (isDcsMaskedName(client.full_name)) return 'masked';
   if (!currentOwnerId) return 'no_owner';
   if (ownerStatus?.status === 'certifie') return 'same';
   if (ownerStatus?.status === 'saisi') return 'settled';
@@ -204,7 +213,7 @@ export function dcsValidatePlan(rows: DcsBlockRow[], o: {
     if (o.matches === null || others.length > 1) left.push('owner');
     else if (others.length === 1) steps.push({ kind: 'attach', contactId: others[0].id });
     else steps.push({ kind: 'create' });
-  } else if (ownerOpen) {
+  } else if (ownerOpen && o.situation !== 'masked') {
     left.push('owner');
   }
   return { steps, left };

@@ -18,7 +18,7 @@ import {
   type DcsMatch, type DcsResolveInput,
 } from './dcs-block-api';
 import {
-  dcsBlockColumns, dcsBlockFolded, dcsCatalogFields, dcsClientSituation, dcsModelChoices, dcsOpenConflicts, dcsValidatePlan, isDcsResolvable,
+  dcsBlockColumns, dcsBlockFolded, isDcsMaskedName, dcsCatalogFields, dcsClientSituation, dcsModelChoices, dcsOpenConflicts, dcsValidatePlan, isDcsResolvable,
   type DcsBlockRow, type DcsFieldRow,
 } from './dcs-block-rules';
 import type { Vehicle } from './api';
@@ -46,8 +46,9 @@ const fmtDate = (v: string | null) => {
   const d = new Date(`${v.slice(0, 10)}T12:00:00`);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString('fr-BE');
 };
-const fmtValue = (r: Pick<DcsBlockRow, 'kind'>, v: string | null) => {
+const fmtValue = (r: Pick<DcsBlockRow, 'kind' | 'key'>, v: string | null) => {
   if (v === null || v === '') return '—';
+  if (r.key === 'owner' && isDcsMaskedName(v)) return t('dossier.dcsBlockClientMaskedName');
   if (r.kind === 'date') return fmtDate(v);
   if (r.kind === 'km') return `${Number(v).toLocaleString('fr-BE')} km`;
   return v;
@@ -379,6 +380,7 @@ function ClientActions({ companyId, vehicleId, vin, syncedAt, hasClient, ownerNa
       </div>
     );
   }
+  if (situation === 'masked') return <p className="flex items-center gap-1 pt-2 text-[12px] font-medium text-info"><UserCheck className="size-3.5" aria-hidden />{t('dossier.dcsBlockClientMasked')}</p>;
   if (situation === 'same') return <p className="flex items-center gap-1 pt-2 text-[12px] font-medium text-success"><CheckCircle2 className="size-3.5" aria-hidden />{t('dossier.dcsBlockClientSame')}</p>;
   if (situation === 'settled') return <p className="flex items-center gap-1 pt-2 text-[12px] font-medium text-info"><UserCheck className="size-3.5" aria-hidden />{t('dossier.dcsBlockClientSettled')}</p>;
 

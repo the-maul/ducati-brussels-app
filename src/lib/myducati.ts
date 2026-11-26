@@ -4,6 +4,7 @@
  * et le compte client Ducati sur le propriétaire courant de la moto.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { isDcsMaskedName } from '@/modules/vehicles/dcs-block-rules';
 import { dcsStart } from '@/lib/dcs-progress';
 import {
   buildDcsClientSnapshot, buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
@@ -177,7 +178,8 @@ export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload, r
     firstName = s.first;
     lastName = s.last;
   }
-  const dcsName = [firstName, lastName].filter(Boolean).join(' ');
+  // Client d'un autre concessionnaire : le DCS montre « Aide » au lieu du nom, ce n'est pas une personne.
+  const dcsName = isDcsMaskedName(firstName || lastName) ? '' : [firstName, lastName].filter(Boolean).join(' ');
   const { data: ownerRow, error: ownerError } = await supabase.from('vehicle_owners').select('contact_id')
     .eq('vehicle_id', vehicleId).eq('is_current', true).order('from_date', { ascending: false }).limit(1).maybeSingle();
   if (ownerError) throw ownerError;

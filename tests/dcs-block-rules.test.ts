@@ -7,7 +7,7 @@ import {
 } from '../src/lib/dcs-rules';
 import {
   dcsBlockColumns, dcsCatalogFields, dcsClientSituation, dcsEventFamily, dcsModelChoices, dcsOpenConflicts,
-  dcsBlockFolded, dcsValidatePlan, groupDcsEvents, isDcsResolvable, type DcsBlockRow, type DcsClientRow, type DcsFieldRow,
+  dcsBlockFolded, dcsValidatePlan, groupDcsEvents, isDcsMaskedName, isDcsResolvable, type DcsBlockRow, type DcsClientRow, type DcsFieldRow,
 } from '../src/modules/vehicles/dcs-block-rules';
 
 const VIN = 'ZDM00000000000001';
@@ -259,5 +259,21 @@ describe('bouton Valider du bloc DCS', () => {
     expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T08:00:00Z', 0)).toBe(true);
     expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T10:00:00Z', 0)).toBe(false);
     expect(dcsBlockFolded('2026-11-24T09:00:00Z', '2026-11-24T08:00:00Z', 1)).toBe(false);
+  });
+});
+
+describe('client d un autre concessionnaire (le DCS affiche « Aide »)', () => {
+  test('« Aide » n est pas un nom', () => {
+    expect(isDcsMaskedName('Aide')).toBe(true);
+    expect(isDcsMaskedName(' help ')).toBe(true);
+    expect(isDcsMaskedName('Bart borremans')).toBe(false);
+    expect(isDcsMaskedName(null)).toBe(false);
+  });
+  test('situation « autre propriétaire », et la validation n attend rien sur le client', () => {
+    const client = { full_name: 'Aide' } as unknown as Parameters<typeof dcsClientSituation>[0];
+    expect(dcsClientSituation(client, undefined, null)).toBe('masked');
+    expect(dcsClientSituation(client, undefined, 'x')).toBe('masked');
+    const owner = { key: 'owner', status: 'conflit' } as unknown as DcsBlockRow;
+    expect(dcsValidatePlan([owner], { needsModelChoice: false, situation: 'masked', matches: null })).toEqual({ steps: [], left: [] });
   });
 });
