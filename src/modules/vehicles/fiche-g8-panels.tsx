@@ -19,6 +19,8 @@ import { t, fillVars } from '@/lib/i18n';
 import { ContactPicker } from '@/modules/sales/document-editor';
 import { listContacts, contactDisplayName, getContact, type Contact } from '@/modules/contacts/api';
 import { getArticle } from '@/modules/articles/api';
+import { listSubcontactsForVehicle } from '@/modules/contacts/subobjects-api';
+import { personName } from '@/modules/contacts/bank-persons';
 import type { Vehicle } from './api';
 import { vehicleEconomics, bonusesInPeriod, daysInStockOf } from './economics';
 import {
@@ -56,6 +58,7 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
           <Input value={contract} onChange={(e) => setContract(e.target.value)} className="font-mono" spellCheck={false} />
         </div>
       </div>
+      {!!v.financing_contact_id && <BankPersonsForBike vehicleId={vehicle.id} bankId={v.financing_contact_id} />}
       {!!currentOwnerId && bank === currentOwnerId && (
         <p className="flex items-start gap-1.5 rounded-md bg-warning-bg px-3 py-2 text-[12px] font-medium text-warning">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {t('dossier.financingOwnerIsBank')}
@@ -66,6 +69,20 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
           {m.isPending && <Loader2 className="animate-spin" />} {t('action.save')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** CON002 : la personne de contact de la banque liée à cette moto (fiche de la banque → Personnes de contact). */
+function BankPersonsForBike({ vehicleId, bankId }: { vehicleId: string; bankId: string }) {
+  const q = useQuery({ queryKey: ['subcontacts-bike', vehicleId, bankId], queryFn: () => listSubcontactsForVehicle(vehicleId, bankId), staleTime: 60_000 });
+  if (!q.data?.length) return null;
+  return (
+    <div className="space-y-0.5 text-[12px]">
+      <p className="font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('clientTabs.bankContact')}</p>
+      {q.data.map((p) => (
+        <p key={p.id}><span className="font-medium">{personName(p)}</span>{[p.phone, p.email].filter(Boolean).map((x) => ` · ${x}`).join('')}</p>
+      ))}
     </div>
   );
 }

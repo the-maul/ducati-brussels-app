@@ -4,18 +4,20 @@
 import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Loader2, Plus, Trash2, Bike, Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Bike, Landmark, CheckCircle2, AlertTriangle, Pencil, Check, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/status-badge';
-import { vehicleLabel, VEHICLE_STATUSES, type VehicleStatus } from '@/modules/vehicles/api';
+import { vehicleLabel, VEHICLE_STATUSES, type VehicleStatus, type Vehicle } from '@/modules/vehicles/api';
+import { VehiclePicker } from '@/modules/vehicles/vehicle-picker';
 import {
   listOwnedVehicles, listLinkedContacts, listDeliveryAddresses, upsertDeliveryAddress, deleteDeliveryAddress,
   listClientPriceRules, upsertClientPriceRule, deleteClientPriceRule,
-  listSubcontacts, upsertSubcontact, deleteSubcontact,
+  listSubcontacts, upsertSubcontact, deleteSubcontact, type Subcontact,
 } from './subobjects-api';
+import { EMPTY_PERSON, canSavePerson, personPayload, type PersonForm } from './bank-persons';
 import { contactDisplayName } from './api';
 import { getContactEncours, listContactDocuments, listContactDueItems } from '@/modules/sales/api';
 import { PrepareButton } from '@/modules/sales/prepare-button';
@@ -359,41 +361,93 @@ export function PriceRulesTab({ contactId, companyId }: { contactId: string; com
   );
 }
 
-/* ---------------- Sous-contacts (interlocuteurs B2B) ---------------- */
-export function SubcontactsTab({ contactId }: { contactId: string }) {
+/* ---------------- Sous-contacts (interlocuteurs B2B ; personnes de contact d'une banque, CON002) ---------------- */
+export function SubcontactsTab({ contactId, companyId, bank = false }: { contactId: string; companyId: string; bank?: boolean }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['subcontacts', contactId], queryFn: () => listSubcontacts(contactId) });
-  const [form, setForm] = useState({ name: '', role: '', phone: '', email: '' });
-  const inv = () => qc.invalidateQueries({ queryKey: ['subcontacts', contactId] });
-  const add = useMutation({ mutationFn: () => upsertSubcontact({ contact_id: contactId, ...form }), onSuccess: () => { inv(); setForm({ name: '', role: '', phone: '', email: '' }); } });
-  const del = useMutation({ mutationFn: (id: string) => deleteSubcontact(id), onSuccess: inv });
+  const [form, setForm] = useState<PersonForm>(EMPTY_PERSON);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [bike, setBike] = useState<Pick<Vehicle, 'id' | 'vin' | 'plate' | 'brand' | 'model'> | null>(null);
+  const reset = () => { setForm(EMPTY_PERSON); setEditId(null); setBike(null); };
+  const inv = () => { qc.invalidateQueries({ queryKey: ['subcontacts', contactId] }); qc.invalidateQueries({ queryKey: ['subcontacts-bike'] }); };
+  const save = useMutation({ mutationFn: () => upsertSubcontact(personPayload(form, contactId, editId)), onSuccess: () => { inv(); reset(); } });
+  const del = useMutation({ mutationFn: (id: string) => deleteSubcontact(id), onSuccess: (_d, id) => { inv(); if (id === editId) reset(); } });
+  const edit = (s: Subcontact) => {
+    setEditId(s.id);
+    setForm({ first_name: s.first_name ?? '', name: s.name, role: s.role ?? '', phone: s.phone ?? '', email: s.email ?? '', vehicle_id: s.vehicle_id });
+    setBike(s.vehicle ?? null);
+  };
+  const set = (k: keyof PersonForm) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const bikeText = (v: Pick<Vehicle, 'vin' | 'plate' | 'brand' | 'model'>) => [vehicleLabel(v), v.plate].filter(Boolean).join(' · ');
   if (isLoading) return <Spinner />;
   return (
     <div className="space-y-3">
-      {data && data.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-border">
+      {data && data.length > 0 ? (
+        <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full border-collapse font-data text-[13px]">
-            <thead className="bg-muted"><tr><Th>{t('clientTabs.colName')}</Th><Th>{t('clientTabs.colRole')}</Th><Th>{t('clientTabs.colPhone')}</Th><Th>{t('clientTabs.colEmail')}</Th><Th /></tr></thead>
+            <thead className="bg-muted"><tr>
+              <Th>{t('clientTabs.colName')}</Th><Th>{t('clientTabs.colFirstName')}</Th>{!bank && <Th>{t('clientTabs.colRole')}</Th>}
+              <Th>{t('clientTabs.colPhone')}</Th><Th>{t('clientTabs.colEmail')}</Th><Th>{t('clientTabs.colBike')}</Th><Th />
+            </tr></thead>
             <tbody>
               {data.map((s) => (
-                <tr key={s.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 font-medium">{s.name}</td><td className="px-3 py-2">{s.role ?? '—'}</td>
+                <tr key={s.id} className={`border-b border-border last:border-0 ${s.id === editId ? 'bg-accent' : ''}`}>
+                  <td className="px-3 py-2 font-medium">{s.name}</td><td className="px-3 py-2">{s.first_name ?? '—'}</td>
+                  {!bank && <td className="px-3 py-2">{s.role ?? '—'}</td>}
                   <td className="px-3 py-2">{s.phone ?? '—'}</td><td className="px-3 py-2">{s.email ?? '—'}</td>
-                  <td className="px-3 py-2 text-right"><Button size="sm" variant="ghost" onClick={() => del.mutate(s.id)}><Trash2 className="size-4 text-danger" /></Button></td>
+                  <td className="px-3 py-2">
+                    {s.vehicle ? (
+                      <Link to="/vehicles/$vehicleId" params={{ vehicleId: s.vehicle.id }} className="inline-flex items-center gap-1 text-info hover:underline">
+                        <Bike className="size-3.5 shrink-0" /> {bikeText(s.vehicle)}
+                      </Link>
+                    ) : '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <Button type="button" size="sm" variant="ghost" title={t('clientTabs.edit')} onClick={() => edit(s)}><Pencil className="size-4" /></Button>
+                    <Button type="button" size="sm" variant="ghost" title={t('clientTabs.remove')} onClick={() => del.mutate(s.id)}><Trash2 className="size-4 text-danger" /></Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-      <div className="grid grid-cols-1 gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-5">
-        <Input placeholder={t('clientTabs.colName')} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        <Input placeholder={t('clientTabs.colRole')} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} />
-        <Input placeholder={t('clientTabs.colPhone')} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-        <Input type="email" placeholder={t('clientTabs.colEmail')} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-        <Button variant="outline" onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus /> {t('clientTabs.add')}</Button>
+      ) : bank ? <p className="text-[13px] text-muted-foreground">{t('clientTabs.noPerson')}</p> : null}
+      <div className={`grid grid-cols-1 gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-2 ${bank ? 'lg:grid-cols-5' : 'lg:grid-cols-6'}`}>
+        <Input placeholder={t('clientTabs.colName')} value={form.name} onChange={set('name')} />
+        <Input placeholder={t('clientTabs.colFirstName')} value={form.first_name} onChange={set('first_name')} />
+        {!bank && <Input placeholder={t('clientTabs.colRole')} value={form.role} onChange={set('role')} />}
+        <Input placeholder={t('clientTabs.colPhone')} value={form.phone} onChange={set('phone')} />
+        <Input type="email" placeholder={t('clientTabs.colEmail')} value={form.email} onChange={set('email')} />
+        {bike ? (
+          <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+            <Bike className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">{bikeText(bike)}</span>
+            <button type="button" title={t('clientTabs.remove')} onClick={() => { setBike(null); setForm((f) => ({ ...f, vehicle_id: null })); }}
+              className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
+          </div>
+        ) : (
+          <VehiclePicker companyId={companyId} contactId={null} financedBy={bank ? contactId : null} placeholder={t('clientTabs.colBike')}
+            onPick={(v) => { setBike(v); setForm((f) => ({ ...f, vehicle_id: v.id })); }} />
+        )}
+        <div className={`flex justify-end gap-2 sm:col-span-2 ${bank ? 'lg:col-span-5' : 'lg:col-span-6'}`}>
+          {editId && <Button type="button" variant="ghost" onClick={reset}>{t('clientTabs.cancel')}</Button>}
+          <Button type="button" variant="outline" onClick={() => save.mutate()} disabled={save.isPending || !canSavePerson(form)}>
+            {editId ? <Check /> : <Plus />} {editId ? t('clientTabs.save') : t('clientTabs.add')}
+          </Button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Fiche d'une banque, onglet « L'essentiel » : la liste des personnes de contact sous le formulaire. */
+export function BankPersonsSection({ contactId, companyId }: { contactId: string; companyId: string }) {
+  return (
+    <section className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]" aria-label={t('clientTabs.bankPersonsTitle')}>
+      <h2 className="font-ui text-[15px] font-bold text-foreground">{t('clientTabs.bankPersonsTitle')}</h2>
+      <p className="mb-3 text-[12px] text-muted-foreground">{t('clientTabs.bankPersonsHint')}</p>
+      <SubcontactsTab contactId={contactId} companyId={companyId} bank />
+    </section>
   );
 }
 

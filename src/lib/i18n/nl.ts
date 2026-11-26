@@ -7658,6 +7658,17 @@ export const nl: DictionaryShape = {
     colRole: 'Functie',
     colPhone: 'Telefoon',
     colEmail: 'E-mail',
+    colFirstName: 'Voornaam',
+    colBike: 'Motordossier',
+    edit: 'Wijzigen',
+    save: 'Opslaan',
+    cancel: 'Annuleren',
+    remove: 'Verwijderen',
+    bankPersonsTitle: 'Contactpersonen',
+    bankPersonsHint: 'De te contacteren personen bij deze bank, elk zo nodig gekoppeld aan een motordossier.',
+    noPerson: 'Geen contactpersoon.',
+    noBike: 'Geen motordossier',
+    bankContact: 'Contact bij de bank',
   },
 
   // Onglets de la fiche article (src/modules/articles/article-tabs.tsx)
@@ -7827,6 +7838,7 @@ export const nl: DictionaryShape = {
     addForClient: 'Een motor toevoegen aan deze klant',
     noneFound: 'Geen motor gevonden in het park.',
     searchHint: 'Typ een VIN, kenteken of model om in het hele park te zoeken.',
+    financedBy: 'Motoren gefinancierd door deze bank',
     loadError: 'De motoren konden niet worden geladen. Probeer opnieuw.',
   },
 

@@ -33,3 +33,12 @@ export function upperName(s: string | null | undefined): string | null {
   if (s == null) return null;
   return s.toUpperCase();
 }
+
+/**
+ * CON002 (Simon, 26/11/2026) : une banque / un leasing n'a pas de prénom ni de nom de personne sur
+ * sa fiche — seulement sa raison sociale et ses coordonnées générales (e-mail, téléphone) ; les
+ * personnes à joindre sont dans la liste « Personnes de contact » (contact_subcontacts).
+ */
+export function hasPersonName(type: string | null | undefined): boolean {
+  return type !== 'banque_leasing';
+}

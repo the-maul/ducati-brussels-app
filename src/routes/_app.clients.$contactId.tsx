@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
-import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
+import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab, BankPersonsSection } from '@/modules/contacts/client-tabs';
 import { ClientReceivablesTab } from '@/modules/receivables/client-receivables-tab';
 import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
@@ -391,6 +391,8 @@ function EditClient() {
             onSubmit={(p) => { setError(null); m.mutate(p); }}
             onCancel={() => navigate({ to: '/clients' })}
           />
+          {/* CON002 : une banque / un leasing n'a pas de prénom ni de nom ; ses personnes de contact sont ici. */}
+          {contact.type === 'banque_leasing' && <BankPersonsSection contactId={contactId} companyId={activeCompanyId} />}
         </TabsContent>
         <TabsContent value="motos" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
         <TabsContent value="atelier" className="mt-4 space-y-6">
@@ -409,7 +411,7 @@ function EditClient() {
           <Block title={t('designFiches.secMaintenance')}><FollowupsTab contactId={contactId} /></Block>
         </TabsContent>
         <TabsContent value="livraisons" className="mt-4"><DeliveryTab contactId={contactId} /></TabsContent>
-        <TabsContent value="interlocuteurs" className="mt-4"><SubcontactsTab contactId={contactId} /></TabsContent>
+        <TabsContent value="interlocuteurs" className="mt-4"><SubcontactsTab contactId={contactId} companyId={activeCompanyId} bank={contact.type === 'banque_leasing'} /></TabsContent>
         <TabsContent value="tarifs" className="mt-4"><PriceRulesTab contactId={contactId} companyId={activeCompanyId} /></TabsContent>
         <TabsContent value="communications" className="mt-4"><CommunicationsPanel companyId={activeCompanyId} contactId={contactId} /></TabsContent>
         <TabsContent value="emails" className="mt-4"><CampaignHistoryTab contactId={contactId} /></TabsContent>

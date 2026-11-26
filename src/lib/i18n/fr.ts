@@ -7676,6 +7676,17 @@ export const fr = {
     colRole: 'Fonction',
     colPhone: 'Téléphone',
     colEmail: 'E-mail',
+    colFirstName: 'Prénom',
+    colBike: 'Dossier moto',
+    edit: 'Modifier',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    remove: 'Supprimer',
+    bankPersonsTitle: 'Personnes de contact',
+    bankPersonsHint: 'Les personnes à joindre dans cette banque, chacune liée si besoin à un dossier moto.',
+    noPerson: 'Aucune personne de contact.',
+    noBike: 'Aucun dossier moto',
+    bankContact: 'Contact à la banque',
   },
 
   // Onglets de la fiche article (src/modules/articles/article-tabs.tsx)
@@ -7848,6 +7859,7 @@ export const fr = {
     addForClient: 'Ajouter une moto à ce client',
     noneFound: 'Aucune moto trouvée dans le parc.',
     searchHint: 'Tapez un VIN, une plaque ou un modèle pour chercher dans tout le parc.',
+    financedBy: 'Motos financées par cette banque',
     loadError: 'Les motos n\'ont pas pu être chargées. Réessayez.',
   },
 

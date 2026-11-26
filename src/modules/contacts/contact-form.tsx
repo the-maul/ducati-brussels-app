@@ -34,7 +34,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t, fillVars, LOCALES, DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n';
 import { personCivility, PERSON_CIVILITIES, legalFormOptions } from './civility';
-import { identityMissing, type IdentityField } from './identity-rules';
+import { identityMissing, hasPersonName, type IdentityField } from './identity-rules';
 import { identityFieldsLabel } from '@/lib/db-error-i18n';
 import { normalizeEmail, normalizeMobile, normalizeIban, isValidIban } from '@/lib/contact-normalize';
 import { ZipCitySuggest } from '@/components/zip-city-suggest';
@@ -480,6 +480,7 @@ export function ContactForm({
 
   const isPro =f.type === 'professionnel' || f.type === 'fournisseur' || f.type === 'banque_leasing';
   const isClient = f.type === 'particulier' || f.type === 'professionnel' || f.type === 'employe';
+  const showPersonName = hasPersonName(f.type);
   // Tarifs communs (null = migration 20261118190000 pas encore appliquee : choix masque).
   const priceLists = useQuery({ queryKey: ['price-lists', companyId], queryFn: () => listPriceLists(companyId), staleTime: 60_000 });
   const showB2B = isPro; // B2B uniquement pour les types pro/fournisseur/banque
@@ -725,13 +726,18 @@ export function ContactForm({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label={t('contacts.firstName')}>
-              <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} disabled={nameLocked} className={miss('first_name')} />
-            </Field>
-            <Field label={t('contacts.lastName')}>
-              <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} disabled={nameLocked} className={miss('last_name')} />
-            </Field>
-            {nameLocked && nameSource && (
+            {/* CON002 : pas de prénom / nom pour une banque (liste « Personnes de contact » sous la fiche). */}
+            {showPersonName && (
+              <Field label={t('contacts.firstName')}>
+                <Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} disabled={nameLocked} className={miss('first_name')} />
+              </Field>
+            )}
+            {showPersonName && (
+              <Field label={t('contacts.lastName')}>
+                <Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} disabled={nameLocked} className={miss('last_name')} />
+              </Field>
+            )}
+            {showPersonName && nameLocked && nameSource && (
               <p className="col-span-full flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
                 <Link2 className="size-3.5 shrink-0" />
                 {t('contacts.nameFromPrivate')}
@@ -746,7 +752,7 @@ export function ContactForm({
                 <span>{t('contacts.nameFromPrivateHint')}</span>
               </p>
             )}
-            {severalPrivate && (
+            {showPersonName && severalPrivate && (
               <p className="col-span-full text-[11px] text-muted-foreground">{t('contacts.nameSeveralPrivate')}</p>
             )}
             {/* Mobile avec préfixe +32 par défaut */}

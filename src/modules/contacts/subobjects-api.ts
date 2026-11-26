@@ -236,16 +236,32 @@ export async function searchContactsToLink(companyId: string, q: string, exclude
   return (data ?? []) as Contact[];
 }
 
-export type Subcontact = Database['public']['Tables']['contact_subcontacts']['Row'];
-export type SubcontactInsert = Database['public']['Tables']['contact_subcontacts']['Insert'];
+// Prénom, dossier moto lié et company_id : migration 20261126170000 (types.ts pas régénéré).
+export type Subcontact = Database['public']['Tables']['contact_subcontacts']['Row'] & {
+  first_name: string | null; vehicle_id: string | null;
+  vehicle?: { id: string; vin: string | null; plate: string | null; brand: string | null; model: string | null } | null;
+};
+export type SubcontactInsert = Database['public']['Tables']['contact_subcontacts']['Insert'] & {
+  first_name?: string | null; vehicle_id?: string | null;
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const subDb = supabase as unknown as { from: (t: string) => any };
 
 export async function listSubcontacts(contactId: string): Promise<Subcontact[]> {
-  const { data, error } = await supabase.from('contact_subcontacts').select('*').eq('contact_id', contactId).order('created_at');
+  const { data, error } = await subDb.from('contact_subcontacts')
+    .select('*, vehicle:vehicles(id, vin, plate, brand, model)').eq('contact_id', contactId).order('created_at');
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as Subcontact[];
+}
+/** Personnes de contact d'une banque liées à une moto (encart « Propriétaire et financement »). */
+export async function listSubcontactsForVehicle(vehicleId: string, contactId: string): Promise<Subcontact[]> {
+  const { data, error } = await subDb.from('contact_subcontacts').select('*')
+    .eq('vehicle_id', vehicleId).eq('contact_id', contactId).order('created_at');
+  if (error) throw error;
+  return (data ?? []) as Subcontact[];
 }
 export async function upsertSubcontact(row: SubcontactInsert): Promise<void> {
-  const { error } = await supabase.from('contact_subcontacts').upsert(row);
+  const { error } = await subDb.from('contact_subcontacts').upsert(row);
   if (error) throw error;
 }
 export async function deleteSubcontact(id: string): Promise<void> {

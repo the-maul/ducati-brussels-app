@@ -15,12 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/confirm-provider';
 import { errorMessage } from '@/lib/mutation-feedback';
-import { attachVehicleOwner, listContactCurrentVehicles, searchVehiclesForPick, vehicleLabel, vehiclePickLabel, type Vehicle, type VehiclePickResult } from './api';
+import { attachVehicleOwner, listContactCurrentVehicles, listFinancedVehicles, searchVehiclesForPick, vehicleLabel, vehiclePickLabel, type Vehicle, type VehiclePickResult } from './api';
 import { vinAttachMessage } from './vin-suggestions';
 import { buildVehicleChoices, vehiclePickEmptyState } from './vehicle-pick';
 import { fillVars, t } from '@/lib/i18n';
 
-export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, placeholder }: {
+export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, placeholder, financedBy = null }: {
   companyId: string;
   /** Client deja choisi : ses motos passent en tete. `null` : recherche dans le parc seulement. */
   contactId: string | null;
@@ -29,6 +29,8 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
   /** Ne recoit que la moto : le client de l'ecran appelant n'est jamais touche. */
   onPick: (v: Vehicle) => void;
   placeholder?: string;
+  /** Fiche d'une banque (CON002) : ses motos financées passent en tête, à la place des motos du client. */
+  financedBy?: string | null;
 }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -41,9 +43,9 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
   useEffect(() => { const id = setTimeout(() => setDeb(term.trim()), 250); return () => clearTimeout(id); }, [term]);
 
   const ownQ = useQuery({
-    queryKey: ['contact-vehicles', contactId],
-    queryFn: () => listContactCurrentVehicles(contactId as string),
-    enabled: !!contactId, staleTime: 60_000,
+    queryKey: financedBy ? ['financed-vehicles', financedBy] : ['contact-vehicles', contactId],
+    queryFn: () => (financedBy ? listFinancedVehicles(financedBy) : listContactCurrentVehicles(contactId as string)),
+    enabled: !!(financedBy || contactId), staleTime: 60_000,
   });
   const searchQ = useQuery({
     queryKey: ['vehicle-pick', companyId, deb],
@@ -55,10 +57,13 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
   useEffect(() => { if (searchQ.error) toast.error(t('vehiclePick.loadError')); }, [searchQ.error]);
 
   const choices = buildVehicleChoices<VehiclePickResult>({ own: ownQ.data ?? [], found: searchQ.data ?? [], term: deb });
-  const empty = vehiclePickEmptyState({
-    contactId, ownLoaded: !contactId || ownQ.isFetched, searchLoaded: searchQ.isFetched, choices,
+  const listOwner = financedBy || contactId;
+  const rawEmpty = vehiclePickEmptyState({
+    contactId: listOwner, ownLoaded: !listOwner || ownQ.isFetched, searchLoaded: searchQ.isFetched, choices,
   });
-  const loading = (!!contactId && ownQ.isLoading) || (choices.searching && searchQ.isLoading);
+  // Une banque sans moto financée : on invite simplement à chercher dans le parc.
+  const empty = financedBy && rawEmpty === 'noneForClient' ? 'none' : rawEmpty;
+  const loading = (!!listOwner && ownQ.isLoading) || (choices.searching && searchQ.isLoading);
 
   const pick = (v: Vehicle) => { onPick(v); setTerm(''); setOpen(false); };
   const attach = async (v: VehiclePickResult) => {
@@ -123,7 +128,7 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
         placeholder={placeholder ?? t('vehiclePick.placeholder')} className="h-9 pl-9" />
       {open && (
         <div className={`absolute z-20 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover shadow-[var(--shadow-modal)] ${attachTo ? 'left-1/2 w-[min(38rem,calc(100vw-3rem))] -translate-x-1/2' : 'w-full'}`}>
-          {choices.own.length > 0 && section(t('vehiclePick.ofClient'))}
+          {choices.own.length > 0 && section(t(financedBy ? 'vehiclePick.financedBy' : 'vehiclePick.ofClient'))}
           {choices.own.map(row)}
           {choices.park.length > 0 && section(t('vehiclePick.park'))}
           {attachTo && choices.park.length > 0 && <p className="px-3 pb-1 text-[11px] text-muted-foreground">{t('dossier.pickUseHint')}</p>}
@@ -138,7 +143,7 @@ export function VehiclePicker({ companyId, contactId, attachTo = null, onPick, p
               {attachTo && <p className="font-data text-[11px] text-muted-foreground">{t('motoClient.vinHelp')}</p>}
             </div>
           )}
-          {!loading && empty === 'none' && !choices.searching && choices.own.length > 0 && (
+          {!loading && empty === 'none' && !choices.searching && (choices.own.length > 0 || !!financedBy) && (
             <p className="px-3 py-2 text-[12px] text-muted-foreground">{t('vehiclePick.searchHint')}</p>
           )}
           {!!contactId && !loading && (!!attachTo || empty === 'noneForClient') && (

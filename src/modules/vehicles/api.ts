@@ -283,6 +283,16 @@ export async function listContactCurrentVehicles(contactId: string): Promise<Veh
   return (data ?? []).map((r) => r.vehicles as unknown as Vehicle | null).filter((v): v is Vehicle => !!v);
 }
 
+/** Motos financées par une banque / un leasing (vehicles.financing_contact_id), les plus récentes d'abord. */
+export async function listFinancedVehicles(bankId: string): Promise<Vehicle[]> {
+  // Colonne de financement pas encore dans les types générés.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as unknown as { from: (t: string) => any }).from('vehicles').select('*')
+    .eq('financing_contact_id', bankId).order('created_at', { ascending: false }).limit(50);
+  if (error) throw error;
+  return (data ?? []) as Vehicle[];
+}
+
 /** Recherche d'une moto du parc par VIN, plaque, modèle ou marque (moto à vendre ou de passage). */
 /** Motos du parc par n° de châssis : `1234` commence par, `*1234` 6 derniers, `*1234*` contient. */
 export async function searchVehiclesByVinPattern(companyId: string, raw: string, limit = 8): Promise<VinMatch[]> {

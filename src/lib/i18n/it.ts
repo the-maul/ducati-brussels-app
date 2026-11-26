@@ -7658,6 +7658,17 @@ export const it: DictionaryShape = {
     colRole: 'Funzione',
     colPhone: 'Telefono',
     colEmail: 'E-mail',
+    colFirstName: 'Nome',
+    colBike: 'Pratica moto',
+    edit: 'Modifica',
+    save: 'Salva',
+    cancel: 'Annulla',
+    remove: 'Elimina',
+    bankPersonsTitle: 'Persone di contatto',
+    bankPersonsHint: 'Le persone da contattare in questa banca, ciascuna collegata se serve a una pratica moto.',
+    noPerson: 'Nessuna persona di contatto.',
+    noBike: 'Nessuna pratica moto',
+    bankContact: 'Contatto in banca',
   },
 
   // Onglets de la fiche article (src/modules/articles/article-tabs.tsx)
@@ -7827,6 +7838,7 @@ export const it: DictionaryShape = {
     addForClient: 'Aggiungere una moto a questo cliente',
     noneFound: 'Nessuna moto trovata nel parco.',
     searchHint: 'Digita un VIN, una targa o un modello per cercare in tutto il parco.',
+    financedBy: 'Moto finanziate da questa banca',
     loadError: 'Le moto non sono state caricate. Riprova.',
   },
 

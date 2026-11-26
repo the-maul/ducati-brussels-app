@@ -7658,6 +7658,17 @@ export const en: DictionaryShape = {
     colRole: 'Role',
     colPhone: 'Phone',
     colEmail: 'E-mail',
+    colFirstName: 'First name',
+    colBike: 'Bike file',
+    edit: 'Edit',
+    save: 'Save',
+    cancel: 'Cancel',
+    remove: 'Delete',
+    bankPersonsTitle: 'Contact persons',
+    bankPersonsHint: 'The people to reach at this bank, each linked to a bike file if needed.',
+    noPerson: 'No contact person.',
+    noBike: 'No bike file',
+    bankContact: 'Contact at the bank',
   },
 
   // Onglets de la fiche article (src/modules/articles/article-tabs.tsx)
@@ -7827,6 +7838,7 @@ export const en: DictionaryShape = {
     addForClient: 'Add a bike to this customer',
     noneFound: 'No bike found in the fleet.',
     searchHint: 'Type a VIN, plate or model to search the whole fleet.',
+    financedBy: 'Bikes financed by this bank',
     loadError: 'The bikes could not be loaded. Try again.',
   },
 
