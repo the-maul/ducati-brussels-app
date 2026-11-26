@@ -1,0 +1,261 @@
+-- =====================================================================
+-- M3 (Simon, 26/11/2026) : « on aurait pas dû le faire à la main », « relis bien les 12000 factures ».
+-- Banque / leasing et numéro de contrat de chaque moto, relus dans les 12 704 factures PDF de G8
+-- (2013-2019 et 2023 -> 12/06/2026). Toutes les formulations : « FINANCE(MENT) PAR … »,
+-- « FINANCEMENT LEASING PAR … », « LE BIEN EST / CETTE MOTO EST FINANCE PAR … », « SOLDE FINANCÉ PAR … »,
+-- « LEASING ALPHA CREDIT / ING N° … », « CONTRAT LEASING/RENTING PAR … », et facture adressée
+-- à la banque elle-même (en-tête « SA ALPHA CREDIT », « SA BELFIUS LEASE », « SA KBC BANK SA … »).
+-- Règles :
+--   * moto reconnue par son VIN exact (17 caractères) chez ITALBIKE uniquement ;
+--   * seulement si ce financement concerne la DERNIÈRE vente de la moto (factures annulées par un
+--     avoir écartées ; moto revendue ensuite ou passée à un autre propriétaire : laissée de côté) ;
+--   * banque : remplie seulement si vide (jamais écrasée) ; contrat : rempli seulement si vide,
+--     tel qu'écrit sur la dernière facture non annulée, et seulement pour la banque reliée ;
+--   * ES Finance reste un client (type inchangé) même quand il est noté « financement par » ;
+--   * aucun propriétaire n'est modifié. Les déclencheurs d'audit tracent chaque modification.
+-- =====================================================================
+
+-- 1) Banques citées sur les factures mais absentes des contacts : créées en « banque / leasing ».
+insert into public.contacts (company_id, type, company_name, last_name, country, origin, notes)
+select '3d9f0f13-a691-4d07-ad58-34590df86e33', 'banque_leasing', b.nom, b.nom, 'BE', 'import_g8',
+       'Créée le 26/11/2026 depuis les factures G8 (mention de financement).'
+  from (values ('BNP PARIBAS'), ('BNP PARIBAS LEASE'), ('CITIBANK'), ('RECORD BANK')) as b(nom)
+ where not exists (select 1 from public.contacts c where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33'
+                     and upper(coalesce(c.company_name, c.last_name)) = b.nom);
+
+-- 2) Correspondance nom lu sur la facture -> fiche contact.
+create temporary table _fin_banques (banque text primary key, contact_id uuid not null);
+insert into _fin_banques (banque, contact_id) values
+  ('AB LEASE', 'f15f1990-b010-44e1-bf69-48bee60e7a56'),
+  ('ALPHA CREDIT', '13687e13-074d-4844-8357-3a01ff1c920b'),
+  ('BELFIUS LEASE', '3d9eb412-9f5d-4e31-8561-baaa37b01cee'),
+  ('CA AUTO BANK', '31d07e88-99bb-4cb5-9a27-3d22b9d9db77'),
+  ('CBC BANQUE', '066a52c8-efce-4955-ad6f-864e220509ce'),
+  ('ES FINANCE', '3609c8fa-1779-4be0-b60e-f8e66b08fe64'),
+  ('EUROPABANK', '7a3e77fb-b188-4ed8-8984-2306234b6fdb'),
+  ('EXECUTIVE CAR LEASE & RENTING', '0c7d3ac9-79a0-44a1-98b5-a6006339b4b9'),
+  ('ING EQUIPMENT LEASE BELGIUM', '606e49b6-fcb4-493c-b3aa-21e0cb1c8448'),
+  ('KBC BANK SA', 'd95491e3-d4cc-44e4-98e2-831e4467d2f9'),
+  ('VAN BREDA', '9b229574-9e2b-47e4-bae4-954e5710868a');
+insert into _fin_banques (banque, contact_id)
+select 'BNP PARIBAS', c.id from public.contacts c where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and c.type = 'banque_leasing'
+   and upper(coalesce(c.company_name, c.last_name)) = 'BNP PARIBAS' order by c.created_at limit 1;
+insert into _fin_banques (banque, contact_id)
+select 'BNP PARIBAS LEASE', c.id from public.contacts c where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and c.type = 'banque_leasing'
+   and upper(coalesce(c.company_name, c.last_name)) = 'BNP PARIBAS LEASE' order by c.created_at limit 1;
+insert into _fin_banques (banque, contact_id)
+select 'CITIBANK', c.id from public.contacts c where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and c.type = 'banque_leasing'
+   and upper(coalesce(c.company_name, c.last_name)) = 'CITIBANK' order by c.created_at limit 1;
+insert into _fin_banques (banque, contact_id)
+select 'RECORD BANK', c.id from public.contacts c where c.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33' and c.type = 'banque_leasing'
+   and upper(coalesce(c.company_name, c.last_name)) = 'RECORD BANK' order by c.created_at limit 1;
+
+-- 3) Moto par moto : VIN, banque, contrat (null = pas de numéro sur la facture), facture G8 source.
+create temporary table _fin_g8 (vin text primary key, banque text not null, contrat text, facture text not null);
+insert into _fin_g8 (vin, banque, contrat, facture) values
+  ('ZDMKC06AAKB010694', 'AB LEASE', null, '20190894'),
+  ('ZDMM502AA9B020011', 'ALPHA CREDIT', null, '2013054'),
+  ('ZDMG101ABCB011427', 'ALPHA CREDIT', null, '2013282'),
+  ('ZDMG101ABDB016518', 'ALPHA CREDIT', null, '2013279'),
+  ('ZDMM506ABDB068047', 'ALPHA CREDIT', null, '2013329'),
+  ('ZDMM511AACB063507', 'ALPHA CREDIT', null, '2013604'),
+  ('ZDMM511AADB072850', 'ALPHA CREDIT', null, '2013904'),
+  ('ZDMM503AAAB033770', 'ALPHA CREDIT', null, '2013988'),
+  ('ZDMM506ABCB065398', 'ALPHA CREDIT', null, '2013990'),
+  ('ZDMM506ABDB067907', 'ALPHA CREDIT', null, '2013989'),
+  ('ZDMM511AADB072848', 'ALPHA CREDIT', null, '20131015'),
+  ('ZDMM400AA2B025287', 'ALPHA CREDIT', null, '20140042'),
+  ('ZDMA201ACAB000754', 'ALPHA CREDIT', null, '20140125'),
+  ('ZDMH804FAEB018590', 'ALPHA CREDIT', null, '20140126'),
+  ('ZDMM506ABDB075499', 'ALPHA CREDIT', null, '20140177'),
+  ('ZDMM503AAAB036526', 'ALPHA CREDIT', null, '20140184'),
+  ('ZDMH804FAEB020015', 'ALPHA CREDIT', null, '20140239'),
+  ('ZDMM506ABDB075164', 'ALPHA CREDIT', null, '20140240'),
+  ('ZDMM503AADB070973', 'ALPHA CREDIT', null, '20140263'),
+  ('ZDMM506ABEB075893', 'ALPHA CREDIT', null, '20140329'),
+  ('ZDMH801ABCB010482', 'ALPHA CREDIT', null, '20140582'),
+  ('ZDMM503AAEB079047', 'ALPHA CREDIT', null, '20140688'),
+  ('ZDMB200AADB006124', 'ALPHA CREDIT', null, '20140927'),
+  ('ZDMB300FADB000451', 'ALPHA CREDIT', null, '20150024'),
+  ('ZDMM604AAEB009590', 'ALPHA CREDIT', null, '20150048'),
+  ('ZDMM604AAEB011321', 'ALPHA CREDIT', null, '20150153'),
+  ('ZDMK100AAFB003986', 'ALPHA CREDIT', null, '20150311'),
+  ('ZDMM602FAFB014516', 'ALPHA CREDIT', null, '20150341'),
+  ('ZDMK100AAFB004232', 'ALPHA CREDIT', null, '20150348'),
+  ('ZDMM604AAFB014683', 'ALPHA CREDIT', null, '20150378'),
+  ('ZDMG104FAEB019898', 'ALPHA CREDIT', null, '20150387'),
+  ('ZDMAA01FAFB001836', 'ALPHA CREDIT', null, '20150392'),
+  ('ZDMF101AADB014657', 'ALPHA CREDIT', null, '20150450'),
+  ('ZDMB200AAEB007983', 'ALPHA CREDIT', null, '20150461'),
+  ('ZDMM602FAFB014601', 'ALPHA CREDIT', null, '20150556'),
+  ('ZDMAA01FAFB002386', 'ALPHA CREDIT', null, '20150587'),
+  ('ZDMM604AAFB016420', 'ALPHA CREDIT', null, '20150692'),
+  ('ZDMK100AAFB006631', 'ALPHA CREDIT', null, '20150827'),
+  ('ZDMB200AAFB011957', 'ALPHA CREDIT', null, '20150845'),
+  ('ZDMH804FAFB026243', 'ALPHA CREDIT', null, '20150856'),
+  ('ZDMB200AAFB011129', 'ALPHA CREDIT', null, '20150911'),
+  ('ZDMH804FAFB027035', 'ALPHA CREDIT', null, '20150908'),
+  ('ZDMAA01FAFB004458', 'ALPHA CREDIT', null, '20150987'),
+  ('ZDMH804FAFB027292', 'ALPHA CREDIT', null, '20151205'),
+  ('ZDMH603AABB015654', 'ALPHA CREDIT', null, '20160075'),
+  ('ZDMMB00FAGB000014', 'ALPHA CREDIT', null, '20160086'),
+  ('ZDMM604AAFB017604', 'ALPHA CREDIT', null, '20160090'),
+  ('ZDMM604AAFB017663', 'ALPHA CREDIT', null, '20160107'),
+  ('ZDMG104FAEB022069', 'ALPHA CREDIT', null, '20160146'),
+  ('ZDMK100AAGB012707', 'ALPHA CREDIT', null, '20160144'),
+  ('ZDMGB00FAGB000021', 'ALPHA CREDIT', null, '20160167'),
+  ('ZDMBA00AAGB000643', 'ALPHA CREDIT', null, '20160190'),
+  ('ZDMGB00FAGB000018', 'ALPHA CREDIT', null, '20160193'),
+  ('ZDMM604AAGB019651', 'ALPHA CREDIT', null, '20160204'),
+  ('ZDMGB00FAGB000046', 'ALPHA CREDIT', null, '20160348'),
+  ('ZDMK100AAGB016008', 'ALPHA CREDIT', null, '20160346'),
+  ('ZDMK100AAGB015294', 'ALPHA CREDIT', null, '20160387'),
+  ('ZDMAB00FAGB000055', 'ALPHA CREDIT', null, '20160430'),
+  ('ZDMAA01FAGB013595', 'ALPHA CREDIT', null, '20160437'),
+  ('ZDMAB00FAGB000057', 'ALPHA CREDIT', null, '20160435'),
+  ('ZDMK100AAGB016572', 'ALPHA CREDIT', null, '20160460'),
+  ('ZDMM604AAGB021175', 'ALPHA CREDIT', null, '20160542'),
+  ('ZDMM604AAGB022179', 'ALPHA CREDIT', null, '20160614'),
+  ('ZDMM604AAGB022280', 'ALPHA CREDIT', null, '20160628'),
+  ('ZDMAA01FAGB010128', 'ALPHA CREDIT', null, '20160733'),
+  ('ZDMAA01FAGB011750', 'ALPHA CREDIT', null, '20160776'),
+  ('ZDMA201ACCB021169', 'ALPHA CREDIT', null, '20160809'),
+  ('ZDMHB00FAGB000009', 'ALPHA CREDIT', null, '20160917'),
+  ('ZDMK100AAGB017652', 'ALPHA CREDIT', null, '20161071'),
+  ('ZDMMB00FAGB000037', 'ALPHA CREDIT', null, '20161074'),
+  ('ZDMGB00FAGB000041', 'ALPHA CREDIT', null, '20161229'),
+  ('ZDMMD00AAHB001055', 'ALPHA CREDIT', null, '20170206'),
+  ('ZDMKC02AAHB001507', 'ALPHA CREDIT', null, '20170262'),
+  ('ZDMBA00AAGB001795', 'ALPHA CREDIT', null, '20170401'),
+  ('ZDMGD00FAHB000001', 'ALPHA CREDIT', null, '20170416'),
+  ('ZDMM701AAGB001700', 'ALPHA CREDIT', null, '20170446'),
+  ('ZDMME35AAHB000096', 'ALPHA CREDIT', null, '20170502'),
+  ('ZDMMC00AAHB000828', 'ALPHA CREDIT', null, '20170802'),
+  ('ZDMM602FAFB016163', 'ALPHA CREDIT', null, '20170837'),
+  ('ZDMKC02AAHB001882', 'ALPHA CREDIT', null, '20171050'),
+  ('ZDMVA00AAHB001082', 'ALPHA CREDIT', null, '20171070'),
+  ('ZDMGB00FAGB000092', 'ALPHA CREDIT', null, '20180043'),
+  ('ZDMMB01FAJB000125', 'ALPHA CREDIT', null, '20180045'),
+  ('ZDMKC00AAJB007348', 'ALPHA CREDIT', null, '20180227'),
+  ('ZDMMD00AAJB004633', 'ALPHA CREDIT', null, '20180299'),
+  ('ZDMM602FAEB004161', 'ALPHA CREDIT', null, '20180316'),
+  ('ZDMKC00AAJB007753', 'ALPHA CREDIT', null, '20180342'),
+  ('ZDMVA00AAJB005585', 'ALPHA CREDIT', null, '20180358'),
+  ('ZDMMD00AAHB002663', 'ALPHA CREDIT', null, '20180425'),
+  ('ZDMMH00AAJB002986', 'ALPHA CREDIT', null, '20180515'),
+  ('ZDMKF00AAJB001064', 'ALPHA CREDIT', null, '20180529'),
+  ('ZDMKC00AAJB008719', 'ALPHA CREDIT', null, '20180642'),
+  ('ZDMVA00AAJB006190', 'ALPHA CREDIT', null, '20181040'),
+  ('ZDMBA00AAJB004454', 'ALPHA CREDIT', null, '20181099'),
+  ('ZDMDB00FAKB000102', 'ALPHA CREDIT', null, '20190114'),
+  ('ZDMGE02FAKB001385', 'ALPHA CREDIT', null, '20190292'),
+  ('ZDMHB00FAKB000106', 'ALPHA CREDIT', null, '20190333'),
+  ('ZDMMH00AAKB005424', 'ALPHA CREDIT', null, '20190418'),
+  ('ZDMDB00FAKB000104', 'ALPHA CREDIT', null, '20190477'),
+  ('ZDMHB00FAKB000102', 'ALPHA CREDIT', null, '20190501'),
+  ('ZDMAA01FAFB001293', 'ALPHA CREDIT', null, '20190649'),
+  ('ZDMVA00AALB008723', 'ALPHA CREDIT', null, '20190743'),
+  ('ZDMGE02FALB003150', 'ALPHA CREDIT', null, '20190815'),
+  ('ZDMVA00AAKB008222', 'ALPHA CREDIT', null, '20190932'),
+  ('ZDMBB00AAKB003270', 'ALPHA CREDIT', null, '20190963'),
+  ('ZDM4M00AARB007547', 'ALPHA CREDIT', '118080633619', '23001005'),
+  ('ZDM4F02BGRB002683', 'ALPHA CREDIT', 'S/150350662832', '23001178'),
+  ('ZDM1K00AAPB003439', 'ALPHA CREDIT', '118097317619', '23001336'),
+  ('ZDM4F02BGRB003250', 'ALPHA CREDIT', '118099435653', '23001394'),
+  ('ZDM3D02BGRB008958', 'ALPHA CREDIT', '118099876395', '23001415'),
+  ('ZDM6A02BGNB002534', 'ALPHA CREDIT', '118100960775', '23001416'),
+  ('ZDM6A02BGRB016988', 'ALPHA CREDIT', '118105870490', '24000092'),
+  ('ZDM6A03BGRB017506', 'ALPHA CREDIT', '118102584416', '24000102'),
+  ('ZDM1B00AARB005278', 'ALPHA CREDIT', '118107231726', '24000144'),
+  ('ZDM2A02AARB009573', 'ALPHA CREDIT', '118099446060', '24000162'),
+  ('ZDM6A03BGRB017859', 'ALPHA CREDIT', '118095880197', '24000245'),
+  ('ZDM3D02BGRB009620', 'ALPHA CREDIT', '118100192354', '24000277'),
+  ('ZDM6A02BGRB018684', 'ALPHA CREDIT', '118110145261', '24000294'),
+  ('ZDM3F02BGRB007851', 'ALPHA CREDIT', '150358381103', '24000304'),
+  ('ZDM4B00AARB001216', 'ALPHA CREDIT', '118108187578', '24000303'),
+  ('ZDM3G02BGRB002337', 'ALPHA CREDIT', '118114135597', '24000486'),
+  ('ZDM3G02BGPB001477', 'ALPHA CREDIT', '118115306772', '24000495'),
+  ('ZDM3G02BGRB005023', 'ALPHA CREDIT', '118119305192', '24000715'),
+  ('ZDM3G02BGPB000941', 'ALPHA CREDIT', '150360700312', '24000719'),
+  ('ZDM3D02BGPB003013', 'ALPHA CREDIT', '118124003329', '24000925'),
+  ('ZDM4M00AASB011623', 'ALPHA CREDIT', '118126950816', '24001060'),
+  ('ZDM4M00AARB010096', 'ALPHA CREDIT', '118129495650', '24001188'),
+  ('ZDM1B00AARB005239', 'ALPHA CREDIT', 'S/150367938532', '24001538'),
+  ('ZDM3D06AARB007055', 'ALPHA CREDIT', '150361119331', '25000151'),
+  ('ZDM1002BGSB001725', 'ALPHA CREDIT', null, '25000218'),
+  ('ZDM3H00AASB001568', 'ALPHA CREDIT', '150368978452', '25000446'),
+  ('ZDM3H00AASB001450', 'ALPHA CREDIT', '118136143382', '25000472'),
+  ('ZDM2000AASB002135', 'ALPHA CREDIT', '150375257887', '25000824'),
+  ('ZDM3H00AATB003265', 'ALPHA CREDIT', '150374496641', '25000952'),
+  ('ZDM1M00AAMB002306', 'ALPHA CREDIT', '150374017503', '25000976'),
+  ('ZDM3H00AATB004387', 'ALPHA CREDIT', '150376698440', '25001138'),
+  ('ZDM5H35AATB000311', 'ALPHA CREDIT', '118169419335', '25001331'),
+  ('ZDM1X02AASB010227', 'ALPHA CREDIT', '118175042709', '25001511'),
+  ('ZDMDB01FAKB000068', 'ALPHA CREDIT', '118-1764465-79', '25001514'),
+  ('ZDMMA00AAHB002547', 'ALPHA CREDIT', '118179856333', '26000001'),
+  ('ZDM1007BGTB007808', 'ALPHA CREDIT', '150378730689', '26000103'),
+  ('ZDM8A01BGSB002040', 'ALPHA CREDIT', 'S/150384104186', '26000149'),
+  ('ZDM1K00AANB002369', 'ALPHA CREDIT', '150383695170', '26000157'),
+  ('ZDM7F02BGSB001418', 'ALPHA CREDIT', '150378714020', '26000201'),
+  ('ZDM5000AATB001004', 'ALPHA CREDIT', '118187357766', '26000289'),
+  ('ZDM1X00AASB011642', 'ALPHA CREDIT', '118192269303', '26000293'),
+  ('ZDMBB00AALB005718', 'ALPHA CREDIT', '150386621742', '26000494'),
+  ('ZDM3H00AATB004664', 'ALPHA CREDIT', '150387887186', '26000682'),
+  ('ZDM3000AATB004451', 'ALPHA CREDIT', '150386203228', '26000706'),
+  ('ZDMB200AAEB007886', 'BELFIUS LEASE', '574461', '20150507'),
+  ('ZDM4F00AAPB002089', 'BELFIUS LEASE', '619586', '23001323'),
+  ('ZDM6A03BGRB018714', 'BELFIUS LEASE', '621826', '24000172'),
+  ('ZDM7G02BGTB001360', 'BELFIUS LEASE', '735596', '25000987'),
+  ('ZDM1007BGTB009110', 'BELFIUS LEASE', '737556', '26000257'),
+  ('ZDMM604AAFB016815', 'BNP PARIBAS', null, '20160135'),
+  ('ZDMAC02FAKB009497', 'BNP PARIBAS LEASE', null, '20190427'),
+  ('ZDM3G02BGRB005628', 'CA AUTO BANK', '350697', '24001545'),
+  ('ZDM5D02BGSB001159', 'CA AUTO BANK', '2028302', '25000561'),
+  ('ZDMB300FADB000583', 'CBC BANQUE', null, '2013777'),
+  ('ZDMAA01FAGB007787', 'CBC BANQUE', null, '20160461'),
+  ('ZDMVA00AAHB000809', 'CBC BANQUE', null, '20170203'),
+  ('ZDM3000AATB002068', 'CBC BANQUE', '728275430023', '25001434'),
+  ('ZDMA301FADB002895', 'CITIBANK', null, '2013085'),
+  ('ZDMA301FADB002910', 'CITIBANK', null, '2013083'),
+  ('ZDMHB00FAGB000047', 'ES FINANCE', 'Y0026145', '20161130'),
+  ('ZDM6A05BGRB017215', 'ES FINANCE', 'A1C70042', '24000319'),
+  ('ZDM1003PPSB005735', 'ES FINANCE', 'A1D25670', '25001550'),
+  ('ZDM1007BGTB008896', 'ES FINANCE', 'A1D52077', '26000175'),
+  ('ZDM5G01BGSB000619', 'ES FINANCE', 'A1D5279', '26000246'),
+  ('ZDM4F00AAPB002430', 'EUROPABANK', 'EBL-8368581-901-21', '23001268'),
+  ('ZDM3DFBBGRB011361', 'EUROPABANK', 'EBL-8368585-901-44', '24001446'),
+  ('ML01V00AAPT001754', 'EUROPABANK', null, '25000136'),
+  ('ZDM4F02BGRB003305', 'EUROPABANK', 'EBL-7060581-901-13', '25000708'),
+  ('ZDM3G02BGRB005473', 'EXECUTIVE CAR LEASE & RENTING', '2024.32.10.5643', '24001356'),
+  ('ZDMM602FAEB003453', 'ING EQUIPMENT LEASE BELGIUM', '970369-81-0', '20150398'),
+  ('ZDMAA01FAHB024223', 'ING EQUIPMENT LEASE BELGIUM', '970557-38-0', '20170620'),
+  ('ZDMHD01FAJB000149', 'ING EQUIPMENT LEASE BELGIUM', '970638-01-0', '20180325'),
+  ('ZDMDB00FAKB000086', 'ING EQUIPMENT LEASE BELGIUM', null, '20190078'),
+  ('ZDM1K00AASB004243', 'ING EQUIPMENT LEASE BELGIUM', '971343-91-0', '25000116'),
+  ('ZDM6A05BGRB019720', 'ING EQUIPMENT LEASE BELGIUM', '971360-37-0', '25000401'),
+  ('ZDM1X00AASB011027', 'KBC BANK SA', '0001/00000266719', '24001245'),
+  ('ZDM1007BGTB009279', 'KBC BANK SA', '420716581443', '26000547'),
+  ('ZDMK100AAEB000211', 'RECORD BANK', null, '20160814'),
+  ('ZDMAC02FAKB006976', 'VAN BREDA', null, '20190170'),
+  ('ZDM6A02BGPB015094', 'VAN BREDA', '1941104/009', '24000492');
+
+-- 4) Banque : seulement si la moto n'en a pas encore.
+update public.vehicles v
+   set financing_contact_id = b.contact_id
+  from _fin_g8 d join _fin_banques b on b.banque = d.banque
+ where v.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33'
+   and upper(v.vin) = d.vin
+   and v.financing_contact_id is null;
+
+-- 5) Contrat : seulement s'il est vide et que la moto est reliée à cette même banque.
+update public.vehicles v
+   set financing_contract = d.contrat
+  from _fin_g8 d join _fin_banques b on b.banque = d.banque
+ where v.company_id = '3d9f0f13-a691-4d07-ad58-34590df86e33'
+   and upper(v.vin) = d.vin
+   and d.contrat is not null
+   and v.financing_contract is null
+   and v.financing_contact_id = b.contact_id;
+
+drop table _fin_g8;
+drop table _fin_banques;
