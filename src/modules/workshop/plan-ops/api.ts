@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { listRef } from '@/modules/settings/reference-api';
+import { isAbsentOnBike } from '../exploded/operation-presence';
 import { toNotDoneReason, type NotDoneReason, type PlanOp, type PlanOpLine, type PlanOpStatus } from './rules';
 import { schemaProbe as batchedSchemaProbe } from '@/lib/schema-probe';
 import { withIdentityIfShared } from '../shared-tablet/store';
@@ -98,9 +99,35 @@ export function finishPlanOps(orId: string): Promise<FinishResult> {
 /** Texte « operations non realisees » repris dans les notes de la facture (null si aucune / sans migration). */
 export async function notDoneTextForInvoice(orId: string): Promise<string | null> {
   if (!(await planOpsSchemaReady())) return null;
+  // ATE-05 (26/11) : une operation « sans objet » (element absent de la moto) n'est pas une operation
+  // non realisee : meme texte que repair_order_operations_not_done_text, sans elle.
+  const ops = await listPlanOps(orId).catch(() => null);
+  if (ops && ops.some(isAbsentOnBike)) {
+    const rest = ops.filter((o) => o.status === 'non_fait' && !isAbsentOnBike(o)).sort((a, b) => a.sort_order - b.sort_order);
+    if (!rest.length) return null;
+    const companyId = (ops[0] as unknown as { company_id?: string }).company_id;
+    const reasons = companyId ? await listNotDoneReasons(companyId).catch(() => []) : [];
+    const lbl = (code: string | null) => reasons.find((r) => r.code === code)?.label ?? code ?? '';
+    return `Opérations non réalisées : ${rest.map((o) => `${o.label} (${lbl(o.not_done_reason)}${o.not_done_note ? ` : ${o.not_done_note}` : ''})`).join(' ; ')}`;
+  }
   const { data, error } = await rpc('repair_order_operations_not_done_text', { _or: orId });
   if (error) return null;
   return (data as string | null) ?? null;
+}
+
+/**
+ * ATE-05 (26/11) : operations « (si present) » dont l'element est absent de la moto (catalogue) :
+ * reglees « non faite », motif « pas necessaire », note « sans objet », par la fonction tracee
+ * habituelle (events). Sans « Qui etes-vous ? » : ce n'est pas un geste du mecanicien. Reversible
+ * (« a faire »). Retourne le nombre d'operations reglees.
+ */
+export async function settleOpsAbsentOnBike(opIds: readonly string[], reason: string, note: string): Promise<number> {
+  let n = 0;
+  for (const id of opIds) {
+    const r = await call<SetResult>('repair_order_operation_set', { _op: id, _status: 'non_fait', _reason: reason, _note: note, _mechanic_code: null });
+    if (r.status !== 'unchanged') n++;
+  }
+  return n;
 }
 
 export async function listNotDoneReasons(companyId: string): Promise<NotDoneReason[]> {

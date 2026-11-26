@@ -19,10 +19,15 @@
  *     la référence n'est retenue que si elle figure (ou est remplacée) sur un dessin du modèle-année ;
  *  3. une cible par (dessin, repère), pièce principale d'abord (joints et bouchons après), puis
  *     l'ordre des familles de l'opération ;
- *  4. aucune cible (contrôle, lecture DDS, liquide, pièce introuvable pour ce modèle) : PAS de
- *     bouton (décision de Simon du 26/11 : « si y a pas de vues y a pas de bouton »).
+ *  4. puis les éléments que l'opération CONTRÔLE / nettoie / vidange (filtre à air, fourche,
+ *     réservoirs de frein, plaquettes, pneus, chaîne...) : table mots de l'opération → composant →
+ *     dessins et désignations du catalogue de ce modèle-année (operation-components.ts) ;
+ *  5. aucune cible (lecture DDS, essai, nettoyage, élément absent des dessins de la moto) : PAS de
+ *     bouton (Simon, 26/11 : « si y a pas de vues y a pas de bouton » = aucun dessin ne montre
+ *     l'élément).
  */
 import { normalizeCatalogReference } from '@/modules/catalog/reference';
+import { componentsOf, locateComponent } from './operation-components';
 
 /** Dessin du modèle-année, dans l'ordre du catalogue (ducati_catalog_model_year_drawings + drawings). */
 export type MyDrawing = { drawing_id: string; group_sort: number | null; sort: number | null; code: string | null; description: string | null };
@@ -41,7 +46,7 @@ export type KitFamilyItem = { family_code: string | null; references: readonly (
 /** Ligne de l'OR reliée à l'opération, avec les références à chercher pour son article. */
 export type OpLineRefs = { family_code: string; designation: string; references: readonly string[] };
 
-export type TargetSource = 'or_line' | 'kit' | 'catalogue';
+export type TargetSource = 'or_line' | 'kit' | 'catalogue' | 'composant';
 export type OperationTarget = {
   familyCode: string;
   reference: string;
@@ -107,11 +112,12 @@ function hitsFor(reference: string, lines: readonly MyDrawingLine[]): Hit[] {
  * bouton les propose (la première s'ouvre, les autres se choisissent dans la fenêtre).
  */
 export function operationTargets(
-  op: { familyCodes: readonly string[]; lines: readonly OpLineRefs[] },
+  op: { familyCodes: readonly string[]; lines: readonly OpLineRefs[]; label?: string | null },
   idx: OperationPartsIndex,
 ): OperationTarget[] {
   const families = [...new Set(op.familyCodes.filter(Boolean))];
-  if (!families.length || !idx.drawings.length) return [];
+  const comps = componentsOf(op.label);
+  if ((!families.length && !comps.length) || !idx.drawings.length) return [];
   const rank = new Map<string, number>();
   idx.drawings.forEach((d, i) => { if (!rank.has(d.drawing_id)) rank.set(d.drawing_id, i); });
   const label = new Map<string, string>();
@@ -179,5 +185,16 @@ export function operationTargets(
       push(fam, 'catalogue', ref, hits[0].line.description ?? ref, hits);
     }
   }
+  // Éléments contrôlés / nettoyés / vidangés par l'opération.
+  for (const c of comps) {
+    for (const h of locateComponent(c, idx.drawings, lines)) {
+      push(c.key, 'composant', h.line.reference ?? '', h.line.description ?? '', [{ line: h.line, viaReplacement: false }]);
+    }
+  }
   return out;
+}
+
+/** L'opération peut-elle avoir une vue (familles de pièces ou élément de la table) ? Évite de lire le catalogue pour rien. */
+export function operationMayHaveTargets(op: { familyCodes: readonly string[]; label?: string | null }): boolean {
+  return op.familyCodes.some(Boolean) || componentsOf(op.label).length > 0;
 }

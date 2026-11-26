@@ -33,6 +33,7 @@ import { fetchImageForPdf, pdfSizingFor } from '@/lib/image-tools';
 import { getReception, getReceptionSlots, receptionPhotoUrl, receptionSchemaReady } from '../reception/api';
 import { arrangePhotos, slotLabel } from '../reception/rules';
 import { listNotDoneReasons, listPlanOps, planOpsSchemaReady } from '../plan-ops/api';
+import { isAbsentOnBike } from '../exploded/operation-presence';
 import { DEFAULT_NOT_DONE_REASONS, reasonText } from '../plan-ops/rules';
 import { CHECK_POINTS, OR_PRINT_FORMATS, OR_PRINT_MODES, normalizeCheckPoints, printFileName, type OrPrintFormat, type OrPrintMode, type PrintLineIn } from './rules';
 
@@ -86,7 +87,9 @@ async function loadWorkshopExtras(orId: string, companyId: string, locale: Local
     }
   }
   if (await planOpsSchemaReady().catch(() => false)) {
-    const [ops, reasons] = await Promise.all([listPlanOps(orId), listNotDoneReasons(companyId).catch(() => [])]);
+    const [all, reasons] = await Promise.all([listPlanOps(orId), listNotDoneReasons(companyId).catch(() => [])]);
+    // ATE-05 (26/11) : operation « sans objet » (element absent de la moto) : pas imprimee.
+    const ops = all.filter((o) => !isAbsentOnBike(o));
     const rs = reasons.length ? reasons : DEFAULT_NOT_DONE_REASONS;
     if (ops.length) {
       out.operations = ops.map((o) => ({

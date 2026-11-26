@@ -699,6 +699,19 @@ essai à blanc `supabase/tests/m8_dossier_atelier.sql`, règle testée dans `tes
   de bouton »** — contrôle, lecture DDS, liquide ou pièce introuvable : aucun bouton. Monster 1100 S : vidange → 009
   « Pompe à huile - filtre » repère 20 (44440035A) ; courroies → 008 « Courroie distribution » repère 19 (73740211A).
   Sans migration (lectures sous RLS existantes).
+- **Suite 26/11 (ATE-05, 2e retour de Simon) — contrôles** : « pas de vues = pas de bouton » veut dire « aucun dessin
+  ne montre l'élément ». Table opération → composant → dessins / désignations du catalogue de CE modèle-année
+  (`exploded/operation-components.ts`, 35 composants : filtre à air, joints de fourche + amortisseur, réservoirs de
+  frein / d'embrayage, plaquettes, disques, étriers, pneus, roulements, chaîne / couronne / pignon, direction, béquille,
+  contacteurs de sécurité, éclairage, soupapes, bougies, batterie, refroidissement…). OR-2026-00003 : 20 opérations sur
+  25 affichées ont un bouton ; sans bouton : lecture DDS, soufflets / tuyaux, essai sur route, nettoyage, enregistrement.
+- **Opérations « (si présent) »** (plan générique des motos sans manuel) : `exploded/operation-presence.ts` lit le
+  catalogue du modèle-année — refroidissement liquide (radiateur d'eau, vase, pompe à eau), embrayage hydraulique ou à
+  câble, roues à rayons, air secondaire. Absent → opération non affichée (fiche OR, parcours) et réglée une fois
+  « non faite / pas nécessaire », note `Sans objet : élément absent sur cette moto (catalogue Ducati)` (fonction tracée
+  habituelle, réversible), pour que « Terminer » et x / y ne l'attendent pas ; jamais reprise sur la facture ni sur l'OR
+  imprimé. Présent → libellé sans « (si présent) ». Embrayage à câble : « huile de freins et d'embrayage » devient
+  « huile de freins ». Pas de modèle-année : opération gardée telle quelle. Rien n'est supprimé en base.
 - **Mon atelier** ne fait plus que lister : chaque carte ouvre le dossier à la bonne étape (Démarrer, photos et parcours
   sont dans le dossier). Le planning, la liste des OR et le nouvel OR mènent au dossier.
 - **Emplacement C2** : `dossier/labels-link.tsx` (lien des étiquettes de destination, vide tant que C2 n'est pas livré).

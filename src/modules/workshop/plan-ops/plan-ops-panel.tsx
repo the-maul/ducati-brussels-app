@@ -8,6 +8,10 @@
  * existant) APRES confirmation.
  *
  *  - `usePlanOps` : liste, construction unique, gestes ; partage par la fiche OR et le parcours.
+ *    ATE-05 (26/11) : les operations « (si present) » du plan generique sont reglees d'apres le
+ *    catalogue du modele-annee de la moto (operation-presence.ts) : element absent → operation non
+ *    affichee et reglee une fois « non faite / sans objet » (tracee, pour que « Terminer » et x / y
+ *    ne l'attendent pas, jamais mentionnee sur la facture) ; present → libelle sans « (si present) ».
  *  - `PlanOpsPanel` : le bloc de la fiche OR.
  *  - `NotDoneDialog`, `FinishDialog` : motif « non faite », confirmation de « Terminer ».
  *  - `PlanProgressBadge` / `usePlanProgressMap` : avancement x / y au planning.
@@ -27,8 +31,10 @@ import { StatusBadge } from '@/components/status-badge';
 import { fill } from '@/modules/catalog/format';
 import { t } from '@/lib/i18n';
 import { serviceLabelDisplay } from '../service-label-fr';
+import { useOrCatalogIndex } from '../exploded/use-or-catalog';
+import { ABSENT_ON_BIKE_NOTE, applyBikePresence, hasConditionalOps } from '../exploded/operation-presence';
 import {
-  finishPlanOps, getPlanProgress, initPlanOps, listNotDoneReasons, listPlanOpLines, listPlanOps, planOpsSchemaReady, setPlanOp,
+  finishPlanOps, getPlanProgress, initPlanOps, listNotDoneReasons, listPlanOpLines, listPlanOps, planOpsSchemaReady, setPlanOp, settleOpsAbsentOnBike,
   type InitResult, type PlanProgressRow,
 } from './api';
 import {
@@ -95,11 +101,27 @@ export function usePlanOps(p: { orId: string; companyId: string | null; orStatus
     onError: onErr,
   });
 
-  const list = ops.data ?? [];
+  // ATE-05 : operations « (si present) » d'apres le catalogue de la moto (filtre d'affichage).
+  const raw = ops.data ?? [];
+  const needsCatalog = ready && hasConditionalOps(raw);
+  const cat = useOrCatalogIndex(p.orId, p.companyId, needsCatalog);
+  const bike = useMemo(() => applyBikePresence(raw, cat.index.data ?? null), [raw, cat.index.data]);
+  const list = bike.visible;
+  const settling = useRef(false);
+  useEffect(() => {
+    if (settling.current || !bike.toSettle.length || !canEditOps(p.orStatus)) return;
+    settling.current = true;
+    const reason = reasons.some((r) => r.code === 'pas_necessaire') ? 'pas_necessaire' : 'autre';
+    settleOpsAbsentOnBike(bike.toSettle.map((o) => o.id), reason, ABSENT_ON_BIKE_NOTE)
+      .then((n) => { if (n) refresh(); })
+      .catch(() => undefined)
+      .finally(() => { settling.current = false; });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bike.toSettle, p.orStatus, reasons]);
   const progress = useMemo(() => planProgress(list), [list]);
   const byOp = useMemo(() => linesByOperation(lines.data ?? []), [lines.data]);
   // La liste est connue (ou il n'y en aura pas) : le parcours technicien peut choisir son mode.
-  const settled = schema.isSuccess && (!ready || (ops.isSuccess && !init.isPending
+  const settled = schema.isSuccess && (!ready || (ops.isSuccess && !init.isPending && cat.settled
     && !(list.length === 0 && (initResult?.count ?? 0) > 0)
     && (list.length > 0 || !p.autoInit || tried.current || !canEditOps(p.orStatus))));
   return {

@@ -252,3 +252,13 @@ export async function opLinesRefs(lines: readonly { family_code: string; article
   await Promise.all(ids.map(async (id) => { refs.set(id, await articleCatalogRefs(id).catch(() => [])); }));
   return lines.filter((l) => l.article_id).map((l) => ({ family_code: l.family_code, designation: l.designation, references: refs.get(l.article_id as string) ?? [] }));
 }
+
+export type OrMy = { modelYearId: string | null; status: string | null };
+
+/** Moto de l'OR → modele-annee du catalogue Ducati, et statut de l'OR (cle de cache ['exploded', 'or-my', orId]). */
+export async function orModelYear(orId: string): Promise<OrMy> {
+  const { data, error } = await sb.from<unknown>('repair_orders').select('status, vehicles(ducati_model_year_id)').eq('id', orId).maybeSingle();
+  if (error || !data) return { modelYearId: null, status: null };
+  const row = data as unknown as { status: string | null; vehicles: { ducati_model_year_id: string | null } | null };
+  return { modelYearId: row.vehicles?.ducati_model_year_id ?? null, status: row.status ?? null };
+}

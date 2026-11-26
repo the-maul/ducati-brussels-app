@@ -9,8 +9,10 @@
  * recherche des kits dans le catalogue de ce modele-annee ; seules les references presentes sur un
  * dessin du modele-annee comptent. Plusieurs pieces : la premiere s'ouvre, les autres se
  * choisissent dans la fenetre.
- * Decision de Simon (26/11) : « si y a pas de vues y a pas de bouton » — controle, lecture DDS,
- * liquide, ou piece introuvable pour ce modele : aucun bouton.
+ * Les controles / nettoyages / vidanges de liquide ouvrent aussi le dessin de l'element concerne
+ * (table operation → composant → dessins, operation-components.ts).
+ * Decision de Simon (26/11) : « si y a pas de vues y a pas de bouton » — aucun dessin de la moto
+ * ne montre l'element (lecture DDS, essai, nettoyage...) : aucun bouton.
  * « Reserver » reste possible (OR enregistre, ni facture ni annule) ; « Ajouter a l'OR » n'est
  * propose que dans l'editeur de l'OR (lot E) : le parcours ne modifie pas les lignes.
  */
@@ -18,34 +20,17 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 import type { PlanOpSlotInfo } from '../plan-ops/rules';
-import { modelYearPartsIndex, opLinesRefs } from './api';
+import { opLinesRefs } from './api';
+import { useOrCatalogIndex } from './use-or-catalog';
 import { ExplodedViewsDialog } from './exploded-views-dialog';
-import { operationTargets } from './operation-parts';
+import { operationMayHaveTargets, operationTargets } from './operation-parts';
 import { orReadOnly } from './rules';
 
-type OrMy = { modelYearId: string | null; status: string | null };
-
-/** Moto de l'OR → modele-annee du catalogue Ducati, et statut de l'OR (consultation seule si facture / annule). */
-async function orModelYear(orId: string): Promise<OrMy> {
-  const sb = supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (c: string, v: string) => { maybeSingle: () => PromiseLike<{ data: unknown; error: unknown }> } } } };
-  const { data, error } = await sb.from('repair_orders').select('status, vehicles(ducati_model_year_id)').eq('id', orId).maybeSingle();
-  if (error || !data) return { modelYearId: null, status: null };
-  const row = data as unknown as { status: string | null; vehicles: { ducati_model_year_id: string | null } | null };
-  return { modelYearId: row.vehicles?.ducati_model_year_id ?? null, status: row.status ?? null };
-}
-
 export function OperationExplodedButton({ info, companyId }: { info: PlanOpSlotInfo; companyId: string }) {
-  const hasFamilies = info.familyCodes.length > 0;
-  const my = useQuery({ queryKey: ['exploded', 'or-my', info.orId], queryFn: () => orModelYear(info.orId), staleTime: 300_000, enabled: hasFamilies });
-  const modelYearId = my.data?.modelYearId ?? null;
-  const index = useQuery({
-    queryKey: ['exploded', 'op-parts-index', companyId, modelYearId],
-    queryFn: () => modelYearPartsIndex(companyId, modelYearId as string),
-    enabled: hasFamilies && !!modelYearId, staleTime: 3_600_000,
-  });
+  const hasFamilies = operationMayHaveTargets(info);
+  const { my, modelYearId, index } = useOrCatalogIndex(info.orId, companyId, hasFamilies);
   const lineKey = info.lines.map((l) => `${l.family_code}:${l.article_id ?? ''}`).join(',');
   const lineRefs = useQuery({
     queryKey: ['exploded', 'op-line-refs', lineKey],
@@ -53,8 +38,8 @@ export function OperationExplodedButton({ info, companyId }: { info: PlanOpSlotI
     enabled: hasFamilies && !!modelYearId && info.lines.some((l) => !!l.article_id), staleTime: 300_000,
   });
   const targets = useMemo(
-    () => (index.data ? operationTargets({ familyCodes: info.familyCodes, lines: lineRefs.data ?? [] }, index.data) : []),
-    [index.data, lineRefs.data, info.familyCodes],
+    () => (index.data ? operationTargets({ familyCodes: info.familyCodes, lines: lineRefs.data ?? [], label: info.label }, index.data) : []),
+    [index.data, lineRefs.data, info.familyCodes, info.label],
   );
   const [open, setOpen] = useState(false);
 
