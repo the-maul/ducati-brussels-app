@@ -214,7 +214,7 @@ function EditVehicle() {
 
         <TabsContent value="documents" className="mt-4 space-y-6">
           {/* Historique : factures / OR / devis rattachés à cette moto (cliquables) */}
-          <Card title={`${t('vehicles.secDocuments')}${docs && docs.length > 0 ? ` (${docs.length})` : ''}`}>
+          <Card title={`${t('designFiches.secSalesDocs')}${docs && docs.length > 0 ? ` (${docs.length})` : ''}`}>
             {!docs || docs.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('clientTabs.noDocument')}</p>
             ) : (
@@ -248,8 +248,10 @@ function EditVehicle() {
               </div>
             )}
           </Card>
-          <Card title={t('ged.title')}>
-            <AttachmentsPanel companyId={activeCompanyId} entityType="vehicle" entityId={vehicleId} />
+          {/* Un seul bloc « Fichiers » (M9, 26/11/2026) : chaque fichier ajouté est lu et ses informations proposées. */}
+          <Card title={t('lectureFichiers.secFiles')}>
+            <AttachmentsPanel companyId={activeCompanyId} entityType="vehicle" entityId={vehicleId} autoRead
+              onApplied={() => { qc.invalidateQueries({ queryKey: ['vehicle', vehicleId] }); qc.invalidateQueries({ queryKey: ['vehicle-fill', vehicleId] }); }} />
           </Card>
         </TabsContent>
 

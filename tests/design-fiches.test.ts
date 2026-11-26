@@ -53,8 +53,11 @@ describe('fiche client : onglets', () => {
     const src = read('src/routes/_app.clients.$contactId.tsx');
     const panels = ['<ContactForm', '<ParcTab', '<DocumentsTab', '<DueItemsTab', '<ClientReceivablesTab', '<DeferredPanel',
       '<DeliveryTab', '<SubcontactsTab', '<PriceRulesTab', '<AttachmentsPanel', '<CommunicationsPanel', '<CampaignHistoryTab',
-      '<RgpdTab', '<DispoTab', '<ArchivesTab', '<AppointmentsTab', '<FollowupsTab', '<ImagesTab', '<GroupsTab', '<GroupSalesTab'];
+      '<RgpdTab', '<DispoTab', '<ArchivesTab', '<AppointmentsTab', '<FollowupsTab', '<GroupsTab', '<GroupSalesTab'];
     for (const p of panels) expect(src).toContain(p);
+    // M9 (26/11/2026) : l'ancien bloc « Images » est fondu dans le bloc « Fichiers » (même GED, dossiers en filtres).
+    expect(src).not.toContain('<ImagesTab');
+    expect(src).toContain('autoRead');
     for (const v of [...CLIENT_MAIN_TABS, ...CLIENT_MORE_TABS]) expect(src).toContain(`value="${v}"`);
     expect(src).toContain('validateSearch');
     // Fusion, archivage, suppression : rangés sous « Outils ».

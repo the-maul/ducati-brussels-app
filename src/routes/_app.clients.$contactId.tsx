@@ -25,7 +25,7 @@ import {
 } from '@/modules/contacts/api';
 import { MergeSummary, useMergePreviews } from '@/modules/contacts/merge-summary';
 import {
-  RgpdTab, GroupsTab, GroupSalesTab, DispoTab, AppointmentsTab, FollowupsTab, ImagesTab, ArchivesTab, CampaignHistoryTab,
+  RgpdTab, GroupsTab, GroupSalesTab, DispoTab, AppointmentsTab, FollowupsTab, ArchivesTab, CampaignHistoryTab,
 } from '@/modules/contacts/g8/client-g8-tabs';
 import { RgpdMenu, MessageTestMenu } from '@/modules/contacts/g8/fiche-actions';
 import { getDebtorsList } from '@/modules/accounting/api';
@@ -62,6 +62,8 @@ function EditClient() {
   const [error, setError] = useState<string | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
   const [debtorAlertOpen, setDebtorAlertOpen] = useState(false);
+  // Informations d'un fichier lu appliquées à la fiche (M9) : le formulaire repart des valeurs enregistrées.
+  const [formRev, setFormRev] = useState(0);
   const debtorAlertShown = useRef(false);
 
   const { data: contact, isLoading } = useQuery({
@@ -385,7 +387,7 @@ function EditClient() {
         {/* forceMount : passer sur un autre onglet ne perd pas une saisie en cours (le formulaire reste monté). */}
         <TabsContent value="essentiel" forceMount className="mt-4 data-[state=inactive]:hidden">
           <ContactForm
-            key={`${contact.my_ducati_synced_at ?? contact.id}|${getModelInterests(contact).join(',')}`}
+            key={`${contact.my_ducati_synced_at ?? contact.id}|${getModelInterests(contact).join(',')}|${formRev}`}
             initial={contact}
             companyId={activeCompanyId}
             status={m.status}
@@ -402,8 +404,10 @@ function EditClient() {
         </TabsContent>
         <TabsContent value="documents" className="mt-4 space-y-6">
           <Block title={t('designFiches.secSalesDocs')}><DocumentsTab contactId={contactId} /></Block>
-          <Block title={t('designFiches.secAttachments')}><AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} /></Block>
-          <Block title={t('designFiches.secImages')}><ImagesTab contactId={contactId} companyId={activeCompanyId} /></Block>
+          {/* Un seul bloc « Fichiers » (M9, 26/11/2026) : ex-« Documents et photos joints » + ex-« Images » (dossiers en filtres). */}
+          <Block title={t('lectureFichiers.secFiles')}>
+            <AttachmentsPanel companyId={activeCompanyId} entityType="contact" entityId={contactId} autoRead onApplied={() => setFormRev((n) => n + 1)} />
+          </Block>
         </TabsContent>
         <TabsContent value="relances" className="mt-4 space-y-6">
           <Block title={t('designFiches.secDueInvoices')}><DueItemsTab contactId={contactId} /></Block>

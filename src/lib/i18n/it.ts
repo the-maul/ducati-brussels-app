@@ -13,6 +13,7 @@ import { orLisibleIt } from './or-lisible';
 import { uxAtelierIt } from './ux-atelier';
 import { dossierIt } from './dossier-atelier';
 import { designFichesIt } from './design-fiches';
+import { lectureFichiersIt } from './lecture-fichiers';
 import { designEcransIt } from './design-ecrans';
 import { decisionsQ57Q60It } from './decisions-q57-q60';
 import { dashboardCaIt } from './dashboard-ca';
@@ -9470,6 +9471,8 @@ export const it: DictionaryShape = {
   dossier: dossierIt,
   // Lot design des fiches (20/11/2026) : fiche client en 6 onglets, fiche moto en 5 onglets (charte §5.7).
   designFiches: designFichesIt,
+  // Lecture automatique des fichiers (M9, 26/11/2026) : bloc « Fichiers » des fiches client et moto.
+  lectureFichiers: lectureFichiersIt,
   // Lot design « ecrans de travail » (20/11/2026) : stock, pointeuse borne, cloture caisse, nouveau RDV, comptoir.
   designEcrans: designEcransIt,
   // Decisions client Q57 a Q60 (20/11/2026) : fin de journee, tablette partagee, veille ouvree, Reserver + ligne.

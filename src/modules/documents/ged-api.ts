@@ -32,6 +32,21 @@ export async function uploadAttachment(companyId: string, entityType: string, en
   return path;
 }
 
+/** Comme uploadAttachment, mais renvoie la ligne créée (son id sert à la lecture automatique, M9). */
+export async function addAttachment(companyId: string, entityType: string, entityId: string, file: File, stamp: number, note?: string, folder?: string | null): Promise<Attachment> {
+  const path = `${companyId}/${entityType}/${entityId}/${stamp}_${slug(file.name)}`;
+  const { error: ue } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (ue) throw ue;
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from('attachments').insert({
+    company_id: companyId, entity_type: entityType, entity_id: entityId, file_name: file.name,
+    storage_path: path, content_type: file.type || null, size_bytes: file.size, note: note || null,
+    folder: folder || null, uploaded_by: user?.id ?? null,
+  }).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
 /** Déplace une pièce dans un dossier (null = racine). */
 export async function moveAttachment(id: string, folder: string | null): Promise<void> {
   const { error } = await supabase.from('attachments').update({ folder }).eq('id', id);
