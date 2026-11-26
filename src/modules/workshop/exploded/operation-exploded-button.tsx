@@ -1,26 +1,30 @@
 /**
- * M8 — Lot E integre au parcours (lot F, 19/11/2026) : « Voir sur la vue eclatee » pour chaque
- * operation du plan, branche sur l'emplacement `operationExtra(op)` prevu par le lot D
- * (parcours technicien `JourneyScreen` et bloc « Operations » de la fiche OR `PlanOpsPanel`).
+ * M8 — « Voir sur la vue eclatee » pour chaque operation du plan (parcours technicien
+ * `JourneyScreen`, dossier atelier, bloc « Operations » de la fiche OR `PlanOpsPanel`).
  *
- * Reutilise la fenetre du lot E (`ExplodedViewsDialog`), rien n'est refait :
- *  - une piece de l'OR consommee par l'operation → sa vue s'ouvre, le repere en evidence ;
- *  - plusieurs pieces → on choisit la piece (gros boutons), ou toutes les vues de la moto ;
- *  - aucune piece (controle, reglage) → les vues de la moto, par groupe du catalogue.
+ * Correctif ATE-05 du 26/11/2026 (Simon, Monster 1100 S 2009 sans manuel : le bouton ouvrait la
+ * liste de tous les dessins). Le bouton ouvre maintenant LE dessin de la piece que l'operation
+ * remplace, zoome et surligne sur son repere (regle pure `operationTargets`, operation-parts.ts) :
+ * familles de pieces de l'operation → lignes de l'OR reliees, puis kit de la moto, puis regles de
+ * recherche des kits dans le catalogue de ce modele-annee ; seules les references presentes sur un
+ * dessin du modele-annee comptent. Plusieurs pieces : la premiere s'ouvre, les autres se
+ * choisissent dans la fenetre.
+ * Decision de Simon (26/11) : « si y a pas de vues y a pas de bouton » — controle, lecture DDS,
+ * liquide, ou piece introuvable pour ce modele : aucun bouton.
  * « Reserver » reste possible (OR enregistre, ni facture ni annule) ; « Ajouter a l'OR » n'est
- * propose que dans l'editeur de l'OR (lot E), pas ici : le parcours ne modifie pas les lignes.
- * Le modele-annee de la moto est lu une fois par OR (meme cle de cache pour toutes les operations).
+ * propose que dans l'editeur de l'OR (lot E) : le parcours ne modifie pas les lignes.
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Layers, Package } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
 import type { PlanOpSlotInfo } from '../plan-ops/rules';
-import { ExplodedViewsDialog, type ExplodedTarget } from './exploded-views-dialog';
-import { operationArticles, orReadOnly } from './rules';
+import { modelYearPartsIndex, opLinesRefs } from './api';
+import { ExplodedViewsDialog } from './exploded-views-dialog';
+import { operationTargets } from './operation-parts';
+import { orReadOnly } from './rules';
 
 type OrMy = { modelYearId: string | null; status: string | null };
 
@@ -34,52 +38,40 @@ async function orModelYear(orId: string): Promise<OrMy> {
 }
 
 export function OperationExplodedButton({ info, companyId }: { info: PlanOpSlotInfo; companyId: string }) {
-  const my = useQuery({ queryKey: ['exploded', 'or-my', info.orId], queryFn: () => orModelYear(info.orId), staleTime: 300_000 });
-  const parts = useMemo(() => operationArticles(info), [info]);
-  const [choose, setChoose] = useState(false);
-  const [target, setTarget] = useState<ExplodedTarget | undefined>(undefined);
+  const hasFamilies = info.familyCodes.length > 0;
+  const my = useQuery({ queryKey: ['exploded', 'or-my', info.orId], queryFn: () => orModelYear(info.orId), staleTime: 300_000, enabled: hasFamilies });
+  const modelYearId = my.data?.modelYearId ?? null;
+  const index = useQuery({
+    queryKey: ['exploded', 'op-parts-index', companyId, modelYearId],
+    queryFn: () => modelYearPartsIndex(companyId, modelYearId as string),
+    enabled: hasFamilies && !!modelYearId, staleTime: 3_600_000,
+  });
+  const lineKey = info.lines.map((l) => `${l.family_code}:${l.article_id ?? ''}`).join(',');
+  const lineRefs = useQuery({
+    queryKey: ['exploded', 'op-line-refs', lineKey],
+    queryFn: () => opLinesRefs(info.lines),
+    enabled: hasFamilies && !!modelYearId && info.lines.some((l) => !!l.article_id), staleTime: 300_000,
+  });
+  const targets = useMemo(
+    () => (index.data ? operationTargets({ familyCodes: info.familyCodes, lines: lineRefs.data ?? [] }, index.data) : []),
+    [index.data, lineRefs.data, info.familyCodes],
+  );
+  const [open, setOpen] = useState(false);
 
-  const open = () => {
-    if (parts.length === 1) setTarget({ articleId: parts[0].articleId });
-    else if (parts.length > 1) setChoose(true);
-    else setTarget(null);
-  };
-
+  // Pas de piece situee sur un dessin de cette moto : pas de bouton.
+  if (!targets.length || !modelYearId) return null;
   return (
     <>
       <Button
         type="button" variant="outline" className="h-12 shrink-0 self-start px-3 text-[14px]"
-        onClick={open} disabled={my.isLoading} aria-label={t('myWorkshop.opExploded')}
+        onClick={() => setOpen(true)} aria-label={t('myWorkshop.opExploded')} title={targets[0].drawingLabel}
       >
         <Layers /> <span className="hidden sm:inline">{t('myWorkshop.opExploded')}</span>
       </Button>
-      {choose && (
-        <Dialog open onOpenChange={(o) => { if (!o) setChoose(false); }}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{t('myWorkshop.opExplodedChoose')}</DialogTitle>
-              <DialogDescription>{info.label}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-2">
-              {parts.map((p) => (
-                <Button
-                  key={p.articleId} type="button" variant="outline" className="h-14 justify-start whitespace-normal text-left text-[15px]"
-                  onClick={() => { setChoose(false); setTarget({ articleId: p.articleId }); }}
-                >
-                  <Package className="shrink-0" /> {p.designation}
-                </Button>
-              ))}
-              <Button type="button" variant="ghost" className="h-12 justify-start text-[15px]" onClick={() => { setChoose(false); setTarget(null); }}>
-                <Layers className="shrink-0" /> {t('myWorkshop.opExplodedAll')}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      {target !== undefined && (
+      {open && (
         <ExplodedViewsDialog
-          companyId={companyId} modelYearId={my.data?.modelYearId ?? null} target={target}
-          onClose={() => setTarget(undefined)}
+          companyId={companyId} modelYearId={modelYearId} target={null} targets={targets}
+          onClose={() => setOpen(false)}
           orId={info.orId} readOnly={orReadOnly(my.data?.status)} onAdd={null}
         />
       )}

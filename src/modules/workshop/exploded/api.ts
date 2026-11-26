@@ -9,12 +9,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { CatalogOrLine, DrawingOrder, LineHit, Location, PricedArticle, ReserveLineResult, ReserveResult } from './rules';
 import { locateInDrawings, normalizeCatalogReference } from './rules';
+import type { CatalogRule, KitFamilyItem, MyDrawing, MyDrawingLine, OperationPartsIndex, OpLineRefs } from './operation-parts';
 
 type Res<T> = PromiseLike<{ data: T | null; error: { message: string; code?: string } | null }>;
 type Q<T> = Res<T> & {
   select: (c: string) => Q<T>; eq: (c: string, v: unknown) => Q<T>; in: (c: string, v: readonly unknown[]) => Q<T>;
   or: (f: string) => Q<T>; not: (c: string, op: string, v: unknown) => Q<T>; order: (c: string, o?: { ascending?: boolean }) => Q<T>;
-  limit: (n: number) => Q<T>; maybeSingle: () => Res<T>;
+  limit: (n: number) => Q<T>; range: (from: number, to: number) => Q<T>; maybeSingle: () => Res<T>;
 };
 const sb = supabase as unknown as {
   from: <T = unknown>(t: string) => Q<T>;
@@ -179,4 +180,75 @@ export async function pickingModelYear(pickingId: string): Promise<string | null
   if (!vehicleId) return null;
   const { data: v } = await sb.from<{ ducati_model_year_id: string | null }>('vehicles').select('ducati_model_year_id').eq('id', vehicleId).maybeSingle();
   return (v as { ducati_model_year_id: string | null } | null)?.ducati_model_year_id ?? null;
+}
+
+// ------------------------------------------------------------------ operation du parcours (ATE-05, 26/11)
+/**
+ * Ce qu'il faut pour cibler les pieces d'une operation sur les dessins du modele-annee (regle pure
+ * `operationTargets`, operation-parts.ts) : dessins dans l'ordre du catalogue, leurs lignes, les
+ * regles de recherche des kits, et le kit de la moto (kits actifs de la societe pour ce
+ * modele-annee). Lu une fois par modele-annee (meme cle de cache pour toutes les operations).
+ */
+export async function modelYearPartsIndex(companyId: string, modelYearId: string): Promise<OperationPartsIndex> {
+  const { data: myd, error } = await sb.from<{ drawing_id: string; group_sort: number | null; sort: number | null }[]>('ducati_catalog_model_year_drawings')
+    .select('drawing_id, group_sort, sort').eq('model_year_id', modelYearId).order('group_sort').order('sort');
+  if (error) throw new Error(error.message);
+  const order = (myd ?? []) as { drawing_id: string; group_sort: number | null; sort: number | null }[];
+  const ids = [...new Set(order.map((r) => r.drawing_id))];
+  const desc = new Map<string, { code: string | null; description: string | null }>();
+  const lines: MyDrawingLine[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { data: ds, error: e1 } = await sb.from<{ id: string; code: string | null; description: string | null }[]>('ducati_catalog_drawings')
+      .select('id, code, description').in('id', chunk);
+    if (e1) throw new Error(e1.message);
+    for (const d of (ds ?? []) as { id: string; code: string | null; description: string | null }[]) desc.set(d.id, { code: d.code, description: d.description });
+    for (let from = 0; ; from += 1000) {
+      const { data: ls, error: e2 } = await sb.from<MyDrawingLine[]>('ducati_catalog_drawing_lines')
+        .select('drawing_id, line_no, position, reference, reference_norm, description, replaced_part')
+        .in('drawing_id', chunk).order('drawing_id').order('line_no').range(from, from + 999);
+      if (e2) throw new Error(e2.message);
+      const rows = (ls ?? []) as MyDrawingLine[];
+      lines.push(...rows);
+      if (rows.length < 1000) break;
+    }
+  }
+  const drawings: MyDrawing[] = order.map((o) => ({ ...o, code: desc.get(o.drawing_id)?.code ?? null, description: desc.get(o.drawing_id)?.description ?? null }));
+
+  const { data: rs } = await sb.from<CatalogRule[]>('maintenance_part_catalog_rules')
+    .select('family_code, include_re, exclude_re, drawing_re, drawing_exclude_re');
+  const rules = ((rs ?? []) as CatalogRule[]);
+
+  // Kit de la moto : kits actifs de la societe relies a ce modele-annee.
+  const kit: KitFamilyItem[] = [];
+  const { data: kmy } = await sb.from<{ kit_id: string }[]>('maintenance_kit_model_years').select('kit_id').eq('model_year_id', modelYearId);
+  const kitIds = [...new Set(((kmy ?? []) as { kit_id: string }[]).map((k) => k.kit_id))];
+  if (kitIds.length) {
+    const { data: ks } = await sb.from<{ id: string }[]>('maintenance_kits').select('id').in('id', kitIds).eq('company_id', companyId).eq('status', 'actif');
+    const active = ((ks ?? []) as { id: string }[]).map((k) => k.id);
+    if (active.length) {
+      type KI = { family_code: string | null; reference: string | null; catalog_refs: string[] | null; article_id: string | null; designation: string | null; kind: string | null };
+      const { data: items } = await sb.from<KI[]>('maintenance_kit_items')
+        .select('family_code, reference, catalog_refs, article_id, designation, kind').in('kit_id', active).not('family_code', 'is', null);
+      const rows = ((items ?? []) as KI[]).filter((i) => i.kind !== 'forfait');
+      const aIds = [...new Set(rows.map((r) => r.article_id).filter((x): x is string => !!x))];
+      const aRef = new Map<string, string>();
+      if (aIds.length) {
+        const { data: as } = await sb.from<{ id: string; reference: string }[]>('articles').select('id, reference').in('id', aIds);
+        for (const a of (as ?? []) as { id: string; reference: string }[]) aRef.set(a.id, a.reference);
+      }
+      for (const r of rows) {
+        kit.push({ family_code: r.family_code, designation: r.designation, references: [r.reference, ...(r.catalog_refs ?? []), r.article_id ? aRef.get(r.article_id) : null] });
+      }
+    }
+  }
+  return { drawings, lines, rules, kit };
+}
+
+/** Lignes de l'OR reliees a l'operation → references a chercher (article, references Ducati liees, anciennes references). */
+export async function opLinesRefs(lines: readonly { family_code: string; article_id: string | null; designation: string }[]): Promise<OpLineRefs[]> {
+  const ids = [...new Set(lines.map((l) => l.article_id).filter((x): x is string => !!x))];
+  const refs = new Map<string, string[]>();
+  await Promise.all(ids.map(async (id) => { refs.set(id, await articleCatalogRefs(id).catch(() => [])); }));
+  return lines.filter((l) => l.article_id).map((l) => ({ family_code: l.family_code, designation: l.designation, references: refs.get(l.article_id as string) ?? [] }));
 }

@@ -9,6 +9,9 @@
  *  - ouverte depuis l'OR : navigation par groupe du catalogue ;
  *  - un repère montre référence, désignation, stock, prix, statut (remplacée, fin de série) et
  *    « Ajouter à l'OR » (fonction de prix des lignes d'OR) / « Réserver » (réservation atelier).
+ *  - ouverte depuis une opération du parcours (`targets`, ATE-05 du 26/11) : les pièces de
+ *    l'opération sont déjà situées (dessin + repère) ; la première s'ouvre zoomée, les autres se
+ *    choisissent en haut de la fenêtre.
  * Images : liens vers e-catalog.ducati.com (publics, rien n'est copié) ; sans image, la liste
  * des repères et « Ouvrir chez Ducati ».
  * Pensée tablette : grands boutons (44-48 px), fenêtre presque plein écran.
@@ -38,6 +41,7 @@ import {
   type ActionContext, type CatalogOrLine, type OrLineReservedDetail, type ReserveLineResult,
 } from './rules';
 import { useOrLinePricer } from './or-pricer';
+import type { OperationTarget } from './operation-parts';
 
 /** Pièce à retrouver : par sa référence, ou par l'article du DMS (ligne d'OR). */
 export type ExplodedTarget = { reference?: string | null; articleId?: string | null } | null;
@@ -56,25 +60,30 @@ export type ExplodedViewsProps = {
   /** Fonction de prix des lignes d'OR (tarif du client / de l'assureur) et arrondi de la société. */
   pricer?: OrLinePricer | null;
   effectiveHt?: (ht: number, vat: number) => number;
+  /** Pièces d'une opération déjà situées (dessin + repère) : la première s'ouvre, zoomée. */
+  targets?: readonly OperationTarget[] | null;
 };
 
 export function ExplodedViewsDialog(p: ExplodedViewsProps) {
   const { companyId, modelYearId, target, onClose } = p;
-  const [drawing, setDrawing] = useState<{ id: string; pos: string | null; ref: string | null } | null>(null);
+  const opTargets = p.targets?.length ? p.targets : null;
+  const [drawing, setDrawing] = useState<{ id: string; pos: string | null; ref: string | null } | null>(
+    opTargets ? { id: opTargets[0].drawingId, pos: opTargets[0].position, ref: opTargets[0].reference } : null,
+  );
 
   const info = useQuery({ queryKey: ['exploded', 'my-info', modelYearId], queryFn: () => getModelYearInfo(modelYearId as string), enabled: !!modelYearId, staleTime: 3_600_000 });
   // Ligne d'OR : la référence vient de l'article du DMS (sa référence, puis la référence Ducati reliée).
   const refs = useQuery({
     queryKey: ['exploded', 'article-refs', target?.articleId], queryFn: () => articleCatalogRefs(target!.articleId as string),
-    enabled: !!target?.articleId && !target?.reference, staleTime: 300_000,
+    enabled: !opTargets && !!target?.articleId && !target?.reference, staleTime: 300_000,
   });
-  const wanted = target?.reference ? [target.reference] : (refs.data ?? []);
+  const wanted = opTargets ? [] : target?.reference ? [target.reference] : (refs.data ?? []);
   const located = useQuery({
     queryKey: ['exploded', 'locate', modelYearId, wanted.join('|')],
     queryFn: () => locateFirst(modelYearId as string, wanted),
     enabled: !!modelYearId && wanted.length > 0, staleTime: 300_000,
   });
-  const reference = located.data?.reference ?? wanted[0] ?? null;
+  const reference = opTargets ? (drawing?.ref ?? null) : (located.data?.reference ?? wanted[0] ?? null);
   const locations = located.data?.locations;
   // Pièce trouvée : sa première vue s'ouvre, le repère en évidence.
   useEffect(() => {
@@ -85,7 +94,7 @@ export function ExplodedViewsDialog(p: ExplodedViewsProps) {
   const title = info.data?.model
     ? fillVars(t('exploded.title'), { model: [info.data.model, info.data.year ?? info.data.code ?? ''].filter(Boolean).join(' ') })
     : t('exploded.button');
-  const searching = (!!target?.articleId && refs.isLoading) || (wanted.length > 0 && located.isLoading);
+  const searching = (!opTargets && !!target?.articleId && refs.isLoading) || (wanted.length > 0 && located.isLoading);
   const notFound = !!reference && located.isSuccess && !locations?.length;
   const others = (locations ?? []).filter((l) => l.drawingId !== drawing?.id);
 
@@ -109,7 +118,21 @@ export function ExplodedViewsDialog(p: ExplodedViewsProps) {
                   <Link to="/parts/catalog" search={{ ref: reference ?? '' }} target="_blank" className="font-semibold hover:underline">{t('exploded.notFoundAll')}</Link>
                 </div>
               )}
-              {drawing && others.length > 0 && (
+              {opTargets && opTargets.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground" role="group" aria-label={t('myWorkshop.opExplodedParts')}>
+                  <span>{t('myWorkshop.opExplodedParts')}</span>
+                  {opTargets.map((o) => {
+                    const on = drawing?.id === o.drawingId && drawing?.pos === o.position;
+                    return (
+                      <Button key={`${o.drawingId}|${o.position ?? ''}`} variant={on ? 'default' : 'outline'} className="h-11 whitespace-normal text-left" aria-pressed={on}
+                        onClick={() => setDrawing({ id: o.drawingId, pos: o.position, ref: o.reference })}>
+                        {o.position ? fillVars(t('myWorkshop.opExplodedPart'), { name: o.designation, pos: o.position }) : o.designation}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+              {!opTargets && drawing && others.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
                   <span>{t('exploded.alsoIn')}</span>
                   {others.map((o) => (

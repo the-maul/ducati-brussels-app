@@ -688,6 +688,17 @@ essai à blanc `supabase/tests/m8_dossier_atelier.sql`, règle testée dans `tes
   Réseau coupé : la photo attend sur la tablette et repart à la prochaine ouverture.
 - **Vue éclatée** : s'ouvre zoomée et centrée sur la pièce, entourée (`focusTransform`, zones `hotspots`) ; « Voir toute
   la planche » ; sans zone connue, la planche entière et une phrase qui le dit.
+- **Correctif 26/11 (ATE-05) — « Voir sur la vue éclatée » d'une opération** : ouvrait la liste de tous les dessins
+  (Monster 1100 S 2009 de Simon, OR-2026-00003) car seules les lignes de l'OR reliées par
+  `repair_order_operations_lines` comptaient (jointure sur l'article FINAL du kit : la ligne 44440035A ne répondait pas
+  au 44440031C ; pas de ligne pour les courroies). Règle pure `exploded/operation-parts.ts` (`operationTargets`, tests
+  `tests/atelier-vue-eclatee-operation.test.ts`) : familles de l'opération → lignes de l'OR reliées, puis kit de la moto
+  (kits actifs du modèle-année), puis règles de recherche des kits (`maintenance_part_catalog_rules`) sur CE
+  modèle-année ; seule une référence présente sur un dessin du modèle-année compte. Le premier dessin s'ouvre zoomé sur
+  le repère, les autres pièces se choisissent en haut de la fenêtre. **Décision de Simon : « si y a pas de vues y a pas
+  de bouton »** — contrôle, lecture DDS, liquide ou pièce introuvable : aucun bouton. Monster 1100 S : vidange → 009
+  « Pompe à huile - filtre » repère 20 (44440035A) ; courroies → 008 « Courroie distribution » repère 19 (73740211A).
+  Sans migration (lectures sous RLS existantes).
 - **Mon atelier** ne fait plus que lister : chaque carte ouvre le dossier à la bonne étape (Démarrer, photos et parcours
   sont dans le dossier). Le planning, la liste des OR et le nouvel OR mènent au dossier.
 - **Emplacement C2** : `dossier/labels-link.tsx` (lien des étiquettes de destination, vide tant que C2 n'est pas livré).
