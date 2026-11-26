@@ -15,6 +15,7 @@ import { checkDcsPayload, dcsCompanyCheck, type DcsRefusal } from '@/lib/dcs-rul
 
 const REFUSAL_KEY: Record<DcsRefusal, Parameters<typeof t>[0]> = {
   old_extension: 'dossier.dcsRefusedOldExtension',
+  not_connected: 'dossier.dcsRefusedNotConnected',
   no_vin: 'dossier.dcsRefusedNoVin',
   vin_mismatch: 'dossier.dcsRefusedVin',
   bad_read: 'dossier.dcsRefusedRead',
@@ -28,9 +29,9 @@ export function MyDucatiListener() {
   const qc = useQueryClient();
   useEffect(() => { setDcsActiveCompany(activeCompanyId); }, [activeCompanyId]);
   useEffect(() => {
-    const runImport = async (companyId: string, payload: MyDucatiPayload) => {
+    const runImport = async (companyId: string, payload: MyDucatiPayload, vehicleId: string | null = null) => {
       try {
-        const r = await applyMyDucatiData(companyId, payload);
+        const r = await applyMyDucatiData(companyId, payload, vehicleId);
         if (r.refused) { toast.error(t(REFUSAL_KEY[r.refused])); return; }
         if (!r.matched) { toast.error(t('dossier.dcsNotFound').replace('{vin}', String(payload.read_vin ?? payload.vin ?? ''))); return; }
         const n = r.counts ?? { confirmed: 0, replaced: 0, filled: 0, conflicts: 0 };
@@ -70,9 +71,9 @@ export function MyDucatiListener() {
       const payload = d.payload;
       const refusal = checkDcsPayload(payload);
       const vin = String(payload.requested_vin ?? payload.read_vin ?? payload.vin ?? '');
-      const requestedCompany = takeDcsRequest(vin);
+      const request = takeDcsRequest(vin);
       if (refusal) { dcsFinish(vin); toast.error(t(REFUSAL_KEY[refusal])); return; }
-      const company = dcsCompanyCheck(requestedCompany, activeCompanyId);
+      const company = dcsCompanyCheck(request?.companyId, activeCompanyId);
       if (company === 'mismatch') { dcsFinish(vin); toast.error(t(REFUSAL_KEY.company_mismatch)); return; }
       if (company === 'confirm') {
         // Import lancé depuis le portail : c'est l'utilisateur qui confirme la société.
@@ -84,7 +85,7 @@ export function MyDucatiListener() {
         return;
       }
       // Le chargement reste affiché jusqu'à ce que la fiche soit réellement enregistrée.
-      try { await runImport(activeCompanyId, payload); } finally { dcsFinish(vin); }
+      try { await runImport(activeCompanyId, payload, request?.vehicleId ?? null); } finally { dcsFinish(vin); }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);

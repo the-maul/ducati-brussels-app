@@ -3,7 +3,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import {
-  buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, dcsCompanyCheck, matchDcsModel, normalizeEngine,
+  buildDcsContactPatch, checkDcsPayload, pickDcsVehicle, cleanDcsEvents, dcsCompanyCheck, matchDcsModel, normalizeEngine,
   normalizePlate, parseDcsDate, parseDcsKm, planDcsImport, sameColor, type DcsEventRow, type DcsModelCandidate,
   type DcsModelMatch, type DcsPayloadV2,
 } from '../src/lib/dcs-rules';
@@ -152,6 +152,7 @@ describe('garde-fous', () => {
     expect(checkDcsPayload({ ...payload(), read_vin: null })).toBe('no_vin');
     expect(checkDcsPayload({ ...payload(), issues: ['label_as_value:ducati_state'] })).toBe('bad_read');
     expect(checkDcsPayload(payload())).toBeNull();
+    expect(checkDcsPayload({ ...payload(), read_vin: null, read_error: 'not_connected' })).toBe('not_connected');
   });
 
   test('société : celle de la demande, sinon confirmation', () => {
@@ -182,5 +183,18 @@ describe('garde-fous', () => {
     const rows = cleanDcsEvents([base, { ...base, kind: 'past', state: 'Fait', event_date: '2026-01-01', due_date: null }, { ...base, ducati_event_id: '-' }]);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ kind: 'past', state: 'Fait' });
+  });
+});
+
+describe('fiche qui recoit la lecture DCS', () => {
+  const a = { id: 'a' }; const b = { id: 'b' };
+  test('une seule fiche : celle-la ; aucune : rien', () => {
+    expect(pickDcsVehicle([a], null)).toBe(a);
+    expect(pickDcsVehicle([], 'a')).toBeNull();
+  });
+  test('meme VIN sur deux fiches : celle d ou part la demande, sinon refus', () => {
+    expect(pickDcsVehicle([a, b], 'b')).toBe(b);
+    expect(pickDcsVehicle([a, b], null)).toBe('duplicate');
+    expect(pickDcsVehicle([a, b], 'z')).toBe('duplicate');
   });
 });

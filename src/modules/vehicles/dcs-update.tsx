@@ -13,9 +13,10 @@ import { normalizeVin } from '@/lib/vin';
 
 export const canAskDcs = (vin: string | null | undefined) => normalizeVin(vin ?? '').length === 17;
 
-export async function launchDcsUpdate(vin: string | null | undefined, auto = false): Promise<boolean> {
+export async function launchDcsUpdate(vin: string | null | undefined, auto = false, vehicleId: string | null = null): Promise<boolean> {
   if (!canAskDcs(vin)) return false;
-  const ok = await requestMyDucati(normalizeVin(vin as string));
+  // La fiche d'où part la demande reçoit la lecture, même si une autre fiche porte le même VIN.
+  const ok = await requestMyDucati(normalizeVin(vin as string), vehicleId);
   // Lancée : le chargement s'affiche sur la page. À la création, la moto est bien enregistrée :
   // l'extension absente n'est pas une erreur.
   if (!ok && auto) toast.info(t('vehicles.ducatiExtMissing'));
@@ -23,8 +24,10 @@ export async function launchDcsUpdate(vin: string | null | undefined, auto = fal
   return ok;
 }
 
-export function DcsUpdateButton({ vin, syncedAt = null, size = 'default' }: {
+export function DcsUpdateButton({ vin, vehicleId = null, syncedAt = null, size = 'default' }: {
   vin: string | null | undefined;
+  /** Fiche qui reçoit la lecture. */
+  vehicleId?: string | null;
   /** Dernière lecture DCS enregistrée sur la fiche. */
   syncedAt?: string | null;
   size?: 'default' | 'sm';
@@ -36,7 +39,7 @@ export function DcsUpdateButton({ vin, syncedAt = null, size = 'default' }: {
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Button type="button" variant="outline" size={size} disabled={busy} title={t('vehicles.ducatiUpdateHint')}
-        onClick={() => { setAsking(true); void launchDcsUpdate(vin).finally(() => setAsking(false)); }}>
+        onClick={() => { setAsking(true); void launchDcsUpdate(vin, false, vehicleId).finally(() => setAsking(false)); }}>
         {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('vehicles.ducatiUpdate')}
       </Button>
       <span role="status" className={`inline-flex items-center gap-1 text-[12px] font-medium ${busy ? 'text-info' : syncedAt ? 'text-success' : 'text-muted-foreground'}`}>

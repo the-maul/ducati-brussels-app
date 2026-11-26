@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dcsStart } from '@/lib/dcs-progress';
 import {
   buildDcsClientSnapshot, buildDcsContactPatch, checkDcsPayload, cleanDcsEvents, matchDcsModel, parseDcsDate, planDcsImport,
-  type DcsCounts, type DcsDecisions, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal,
+  type DcsCounts, type DcsDecisions, type DcsModelCandidate, type DcsOwnerCheck, type DcsPayloadV2, type DcsRefusal, pickDcsVehicle,
 } from '@/lib/dcs-rules';
 
 export type MyDucatiPayload = DcsPayloadV2 & {
@@ -40,16 +40,16 @@ async function loadDcsDecisions(vehicleId: string): Promise<DcsDecisions> {
 
 /** Société active au moment de la demande : l'import n'est appliqué que sur celle-ci. */
 const DCS_REQUEST_TTL_MS = 10 * 60 * 1000;
-const dcsRequests = new Map<string, { companyId: string | null; at: number }>();
+const dcsRequests = new Map<string, { companyId: string | null; vehicleId: string | null; at: number }>();
 let dcsActiveCompany: string | null = null;
 export const setDcsActiveCompany = (id: string | null) => { dcsActiveCompany = id; };
 
-/** Société de la demande en cours pour ce VIN (consommée) ; null = pas de demande connue. */
-export function takeDcsRequest(vin: string): string | null {
+/** Demande en cours pour ce VIN (consommée) : société et fiche d'où elle part ; null = pas de demande connue. */
+export function takeDcsRequest(vin: string): { companyId: string | null; vehicleId: string | null } | null {
   const key = vin.toUpperCase();
   const r = dcsRequests.get(key);
   dcsRequests.delete(key);
-  return r && Date.now() - r.at <= DCS_REQUEST_TTL_MS ? r.companyId : null;
+  return r && Date.now() - r.at <= DCS_REQUEST_TTL_MS ? { companyId: r.companyId, vehicleId: r.vehicleId } : null;
 }
 
 /**
@@ -97,11 +97,11 @@ const base64ToBytes = (b64: string): Uint8Array => {
  * Renvoie true si l'extension a accusé réception (donc installée + active), false sinon (timeout).
  * Les données arrivent ensuite via l'écouteur global (MyDucatiListener).
  */
-export function requestMyDucati(vin: string): Promise<boolean> {
+export function requestMyDucati(vin: string, vehicleId: string | null = null): Promise<boolean> {
   return new Promise((resolve) => {
     if (!vin) { resolve(false); return; }
     const requestKey = vin.toUpperCase();
-    dcsRequests.set(requestKey, { companyId: dcsActiveCompany, at: Date.now() });
+    dcsRequests.set(requestKey, { companyId: dcsActiveCompany, vehicleId, at: Date.now() });
     let done = false;
     const onMsg = (ev: MessageEvent) => {
       const d = ev.data as { source?: string; action?: string } | null;
@@ -148,17 +148,18 @@ const VEHICLE_COLUMNS = 'id, vin, model, ducati_model_year_id, engine_number, pl
  * Applique un import DCS : contrôles, décision champ par champ (dcs-rules), puis écriture en une
  * seule transaction (dcs_import_commit). Toute erreur remonte : pas de message de succès trompeur.
  */
-export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload): Promise<ApplyResult> {
+export async function applyMyDucatiData(companyId: string, p: MyDucatiPayload, requestedVehicleId: string | null = null): Promise<ApplyResult> {
   const refused = checkDcsPayload(p);
   if (refused) return { matched: false, refused };
   const vin = String(p.read_vin).toUpperCase();
 
   const { data: found, error: findError } = await supabase.from('vehicles').select(VEHICLE_COLUMNS)
-    .eq('company_id', companyId).eq('vin', vin).limit(2);
+    .eq('company_id', companyId).eq('vin', vin).limit(20);
   if (findError) throw findError;
-  if (!found?.length) return { matched: false };
-  if (found.length > 1) return { matched: false, refused: 'duplicate_vin' };
-  const current = found[0] as unknown as Record<string, unknown>;
+  const target = pickDcsVehicle((found ?? []) as unknown as Array<{ id: string }>, requestedVehicleId);
+  if (!target) return { matched: false };
+  if (target === 'duplicate') return { matched: false, refused: 'duplicate_vin' };
+  const current = target as unknown as Record<string, unknown>;
   const vehicleId = current.id as string;
 
   // Versions possibles de ce VIN : le titre DCS départage, jamais de choix au hasard.

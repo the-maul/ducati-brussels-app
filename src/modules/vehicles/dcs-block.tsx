@@ -166,7 +166,7 @@ export function DcsBlock({ vehicle, companyId, owners, onOpenHistory }: {
       <section aria-label={t('dossier.dcsBlockTitle')} className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]">
         <h2 className="font-ui text-[15px] font-bold">{t('dossier.dcsBlockTitle')}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">{t(canAskDcs(vehicle.vin) ? 'dossier.dcsBlockEmpty' : 'dossier.dcsBlockEmptyNoVin')}</p>
-        <div className="mt-3"><DcsUpdateButton vin={vehicle.vin} syncedAt={null} size="sm" /></div>
+        <div className="mt-3"><DcsUpdateButton vin={vehicle.vin} vehicleId={vehicle.id} syncedAt={null} size="sm" /></div>
       </section>
     );
   }
@@ -368,7 +368,7 @@ function ClientActions({ companyId, vehicleId, vin, syncedAt, hasClient, ownerNa
     return (
       <div className="space-y-2 py-1.5">
         <p className="text-[12px] text-muted-foreground">{t('dossier.dcsBlockClientNone')}</p>
-        <DcsUpdateButton vin={vin} syncedAt={syncedAt} size="sm" />
+        <DcsUpdateButton vin={vin} vehicleId={vehicleId} syncedAt={syncedAt} size="sm" />
         {ownerStatus?.status === 'conflit' && (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onKeep}>
             {busy ? <Loader2 className="animate-spin" /> : null} {t('dossier.dcsBlockKeep')}

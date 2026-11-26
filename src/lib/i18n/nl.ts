@@ -3717,6 +3717,7 @@ export const nl: DictionaryShape = {
     offerBest: 'Beste bod',
     colOffers: 'Biedingen',
     dispatchSubject: 'Over te nemen motor — {title}',
+    vinAlreadyInDms: 'VIN {vin} is al in de winkel ({status}): open de fiche, er is geen overname aangemaakt.',
     dispatchBody: 'Beste,\n\nWij bieden ter overname aan:\n\n{details}\n\nGelieve ons uw beste bod te bezorgen als antwoord op deze mail.\n\n{company}',
     migrationBanner: 'Tabellen handelaars/biedingen niet geïnstalleerd in de database — gebruik "SQL kopiëren" op het scherm Tariefimport of vraag het aan de beheerder.',
     // reprise form

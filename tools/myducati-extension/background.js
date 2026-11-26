@@ -80,6 +80,22 @@ function relayMyDucati(payload, sender, sendResponse) {
   broadcastToDms('myducati-data', payload, sendResponse);
 }
 
+/* Sign-in page instead of the bike: nobody is connected to the DCS in this Chrome. The DMS is told
+ * at once (instead of waiting two minutes) and the DCS tab comes to the front to sign in. */
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  const job = jobs[tabId];
+  const url = info.url || (tab && tab.url) || '';
+  if (!job || !url || !DcsNightCore.isDcsLoginUrl(url)) return;
+  delete jobs[tabId];
+  const wanted = String(job.vin || '').toUpperCase();
+  if (job.dmsTabId) {
+    chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload: {
+      format: 2, vin: wanted, read_vin: null, requested_vin: wanted, read_error: 'not_connected', issues: [],
+    } });
+  }
+  try { chrome.tabs.update(tabId, { active: true }); } catch (_) {}
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
 

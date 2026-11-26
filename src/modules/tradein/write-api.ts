@@ -5,6 +5,8 @@
  * coût de revient du véhicule (recompute_oro_and_vehicle).
  */
 import { supabase } from '@/integrations/supabase/client';
+import { t } from '@/lib/i18n';
+import { repriseFillPatch, repriseVehicleChoice } from './reprise-vehicle-rules';
 
 async function nextNumber(companyId: string, docType: string): Promise<string> {
   const { data, error } = await supabase.rpc('next_document_number', { _company: companyId, _doc_type: docType });
@@ -41,26 +43,65 @@ export type RepriseInput = {
  *  ⚠️ PAS d'article ni d'entrée en stock à ce stade : le véhicule n'entre en
  *  stock qu'à la VALIDATION de la reprise (validate-api.validateReprise). */
 export async function createReprise(p: RepriseInput): Promise<{ vehicleId: string; oroId: string; occNumber: string }> {
-  const occNumber = await nextNumber(p.companyId, 'REP');
   const reprisePrice = p.reprisePrice ?? 0;
 
-  // 1) Fiche véhicule (jointure B9) — statut « Demande de reprise » (repris)
-  const { data: veh, error: ve } = await supabase.from('vehicles').insert({
-    company_id: p.companyId, vin: p.vin ?? null, brand: p.brand ?? null,
-    model: p.model ?? p.designation, engine_number: p.engineNumber ?? null, color: p.color ?? null,
+  // 1) Fiche véhicule (jointure B9) — statut « Demande de reprise » (repris).
+  // Un VIN = une fiche (Simon, 26/11/2026) : une moto déjà connue garde sa fiche et son historique.
+  const identity = {
+    brand: p.brand ?? null, model: p.model ?? p.designation, engine_number: p.engineNumber ?? null, color: p.color ?? null,
     mileage: p.mileage ?? null, first_registration_date: p.firstRegistrationDate ?? null,
     model_year: p.modelYear ?? null, power_kw: p.powerKw ?? null, power_cv: p.powerCv ?? null,
     displacement: p.displacement ?? null, cylinders: p.cylinders ?? null, energy: p.energy ?? null,
-    notes: p.notes ?? null,
-    purchase_price: reprisePrice, cost_price: reprisePrice, display_price: p.resalePriceTtc ?? null,
-    status: 'repris',
-  }).select('id').single();
-  if (ve) throw ve;
-  const vehicleId = veh.id as string;
+  };
+  const prices = { purchase_price: reprisePrice, cost_price: reprisePrice, display_price: p.resalePriceTtc ?? null };
+  const vin = (p.vin ?? '').replace(/\s+/g, '').toUpperCase() || null;
+  let vehicleId: string | null = null;
+  let reused = false;
+  if (vin) {
+    const { data: known, error: ke } = await supabase.from('vehicles')
+      .select('id, status, created_at, notes, ' + Object.keys(identity).join(', '))
+      .eq('company_id', p.companyId).eq('vin', vin).limit(20);
+    if (ke) throw ke;
+    const rows = (known ?? []) as unknown as Array<Record<string, unknown> & { id: string; status: string | null; created_at: string | null }>;
+    const openIds = new Set<string>();
+    if (rows.length) {
+      const { data: dossiers, error: de } = await supabase.from('oro').select('vehicle_id, tradein_status')
+        .in('vehicle_id', rows.map((r) => r.id));
+      if (de) throw de;
+      for (const d of (dossiers ?? []) as unknown as Array<{ vehicle_id: string | null; tradein_status: string | null }>) {
+        // Sans statut en base = demande encore en cours (statut déduit à l'écran).
+        if (d.vehicle_id && ['', 'ouvert', 'collecte', 'envoye', 'accepte'].includes(d.tradein_status ?? '')) openIds.add(d.vehicle_id);
+      }
+    }
+    const choice = repriseVehicleChoice(rows.map((r) => ({ id: r.id, status: r.status, created_at: r.created_at, openReprise: r.status === 'repris' && openIds.has(r.id) })));
+    if (choice.kind === 'refuse') {
+      throw new Error(t('tradein.vinAlreadyInDms').replace('{vin}', vin).replace('{status}', t(`vehicles.status_${choice.status}` as never) || choice.status));
+    }
+    if (choice.kind === 'reuse') {
+      const current = rows.find((r) => r.id === choice.id)!;
+      const notes = [current.notes, p.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n') || null;
+      const { error: ue } = await supabase.from('vehicles')
+        .update({ ...repriseFillPatch(current, identity), ...prices, notes, status: 'repris' }).eq('id', choice.id);
+      if (ue) throw ue;
+      vehicleId = choice.id;
+      reused = true;
+    }
+  }
+  if (!vehicleId) {
+    const { data: veh, error: ve } = await supabase.from('vehicles').insert({
+      company_id: p.companyId, vin, ...identity, notes: p.notes ?? null, ...prices, status: 'repris',
+    }).select('id').single();
+    if (ve) throw ve;
+    vehicleId = veh.id as string;
+  }
 
   // 1b) Lien vendeur (propriétaire précédent) — pour recontacter le client.
-  // Non bloquant : ne pas orpheliner une reprise si le lien échoue.
-  if (p.contactId) {
+  // Non bloquant : ne pas orpheliner une reprise si le lien échoue. Une fiche reprise qui
+  // connaît déjà ce client ne reçoit pas une seconde ligne de propriétaire.
+  const ownerKnown = reused && p.contactId
+    ? ((await supabase.from('vehicle_owners').select('id').eq('vehicle_id', vehicleId).eq('contact_id', p.contactId).limit(1)).data?.length ?? 0) > 0
+    : false;
+  if (p.contactId && !ownerKnown) {
     await supabase.from('vehicle_owners').insert({
       vehicle_id: vehicleId, contact_id: p.contactId,
       from_date: p.firstRegistrationDate ?? new Date().toISOString().slice(0, 10),
@@ -69,6 +110,8 @@ export async function createReprise(p: RepriseInput): Promise<{ vehicleId: strin
   }
 
   // 2) Ouverture du dossier de reprise — la référence REP sert d'appel d'offres
+  // Numéro pris seulement maintenant : une reprise refusée ne laisse pas de trou dans la série REP.
+  const occNumber = await nextNumber(p.companyId, 'REP');
   const { data: oro, error: oe } = await supabase.from('oro').insert({
     company_id: p.companyId, number: occNumber, vehicle_id: vehicleId, status: 'ouvert',
   }).select('id').single();

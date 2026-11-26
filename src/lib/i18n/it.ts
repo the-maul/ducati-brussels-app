@@ -3717,6 +3717,7 @@ export const it: DictionaryShape = {
     offerBest: 'Migliore offerta',
     colOffers: 'Offerte',
     dispatchSubject: 'Moto da permutare — {title}',
+    vinAlreadyInDms: 'Il VIN {vin} è già in negozio ({status}): aprire la sua scheda, nessuna permuta è stata creata.',
     dispatchBody: 'Buongiorno,\n\nProponiamo in permuta:\n\n{details}\n\nVi preghiamo di inviarci la vostra migliore offerta in risposta a questa e-mail.\n\n{company}',
     migrationBanner: 'Tabelle rivenditori/offerte non installate nel database — usate "Copia SQL" nella schermata Importazione listino o chiedete all\'amministratore.',
     // reprise form

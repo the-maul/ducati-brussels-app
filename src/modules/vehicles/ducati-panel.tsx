@@ -48,7 +48,7 @@ export function DucatiInfoPanel({ vehicle }: { vehicle: Vehicle }) {
   // Demande à l'extension d'ouvrir l'URL VIN sur My Ducati, scraper et réimporter (par VIN).
   const requestUpdate = async () => {
     if (!vehicle.vin) return;
-    const ok = await requestMyDucati(vehicle.vin);
+    const ok = await requestMyDucati(vehicle.vin, vehicle.id);
     if (!ok) toast.error(t('vehicles.ducatiExtMissing'));
   };
 

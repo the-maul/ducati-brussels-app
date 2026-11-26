@@ -3717,6 +3717,7 @@ export const en: DictionaryShape = {
     offerBest: 'Best offer',
     colOffers: 'Offers',
     dispatchSubject: 'Bike for trade-in — {title}',
+    vinAlreadyInDms: 'VIN {vin} is already in the shop ({status}): open its record, no trade-in was created.',
     dispatchBody: 'Hello,\n\nWe are offering the following for trade-in:\n\n{details}\n\nPlease send us your best offer by replying to this e-mail.\n\n{company}',
     migrationBanner: 'Dealer/offer tables not installed in the database — use "Copy the SQL" on the Price list import screen or ask the administrator.',
     // reprise form

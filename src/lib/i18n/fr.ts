@@ -3732,6 +3732,7 @@ export const fr = {
     offerBest: 'Meilleure offre',
     colOffers: 'Offres',
     dispatchSubject: 'Moto à reprendre — {title}',
+    vinAlreadyInDms: 'Le VIN {vin} est déjà au magasin ({status}) : ouvrez sa fiche, aucune reprise n\'a été créée.',
     dispatchBody: 'Bonjour,\n\nNous proposons à la reprise :\n\n{details}\n\nMerci de nous faire parvenir votre meilleure offre en réponse à ce mail.\n\n{company}',
     migrationBanner: 'Tables marchands/offres non installées en base — utilisez « Copier le SQL » sur l’écran Import tarif ou demandez à l’administrateur.',
     // reprise form

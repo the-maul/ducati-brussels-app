@@ -14,7 +14,7 @@ export const DCS_PAYLOAD_FORMAT = 2;
 
 export type DcsFieldStatus = 'certifie' | 'carte_grise' | 'catalogue' | 'saisi' | 'conflit';
 export type DcsRefusal =
-  | 'old_extension' | 'no_vin' | 'vin_mismatch' | 'bad_read' | 'not_loaded' | 'company_mismatch' | 'duplicate_vin';
+  | 'old_extension' | 'not_connected' | 'no_vin' | 'vin_mismatch' | 'bad_read' | 'not_loaded' | 'company_mismatch' | 'duplicate_vin';
 
 export type DcsEventRow = {
   kind: 'upcoming' | 'current' | 'past';
@@ -175,6 +175,8 @@ export function matchDcsModel(descriptor: unknown, year: unknown, candidates: Dc
 // ---------------------------------------------------------------------------------------
 export function checkDcsPayload(p: DcsPayloadV2 | null | undefined): DcsRefusal | null {
   if (!p || p.format !== DCS_PAYLOAD_FORMAT) return 'old_extension';
+  // The portal sent the tab to its sign-in page: nobody is connected to the DCS in this Chrome.
+  if (p.read_error === 'not_connected') return 'not_connected';
   if (p.read_error === 'vin_mismatch') return 'vin_mismatch';
   if (p.read_error === 'vin_not_found' || !p.read_vin) return 'no_vin';
   if (p.read_error === 'details_not_loaded') return 'not_loaded';
@@ -184,6 +186,17 @@ export function checkDcsPayload(p: DcsPayloadV2 | null | undefined): DcsRefusal 
   if (p.vin && String(p.vin).toUpperCase() !== read) return 'vin_mismatch';
   if (p.requested_vin && String(p.requested_vin).toUpperCase() !== read) return 'vin_mismatch';
   return null;
+}
+
+/**
+ * Which record receives the DCS reading. One record: that one. Several records with the same VIN
+ * (old G8 record + trade-in record, for instance): the record the update was launched from, never
+ * a guess.
+ */
+export function pickDcsVehicle<T extends { id: string }>(found: T[], requestedVehicleId?: string | null): T | 'duplicate' | null {
+  if (found.length === 0) return null;
+  if (found.length === 1) return found[0];
+  return found.find((v) => v.id === requestedVehicleId) ?? 'duplicate';
 }
 
 /**
