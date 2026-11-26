@@ -440,10 +440,14 @@ export function SubcontactsTab({ contactId, companyId, bank = false }: { contact
   );
 }
 
-/** Fiche d'une banque, onglet « L'essentiel » : la liste des personnes de contact sous le formulaire. */
+/**
+ * Fiche d'une banque, onglet « L'essentiel » : la liste des personnes de contact, juste sous les
+ * coordonnées générales. Rendue dans le formulaire de la fiche : Entrée n'enregistre pas la fiche.
+ */
 export function BankPersonsSection({ contactId, companyId }: { contactId: string; companyId: string }) {
   return (
-    <section className="mt-6 rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]" aria-label={t('clientTabs.bankPersonsTitle')}>
+    <section className="rounded-md border border-border bg-card p-4 shadow-[var(--shadow-card)]" aria-label={t('clientTabs.bankPersonsTitle')}
+      onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault(); }}>
       <h2 className="font-ui text-[15px] font-bold text-foreground">{t('clientTabs.bankPersonsTitle')}</h2>
       <p className="mb-3 text-[12px] text-muted-foreground">{t('clientTabs.bankPersonsHint')}</p>
       <SubcontactsTab contactId={contactId} companyId={companyId} bank />

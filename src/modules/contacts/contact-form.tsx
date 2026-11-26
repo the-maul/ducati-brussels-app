@@ -15,6 +15,7 @@ import { linkedNameLock } from './linked-name';
 import { ModelInterestBadges } from './model-interest-badges';
 import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
 import { IdDocsSection } from './id-docs';
+import { BankPersonsSection } from './client-tabs';
 import { requestMyDucati } from '@/lib/myducati';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -699,6 +700,7 @@ export function ContactForm({
                 </Select>
               </Field>
             )}
+            {showPersonName && (
             <Field label={isPro ? t('contacts.civilityContact') : t('contacts.civility')}>
               {/* Civilité de la PERSONNE : M. / Mme / Mx. Une forme juridique héritée de G8
                   dans ce champ n'est pas proposée ici (voir « Forme juridique »). */}
@@ -715,6 +717,7 @@ export function ContactForm({
                 </SelectContent>
               </Select>
             </Field>
+            )}
             <Field label={t('contacts.locale')}>
               {/* I18N004 : langue des documents et e-mails adressés au client (fr par défaut). */}
               <Select value={f.locale} onValueChange={(v) => set('locale', isLocale(v) ? v : DEFAULT_LOCALE)}>
@@ -765,6 +768,9 @@ export function ContactForm({
             </Field>
           </Section>
 
+          {/* CON002 : les personnes de contact d'une banque, juste sous ses coordonnées générales. */}
+          {!showPersonName && initial?.id && <BankPersonsSection contactId={initial.id} companyId={companyId} />}
+
           {/* ── Adresse (pro ou privée selon le type) ─────────────────────── */}
           <Section title={addressTitle}>
             <div className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -795,9 +801,11 @@ export function ContactForm({
             <Field label={t('contacts.country')}>
               <Input value={f.country} onChange={(e) => set('country', e.target.value)} />
             </Field>
-            <div className="col-span-full">
-              <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
-            </div>
+            {showPersonName && (
+              <div className="col-span-full">
+                <Check label={t('contacts.addressMismatch')} checked={f.address_mismatch} onChange={(v) => set('address_mismatch', v)} />
+              </div>
+            )}
           </Section>
 
           {/* ── Mission 04, carte 1 : le reste de la fiche, replié à la création ── */}

@@ -29,3 +29,18 @@ describe('CON002 — personnes de contact', () => {
     expect(personName({ first_name: null, name: 'DUPONT' })).toBe('DUPONT');
   });
 });
+
+import { clientMainTabs, tabForContact } from '../src/modules/contacts/fiche-tabs';
+
+describe('CON002 — onglets de la fiche d’une banque', () => {
+  it('pas d’onglet Atelier pour une banque ; Relances reste', () => {
+    expect(clientMainTabs('banque_leasing')).toEqual(['essentiel', 'motos', 'documents', 'relances']);
+    expect(clientMainTabs('particulier')).toContain('atelier');
+  });
+  it('?tab=atelier sur une banque retombe sur L’essentiel', () => {
+    expect(tabForContact('atelier', 'banque_leasing')).toBe('essentiel');
+    expect(tabForContact('relances', 'banque_leasing')).toBe('relances');
+    expect(tabForContact('atelier', 'professionnel')).toBe('atelier');
+    expect(tabForContact('atelier', undefined)).toBe('atelier');
+  });
+});

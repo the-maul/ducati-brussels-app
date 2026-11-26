@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { ContactForm } from '@/modules/contacts/contact-form';
 import { ContactLabelDialog } from '@/modules/contacts/contact-label-dialog';
 import { ModelInterestBadges } from '@/modules/contacts/model-interest-badges';
-import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab, BankPersonsSection } from '@/modules/contacts/client-tabs';
+import { ParcTab, DeliveryTab, PriceRulesTab, EncoursBar, DocumentsTab, DueItemsTab, SubcontactsTab } from '@/modules/contacts/client-tabs';
 import { ClientReceivablesTab } from '@/modules/receivables/client-receivables-tab';
 import { DeferredPanel } from '@/modules/workshop/checkup/deferred';
 import { AttachmentsPanel } from '@/modules/documents/attachments-panel';
@@ -34,7 +34,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { sendAccountInvitation } from '@/modules/settings/users-api';
 import { t, pageTitle, fillVars } from '@/lib/i18n';
 import {
-  CLIENT_MAIN_TABS, CLIENT_MORE_TABS, CLIENT_TAB_LABEL, CLIENT_DEFAULT_TAB, isMoreTab, parseClientTab, type ClientTab,
+  clientMainTabs, tabForContact, CLIENT_MORE_TABS, CLIENT_TAB_LABEL, CLIENT_DEFAULT_TAB, isMoreTab, parseClientTab, type ClientTab,
 } from '@/modules/contacts/fiche-tabs';
 import { useSaveMutation } from '@/lib/use-save-mutation';
 
@@ -51,7 +51,7 @@ function EditClient() {
   const { contactId } = Route.useParams();
   const search = Route.useSearch();
   const routeNavigate = Route.useNavigate();
-  const tab: ClientTab = search.tab ?? CLIENT_DEFAULT_TAB;
+  const requestedTab: ClientTab = search.tab ?? CLIENT_DEFAULT_TAB;
   const setTab = (v: string) => {
     const next = parseClientTab(v);
     if (next) void routeNavigate({ search: (prev) => ({ ...prev, tab: next === CLIENT_DEFAULT_TAB ? undefined : next }), replace: true });
@@ -68,6 +68,8 @@ function EditClient() {
     queryKey: ['contact', contactId],
     queryFn: () => getContact(contactId),
   });
+  // CON002 : un onglet masqué pour ce type (Atelier d'une banque) retombe sur « L'essentiel ».
+  const tab = tabForContact(requestedTab, contact?.type);
 
   const { data: debtors } = useQuery({
     queryKey: ['debtors-list', activeCompanyId],
@@ -357,7 +359,7 @@ function EditClient() {
           (ancien onglet → nouvel onglet : LEGACY_CLIENT_TAB dans modules/contacts/fiche-tabs.ts). */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
-          {CLIENT_MAIN_TABS.map((v) => (
+          {clientMainTabs(contact.type).map((v) => (
             <TabsTrigger key={v} value={v}>{t(CLIENT_TAB_LABEL[v])}</TabsTrigger>
           ))}
           <DropdownMenu>
@@ -391,8 +393,6 @@ function EditClient() {
             onSubmit={(p) => { setError(null); m.mutate(p); }}
             onCancel={() => navigate({ to: '/clients' })}
           />
-          {/* CON002 : une banque / un leasing n'a pas de prénom ni de nom ; ses personnes de contact sont ici. */}
-          {contact.type === 'banque_leasing' && <BankPersonsSection contactId={contactId} companyId={activeCompanyId} />}
         </TabsContent>
         <TabsContent value="motos" className="mt-4"><ParcTab contactId={contactId} /></TabsContent>
         <TabsContent value="atelier" className="mt-4 space-y-6">

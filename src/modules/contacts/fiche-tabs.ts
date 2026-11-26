@@ -117,3 +117,19 @@ export function encoursTile(i: EncoursTileInput): EncoursTile {
     financingPending: i.financingPending > EPS ? i.financingPending : 0,
   };
 }
+
+/**
+ * CON002 (Simon, 26/11/2026) : une banque / un leasing n'a ni rendez-vous ni intervention, l'onglet
+ * « Atelier » est masqué ; « Relances » reste (la banque paie la facture de la moto).
+ */
+const HIDDEN_TABS: Record<string, readonly ClientTab[]> = { banque_leasing: ['atelier'] };
+
+export function clientMainTabs(type: string | null | undefined): ClientMainTab[] {
+  const hidden = HIDDEN_TABS[type ?? ''] ?? [];
+  return CLIENT_MAIN_TABS.filter((v) => !hidden.includes(v));
+}
+
+/** Un onglet masqué pour ce type (ex. ?tab=atelier sur une banque) retombe sur « L'essentiel ». */
+export function tabForContact(tab: ClientTab, type: string | null | undefined): ClientTab {
+  return (HIDDEN_TABS[type ?? ''] ?? []).includes(tab) ? CLIENT_DEFAULT_TAB : tab;
+}
