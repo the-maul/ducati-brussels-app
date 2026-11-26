@@ -48,6 +48,8 @@ import {
   type CgConfidence, type CgField, type CgReading, type CgScan,
 } from './carte-grise';
 import { applyCgReading } from './carte-grise-apply';
+import { PlateConflicts, PlateHistoryLine, usePlateConflicts } from './plate-history-panel';
+import { toast } from 'sonner';
 import { VinIdentifyPanel, type VinValues } from './vin-identify-panel';
 import { VinSuggestions } from './vin-suggestions';
 import { SpecSelect } from './spec-select';
@@ -382,6 +384,13 @@ export function VehicleForm({
     return () => { stop = true; };
   }, [modelYearId]);
 
+  // VEH001 : la plaque suit le motard — autres motos qui portent déjà la plaque saisie.
+  const typedPlate = cleanPlate(f.plate as string, f.plate_custom === true);
+  const plateConflicts = usePlateConflicts({
+    companyId, plate: typedPlate, vehicleId: initial?.id ?? null, contactId: client?.id ?? null,
+    enabled: !!typedPlate && typedPlate !== String(initial?.plate ?? '').trim().toUpperCase(),
+  });
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
@@ -399,6 +408,8 @@ export function VehicleForm({
       setLocalError(fillVars(t('dossier.plateInvalid'), { n: PLATE_LENGTH }));
       return;
     }
+    // VEH001 : plaque déjà sur la moto d'un autre client → avertissement, jamais bloquant.
+    if (plateChanged && (plateConflicts.data ?? []).some((c) => !c.same_rider)) toast.warning(t('dossier.plateOtherClientToast'));
     const payload = buildPayload(plateChanged ? { ...f, plate } : f, companyId);
     // Carte grise déjà déposée sous l'identifiant fixé d'avance : la moto le reprend.
     onSubmit(!initial && scan ? { ...payload, id: pendingId } : payload, { ownerFrom, scan: initial ? null : scan });
@@ -587,6 +598,8 @@ export function VehicleForm({
           <Input value={f.plate as string} onChange={(e) => set('plate', plateInput(e.target.value, f.plate_custom === true))}
             className={`font-mono ${hl('plate')}`} autoCapitalize="characters" spellCheck={false} />
           {cgHint('plate')}
+          {plateConflicts.data && typedPlate !== String(initial?.plate ?? '').trim().toUpperCase() && <PlateConflicts conflicts={plateConflicts.data} />}
+          {initial?.id && <PlateHistoryLine vehicleId={initial.id} currentPlate={initial.plate} />}
           <Check label={t('dossier.plateCustom')} checked={f.plate_custom === true}
             onChange={(v) => { set('plate_custom', v); if (!v) set('plate', normalizePlate(f.plate as string)); }} />
           <Check label={t('dossier.trackBike')} checked={f.is_track_bike === true}
