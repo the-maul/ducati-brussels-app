@@ -85,20 +85,21 @@ export const VEHICLES_PAGE_SIZE = 50;
 /** Une page de la liste des motos, avec le nombre total pour la navigation. */
 export async function listVehiclesPage(
   companyId: string, search: string | undefined, status: VehicleStatus | 'all' | undefined, toComplete: boolean | undefined, page: number,
+  trackBike = false,
 ): Promise<{ rows: VehicleWithRep[]; total: number }> {
   const from = Math.max(0, Math.floor(page)) * VEHICLES_PAGE_SIZE;
   try {
-    return await fetchVehicleList(companyId, search, status, toComplete, from, from + VEHICLES_PAGE_SIZE - 1, true);
+    return await fetchVehicleList(companyId, search, status, toComplete, from, from + VEHICLES_PAGE_SIZE - 1, true, trackBike);
   } catch (e) {
     // Page devenue trop loin (filtre, moto retirée) : on repart de la première.
-    if (from > 0 && (e as { code?: string }).code === 'PGRST103') return listVehiclesPage(companyId, search, status, toComplete, 0);
+    if (from > 0 && (e as { code?: string }).code === 'PGRST103') return listVehiclesPage(companyId, search, status, toComplete, 0, trackBike);
     throw e;
   }
 }
 
 async function fetchVehicleList(
   companyId: string, search: string | undefined, status: VehicleStatus | 'all' | undefined, toComplete: boolean | undefined,
-  from: number, to: number, withCount: boolean,
+  from: number, to: number, withCount: boolean, trackBike = false,
 ): Promise<{ rows: VehicleWithRep[]; total: number }> {
   // Jointure oro(id, number) : affiche la référence REP des demandes de reprise.
   // Repli sans jointure si elle échoue (la liste ne doit jamais casser).
@@ -109,6 +110,9 @@ async function fetchVehicleList(
     if (status && status !== 'all') q = q.eq('status', status);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (toComplete) q = (q as any).eq('to_complete', true);
+    // Motos piste (Simon, 26/11/2026) : sans plaque, retrouvées par ce filtre.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (trackBike) q = (q as any).eq('is_track_bike', true);
     return q;
   };
   const s = search ? sanitize(search) : '';

@@ -6565,6 +6565,7 @@ export const it: DictionaryShape = {
     vinMissing: 'Numero di telaio (VIN) mancante.',
     vinMissingHint: 'Questa moto non può essere fatturata finché il suo VIN non è inserito. Lo completi in « Identificazione » qui sotto.',
     filterToComplete: 'Da completare',
+    filterTrackBike: 'Moto da pista',
     badgeToComplete: 'Da completare',
     sitePanelTitle: 'Moto del sito',
     sitePanelHint: 'Ogni moto online sul sito ha la sua scheda e il suo articolo nel DMS. Gli annunci di vecchie moto vendute vengono scartati automaticamente: nulla resta da convalidare a mano.',

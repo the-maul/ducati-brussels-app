@@ -6565,6 +6565,7 @@ export const nl: DictionaryShape = {
     vinMissing: 'Chassisnummer (VIN) ontbreekt.',
     vinMissingHint: 'Deze motor kan niet gefactureerd worden zolang haar VIN niet is ingevoerd. Vul het aan onder "Identificatie" hieronder.',
     filterToComplete: 'Aan te vullen',
+    filterTrackBike: 'Circuitmotoren',
     badgeToComplete: 'Aan te vullen',
     sitePanelTitle: 'Motoren van de site',
     sitePanelHint: 'Elke motor online op de site heeft haar fiche en haar artikel in het DMS. Advertenties van oude, verkochte motoren worden automatisch uitgesloten: er blijft niets handmatig te valideren.',

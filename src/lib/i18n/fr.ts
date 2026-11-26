@@ -6582,6 +6582,7 @@ export const fr = {
     vinMissing: 'Numéro de châssis (VIN) manquant.',
     vinMissingHint: 'Cette moto ne peut pas être facturée tant que son VIN n’est pas saisi. Complétez-le dans « Identification » ci-dessous.',
     filterToComplete: 'À compléter',
+    filterTrackBike: 'Motos piste',
     badgeToComplete: 'À compléter',
     sitePanelTitle: 'Motos du site',
     sitePanelHint: 'Chaque moto en ligne sur le site a sa fiche et son article dans le DMS. Les annonces d’anciennes motos vendues sont écartées automatiquement : rien ne reste à valider à la main.',

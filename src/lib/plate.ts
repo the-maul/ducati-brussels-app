@@ -30,14 +30,18 @@ export function samePlate(a: unknown, b: unknown): boolean {
   return x !== '' && x === normalizePlate(b == null ? '' : String(b));
 }
 
+/** Anciennes plaques (6 caractères, « MAI-202 ») et plaques françaises (8, « 378-NHR-75 ») : gardées sans tirets. */
+export const SOURCE_PLATE_MIN = 6;
+export const SOURCE_PLATE_MAX = 8;
+
 /**
  * Plaque lue ailleurs (DCS, carte grise, import G8) : enregistrée sans tirets ni espaces quand
- * elle fait 7 caractères. Sinon le texte d'origine est gardé tel quel, pour être vérifié à la main
- * (même règle que le nettoyage des fiches du 26/11/2026).
+ * elle fait de 6 à 8 caractères (décision Simon du 26/11/2026, comme le nettoyage des fiches).
+ * Sinon le texte d'origine est gardé tel quel, pour être vérifié à la main.
  */
 export function plateFromSource(raw: string | null | undefined): string | null {
   const text = (raw ?? '').trim();
   if (text === '') return null;
   const n = normalizePlate(text);
-  return n.length === PLATE_LENGTH ? n : text;
+  return n.length >= SOURCE_PLATE_MIN && n.length <= SOURCE_PLATE_MAX ? n : text;
 }

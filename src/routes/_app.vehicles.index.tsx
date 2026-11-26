@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listSearchFromRaw } from '@/lib/list-search';
 import { useListSearch, useSearchText } from '@/lib/use-list-search';
-import { Search, Loader2, Plus, Bike, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, ListChecks, Gift, FileImage } from 'lucide-react';
+import { Search, Loader2, Plus, Bike, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, ListChecks, Gift, FileImage, Flag } from 'lucide-react';
 import { OptionsCatalogDialog } from '@/modules/vehicles/options-catalog-dialog';
 import { BonusesPeriodDialog } from '@/modules/vehicles/fiche-g8-panels';
 import { PosterDialog } from '@/modules/vehicles/poster-dialog';
@@ -19,7 +19,7 @@ import { t, pageTitle } from '@/lib/i18n';
 import { useCanWrite } from '@/lib/auth/use-access';
 
 /** Etat de la liste garde dans l'adresse (UX011). */
-const VEHICLES_LIST = { q: '', status: 'all', toComplete: false, page: 0 };
+const VEHICLES_LIST = { q: '', status: 'all', toComplete: false, trackBike: false, page: 0 };
 const VEHICLES_CHOICES = { status: ['all', ...VEHICLE_STATUSES.map((s) => s.value as string)] };
 
 export const Route = createFileRoute('/_app/vehicles/')({
@@ -53,11 +53,14 @@ function VehiclesList() {
   // Mission 03, M-40 : motos « à compléter » (VIN ou prix d'achat manquant) — non facturables.
   const toComplete = ls.toComplete;
   const setToComplete = (v: boolean | ((p: boolean) => boolean)) => setLs((cur) => ({ toComplete: typeof v === 'function' ? v(cur.toComplete) : v, page: 0 }));
+  // Motos piste : sans plaque, retrouvées par ce filtre.
+  const trackBike = ls.trackBike;
+  const toggleTrackBike = () => setLs((cur) => ({ trackBike: !cur.trackBike, page: 0 }));
 
   const page = Math.max(0, Math.floor(ls.page));
   const { data: result, isLoading, isFetching, error } = useQuery({
-    queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete, page],
-    queryFn: () => listVehiclesPage(activeCompanyId!, debounced, status, toComplete, page),
+    queryKey: ['vehicles', activeCompanyId, debounced, status, toComplete, trackBike, page],
+    queryFn: () => listVehiclesPage(activeCompanyId!, debounced, status, toComplete, page, trackBike),
     enabled: !!activeCompanyId,
     placeholderData: (previous) => previous,
   });
@@ -127,6 +130,9 @@ function VehiclesList() {
         </Select>
         <Button variant={toComplete ? 'default' : 'outline'} onClick={() => setToComplete((v) => !v)}>
           <AlertTriangle /> {t('motoParc.filterToComplete')}
+        </Button>
+        <Button variant={trackBike ? 'default' : 'outline'} onClick={toggleTrackBike} aria-pressed={trackBike}>
+          <Flag /> {t('motoParc.filterTrackBike')}
         </Button>
         {data && <span className="text-sm text-muted-foreground">{data.length}</span>}
       </div>

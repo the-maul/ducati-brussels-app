@@ -26,9 +26,11 @@ describe('plaque venue d’une autre source', () => {
     expect(samePlate('M-ACN-057', 'MACN058')).toBe(false);
     expect(samePlate('', '')).toBe(false);
   });
-  test('7 caractères : enregistrée sans tirets ; sinon le texte reste tel quel', () => {
+  test('6 à 8 caractères : enregistrée sans tirets ; sinon le texte reste tel quel', () => {
     expect(plateFromSource(' 1-abc-123 ')).toBe('1ABC123');
-    expect(plateFromSource('ABC-123')).toBe('ABC-123');
+    expect(plateFromSource('MAI-202')).toBe('MAI202');
+    expect(plateFromSource('378-NHR-75')).toBe('378NHR75');
+    expect(plateFromSource('MH-900')).toBe('MH-900');
     expect(plateFromSource('MOTO PISTE')).toBe('MOTO PISTE');
     expect(plateFromSource('  ')).toBeNull();
   });

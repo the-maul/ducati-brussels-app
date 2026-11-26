@@ -6565,6 +6565,7 @@ export const en: DictionaryShape = {
     vinMissing: 'Chassis number (VIN) missing.',
     vinMissingHint: 'This bike cannot be invoiced until its VIN is entered. Complete it under "Identification" below.',
     filterToComplete: 'To complete',
+    filterTrackBike: 'Track bikes',
     badgeToComplete: 'To complete',
     sitePanelTitle: 'Site bikes',
     sitePanelHint: 'Each bike online on the site has its record and its article in the DMS. Listings of old sold bikes are set aside automatically: nothing is left to validate by hand.',

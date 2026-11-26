@@ -123,6 +123,8 @@ function fromVehicle(v: Vehicle | null, client: boolean, prefill?: Partial<Recor
     for (const [k, val] of Object.entries(prefill)) if (val != null && val !== '') f[k] = val;
   }
   f.plate_custom = (v as { plate_custom?: boolean } | null)?.plate_custom === true;
+  // Moto piste (Simon, 26/11/2026) : pas de plaque à demander.
+  f.is_track_bike = (v as { is_track_bike?: boolean } | null)?.is_track_bike === true;
   f.warranty_plan = (v as { warranty_plan?: string | null } | null)?.warranty_plan ?? '';
   return f;
 }
@@ -139,6 +141,7 @@ function buildPayload(f: F, companyId: string): VehicleInsert {
   out.is_restricted = f.is_restricted === true;
   out.papers_100hp = f.papers_100hp === true;
   out.plate_custom = f.plate_custom === true;
+  out.is_track_bike = f.is_track_bike === true;
   out.warranty_plan = warrantyPlanFor(f.warranty_type, f.warranty_plan);
   out.status = f.status as VehicleStatus;
   out.mileage_qualif = f.mileage_qualif as MileageQualif;
@@ -586,6 +589,8 @@ export function VehicleForm({
           {cgHint('plate')}
           <Check label={t('dossier.plateCustom')} checked={f.plate_custom === true}
             onChange={(v) => { set('plate_custom', v); if (!v) set('plate', normalizePlate(f.plate as string)); }} />
+          <Check label={t('dossier.trackBike')} checked={f.is_track_bike === true}
+            onChange={(v) => set('is_track_bike', v)} />
         </Field>
         <Field label={t('vehicles.brand')} code={CARTE_GRISE_CODES.brand}>
           <SpecSelect value={String(f.brand ?? '')} options={VEHICLE_BRANDS} onChange={onBrand} className={hl('brand')} />
