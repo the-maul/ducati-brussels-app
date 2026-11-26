@@ -4,8 +4,9 @@
  * erreur « colonne / table inconnue » traduite en message clair).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { t } from '@/lib/i18n';
+import { t, fillVars } from '@/lib/i18n';
 import type { Bonus } from './economics';
+import { financingPeriod, type FinancingRow } from './financing-history';
 
 type PgErr = { code?: string; message: string };
 type Res = { data?: unknown; error: PgErr | null };
@@ -54,7 +55,50 @@ export async function listBonusesForPeriod(companyId: string, from: string, to: 
   return ((data ?? []) as BonusWithVehicle[]).map((b) => ({ ...b, amount: Number(b.amount) }));
 }
 
-/** Banque ou leasing qui finance la moto, et son contrat (le propriétaire reste `vehicle_owners`). */
+type ContactLite = { id: string; first_name: string | null; last_name: string | null; company_name: string | null; type: string | null };
+export type VehicleFinancing = FinancingRow & { bank: ContactLite | null; client: ContactLite | null };
+export type BankFinancing = FinancingRow & {
+  vehicle: { id: string; vin: string | null; plate: string | null; brand: string | null; model: string | null } | null;
+  client: ContactLite | null;
+  doc: { number: string | null; issue_date: string | null; total_ttc: number | string | null } | null;
+};
+const CONTACT_LITE = 'id, first_name, last_name, company_name, type';
+const FINANCING_COLS = 'id, financing_contact_id, contract, client_contact_id, source_invoice, started_on, ended_on, is_current, created_at';
+
+/** VEH001 : financements de la moto, en cours et anciens (table vehicle_financings). */
+export async function listVehicleFinancings(vehicleId: string): Promise<VehicleFinancing[]> {
+  const { data, error }: Res = await db.from('vehicle_financings')
+    .select(`${FINANCING_COLS}, bank:financing_contact_id(${CONTACT_LITE}), client:client_contact_id(${CONTACT_LITE})`)
+    .eq('vehicle_id', vehicleId);
+  if (error) { if (isMissingSchemaError(error)) return []; fail(error); }
+  return (data ?? []) as VehicleFinancing[];
+}
+
+/** VEH001 : fiche d'une banque — les financements terminés (les en cours viennent de vehicles). */
+export async function listEndedBankFinancings(bankId: string): Promise<BankFinancing[]> {
+  const { data, error }: Res = await db.from('vehicle_financings')
+    .select(`${FINANCING_COLS}, vehicle:vehicle_id(id, vin, plate, brand, model), client:client_contact_id(${CONTACT_LITE}), doc:source_document_id(number, issue_date, total_ttc)`)
+    .eq('financing_contact_id', bankId).eq('is_current', false).limit(1000);
+  if (error) { if (isMissingSchemaError(error)) return []; fail(error); }
+  return (data ?? []) as BankFinancing[];
+}
+
+const fmtDay = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-BE');
+};
+
+/** « du 23/01/2014 au 14/07/2016 », « depuis le … », « jusqu'au … » ou « période inconnue ». */
+export function financingPeriodLabel(r: Pick<FinancingRow, 'started_on' | 'ended_on'>): string {
+  const p = financingPeriod(r);
+  if (p.kind === 'fromTo') return fillVars(t('dossier.financingFromTo'), { from: fmtDay(p.from), to: fmtDay(p.to) });
+  if (p.kind === 'from') return fillVars(t('dossier.financingFrom'), { date: fmtDay(p.from) });
+  if (p.kind === 'until') return fillVars(t('dossier.financingUntil'), { date: fmtDay(p.to) });
+  return t('dossier.financingNoPeriod');
+}
+
+/** Banque ou leasing qui finance la moto, et son contrat (le propriétaire reste `vehicle_owners`).
+ *  L'historique (vehicle_financings) est tenu par le déclencheur trg_vehicle_financing_history. */
 export async function setVehicleFinancing(vehicleId: string, p: { contactId: string | null; contract: string }): Promise<void> {
   const { error }: Res = await db.from('vehicles')
     .update({ financing_contact_id: p.contactId, financing_contract: p.contract.trim() || null }).eq('id', vehicleId);

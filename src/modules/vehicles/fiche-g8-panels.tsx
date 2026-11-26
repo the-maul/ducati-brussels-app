@@ -5,7 +5,7 @@
  *  - Primes et aides (date, montant, commentaire) + liste des primes du parc par periode.
  * Migration 20261118141000 ; sans elle, message clair et rien n'est perdu en silence.
  */
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, History } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -25,7 +25,9 @@ import type { Vehicle } from './api';
 import { vehicleEconomics, bonusesInPeriod, daysInStockOf } from './economics';
 import {
   addVehicleBonus, deleteVehicleBonus, listBonusesForPeriod, listVehicleBonuses, setVehicleFinancing,
+  listVehicleFinancings, financingPeriodLabel,
 } from './fiche-g8-api';
+import { splitFinancings } from './financing-history';
 
 const eur = (n: number | null | undefined) =>
   n == null ? '—' : `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!,))/g, ' ')} €`;
@@ -45,7 +47,11 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
   const m = useMutation({
     meta: { success: false, error: false },
     mutationFn: () => setVehicleFinancing(vehicle.id, { contactId: bank, contract }),
-    onSuccess: () => { toast.success(t('feedback.saved')); qc.invalidateQueries({ queryKey: ['vehicle', vehicle.id] }); },
+    onSuccess: () => {
+      toast.success(t('feedback.saved'));
+      qc.invalidateQueries({ queryKey: ['vehicle', vehicle.id] });
+      qc.invalidateQueries({ queryKey: ['vehicle-financings', vehicle.id] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
   });
   return (
@@ -59,6 +65,7 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
         </div>
       </div>
       {!!v.financing_contact_id && <BankPersonsForBike vehicleId={vehicle.id} bankId={v.financing_contact_id} />}
+      <PreviousFinancings vehicleId={vehicle.id} />
       {!!currentOwnerId && bank === currentOwnerId && (
         <p className="flex items-start gap-1.5 rounded-md bg-warning-bg px-3 py-2 text-[12px] font-medium text-warning">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {t('dossier.financingOwnerIsBank')}
@@ -69,6 +76,40 @@ export function VehiclePartiesPanel({ companyId, vehicle, currentOwnerId }: { co
           {m.isPending && <Loader2 className="animate-spin" />} {t('action.save')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** VEH001 : anciens financements de la moto (banque, contrat, client, période, facture G8), sous celui en cours. */
+function PreviousFinancings({ vehicleId }: { vehicleId: string }) {
+  const q = useQuery({ queryKey: ['vehicle-financings', vehicleId], queryFn: () => listVehicleFinancings(vehicleId), staleTime: 60_000 });
+  const previous = splitFinancings(q.data ?? []).previous;
+  if (!previous.length) return null;
+  return (
+    <div className="space-y-1 text-[12px]">
+      <p className="flex items-center gap-1.5 font-bold uppercase tracking-[0.04em] text-muted-foreground">
+        <History className="size-3.5" aria-hidden /> {t('dossier.financingHistory')}
+      </p>
+      <ul className="divide-y divide-border rounded-md border border-border">
+        {previous.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5">
+            <span className="inline-flex items-center gap-1 rounded bg-neutral-bg px-1.5 py-0.5 text-[11px] font-bold text-neutral-tag">
+              <History className="size-3" aria-hidden /> {t('dossier.financingEnded')}
+            </span>
+            {f.bank ? (
+              <Link to="/clients/$contactId" params={{ contactId: f.bank.id }} className="font-medium text-primary hover:underline">{contactDisplayName(f.bank)}</Link>
+            ) : <span className="text-muted-foreground">—</span>}
+            <span className="font-mono">{f.contract ?? '—'}</span>
+            {f.client && (
+              <span>{t('dossier.financingClient')} :{' '}
+                <Link to="/clients/$contactId" params={{ contactId: f.client.id }} className="hover:underline">{contactDisplayName(f.client)}</Link>
+              </span>
+            )}
+            <span className="tabular-nums text-muted-foreground">{financingPeriodLabel(f)}</span>
+            {f.source_invoice && <span className="font-mono text-muted-foreground">{t('dossier.financingInvoice')} {f.source_invoice}</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
