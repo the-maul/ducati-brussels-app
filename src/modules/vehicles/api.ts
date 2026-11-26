@@ -103,7 +103,8 @@ async function fetchVehicleList(
   // Jointure oro(id, number) : affiche la référence REP des demandes de reprise.
   // Repli sans jointure si elle échoue (la liste ne doit jamais casser).
   const build = (select: string) => {
-    let q = supabase.from('vehicles').select(select as '*', withCount ? { count: 'exact' } : undefined).eq('company_id', companyId)
+    // Une fiche réunie dans une autre (même VIN) est désactivée : elle ne s'affiche plus dans le parc.
+    let q = supabase.from('vehicles').select(select as '*', withCount ? { count: 'exact' } : undefined).eq('company_id', companyId).eq('is_active', true)
       .order('created_at', { ascending: false }).order('id').range(from, to);
     if (status && status !== 'all') q = q.eq('status', status);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
