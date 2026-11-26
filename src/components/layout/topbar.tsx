@@ -23,6 +23,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/global-search';
+import { DcsConnectorStatus } from '@/components/layout/connector-status';
 import {
   dueState, listBellTasks, listCompanyMembers, listSignupNotifications, listTeamNotifications, markSignupNotificationsRead,
   SIGNUP_NOTIF_ROLES, IBAN_NOTIF_ROLES, type BellScope,
@@ -723,6 +724,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
 
       <ExcelThresholdAlert />
+
+      <DcsConnectorStatus />
 
       <CompanySwitcher />
 

@@ -80,21 +80,50 @@ function relayMyDucati(payload, sender, sendResponse) {
   broadcastToDms('myducati-data', payload, sendResponse);
 }
 
-/* Sign-in page instead of the bike: nobody is connected to the DCS in this Chrome. The DMS is told
- * at once (instead of waiting two minutes) and the DCS tab comes to the front to sign in. */
+/* Sign-in page instead of the bike: nobody is connected to the DCS in this Chrome. Even with a valid
+ * session, the portal's SSO passes through sign-in-like URLs for a moment: only a tab that is STILL
+ * on a sign-in page 12 s later is reported. Then the DMS is told and the DCS tab comes to the front. */
+const LOGIN_WAIT_MS = 12000;
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   const job = jobs[tabId];
   const url = info.url || (tab && tab.url) || '';
-  if (!job || !url || !DcsNightCore.isDcsLoginUrl(url)) return;
-  delete jobs[tabId];
-  const wanted = String(job.vin || '').toUpperCase();
-  if (job.dmsTabId) {
-    chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload: {
-      format: 2, vin: wanted, read_vin: null, requested_vin: wanted, read_error: 'not_connected', issues: [],
-    } });
+  if (!job || !url) return;
+  if (!DcsNightCore.isDcsLoginUrl(url)) {
+    if (job.loginTimer) { clearTimeout(job.loginTimer); job.loginTimer = null; }
+    return;
   }
-  try { chrome.tabs.update(tabId, { active: true }); } catch (_) {}
+  if (job.loginTimer) return;
+  job.loginTimer = setTimeout(() => {
+    job.loginTimer = null;
+    if (jobs[tabId] !== job) return;
+    chrome.tabs.get(tabId, (current) => {
+      if (chrome.runtime.lastError || !current || !DcsNightCore.isDcsLoginUrl(current.url || '')) return;
+      if (jobs[tabId] !== job) return;
+      delete jobs[tabId];
+      const wanted = String(job.vin || '').toUpperCase();
+      if (job.dmsTabId) {
+        chrome.tabs.sendMessage(job.dmsTabId, { type: 'myducati-data', payload: {
+          format: 2, vin: wanted, read_vin: null, requested_vin: wanted, read_error: 'not_connected', issues: [],
+        } });
+      }
+      try { chrome.tabs.update(tabId, { active: true }); } catch (_) {}
+    });
+  }, LOGIN_WAIT_MS);
 });
+
+/* 'connected' : un onglet du portail concession est ouvert hors page de connexion ;
+ * 'login' : seul un onglet de connexion Ducati est ouvert ; 'none' : aucun onglet DCS. */
+async function dcsPortalStatus() {
+  const tabs = await new Promise((r) => chrome.tabs.query({ url: ['https://ducati.my.site.com/*', 'https://idp.ducati.com/*'] }, (t) => r(t || [])));
+  let portal = 'none';
+  for (const tab of tabs) {
+    const url = tab.url || '';
+    if (!url) continue;
+    if (/^https:\/\/ducati\.my\.site\.com\/dealer\//.test(url) && !DcsNightCore.isDcsLoginUrl(url)) { portal = 'connected'; break; }
+    portal = 'login';
+  }
+  return { installed: true, version: chrome.runtime.getManifest().version, portal };
+}
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
@@ -108,6 +137,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'dcs-night-cmd') {
     if (!isDmsSender(sender)) { sendResponse(null); return; }
+    // Voyant DCS de la barre du haut du DMS : une page DCS connectée est-elle ouverte ?
+    if (msg.cmd === 'status') { dcsPortalStatus().then(sendResponse, () => sendResponse(null)); return true; }
     dcsNight.handleCommand(msg).then(sendResponse, () => sendResponse(null));
     return true;
   }

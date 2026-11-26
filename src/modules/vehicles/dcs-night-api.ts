@@ -23,7 +23,7 @@ export const dcsNightMark = (company: string, queueId: string, ok: boolean, erro
 export type DcsNightExtensionState = { installed: boolean; armed: boolean; working: boolean; blocked: string | null };
 
 /** Sends a command to the extension. Resolves to null when it is missing or too old. */
-export function sendDcsNightCommand(cmd: 'ping' | 'arm' | 'abort', companyId: string): Promise<DcsNightExtensionState | null> {
+export function sendDcsNightCommand(cmd: 'ping' | 'arm' | 'abort' | 'status', companyId: string): Promise<DcsNightExtensionState | null> {
   if (typeof window === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {
     const id = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
