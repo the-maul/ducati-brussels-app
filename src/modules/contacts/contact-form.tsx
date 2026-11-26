@@ -15,6 +15,7 @@ import { linkedNameLock } from './linked-name';
 import { ModelInterestBadges } from './model-interest-badges';
 import { checkVat, parseViesAddress, kboUrl, companywebUrl } from './vies-api';
 import { IdDocsSection } from './id-docs';
+import { OtherEmailsField } from './other-emails-field';
 import { BankPersonsSection } from './client-tabs';
 import { requestMyDucati } from '@/lib/myducati';
 import { Input } from '@/components/ui/input';
@@ -766,6 +767,8 @@ export function ContactForm({
             <Field label={t('contacts.email')}>
               <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
             </Field>
+            {/* CON002 : plusieurs e-mails par fiche (enregistrés tout de suite, fiche existante seulement). */}
+            {initial?.id && <OtherEmailsField contactId={initial.id} />}
           </Section>
 
           {/* CON002 : les personnes de contact d'une banque, juste sous ses coordonnées générales. */}

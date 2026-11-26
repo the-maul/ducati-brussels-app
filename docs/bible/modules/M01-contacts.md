@@ -370,3 +370,24 @@ Branche `lot-decisions-q63-q67`. Migrations **`20261120154000_m1_fiche_client_g8
   jour, `session_replication_role = replica`). Archive classée « non copiée » pour la société de test.
 - Effet visible : les SMS / mails qui reprennent `{prenom}` l'écrivent en majuscules (« Beste ESSAI »), comme G8.
 - Création d'une fiche liée privée depuis une fiche pro sans prénom / civilité : refusée avec le message « compléter ».
+
+## Ajouté le 26/11 — plusieurs e-mails par fiche, mails à rattacher (CON002)
+Demande de Simon du 26/11/2026. Migration **`20261126300000_m1_plusieurs_emails_client.sql`** (appliquée le 26/11),
+règles pures `src/modules/contacts/contact-emails-rules.ts` (tests `tests/contact-emails.test.ts`).
+- **Table `contact_emails`** : toutes les adresses d'une fiche. L'e-mail principal (`contacts.email`) y est recopié
+  tout seul (`is_primary`), l'e-mail pro G8 (`contacts.email_pro`, pas affiché) aussi en secondaire « pro ».
+  Écriture par `contact_email_add` / `contact_email_remove` seulement (RLS lecture), trace `audit_row`.
+- **Fiche → L'essentiel**, sous « E-mail » : bloc **« Autres e-mails »** (ajouter avec libellé Pro / Privé, retirer).
+  Enregistré tout de suite, sans le bouton Enregistrer. Le « Mobile 2 » (`gsm`) existait déjà (bloc « Suivi de la fiche »).
+- Les e-mails secondaires comptent **partout** où une fiche est cherchée par e-mail : relève Outlook, recherche
+  (liste et recherche globale), correspondances DCS, inscription publique, doublons, échanges partagés, CRM, Shopify,
+  export / purge RGPD.
+- **Mail d'une adresse inconnue au nom d'un client existant** (même prénom + nom dans un sens ou l'autre, ou même
+  société, fiches actives) : plus de fiche créée d'office. Le mail attend dans **la cloche → « Mails à rattacher »**
+  (`email_attach_requests`) ; pièces jointes gardées à part (`attachments.entity_type = 'email_request'`). Choix :
+  « Ajouter cette adresse à <client> » (adresse en e-mail secondaire, origine « mail ») ou « Créer un nouveau client ».
+  Le mail et ses pièces passent sur la fiche, carte CRM comme pour tout prospect. Aucun homonyme : comme avant.
+- **Fusion** : les e-mails de la fiche absorbée deviennent e-mails secondaires de la gardée, son mobile son « Mobile 2 »
+  s'il est libre (plus recopiés dans les notes).
+- 26/11 : fiche **9273** (créée le 08/10 depuis un mail) fusionnée dans **1148** (G8) — e-mail pro et GSM repris, notes,
+  2 pièces jointes, 2 échanges, la carte CRM sur 1148 ; 9273 archivée (règle de la fusion).

@@ -25,6 +25,7 @@ import { purchasePrintIt } from './purchase-print';
 import { productionIt } from './production';
 import { partPathIt, partsFlowIt } from './chemin-pieces';
 import { pointsVrIt } from './points-vr';
+import { contactEmailsIt } from './emails-multiples';
 import { designTransverseIt } from './design-transverse';
 import { vehicleKitIt } from './kit-fiche-moto';
 import { dueOpsIt, ownProcIt } from './mode-operatoire-atelier';
@@ -9499,4 +9500,6 @@ export const it: DictionaryShape = {
   // Parcours : operations a echeance et mode operatoire de l'atelier (ATE014, 26/11/2026).
   dueOps: dueOpsIt,
   ownProc: ownProcIt,
+  // Clients : plusieurs e-mails par fiche et mails à rattacher (CON002, 26/11/2026).
+  contactEmails: contactEmailsIt,
 };

@@ -25,6 +25,7 @@ import { purchasePrintFr } from './purchase-print';
 import { productionFr } from './production';
 import { partPathFr, partsFlowFr } from './chemin-pieces';
 import { pointsVrFr } from './points-vr';
+import { contactEmailsFr } from './emails-multiples';
 import { designTransverseFr } from './design-transverse';
 import { vehicleKitFr } from './kit-fiche-moto';
 import { dueOpsFr, ownProcFr } from './mode-operatoire-atelier';
@@ -9520,6 +9521,8 @@ export const fr = {
   // Parcours : operations a echeance et mode operatoire de l'atelier (ATE014, 26/11/2026).
   dueOps: dueOpsFr,
   ownProc: ownProcFr,
+  // Clients : plusieurs e-mails par fiche et mails à rattacher (CON002, 26/11/2026).
+  contactEmails: contactEmailsFr,
 } as const;
 
 export type Dictionary = typeof fr;

@@ -37,6 +37,8 @@ import { listDocumentAlerts, type DocumentAlert } from '@/modules/sales/deposit-
 import { eur } from '@/modules/sales/balance-panel';
 import { listWebOrderAlerts, WEB_ORDER_ROLES } from '@/modules/sales/web-orders-api';
 import { UserSignatureDialog } from '@/modules/settings/user-signature-dialog';
+import { EmailAttachDialog, EmailAttachBellRow, useEmailAttachRequests } from '@/modules/contacts/email-attach-dialog';
+import type { EmailAttachRequest } from '@/modules/contacts/contact-emails-api';
 import { getHomePref, saveHomePref } from '@/modules/workshop/my-workshop/api';
 import { HOME_PREFS, isHomePref, type HomePref } from '@/modules/workshop/my-workshop/rules';
 import { toast } from 'sonner';
@@ -185,6 +187,9 @@ function NotificationsBell() {
     refetchInterval: 300_000,
     retry: false,
   });
+  // CON002 : mails d'une nouvelle adresse au nom d'un client connu, en attente d'un choix.
+  const { data: attachData } = useEmailAttachRequests(activeCompanyId);
+  const [attachPick, setAttachPick] = useState<EmailAttachRequest | null>(null);
   const { data: apptData } = useQuery({
     queryKey: ['bell-appointment-requests', activeCompanyId],
     queryFn: () => listPortalAppointmentRequests(activeCompanyId!),
@@ -205,6 +210,7 @@ function NotificationsBell() {
   });
 
   const tasks = taskData ?? [];
+  const attachRequests = attachData ?? [];
   const signups = seesSignups ? signupData ?? [] : [];
   const appts = seesAppts ? apptData ?? [] : [];
   const unreadSignups = signups.filter((n) => !n.read);
@@ -226,10 +232,12 @@ function NotificationsBell() {
   const registerLate = seesRegister ? registerData?.overdue ?? 0 : 0;
   const overdue = tasks.filter((l) => dueState(l.due_at) === 'overdue').length + unreadUnpaid.length + registerLate;
   const total = tasks.length + unreadSignups.length + appts.length + unreadIbans.length + unreadVehicleDecls.length
-    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length + registerDue + registerLate + unreadDepositInvoices.length;
+    + unreadDeposit.length + unreadUnpaid.length + unreadWebOrders.length + unreadProposals.length + registerDue + registerLate + unreadDepositInvoices.length
+    + attachRequests.length;
   const fmt = (iso: string) => new Date(iso).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger
         className="relative hidden size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent sm:grid"
@@ -298,6 +306,18 @@ function NotificationsBell() {
           <DropdownMenuItem asChild className="cursor-pointer">
             <Link to="/crm" className="text-[12px]">{t('notif.tasksSeeAll')}</Link>
           </DropdownMenuItem>
+        )}
+
+        {attachRequests.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('contactEmails.bellTitle')}</DropdownMenuLabel>
+            {attachRequests.slice(0, 8).map((r) => (
+              <DropdownMenuItem key={r.id} className="cursor-pointer" onSelect={() => setAttachPick(r)}>
+                <EmailAttachBellRow request={r} />
+              </DropdownMenuItem>
+            ))}
+          </>
         )}
 
         {appts.length > 0 && (
@@ -531,6 +551,10 @@ function NotificationsBell() {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    {activeCompanyId && (
+      <EmailAttachDialog companyId={activeCompanyId} request={attachPick} onClose={() => setAttachPick(null)} />
+    )}
+    </>
   );
 }
 

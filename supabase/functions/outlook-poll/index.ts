@@ -75,15 +75,17 @@ async function sha256hex(bytes: Uint8Array): Promise<string> {
 
 // upload un fichier (octets) en GED + ligne attachments, dossier "E-mails".
 // Dédup : si une pièce de même contenu existe déjà pour ce contact, on saute.
-async function gedUpload(companyId: string, contactId: string, name: string, ctype: string, bytes: Uint8Array): Promise<boolean> {
+// `entityType` = 'email_request' : mail en attente d'un choix (« Mails à rattacher », CON002) ;
+// ses pièces passent sur la fiche choisie au moment du choix (email_attach_resolve).
+async function gedUpload(companyId: string, contactId: string, name: string, ctype: string, bytes: Uint8Array, entityType = 'contact'): Promise<boolean> {
   const hash = await sha256hex(bytes);
-  const ex = await (await db(`attachments?select=id&entity_type=eq.contact&entity_id=eq.${contactId}&content_hash=eq.${hash}&limit=1`)).json();
+  const ex = await (await db(`attachments?select=id&entity_type=eq.${entityType}&entity_id=eq.${contactId}&content_hash=eq.${hash}&limit=1`)).json();
   if (Array.isArray(ex) && ex.length) return false; // déjà présent (même image au fil des échanges)
   const safe = name.replace(/[^\w.\-]+/g, '_').slice(-80);
-  const path = `${companyId}/contact/${contactId}/${Date.now()}_${safe}`;
+  const path = `${companyId}/${entityType}/${contactId}/${Date.now()}_${safe}`;
   const up = await fetch(`${URL}/storage/v1/object/ged/${path}`, { method: 'POST', headers: { apikey: SVC!, Authorization: `Bearer ${SVC}`, 'Content-Type': ctype, 'x-upsert': 'true' }, body: bytes });
   if (!up.ok) throw new Error(`storage ${up.status}`);
-  const ins = await db('attachments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ company_id: companyId, entity_type: 'contact', entity_id: contactId, file_name: name, storage_path: path, content_type: ctype, size_bytes: bytes.length, content_hash: hash, folder: 'E-mails', note: 'Pièce jointe e-mail (Outlook)' }) });
+  const ins = await db('attachments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ company_id: companyId, entity_type: entityType, entity_id: contactId, file_name: name, storage_path: path, content_type: ctype, size_bytes: bytes.length, content_hash: hash, folder: 'E-mails', note: 'Pièce jointe e-mail (Outlook)' }) });
   if (!ins.ok) throw new Error(`attach insert ${ins.status}: ${(await ins.text()).slice(0, 120)}`);
   return true;
 }
@@ -127,7 +129,7 @@ Deno.serve(async (req: Request) => {
   const tok = await graphToken();
   if (!tok) return new Response(JSON.stringify({ error: 'graph_auth_failed' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
 
-  let logged = 0, photos = 0, scanned = 0, prospects = 0, ignored = 0, mailboxRepaired = 0;
+  let logged = 0, photos = 0, scanned = 0, prospects = 0, ignored = 0, mailboxRepaired = 0, toAttach = 0;
   const errors: string[] = [];
   try {
   // Toutes les boîtes actives, toutes sociétés confondues.
@@ -151,6 +153,19 @@ Deno.serve(async (req: Request) => {
 
   // Relève d'un dossier (inbox ou sentitems). Pour 'in' on matche l'expéditeur ;
   // pour 'out' on matche le 1er destinataire. Charge aussi les pièces jointes.
+  // Pièces jointes d'un message : TOUS les documents (PDF, Word, images…), sauf les petites
+  // images inline = logos/espaceurs de signature.
+  async function saveAttachments(coId: string, mailbox: string, msgId: unknown, entityId: string, entityType: string) {
+    const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${msgId}/attachments`);
+    if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
+      if (a['@odata.type'] !== '#microsoft.graph.fileAttachment' || !a.contentBytes) continue;
+      const ctype = String(a.contentType || 'application/octet-stream');
+      const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
+      if (ctype.startsWith('image/') && a.isInline === true && bin.length < 30000) continue;
+      if (await gedUpload(coId, entityId, String(a.name || 'fichier'), ctype, bin, entityType)) photos++;
+    }
+  }
+
   async function processFolder(coId: string, mailbox: string, folder: string, direction: 'in' | 'out', since: string): Promise<string> {
     const q = `/users/${encodeURIComponent(mailbox)}/mailFolders/${folder}/messages?$top=25&$orderby=${direction === 'in' ? 'receivedDateTime' : 'sentDateTime'}%20desc&$select=id,subject,body,bodyPreview,from,toRecipients,receivedDateTime,sentDateTime,hasAttachments`;
     const res = await G(tok!, q);
@@ -239,6 +254,21 @@ Deno.serve(async (req: Request) => {
             },
           });
           const crow = Array.isArray(created) ? created[0] : created;
+          // CON002 : adresse inconnue au nom d'un client existant. Aucune fiche n'est créée, le mail
+          // attend dans « Mails à rattacher » (cloche) ; ses pièces jointes y sont gardées.
+          if (!crow?.contact_id && crow?.communication_id) {
+            const req = await (await db(`email_attach_requests?select=id&communication_id=eq.${crow.communication_id}&limit=1`)).json();
+            const reqId = Array.isArray(req) && req[0]?.id ? String(req[0].id) : null;
+            if (reqId) {
+              await db(`communications?id=eq.${crow.communication_id}&mailbox=is.null`, {
+                method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ mailbox }),
+              });
+              await saveAttachments(coId, mailbox, m.id, reqId, 'email_request');
+              toAttach++;
+              maxTs = ts;
+              continue;
+            }
+          }
           if (!crow?.contact_id) {
             // Création refusée : on ne consomme pas non plus, sinon le prospect est perdu.
             errors.push(`prospect non cree, message non consomme: ${String(m.id).slice(0, 24)} — ${lastRpcError || 'cause inconnue'}`);
@@ -257,16 +287,7 @@ Deno.serve(async (req: Request) => {
           method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ mailbox }),
         });
 
-        const at = await G(tok!, `/users/${encodeURIComponent(mailbox)}/messages/${m.id}/attachments`);
-        if (at.ok) for (const a of ((await at.json()).value ?? []) as Array<Record<string, unknown>>) {
-          if (a['@odata.type'] !== '#microsoft.graph.fileAttachment' || !a.contentBytes) continue;
-          const ctype = String(a.contentType || 'application/octet-stream');
-          const bin = Uint8Array.from(atob(a.contentBytes as string), (c) => c.charCodeAt(0));
-          // On capture TOUS les documents (PDF, Word, images…). On ignore seulement les
-          // petites images inline = logos/espaceurs de signature.
-          if (ctype.startsWith('image/') && a.isInline === true && bin.length < 30000) continue;
-          if (await gedUpload(coId, contactId, String(a.name || 'fichier'), ctype, bin)) photos++;
-        }
+        await saveAttachments(coId, mailbox, m.id, contactId, 'contact');
 
         // Message entièrement traité : c'est seulement ici que le curseur avance.
         maxTs = ts;
@@ -305,7 +326,7 @@ Deno.serve(async (req: Request) => {
     }
   }
   } catch (e) {
-    return new Response(JSON.stringify({ error: 'unhandled', detail: String(e).slice(0, 300), scanned, logged, photos, prospects, ignored, errors }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'unhandled', detail: String(e).slice(0, 300), scanned, logged, photos, prospects, ignored, toAttach, errors }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 
   // Un paragraphe par échange dans la note de la demande (summarize-exchange).
@@ -321,5 +342,5 @@ Deno.serve(async (req: Request) => {
     summaries = await s.json();
   } catch (e) { summaries = { error: String(e).slice(0, 120) }; }
 
-  return new Response(JSON.stringify({ scanned, logged, photos, prospects, ignored, mailboxRepaired, summaries, errors }), { headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ scanned, logged, photos, prospects, ignored, toAttach, mailboxRepaired, summaries, errors }), { headers: { 'Content-Type': 'application/json' } });
 });
