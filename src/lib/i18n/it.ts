@@ -359,6 +359,8 @@ export const it: DictionaryShape = {
     ownerNoHistory: 'Nessun proprietario registrato.',
     ownerCurrent: 'Attuale',
     ownerSince: 'Dal',
+    mergedRedirect: "Questa scheda è stata unita a un'altra scheda con lo stesso VIN: apertura della scheda mantenuta…",
+    inactiveRecord: 'Questa scheda è disattivata.',
     errLoad: 'Caricamento impossibile.',
     errSave: 'Salvataggio impossibile.',
   },

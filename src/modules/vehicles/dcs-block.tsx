@@ -58,7 +58,9 @@ function dcsActionError(e: unknown): string {
   const err = e as { message?: string; code?: string; hint?: string } | null;
   const message = err?.message ?? '';
   if (err?.code === 'PGRST202') return t('dossier.dcsBlockUnavailable');
-  if (message.includes('dcs_stale')) return t('dossier.dcsBlockStale');
+  // La moto ou sa lecture DCS a changé depuis l'ouverture de la page (fiche réunie, autre poste...).
+  if (message.includes('dcs_stale') || message.includes('dcs_no_client') || message.includes('dcs_vehicle_not_found')
+    || message.includes('dcs_contact_not_matched')) return t('dossier.dcsBlockStale');
   if (message.includes('dcs_conflicts_left')) return fillVars(t('dossier.dcsBlockValidateLeft'), { n: message.split(':')[1]?.split(',').length ?? 1 });
   if (err?.hint === 'dcs_plate_length') return t('dossier.dcsBlockPlateErr');
   return translateDbError(e) ?? t('dossier.dcsBlockErr');

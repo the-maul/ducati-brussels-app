@@ -370,6 +370,8 @@ export const fr = {
     ownerNoHistory: 'Aucun propriétaire enregistré.',
     ownerCurrent: 'Actuel',
     ownerSince: 'Depuis',
+    mergedRedirect: 'Cette fiche a été réunie avec une autre fiche du même VIN : ouverture de la fiche gardée…',
+    inactiveRecord: 'Cette fiche est désactivée.',
     errLoad: 'Chargement impossible.',
     errSave: 'Enregistrement impossible.',
   },

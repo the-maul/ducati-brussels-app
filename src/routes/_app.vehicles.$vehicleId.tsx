@@ -1,5 +1,6 @@
 import { DcsUpdateButton } from '@/modules/vehicles/dcs-update';
 import { DcsBlock } from '@/modules/vehicles/dcs-block';
+import { MergedVehicleNotice } from '@/modules/vehicles/merged-notice';
 import { loadVehicleFill } from '@/modules/vehicles/catalog-specs';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -96,6 +97,9 @@ function EditVehicle() {
   if (!vehicle || !activeCompanyId) {
     return (<><PageHeader title={t('vehicles.title')} /><p className="rounded-md bg-danger-bg px-3 py-2 text-[13px] text-danger">{t('vehicles.errLoad')}</p></>);
   }
+
+  // Fiche réunie dans une autre (même VIN) : renvoi vers la fiche gardée.
+  if (vehicle.is_active === false) return <MergedVehicleNotice vehicleId={vehicle.id} />;
 
   const commerce = showCommerceBlocks(vehicle);
   const currentOwnerId = owners?.find((o) => o.is_current)?.contact_id ?? null;

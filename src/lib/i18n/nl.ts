@@ -359,6 +359,8 @@ export const nl: DictionaryShape = {
     ownerNoHistory: 'Geen eigenaar geregistreerd.',
     ownerCurrent: 'Huidig',
     ownerSince: 'Sinds',
+    mergedRedirect: 'Deze fiche is samengevoegd met een andere fiche met hetzelfde VIN: de behouden fiche wordt geopend…',
+    inactiveRecord: 'Deze fiche is gedeactiveerd.',
     errLoad: 'Laden onmogelijk.',
     errSave: 'Opslaan onmogelijk.',
   },

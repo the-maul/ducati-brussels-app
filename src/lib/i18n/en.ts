@@ -359,6 +359,8 @@ export const en: DictionaryShape = {
     ownerNoHistory: 'No owner recorded.',
     ownerCurrent: 'Current',
     ownerSince: 'Since',
+    mergedRedirect: 'This record was merged with another record of the same VIN: opening the kept record…',
+    inactiveRecord: 'This record is deactivated.',
     errLoad: 'Unable to load.',
     errSave: 'Unable to save.',
   },
