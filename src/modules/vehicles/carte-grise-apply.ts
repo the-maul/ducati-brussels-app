@@ -2,6 +2,8 @@
  * Mission 04, carte 7 — types de la lecture de carte grise et application au formulaire
  * véhicule (fonctions pures, testées par tests/carte-grise.test.ts).
  */
+import { plateFromSource, samePlate } from '@/lib/plate';
+
 export type CgConfidence = 'high' | 'medium' | 'low';
 export type CgField =
   | 'vin' | 'plate' | 'first_registration_date' | 'brand' | 'model' | 'displacement'
@@ -26,11 +28,13 @@ export function applyCgReading(
   const next = { ...current };
   const filled: CgField[] = [];
   const conflicts: Partial<Record<CgField, string>> = {};
-  for (const [k, v] of Object.entries(reading.values) as [CgField, string][]) {
-    if (v == null || v === '') continue;
+  for (const [k, raw] of Object.entries(reading.values) as [CgField, string][]) {
+    if (raw == null || raw === '') continue;
+    // La carte grise imprime « 1-ABC-123 » : même plaque que « 1ABC123 », gardée sans tirets.
+    const v = k === 'plate' ? plateFromSource(raw) ?? raw : raw;
     const cur = typeof current[k] === 'string' ? (current[k] as string).trim() : '';
     if (!cur) { next[k] = v; filled.push(k); }
-    else if (cur.toUpperCase() !== v.toUpperCase()) conflicts[k] = v;
+    else if (k === 'plate' ? !samePlate(cur, v) : cur.toUpperCase() !== v.toUpperCase()) conflicts[k] = v;
   }
   return { next, filled, conflicts };
 }

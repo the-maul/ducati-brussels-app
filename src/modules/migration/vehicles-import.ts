@@ -5,6 +5,7 @@
  * jamais écrasé.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { plateFromSource } from '@/lib/plate';
 import {
   normHeader, splitCsvLine, splitCsvRows, parseNum, type ParsedRow, type ImportPreview, type ApplyResult,
 } from './csv-utils';
@@ -39,6 +40,7 @@ export function parseVehiclesCsv(text: string): ImportPreview {
       if (!f || v === '') return;
       if (f === 'model_year') { const n = parseNum(v); if (n != null) payload[f] = Math.round(n); }
       else if (f === 'vin') payload[f] = v.toUpperCase();
+      else if (f === 'plate') payload[f] = plateFromSource(v);
       else payload[f] = v;
     });
     const vin = (payload.vin as string)?.trim();

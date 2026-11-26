@@ -23,3 +23,21 @@ export function cleanPlate(raw: string | null | undefined, custom: boolean): str
 export function plateIsValid(plate: string, custom: boolean): boolean {
   return custom || plate === '' || plate.length === PLATE_LENGTH;
 }
+
+/** « M-ACN-057 » et « MACN057 » sont la même plaque (DCS, carte grise, ancienne saisie). */
+export function samePlate(a: unknown, b: unknown): boolean {
+  const x = normalizePlate(a == null ? '' : String(a));
+  return x !== '' && x === normalizePlate(b == null ? '' : String(b));
+}
+
+/**
+ * Plaque lue ailleurs (DCS, carte grise, import G8) : enregistrée sans tirets ni espaces quand
+ * elle fait 7 caractères. Sinon le texte d'origine est gardé tel quel, pour être vérifié à la main
+ * (même règle que le nettoyage des fiches du 26/11/2026).
+ */
+export function plateFromSource(raw: string | null | undefined): string | null {
+  const text = (raw ?? '').trim();
+  if (text === '') return null;
+  const n = normalizePlate(text);
+  return n.length === PLATE_LENGTH ? n : text;
+}

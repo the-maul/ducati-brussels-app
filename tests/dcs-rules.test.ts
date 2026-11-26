@@ -90,8 +90,8 @@ describe('règles R1 / R2', () => {
   });
 
   test('champ vide : rempli depuis le DCS et tracé', () => {
-    const plan = planDcsImport({ current: { plate: null, mileage: null }, payload: payload({ last_km: '100 km' }, 'TST260'), model: noModel });
-    expect(plan.changes).toContainEqual({ field: 'plate', old: null, new: 'TST260', action: 'filled' });
+    const plan = planDcsImport({ current: { plate: null, mileage: null }, payload: payload({ last_km: '100 km' }, 'M-TST-260'), model: noModel });
+    expect(plan.changes).toContainEqual({ field: 'plate', old: null, new: 'MTST260', action: 'filled' });
     expect(plan.changes).toContainEqual({ field: 'mileage', old: null, new: 100, action: 'filled' });
   });
 

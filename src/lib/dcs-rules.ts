@@ -9,6 +9,7 @@
  *  - Origin: « Garantie activée par », else « Moto facturée à », only when empty.
  */
 import { isCarGarantie } from '@/modules/vehicles/warranty-types';
+import { PLATE_LENGTH } from '@/lib/plate';
 
 export const DCS_PAYLOAD_FORMAT = 2;
 
@@ -301,10 +302,14 @@ export function planDcsImport(input: {
     else decide('warranty_type', 'factory', warrantyType, sameText);
   }
 
-  // Plate and color: variable data, compared once normalized.
+  // Plate and color: variable data, compared once normalized. The DCS shows « M-ACN-057 »:
+  // the plate is kept and written without dashes, and an empty plate is only filled with
+  // exactly 7 characters (same rule as dcs_resolve_field and the vehicle form).
   const plate = dcsText(payload.header?.plate);
   if (plate) {
-    if (/^[A-Z0-9]{2,12}$/.test(normalizePlate(plate))) decide('plate', 'variable', plate, (a, b) => normalizePlate(a) === normalizePlate(b));
+    const clean = normalizePlate(plate);
+    const fillable = !isEmpty(current.plate) || clean.length === PLATE_LENGTH;
+    if (/^[A-Z0-9]{2,12}$/.test(clean) && fillable) decide('plate', 'variable', clean, (a, b) => normalizePlate(a) === normalizePlate(b));
     else plan.invalid.push('plate');
   }
   if (model.color) decide('color', 'variable', model.color, sameColor);
