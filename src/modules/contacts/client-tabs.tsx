@@ -25,6 +25,7 @@ import { listPaymentsFor, listFinancingOrgs } from '@/modules/sales/financing-ap
 import { listPaymentMethods } from '@/modules/sales/write-api';
 import { t, fillVars } from '@/lib/i18n';
 import { encoursTile } from './fiche-tabs';
+import { FinancedBikes } from './financed-bikes';
 
 const toneOf = (s: VehicleStatus) => VEHICLE_STATUSES.find((x) => x.value === s)?.tone ?? 'neutral';
 // Séparateur de milliers (revue UX : « 1027,00 € » illisible).
@@ -224,11 +225,13 @@ export function ParcTab({ contactId }: { contactId: string }) {
       </Button>
     </div>
   );
-  if (!data || data.length === 0) return <>{addBar}<Empty>{t('clientTabs.noVehicle')}</Empty></>;
+  // Banque ou leasing : ses motos financées passent avant (Simon, 26/11/2026).
+  if (!data || data.length === 0) return <><FinancedBikes contactId={contactId} />{addBar}<Empty>{t('clientTabs.noVehicle')}</Empty></>;
   const ownerName = (id: string) => (id === contactId ? null : (linked.find((l) => l.contact.id === id) ? contactDisplayName(linked.find((l) => l.contact.id === id)!.contact) : null));
   const hasLinked = linked.length > 0;
   return (
     <>
+    <FinancedBikes contactId={contactId} />
     {addBar}
     <div className="overflow-hidden rounded-md border border-border">
       <table className="w-full border-collapse font-data text-[13px]">
