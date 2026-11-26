@@ -26,6 +26,7 @@ import { partPathNl, partsFlowNl } from './chemin-pieces';
 import { pointsVrNl } from './points-vr';
 import { designTransverseNl } from './design-transverse';
 import { vehicleKitNl } from './kit-fiche-moto';
+import { dueOpsNl, ownProcNl } from './mode-operatoire-atelier';
 
 export const nl: DictionaryShape = {
   app: {
@@ -9492,4 +9493,7 @@ export const nl: DictionaryShape = {
   designTransverse: designTransverseNl,
   // Fiche moto : pieces du kit d'entretien (ATE014, 26/11/2026).
   vehicleKit: vehicleKitNl,
+  // Parcours : operations a echeance et mode operatoire de l'atelier (ATE014, 26/11/2026).
+  dueOps: dueOpsNl,
+  ownProc: ownProcNl,
 };

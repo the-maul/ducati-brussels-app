@@ -33,6 +33,8 @@ export type PlanOp = {
   not_done_reason: string | null;
   not_done_note: string | null;
   deferred_intervention_id: string | null;
+  /** ATE014 (26/11) : « Faire quand meme » une operation pas a echeance (migration 20261126270000). */
+  due_forced?: boolean;
 };
 
 export type PlanOpLine = { operation_id: string; line_id: string; family_code: string; article_id: string | null; designation: string; quantity: number | string };

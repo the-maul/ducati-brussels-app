@@ -12,6 +12,10 @@
  * renvoie la ligne MO du forfait G8 du profil moteur (migration 20261120361000 : ENTRETIEN ANNUEL
  * 2 SOUPAPES = 1,80 h...) ; a defaut, le temps Ducati du programme du manuel. La quantite n'est
  * jamais recalculee depuis le pointage.
+ *
+ * ATE014 (26/11) : comme la liste des operations de l'OR, les pieces / liquides d'une operation
+ * periodique PAS A ECHEANCE pour cette moto (courroies, liquide de frein... d'apres son historique,
+ * due-rules.ts) ne sont pas chargees (`dueKitRows`). Historique inconnu : tout est charge.
  */
 import { supabase } from '@/integrations/supabase/client';
 import { t } from '@/lib/i18n';
@@ -25,6 +29,8 @@ import { pricedArticles } from './insert-api';
 import { kitInsertLines, toRoLine, type KitComponent } from './insert-rules';
 import { getJourneySource } from '../journey/source';
 import { serviceOfficialMinutes } from '../journey/rules';
+import { getVehicleDueContext } from '../plan-ops/due-api';
+import { filterKitByDue, type DueVerdict } from '../plan-ops/due-rules';
 
 /** Temps Ducati (heures, 2 decimales) de l'entretien dans le programme du manuel de la moto, ou null. */
 export async function ducatiServiceHours(vehicleId: string, serviceCode: ServiceCode): Promise<number | null> {
@@ -61,11 +67,17 @@ export async function serviceKitRows(vehicleId: string, serviceCode: ServiceCode
   return (data ?? []) as ServiceKitRow[];
 }
 
+/** Le kit sans les pieces des operations pas a echeance pour cette moto aujourd'hui (`dropped` : ecartees). */
+export async function dueKitRows(vehicleId: string, serviceCode: ServiceCode): Promise<{ kept: ServiceKitRow[]; dropped: { row: ServiceKitRow; op: string; verdict: DueVerdict }[] }> {
+  const [rows, ctx] = await Promise.all([serviceKitRows(vehicleId, serviceCode), getVehicleDueContext(vehicleId, serviceCode).catch(() => null)]);
+  return filterKitByDue(rows, ctx);
+}
+
 /** Lignes d'OR du kit d'entretien de la moto pour cet entretien (vide si rien a inserer). */
 export async function serviceKitOrLines(p: {
   companyId: string; vehicleId: string; serviceCode: ServiceCode; contactId: string | null;
 }): Promise<RoLineInput[]> {
-  const rows = await serviceKitRows(p.vehicleId, p.serviceCode).catch(() => [] as ServiceKitRow[]);
+  const rows = await dueKitRows(p.vehicleId, p.serviceCode).then((r) => r.kept).catch(() => [] as ServiceKitRow[]);
   if (!rows.length) return [];
   const components: KitComponent[] = rows.map((r) => ({
     articleId: r.article_id, reference: r.reference, designation: r.designation, quantity: Number(r.quantity) || 0,

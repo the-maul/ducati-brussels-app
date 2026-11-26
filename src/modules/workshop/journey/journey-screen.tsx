@@ -18,6 +18,11 @@
  * motif, et « Terminer » arrete le pointage et passe l'OR « Pret » apres confirmation. Sans manuel
  * pour ce modele, l'operation garde sa case et l'ecran dit « mode operatoire non disponible ».
  * Sans la migration : comportement d'avant (liste du manuel, avancement dans le navigateur).
+ *
+ * ATE014 (26/11/2026) : seulement les operations a echeance (usePlanOps, due-rules.ts : « Pas a
+ * echeance (n) » sous la liste, « Faire quand meme ») ; et quand Ducati n'a pas de mode operatoire,
+ * celui ecrit par l'atelier s'affiche a sa place dans le meme pas a pas (« Mode operatoire de
+ * l'atelier », auteur, date), ou l'atelier l'ecrit (workshop-procedure-view.tsx).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,7 +56,10 @@ import type { Figure, Finding, FindingKind, JourneyState, MaintenanceProgram, Op
 import { t } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { isServiceCode, serviceCodeForReason, serviceKindOf } from '../service-code';
-import { FinishDialog, NotDoneDialog, usePlanOps } from '../plan-ops/plan-ops-panel';
+import { DueTag, FinishDialog, NotDoneDialog, NotDueBlock, usePlanOps } from '../plan-ops/plan-ops-panel';
+import { useOrWorkshopProcedures } from './workshop-procedure-api';
+import { toProcedure } from './workshop-procedure-rules';
+import { WorkshopProcedureEditor, WorkshopProcedureEmpty, WorkshopProcedureHeader } from './workshop-procedure-view';
 import { reasonText, type PlanOp, type PlanOpSlotInfo } from '../plan-ops/rules';
 import { serviceLabelDisplay } from '../service-label-fr';
 import { toast } from 'sonner';
@@ -131,6 +139,10 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
   const dbOps = po.ops;
   const dbMode = po.ready && dbOps.length > 0;
   const dbByKey = useMemo(() => new Map(dbOps.map((o) => [o.op_key, o])), [dbOps]);
+  // ATE014 : mode operatoire ecrit par l'atelier, par operation de l'OR (motos sans manuel Ducati).
+  const own = useOrWorkshopProcedures(orId, dbMode);
+  const atelierOf = (opKey: string | null | undefined) => (opKey ? own.data?.byOpKey.get(opKey) ?? null : null);
+  const [editor, setEditor] = useState<{ opKey: string; label: string } | null>(null);
   // Lot parcours-fix (20/11) : la MO d'entretien est un forfait (decision client). Temps du forfait G8
   // du profil moteur (workshop_service_labour, migration 20261120361000) pour le recapitulatif quand
   // le manuel ne donne pas de temps Ducati.
@@ -196,8 +208,8 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     const op = state.operations.find((o) => o.id === initialOp);
     if (!op) return;
     openedInitial.current = true;
-    if (op.parcoursId) { setOpenOpId(op.id); setLinkedId(null); setView('procedure'); }
-  }, [initialOp, state]);
+    if (op.parcoursId || dbMode) { setOpenOpId(op.id); setLinkedId(null); setView('procedure'); }
+  }, [initialOp, state, dbMode]);
 
   // Opération en cours : mon pointage ouvert sur cet OR (pointeuse), sinon l'ancien chrono local.
   const running = pointage
@@ -423,7 +435,10 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
 
   // --- procédure pas à pas -------------------------------------------------
   const openOp = state.operations.find((o) => o.id === openOpId) ?? null;
-  const openProc = linkedId ? linked.data ?? null : openOp?.parcoursId ? procedures.data?.[openOp.parcoursId] ?? null : null;
+  const openAtelier = dbMode && openOp && !openOp.parcoursId ? atelierOf(openOp.id) : null;
+  const openProc = linkedId ? linked.data ?? null
+    : openOp?.parcoursId ? procedures.data?.[openOp.parcoursId] ?? null
+      : openAtelier && openAtelier.steps.length ? toProcedure(openAtelier, t('ownProc.remark')) : null;
 
   const toggleStep = (n: number) => {
     patch((s) => ({
@@ -439,7 +454,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     const cur = state.operations.find((o) => o.id === openOpId);
     const d = openOpId ? dbByKey.get(openOpId) : undefined;
     if (dbMode && cur && d && d.status === 'a_faire' && !cur.steps[String(n)]) {
-      const total = cur.parcoursId ? stepCounts[cur.parcoursId] ?? 0 : 0;
+      const total = cur.parcoursId ? stepCounts[cur.parcoursId] ?? 0 : atelierOf(cur.id)?.steps.length ?? 0;
       if (total > 0 && Object.keys(cur.steps).length + 1 >= total) po.set.mutate({ op: d, status: 'fait' });
     }
   };
@@ -478,7 +493,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
     </>
   ) : null;
   // Aucune operation n'a de mode operatoire : on le dit une fois au-dessus de la liste (revue UX 20/11).
-  const anyProcedure = (state?.operations ?? []).some((o) => !!o.parcoursId);
+  const anyProcedure = (state?.operations ?? []).some((o) => !!o.parcoursId || (dbMode && !!atelierOf(o.id)));
   const finishButton = dbMode && po.canFinish ? (
     <Button className="h-12 text-[15px]" disabled={po.finish.isPending} onClick={() => setFinishOpen(true)}>
       {po.finish.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t('planOps.finish')}
@@ -520,12 +535,40 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
 
   const removeFinding = (id: string) => patch((s) => ({ ...s, findings: s.findings.filter((f) => f.id !== id) }));
 
+  const editorDialog = editor ? (
+    <WorkshopProcedureEditor
+      open orId={orId} companyId={companyId} opLabel={editor.label} info={own.data ?? null}
+      existing={atelierOf(editor.opKey)} onClose={() => setEditor(null)}
+    />
+  ) : null;
+
+  // ATE014 : operation sans mode operatoire Ducati ni de l'atelier → l'atelier peut l'ecrire.
+  if (view === 'procedure' && openOp && !openOp.parcoursId && !openProc && dbMode && !linkedId) {
+    return (
+      <>
+        {banners}
+        <WorkshopProcedureEmpty
+          label={openOp.label} info={own.data ?? null}
+          onBack={() => { setOpenOpId(null); setView('ops'); }}
+          onWrite={() => setEditor({ opKey: openOp.id, label: dbByKey.get(openOp.id)?.label ?? openOp.label })}
+        />
+        {editorDialog}
+      </>
+    );
+  }
+
   if (view === 'procedure' && openOp && openProc) {
     return (
       <>
         {banners}
         <ProcedureView
           key={openProc.id}
+          header={openAtelier && !linkedId ? (
+            <WorkshopProcedureHeader
+              wp={openAtelier} canWrite={!!own.data?.can_write}
+              onEdit={() => setEditor({ opKey: openOp.id, label: dbByKey.get(openOp.id)?.label ?? openOp.label })}
+            />
+          ) : undefined}
           procedure={openProc}
           operation={openOp}
           running={running === openOp.id}
@@ -546,6 +589,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
         />
         {pauseDialog}
         {planDialogs}
+        {editorDialog}
       </>
     );
   }
@@ -703,11 +747,12 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
       )}
 
       {!anyProcedure && state.operations.length > 0 && (
-        <p className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"><NotebookPen className="size-4" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</p>
+        <p className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"><NotebookPen className="size-4" aria-hidden />{dbMode ? `${t('planOps.noProcedure')} ${own.data?.can_write ? t('ownProc.bannerHint') : ''}`.trim() : t('journey.noProcedure')}</p>
       )}
       <ul className="space-y-2">
         {state.operations.map((op, i) => {
-          const n = op.parcoursId ? stepCounts[op.parcoursId] ?? 0 : 0;
+          const atelier = dbMode && !op.parcoursId ? atelierOf(op.id) : null;
+          const n = op.parcoursId ? stepCounts[op.parcoursId] ?? 0 : atelier?.steps.length ?? 0;
           const dbOp = dbMode ? dbByKey.get(op.id) : undefined;
           const done = dbOp ? dbOp.status === 'fait' : isOperationDone(op, n);
           const notDone = dbOp?.status === 'non_fait';
@@ -729,7 +774,7 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
 
                 <button
                   type="button"
-                  disabled={!op.parcoursId}
+                  disabled={!op.parcoursId && !dbMode}
                   onClick={() => { setOpenOpId(op.id); setLinkedId(null); setView('procedure'); }}
                   className="min-w-0 flex-1 rounded-md px-1 py-1 text-left enabled:hover:bg-accent disabled:cursor-default"
                 >
@@ -737,7 +782,12 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
                   <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
                     {op.parcoursId
                       ? <span className="inline-flex items-center gap-1"><ChevronRight className="size-3.5" aria-hidden />{n ? fill(t('journey.steps'), { n }) : t('journey.openProcedure')}</span>
-                      : anyProcedure && <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</span>}
+                      : atelier
+                        ? <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{t('ownProc.badge')} · {fill(t('ownProc.steps'), { n })}</span>
+                        : dbMode && own.data?.can_write
+                          ? <span className="inline-flex items-center gap-1"><ChevronRight className="size-3.5" aria-hidden />{t('ownProc.write')}</span>
+                          : anyProcedure && <span className="inline-flex items-center gap-1"><NotebookPen className="size-3.5" aria-hidden />{dbMode ? t('planOps.noProcedure') : t('journey.noProcedure')}</span>}
+                    {dbOp && <DueTag v={po.dueInfo.get(dbOp.id)} />}
                     {notDone && dbOp && <StatusBadge tone="warning" icon={Ban} label={`${t('planOps.journeyNotDone')} : ${reasonText(dbOp.not_done_reason, po.reasons, t)}`} />}
                     {dbOp && dbOp.status === 'fait' && dbOp.done_by_name && <span>{dbOp.done_by_name}</span>}
                     {n > 0 && <span className="tabular-nums">{fill(t('journey.stepsProgress'), { done: Math.min(n, Object.keys(op.steps).length), total: n })}</span>}
@@ -774,6 +824,8 @@ export function JourneyScreen({ orId, companyId, initialOp = null, operationExtr
           );
         })}
       </ul>
+
+      {dbMode && <NotDueBlock items={po.notDue} editable={po.editable} busy={po.force.isPending} onForce={(o) => po.force.mutate(o)} />}
 
       {/* Observations, pièces et photos hors procédure */}
       <section className="mt-5">

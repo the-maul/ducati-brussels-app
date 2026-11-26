@@ -12,6 +12,10 @@
  *    catalogue du modele-annee de la moto (operation-presence.ts) : element absent → operation non
  *    affichee et reglee une fois « non faite / sans objet » (tracee, pour que « Terminer » et x / y
  *    ne l'attendent pas, jamais mentionnee sur la facture) ; present → libelle sans « (si present) ».
+ *    ATE014 (26/11) : seulement les operations A ECHEANCE (due-rules.ts) : une operation periodique
+ *    (courroies 60 mois, refroidissement 48, frein 24...) pas due pour cette moto d'apres son
+ *    historique est masquee et reglee une fois « non faite / pas a echeance » (meme mecanisme), listee
+ *    dans « Pas a echeance (n) » avec « Faire quand meme » ; due ou inconnue : affichee avec son etat.
  *  - `PlanOpsPanel` : le bloc de la fiche OR.
  *  - `NotDoneDialog`, `FinishDialog` : motif « non faite », confirmation de « Terminer ».
  *  - `PlanProgressBadge` / `usePlanProgressMap` : avancement x / y au planning.
@@ -21,7 +25,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import {
-  Ban, BookOpen, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, ClipboardCheck, ListChecks, Loader2, Package, RotateCcw,
+  Ban, BookOpen, CalendarClock, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, CircleHelp, ClipboardCheck, ListChecks, Loader2,
+  NotebookPen, Package, RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,6 +42,9 @@ import {
   finishPlanOps, getPlanProgress, initPlanOps, listNotDoneReasons, listPlanOpLines, listPlanOps, planOpsSchemaReady, setPlanOp, settleOpsAbsentOnBike,
   type InitResult, type PlanProgressRow,
 } from './api';
+import { getOrDueContext, forceDueOperation } from './due-api';
+import { applyDueRule, type DueVerdict } from './due-rules';
+import { useOrWorkshopProcedures } from '../journey/workshop-procedure-api';
 import {
   DEFAULT_NOT_DONE_REASONS, canEditOps, canFinish, linesByOperation, opTone, planProgress, progressTone, reasonText,
   type NotDoneReason, type PlanOp, type PlanOpSlotInfo, type PlanOpStatus,
@@ -101,33 +109,99 @@ export function usePlanOps(p: { orId: string; companyId: string | null; orStatus
     onError: onErr,
   });
 
-  // ATE-05 : operations « (si present) » d'apres le catalogue de la moto (filtre d'affichage).
+  // ATE014 : operations periodiques pas a echeance pour cette moto (historique), puis ATE-05 :
+  // operations « (si present) » d'apres le catalogue de la moto (filtres d'affichage).
   const raw = ops.data ?? [];
-  const needsCatalog = ready && hasConditionalOps(raw);
+  const dueQ = useQuery({ queryKey: ['plan-ops-due', p.orId], queryFn: () => getOrDueContext(p.orId), enabled: ready && raw.length > 0, staleTime: 300_000 });
+  const withLines = useMemo(() => new Set((lines.data ?? []).map((l) => l.operation_id)), [lines.data]);
+  const due = useMemo(() => applyDueRule(raw, dueQ.data ?? null, withLines), [raw, dueQ.data, withLines]);
+  const needsCatalog = ready && hasConditionalOps(due.visible);
   const cat = useOrCatalogIndex(p.orId, p.companyId, needsCatalog);
-  const bike = useMemo(() => applyBikePresence(raw, cat.index.data ?? null), [raw, cat.index.data]);
+  const bike = useMemo(() => applyBikePresence(due.visible, cat.index.data ?? null), [due.visible, cat.index.data]);
   const list = bike.visible;
   const settling = useRef(false);
   useEffect(() => {
-    if (settling.current || !bike.toSettle.length || !canEditOps(p.orStatus)) return;
+    if (settling.current || (!bike.toSettle.length && !due.toSettle.length) || !canEditOps(p.orStatus)) return;
+    // Les pieces de l'OR d'abord : une operation qui a des pieces sur l'OR reste affichee.
+    if (due.toSettle.length && !lines.isFetched) return;
     settling.current = true;
     const reason = reasons.some((r) => r.code === 'pas_necessaire') ? 'pas_necessaire' : 'autre';
-    settleOpsAbsentOnBike(bike.toSettle.map((o) => o.id), reason, ABSENT_ON_BIKE_NOTE)
-      .then((n) => { if (n) refresh(); })
+    (async () => {
+      let n = bike.toSettle.length ? await settleOpsAbsentOnBike(bike.toSettle.map((o) => o.id), reason, ABSENT_ON_BIKE_NOTE) : 0;
+      for (const x of due.toSettle) n += await settleOpsAbsentOnBike([x.op.id], reason, x.note);
+      if (n) refresh();
+    })()
       .catch(() => undefined)
       .finally(() => { settling.current = false; });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bike.toSettle, p.orStatus, reasons]);
+  }, [bike.toSettle, due.toSettle, p.orStatus, reasons, lines.isFetched]);
+  const force = useMutation({
+    mutationFn: (op: PlanOp) => forceDueOperation(op.id, true),
+    meta: { success: false },
+    onSuccess: refresh,
+    onError: onErr,
+  });
   const progress = useMemo(() => planProgress(list), [list]);
   const byOp = useMemo(() => linesByOperation(lines.data ?? []), [lines.data]);
   // La liste est connue (ou il n'y en aura pas) : le parcours technicien peut choisir son mode.
-  const settled = schema.isSuccess && (!ready || (ops.isSuccess && !init.isPending && cat.settled
+  const settled = schema.isSuccess && (!ready || (ops.isSuccess && !init.isPending && cat.settled && (!raw.length || dueQ.isFetched)
     && !(list.length === 0 && (initResult?.count ?? 0) > 0)
     && (list.length > 0 || !p.autoInit || tried.current || !canEditOps(p.orStatus))));
   return {
     ready, settled, loading: ops.isLoading || init.isPending, ops: list, progress, byOp, reasons, initResult,
     init, set, finish, canFinish: canFinish(list, p.orStatus), editable: canEditOps(p.orStatus),
+    notDue: due.hidden, dueInfo: due.info, force,
   };
+}
+
+const frDate = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
+
+/** Etat d'une operation periodique affichee : a echeance (derniere fois) ou a verifier (inconnue). */
+export function DueTag({ v }: { v: DueVerdict | undefined }) {
+  if (!v) return null;
+  if (v.state === 'due' && v.last) return <StatusBadge tone="info" icon={CalendarClock} label={fill(t('dueOps.dueLast'), { date: frDate(v.last.date) })} />;
+  if (v.state === 'due') return <StatusBadge tone="info" icon={CalendarClock} label={t('dueOps.due')} />;
+  return <StatusBadge tone="warning" icon={CircleHelp} label={t('dueOps.unknown')} />;
+}
+
+/** « Pas a echeance pour cette moto (n) » : la liste masquee, avec « Faire quand meme » (trace). */
+export function NotDueBlock({ items, editable, busy, onForce }: {
+  items: { op: PlanOp; verdict: DueVerdict | null }[]; editable: boolean; busy: boolean; onForce: (op: PlanOp) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return null;
+  return (
+    <div className="mt-3 rounded-md border border-border bg-card px-3 py-2">
+      <button type="button" className="flex min-h-11 w-full items-center gap-2 text-left text-[14px]" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="font-bold">{fill(t('dueOps.hiddenTitle'), { n: items.length })}</span>
+        <span className="ml-auto text-[13px] text-muted-foreground">{open ? t('dueOps.hide') : t('dueOps.show')}</span>
+      </button>
+      {open && (
+        <>
+          <p className="text-[12px] text-muted-foreground">{t('dueOps.hiddenHint')}</p>
+          <ul className="mt-2 space-y-1.5">
+            {items.map(({ op, verdict }) => (
+              <li key={op.id} className="flex flex-wrap items-center gap-2 border-t border-border pt-1.5 text-[14px]">
+                <div className="min-w-0 flex-1">
+                  <p className="leading-snug">{op.label}</p>
+                  <p className="text-[12px] text-muted-foreground tabular-nums">
+                    {verdict?.last
+                      ? fill(t('dueOps.lastDone'), { date: frDate(verdict.last.date), ref: verdict.last.ref ? ` (${verdict.last.ref})` : '' })
+                      : verdict?.nextDate ? fill(t('dueOps.firstDue'), { date: frDate(verdict.nextDate) }) : op.not_done_note}
+                    {verdict?.last && verdict.nextDate ? ` · ${fill(t('dueOps.nextDue'), { date: frDate(verdict.nextDate) })}` : ''}
+                  </p>
+                </div>
+                {editable && (
+                  <Button variant="outline" className="h-11 shrink-0 text-[14px]" disabled={busy} onClick={() => onForce(op)}><RotateCcw /> {t('dueOps.forceDo')}</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
 }
 
 /** « Non faite » : motif (liste parametrable, gros boutons) + note facultative. */
@@ -233,6 +307,8 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
 }) {
   const navigate = useNavigate();
   const po = usePlanOps({ orId, companyId, orStatus, autoInit, onChanged });
+  // ATE014 : mode operatoire ecrit par l'atelier (motos sans manuel Ducati).
+  const own = useOrWorkshopProcedures(orId, po.ready && po.ops.length > 0);
   // Revue UX (20/11) : une longue liste (entretien annuel : 28 operations) se replie par defaut sur
   // la fiche OR, pour que l'en-tete client / moto / lignes ne soit pas 6 ecrans plus bas.
   const [openPref, setOpen] = useState<boolean | null>(null);
@@ -255,7 +331,7 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
   const pr = po.progress;
   const open = openPref ?? po.ops.length <= 8;
   // Aucune operation n'a de mode operatoire : on le dit une fois, pas sur chaque ligne.
-  const anyProcedure = po.ops.some((o) => !!o.procedure_id);
+  const anyProcedure = po.ops.some((o) => !!o.procedure_id || !!own.data?.byOpKey.get(o.op_key));
   const openProcedure = (op: PlanOp) => navigate({ to: '/workshop/journey/$orId', params: { orId }, search: { op: op.op_key } });
   return (
     <section className="mb-4 rounded-md border border-border bg-card p-3 shadow-[var(--shadow-card)]">
@@ -313,6 +389,8 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
                     <p className="text-[15px] leading-snug">{op.label}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
                       <StatusBadge tone={opTone(op.status)} icon={Icon} label={label} />
+                      <DueTag v={po.dueInfo.get(op.id)} />
+                      {op.due_forced && <span>{t('dueOps.forced')}</span>}
                       {!op.mandatory && <span>{t('planOps.optional')}</span>}
                       {op.status !== 'a_faire' && op.done_at && (
                         <span className="tabular-nums">{fill(t('planOps.doneBy'), { who: op.done_by_name ?? '?', at: dayHhmm(op.done_at) })}{op.time_entry_operation ? ` · ${fill(t('planOps.onPointage'), { op: op.time_entry_operation })}` : ''}</span>
@@ -322,7 +400,9 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
                       )}
                       {op.procedure_id
                         ? <button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:underline" onClick={() => openProcedure(op)}><BookOpen className="size-3.5" aria-hidden />{t('planOps.procedure')}</button>
-                        : anyProcedure && <span className="inline-flex items-center gap-1"><BookOpen className="size-3.5" aria-hidden />{t('planOps.noProcedure')}</span>}
+                        : own.data?.byOpKey.get(op.op_key)
+                          ? <button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:underline" onClick={() => openProcedure(op)}><NotebookPen className="size-3.5" aria-hidden />{t('ownProc.badge')}</button>
+                          : anyProcedure && <span className="inline-flex items-center gap-1"><BookOpen className="size-3.5" aria-hidden />{t('planOps.noProcedure')}</span>}
                     </div>
                     {linked.length > 0 && (
                       <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -349,6 +429,7 @@ export function PlanOpsPanel({ orId, companyId, orStatus, autoInit = true, onCha
           })}
         </ul>
       )}
+      {open && <NotDueBlock items={po.notDue} editable={po.editable} busy={po.force.isPending} onForce={(op) => po.force.mutate(op)} />}
       {!po.canFinish && pr.mandatoryOpen === 0 && pr.total > 0 && po.editable && (
         <p className="mt-2 text-[12px] text-muted-foreground">{t('planOps.finishUnavailable')}</p>
       )}

@@ -5,7 +5,7 @@
  * Attention / Important / Remarque bien distingués, outils spéciaux et produits.
  * Chaque étape se coche ; l'avancement est enregistré par l'écran appelant à chaque geste.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeft, Camera, Check, CircleDot, Gauge, Link2, NotebookPen, Package, Pause, Play, Square, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -45,7 +45,7 @@ function TorqueBlock({ c, showStep }: { c: Torque; showStep?: boolean }) {
         </span>
       ))}
       {showStep && c.etape != null && <span className="text-[12px] text-muted-foreground">{fill(t('journey.torqueAtStep'), { n: c.etape })}</span>}
-      {c.texte && <p className="w-full text-[13px] leading-relaxed text-foreground">{c.texte}</p>}
+      {c.texte && c.texte !== torqueLabel(c) && <p className="w-full text-[13px] leading-relaxed text-foreground">{c.texte}</p>}
     </div>
   );
 }
@@ -60,9 +60,11 @@ function Chip({ icon: Icon, children }: { icon: typeof Wrench; children: React.R
 
 export function ProcedureView({
   procedure, operation, running, pointage = false, spentMin, onBack, onToggleStep, onToggleOperation,
-  onChrono, onFinding, onOpenFigure, onOpenLinked,
+  onChrono, onFinding, onOpenFigure, onOpenLinked, header,
 }: {
   procedure: Procedure;
+  /** ATE014 (26/11) : en-tete pose avant le reste (mode operatoire de l'atelier : auteur, date, photos). */
+  header?: ReactNode;
   operation: OperationProgress;
   running: boolean;
   /** Lot A (19/11) : le bouton pointe a la pointeuse (Demarrer cette operation / Pause), plus de chrono local. */
@@ -110,6 +112,7 @@ export function ProcedureView({
 
       {/* Ce qu'il faut savoir avant de commencer */}
       <div className="space-y-3">
+        {header}
         {src && (src.code || src.updateDate) && (
           <p className="font-mono text-[11px] text-muted-foreground">
             {fill(t('journey.source'), { code: src.code ?? '—', version: src.version ?? '—', date: src.updateDate ?? '—' })}

@@ -712,6 +712,26 @@ essai à blanc `supabase/tests/m8_dossier_atelier.sql`, règle testée dans `tes
   habituelle, réversible), pour que « Terminer » et x / y ne l'attendent pas ; jamais reprise sur la facture ni sur l'OR
   imprimé. Présent → libellé sans « (si présent) ». Embrayage à câble : « huile de freins et d'embrayage » devient
   « huile de freins ». Pas de modèle-année : opération gardée telle quelle. Rien n'est supprimé en base.
+- **Seulement les opérations à échéance (26/11, ATE014)** : `plan-ops/due-rules.ts` (règle pure, testée) +
+  `workshop_periodic_due_context` (migration `20261126270000`). Une opération du plan générique à périodicité > 12 mois
+  (`maintenance_service_operations.periodicity_months` : courroies 60, refroidissement 48, fourche 36, frein 24) n'est
+  affichée que si elle est due à la date / au km de l'OR d'après l'historique de la moto : opération cochée sur un autre
+  OR, OR facturé dont l'entretien la fait d'office (Desmo → courroies, refroidissement), ligne de facture DMS / G8
+  (« COURROIE DENTEE… », « HUILE DE FREIN DOT… », pas « RESERVOIR… »), entretien DCS passé, historique ; tolérance
+  60 jours. Jamais vue : départ (garantie, puis mise en circulation) + périodicité pas atteint → pas due ; atteint ou
+  rien de connu → affichée « À vérifier : dernière date inconnue ». Toujours affichée : opération d'un service choisi
+  qui la fait d'office, « Faire quand même » (`due_forced`, `repair_order_operation_due_force`, tracé), opération déjà
+  cochée ou avec des pièces sur l'OR. Pas due → réglée une fois « non faite / pas nécessaire », note
+  `Pas à échéance (dernière fois : …)`, listée sous « Pas à échéance pour cette moto (n) » ; ni facture ni OR imprimé
+  (`isAutoSettled`). Le kit chargé depuis un RDV et la fiche moto écartent les pièces des opérations pas dues (mêmes
+  signatures). OR-2026-00003 : rien ne disparaît — courroies et liquide de frein changés le 10/04/2015 (facture G8),
+  donc dus ; refroidissement absent (air/huile, règle « si présent »).
+- **Mode opératoire de l'atelier (26/11, ATE014)** : moto sans manuel Ducati → chaque opération du parcours ouvre
+  « Écrire le mode opératoire » (étapes, couples, outils, remarques, photos GED `workshop_procedure`), pour ce
+  modèle-année ou tout le modèle ; ensuite affiché dans le même pas à pas (`ProcedureView`, en-tête « Mode opératoire de
+  l'atelier » + auteur + date + version). Ducati passe toujours avant. Tables `workshop_procedures` /
+  `workshop_procedure_versions` (versions append-only), écriture par `workshop_procedure_save` (chef d'atelier, admin,
+  mécanicien ; events), lecture `workshop_procedures_for_or`. Fichiers `journey/workshop-procedure-*.ts(x)`.
 - **Mon atelier** ne fait plus que lister : chaque carte ouvre le dossier à la bonne étape (Démarrer, photos et parcours
   sont dans le dossier). Le planning, la liste des OR et le nouvel OR mènent au dossier.
 - **Emplacement C2** : `dossier/labels-link.tsx` (lien des étiquettes de destination, vide tant que C2 n'est pas livré).

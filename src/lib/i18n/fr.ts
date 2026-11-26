@@ -26,6 +26,7 @@ import { partPathFr, partsFlowFr } from './chemin-pieces';
 import { pointsVrFr } from './points-vr';
 import { designTransverseFr } from './design-transverse';
 import { vehicleKitFr } from './kit-fiche-moto';
+import { dueOpsFr, ownProcFr } from './mode-operatoire-atelier';
 
 export const fr = {
   app: {
@@ -9513,6 +9514,9 @@ export const fr = {
   designTransverse: designTransverseFr,
   // Fiche moto : pieces du kit d'entretien (ATE014, 26/11/2026).
   vehicleKit: vehicleKitFr,
+  // Parcours : operations a echeance et mode operatoire de l'atelier (ATE014, 26/11/2026).
+  dueOps: dueOpsFr,
+  ownProc: ownProcFr,
 } as const;
 
 export type Dictionary = typeof fr;

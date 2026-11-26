@@ -17,7 +17,7 @@ import { t } from '@/lib/i18n';
 import { fill } from '@/modules/catalog/format';
 import { serviceLabelKey, type ServiceCode } from '../service-code';
 import { getKitDetail, type KitDetailLine } from './api';
-import { serviceKitRows } from './kit-from-appointment';
+import { dueKitRows } from './kit-from-appointment';
 import { availableQty, defaultServiceForDue, distinctKitIds, kitQtyLabel, serviceChoices } from './vehicle-kit-rules';
 
 type Props = { vehicleId: string; modelYearId: string | null; dueKind: string | null };
@@ -30,11 +30,13 @@ export function VehicleKitPanel({ vehicleId, modelYearId, dueKind }: Props) {
 
   const rowsQ = useQuery({
     queryKey: ['vehicle-kit', vehicleId, service],
-    queryFn: () => serviceKitRows(vehicleId, service),
+    // ATE014 : sans les pieces des operations pas a echeance (memes lignes que l'OR cree depuis un RDV).
+    queryFn: () => dueKitRows(vehicleId, service),
     enabled: open && !!modelYearId,
     retry: false,
   });
-  const rows = rowsQ.data ?? [];
+  const rows = rowsQ.data?.kept ?? [];
+  const dropped = rowsQ.data?.dropped ?? [];
   const kitIds = distinctKitIds(rows);
   const stockQ = useQuery({
     queryKey: ['vehicle-kit-stock', ...kitIds],
@@ -120,6 +122,9 @@ export function VehicleKitPanel({ vehicleId, modelYearId, dueKind }: Props) {
                   </table>
                 </div>
               )}
+            {dropped.length > 0 && (
+              <p className="text-[12px] text-muted-foreground">{fill(t('dueOps.kitDropped'), { items: dropped.map((d) => d.row.designation).join(', ') })}</p>
+            )}
             <p className="text-[12px] text-muted-foreground">{t('vehicleKit.hint')}</p>
           </>
         )}
