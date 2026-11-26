@@ -45,15 +45,27 @@ type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknow
 // le `.catch(() => [])` du planning : l'OR ne recevait jamais les lignes du kit (Q49).
 const rpc = supabase.rpc.bind(supabase) as unknown as Rpc;
 
-type KitLineRow = { article_id: string | null; reference: string | null; designation: string; quantity: number | string };
+export type ServiceKitRow = {
+  kit_item_id: string | null; kit_id: string | null; article_id: string | null; reference: string | null;
+  designation: string; quantity: number | string; unit: string | null; kind: string | null; sort_order: number | null;
+};
+
+/**
+ * Le kit d'entretien de la moto pour cet entretien, tel que `workshop_service_kit_lines` le choisit et
+ * le fusionne. Seule lecture du kit d'une moto : l'OR cree depuis le RDV et la fiche moto (ATE014)
+ * passent par ici, donc meme resultat. Leve l'erreur de la base.
+ */
+export async function serviceKitRows(vehicleId: string, serviceCode: ServiceCode): Promise<ServiceKitRow[]> {
+  const { data, error } = await rpc('workshop_service_kit_lines', { _vehicle: vehicleId, _service: serviceCode });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ServiceKitRow[];
+}
 
 /** Lignes d'OR du kit d'entretien de la moto pour cet entretien (vide si rien a inserer). */
 export async function serviceKitOrLines(p: {
   companyId: string; vehicleId: string; serviceCode: ServiceCode; contactId: string | null;
 }): Promise<RoLineInput[]> {
-  const { data, error } = await rpc('workshop_service_kit_lines', { _vehicle: p.vehicleId, _service: p.serviceCode });
-  if (error) return [];
-  const rows = (data ?? []) as KitLineRow[];
+  const rows = await serviceKitRows(p.vehicleId, p.serviceCode).catch(() => [] as ServiceKitRow[]);
   if (!rows.length) return [];
   const components: KitComponent[] = rows.map((r) => ({
     articleId: r.article_id, reference: r.reference, designation: r.designation, quantity: Number(r.quantity) || 0,

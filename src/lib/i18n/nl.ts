@@ -25,6 +25,7 @@ import { productionNl } from './production';
 import { partPathNl, partsFlowNl } from './chemin-pieces';
 import { pointsVrNl } from './points-vr';
 import { designTransverseNl } from './design-transverse';
+import { vehicleKitNl } from './kit-fiche-moto';
 
 export const nl: DictionaryShape = {
   app: {
@@ -9489,4 +9490,6 @@ export const nl: DictionaryShape = {
   partsFlow: partsFlowNl,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseNl,
+  // Fiche moto : pieces du kit d'entretien (ATE014, 26/11/2026).
+  vehicleKit: vehicleKitNl,
 };

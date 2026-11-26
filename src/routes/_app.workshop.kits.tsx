@@ -9,12 +9,17 @@ import { t, pageTitle } from '@/lib/i18n';
 /** Kits de pièces d'entretien par famille de moteur (mission 07, carte 2, M-20, ATE013). */
 export const Route = createFileRoute('/_app/workshop/kits')({
   head: () => ({ meta: [{ title: pageTitle('workshopKits') }] }),
+  // `?kit=<id>` : ouvre ce kit (lien « Ouvrir le kit » de la fiche moto, ATE014).
+  validateSearch: (s: Record<string, unknown>): { kit?: string } => ({
+    kit: typeof s.kit === 'string' && s.kit ? s.kit : undefined,
+  }),
   component: KitsPage,
 });
 
 function KitsPage() {
   const navigate = useNavigate();
   const { activeCompanyId } = useAuth();
+  const { kit } = Route.useSearch();
   return (
     <>
       <PageHeader
@@ -30,7 +35,7 @@ function KitsPage() {
           </div>
         }
       />
-      {activeCompanyId ? <KitsScreen companyId={activeCompanyId} /> : null}
+      {activeCompanyId ? <KitsScreen companyId={activeCompanyId} initialKitId={kit ?? null} /> : null}
     </>
   );
 }

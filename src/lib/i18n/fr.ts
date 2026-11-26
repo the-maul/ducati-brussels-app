@@ -25,6 +25,7 @@ import { productionFr } from './production';
 import { partPathFr, partsFlowFr } from './chemin-pieces';
 import { pointsVrFr } from './points-vr';
 import { designTransverseFr } from './design-transverse';
+import { vehicleKitFr } from './kit-fiche-moto';
 
 export const fr = {
   app: {
@@ -9510,6 +9511,8 @@ export const fr = {
   partsFlow: partsFlowFr,
   // Lot design transverse (20/11/2026) : bandeau societe de test, Parametres en groupes, Mise en production, Achats.
   designTransverse: designTransverseFr,
+  // Fiche moto : pieces du kit d'entretien (ATE014, 26/11/2026).
+  vehicleKit: vehicleKitFr,
 } as const;
 
 export type Dictionary = typeof fr;

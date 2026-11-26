@@ -18,6 +18,7 @@ import { fill } from '@/modules/catalog/format';
 import { getVehicleDue, isMissingSchema, recomputeVehicleDue, saveServiceDeclaration, type MaintenanceDue } from './maintenance-due-api';
 import { dueStatus } from './maintenance-due';
 import { fmtKm } from './maintenance-plans';
+import { VehicleKitPanel } from './kits/vehicle-kit-panel';
 
 type VehicleLike = { id: string; mileage?: number | null } & Record<string, unknown>;
 
@@ -126,6 +127,9 @@ export function VehicleNextServicePanel({ vehicle, companyId }: { vehicle: Vehic
           {recompute.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t('maintenance.recompute')}
         </Button>
       </div>
+
+      {/* ATE014 : les pièces du kit de l'entretien dû (et des autres), sans ouvrir de RDV ni d'OR. */}
+      <VehicleKitPanel vehicleId={vehicle.id} modelYearId={str(vehicle.ducati_model_year_id) || null} dueKind={due.data?.kind ?? null} />
 
       <div className="rounded-md border border-border bg-muted/30 p-3">
         <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{t('maintenance.clientFields')}</p>

@@ -15,7 +15,7 @@
  * Aucun mouvement de stock : un kit décrit ce qu'il faut, il ne sort rien.
  */
 import { KitSafeCorrections } from './safe-corrections';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Wrench, Plus, Trash2, RefreshCw, AlertTriangle, Search, Replace, Settings2 } from 'lucide-react';
 import { ReplaceRefDialog } from './replace-ref-dialog';
@@ -36,10 +36,11 @@ import {
 /** Garde-fou de la boucle : 2 399 modèles-années / 15 par lot = 160 lots ; on laisse de la marge. */
 const MAX_GENERATION_PASSES = 1000;
 
-export function KitsScreen({ companyId }: { companyId: string }) {
+export function KitsScreen({ companyId, initialKitId = null }: { companyId: string; initialKitId?: string | null }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialKitId);
+  useEffect(() => { if (initialKitId) setSelected(initialKitId); }, [initialKitId]);
   const [error, setError] = useState<string | null>(null);
   // Rattrapage G8 : remplacer une reference dans tous les kits et forfaits.
   const [replaceOpen, setReplaceOpen] = useState(false);
