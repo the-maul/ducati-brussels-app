@@ -32,20 +32,14 @@ export function DcsConnectorStatus() {
   if (!q.data) return null;
   const state = q.data;
   const ok = connectorOk(state);
-  // Le portail renvoie lui-même vers la page de connexion Ducati quand la session n'est pas ouverte.
-  const canOpen = state === 'none' || state === 'login';
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            onClick={() => {
-              // Rouge : un clic mène à ce qu'il faut faire (connexion DCS, nouvelle extension, ou F5).
-              if (canOpen) window.open(DCS_PORTAL_URL, '_blank', 'noopener');
-              else if (state === 'old_extension') window.location.assign('/myducati-extension.zip');
-              else if (state === 'no_extension') window.location.reload();
-            }}
+            // Rouge : un clic ouvre le DCS (sa page de connexion si la session n'est pas ouverte).
+            onClick={() => { if (!ok) window.open(DCS_PORTAL_URL, '_blank', 'noopener'); }}
             aria-label={`DCS : ${t(HINT[state])}`}
             className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[12px] font-bold ${ok ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'}`}
           >
